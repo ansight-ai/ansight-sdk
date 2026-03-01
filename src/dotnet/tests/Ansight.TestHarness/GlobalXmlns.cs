@@ -1,0 +1,2 @@
+[assembly: XmlnsDefinition("http://schemas.microsoft.com/dotnet/maui/global", "Ansight.TestHarness")]
+[assembly: XmlnsDefinition("http://schemas.microsoft.com/dotnet/maui/global", "Ansight.TestHarness.Pages")]

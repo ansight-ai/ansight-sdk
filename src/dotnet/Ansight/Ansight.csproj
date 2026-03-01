@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net9.0-android;net9.0-ios;net9.0-maccatalyst</TargetFrameworks>
+    <UseMaui>true</UseMaui>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>Ansight</AssemblyName>
+    <RootNamespace>Ansight</RootNamespace>
+    <PackageVersion>0.3.0</PackageVersion>
+
+    <!-- NuGet packaging -->
+    <IsPackable>true</IsPackable>
+    <!-- Avoid packing when referenced by app/test projects; pack explicitly when needed -->
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <PackageId>Ansight</PackageId>
+    <Authors>Matthew Robbins</Authors>
+    <Company>Matthew Robbins</Company>
+    <Product>Ansight</Product>
+    <Description>Monitor and visualise your .NET MAUIs apps memory usage and FPS at runtime. Supports Android, iOS and MacCatalyst.</Description>
+    <PackageProjectUrl>https://github.com/matthewrdev/ansight</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/matthewrdev/ansight</RepositoryUrl>
+    <PackageTags>MAUI;observability;memory;metrics;debugging;fps;telemetry;charting;mobile;android;ios;mac;maccatalyst;performance</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>ansight_small.png</PackageIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
+    <PackageReference Include="SkiaSharp.Views.Maui.Controls" Version="3.119.1" />
+    <PackageReference Include="Ansight.Native" Version="0.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\"/>
+    <None Include="..\img\ansight_small.png" Pack="true" PackagePath="\"/>
+  </ItemGroup>
+
+</Project>

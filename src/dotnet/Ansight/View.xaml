@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<Grid xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+      xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+      xmlns:local="clr-namespace:Ansight"
+      x:Class="Ansight.View"
+      RowDefinitions="Auto,Auto,Auto,*"
+      Padding="4,12,4,0">
+    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+        <HorizontalStackLayout Grid.Column="0" Spacing="8">
+            <Label x:Name="titleLabel"
+                   VerticalTextAlignment="Center"
+                   VerticalOptions="Center"
+                   Text="MEMORY OVERVIEW"
+                   FontSize="16"
+                   FontAttributes="Bold"
+                   TextColor="{x:Static local:Colors.BrandColor}"/>
+            <Label x:Name="windowLabel"
+                   VerticalTextAlignment="Center"
+                   VerticalOptions="Center"
+                   FontSize="14"
+                   TextColor="{x:Static local:Colors.BrandColorFaded}"/>
+        </HorizontalStackLayout>
+
+        <HorizontalStackLayout Grid.Column="1"
+                               Margin="0,0,6,0"
+                               HorizontalOptions="End"
+                               VerticalOptions="Center"
+                               Spacing="6">
+            <Border x:Name="snapshotActionButton"
+                    IsVisible="False"
+                    Padding="12,6"
+                    Stroke="{x:Static local:Colors.BrandColor}"
+                    BackgroundColor="{x:Static local:Colors.BrandColorFaded}"
+                    StrokeShape="RoundRectangle 10">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnSaveSnapshotTapped"/>
+                </Border.GestureRecognizers>
+                <Label x:Name="snapshotActionLabel"
+                       Text="ACTION"
+                       TextColor="White"
+                       FontAttributes="Bold"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center"/>
+            </Border>
+            <Border Padding="12,6"
+                    Stroke="{x:Static local:Colors.BrandColor}"
+                    BackgroundColor="{x:Static local:Colors.BrandColorFaded}"
+                    StrokeShape="RoundRectangle 10">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnToggleOverlayTapped"/>
+                </Border.GestureRecognizers>
+                <Label Text="OVERLAY"
+                       TextColor="White"
+                       FontAttributes="Bold"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center"/>
+            </Border>
+        </HorizontalStackLayout>
+    </Grid>
+
+    <local:ChartView Grid.Row="1" x:Name="chartView" />
+
+    <ScrollView Grid.Row="2"
+                Margin="0,8,0,8"
+                Orientation="Horizontal"
+                HorizontalScrollBarVisibility="Never"
+                VerticalScrollBarVisibility="Never">
+        <local:TagSelector x:Name="intervalSelector" />
+    </ScrollView>
+
+    <local:EventsView Grid.Row="3" x:Name="eventsView"/>
+</Grid>

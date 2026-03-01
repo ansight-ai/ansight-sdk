@@ -1,0 +1,505 @@
+#if ANDROID
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Android.App;
+using Android.Content;
+using Android.Util;
+using Android.Views;
+using Android.Widget;
+using AndroidX.RecyclerView.Widget;
+using Google.Android.Material.BottomSheet;
+using SkiaSharp.Views.Android;
+
+namespace Ansight;
+
+internal sealed class AndroidNativePresentationService : IPresentationService
+{
+    private readonly Options options;
+    private readonly IDataSink dataSink;
+    private readonly Func<Activity?> activityProvider;
+    private readonly SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
+    private BottomSheetDialog? sheet;
+    private NativeOverlayHost? overlayHost;
+
+    public AndroidNativePresentationService(Options options, IDataSink dataSink, Func<Activity?> activityProvider)
+    {
+        this.options = options ?? throw new ArgumentNullException(nameof(options));
+        this.dataSink = dataSink ?? throw new ArgumentNullException(nameof(dataSink));
+        this.activityProvider = activityProvider ?? throw new ArgumentNullException(nameof(activityProvider));
+    }
+
+    public bool IsPresentationEnabled => true;
+
+    public bool IsSheetPresented => sheet != null && sheet.IsShowing;
+
+    public bool IsOverlayPresented => overlayHost?.IsVisible == true;
+
+    public void PresentSheet()
+    {
+        var activity = activityProvider();
+        if (activity == null)
+        {
+            Logger.Error("PresentSheet failed: no current Activity registered.");
+            return;
+        }
+
+        activity.RunOnUiThread(async () =>
+        {
+            await semaphore.WaitAsync();
+            try
+            {
+                DismissSheetInternal();
+
+                sheet = new BottomSheetDialog(activity);
+                var root = BuildSheetLayout(activity);
+                sheet.SetContentView(root);
+                sheet.SetOnDismissListener(new OnDismissListener(() =>
+                {
+                    CleanupSheet(root);
+                    sheet = null;
+                }));
+
+                sheet.Show();
+                ExpandSheet(sheet);
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        });
+    }
+
+    public void DismissSheet()
+    {
+        var activity = activityProvider();
+        if (activity == null)
+        {
+            return;
+        }
+
+        activity.RunOnUiThread(async () =>
+        {
+            await semaphore.WaitAsync();
+            try
+            {
+                DismissSheetInternal();
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        });
+    }
+
+    public void PresentOverlay(OverlayPosition position)
+    {
+        var activity = activityProvider();
+        if (activity == null)
+        {
+            Logger.Error("PresentOverlay failed: no current Activity registered.");
+            return;
+        }
+
+        activity.RunOnUiThread(() =>
+        {
+            overlayHost ??= new NativeOverlayHost(activity);
+            overlayHost.Show(dataSink, position);
+        });
+    }
+
+    public void DismissOverlay()
+    {
+        var activity = activityProvider();
+        if (activity == null || overlayHost == null)
+        {
+            return;
+        }
+
+        activity.RunOnUiThread(() =>
+        {
+            overlayHost.Hide();
+        });
+    }
+
+    private ViewGroup BuildSheetLayout(Activity activity)
+    {
+        var metrics = activity.Resources?.DisplayMetrics ?? new DisplayMetrics();
+        var paddingPx = (int)TypedValue.ApplyDimension(ComplexUnitType.Dip, 12, metrics);
+        var buttonPadding = (int)TypedValue.ApplyDimension(ComplexUnitType.Dip, 10, metrics);
+        var buttonCorner = (float)TypedValue.ApplyDimension(ComplexUnitType.Dip, 10, metrics);
+
+        var root = new LinearLayout(activity)
+        {
+            Orientation = Orientation.Vertical,
+            LayoutParameters = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent)
+        };
+        root.SetPadding(paddingPx, paddingPx, paddingPx, paddingPx);
+
+        var headerRow = new LinearLayout(activity)
+        {
+            Orientation = Orientation.Horizontal,
+            LayoutParameters = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent)
+        };
+        headerRow.SetGravity(GravityFlags.CenterVertical);
+
+        var title = new TextView(activity)
+        {
+            Text = "MEMORY OVERVIEW",
+            TextSize = 18f,
+            Typeface = Android.Graphics.Typeface.DefaultBold,
+            LayoutParameters = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1f)
+        };
+        headerRow.AddView(title);
+
+        Button? copyButton = null;
+        if (options.SaveSnapshotAction != null)
+        {
+            var action = options.SaveSnapshotAction;
+            copyButton = CreatePillButton(activity, action.Label, buttonPadding, buttonCorner);
+            copyButton.Text = string.IsNullOrWhiteSpace(action.Label) ? "COPY" : action.Label;
+            copyButton.Click += async (_, _) => await ExecuteSaveSnapshotAsync(dataSink, action);
+            headerRow.AddView(copyButton);
+        }
+
+        var overlayButton = CreatePillButton(activity, "OVERLAY", buttonPadding, buttonCorner);
+        overlayButton.Click += (_, _) =>
+        {
+            if (Runtime.IsChartOverlayPresented)
+            {
+                Runtime.DismissOverlay();
+            }
+            else
+            {
+                Runtime.PresentOverlay();
+            }
+        };
+        headerRow.AddView(overlayButton);
+
+        root.AddView(headerRow);
+
+        var chart = new NativeChartViewAndroid(activity)
+        {
+            LayoutParameters = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, DpToPx(activity, 220)),
+            RenderMode = ChartRenderMode.Inline,
+            WindowDuration = TimeSpan.FromSeconds(60),
+            DataSink = dataSink
+        };
+        root.AddView(chart);
+
+        var eventsList = new RecyclerView(activity)
+        {
+            LayoutParameters = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, 0, 1f)
+        };
+        var adapter = new EventAdapter(dataSink);
+        adapter.BindEvents();
+        eventsList.SetAdapter(adapter);
+        eventsList.SetLayoutManager(new LinearLayoutManager(activity));
+        root.AddView(eventsList);
+
+        return root;
+    }
+
+    private void CleanupSheet(ViewGroup root)
+    {
+        foreach (var view in root.GetChildren())
+        {
+            switch (view)
+            {
+                case NativeChartViewAndroid chart:
+                    chart.Detach();
+                    break;
+                case RecyclerView recyclerView when recyclerView.GetAdapter() is EventAdapter adapter:
+                    adapter.UnbindEvents();
+                    adapter.Dispose();
+                    recyclerView.SetAdapter(null);
+                    break;
+            }
+        }
+    }
+
+    private void DismissSheetInternal()
+    {
+        if (sheet == null)
+        {
+            return;
+        }
+
+        try
+        {
+            sheet.Dismiss();
+        }
+        catch { }
+        finally
+        {
+            sheet = null;
+        }
+    }
+
+    private static void ExpandSheet(BottomSheetDialog dialog)
+    {
+        var sheet = dialog.FindViewById(Resource.Id.design_bottom_sheet);
+        if (sheet is FrameLayout frameLayout)
+        {
+            var behavior = BottomSheetBehavior.From(frameLayout);
+            if (behavior is BottomSheetBehavior b)
+            {
+                b.State = BottomSheetBehavior.StateExpanded;
+                b.SkipCollapsed = true;
+                b.SetPeekHeight(frameLayout.Resources?.DisplayMetrics?.HeightPixels ?? 0, true);
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        DismissSheetInternal();
+        overlayHost?.Hide();
+        overlayHost = null;
+        semaphore.Dispose();
+    }
+
+    private static int DpToPx(Context context, float dp) =>
+        (int)TypedValue.ApplyDimension(ComplexUnitType.Dip, dp, context.Resources?.DisplayMetrics);
+
+    private static Button CreatePillButton(Context context, string text, int paddingPx, float cornerRadiusPx)
+    {
+        var button = new Button(context)
+        {
+            Text = text,
+            TextSize = 14f,
+            Typeface = Android.Graphics.Typeface.DefaultBold,
+            LayoutParameters = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WrapContent, ViewGroup.LayoutParams.WrapContent)
+        };
+        button.SetTextColor(Android.Graphics.Color.White);
+        var drawable = new Android.Graphics.Drawables.GradientDrawable();
+        drawable.SetColor(ToColor(Constants.BrandColor_Faded));
+        drawable.SetCornerRadius(cornerRadiusPx);
+        button.Background = drawable;
+        button.SetPadding(paddingPx, paddingPx / 2, paddingPx, paddingPx / 2);
+        return button;
+    }
+
+    private static async Task ExecuteSaveSnapshotAsync(IDataSink dataSink, SaveSnapshotAction action)
+    {
+        try
+        {
+            var snapshot = dataSink.Snapshot();
+            await action.CopyDelegate(snapshot);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("Failed to execute save snapshot action.");
+            Logger.Exception(ex);
+        }
+    }
+
+    private static Android.Graphics.Color ToColor(Color color) =>
+        Android.Graphics.Color.Argb(color.Alpha, color.Red, color.Green, color.Blue);
+
+    private sealed class OnDismissListener : Java.Lang.Object, IDialogInterfaceOnDismissListener
+    {
+        private readonly Action callback;
+        public OnDismissListener(Action callback) => this.callback = callback;
+        public void OnDismiss(IDialogInterface? dialog) => callback();
+    }
+}
+
+internal sealed class NativeOverlayHost
+{
+    private readonly Activity activity;
+    private NativeChartViewAndroid? chart;
+
+    public NativeOverlayHost(Activity activity) => this.activity = activity;
+
+    public bool IsVisible { get; private set; }
+
+    public void Show(IDataSink sink, OverlayPosition position)
+    {
+        chart ??= new NativeChartViewAndroid(activity)
+        {
+            RenderMode = ChartRenderMode.Overlay,
+            WindowDuration = TimeSpan.FromMinutes(1)
+        };
+        chart.Enabled = false;
+        chart.DataSink = sink;
+
+        var decor = activity.Window?.DecorView as ViewGroup;
+        if (decor == null)
+        {
+            return;
+        }
+
+        if (chart.Parent is ViewGroup parent)
+        {
+            parent.RemoveView(chart);
+        }
+
+        var lp = new FrameLayout.LayoutParams(DpToPx(activity, 320), DpToPx(activity, 180))
+        {
+            Gravity = ToGravity(position),
+            LeftMargin = DpToPx(activity, 12),
+            RightMargin = DpToPx(activity, 12),
+            TopMargin = DpToPx(activity, 12),
+            BottomMargin = DpToPx(activity, 12),
+        };
+
+        decor.AddView(chart, lp);
+        chart.BringToFront();
+        chart.LayoutParameters = lp;
+        chart.RequestLayout();
+        IsVisible = true;
+    }
+
+    public void Hide()
+    {
+        if (chart?.Parent is ViewGroup parent)
+        {
+            parent.RemoveView(chart);
+        }
+        IsVisible = false;
+    }
+
+    private static int DpToPx(Context context, float dp) =>
+        (int)TypedValue.ApplyDimension(ComplexUnitType.Dip, dp, context.Resources?.DisplayMetrics);
+
+    private static GravityFlags ToGravity(OverlayPosition position) => position switch
+    {
+        OverlayPosition.TopLeft => GravityFlags.Top | GravityFlags.Left,
+        OverlayPosition.TopRight => GravityFlags.Top | GravityFlags.Right,
+        OverlayPosition.BottomLeft => GravityFlags.Bottom | GravityFlags.Left,
+        _ => GravityFlags.Bottom | GravityFlags.Right
+    };
+
+}
+
+internal sealed class EventAdapter : RecyclerView.Adapter, IDisposable
+{
+    private readonly IDataSink sink;
+    private List<AppEventDisplay> cached = new();
+
+    public EventAdapter(IDataSink sink)
+    {
+        this.sink = sink;
+    }
+
+    public void BindEvents()
+    {
+        UnbindEvents();
+        sink.OnEventsUpdated += OnEventsUpdated;
+        Refresh();
+    }
+
+    public void UnbindEvents()
+    {
+        sink.OnEventsUpdated -= OnEventsUpdated;
+    }
+
+    private void OnEventsUpdated(object? sender, AppEventsUpdatedEventArgs e) => Refresh();
+
+    private void Refresh()
+    {
+        var channelLookup = sink.Channels?.ToDictionary(c => c.Id) ?? new Dictionary<byte, Channel>();
+        cached = sink.Events
+                     .OrderByDescending(e => e.CapturedAtUtc)
+                     .Take(50)
+                     .Select(e => new AppEventDisplay
+                     {
+                         Label = e.Label,
+                         Symbol = AppEventLegend.GetSymbol(e.Type),
+                         ChannelColor = channelLookup.TryGetValue(e.Channel, out var channel) ? channel.Color : new Color(0, 0, 0),
+                         Details = e.Details,
+                         HasDetails = !string.IsNullOrWhiteSpace(e.Details),
+                         Timestamp = e.CapturedAtUtc.ToLocalTime().ToString("HH:mm:ss")
+                     })
+                     .ToList();
+
+        NotifyDataSetChanged();
+    }
+
+    public override int ItemCount => cached.Count;
+
+    public override void OnBindViewHolder(RecyclerView.ViewHolder holder, int position)
+    {
+        if (holder is EventViewHolder vh && position < cached.Count)
+        {
+            vh.Bind(cached[position]);
+        }
+    }
+
+    public void Dispose()
+    {
+        UnbindEvents();
+    }
+
+    public override RecyclerView.ViewHolder OnCreateViewHolder(ViewGroup parent, int viewType)
+    {
+        var ctx = parent.Context;
+        var root = new LinearLayout(ctx)
+        {
+            Orientation = Orientation.Vertical,
+            LayoutParameters = new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent)
+        };
+        var symbol = new TextView(ctx) { TextSize = 18 };
+        var title = new TextView(ctx) { TextSize = 16, Typeface = Android.Graphics.Typeface.DefaultBold };
+        var details = new TextView(ctx) { TextSize = 14 };
+        var timestamp = new TextView(ctx) { TextSize = 12 };
+
+        root.AddView(symbol);
+        root.AddView(title);
+        root.AddView(details);
+        root.AddView(timestamp);
+
+        return new EventViewHolder(root, title, details, timestamp, symbol);
+    }
+
+    private sealed class EventViewHolder : RecyclerView.ViewHolder
+    {
+        private readonly TextView title;
+        private readonly TextView details;
+        private readonly TextView timestamp;
+        private readonly TextView symbol;
+
+        public EventViewHolder(View itemView, TextView title, TextView details, TextView timestamp, TextView symbol) : base(itemView)
+        {
+            this.title = title;
+            this.details = details;
+            this.timestamp = timestamp;
+            this.symbol = symbol;
+        }
+
+        public void Bind(AppEventDisplay display)
+        {
+            title.Text = display.Label;
+            details.Text = display.Details;
+            details.Visibility = display.HasDetails ? ViewStates.Visible : ViewStates.Gone;
+            timestamp.Text = display.Timestamp;
+            symbol.Text = display.Symbol;
+        }
+    }
+}
+
+internal static class ViewGroupExtensions
+{
+    public static IEnumerable<View> GetChildren(this ViewGroup viewGroup)
+    {
+        for (int i = 0; i < viewGroup.ChildCount; i++)
+        {
+            var child = viewGroup.GetChildAt(i);
+            if (child != null)
+            {
+                yield return child;
+                if (child is ViewGroup vg)
+                {
+                    foreach (var nested in vg.GetChildren())
+                    {
+                        yield return nested;
+                    }
+                }
+            }
+        }
+    }
+}
+#endif

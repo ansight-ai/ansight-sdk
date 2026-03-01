@@ -1,0 +1,393 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:ansight="clr-namespace:Ansight;assembly=Ansight"
+             x:Class="Ansight.TestHarness.MainPage">
+
+    <ContentPage.Resources>
+        <ResourceDictionary>
+            <Style TargetType="Button">
+                <Setter Property="TextColor">
+                    <Setter.Value>
+                        <OnPlatform x:TypeArguments="Color"
+                                    Default="White">
+                            <On Platform="MacCatalyst" Value="Black"/>
+                        </OnPlatform>
+                    </Setter.Value>
+                </Setter>
+                <Setter Property="FontAttributes" Value="Bold" />
+                <Setter Property="BackgroundColor" Value="#FA431F" />
+                <Setter Property="CornerRadius" Value="10" />
+                <Setter Property="Padding" Value="14,10" />
+                <Setter Property="VisualStateManager.VisualStateGroups">
+                    <VisualStateGroupList>
+                        <VisualStateGroup x:Name="CommonStates">
+                            <VisualState x:Name="Normal">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="#FA431F"/>
+                                </VisualState.Setters>
+                            </VisualState>
+                            <VisualState x:Name="PointerOver">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="#D93A1B"/>
+                                </VisualState.Setters>
+                            </VisualState>
+                            <VisualState x:Name="Pressed">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="#B52F16"/>
+                                </VisualState.Setters>
+                            </VisualState>
+                            <VisualState x:Name="Disabled">
+                                <VisualState.Setters>
+                                    <Setter Property="TextColor" Value="#d3d3d3"/>
+                                    <Setter Property="BackgroundColor" Value="#F4A090"/>
+                                </VisualState.Setters>
+                            </VisualState>
+                        </VisualStateGroup>
+                    </VisualStateGroupList>
+                </Setter>
+            </Style>
+        </ResourceDictionary>
+    </ContentPage.Resources>
+
+    <Grid>
+        <ScrollView>
+            <VerticalStackLayout
+                Padding="24,16"
+                Spacing="18">
+                
+                <Label
+                    Text="Ansight Test Harness"
+                    Style="{StaticResource Headline}"
+                    SemanticProperties.HeadingLevel="Level1" />
+                
+                <Label
+                    x:Name="StatusLabel"
+                    Text="Ansight runtime is inactive"
+                    FontSize="14"
+                    TextColor="#444444" />
+
+                <Border Stroke="#dcdcdc"
+                        StrokeThickness="1"
+                        BackgroundColor="#ffffff"
+                        Padding="14,12">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="12"/>
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Runtime controls"
+                               FontAttributes="Bold"
+                               FontSize="16"
+                               TextColor="#111111"/>
+                        <Label Text="Toggle sampling and present Ansight surfaces."
+                               FontSize="12"
+                               TextColor="#666666"/>
+                        
+                        <FlexLayout Direction="Row"
+                                    Wrap="Wrap"
+                                    JustifyContent="Start"
+                                    AlignItems="Center"
+                                    AlignContent="Start">
+                            <Button Text="Activate" Clicked="OnActivateClicked" Margin="0,0,10,10"/>
+                            <Button Text="Deactivate" Clicked="OnDeactivateClicked" Margin="0,0,10,10"/>
+                            <Button Text="Trigger .NET GC" Clicked="OnTriggerGcClicked" Margin="0,0,10,10"/>
+                        </FlexLayout>
+
+                        <FlexLayout Direction="Row"
+                                    Wrap="Wrap"
+                                    JustifyContent="Start"
+                                    AlignItems="Center"
+                                    AlignContent="Start">
+                            <Button Text="Present sheet" Clicked="OnPresentSheetClicked" Margin="0,0,10,10"/>
+                            <Button Text="Toggle chart overlay" Clicked="OnPresentChartOverlayClicked" Margin="0,0,10,10"/>
+                            <Button Text="Dismiss overlays" Clicked="OnDismissClicked" Margin="0,0,10,10"/>
+                        </FlexLayout>
+
+                        <FlexLayout Direction="Row"
+                                    Wrap="Wrap"
+                                    JustifyContent="Start"
+                                    AlignItems="Center"
+                                    AlignContent="Start">
+                            <Button Text="Overlay top-left" Clicked="OnOverlayTopLeftClicked" Margin="0,0,10,10"/>
+                            <Button Text="Overlay top-right" Clicked="OnOverlayTopRightClicked" Margin="0,0,10,10"/>
+                            <Button Text="Overlay bottom-left" Clicked="OnOverlayBottomLeftClicked" Margin="0,0,10,10"/>
+                            <Button Text="Overlay bottom-right" Clicked="OnOverlayBottomRightClicked" Margin="0,0,10,10"/>
+                        </FlexLayout>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Stroke="#dcdcdc"
+                        StrokeThickness="1"
+                        BackgroundColor="#ffffff"
+                        Padding="14,12">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="12"/>
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Shake predicate"
+                               FontAttributes="Bold"
+                               FontSize="16"
+                               TextColor="#111111"/>
+                        <Label Text="Shake detection fires only when both tokens match."
+                               FontSize="12"
+                               TextColor="#666666"/>
+                        <Label x:Name="ShakePredicateStatusLabel"
+                               FontSize="12"
+                               TextColor="#444444"/>
+                        <Entry x:Name="ShakePredicateCodeOneEntry"
+                               Placeholder="Token A"
+                               ClearButtonVisibility="WhileEditing"
+                               TextChanged="OnShakePredicateCodeOneChanged"/>
+                        <Entry x:Name="ShakePredicateCodeTwoEntry"
+                               Placeholder="Token B"
+                               ClearButtonVisibility="WhileEditing"
+                               TextChanged="OnShakePredicateCodeTwoChanged"/>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Stroke="#dcdcdc"
+                        StrokeThickness="1"
+                        BackgroundColor="#ffffff"
+                        Padding="14,12">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="12"/>
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="FPS controls"
+                               FontAttributes="Bold"
+                               FontSize="16"
+                               TextColor="#111111"/>
+                        <Label Text="Toggle FPS tracking and simulate deliberate frame drops for testing."
+                               FontSize="12"
+                               TextColor="#666666"/>
+
+                        <FlexLayout Direction="Row"
+                                    Wrap="Wrap"
+                                    JustifyContent="Start"
+                                    AlignItems="Center"
+                                    AlignContent="Start">
+                            <Button Text="Enable FPS" Clicked="OnEnableFpsClicked" Margin="0,0,10,10"/>
+                            <Button Text="Disable FPS" Clicked="OnDisableFpsClicked" Margin="0,0,10,10"/>
+                        </FlexLayout>
+
+                        <FlexLayout Direction="Row"
+                                    Wrap="Wrap"
+                                    JustifyContent="Start"
+                                    AlignItems="Center"
+                                    AlignContent="Start">
+                            <Button Text="Low FPS drop" Clicked="OnLowFrameDropClicked" Margin="0,0,10,10"/>
+                            <Button Text="Medium FPS drop" Clicked="OnMediumFrameDropClicked" Margin="0,0,10,10"/>
+                            <Button Text="Heavy FPS drop" Clicked="OnHeavyFrameDropClicked" Margin="0,0,10,10"/>
+                            <Button Text="Extreme FPS drop" Clicked="OnExtremeFrameDropClicked" Margin="0,0,10,10"/>
+                            <Button Text="Stop FPS drop" Clicked="OnStopFrameDropClicked" Margin="0,0,10,10"/>
+                        </FlexLayout>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Stroke="#dcdcdc"
+                        StrokeThickness="1"
+                        BackgroundColor="#ffffff"
+                        Padding="14,12">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="12"/>
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Memory spikes"
+                               FontAttributes="Bold"
+                               FontSize="16"
+                               TextColor="#111111"/>
+                        <Label Text="Allocate temporary arrays in the CLR to exercise the sampler."
+                               FontSize="12"
+                               TextColor="#666666"/>
+                        
+                        <FlexLayout Direction="Row"
+                                    Wrap="Wrap"
+                                    JustifyContent="Start"
+                                    AlignItems="Center"
+                                    AlignContent="Start">
+                            <Button Text="Low (4 MB)" Clicked="OnLowSpikeClicked" Margin="0,0,10,10"/>
+                            <Button Text="Medium (16 MB)" Clicked="OnMediumSpikeClicked" Margin="0,0,10,10"/>
+                            <Button Text="High (48 MB)" Clicked="OnHighSpikeClicked" Margin="0,0,10,10"/>
+                            <Button Text="Extreme (96 MB)" Clicked="OnExtremeSpikeClicked" Margin="0,0,10,10"/>
+                            <Button Text="Leak large image" Clicked="OnLeakImageClicked" Margin="0,0,10,10"/>
+                            <Button Text="Release last allocation" Clicked="OnReleaseAllocationClicked" Margin="0,0,10,10"/>
+                        </FlexLayout>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Stroke="#dcdcdc"
+                        StrokeThickness="1"
+                        BackgroundColor="#ffffff"
+                        Padding="14,12">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="12"/>
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Native allocations"
+                               FontAttributes="Bold"
+                               FontSize="16"
+                               TextColor="#111111"/>
+                        <Label Text="Create Java/NSObject instances to stress native heaps."
+                               FontSize="12"
+                               TextColor="#666666"/>
+                        <FlexLayout Direction="Row"
+                                    Wrap="Wrap"
+                                    JustifyContent="Start"
+                                    AlignItems="Center"
+                                    AlignContent="Start">
+                            <Button Text="Low native" Clicked="OnLowNativeClicked" Margin="0,0,10,10"/>
+                            <Button Text="Medium native" Clicked="OnMediumNativeClicked" Margin="0,0,10,10"/>
+                            <Button Text="High native" Clicked="OnHighNativeClicked" Margin="0,0,10,10"/>
+                            <Button Text="Extreme native" Clicked="OnExtremeNativeClicked" Margin="0,0,10,10"/>
+                        </FlexLayout>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Stroke="#dcdcdc"
+                        StrokeThickness="1"
+                        BackgroundColor="#ffffff"
+                        Padding="14,12">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="12"/>
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Metrics + Events"
+                               FontAttributes="Bold"
+                               FontSize="16"
+                               TextColor="#111111"/>
+                        <Label Text="Send data to the custom channels configured for the harness."
+                               FontSize="12"
+                               TextColor="#666666"/>
+
+                        <FlexLayout Direction="Row"
+                                    Wrap="Wrap"
+                                    JustifyContent="Start"
+                                    AlignItems="Center"
+                                    AlignContent="Start">
+                            <Button Text="Record custom metric" Clicked="OnRecordCustomMetricClicked" Margin="0,0,10,10"/>
+                            <Button Text="Record custom event" Clicked="OnRecordCustomEventClicked" Margin="0,0,10,10"/>
+                        </FlexLayout>
+
+                        <FlexLayout Direction="Row"
+                                    Wrap="Wrap"
+                                    JustifyContent="Start"
+                                    AlignItems="Center"
+                                    AlignContent="Start">
+                            <Button Text="Channel detached event" Clicked="OnRecordDetachedEventClicked" Margin="0,0,10,10"/>
+                            <Button Text="Clear data" Clicked="OnClearDataClicked" Margin="0,0,10,10"/>
+                        </FlexLayout>
+                    </VerticalStackLayout>
+                </Border>
+                
+                <Border Stroke="#dcdcdc"
+                        StrokeThickness="1"
+                        BackgroundColor="#ffffff"
+                        Padding="14,12">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="12"/>
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Event rendering"
+                               FontAttributes="Bold"
+                               FontSize="16"
+                               TextColor="#111111"/>
+                        <Label Text="Toggle how event markers appear on the chart."
+                               FontSize="12"
+                               TextColor="#666666"/>
+                        <Label x:Name="EventRenderingStatusLabel"
+                               FontSize="12"
+                               TextColor="#444444"/>
+                        <FlexLayout Direction="Row"
+                                    Wrap="Wrap"
+                                    JustifyContent="Start"
+                                    AlignItems="Center"
+                                    AlignContent="Start">
+                            <Button Text="Labels + icons" Clicked="OnEventLabelsAndIconsClicked" Margin="0,0,10,10"/>
+                            <Button Text="Icons only" Clicked="OnEventIconsOnlyClicked" Margin="0,0,10,10"/>
+                            <Button Text="Hide events" Clicked="OnEventHiddenClicked" Margin="0,0,10,10"/>
+                        </FlexLayout>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Stroke="#dcdcdc"
+                        StrokeThickness="1"
+                        BackgroundColor="#ffffff"
+                        Padding="14,12">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="12"/>
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Chart theme"
+                               FontAttributes="Bold"
+                               FontSize="16"
+                               TextColor="#111111"/>
+                        <Label Text="Toggle between Ansight's light and dark chart themes."
+                               FontSize="12"
+                               TextColor="#666666"/>
+                        <Label x:Name="ChartThemeStatusLabel"
+                               FontSize="12"
+                               TextColor="#444444"/>
+                        <FlexLayout Direction="Row"
+                                    Wrap="Wrap"
+                                    JustifyContent="Start"
+                                    AlignItems="Center"
+                                    AlignContent="Start">
+                            <Button Text="Light theme" Clicked="OnLightThemeClicked" Margin="0,0,10,10"/>
+                            <Button Text="Dark theme" Clicked="OnDarkThemeClicked" Margin="0,0,10,10"/>
+                        </FlexLayout>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Stroke="#dcdcdc"
+                        StrokeThickness="1"
+                        BackgroundColor="#ffffff"
+                        Padding="14,12">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="12"/>
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Navigation tests"
+                               FontAttributes="Bold"
+                               FontSize="16"
+                               TextColor="#111111"/>
+                        <Label Text="Exercise navigation stack interactions while Ansight is active."
+                               FontSize="12"
+                               TextColor="#666666"/>
+
+                        <FlexLayout Direction="Row"
+                                    Wrap="Wrap"
+                                    JustifyContent="Start"
+                                    AlignItems="Center"
+                                    AlignContent="Start">
+                            <Button Text="Push test page" Clicked="OnPushNavigationPageClicked" Margin="0,0,10,10"/>
+                            <Button Text="Push modal test page" Clicked="OnPushModalPageClicked" Margin="0,0,10,10"/>
+                            <Button Text="Push leaky image page" Clicked="OnPushLeakyPageClicked" Margin="0,0,10,10"/>
+                        </FlexLayout>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Stroke="#dcdcdc"
+                        StrokeThickness="1"
+                        BackgroundColor="#ffffff"
+                        Padding="14,12">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="12"/>
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Snapshot export"
+                               FontAttributes="Bold"
+                               FontSize="16"
+                               TextColor="#111111"/>
+                        <Label Text="Copy the current snapshot (channels, metrics, events) as JSON to the clipboard."
+                               FontSize="12"
+                               TextColor="#666666"/>
+
+                        <Button Text="Copy snapshot JSON" Clicked="OnExportSnapshotClicked" Margin="0,0,10,10"/>
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+        </ScrollView>
+
+    </Grid>
+
+</ContentPage>

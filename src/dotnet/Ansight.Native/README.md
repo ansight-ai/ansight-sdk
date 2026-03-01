@@ -1,0 +1,72 @@
+# Ansight.Native — in-app performance tracker for .NET iOS, Android, and Mac Catalyst
+
+Ansight overlays live memory, FPS, and annotated events inside your app.
+
+Ansight is a powerful, lightweight tool to help you in your debugging battles.
+
+## Disclaimer ⚠️
+
+Best effort has been made for performance and correctness, but Ansight continuously snapshots memory and stores recent samples in-memory; expect a small observer effect.
+
+*Please treat Ansight’s numbers as guidance, a heuristic.*
+
+Always use the native tools and platform-specific profilers (Xcode Instruments, Android Studio profiler) or `dotnet trace` for authoritative measurements.
+
+## Quickstart
+
+Pick the host style that suits your app.
+
+### .NET for iOS, Android, and Mac Catalyst
+
+1) Provide a presentation window (Android requires an `Activity`):
+```csharp
+// Android Activity
+var options = Options.CreateBuilder()
+    .WithPresentationWindowProvider(() => this) // required on Android
+    .Build();
+
+Runtime.InitializeAndActivate(options);
+```
+
+On iOS or Mac Catalyst, the default window provider is used:
+```csharp
+Runtime.InitializeAndActivate();
+```
+
+2) Present Ansight in your UI:
+```csharp
+Runtime.PresentSheet();   // Slide-in sheet
+Runtime.PresentOverlay(); // Window overlay
+Runtime.DismissOverlay();
+```
+
+## Documentation
+
+Looking for builder options, event recording, FPS sampling, or platform-specific tips? Read the full guide at https://github.com/matthewrdev/ansight/blob/main/docs.md.
+
+## What does Ansight capture?
+
+### Android
+
+| Metric | Description + Documentation |
+|--------|-----------------------------|
+| **Resident Set Size (RSS)** | Physical RAM currently mapped into the process (Java + native + runtime), excluding swapped pages. [Android Memory Overview](https://developer.android.com/topic/performance/memory-overview#mem-anatomy) • [`/proc` reference](https://man7.org/linux/man-pages/man5/proc.5.html) |
+| **Native Heap** | Memory allocated through native allocators (`malloc`, `new`) used by the ART runtime and native libraries. [`Debug.getNativeHeapAllocatedSize`](https://developer.android.com/reference/android/os/Debug#getNativeHeapAllocatedSize) |
+| **CLR (Managed Heap)** | Managed heap consumed by the .NET/Mono runtime (GC generations, LOH, objects, metadata). [.NET GC Fundamentals](https://learn.microsoft.com/dotnet/standard/garbage-collection/fundamentals) |
+
+### iOS
+
+| Metric | Description + Documentation |
+|--------|-----------------------------|
+| **Physical Footprint (Jetsam Footprint)** | Total physical RAM attributed to the process by the kernel — the metric Jetsam uses to terminate apps. [`task_vm_info_data_t`](https://developer.apple.com/documentation/kernel/task_vm_info_data_t) • [WWDC Memory Deep Dive](https://developer.apple.com/videos/play/wwdc2018/416/) |
+| **CLR (Managed Heap)** | Managed memory used by the .NET/Mono runtime on iOS (AOT GC heap + metadata). [.NET GC Fundamentals](https://learn.microsoft.com/dotnet/standard/garbage-collection/fundamentals) |
+
+## Limitations and Known Issues
+
+### Only Supported on .NET 9 and higher
+
+Ansight is explicitly built for .NET 9+ to leverage [`Span<T>` optimisations](https://learn.microsoft.com/en-us/dotnet/api/system.span-1?view=net-9.0); earlier target frameworks are unsupported.
+
+## More
+
+Source, issues, and release notes live at https://github.com/matthewrdev/ansight.
