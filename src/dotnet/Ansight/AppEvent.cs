@@ -1,16 +1,16 @@
 namespace Ansight;
 
 /// <summary>
-/// Represents a single annotated moment in Ansight, carrying metadata used for rendering markers and event lists.
+/// Represents a single telemetry event captured by Ansight.
 /// </summary>
 public class AppEvent : IComparable<AppEvent>
 {
     public AppEvent(string label,
-                      AppEventType type,
-                      string details,
-                      DateTime capturedAtUtc,
-                      object? externalId,
-                      byte channel)
+                    AppEventType type,
+                    string details,
+                    DateTime capturedAtUtc,
+                    object? externalId,
+                    byte channel)
     {
         if (string.IsNullOrWhiteSpace(label)) throw new ArgumentException("Value cannot be null or whitespace.", nameof(label));
 
@@ -23,8 +23,8 @@ public class AppEvent : IComparable<AppEvent>
         Id = Guid.CreateVersion7();
     }
 
-    public string Label {get;}
-    
+    public string Label { get; }
+
     public AppEventType Type { get; }
 
     public string Details { get; }
@@ -32,25 +32,25 @@ public class AppEvent : IComparable<AppEvent>
     /// <summary>
     /// The date-time that this event was captured, in UTC time.
     /// </summary>
-    public DateTime CapturedAtUtc {get; }
-    
+    public DateTime CapturedAtUtc { get; }
+
     /// <summary>
     /// The internal Ansight ID of this event.
     /// </summary>
-    public Guid Id {get;}
-    
+    public Guid Id { get; }
+
     /// <summary>
     /// An optional ID that you may use to identify this event to something within the outer application.
     /// </summary>
-    public object? ExternalId { get;}
-    
+    public object? ExternalId { get; }
+
     /// <summary>
-    /// The <see cref="Channel"/> that this event is connected to.
+    /// The <see cref="Channel"/> this event is connected to.
     /// </summary>
-    public byte Channel {get;}
+    public byte Channel { get; }
 
     public int CompareTo(AppEvent? other)
     {
-        return other is null ? 1 : DateTime.Compare(CapturedAtUtc,  other.CapturedAtUtc);
+        return other is null ? 1 : DateTime.Compare(CapturedAtUtc, other.CapturedAtUtc);
     }
 }

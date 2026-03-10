@@ -11,7 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Ansight.Native\Ansight.Native.csproj" />
+    <ProjectReference Include="..\..\Ansight\Ansight.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,68 +1,33 @@
-# Ansight — in-app performance tracker for .NET MAUI
+# Ansight — telemetry sampler for .NET mobile apps
 
-Ansight overlays live memory, FPS, and annotated events inside your .NET MAUI app.
+Ansight captures runtime telemetry for .NET Android, iOS, and Mac Catalyst apps.
 
-Ansight is a powerful, lightweight tool to help you in your debugging battles.
-
-## Disclaimer ⚠️
-
-Best effort has been made for performance and correctness, but Ansight continuously snapshots memory and stores recent samples in-memory; expect a small observer effect.
-
-*Please treat Ansight’s numbers as guidance, a heuristic.*
-
-Always use the native tools and platform-specific profilers (Xcode Instruments, Android Studio profiler) or `dotnet trace` for authoritative measurements.
+It samples memory and optional FPS, stores recent samples in-memory, and exposes them through `IDataSink`.
 
 ## Quickstart
 
-Install the package and hook Ansight into your MAUI app startup.
-
-### Setup
-
-Android requires a window provider, so Ansight can attach its overlay to the current activity.
-
 ```csharp
-// MauiProgram.cs
 using Ansight;
 
-var ansightOptions = Options.CreateBuilder()
-  .WithMauiWindowProvider() // supplies the current Activity on Android
-  .Build();
+var options = Options.CreateBuilder()
+    .WithFramesPerSecond()
+    .Build();
 
-var builder = MauiApp.CreateBuilder()
-  .UseMauiApp<App>()
-  .UseAnsightAndActivate(ansightOptions); // or .UseAnsight(ansightOptions) then Runtime.Activate()
+Runtime.InitializeAndActivate(options);
+
+Runtime.Metric(123, channel: 10);
+Runtime.Event("network_request_started");
 ```
 
-### Present Ansight
+## Data access
 
 ```csharp
-Runtime.PresentSheet();   // Slide-in sheet
-Runtime.PresentOverlay(); // Window overlay
-Runtime.DismissOverlay();
+var sink = Runtime.Instance.DataSink;
+var allMetrics = sink.Metrics;
+var allEvents = sink.Events;
 ```
 
-## Documentation
+## Notes
 
-Looking for builder options, event recording, FPS sampling, or platform-specific tips? Read the full guide at https://github.com/matthewrdev/ansight/blob/main/docs.md.
-
-## What does Ansight capture?
-
-Ansight surfaces platform-native memory metrics and managed heap usage across Android, iOS, and Mac Catalyst. See the docs for details and references.
-
-## Using .NET Native?
-
-Please install and use the [Ansight.Native](https://www.nuget.org/packages/Ansight.Native/) NuGet package.
-
-## Limitations and Known Issues
-
-### Modal Pages
-
-`WindowOverlay` attaches to the root window, so modal pages can obscure the overlay. Use the slide-in sheet (`PresentSheet`) for modal-heavy flows.
-
-### Only Supported on .NET 9 and higher
-
-Ansight is explicitly built for .NET 9+ to leverage [`Span<T>` optimisations](https://learn.microsoft.com/en-us/dotnet/api/system.span-1?view=net-9.0) and [MAUI native embedding](https://learn.microsoft.com/en-us/dotnet/maui/whats-new/dotnet-9?view=net-maui-10.0&utm_source=chatgpt.com#native-embedding); earlier target frameworks are unsupported.
-
-## More
-
-Source, issues, and release notes live at https://github.com/matthewrdev/ansight/.
+- Ansight is best-effort telemetry and has observer overhead.
+- Use platform profilers for authoritative measurements.

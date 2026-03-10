@@ -1,7 +1,8 @@
+using System.Drawing;
 namespace Ansight;
 
 /// <summary>
-/// Defines a metric/event channel rendered by Ansight, including its display name and colour.
+/// Defines a metric/event channel used by Ansight.
 /// </summary>
 public class Channel
 {
@@ -17,14 +18,14 @@ public class Channel
     /// Numeric identifier for the channel; reserved IDs are defined in <see cref="Constants.ReservedChannels"/>.
     /// </summary>
     public byte Id { get; }
-    
+
     /// <summary>
-    /// Human-readable channel label shown in the UI.
+    /// Human-readable channel label.
     /// </summary>
     public string Name { get; }
-    
+
     /// <summary>
-    /// Colour used when rendering the channel.
+    /// Optional display color metadata associated with the channel.
     /// </summary>
     public Color Color { get; }
 }
