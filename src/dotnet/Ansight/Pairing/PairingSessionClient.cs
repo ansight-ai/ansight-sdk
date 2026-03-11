@@ -4,13 +4,26 @@ using System.Net.WebSockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Ansight;
 
 namespace Ansight.Pairing;
 
 public sealed class PairingSessionClient : IDisposable
 {
+    private const int MaxMetricsBatchSize = 160;
+    private const int MaxPendingMetrics = 2000;
+
     private ClientWebSocket? _webSocket;
     private ConnectResponse? _connectResponse;
+    private readonly SemaphoreSlim _sendLock = new(1, 1);
+    private readonly SemaphoreSlim _metricsSignal = new(0);
+    private readonly Lock _metricsLock = new();
+    private readonly List<Metric> _pendingMetrics = [];
+    private readonly HashSet<byte> _announcedMetricChannels = [];
+    private IDataSink? _metricsDataSink;
+    private EventHandler<MetricsUpdatedEventArgs>? _metricsUpdatedHandler;
+    private CancellationTokenSource? _metricsPumpCts;
+    private Task? _metricsPumpTask;
     private bool _disposed;
 
     public bool TryParseAndValidateConfig(string configJson, string? expectedAppId, out PairingConfig? config, out string error)
@@ -182,20 +195,28 @@ public sealed class PairingSessionClient : IDisposable
 
         try
         {
-            using var sendTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            sendTimeout.CancelAfter(TimeSpan.FromSeconds(10));
-            await SendTextAsync(webSocket, payload, sendTimeout.Token);
-            progress?.Report($"WS -> {payload}");
-
-            using var ackTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            ackTimeout.CancelAfter(TimeSpan.FromSeconds(15));
-            var hostAck = await ReceiveTextAsync(webSocket, ackTimeout.Token);
-            progress?.Report($"WS <- {hostAck}");
-
-            if (string.Equals(hostAck, "<close>", StringComparison.Ordinal))
+            await _sendLock.WaitAsync(cancellationToken);
+            try
             {
-                await CloseSessionAsync(CancellationToken.None);
-                return OperationResult.FromFailure("Host closed the WebSocket session.");
+                using var sendTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                sendTimeout.CancelAfter(TimeSpan.FromSeconds(10));
+                await SendTextAsync(webSocket, payload, sendTimeout.Token);
+                progress?.Report($"WS -> {payload}");
+
+                using var ackTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                ackTimeout.CancelAfter(TimeSpan.FromSeconds(15));
+                var hostAck = await ReceiveTextAsync(webSocket, ackTimeout.Token);
+                progress?.Report($"WS <- {hostAck}");
+
+                if (string.Equals(hostAck, "<close>", StringComparison.Ordinal))
+                {
+                    await CloseSessionAsync(CancellationToken.None);
+                    return OperationResult.FromFailure("Host closed the WebSocket session.");
+                }
+            }
+            finally
+            {
+                _sendLock.Release();
             }
 
             return OperationResult.FromSuccess("Log sent.");
@@ -225,15 +246,23 @@ public sealed class PairingSessionClient : IDisposable
 
         try
         {
-            using var sendTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            sendTimeout.CancelAfter(TimeSpan.FromSeconds(10));
-            await SendTextAsync(webSocket, payload, sendTimeout.Token);
-            progress?.Report($"WS -> {payload}");
+            await _sendLock.WaitAsync(cancellationToken);
+            try
+            {
+                using var sendTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                sendTimeout.CancelAfter(TimeSpan.FromSeconds(10));
+                await SendTextAsync(webSocket, payload, sendTimeout.Token);
+                progress?.Report($"WS -> {payload}");
 
-            using var ackTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            ackTimeout.CancelAfter(TimeSpan.FromSeconds(10));
-            var doneAck = await ReceiveTextAsync(webSocket, ackTimeout.Token);
-            progress?.Report($"WS <- {doneAck}");
+                using var ackTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                ackTimeout.CancelAfter(TimeSpan.FromSeconds(10));
+                var doneAck = await ReceiveTextAsync(webSocket, ackTimeout.Token);
+                progress?.Report($"WS <- {doneAck}");
+            }
+            finally
+            {
+                _sendLock.Release();
+            }
 
             await CloseSessionAsync(CancellationToken.None);
             return OperationResult.FromSuccess("Session complete.");
@@ -245,8 +274,140 @@ public sealed class PairingSessionClient : IDisposable
         }
     }
 
+    public async Task<OperationResult> StartMetricsStreamingAsync(
+        IDataSink dataSink,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(dataSink);
+
+        var webSocket = _webSocket;
+        if (webSocket is null || webSocket.State != WebSocketState.Open)
+        {
+            return OperationResult.FromFailure("WebSocket session is not open.");
+        }
+
+        await StopMetricsStreamingAsync(progress: null, CancellationToken.None);
+
+        var channels = dataSink.Channels ?? Array.Empty<Channel>();
+
+        lock (_metricsLock)
+        {
+            _pendingMetrics.Clear();
+            _announcedMetricChannels.Clear();
+        }
+
+        // Re-announce channels after clearing channel state so reconnects have a fresh map.
+        var channelAnnouncement = await SendMetricChannelDefinitionsAsync(channels, progress, cancellationToken);
+        if (!channelAnnouncement.Success)
+        {
+            return channelAnnouncement;
+        }
+
+        lock (_metricsLock)
+        {
+            _metricsDataSink = dataSink;
+        }
+
+        var seedMetrics = dataSink.Metrics
+            .OrderBy(metric => metric.CapturedAtUtc)
+            .TakeLast(MaxMetricsBatchSize)
+            .ToArray();
+
+        lock (_metricsLock)
+        {
+            _pendingMetrics.AddRange(seedMetrics);
+        }
+
+        _metricsUpdatedHandler = (_, args) =>
+        {
+            if (args.Added.Count == 0)
+            {
+                return;
+            }
+
+            lock (_metricsLock)
+            {
+                _pendingMetrics.AddRange(args.Added);
+                if (_pendingMetrics.Count > MaxPendingMetrics)
+                {
+                    _pendingMetrics.RemoveRange(0, _pendingMetrics.Count - MaxPendingMetrics);
+                }
+            }
+
+            _metricsSignal.Release();
+        };
+
+        dataSink.OnMetricsUpdated += _metricsUpdatedHandler;
+        _metricsPumpCts = new CancellationTokenSource();
+        _metricsPumpTask = Task.Run(() => RunMetricsPumpAsync(progress, _metricsPumpCts.Token));
+
+        if (seedMetrics.Length > 0)
+        {
+            _metricsSignal.Release();
+        }
+
+        progress?.Report("Metrics streaming started.");
+        return OperationResult.FromSuccess("Metrics streaming started.");
+    }
+
+    public async Task<OperationResult> StopMetricsStreamingAsync(IProgress<string>? progress, CancellationToken cancellationToken)
+    {
+        IDataSink? dataSink;
+        EventHandler<MetricsUpdatedEventArgs>? metricsUpdatedHandler;
+        Task? pumpTask;
+        CancellationTokenSource? pumpCts;
+
+        lock (_metricsLock)
+        {
+            dataSink = _metricsDataSink;
+            metricsUpdatedHandler = _metricsUpdatedHandler;
+            pumpTask = _metricsPumpTask;
+            pumpCts = _metricsPumpCts;
+            _metricsDataSink = null;
+            _metricsUpdatedHandler = null;
+            _metricsPumpTask = null;
+            _metricsPumpCts = null;
+            _pendingMetrics.Clear();
+            _announcedMetricChannels.Clear();
+        }
+
+        if (dataSink is not null && metricsUpdatedHandler is not null)
+        {
+            dataSink.OnMetricsUpdated -= metricsUpdatedHandler;
+        }
+
+        if (pumpCts is not null)
+        {
+            pumpCts.Cancel();
+        }
+
+        if (pumpTask is not null)
+        {
+            try
+            {
+                await pumpTask.WaitAsync(cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected during shutdown.
+            }
+            catch
+            {
+                // Ignore pump errors while stopping.
+            }
+        }
+
+        pumpCts?.Dispose();
+
+        progress?.Report("Metrics streaming stopped.");
+        return OperationResult.FromSuccess("Metrics streaming stopped.");
+    }
+
     public async Task<OperationResult> CloseSessionAsync(CancellationToken cancellationToken)
     {
+        await StopMetricsStreamingAsync(progress: null, CancellationToken.None);
+
         var webSocket = _webSocket;
 
         _webSocket = null;
@@ -277,6 +438,178 @@ public sealed class PairingSessionClient : IDisposable
 
         return OperationResult.FromSuccess("Session disconnected.");
     }
+
+    private async Task RunMetricsPumpAsync(IProgress<string>? progress, CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                await _metricsSignal.WaitAsync(TimeSpan.FromMilliseconds(500), cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                Metric[] batch;
+                IDataSink? dataSink;
+
+                lock (_metricsLock)
+                {
+                    if (_pendingMetrics.Count == 0)
+                    {
+                        break;
+                    }
+
+                    var batchSize = Math.Min(_pendingMetrics.Count, MaxMetricsBatchSize);
+                    batch = _pendingMetrics.Take(batchSize).ToArray();
+                    _pendingMetrics.RemoveRange(0, batchSize);
+                    dataSink = _metricsDataSink;
+                }
+
+                if (batch.Length == 0)
+                {
+                    break;
+                }
+
+                if (dataSink is not null)
+                {
+                    var distinctChannelIds = batch.Select(metric => metric.Channel).Distinct().ToHashSet();
+                    var channels = dataSink.Channels
+                        .Where(channel => distinctChannelIds.Contains(channel.Id))
+                        .ToArray();
+
+                    var channelResult = await SendMetricChannelDefinitionsAsync(channels, progress, cancellationToken);
+                    if (!channelResult.Success)
+                    {
+                        progress?.Report($"Metrics streaming stopped: {channelResult.Message}");
+                        return;
+                    }
+                }
+
+                var metricsResult = await SendMetricsBatchAsync(batch, progress, cancellationToken);
+                if (!metricsResult.Success)
+                {
+                    progress?.Report($"Metrics streaming stopped: {metricsResult.Message}");
+                    return;
+                }
+            }
+        }
+    }
+
+    private async Task<OperationResult> SendMetricChannelDefinitionsAsync(
+        IReadOnlyList<Channel> channels,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        if (channels.Count == 0)
+        {
+            return OperationResult.FromSuccess("No metric channels to stream.");
+        }
+
+        Channel[] newChannels;
+        lock (_metricsLock)
+        {
+            newChannels = channels
+                .Where(channel => _announcedMetricChannels.Add(channel.Id))
+                .ToArray();
+        }
+
+        if (newChannels.Length == 0)
+        {
+            return OperationResult.FromSuccess("Metric channels already announced.");
+        }
+
+        var payload = JsonSerializer.Serialize(new
+        {
+            source = "client",
+            type = "CLIENT_METRIC_CHANNELS",
+            sentAtUtc = DateTimeOffset.UtcNow,
+            channels = newChannels.Select(channel => new
+            {
+                id = channel.Id,
+                name = channel.Name,
+                color = ToColorHex(channel.Color)
+            }).ToArray()
+        }, PairingJson.Compact);
+
+        var sendResult = await SendWithoutAcknowledgementAsync(payload, cancellationToken);
+        if (!sendResult.Success)
+        {
+            return sendResult;
+        }
+
+        progress?.Report($"WS -> announced {newChannels.Length} metric channels");
+        return OperationResult.FromSuccess("Metric channel definitions sent.");
+    }
+
+    private async Task<OperationResult> SendMetricsBatchAsync(
+        IReadOnlyList<Metric> metrics,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        if (metrics.Count == 0)
+        {
+            return OperationResult.FromSuccess("No metrics to stream.");
+        }
+
+        var payload = JsonSerializer.Serialize(new
+        {
+            source = "client",
+            type = "CLIENT_METRICS",
+            sentAtUtc = DateTimeOffset.UtcNow,
+            metrics = metrics.Select(metric => new
+            {
+                channel = metric.Channel,
+                value = metric.Value,
+                capturedAtUtc = metric.CapturedAtUtc
+            }).ToArray()
+        }, PairingJson.Compact);
+
+        var sendResult = await SendWithoutAcknowledgementAsync(payload, cancellationToken);
+        if (!sendResult.Success)
+        {
+            return sendResult;
+        }
+
+        progress?.Report($"WS -> streamed {metrics.Count} metric samples");
+        return OperationResult.FromSuccess("Metric samples sent.");
+    }
+
+    private async Task<OperationResult> SendWithoutAcknowledgementAsync(string payload, CancellationToken cancellationToken)
+    {
+        var webSocket = _webSocket;
+        if (webSocket is null || webSocket.State != WebSocketState.Open)
+        {
+            return OperationResult.FromFailure("WebSocket session is not open.");
+        }
+
+        try
+        {
+            await _sendLock.WaitAsync(cancellationToken);
+            try
+            {
+                using var sendTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                sendTimeout.CancelAfter(TimeSpan.FromSeconds(10));
+                await SendTextAsync(webSocket, payload, sendTimeout.Token);
+            }
+            finally
+            {
+                _sendLock.Release();
+            }
+
+            return OperationResult.FromSuccess("Payload sent.");
+        }
+        catch (Exception ex)
+        {
+            return OperationResult.FromFailure($"Failed to send WebSocket payload: {ex.Message}");
+        }
+    }
+
+    private static string ToColorHex(System.Drawing.Color color) => $"#{color.R:X2}{color.G:X2}{color.B:X2}";
 
     private static bool VerifyPairingConfigSignature(PairingConfig config)
     {
@@ -573,9 +906,23 @@ public sealed class PairingSessionClient : IDisposable
         }
 
         _disposed = true;
+        _metricsPumpCts?.Cancel();
+
+        if (_metricsDataSink is not null && _metricsUpdatedHandler is not null)
+        {
+            _metricsDataSink.OnMetricsUpdated -= _metricsUpdatedHandler;
+        }
+
+        _metricsPumpCts?.Dispose();
         _webSocket?.Dispose();
+        _sendLock.Dispose();
+        _metricsSignal.Dispose();
         _webSocket = null;
         _connectResponse = null;
+        _metricsDataSink = null;
+        _metricsUpdatedHandler = null;
+        _metricsPumpTask = null;
+        _metricsPumpCts = null;
     }
 }
 
