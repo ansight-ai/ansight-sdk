@@ -12,12 +12,12 @@
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageId>Ansight</PackageId>
     <PackageVersion>0.3.0</PackageVersion>
-    <Authors>Matthew Robbins</Authors>
-    <Company>Matthew Robbins</Company>
+    <Authors>Ansight AI</Authors>
+    <Company>Ansight AI</Company>
     <Product>Ansight</Product>
     <Description>Telemetry sampling for .NET Android, iOS, and Mac Catalyst apps.</Description>
-    <PackageProjectUrl>https://github.com/matthewrdev/ansight</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/matthewrdev/ansight</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/ansight-ai/ansight-sdk</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/ansight-ai/ansight-sdk</RepositoryUrl>
     <PackageTags>observability;memory;metrics;debugging;fps;telemetry;mobile;android;ios;mac;maccatalyst;performance</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
