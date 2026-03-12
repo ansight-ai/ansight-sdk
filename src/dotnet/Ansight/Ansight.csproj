@@ -29,4 +29,10 @@
     <None Include="..\img\ansight_small.png" Pack="true" PackagePath="\"/>
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Skills\Database\" />
+    <Folder Include="Skills\FileSystem\" />
+    <Folder Include="Skills\VisualTree\" />
+  </ItemGroup>
+
 </Project>
