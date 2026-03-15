@@ -8,4 +8,9 @@ public static class PairingJson
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
+
+    public static readonly JsonSerializerOptions Pretty = new(Compact)
+    {
+        WriteIndented = true
+    };
 }

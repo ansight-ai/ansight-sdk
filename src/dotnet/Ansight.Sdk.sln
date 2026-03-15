@@ -1,5 +1,8 @@
+﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ansight.Sdk", "Ansight\Ansight.csproj", "{9A1396F7-6291-414E-A735-0CEBC5BDAEA2}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ansight", "Ansight\Ansight.csproj", "{9A1396F7-6291-414E-A735-0CEBC5BDAEA2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ansight.Discovery.Multicast", "Ansight.Discovery.Multicast\Ansight.Discovery.Multicast.csproj", "{AA0366A6-6129-42D6-97C5-7839FFF08193}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -23,6 +26,18 @@ Global
 		{9A1396F7-6291-414E-A735-0CEBC5BDAEA2}.Release|x64.Build.0 = Release|Any CPU
 		{9A1396F7-6291-414E-A735-0CEBC5BDAEA2}.Release|x86.ActiveCfg = Release|Any CPU
 		{9A1396F7-6291-414E-A735-0CEBC5BDAEA2}.Release|x86.Build.0 = Release|Any CPU
+		{AA0366A6-6129-42D6-97C5-7839FFF08193}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AA0366A6-6129-42D6-97C5-7839FFF08193}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AA0366A6-6129-42D6-97C5-7839FFF08193}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{AA0366A6-6129-42D6-97C5-7839FFF08193}.Debug|x64.Build.0 = Debug|Any CPU
+		{AA0366A6-6129-42D6-97C5-7839FFF08193}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{AA0366A6-6129-42D6-97C5-7839FFF08193}.Debug|x86.Build.0 = Debug|Any CPU
+		{AA0366A6-6129-42D6-97C5-7839FFF08193}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AA0366A6-6129-42D6-97C5-7839FFF08193}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AA0366A6-6129-42D6-97C5-7839FFF08193}.Release|x64.ActiveCfg = Release|Any CPU
+		{AA0366A6-6129-42D6-97C5-7839FFF08193}.Release|x64.Build.0 = Release|Any CPU
+		{AA0366A6-6129-42D6-97C5-7839FFF08193}.Release|x86.ActiveCfg = Release|Any CPU
+		{AA0366A6-6129-42D6-97C5-7839FFF08193}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

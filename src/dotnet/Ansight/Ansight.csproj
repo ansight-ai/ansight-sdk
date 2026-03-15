@@ -22,11 +22,15 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>ansight_small.png</PackageIcon>
+    <NoWarn>$(NoWarn);NU5110;NU5111</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\"/>
     <None Include="..\img\ansight_small.png" Pack="true" PackagePath="\"/>
+    <None Include="build\Ansight.targets" Pack="true" PackagePath="buildTransitive\Ansight.targets" />
+    <None Include="build\generate-ansight-developer-pairing.sh" Pack="true" PackagePath="buildTransitive\generate-ansight-developer-pairing.sh" />
+    <None Include="build\generate-ansight-developer-pairing.ps1" Pack="true" PackagePath="buildTransitive\generate-ansight-developer-pairing.ps1" />
   </ItemGroup>
 
   <ItemGroup>

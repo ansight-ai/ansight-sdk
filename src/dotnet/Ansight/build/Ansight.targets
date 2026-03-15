@@ -1,0 +1,22 @@
+<Project>
+  <PropertyGroup>
+    <AnsightDeveloperPairingEnabled Condition="'$(AnsightDeveloperPairingEnabled)' == ''">false</AnsightDeveloperPairingEnabled>
+    <AnsightDeveloperPairingSourceFile Condition="'$(AnsightDeveloperPairingSourceFile)' == ''">$(MSBuildProjectDirectory)/ansight.json</AnsightDeveloperPairingSourceFile>
+    <AnsightDeveloperPairingOutputFile Condition="'$(AnsightDeveloperPairingOutputFile)' == ''">$(BaseIntermediateOutputPath)ansight.developer-pairing.json</AnsightDeveloperPairingOutputFile>
+  </PropertyGroup>
+
+  <Target Name="GenerateAnsightDeveloperPairing"
+          BeforeTargets="PrepareForBuild"
+          Condition="'$(AnsightDeveloperPairingEnabled)' == 'true' and Exists('$(AnsightDeveloperPairingSourceFile)') and '$(OS)' == 'Unix'">
+    <Exec Command="chmod +x &quot;$(MSBuildThisFileDirectory)generate-ansight-developer-pairing.sh&quot;" IgnoreExitCode="true" />
+    <Exec Command="&quot;$(MSBuildThisFileDirectory)generate-ansight-developer-pairing.sh&quot; &quot;$(AnsightDeveloperPairingSourceFile)&quot; &quot;$(AnsightDeveloperPairingOutputFile)&quot;"
+          IgnoreExitCode="true" />
+  </Target>
+
+  <Target Name="GenerateAnsightDeveloperPairingWindows"
+          BeforeTargets="PrepareForBuild"
+          Condition="'$(AnsightDeveloperPairingEnabled)' == 'true' and Exists('$(AnsightDeveloperPairingSourceFile)') and '$(OS)' == 'Windows_NT'">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)generate-ansight-developer-pairing.ps1&quot; -SourceFile &quot;$(AnsightDeveloperPairingSourceFile)&quot; -OutputFile &quot;$(AnsightDeveloperPairingOutputFile)&quot;"
+          IgnoreExitCode="true" />
+  </Target>
+</Project>

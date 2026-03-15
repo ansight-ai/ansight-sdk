@@ -12,23 +12,45 @@ public sealed class PairingSessionClient : IDisposable
 {
     private const int MaxMetricsBatchSize = 160;
     private const int MaxPendingMetrics = 2000;
+    private const int MaxEventsBatchSize = 160;
 
     private ClientWebSocket? _webSocket;
     private ConnectResponse? _connectResponse;
     private readonly SemaphoreSlim _sendLock = new(1, 1);
     private readonly SemaphoreSlim _metricsSignal = new(0);
+    private readonly SemaphoreSlim _eventsSignal = new(0);
     private readonly Lock _metricsLock = new();
+    private readonly Lock _eventsLock = new();
     private readonly List<Metric> _pendingMetrics = [];
+    private readonly List<AppEvent> _pendingEvents = [];
     private readonly HashSet<byte> _announcedMetricChannels = [];
+    private readonly HashSet<Guid> _pendingEventIds = [];
     private IDataSink? _metricsDataSink;
+    private IDataSink? _eventsDataSink;
     private EventHandler<MetricsUpdatedEventArgs>? _metricsUpdatedHandler;
+    private EventHandler<AppEventsUpdatedEventArgs>? _eventsUpdatedHandler;
     private CancellationTokenSource? _metricsPumpCts;
+    private CancellationTokenSource? _eventsPumpCts;
     private Task? _metricsPumpTask;
+    private Task? _eventsPumpTask;
     private bool _disposed;
+    private readonly IPairingHostDiscoveryStrategy? _hostDiscoveryStrategy;
 
-    public bool TryParseAndValidateConfig(string configJson, string? expectedAppId, out PairingConfig? config, out string error)
+    public PairingSessionClient()
+        : this(hostDiscoveryStrategy: null)
     {
-        config = null;
+    }
+
+    public PairingSessionClient(IPairingHostDiscoveryStrategy? hostDiscoveryStrategy)
+    {
+        _hostDiscoveryStrategy = hostDiscoveryStrategy;
+    }
+
+    public static PairingSessionClientBuilder CreateBuilder() => new();
+
+    public bool TryParseAndValidateDocument(string configJson, string? expectedAppId, out ParsedPairingDocument? document, out string error)
+    {
+        document = null;
 
         if (string.IsNullOrWhiteSpace(configJson))
         {
@@ -36,23 +58,30 @@ public sealed class PairingSessionClient : IDisposable
             return false;
         }
 
-        try
+        if (!TryParseDocument(configJson, out document, out error))
         {
-            config = JsonSerializer.Deserialize<PairingConfig>(configJson, PairingJson.Compact);
-        }
-        catch (Exception ex)
-        {
-            error = $"Failed to parse config JSON: {ex.Message}";
             return false;
         }
 
-        if (config is null)
+        if (document is null)
         {
-            error = "Config JSON is empty.";
+            error = "Pairing document could not be parsed.";
             return false;
         }
 
-        return TryValidateConfig(config, expectedAppId, out error);
+        return TryValidateConfig(document.Config, expectedAppId, out error);
+    }
+
+    public bool TryParseAndValidateConfig(string configJson, string? expectedAppId, out PairingConfig? config, out string error)
+    {
+        config = null;
+        if (!TryParseAndValidateDocument(configJson, expectedAppId, out var document, out error))
+        {
+            return false;
+        }
+
+        config = document!.Config;
+        return true;
     }
 
     public bool TryValidateConfig(PairingConfig config, string? expectedAppId, out string error)
@@ -84,29 +113,59 @@ public sealed class PairingSessionClient : IDisposable
         IProgress<string>? progress,
         CancellationToken cancellationToken)
     {
+        return await OpenSessionAsync(config, clientName, options: null, progress, cancellationToken);
+    }
+
+    public async Task<OpenSessionResult> OpenSessionAsync(
+        PairingConfig config,
+        string clientName,
+        PairingConnectionOptions? options,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
         await CloseSessionAsync(CancellationToken.None);
 
         progress?.Report($"Config validated. ConfigId: {config.ConfigId}");
 
-        using var discoverTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        discoverTimeout.CancelAfter(TimeSpan.FromSeconds(8));
+        IPAddress? discoveredHostAddress;
+        var discoveryMode = options?.DiscoveryMode ?? PairingDiscoveryMode.ConfiguredStrategy;
 
-        DiscoveredHost? discoveredHost;
-        try
+        if (discoveryMode == PairingDiscoveryMode.BasicManual)
         {
-            discoveredHost = await DiscoverHostAsync(config, discoverTimeout.Token);
+            if (!TryResolveManualHostAddress(options?.ManualHostAddress, out var manualHostAddress))
+            {
+                return OpenSessionResult.FromFailure("Basic manual discovery requires a valid host IP address.");
+            }
+
+            progress?.Report($"Using manual host address: {manualHostAddress}");
+            discoveredHostAddress = manualHostAddress!;
         }
-        catch (SocketException ex)
+        else
         {
-            return OpenSessionResult.FromFailure($"UDP discovery failed: {ex.Message}");
+            if (_hostDiscoveryStrategy is null)
+            {
+                return OpenSessionResult.FromFailure("No host discovery strategy was configured for automatic pairing.");
+            }
+
+            using var discoverTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            discoverTimeout.CancelAfter(TimeSpan.FromSeconds(8));
+
+            try
+            {
+                discoveredHostAddress = await _hostDiscoveryStrategy.DiscoverHostAsync(config, discoverTimeout.Token);
+            }
+            catch (SocketException ex)
+            {
+                return OpenSessionResult.FromFailure($"Discovery strategy failed: {ex.Message}");
+            }
         }
 
-        if (discoveredHost is null)
+        if (discoveredHostAddress is null)
         {
             return OpenSessionResult.FromFailure("No host discovered.");
         }
 
-        progress?.Report($"Discovered host at {discoveredHost.Address}:{PairingProtocolDefaults.DiscoveryPort}");
+        progress?.Report($"Discovered host at {discoveredHostAddress}:{config.Host.DiscoveryPort}");
 
         using var connectTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         connectTimeout.CancelAfter(TimeSpan.FromSeconds(5));
@@ -114,7 +173,7 @@ public sealed class PairingSessionClient : IDisposable
         ConnectResponse? connectResponse;
         try
         {
-            connectResponse = await ConnectAsync(config, clientName, discoveredHost.Address, connectTimeout.Token);
+            connectResponse = await ConnectAsync(config, clientName, discoveredHostAddress, connectTimeout.Token);
         }
         catch (SocketException ex)
         {
@@ -132,7 +191,7 @@ public sealed class PairingSessionClient : IDisposable
 
         if (!connectResponse.Accepted)
         {
-            return OpenSessionResult.FromRejected("Host rejected the connection request.", discoveredHost.Address, connectResponse);
+            return OpenSessionResult.FromRejected("Host rejected the connection request.", discoveredHostAddress, connectResponse);
         }
 
         if (connectResponse.WebSocketPort is null ||
@@ -143,7 +202,7 @@ public sealed class PairingSessionClient : IDisposable
         }
 
         var wsUri = new Uri(
-            $"ws://{discoveredHost.Address}:{connectResponse.WebSocketPort}{connectResponse.WebSocketPath}?token={Uri.EscapeDataString(connectResponse.WebSocketToken)}");
+            $"ws://{discoveredHostAddress}:{connectResponse.WebSocketPort}{connectResponse.WebSocketPath}?token={Uri.EscapeDataString(connectResponse.WebSocketToken)}");
         progress?.Report($"Opening WebSocket: {wsUri}");
 
         var connectedSocket = await ConnectWebSocketWithRetryAsync(wsUri, cancellationToken);
@@ -163,7 +222,7 @@ public sealed class PairingSessionClient : IDisposable
             _webSocket = connectedSocket;
             _connectResponse = connectResponse;
 
-            return OpenSessionResult.FromSuccess("Connected to host and WebSocket session is ready.", discoveredHost.Address, connectResponse, hostHello);
+            return OpenSessionResult.FromSuccess("Connected to host and WebSocket session is ready.", discoveredHostAddress, connectResponse, hostHello);
         }
         catch (Exception ex)
         {
@@ -297,6 +356,12 @@ public sealed class PairingSessionClient : IDisposable
             _announcedMetricChannels.Clear();
         }
 
+        lock (_eventsLock)
+        {
+            _pendingEvents.Clear();
+            _pendingEventIds.Clear();
+        }
+
         // Re-announce channels after clearing channel state so reconnects have a fresh map.
         var channelAnnouncement = await SendMetricChannelDefinitionsAsync(channels, progress, cancellationToken);
         if (!channelAnnouncement.Success)
@@ -342,13 +407,78 @@ public sealed class PairingSessionClient : IDisposable
         _metricsPumpCts = new CancellationTokenSource();
         _metricsPumpTask = Task.Run(() => RunMetricsPumpAsync(progress, _metricsPumpCts.Token));
 
+        _eventsUpdatedHandler = (_, args) =>
+        {
+            if (args.Added.Count == 0)
+            {
+                return;
+            }
+
+            var didAddAny = false;
+
+            lock (_eventsLock)
+            {
+                foreach (var @event in args.Added.OrderBy(a => a.CapturedAtUtc))
+                {
+                    if (!_pendingEventIds.Add(@event.Id))
+                    {
+                        continue;
+                    }
+
+                    _pendingEvents.Add(@event);
+                    didAddAny = true;
+                }
+            }
+
+            if (didAddAny)
+            {
+                _eventsSignal.Release();
+            }
+        };
+
+        lock (_eventsLock)
+        {
+            _eventsDataSink = dataSink;
+        }
+
+        dataSink.OnEventsUpdated += _eventsUpdatedHandler;
+        _eventsPumpCts = new CancellationTokenSource();
+        _eventsPumpTask = Task.Run(() => RunEventsPumpAsync(progress, _eventsPumpCts.Token));
+
+        var seedEvents = dataSink.Events
+            .OrderBy(@event => @event.CapturedAtUtc)
+            .ToArray();
+
+        var didSeedEvents = false;
+        if (seedEvents.Length > 0)
+        {
+            lock (_eventsLock)
+            {
+                foreach (var @event in seedEvents)
+                {
+                    if (!_pendingEventIds.Add(@event.Id))
+                    {
+                        continue;
+                    }
+
+                    _pendingEvents.Add(@event);
+                    didSeedEvents = true;
+                }
+            }
+        }
+
         if (seedMetrics.Length > 0)
         {
             _metricsSignal.Release();
         }
 
-        progress?.Report("Metrics streaming started.");
-        return OperationResult.FromSuccess("Metrics streaming started.");
+        if (didSeedEvents)
+        {
+            _eventsSignal.Release();
+        }
+
+        progress?.Report("Telemetry streaming started.");
+        return OperationResult.FromSuccess("Telemetry streaming started.");
     }
 
     public async Task<OperationResult> StopMetricsStreamingAsync(IProgress<string>? progress, CancellationToken cancellationToken)
@@ -357,6 +487,10 @@ public sealed class PairingSessionClient : IDisposable
         EventHandler<MetricsUpdatedEventArgs>? metricsUpdatedHandler;
         Task? pumpTask;
         CancellationTokenSource? pumpCts;
+        IDataSink? eventsDataSink;
+        EventHandler<AppEventsUpdatedEventArgs>? eventsUpdatedHandler;
+        Task? eventsPumpTask;
+        CancellationTokenSource? eventsPumpCts;
 
         lock (_metricsLock)
         {
@@ -372,14 +506,38 @@ public sealed class PairingSessionClient : IDisposable
             _announcedMetricChannels.Clear();
         }
 
+        lock (_eventsLock)
+        {
+            eventsDataSink = _eventsDataSink;
+            eventsUpdatedHandler = _eventsUpdatedHandler;
+            eventsPumpTask = _eventsPumpTask;
+            eventsPumpCts = _eventsPumpCts;
+            _eventsDataSink = null;
+            _eventsUpdatedHandler = null;
+            _eventsPumpTask = null;
+            _eventsPumpCts = null;
+            _pendingEvents.Clear();
+            _pendingEventIds.Clear();
+        }
+
         if (dataSink is not null && metricsUpdatedHandler is not null)
         {
             dataSink.OnMetricsUpdated -= metricsUpdatedHandler;
         }
 
+        if (eventsDataSink is not null && eventsUpdatedHandler is not null)
+        {
+            eventsDataSink.OnEventsUpdated -= eventsUpdatedHandler;
+        }
+
         if (pumpCts is not null)
         {
             pumpCts.Cancel();
+        }
+
+        if (eventsPumpCts is not null)
+        {
+            eventsPumpCts.Cancel();
         }
 
         if (pumpTask is not null)
@@ -400,8 +558,26 @@ public sealed class PairingSessionClient : IDisposable
 
         pumpCts?.Dispose();
 
-        progress?.Report("Metrics streaming stopped.");
-        return OperationResult.FromSuccess("Metrics streaming stopped.");
+        if (eventsPumpTask is not null)
+        {
+            try
+            {
+                await eventsPumpTask.WaitAsync(cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected during shutdown.
+            }
+            catch
+            {
+                // Ignore pump errors while stopping.
+            }
+        }
+
+        eventsPumpCts?.Dispose();
+
+        progress?.Report("Telemetry streaming stopped.");
+        return OperationResult.FromSuccess("Telemetry streaming stopped.");
     }
 
     public async Task<OperationResult> CloseSessionAsync(CancellationToken cancellationToken)
@@ -500,6 +676,60 @@ public sealed class PairingSessionClient : IDisposable
         }
     }
 
+    private async Task RunEventsPumpAsync(IProgress<string>? progress, CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                await _eventsSignal.WaitAsync(TimeSpan.FromMilliseconds(500), cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                AppEvent[] batch;
+
+                lock (_eventsLock)
+                {
+                    if (_pendingEvents.Count == 0)
+                    {
+                        break;
+                    }
+
+                    var batchSize = Math.Min(_pendingEvents.Count, MaxEventsBatchSize);
+                    batch = _pendingEvents.Take(batchSize).ToArray();
+                }
+
+                if (batch.Length == 0)
+                {
+                    break;
+                }
+
+                var eventsResult = await SendEventsBatchAsync(batch, progress, cancellationToken);
+                if (!eventsResult.Success)
+                {
+                    progress?.Report($"Events streaming stopped: {eventsResult.Message}");
+                    return;
+                }
+
+                lock (_eventsLock)
+                {
+                    var removeCount = Math.Min(batch.Length, _pendingEvents.Count);
+                    for (var i = 0; i < removeCount; i++)
+                    {
+                        _pendingEventIds.Remove(_pendingEvents[i].Id);
+                    }
+
+                    _pendingEvents.RemoveRange(0, removeCount);
+                }
+            }
+        }
+    }
+
     private async Task<OperationResult> SendMetricChannelDefinitionsAsync(
         IReadOnlyList<Channel> channels,
         IProgress<string>? progress,
@@ -575,8 +805,68 @@ public sealed class PairingSessionClient : IDisposable
             return sendResult;
         }
 
-        progress?.Report($"WS -> streamed {metrics.Count} metric samples");
         return OperationResult.FromSuccess("Metric samples sent.");
+    }
+
+    private async Task<OperationResult> SendEventsBatchAsync(
+        IReadOnlyList<AppEvent> events,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        if (events.Count == 0)
+        {
+            return OperationResult.FromSuccess("No events to stream.");
+        }
+
+        var payload = JsonSerializer.Serialize(new
+        {
+            source = "client",
+            type = "CLIENT_EVENTS",
+            sentAtUtc = DateTimeOffset.UtcNow,
+            events = events.Select(@event => new
+            {
+                id = @event.Id,
+                label = @event.Label,
+                eventType = @event.Type.ToString(),
+                details = @event.Details,
+                capturedAtUtc = @event.CapturedAtUtc,
+                channel = @event.Channel
+            }).ToArray()
+        }, PairingJson.Compact);
+
+        try
+        {
+            await _sendLock.WaitAsync(cancellationToken);
+            try
+            {
+                using var sendTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                sendTimeout.CancelAfter(TimeSpan.FromSeconds(10));
+                await SendTextAsync(_webSocket!, payload, sendTimeout.Token);
+                progress?.Report($"WS -> streamed {events.Count} events");
+
+                using var ackTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                ackTimeout.CancelAfter(TimeSpan.FromSeconds(15));
+                var hostAck = await ReceiveTextAsync(_webSocket!, ackTimeout.Token);
+                progress?.Report($"WS <- {hostAck}");
+
+                if (string.Equals(hostAck, "<close>", StringComparison.Ordinal))
+                {
+                    await CloseSessionAsync(CancellationToken.None);
+                    return OperationResult.FromFailure("Host closed the WebSocket session.");
+                }
+            }
+            finally
+            {
+                _sendLock.Release();
+            }
+
+            return OperationResult.FromSuccess("Event batch sent.");
+        }
+        catch (Exception ex)
+        {
+            await CloseSessionAsync(CancellationToken.None);
+            return OperationResult.FromFailure($"Failed to send events: {ex.Message}");
+        }
     }
 
     private async Task<OperationResult> SendWithoutAcknowledgementAsync(string payload, CancellationToken cancellationToken)
@@ -624,7 +914,9 @@ public sealed class PairingSessionClient : IDisposable
             var signables = new[]
             {
                 PairingCanonicalJson.SerializePairingConfigForSignature(config),
-                PairingCanonicalJson.SerializePairingConfigForSignatureWithoutHostIdentity(config)
+                PairingCanonicalJson.SerializePairingConfigForSignatureWithoutHostIdentity(config),
+                PairingCanonicalJson.SerializeLegacyPairingConfigForSignature(config),
+                PairingCanonicalJson.SerializeLegacyPairingConfigForSignatureWithoutHostIdentity(config)
             };
 
             foreach (var signable in signables)
@@ -664,34 +956,63 @@ public sealed class PairingSessionClient : IDisposable
         return true;
     }
 
-    private static bool VerifyDiscoverResponseSignature(DiscoverResponse response, string hostPubKeyBase64)
+    public bool TryParseDocument(string configJson, out ParsedPairingDocument? document, out string error)
     {
+        document = null;
+
         try
         {
-            var publicKey = Convert.FromBase64String(hostPubKeyBase64);
-            var signature = Convert.FromBase64String(response.Sig);
+            using var json = JsonDocument.Parse(configJson);
+            var root = json.RootElement;
 
-            using var hostKey = ECDsa.Create();
-            hostKey.ImportSubjectPublicKeyInfo(publicKey, out _);
-
-            var signables = new[]
+            if (root.ValueKind != JsonValueKind.Object)
             {
-                PairingCanonicalJson.SerializeDiscoverResponseForSignature(response),
-                PairingCanonicalJson.SerializeDiscoverResponseForSignatureWithoutHostIdentity(response)
-            };
-
-            foreach (var signable in signables)
-            {
-                if (hostKey.VerifyData(Encoding.UTF8.GetBytes(signable), signature, HashAlgorithmName.SHA256))
-                {
-                    return true;
-                }
+                error = "Config JSON root must be an object.";
+                return false;
             }
 
-            return false;
+            var schema = root.TryGetProperty("schema", out var schemaElement)
+                ? schemaElement.GetString()
+                : null;
+
+            if (string.Equals(schema, PairingBootstrapDocument.SchemaName, StringComparison.Ordinal))
+            {
+                var bootstrap = JsonSerializer.Deserialize<PairingBootstrapDocument>(configJson, PairingJson.Compact);
+                if (bootstrap?.PairingConfig is null)
+                {
+                    error = "Bootstrap document did not contain a pairing config.";
+                    return false;
+                }
+
+                document = new ParsedPairingDocument
+                {
+                    Config = bootstrap.PairingConfig,
+                    DiscoveryHint = bootstrap.Discovery
+                };
+
+                error = string.Empty;
+                return true;
+            }
+
+            var config = JsonSerializer.Deserialize<PairingConfig>(configJson, PairingJson.Compact);
+            if (config is null)
+            {
+                error = "Config JSON is empty.";
+                return false;
+            }
+
+            document = new ParsedPairingDocument
+            {
+                Config = config,
+                DiscoveryHint = null
+            };
+
+            error = string.Empty;
+            return true;
         }
-        catch
+        catch (Exception ex)
         {
+            error = $"Failed to parse config JSON: {ex.Message}";
             return false;
         }
     }
@@ -736,78 +1057,6 @@ public sealed class PairingSessionClient : IDisposable
         return null;
     }
 
-    private static async Task<DiscoveredHost?> DiscoverHostAsync(PairingConfig config, CancellationToken cancellationToken)
-    {
-        var nonce = PairingCrypto.CreateBase64UrlRandom(16);
-        var request = new DiscoverRequest
-        {
-            Type = "DISCOVER_REQ",
-            Ver = 1,
-            Nonce = nonce,
-            AppId = config.AppId
-        };
-
-        using var udpClient = new UdpClient(0);
-        udpClient.EnableBroadcast = true;
-
-        var requestBytes = JsonSerializer.SerializeToUtf8Bytes(request, PairingJson.Compact);
-        var targets = config.Trust.AllowLanDiscovery
-            ? new[] { IPAddress.Broadcast, IPAddress.Loopback }
-            : new[] { IPAddress.Loopback };
-
-        foreach (var target in targets)
-        {
-            await udpClient.SendAsync(requestBytes, requestBytes.Length, new IPEndPoint(target, PairingProtocolDefaults.DiscoveryPort));
-        }
-
-        while (!cancellationToken.IsCancellationRequested)
-        {
-            UdpReceiveResult receiveResult;
-            try
-            {
-                receiveResult = await udpClient.ReceiveAsync(cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-
-            DiscoverResponse? response;
-            try
-            {
-                response = JsonSerializer.Deserialize<DiscoverResponse>(receiveResult.Buffer, PairingJson.Compact);
-            }
-            catch
-            {
-                continue;
-            }
-
-            if (response is null || !string.Equals(response.Type, "DISCOVER_RESP", StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            if (!string.Equals(response.RespNonce, nonce, StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            if (!string.Equals(response.HostPubKey, config.Host.HostPubKey, StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            if (!VerifyDiscoverResponseSignature(response, config.Host.HostPubKey))
-            {
-                continue;
-            }
-
-            return new DiscoveredHost(receiveResult.RemoteEndPoint.Address);
-        }
-
-        return null;
-    }
-
     private static async Task<ConnectResponse?> ConnectAsync(
         PairingConfig config,
         string clientName,
@@ -827,7 +1076,7 @@ public sealed class PairingSessionClient : IDisposable
         };
 
         var bytes = JsonSerializer.SerializeToUtf8Bytes(request, PairingJson.Compact);
-        await udpClient.SendAsync(bytes, bytes.Length, new IPEndPoint(hostAddress, PairingProtocolDefaults.DiscoveryPort));
+        await udpClient.SendAsync(bytes, bytes.Length, new IPEndPoint(hostAddress, config.Host.DiscoveryPort));
 
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -861,6 +1110,17 @@ public sealed class PairingSessionClient : IDisposable
         }
 
         return null;
+    }
+
+    private static bool TryResolveManualHostAddress(string? manualHostAddress, out IPAddress? hostAddress)
+    {
+        hostAddress = null;
+        if (string.IsNullOrWhiteSpace(manualHostAddress))
+        {
+            return false;
+        }
+
+        return IPAddress.TryParse(manualHostAddress.Trim(), out hostAddress);
     }
 
     private static async Task SendTextAsync(ClientWebSocket webSocket, string payload, CancellationToken cancellationToken)
