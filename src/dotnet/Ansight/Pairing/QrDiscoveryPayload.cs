@@ -4,29 +4,25 @@ namespace Ansight.Pairing;
 
 public static class QrDiscoveryPayload
 {
-    public const string Schema = PairingBootstrapDocument.SchemaName;
+    public const string Schema = PairingDiscoveryHint.SchemaName;
 
-    public static PairingBootstrapDocument Create(PairingConfig config, PairingDiscoveryHint? discoveryHint)
+    public static PairingDiscoveryHint Create(PairingDiscoveryHint discoveryHint)
     {
-        ArgumentNullException.ThrowIfNull(config);
+        ArgumentNullException.ThrowIfNull(discoveryHint);
 
-        return new PairingBootstrapDocument
-        {
-            Schema = SchemaName,
-            PairingConfig = config,
-            Discovery = discoveryHint
-        };
+        discoveryHint.Schema = SchemaName;
+        return discoveryHint;
     }
 
-    public static string Serialize(PairingConfig config, PairingDiscoveryHint? discoveryHint, bool indented = false)
+    public static string Serialize(PairingDiscoveryHint discoveryHint, bool indented = false)
     {
-        var payload = Create(config, discoveryHint);
+        var payload = Create(discoveryHint);
         return JsonSerializer.Serialize(payload, indented ? PairingJson.Pretty : PairingJson.Compact);
     }
 
-    public static bool TryParse(string payload, out PairingBootstrapDocument? document)
+    public static bool TryParse(string payload, out PairingDiscoveryHint? discoveryHint)
     {
-        document = null;
+        discoveryHint = null;
         if (string.IsNullOrWhiteSpace(payload))
         {
             return false;
@@ -34,8 +30,10 @@ public static class QrDiscoveryPayload
 
         try
         {
-            document = JsonSerializer.Deserialize<PairingBootstrapDocument>(payload, PairingJson.Compact);
-            return document is not null && string.Equals(document.Schema, PairingBootstrapDocument.SchemaName, StringComparison.Ordinal);
+            discoveryHint = JsonSerializer.Deserialize<PairingDiscoveryHint>(payload, PairingJson.Compact);
+            return discoveryHint is not null &&
+                   string.Equals(discoveryHint.Schema, PairingDiscoveryHint.SchemaName, StringComparison.Ordinal) &&
+                   !string.IsNullOrWhiteSpace(discoveryHint.HostAddress);
         }
         catch
         {
@@ -43,5 +41,5 @@ public static class QrDiscoveryPayload
         }
     }
 
-    private const string SchemaName = PairingBootstrapDocument.SchemaName;
+    private const string SchemaName = PairingDiscoveryHint.SchemaName;
 }
