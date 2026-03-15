@@ -34,9 +34,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Skills\Database\" />
-    <Folder Include="Skills\FileSystem\" />
-    <Folder Include="Skills\VisualTree\" />
+    <Folder Include="Tools\Database\" />
+    <Folder Include="Tools\FileSystem\" />
+    <Folder Include="Tools\VisualTree\" />
   </ItemGroup>
 
 </Project>

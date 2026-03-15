@@ -19,10 +19,7 @@ internal static class PairingCanonicalJson
             {
                 hostId = config.Host.HostId,
                 hostName = config.Host.HostName,
-                wsPort = config.Host.WsPort,
-                wsPath = config.Host.WsPath,
                 discoveryPort = config.Host.DiscoveryPort,
-                mdnsService = config.Host.MdnsService,
                 hostPubKey = config.Host.HostPubKey,
                 hostPubKeyFingerprint = config.Host.HostPubKeyFingerprint
             },
@@ -56,10 +53,83 @@ internal static class PairingCanonicalJson
             oneTimeToken = config.OneTimeToken,
             host = new
             {
-                wsPort = config.Host.WsPort,
-                wsPath = config.Host.WsPath,
                 discoveryPort = config.Host.DiscoveryPort,
-                mdnsService = config.Host.MdnsService,
+                hostPubKey = config.Host.HostPubKey,
+                hostPubKeyFingerprint = config.Host.HostPubKeyFingerprint
+            },
+            challenge = new
+            {
+                alg = config.Challenge.Alg,
+                challengePubKey = config.Challenge.ChallengePubKey,
+                requireProofOnFirstPair = config.Challenge.RequireProofOnFirstPair
+            },
+            trust = new
+            {
+                mode = config.Trust.Mode,
+                requireTokenOnFirstPair = config.Trust.RequireTokenOnFirstPair,
+                allowLanDiscovery = config.Trust.AllowLanDiscovery
+            }
+        };
+
+        return JsonSerializer.Serialize(signable, PairingJson.Compact);
+    }
+
+    public static string SerializeTransportPairingConfigForSignature(PairingConfig config)
+    {
+        var signable = new
+        {
+            schema = config.Schema,
+            configId = config.ConfigId,
+            appId = config.AppId,
+            appName = config.AppName,
+            issuedAt = config.IssuedAt,
+            expiresAt = config.ExpiresAt,
+            oneTimeToken = config.OneTimeToken,
+            host = new
+            {
+                hostId = config.Host.HostId,
+                hostName = config.Host.HostName,
+                wsPort = PairingProtocolDefaults.WebSocketPort,
+                wsPath = PairingProtocolDefaults.WebSocketPath,
+                discoveryPort = config.Host.DiscoveryPort,
+                mdnsService = PairingProtocolDefaults.MdnsService,
+                hostPubKey = config.Host.HostPubKey,
+                hostPubKeyFingerprint = config.Host.HostPubKeyFingerprint
+            },
+            challenge = new
+            {
+                alg = config.Challenge.Alg,
+                challengePubKey = config.Challenge.ChallengePubKey,
+                requireProofOnFirstPair = config.Challenge.RequireProofOnFirstPair
+            },
+            trust = new
+            {
+                mode = config.Trust.Mode,
+                requireTokenOnFirstPair = config.Trust.RequireTokenOnFirstPair,
+                allowLanDiscovery = config.Trust.AllowLanDiscovery
+            }
+        };
+
+        return JsonSerializer.Serialize(signable, PairingJson.Compact);
+    }
+
+    public static string SerializeTransportPairingConfigForSignatureWithoutHostIdentity(PairingConfig config)
+    {
+        var signable = new
+        {
+            schema = config.Schema,
+            configId = config.ConfigId,
+            appId = config.AppId,
+            appName = config.AppName,
+            issuedAt = config.IssuedAt,
+            expiresAt = config.ExpiresAt,
+            oneTimeToken = config.OneTimeToken,
+            host = new
+            {
+                wsPort = PairingProtocolDefaults.WebSocketPort,
+                wsPath = PairingProtocolDefaults.WebSocketPath,
+                discoveryPort = config.Host.DiscoveryPort,
+                mdnsService = PairingProtocolDefaults.MdnsService,
                 hostPubKey = config.Host.HostPubKey,
                 hostPubKeyFingerprint = config.Host.HostPubKeyFingerprint
             },

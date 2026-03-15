@@ -1,6 +1,6 @@
-namespace Ansight.Skills;
+namespace Ansight.Tools;
 
-public interface ISkill
+public interface ITool
 {
     string Category { get; }
     
@@ -12,5 +12,5 @@ public interface ISkill
     
     string Keywords { get; }
 
-    Task<SkillResult> Execute(IReadOnlyDictionary<string, string> arguments);
+    Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments);
 }

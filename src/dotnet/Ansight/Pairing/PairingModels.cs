@@ -28,10 +28,7 @@ public sealed class PairingHost
 {
     public string? HostId { get; set; }
     public string? HostName { get; set; }
-    public int WsPort { get; set; } = PairingProtocolDefaults.WebSocketPort;
-    public string WsPath { get; set; } = PairingProtocolDefaults.WebSocketPath;
     public int DiscoveryPort { get; set; } = PairingProtocolDefaults.DiscoveryPort;
-    public string MdnsService { get; set; } = PairingProtocolDefaults.MdnsService;
     public required string HostPubKey { get; set; }
     public required string HostPubKeyFingerprint { get; set; }
 }
@@ -75,6 +72,137 @@ public sealed class PairingConnectionOptions
 {
     public PairingDiscoveryMode DiscoveryMode { get; set; } = PairingDiscoveryMode.ConfiguredStrategy;
     public string? ManualHostAddress { get; set; }
+    public DeviceAppProfile? DeviceAppProfile { get; set; }
+}
+
+public sealed class DeviceAppProfile
+{
+    public string Type { get; set; } = "DeviceAppProfile";
+    public string Schema { get; set; } = "ansight.device-app-profile.v1";
+    public long SentAt { get; set; }
+    public int ReasonCode { get; set; } = 1;
+    public int ProfileSeq { get; set; } = 1;
+    public DeviceProfile? Device { get; set; }
+    public DeviceApplicationProfile? App { get; set; }
+    public DeviceRuntimeProfile? Runtime { get; set; }
+    public DeviceGraphicsProfile? Graphics { get; set; }
+    public Dictionary<string, string>? Permissions { get; set; }
+    public List<string>? Tags { get; set; }
+}
+
+public sealed class DeviceProfile
+{
+    public string? Manufacturer { get; set; }
+    public string? Brand { get; set; }
+    public string? Model { get; set; }
+    public string? Product { get; set; }
+    public int? DeviceClassCode { get; set; }
+    public bool? IsEmulator { get; set; }
+    public string? Locale { get; set; }
+    public string? TimeZone { get; set; }
+    public string? OsName { get; set; }
+    public string? OsVersion { get; set; }
+    public string? OsBuild { get; set; }
+    public int? ApiLevel { get; set; }
+    public string? CpuArch { get; set; }
+    public int? CpuCoreCount { get; set; }
+    public List<string>? AbiList { get; set; }
+    public string? ChipModel { get; set; }
+    public long? MemoryTotalMb { get; set; }
+    public long? MemoryFreeMb { get; set; }
+    public long? StorageTotalMb { get; set; }
+    public long? StorageFreeMb { get; set; }
+    public DeviceBatteryProfile? Battery { get; set; }
+    public DeviceDisplayProfile? Display { get; set; }
+    public DeviceGpuProfile? Gpu { get; set; }
+    public DeviceNetworkProfile? Network { get; set; }
+    public DeviceThermalProfile? Thermal { get; set; }
+}
+
+public sealed class DeviceBatteryProfile
+{
+    public int? LevelPct { get; set; }
+    public int? StateCode { get; set; }
+    public int? HealthCode { get; set; }
+    public double? TemperatureC { get; set; }
+}
+
+public sealed class DeviceDisplayProfile
+{
+    public int? WidthPx { get; set; }
+    public int? HeightPx { get; set; }
+    public int? DensityDpi { get; set; }
+    public double? RefreshRateHz { get; set; }
+    public bool? HdrSupported { get; set; }
+}
+
+public sealed class DeviceGpuProfile
+{
+    public string? Vendor { get; set; }
+    public string? Model { get; set; }
+    public string? Renderer { get; set; }
+    public int? ApiCode { get; set; }
+    public string? DriverVersion { get; set; }
+    public long? VramMb { get; set; }
+    public string? FeatureLevel { get; set; }
+}
+
+public sealed class DeviceNetworkProfile
+{
+    public int? TransportCode { get; set; }
+    public bool? Metered { get; set; }
+    public string? EffectiveType { get; set; }
+    public int? RttMs { get; set; }
+    public int? DownKbps { get; set; }
+}
+
+public sealed class DeviceThermalProfile
+{
+    public int? StatusCode { get; set; }
+}
+
+public sealed class DeviceApplicationProfile
+{
+    public string? AppId { get; set; }
+    public string? AppName { get; set; }
+    public string? VersionName { get; set; }
+    public string? VersionCode { get; set; }
+    public string? BuildNumber { get; set; }
+    public int? EnvironmentCode { get; set; }
+    public string? InstallSource { get; set; }
+    public long? FirstInstallTimeMs { get; set; }
+    public long? LastUpdateTimeMs { get; set; }
+    public bool? Debuggable { get; set; }
+}
+
+public sealed class DeviceRuntimeProfile
+{
+    public int? Primary { get; set; }
+    public string? PrimaryVersion { get; set; }
+    public DeviceRuntimeEngineProfile? Engine { get; set; }
+    public List<DeviceRuntimeStackEntry>? Stack { get; set; }
+    public bool? AotEnabled { get; set; }
+    public bool? JitEnabled { get; set; }
+}
+
+public sealed class DeviceRuntimeEngineProfile
+{
+    public string? Name { get; set; }
+    public string? Version { get; set; }
+}
+
+public sealed class DeviceRuntimeStackEntry
+{
+    public int? RuntimeCode { get; set; }
+    public string? Name { get; set; }
+    public string? Version { get; set; }
+}
+
+public sealed class DeviceGraphicsProfile
+{
+    public int? RenderBackendCode { get; set; }
+    public int? FpsTarget { get; set; }
+    public bool? VsyncEnabled { get; set; }
 }
 
 public interface IPairingHostDiscoveryStrategy
@@ -98,6 +226,7 @@ public sealed class ConnectResponse
     public required int Ver { get; set; }
     public required bool Accepted { get; set; }
     public required string Reason { get; set; }
+    public string? ReasonMessage { get; set; }
     public required string HostId { get; set; }
     public required string HostName { get; set; }
     public required string Message { get; set; }

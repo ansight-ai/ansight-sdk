@@ -186,12 +186,17 @@ public sealed class PairingSessionClient : IDisposable
         }
 
         progress?.Report($"Host response: {connectResponse.Message}");
-        progress?.Report($"Reason: {connectResponse.Reason}");
+        if (!string.IsNullOrWhiteSpace(connectResponse.ReasonMessage))
+        {
+            progress?.Report($"Reason: {connectResponse.ReasonMessage}");
+        }
+
+        progress?.Report($"Reason code: {connectResponse.Reason}");
         progress?.Report($"Accepted: {connectResponse.Accepted}");
 
         if (!connectResponse.Accepted)
         {
-            return OpenSessionResult.FromRejected("Host rejected the connection request.", discoveredHostAddress, connectResponse);
+            return OpenSessionResult.FromRejected(discoveredHostAddress, connectResponse);
         }
 
         if (connectResponse.WebSocketPort is null ||
@@ -221,6 +226,16 @@ public sealed class PairingSessionClient : IDisposable
 
             _webSocket = connectedSocket;
             _connectResponse = connectResponse;
+
+            if (options?.DeviceAppProfile is not null)
+            {
+                var profileResult = await SendDeviceAppProfileAsync(options.DeviceAppProfile, progress, cancellationToken);
+                if (!profileResult.Success)
+                {
+                    await CloseSessionAsync(CancellationToken.None);
+                    return OpenSessionResult.FromFailure(profileResult.Message);
+                }
+            }
 
             return OpenSessionResult.FromSuccess("Connected to host and WebSocket session is ready.", discoveredHostAddress, connectResponse, hostHello);
         }
@@ -284,6 +299,81 @@ public sealed class PairingSessionClient : IDisposable
         {
             await CloseSessionAsync(CancellationToken.None);
             return OperationResult.FromFailure($"Failed to send log: {ex.Message}");
+        }
+    }
+
+    public async Task<OperationResult> SendDeviceAppProfileAsync(
+        DeviceAppProfile profile,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+
+        var webSocket = _webSocket;
+        if (webSocket is null || webSocket.State != WebSocketState.Open)
+        {
+            return OperationResult.FromFailure("WebSocket session is not open.");
+        }
+
+        if (string.IsNullOrWhiteSpace(profile.Type))
+        {
+            profile.Type = "DeviceAppProfile";
+        }
+
+        if (string.IsNullOrWhiteSpace(profile.Schema))
+        {
+            profile.Schema = "ansight.device-app-profile.v1";
+        }
+
+        if (profile.SentAt <= 0)
+        {
+            profile.SentAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        }
+
+        if (profile.ReasonCode <= 0)
+        {
+            profile.ReasonCode = 1;
+        }
+
+        if (profile.ProfileSeq <= 0)
+        {
+            profile.ProfileSeq = 1;
+        }
+
+        var payload = JsonSerializer.Serialize(profile, PairingJson.Compact);
+
+        try
+        {
+            await _sendLock.WaitAsync(cancellationToken);
+            try
+            {
+                using var sendTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                sendTimeout.CancelAfter(TimeSpan.FromSeconds(10));
+                await SendTextAsync(webSocket, payload, sendTimeout.Token);
+                progress?.Report("WS -> DeviceAppProfile");
+
+                using var ackTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                ackTimeout.CancelAfter(TimeSpan.FromSeconds(15));
+                var hostAck = await ReceiveTextAsync(webSocket, ackTimeout.Token);
+                progress?.Report($"WS <- {hostAck}");
+
+                if (string.Equals(hostAck, "<close>", StringComparison.Ordinal))
+                {
+                    await CloseSessionAsync(CancellationToken.None);
+                    return OperationResult.FromFailure("Host closed the WebSocket session.");
+                }
+            }
+            finally
+            {
+                _sendLock.Release();
+            }
+
+            return OperationResult.FromSuccess("Device profile sent.");
+        }
+        catch (Exception ex)
+        {
+            await CloseSessionAsync(CancellationToken.None);
+            return OperationResult.FromFailure($"Failed to send device profile: {ex.Message}");
         }
     }
 
@@ -915,6 +1005,8 @@ public sealed class PairingSessionClient : IDisposable
             {
                 PairingCanonicalJson.SerializePairingConfigForSignature(config),
                 PairingCanonicalJson.SerializePairingConfigForSignatureWithoutHostIdentity(config),
+                PairingCanonicalJson.SerializeTransportPairingConfigForSignature(config),
+                PairingCanonicalJson.SerializeTransportPairingConfigForSignatureWithoutHostIdentity(config),
                 PairingCanonicalJson.SerializeLegacyPairingConfigForSignature(config),
                 PairingCanonicalJson.SerializeLegacyPairingConfigForSignatureWithoutHostIdentity(config)
             };
@@ -1196,8 +1288,14 @@ public sealed record OpenSessionResult(
 {
     public static OpenSessionResult FromFailure(string message) => new(false, false, message, null, null, null);
 
-    public static OpenSessionResult FromRejected(string message, IPAddress hostAddress, ConnectResponse connectResponse) =>
-        new(false, false, message, hostAddress, connectResponse, null);
+    public string? RejectionCode => Accepted ? null : ConnectResponse?.Reason;
+
+    public string? RejectionReason => Accepted
+        ? null
+        : FirstNonEmpty(ConnectResponse?.ReasonMessage, ConnectResponse?.Message, Message);
+
+    public static OpenSessionResult FromRejected(IPAddress hostAddress, ConnectResponse connectResponse) =>
+        new(false, false, FirstNonEmpty(connectResponse.ReasonMessage, connectResponse.Message, "Host rejected the connection request."), hostAddress, connectResponse, null);
 
     public static OpenSessionResult FromSuccess(
         string message,
@@ -1205,6 +1303,19 @@ public sealed record OpenSessionResult(
         ConnectResponse connectResponse,
         string hostHello) =>
         new(true, true, message, hostAddress, connectResponse, hostHello);
+
+    private static string FirstNonEmpty(params string?[] values)
+    {
+        foreach (var value in values)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return value.Trim();
+            }
+        }
+
+        return string.Empty;
+    }
 }
 
 public sealed record OperationResult(bool Success, string Message)
