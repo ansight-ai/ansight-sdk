@@ -33,10 +33,4 @@
     <None Include="build\generate-ansight-developer-pairing.ps1" Pack="true" PackagePath="buildTransitive\generate-ansight-developer-pairing.ps1" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Tools\Database\" />
-    <Folder Include="Tools\FileSystem\" />
-    <Folder Include="Tools\VisualTree\" />
-  </ItemGroup>
-
 </Project>

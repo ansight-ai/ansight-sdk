@@ -1,5 +1,7 @@
 namespace Ansight;
 
+using Ansight.Tools;
+
 /// <summary>
 /// Entry point for initialising and recording telemetry data with Ansight.
 /// </summary>
@@ -190,6 +192,11 @@ public static class Runtime
 
         Instance.DisableFramesPerSecond();
     }
+
+    /// <summary>
+    /// Returns the runtime tool protocol bridge for querying and executing registered tools.
+    /// </summary>
+    public static ToolProtocolBridge ToolBridge => MutableInstance.ToolBridge;
 
     /// <summary>
     /// Captures a new metric using the given <paramref name="value"/> against the <paramref name="channel"/>.

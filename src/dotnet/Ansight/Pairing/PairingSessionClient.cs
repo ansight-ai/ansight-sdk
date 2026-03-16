@@ -4,7 +4,10 @@ using System.Net.WebSockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Threading.Channels;
 using Ansight;
+using Ansight.Tools;
 
 namespace Ansight.Pairing;
 
@@ -17,6 +20,7 @@ public sealed class PairingSessionClient : IDisposable
     private ClientWebSocket? _webSocket;
     private ConnectResponse? _connectResponse;
     private readonly SemaphoreSlim _sendLock = new(1, 1);
+    private readonly SemaphoreSlim _requestLock = new(1, 1);
     private readonly SemaphoreSlim _metricsSignal = new(0);
     private readonly SemaphoreSlim _eventsSignal = new(0);
     private readonly Lock _metricsLock = new();
@@ -31,8 +35,11 @@ public sealed class PairingSessionClient : IDisposable
     private EventHandler<AppEventsUpdatedEventArgs>? _eventsUpdatedHandler;
     private CancellationTokenSource? _metricsPumpCts;
     private CancellationTokenSource? _eventsPumpCts;
+    private CancellationTokenSource? _receivePumpCts;
     private Task? _metricsPumpTask;
     private Task? _eventsPumpTask;
+    private Task? _receivePumpTask;
+    private System.Threading.Channels.Channel<string>? _incomingMessages;
     private bool _disposed;
     private readonly IPairingHostDiscoveryStrategy? _hostDiscoveryStrategy;
 
@@ -226,6 +233,7 @@ public sealed class PairingSessionClient : IDisposable
 
             _webSocket = connectedSocket;
             _connectResponse = connectResponse;
+            StartReceivePump(connectedSocket);
 
             if (options?.DeviceAppProfile is not null)
             {
@@ -269,17 +277,15 @@ public sealed class PairingSessionClient : IDisposable
 
         try
         {
-            await _sendLock.WaitAsync(cancellationToken);
+            await _requestLock.WaitAsync(cancellationToken);
             try
             {
-                using var sendTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                sendTimeout.CancelAfter(TimeSpan.FromSeconds(10));
-                await SendTextAsync(webSocket, payload, sendTimeout.Token);
+                await SendPayloadAsync(webSocket, payload, cancellationToken);
                 progress?.Report($"WS -> {payload}");
 
                 using var ackTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 ackTimeout.CancelAfter(TimeSpan.FromSeconds(15));
-                var hostAck = await ReceiveTextAsync(webSocket, ackTimeout.Token);
+                var hostAck = await ReceiveInboundMessageAsync(ackTimeout.Token);
                 progress?.Report($"WS <- {hostAck}");
 
                 if (string.Equals(hostAck, "<close>", StringComparison.Ordinal))
@@ -290,7 +296,7 @@ public sealed class PairingSessionClient : IDisposable
             }
             finally
             {
-                _sendLock.Release();
+                _requestLock.Release();
             }
 
             return OperationResult.FromSuccess("Log sent.");
@@ -344,17 +350,15 @@ public sealed class PairingSessionClient : IDisposable
 
         try
         {
-            await _sendLock.WaitAsync(cancellationToken);
+            await _requestLock.WaitAsync(cancellationToken);
             try
             {
-                using var sendTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                sendTimeout.CancelAfter(TimeSpan.FromSeconds(10));
-                await SendTextAsync(webSocket, payload, sendTimeout.Token);
+                await SendPayloadAsync(webSocket, payload, cancellationToken);
                 progress?.Report("WS -> DeviceAppProfile");
 
                 using var ackTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 ackTimeout.CancelAfter(TimeSpan.FromSeconds(15));
-                var hostAck = await ReceiveTextAsync(webSocket, ackTimeout.Token);
+                var hostAck = await ReceiveInboundMessageAsync(ackTimeout.Token);
                 progress?.Report($"WS <- {hostAck}");
 
                 if (string.Equals(hostAck, "<close>", StringComparison.Ordinal))
@@ -365,7 +369,7 @@ public sealed class PairingSessionClient : IDisposable
             }
             finally
             {
-                _sendLock.Release();
+                _requestLock.Release();
             }
 
             return OperationResult.FromSuccess("Device profile sent.");
@@ -395,22 +399,20 @@ public sealed class PairingSessionClient : IDisposable
 
         try
         {
-            await _sendLock.WaitAsync(cancellationToken);
+            await _requestLock.WaitAsync(cancellationToken);
             try
             {
-                using var sendTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                sendTimeout.CancelAfter(TimeSpan.FromSeconds(10));
-                await SendTextAsync(webSocket, payload, sendTimeout.Token);
+                await SendPayloadAsync(webSocket, payload, cancellationToken);
                 progress?.Report($"WS -> {payload}");
 
                 using var ackTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 ackTimeout.CancelAfter(TimeSpan.FromSeconds(10));
-                var doneAck = await ReceiveTextAsync(webSocket, ackTimeout.Token);
+                var doneAck = await ReceiveInboundMessageAsync(ackTimeout.Token);
                 progress?.Report($"WS <- {doneAck}");
             }
             finally
             {
-                _sendLock.Release();
+                _requestLock.Release();
             }
 
             await CloseSessionAsync(CancellationToken.None);
@@ -421,6 +423,23 @@ public sealed class PairingSessionClient : IDisposable
             await CloseSessionAsync(CancellationToken.None);
             return OperationResult.FromFailure($"Failed to complete session: {ex.Message}");
         }
+    }
+
+    public async Task<ToolProtocolProcessResult> ProcessToolProtocolMessageAsync(string messageJson, CancellationToken cancellationToken)
+    {
+        if (!Runtime.IsInitialized)
+        {
+            return ToolProtocolProcessResult.FromFailure("Runtime must be initialized before processing tool protocol messages.");
+        }
+
+        var bridge = Runtime.ToolBridge;
+        if (!bridge.TryParseEnvelope(messageJson, out var envelope, out var error))
+        {
+            return ToolProtocolProcessResult.FromFailure(error);
+        }
+
+        var response = await bridge.HandleAsync(envelope!, cancellationToken);
+        return ToolProtocolProcessResult.FromSuccess(bridge.SerializeEnvelope(response));
     }
 
     public async Task<OperationResult> StartMetricsStreamingAsync(
@@ -630,7 +649,9 @@ public sealed class PairingSessionClient : IDisposable
             eventsPumpCts.Cancel();
         }
 
-        if (pumpTask is not null)
+        var currentTaskId = Task.CurrentId;
+
+        if (pumpTask is not null && (!currentTaskId.HasValue || pumpTask.Id != currentTaskId.Value))
         {
             try
             {
@@ -648,7 +669,7 @@ public sealed class PairingSessionClient : IDisposable
 
         pumpCts?.Dispose();
 
-        if (eventsPumpTask is not null)
+        if (eventsPumpTask is not null && (!currentTaskId.HasValue || eventsPumpTask.Id != currentTaskId.Value))
         {
             try
             {
@@ -675,12 +696,23 @@ public sealed class PairingSessionClient : IDisposable
         await StopMetricsStreamingAsync(progress: null, CancellationToken.None);
 
         var webSocket = _webSocket;
+        var receivePumpCts = _receivePumpCts;
+        var receivePumpTask = _receivePumpTask;
+        var incomingMessages = _incomingMessages;
 
         _webSocket = null;
         _connectResponse = null;
+        _receivePumpCts = null;
+        _receivePumpTask = null;
+        _incomingMessages = null;
+
+        receivePumpCts?.Cancel();
 
         if (webSocket is null)
         {
+            incomingMessages?.Writer.TryWrite("<close>");
+            incomingMessages?.Writer.TryComplete();
+            receivePumpCts?.Dispose();
             return OperationResult.FromSuccess("Session already closed.");
         }
 
@@ -701,6 +733,26 @@ public sealed class PairingSessionClient : IDisposable
         {
             webSocket.Dispose();
         }
+
+        if (receivePumpTask is not null)
+        {
+            try
+            {
+                await receivePumpTask.WaitAsync(cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected during shutdown.
+            }
+            catch
+            {
+                // Ignore receive pump errors while stopping.
+            }
+        }
+
+        receivePumpCts?.Dispose();
+        incomingMessages?.Writer.TryWrite("<close>");
+        incomingMessages?.Writer.TryComplete();
 
         return OperationResult.FromSuccess("Session disconnected.");
     }
@@ -926,17 +978,15 @@ public sealed class PairingSessionClient : IDisposable
 
         try
         {
-            await _sendLock.WaitAsync(cancellationToken);
+            await _requestLock.WaitAsync(cancellationToken);
             try
             {
-                using var sendTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                sendTimeout.CancelAfter(TimeSpan.FromSeconds(10));
-                await SendTextAsync(_webSocket!, payload, sendTimeout.Token);
+                await SendPayloadAsync(_webSocket!, payload, cancellationToken);
                 progress?.Report($"WS -> streamed {events.Count} events");
 
                 using var ackTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 ackTimeout.CancelAfter(TimeSpan.FromSeconds(15));
-                var hostAck = await ReceiveTextAsync(_webSocket!, ackTimeout.Token);
+                var hostAck = await ReceiveInboundMessageAsync(ackTimeout.Token);
                 progress?.Report($"WS <- {hostAck}");
 
                 if (string.Equals(hostAck, "<close>", StringComparison.Ordinal))
@@ -947,7 +997,7 @@ public sealed class PairingSessionClient : IDisposable
             }
             finally
             {
-                _sendLock.Release();
+                _requestLock.Release();
             }
 
             return OperationResult.FromSuccess("Event batch sent.");
@@ -969,17 +1019,7 @@ public sealed class PairingSessionClient : IDisposable
 
         try
         {
-            await _sendLock.WaitAsync(cancellationToken);
-            try
-            {
-                using var sendTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                sendTimeout.CancelAfter(TimeSpan.FromSeconds(10));
-                await SendTextAsync(webSocket, payload, sendTimeout.Token);
-            }
-            finally
-            {
-                _sendLock.Release();
-            }
+            await SendPayloadAsync(webSocket, payload, cancellationToken);
 
             return OperationResult.FromSuccess("Payload sent.");
         }
@@ -988,6 +1028,229 @@ public sealed class PairingSessionClient : IDisposable
             return OperationResult.FromFailure($"Failed to send WebSocket payload: {ex.Message}");
         }
     }
+
+    private void StartReceivePump(ClientWebSocket webSocket)
+    {
+        _incomingMessages = System.Threading.Channels.Channel.CreateUnbounded<string>(new UnboundedChannelOptions
+        {
+            SingleWriter = true
+        });
+        _receivePumpCts = new CancellationTokenSource();
+        _receivePumpTask = Task.Run(() => RunReceivePumpAsync(webSocket, _incomingMessages.Writer, _receivePumpCts.Token));
+    }
+
+    private async Task RunReceivePumpAsync(
+        ClientWebSocket webSocket,
+        ChannelWriter<string> writer,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                string message;
+
+                try
+                {
+                    message = await ReceiveTextAsync(webSocket, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch
+                {
+                    await writer.WriteAsync("<close>", CancellationToken.None);
+                    break;
+                }
+
+                if (string.Equals(message, "<close>", StringComparison.Ordinal))
+                {
+                    await writer.WriteAsync(message, CancellationToken.None);
+                    break;
+                }
+
+                if (await TryHandleToolProtocolMessageAsync(webSocket, message, cancellationToken))
+                {
+                    continue;
+                }
+
+                await writer.WriteAsync(message, cancellationToken);
+            }
+        }
+        finally
+        {
+            writer.TryComplete();
+        }
+    }
+
+    private async Task<bool> TryHandleToolProtocolMessageAsync(
+        ClientWebSocket webSocket,
+        string messageJson,
+        CancellationToken cancellationToken)
+    {
+        if (!TryParseToolProtocolRequest(messageJson, out var envelope, out var error, out var isToolProtocolMessage))
+        {
+            if (!isToolProtocolMessage)
+            {
+                return false;
+            }
+
+            var invalidRequest = CreateToolProtocolErrorEnvelope(
+                requestId: null,
+                sessionId: null,
+                replyTo: null,
+                code: "tool_protocol_invalid_request",
+                message: error,
+                retryable: false);
+
+            await SendPayloadAsync(webSocket, SerializeToolEnvelope(invalidRequest), cancellationToken);
+            return true;
+        }
+
+        ToolProtocolEnvelope response;
+        if (!Runtime.IsInitialized)
+        {
+            response = CreateToolProtocolErrorEnvelope(
+                envelope!.Id,
+                envelope.SessionId,
+                envelope.Id,
+                code: "tool_runtime_not_initialized",
+                message: "Runtime must be initialized before remote tools can be queried or executed.",
+                retryable: false);
+        }
+        else
+        {
+            response = await Runtime.ToolBridge.HandleAsync(envelope!, cancellationToken);
+        }
+
+        await SendPayloadAsync(webSocket, SerializeToolEnvelope(response), cancellationToken);
+        return true;
+    }
+
+    private static bool TryParseToolProtocolRequest(
+        string messageJson,
+        out ToolProtocolEnvelope? envelope,
+        out string error,
+        out bool isToolProtocolMessage)
+    {
+        envelope = null;
+        error = string.Empty;
+        isToolProtocolMessage = false;
+
+        try
+        {
+            using var document = JsonDocument.Parse(messageJson);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return false;
+            }
+
+            if (!document.RootElement.TryGetProperty("type", out var typeElement) ||
+                typeElement.ValueKind != JsonValueKind.String)
+            {
+                return false;
+            }
+
+            var type = typeElement.GetString();
+            if (!string.Equals(type, ToolProtocolBridge.QueryType, StringComparison.Ordinal) &&
+                !string.Equals(type, ToolProtocolBridge.CallType, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            if (document.RootElement.TryGetProperty("capability", out var capabilityElement) &&
+                capabilityElement.ValueKind == JsonValueKind.String)
+            {
+                var capability = capabilityElement.GetString();
+                if (!string.IsNullOrWhiteSpace(capability) &&
+                    !string.Equals(capability, ToolProtocolBridge.Capability, StringComparison.Ordinal))
+                {
+                    return false;
+                }
+            }
+
+            isToolProtocolMessage = true;
+            envelope = JsonSerializer.Deserialize<ToolProtocolEnvelope>(messageJson, PairingJson.Compact);
+            if (envelope is null || string.IsNullOrWhiteSpace(envelope.Id))
+            {
+                error = "Tool protocol envelope must include a non-empty id.";
+                return false;
+            }
+
+            return true;
+        }
+        catch (Exception exception)
+        {
+            error = $"Failed to parse tool protocol envelope: {exception.Message}";
+            return false;
+        }
+    }
+
+    private async Task<string> ReceiveInboundMessageAsync(CancellationToken cancellationToken)
+    {
+        var incomingMessages = _incomingMessages;
+        if (incomingMessages is null)
+        {
+            return "<close>";
+        }
+
+        try
+        {
+            return await incomingMessages.Reader.ReadAsync(cancellationToken);
+        }
+        catch (ChannelClosedException)
+        {
+            return "<close>";
+        }
+    }
+
+    private async Task SendPayloadAsync(ClientWebSocket webSocket, string payload, CancellationToken cancellationToken)
+    {
+        await _sendLock.WaitAsync(cancellationToken);
+        try
+        {
+            using var sendTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            sendTimeout.CancelAfter(TimeSpan.FromSeconds(10));
+            await SendTextAsync(webSocket, payload, sendTimeout.Token);
+        }
+        finally
+        {
+            _sendLock.Release();
+        }
+    }
+
+    private static ToolProtocolEnvelope CreateToolProtocolErrorEnvelope(
+        string? requestId,
+        string? sessionId,
+        string? replyTo,
+        string code,
+        string message,
+        bool retryable,
+        JsonNode? details = null)
+    {
+        return new ToolProtocolEnvelope
+        {
+            Type = ToolProtocolBridge.ErrorType,
+            Id = string.IsNullOrWhiteSpace(requestId)
+                ? $"tool.error.{Guid.NewGuid():N}"
+                : $"{requestId}.response",
+            ReplyTo = replyTo,
+            SessionId = sessionId,
+            Capability = ToolProtocolBridge.Capability,
+            SentAt = DateTimeOffset.UtcNow,
+            Payload = new JsonObject
+            {
+                ["code"] = code,
+                ["message"] = message,
+                ["retryable"] = retryable,
+                ["details"] = details
+            }
+        };
+    }
+
+    private static string SerializeToolEnvelope(ToolProtocolEnvelope envelope)
+        => JsonSerializer.Serialize(envelope, PairingJson.Compact);
 
     private static string ToColorHex(System.Drawing.Color color) => $"#{color.R:X2}{color.G:X2}{color.B:X2}";
 
@@ -1259,22 +1522,40 @@ public sealed class PairingSessionClient : IDisposable
 
         _disposed = true;
         _metricsPumpCts?.Cancel();
+        _eventsPumpCts?.Cancel();
+        _receivePumpCts?.Cancel();
 
         if (_metricsDataSink is not null && _metricsUpdatedHandler is not null)
         {
             _metricsDataSink.OnMetricsUpdated -= _metricsUpdatedHandler;
         }
 
+        if (_eventsDataSink is not null && _eventsUpdatedHandler is not null)
+        {
+            _eventsDataSink.OnEventsUpdated -= _eventsUpdatedHandler;
+        }
+
         _metricsPumpCts?.Dispose();
+        _eventsPumpCts?.Dispose();
+        _receivePumpCts?.Dispose();
         _webSocket?.Dispose();
         _sendLock.Dispose();
+        _requestLock.Dispose();
         _metricsSignal.Dispose();
+        _eventsSignal.Dispose();
         _webSocket = null;
         _connectResponse = null;
         _metricsDataSink = null;
         _metricsUpdatedHandler = null;
         _metricsPumpTask = null;
         _metricsPumpCts = null;
+        _eventsDataSink = null;
+        _eventsUpdatedHandler = null;
+        _eventsPumpTask = null;
+        _eventsPumpCts = null;
+        _receivePumpTask = null;
+        _receivePumpCts = null;
+        _incomingMessages = null;
     }
 }
 
@@ -1323,4 +1604,13 @@ public sealed record OperationResult(bool Success, string Message)
     public static OperationResult FromSuccess(string message) => new(true, message);
 
     public static OperationResult FromFailure(string message) => new(false, message);
+}
+
+public sealed record ToolProtocolProcessResult(bool Success, string Message, string? ResponseJson)
+{
+    public static ToolProtocolProcessResult FromSuccess(string responseJson)
+        => new(true, "Tool protocol message processed.", responseJson);
+
+    public static ToolProtocolProcessResult FromFailure(string message)
+        => new(false, message, null);
 }

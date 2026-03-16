@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net9.0-android;net9.0-ios;net9.0-maccatalyst</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>Ansight.Tools.FileSystem</AssemblyName>
+    <RootNamespace>Ansight.Tools.FileSystem</RootNamespace>
+
+    <IsPackable>true</IsPackable>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageId>Ansight.Tools.FileSystem</PackageId>
+    <PackageVersion>0.3.0</PackageVersion>
+    <Authors>Ansight AI</Authors>
+    <Company>Ansight AI</Company>
+    <Product>Ansight</Product>
+    <Description>Sandboxed file system remote tools for the Ansight .NET SDK.</Description>
+    <PackageProjectUrl>https://github.com/ansight-ai/ansight-sdk</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/ansight-ai/ansight-sdk</RepositoryUrl>
+    <PackageTags>ansight;tools;filesystem;files;inspection;sandbox</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Ansight\Ansight.csproj" />
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

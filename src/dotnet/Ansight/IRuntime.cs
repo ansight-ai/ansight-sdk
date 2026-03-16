@@ -1,5 +1,7 @@
 namespace Ansight;
 
+using Ansight.Tools;
+
 /// <summary>
 /// Contract for controlling the Ansight telemetry runtime.
 /// </summary>
@@ -9,6 +11,11 @@ public interface IRuntime
     /// The backing data sink being used by Ansight.
     /// </summary>
     IDataSink DataSink { get; }
+
+    /// <summary>
+    /// The protocol bridge used to query and execute registered tools.
+    /// </summary>
+    ToolProtocolBridge ToolBridge { get; }
 
     /// <summary>
     /// True when periodic sampling is active.

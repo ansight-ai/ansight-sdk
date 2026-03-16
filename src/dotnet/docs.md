@@ -76,6 +76,46 @@ Runtime.Deactivate();
 Runtime.Clear();
 ```
 
+## Remote tool registration
+
+The core `Ansight` package contains `ITool`, `ToolScope`, `ToolSchema`, `ToolDefinition`, `ToolRegistry`, `ToolResult`, and the `OptionsBuilder` registration methods. Each tool declares whether it is `Read`, `Write`, or `Delete`, plus explicit argument/result schemas for bridges such as MCP. A bridge can read `tool.Definition` or `options.Tools.GetDefinitions()` to discover how to call the tool. Concrete tool groups are delivered as separate packages and register through fluent extensions:
+
+```csharp
+using Ansight;
+using Ansight.Tools.Database;
+using Ansight.Tools.FileSystem;
+using Ansight.Tools.VisualTree;
+
+var options = Options.CreateBuilder()
+    .WithVisualTreeTools()
+    .WithDatabaseTools()
+    .WithFileSystemTools()
+    .WithReadOnlyToolAccess()
+    .Build();
+```
+
+Registered tools are guarded explicitly. Use:
+
+- `WithToolsDisabled()` to disable discovery and execution
+- `WithReadOnlyToolAccess()` to enable read tools
+- `WithAllToolAccess()` to enable all registered scopes
+- `WithToolGuard(...)` for a custom policy
+
+The runtime exposes a protocol bridge for transport layers:
+
+```csharp
+var response = await Runtime.ToolBridge.HandleAsync(new ToolProtocolEnvelope
+{
+    Type = ToolProtocolBridge.QueryType,
+    Id = "req_1",
+    SessionId = "sess_1"
+});
+```
+
+When a `PairingSessionClient` WebSocket session is open, inbound `tool.query` and `tool.call` messages are processed automatically and answered on the same socket. Discovery and execution remain subject to the configured `ToolGuard`.
+
+`PairingSessionClient.ProcessToolProtocolMessageAsync(...)` remains available for manual/raw message processing outside the live WebSocket flow.
+
 ## Supported target frameworks
 
 - `net9.0-android`

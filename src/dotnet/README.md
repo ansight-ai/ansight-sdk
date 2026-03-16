@@ -38,6 +38,28 @@ var metrics = sink.Metrics;
 var events = sink.Events;
 ```
 
+## Remote tools
+
+Tool abstractions stay in the `Ansight` package. Each tool exposes a `ToolDefinition` with argument/result schemas so a bridge can discover how to call it. Concrete tool groups are installed separately and attached through the options builder.
+
+```csharp
+using Ansight;
+using Ansight.Tools.VisualTree;
+
+var options = Options.CreateBuilder()
+    .WithVisualTreeTools()
+    .WithReadOnlyToolAccess()
+    .Build();
+```
+
+Available grouped packages:
+
+- `Ansight.Tools.VisualTree`
+- `Ansight.Tools.Database`
+- `Ansight.Tools.FileSystem`
+
+At runtime, transport layers can query or execute tools through `Runtime.ToolBridge`. When a `PairingSessionClient` session is open, inbound `tool.query` and `tool.call` envelopes are handled automatically on the live WebSocket and answered according to the configured `ToolGuard`.
+
 ## Notes
 
 - Ansight stores telemetry in-memory with a retention window.

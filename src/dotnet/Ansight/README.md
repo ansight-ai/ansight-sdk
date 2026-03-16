@@ -78,6 +78,33 @@ if (QrDiscoveryPayload.TryParse(payload, out var document))
 }
 ```
 
+## Remote tool registration
+
+The base package owns the tool abstractions and registration surface, including per-tool argument/result schemas for bridges such as MCP, but concrete tool groups live in separate packages.
+
+```csharp
+using Ansight;
+using Ansight.Tools.Database;
+using Ansight.Tools.FileSystem;
+using Ansight.Tools.VisualTree;
+
+var options = Options.CreateBuilder()
+    .WithVisualTreeTools()
+    .WithDatabaseTools()
+    .WithFileSystemTools()
+    .WithReadOnlyToolAccess()
+    .Build();
+```
+
+The feature packages currently group tools by capability area:
+
+- `Ansight.Tools.VisualTree`
+- `Ansight.Tools.Database`
+- `Ansight.Tools.FileSystem`
+
+Registered tools remain disabled until the app opts into a guard policy such as `WithReadOnlyToolAccess()` or `WithAllToolAccess()`.
+When a pairing session is open, inbound `tool.query` and `tool.call` protocol messages are handled automatically and answered on the active WebSocket using that guard policy.
+
 ## Embedded developer pairing target
 
 The base package ships an optional MSBuild target that can prebundle a developer pairing bootstrap file during build.
@@ -109,6 +136,9 @@ On Unix it uses `generate-ansight-developer-pairing.sh`. On Windows it uses `gen
 ## Related packages
 
 - `Ansight.Discovery.Multicast`: UDP multicast host discovery strategy for automatic LAN pairing
+- `Ansight.Tools.VisualTree`: UI hierarchy and screenshot tools
+- `Ansight.Tools.Database`: database inspection tools
+- `Ansight.Tools.FileSystem`: sandboxed file access tools
 
 ## Notes
 

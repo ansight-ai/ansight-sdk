@@ -1,5 +1,6 @@
 namespace Ansight;
 
+using Ansight.Tools;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,7 +20,9 @@ public class Options
         AdditionalChannels = new List<Channel>(),
         DefaultMemoryChannels = DefaultMemoryChannels.PlatformDefaults,
         AdditionalLogger = new ConsoleLogger(),
-        EnableFramesPerSecond = true
+        EnableFramesPerSecond = true,
+        Tools = ToolRegistry.Empty,
+        ToolGuard = ToolGuard.Disabled
     };
 
     /// <summary>
@@ -57,6 +60,16 @@ public class Options
     /// </summary>
     public bool EnableFramesPerSecond { get; private set; } = false;
 
+    /// <summary>
+    /// Registered remote tools available to paired hosts.
+    /// </summary>
+    public ToolRegistry Tools { get; private set; } = ToolRegistry.Empty;
+
+    /// <summary>
+    /// Guard policy controlling whether registered tools may be discovered and executed.
+    /// </summary>
+    public ToolGuard ToolGuard { get; private set; } = ToolGuard.Disabled;
+
     public void Validate()
     {
         if (SampleFrequencyMilliseconds > Constants.MaxSampleFrequencyMilliseconds)
@@ -91,6 +104,11 @@ public class Options
                 throw new InvalidOperationException("One or more additional channels use a reserved channel ID. " + string.Join(", ", usesPredefinedChannels.Select(x => x.Name + " uses reserved channel " + x.Id)));
             }
         }
+
+        Tools = Tools ?? ToolRegistry.Empty;
+        Tools.Validate();
+        ToolGuard = ToolGuard ?? ToolGuard.Disabled;
+        ToolGuard.Validate();
     }
 
     public static OptionsBuilder CreateBuilder() => new OptionsBuilder();
@@ -123,7 +141,9 @@ public class Options
                 AdditionalChannels = initialOptions.AdditionalChannels?.ToList() ?? new List<Channel>(),
                 DefaultMemoryChannels = initialOptions.DefaultMemoryChannels,
                 AdditionalLogger = initialOptions.AdditionalLogger,
-                EnableFramesPerSecond = initialOptions.EnableFramesPerSecond
+                EnableFramesPerSecond = initialOptions.EnableFramesPerSecond,
+                Tools = initialOptions.Tools ?? ToolRegistry.Empty,
+                ToolGuard = initialOptions.ToolGuard ?? ToolGuard.Disabled
             };
         }
 
@@ -212,6 +232,75 @@ public class Options
         public OptionsBuilder WithBuiltInLogger()
         {
             options.AdditionalLogger = new ConsoleLogger();
+            return this;
+        }
+
+        /// <summary>
+        /// Replaces the registered tool collection.
+        /// </summary>
+        public OptionsBuilder WithTools(IEnumerable<ITool> tools)
+        {
+            if (tools == null) throw new ArgumentNullException(nameof(tools));
+
+            options.Tools = new ToolRegistry(tools);
+            return this;
+        }
+
+        /// <summary>
+        /// Adds a single tool to the registered tool collection.
+        /// </summary>
+        public OptionsBuilder AddTool(ITool tool)
+        {
+            if (tool == null) throw new ArgumentNullException(nameof(tool));
+
+            options.Tools = (options.Tools ?? ToolRegistry.Empty).Add(tool);
+            return this;
+        }
+
+        /// <summary>
+        /// Adds multiple tools to the registered tool collection.
+        /// </summary>
+        public OptionsBuilder AddTools(IEnumerable<ITool> tools)
+        {
+            if (tools == null) throw new ArgumentNullException(nameof(tools));
+
+            options.Tools = (options.Tools ?? ToolRegistry.Empty).AddRange(tools);
+            return this;
+        }
+
+        /// <summary>
+        /// Replaces the tool guard policy.
+        /// </summary>
+        public OptionsBuilder WithToolGuard(ToolGuard toolGuard)
+        {
+            options.ToolGuard = toolGuard ?? throw new ArgumentNullException(nameof(toolGuard));
+            return this;
+        }
+
+        /// <summary>
+        /// Disables both tool discovery and tool execution.
+        /// </summary>
+        public OptionsBuilder WithToolsDisabled()
+        {
+            options.ToolGuard = ToolGuard.Disabled;
+            return this;
+        }
+
+        /// <summary>
+        /// Enables discovery and execution for read-only tools.
+        /// </summary>
+        public OptionsBuilder WithReadOnlyToolAccess()
+        {
+            options.ToolGuard = ToolGuard.ReadOnly;
+            return this;
+        }
+
+        /// <summary>
+        /// Enables discovery and execution for all registered tool scopes.
+        /// </summary>
+        public OptionsBuilder WithAllToolAccess()
+        {
+            options.ToolGuard = ToolGuard.FullAccess;
             return this;
         }
 

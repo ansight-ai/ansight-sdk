@@ -20,6 +20,20 @@ public static class QrDiscoveryPayload
         return JsonSerializer.Serialize(payload, indented ? PairingJson.Pretty : PairingJson.Compact);
     }
 
+    public static string Serialize(PairingConfig config, PairingDiscoveryHint discoveryHint, bool indented = false)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+
+        var payload = new PairingBootstrapDocument
+        {
+            Schema = PairingBootstrapDocument.SchemaName,
+            PairingConfig = config,
+            Discovery = Create(discoveryHint)
+        };
+
+        return JsonSerializer.Serialize(payload, indented ? PairingJson.Pretty : PairingJson.Compact);
+    }
+
     public static bool TryParse(string payload, out PairingDiscoveryHint? discoveryHint)
     {
         discoveryHint = null;

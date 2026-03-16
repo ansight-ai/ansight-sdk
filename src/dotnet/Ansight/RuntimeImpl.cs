@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using Ansight.Tools;
 
 namespace Ansight;
 
@@ -15,6 +16,8 @@ internal class RuntimeImpl : IRuntime
 
     public IDataSink DataSink => mutableDataSink;
 
+    public ToolProtocolBridge ToolBridge { get; }
+
     public RuntimeImpl(Options options)
     {
         this.options = options ?? throw new ArgumentNullException(nameof(options));
@@ -23,6 +26,7 @@ internal class RuntimeImpl : IRuntime
         Logger.Info("Mutable data sink created.");
         frameRateMonitor = FrameRateMonitorFactory.Create();
         fpsTrackingEnabled = options.EnableFramesPerSecond;
+        ToolBridge = options.Tools.CreateBridge(options.ToolGuard);
     }
 
     public bool IsActive { get; private set; }
