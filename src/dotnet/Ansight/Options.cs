@@ -66,6 +66,12 @@ public class Options
     public ToolRegistry Tools { get; private set; } = ToolRegistry.Empty;
 
     /// <summary>
+    /// Optional periodic JPEG capture streamed over live pairing sessions.
+    /// Enabling this renders and compresses the app surface during active pairing sessions and can negatively affect runtime performance.
+    /// </summary>
+    public SessionJpegCaptureOptions? SessionJpegCapture { get; private set; }
+
+    /// <summary>
     /// Guard policy controlling whether registered tools may be discovered and executed.
     /// </summary>
     public ToolGuard ToolGuard { get; private set; } = ToolGuard.Disabled;
@@ -109,6 +115,32 @@ public class Options
         Tools.Validate();
         ToolGuard = ToolGuard ?? ToolGuard.Disabled;
         ToolGuard.Validate();
+
+        if (SessionJpegCapture is not null)
+        {
+            if (SessionJpegCapture.IntervalMilliseconds < 250)
+            {
+                Logger.Warning("The 'SessionJpegCapture.IntervalMilliseconds' was below 250ms. It has been coerced to 250ms.");
+                SessionJpegCapture.IntervalMilliseconds = 250;
+            }
+
+            if (SessionJpegCapture.Quality < 1 || SessionJpegCapture.Quality > 100)
+            {
+                Logger.Warning("The 'SessionJpegCapture.Quality' was outside 1-100. It has been coerced into range.");
+                SessionJpegCapture.Quality = Math.Clamp(SessionJpegCapture.Quality, 1, 100);
+            }
+
+            if (SessionJpegCapture.MaxWidth is <= 0)
+            {
+                Logger.Warning("The 'SessionJpegCapture.MaxWidth' was not positive. Full-size capture will be used instead.");
+                SessionJpegCapture.MaxWidth = null;
+            }
+            else if (SessionJpegCapture.MaxWidth > 8192)
+            {
+                Logger.Warning("The 'SessionJpegCapture.MaxWidth' was above 8192. It has been coerced to 8192.");
+                SessionJpegCapture.MaxWidth = 8192;
+            }
+        }
     }
 
     public static OptionsBuilder CreateBuilder() => new OptionsBuilder();
@@ -143,6 +175,14 @@ public class Options
                 AdditionalLogger = initialOptions.AdditionalLogger,
                 EnableFramesPerSecond = initialOptions.EnableFramesPerSecond,
                 Tools = initialOptions.Tools ?? ToolRegistry.Empty,
+                SessionJpegCapture = initialOptions.SessionJpegCapture is null
+                    ? null
+                    : new SessionJpegCaptureOptions
+                    {
+                        IntervalMilliseconds = initialOptions.SessionJpegCapture.IntervalMilliseconds,
+                        Quality = initialOptions.SessionJpegCapture.Quality,
+                        MaxWidth = initialOptions.SessionJpegCapture.MaxWidth
+                    },
                 ToolGuard = initialOptions.ToolGuard ?? ToolGuard.Disabled
             };
         }
@@ -265,6 +305,50 @@ public class Options
             if (tools == null) throw new ArgumentNullException(nameof(tools));
 
             options.Tools = (options.Tools ?? ToolRegistry.Empty).AddRange(tools);
+            return this;
+        }
+
+        /// <summary>
+        /// Enables periodic JPEG capture while an Ansight pairing session is open.
+        /// This adds extra rendering, encoding, and transport work and can negatively affect runtime performance.
+        /// </summary>
+        public OptionsBuilder WithSessionJpegCapture(
+            ushort intervalMilliseconds = 2000,
+            int quality = 70,
+            int? maxWidth = 720)
+        {
+            options.SessionJpegCapture = new SessionJpegCaptureOptions
+            {
+                IntervalMilliseconds = intervalMilliseconds,
+                Quality = quality,
+                MaxWidth = maxWidth
+            };
+            return this;
+        }
+
+        /// <summary>
+        /// Enables periodic JPEG capture while an Ansight pairing session is open using a fully configured options object.
+        /// This adds extra rendering, encoding, and transport work and can negatively affect runtime performance.
+        /// </summary>
+        public OptionsBuilder WithSessionJpegCapture(SessionJpegCaptureOptions sessionJpegCapture)
+        {
+            if (sessionJpegCapture == null) throw new ArgumentNullException(nameof(sessionJpegCapture));
+
+            options.SessionJpegCapture = new SessionJpegCaptureOptions
+            {
+                IntervalMilliseconds = sessionJpegCapture.IntervalMilliseconds,
+                Quality = sessionJpegCapture.Quality,
+                MaxWidth = sessionJpegCapture.MaxWidth
+            };
+            return this;
+        }
+
+        /// <summary>
+        /// Disables periodic JPEG capture for live pairing sessions.
+        /// </summary>
+        public OptionsBuilder WithoutSessionJpegCapture()
+        {
+            options.SessionJpegCapture = null;
             return this;
         }
 

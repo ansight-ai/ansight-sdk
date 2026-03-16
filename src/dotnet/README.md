@@ -22,6 +22,8 @@ using Ansight;
 
 var options = Options.CreateBuilder()
     .WithFramesPerSecond()
+    // JPEG session capture can affect runtime performance. Use conservative settings unless you need richer review snapshots.
+    .WithSessionJpegCapture(intervalMilliseconds: 2000, quality: 60, maxWidth: 720)
     .Build();
 
 Runtime.InitializeAndActivate(options);
@@ -29,6 +31,8 @@ Runtime.InitializeAndActivate(options);
 Runtime.Metric(2048, channel: 10);
 Runtime.Event("sync_started");
 ```
+
+When `WithSessionJpegCapture(...)` is enabled, the pairing client will periodically capture the app's own root window/view as a JPEG and stream it over live Ansight pairing sessions. Studio can then show the latest live frame or scrub historical frames against the telemetry timeline. This feature adds extra rendering, encoding, and transport work and can negatively affect runtime performance while it is active.
 
 ## Accessing sampled data
 
@@ -59,6 +63,8 @@ Available grouped packages:
 - `Ansight.Tools.FileSystem`
 
 At runtime, transport layers can query or execute tools through `Runtime.ToolBridge`. When a `PairingSessionClient` session is open, inbound `tool.query` and `tool.call` envelopes are handled automatically on the live WebSocket and answered according to the configured `ToolGuard`.
+
+Pairing sessions also send a baseline `DeviceAppProfile` automatically after the WebSocket handshake so hosts can always capture app/device details without per-app setup.
 
 ## Build-time MCP tool enforcement
 

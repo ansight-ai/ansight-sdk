@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Security.Cryptography;
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -36,21 +37,32 @@ public sealed class PairingSessionClient : IDisposable
     private CancellationTokenSource? _metricsPumpCts;
     private CancellationTokenSource? _eventsPumpCts;
     private CancellationTokenSource? _receivePumpCts;
+    private CancellationTokenSource? _sessionJpegCaptureCts;
     private Task? _metricsPumpTask;
     private Task? _eventsPumpTask;
     private Task? _receivePumpTask;
+    private Task? _sessionJpegCaptureTask;
     private System.Threading.Channels.Channel<string>? _incomingMessages;
     private bool _disposed;
     private readonly IPairingHostDiscoveryStrategy? _hostDiscoveryStrategy;
+    private readonly IDeviceAppProfileProvider _deviceAppProfileProvider;
 
     public PairingSessionClient()
-        : this(hostDiscoveryStrategy: null)
+        : this(hostDiscoveryStrategy: null, deviceAppProfileProvider: null)
     {
     }
 
     public PairingSessionClient(IPairingHostDiscoveryStrategy? hostDiscoveryStrategy)
+        : this(hostDiscoveryStrategy, deviceAppProfileProvider: null)
+    {
+    }
+
+    public PairingSessionClient(
+        IPairingHostDiscoveryStrategy? hostDiscoveryStrategy,
+        IDeviceAppProfileProvider? deviceAppProfileProvider)
     {
         _hostDiscoveryStrategy = hostDiscoveryStrategy;
+        _deviceAppProfileProvider = deviceAppProfileProvider ?? AutomaticDeviceAppProfileProvider.Instance;
     }
 
     public static PairingSessionClientBuilder CreateBuilder() => new();
@@ -235,15 +247,18 @@ public sealed class PairingSessionClient : IDisposable
             _connectResponse = connectResponse;
             StartReceivePump(connectedSocket);
 
-            if (options?.DeviceAppProfile is not null)
+            var deviceAppProfile = ResolveDeviceAppProfile(options?.DeviceAppProfile);
+            if (deviceAppProfile is not null)
             {
-                var profileResult = await SendDeviceAppProfileAsync(options.DeviceAppProfile, progress, cancellationToken);
+                var profileResult = await SendDeviceAppProfileAsync(deviceAppProfile, progress, cancellationToken);
                 if (!profileResult.Success)
                 {
                     await CloseSessionAsync(CancellationToken.None);
                     return OpenSessionResult.FromFailure(profileResult.Message);
                 }
             }
+
+            await StartSessionJpegCaptureAsync(progress);
 
             return OpenSessionResult.FromSuccess("Connected to host and WebSocket session is ready.", discoveredHostAddress, connectResponse, hostHello);
         }
@@ -379,6 +394,199 @@ public sealed class PairingSessionClient : IDisposable
             await CloseSessionAsync(CancellationToken.None);
             return OperationResult.FromFailure($"Failed to send device profile: {ex.Message}");
         }
+    }
+
+    private DeviceAppProfile? ResolveDeviceAppProfile(DeviceAppProfile? callerProfile)
+    {
+        DeviceAppProfile? automaticProfile = null;
+
+        try
+        {
+            automaticProfile = _deviceAppProfileProvider.CreateDeviceAppProfile();
+        }
+        catch (Exception ex)
+        {
+            Logger.Warning($"Failed to create baseline DeviceAppProfile automatically: {ex.Message}");
+        }
+
+        if (automaticProfile is null)
+        {
+            return callerProfile;
+        }
+
+        if (callerProfile is null)
+        {
+            return automaticProfile;
+        }
+
+        return MergeDeviceAppProfiles(automaticProfile, callerProfile);
+    }
+
+    private static DeviceAppProfile MergeDeviceAppProfiles(DeviceAppProfile baselineProfile, DeviceAppProfile callerProfile)
+    {
+        var baselineNode = JsonSerializer.SerializeToNode(baselineProfile, PairingJson.Compact)?.AsObject();
+        var callerNode = JsonSerializer.SerializeToNode(callerProfile, PairingJson.Compact)?.AsObject();
+        if (baselineNode is null)
+        {
+            return callerProfile;
+        }
+
+        if (callerNode is not null)
+        {
+            MergeJsonObjects(baselineNode, callerNode);
+        }
+
+        return baselineNode.Deserialize<DeviceAppProfile>(PairingJson.Compact) ?? baselineProfile;
+    }
+
+    private static void MergeJsonObjects(JsonObject target, JsonObject source)
+    {
+        foreach (var property in source)
+        {
+            if (property.Value is null)
+            {
+                continue;
+            }
+
+            if (property.Value is JsonObject sourceObject)
+            {
+                if (target[property.Key] is not JsonObject targetObject)
+                {
+                    target[property.Key] = sourceObject.DeepClone();
+                    continue;
+                }
+
+                MergeJsonObjects(targetObject, sourceObject);
+                continue;
+            }
+
+            target[property.Key] = property.Value.DeepClone();
+        }
+    }
+
+    private async Task StartSessionJpegCaptureAsync(IProgress<string>? progress)
+    {
+        await StopSessionJpegCaptureAsync(CancellationToken.None);
+
+        var options = ResolveSessionJpegCaptureOptions();
+        if (options is null)
+        {
+            return;
+        }
+
+        _sessionJpegCaptureCts = new CancellationTokenSource();
+        _sessionJpegCaptureTask = Task.Run(() => RunSessionJpegCapturePumpAsync(options, progress, _sessionJpegCaptureCts.Token));
+        progress?.Report(
+            $"Session JPEG capture started ({options.IntervalMilliseconds}ms, quality {options.Quality}, max width {(options.MaxWidth?.ToString() ?? "native")}).");
+    }
+
+    private async Task StopSessionJpegCaptureAsync(CancellationToken cancellationToken)
+    {
+        var captureCts = _sessionJpegCaptureCts;
+        var captureTask = _sessionJpegCaptureTask;
+
+        _sessionJpegCaptureCts = null;
+        _sessionJpegCaptureTask = null;
+
+        captureCts?.Cancel();
+
+        if (captureTask is not null)
+        {
+            try
+            {
+                await captureTask.WaitAsync(cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected during shutdown.
+            }
+            catch
+            {
+                // Ignore pump errors during shutdown.
+            }
+        }
+
+        captureCts?.Dispose();
+    }
+
+    private static SessionJpegCaptureOptions? ResolveSessionJpegCaptureOptions()
+    {
+        if (!Runtime.IsInitialized)
+        {
+            return null;
+        }
+
+        var configured = Runtime.MutableInstance.Options.SessionJpegCapture;
+        if (configured is null)
+        {
+            return null;
+        }
+
+        return new SessionJpegCaptureOptions
+        {
+            IntervalMilliseconds = configured.IntervalMilliseconds,
+            Quality = configured.Quality,
+            MaxWidth = configured.MaxWidth
+        };
+    }
+
+    private async Task RunSessionJpegCapturePumpAsync(
+        SessionJpegCaptureOptions options,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        var interval = TimeSpan.FromMilliseconds(options.IntervalMilliseconds);
+        var nextCaptureAt = Stopwatch.GetTimestamp();
+
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            var remainingDelay = nextCaptureAt - Stopwatch.GetTimestamp();
+            if (remainingDelay > 0)
+            {
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(remainingDelay / (double)Stopwatch.Frequency), cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+            }
+
+            try
+            {
+                var frame = await SessionJpegCaptureSupport.CaptureAsync(options, cancellationToken);
+                if (frame is not null)
+                {
+                    var sendResult = await SendSessionJpegFrameAsync(frame, cancellationToken);
+                    if (!sendResult.Success)
+                    {
+                        progress?.Report($"Session JPEG capture stopped: {sendResult.Message}");
+                        return;
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning($"Session JPEG capture skipped: {ex.Message}");
+            }
+
+            nextCaptureAt += (long)(interval.TotalSeconds * Stopwatch.Frequency);
+            var now = Stopwatch.GetTimestamp();
+            if (nextCaptureAt < now - (long)(interval.TotalSeconds * Stopwatch.Frequency))
+            {
+                nextCaptureAt = now;
+            }
+        }
+    }
+
+    private Task<OperationResult> SendSessionJpegFrameAsync(SessionJpegFrame frame, CancellationToken cancellationToken)
+    {
+        return SendWithoutAcknowledgementAsync(SessionJpegWireProtocol.Serialize(frame), WebSocketMessageType.Binary, cancellationToken);
     }
 
     public async Task<OperationResult> CompleteSessionAsync(IProgress<string>? progress, CancellationToken cancellationToken)
@@ -694,6 +902,7 @@ public sealed class PairingSessionClient : IDisposable
     public async Task<OperationResult> CloseSessionAsync(CancellationToken cancellationToken)
     {
         await StopMetricsStreamingAsync(progress: null, CancellationToken.None);
+        await StopSessionJpegCaptureAsync(CancellationToken.None);
 
         var webSocket = _webSocket;
         var receivePumpCts = _receivePumpCts;
@@ -1029,6 +1238,28 @@ public sealed class PairingSessionClient : IDisposable
         }
     }
 
+    private async Task<OperationResult> SendWithoutAcknowledgementAsync(
+        byte[] payload,
+        WebSocketMessageType messageType,
+        CancellationToken cancellationToken)
+    {
+        var webSocket = _webSocket;
+        if (webSocket is null || webSocket.State != WebSocketState.Open)
+        {
+            return OperationResult.FromFailure("WebSocket session is not open.");
+        }
+
+        try
+        {
+            await SendPayloadAsync(webSocket, payload, messageType, cancellationToken);
+            return OperationResult.FromSuccess("Payload sent.");
+        }
+        catch (Exception ex)
+        {
+            return OperationResult.FromFailure($"Failed to send WebSocket payload: {ex.Message}");
+        }
+    }
+
     private void StartReceivePump(ClientWebSocket webSocket)
     {
         _incomingMessages = System.Threading.Channels.Channel.CreateUnbounded<string>(new UnboundedChannelOptions
@@ -1213,6 +1444,25 @@ public sealed class PairingSessionClient : IDisposable
             using var sendTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             sendTimeout.CancelAfter(TimeSpan.FromSeconds(10));
             await SendTextAsync(webSocket, payload, sendTimeout.Token);
+        }
+        finally
+        {
+            _sendLock.Release();
+        }
+    }
+
+    private async Task SendPayloadAsync(
+        ClientWebSocket webSocket,
+        byte[] payload,
+        WebSocketMessageType messageType,
+        CancellationToken cancellationToken)
+    {
+        await _sendLock.WaitAsync(cancellationToken);
+        try
+        {
+            using var sendTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            sendTimeout.CancelAfter(TimeSpan.FromSeconds(10));
+            await SendBinaryAsync(webSocket, payload, messageType, sendTimeout.Token);
         }
         finally
         {
@@ -1485,6 +1735,16 @@ public sealed class PairingSessionClient : IDisposable
         await webSocket.SendAsync(segment, WebSocketMessageType.Text, true, cancellationToken);
     }
 
+    private static async Task SendBinaryAsync(
+        ClientWebSocket webSocket,
+        byte[] payload,
+        WebSocketMessageType messageType,
+        CancellationToken cancellationToken)
+    {
+        var segment = new ArraySegment<byte>(payload);
+        await webSocket.SendAsync(segment, messageType, true, cancellationToken);
+    }
+
     private static async Task<string> ReceiveTextAsync(ClientWebSocket webSocket, CancellationToken cancellationToken)
     {
         var buffer = new byte[4096];
@@ -1524,6 +1784,7 @@ public sealed class PairingSessionClient : IDisposable
         _metricsPumpCts?.Cancel();
         _eventsPumpCts?.Cancel();
         _receivePumpCts?.Cancel();
+        _sessionJpegCaptureCts?.Cancel();
 
         if (_metricsDataSink is not null && _metricsUpdatedHandler is not null)
         {
@@ -1538,6 +1799,7 @@ public sealed class PairingSessionClient : IDisposable
         _metricsPumpCts?.Dispose();
         _eventsPumpCts?.Dispose();
         _receivePumpCts?.Dispose();
+        _sessionJpegCaptureCts?.Dispose();
         _webSocket?.Dispose();
         _sendLock.Dispose();
         _requestLock.Dispose();
@@ -1555,6 +1817,8 @@ public sealed class PairingSessionClient : IDisposable
         _eventsPumpCts = null;
         _receivePumpTask = null;
         _receivePumpCts = null;
+        _sessionJpegCaptureTask = null;
+        _sessionJpegCaptureCts = null;
         _incomingMessages = null;
     }
 }

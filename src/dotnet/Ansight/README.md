@@ -11,6 +11,8 @@ using Ansight;
 
 var options = Options.CreateBuilder()
     .WithFramesPerSecond()
+    // JPEG session capture can affect runtime performance. Use conservative settings unless you need richer review snapshots.
+    .WithSessionJpegCapture(intervalMilliseconds: 2000, quality: 60, maxWidth: 720)
     .Build();
 
 Runtime.InitializeAndActivate(options);
@@ -18,6 +20,8 @@ Runtime.InitializeAndActivate(options);
 Runtime.Metric(123, channel: 10);
 Runtime.Event("network_request_started");
 ```
+
+When `WithSessionJpegCapture(...)` is enabled, the pairing client will periodically capture the app's own root window/view as a JPEG and stream it over live Ansight pairing sessions. Studio can then show the latest live frame or scrub historical frames against the telemetry timeline. This feature adds extra rendering, encoding, and transport work and can negatively affect runtime performance while it is active.
 
 ## Data access
 
@@ -47,6 +51,8 @@ var result = await client.OpenSessionAsync(
     progress: null,
     cancellationToken);
 ```
+
+`OpenSessionAsync(...)` now sends a baseline `DeviceAppProfile` automatically immediately after the WebSocket handshake. Supply `PairingConnectionOptions.DeviceAppProfile` only when you want to add or override fields, or configure `UseDeviceAppProfileProvider(...)` on the builder to replace the automatic collector.
 
 Use an injected automatic discovery strategy:
 

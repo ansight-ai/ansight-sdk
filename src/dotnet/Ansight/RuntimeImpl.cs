@@ -15,6 +15,7 @@ internal class RuntimeImpl : IRuntime
     private bool fpsTrackingEnabled;
 
     public IDataSink DataSink => mutableDataSink;
+    internal Options Options => options;
 
     public ToolProtocolBridge ToolBridge { get; }
 
