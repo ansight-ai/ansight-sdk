@@ -116,6 +116,22 @@ When a `PairingSessionClient` WebSocket session is open, inbound `tool.query` an
 
 `PairingSessionClient.ProcessToolProtocolMessageAsync(...)` remains available for manual/raw message processing outside the live WebSocket flow.
 
+## Build-time MCP tool enforcement
+
+Ansight enforces an explicit opt-in for bundled MCP tools. Builds fail by default when the managed assemblies in `$(TargetDir)` contain concrete `Ansight.Tools.ITool` implementations.
+
+Allow them explicitly with:
+
+```xml
+<PropertyGroup>
+  <AnsightAllowMCPTools>true</AnsightAllowMCPTools>
+</PropertyGroup>
+```
+
+Leave the property unset, or set it to `false`, to keep the default build failure.
+
+Treat `AnsightAllowMCPTools=true` as a local-Debug-only override. Do not enable MCP tools in Release or distributable builds, because they add remote inspection and execution surfaces that can expose sensitive app data and privileged runtime behavior to a connected client.
+
 ## Supported target frameworks
 
 - `net9.0-android`

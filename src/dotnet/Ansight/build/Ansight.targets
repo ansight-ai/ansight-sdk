@@ -3,7 +3,30 @@
     <AnsightDeveloperPairingEnabled Condition="'$(AnsightDeveloperPairingEnabled)' == ''">false</AnsightDeveloperPairingEnabled>
     <AnsightDeveloperPairingSourceFile Condition="'$(AnsightDeveloperPairingSourceFile)' == ''">$(MSBuildProjectDirectory)/ansight.json</AnsightDeveloperPairingSourceFile>
     <AnsightDeveloperPairingOutputFile Condition="'$(AnsightDeveloperPairingOutputFile)' == ''">$(BaseIntermediateOutputPath)ansight.developer-pairing.json</AnsightDeveloperPairingOutputFile>
+    <AnsightAllowMCPTools Condition="'$(AnsightAllowMCPTools)' == ''">false</AnsightAllowMCPTools>
+    <_AnsightAllowMCPToolsNormalized>$([System.String]::Copy('$(AnsightAllowMCPTools)').ToLowerInvariant())</_AnsightAllowMCPToolsNormalized>
+    <_AnsightConfigurationNormalized>$([System.String]::Copy('$(Configuration)').ToLowerInvariant())</_AnsightConfigurationNormalized>
+    <_AnsightBuildTaskAssemblyPackagePath>$(MSBuildThisFileDirectory)Ansight.Build.dll</_AnsightBuildTaskAssemblyPackagePath>
+    <_AnsightBuildTaskAssemblySourcePath>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\Ansight.Build\bin\$(Configuration)\netstandard2.0\Ansight.Build.dll'))</_AnsightBuildTaskAssemblySourcePath>
+    <_AnsightBuildTaskAssemblyPath>$(_AnsightBuildTaskAssemblyPackagePath)</_AnsightBuildTaskAssemblyPath>
+    <_AnsightBuildTaskAssemblyPath Condition="!Exists('$(_AnsightBuildTaskAssemblyPackagePath)') and Exists('$(_AnsightBuildTaskAssemblySourcePath)')">$(_AnsightBuildTaskAssemblySourcePath)</_AnsightBuildTaskAssemblyPath>
   </PropertyGroup>
+
+  <UsingTask TaskName="Ansight.Build.Tasks.ScanForAnsightToolImplementations"
+             AssemblyFile="$(_AnsightBuildTaskAssemblyPath)"
+             Runtime="NET" />
+
+  <Target Name="ValidateAnsightMcpToolPolicy"
+          BeforeTargets="Build"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(IsCrossTargetingBuild)' != 'true'">
+    <Error Condition="'$(_AnsightAllowMCPToolsNormalized)' != 'true' and '$(_AnsightAllowMCPToolsNormalized)' != 'false'"
+           Text="AnsightAllowMCPTools must be either 'true' or 'false'." />
+    <Warning Condition="'$(_AnsightAllowMCPToolsNormalized)' == 'true' and '$(Configuration)' != '' and '$(_AnsightConfigurationNormalized)' != 'debug'"
+             Text="AnsightAllowMCPTools=true for non-Debug configuration '$(Configuration)'. MCP tools are intended only for local debugging. Do not ship them in Release or distribution builds because they expose remote inspection and action surfaces that can reveal user data, app state, filesystem contents, database contents, screenshots, and other privileged runtime capabilities to a connected client." />
+    <Message Condition="'$(_AnsightAllowMCPToolsNormalized)' == 'true'"
+             Importance="High"
+             Text="Ansight MCP tools are explicitly enabled for this build via AnsightAllowMCPTools=true. Keep this limited to local Debug builds and exclude tool packages from Release/distribution builds with MSBuild conditions." />
+  </Target>
 
   <Target Name="GenerateAnsightDeveloperPairing"
           BeforeTargets="PrepareForBuild"
@@ -18,5 +41,32 @@
           Condition="'$(AnsightDeveloperPairingEnabled)' == 'true' and Exists('$(AnsightDeveloperPairingSourceFile)') and '$(OS)' == 'Windows_NT'">
     <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)generate-ansight-developer-pairing.ps1&quot; -SourceFile &quot;$(AnsightDeveloperPairingSourceFile)&quot; -OutputFile &quot;$(AnsightDeveloperPairingOutputFile)&quot;"
           IgnoreExitCode="true" />
+  </Target>
+
+  <Target Name="CheckAnsightToolImplementations"
+          AfterTargets="Build"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(IsCrossTargetingBuild)' != 'true' and '$(_AnsightAllowMCPToolsNormalized)' != 'true' and Exists('$(TargetDir)')">
+    <Error Condition="!Exists('$(_AnsightBuildTaskAssemblyPath)')"
+           Text="Ansight MCP tool enforcement is enabled, but the Ansight build task assembly was not found. Expected one of: '$(_AnsightBuildTaskAssemblyPackagePath)' or '$(_AnsightBuildTaskAssemblySourcePath)'." />
+    <ItemGroup>
+      <_AnsightToolResolverAssembly Include="@(ReferencePath)" />
+      <_AnsightToolResolverAssembly Include="@(ReferenceCopyLocalPaths)" />
+      <_AnsightToolResolverAssembly Include="$(TargetPath)" Condition="'$(TargetPath)' != '' and Exists('$(TargetPath)')" />
+    </ItemGroup>
+
+    <Ansight.Build.Tasks.ScanForAnsightToolImplementations OutputDirectory="$(TargetDir)"
+                                                           ResolverAssemblyPaths="@(_AnsightToolResolverAssembly)">
+      <Output TaskParameter="DetectedTools" ItemName="_AnsightDetectedTool" />
+    </Ansight.Build.Tasks.ScanForAnsightToolImplementations>
+
+    <PropertyGroup Condition="'@(_AnsightDetectedTool)' != ''">
+      <_AnsightDetectedToolSummary>@(_AnsightDetectedTool-&gt;'%(Identity) (%(AssemblyName))', '; ')</_AnsightDetectedToolSummary>
+    </PropertyGroup>
+
+    <Message Condition="'@(_AnsightDetectedTool)' != ''"
+             Importance="High"
+             Text="Ansight blocked MCP tools in this build. Detected tool implementations: $(_AnsightDetectedToolSummary)." />
+    <Error Condition="'@(_AnsightDetectedTool)' != ''"
+           Text="Ansight detected concrete ITool implementations in the build output: $(_AnsightDetectedToolSummary). Fix: remove the tool package/reference from this build, or make it Debug-only with MSBuild conditions. Only if this is an intentional local debugging build, set AnsightAllowMCPTools=true. Security guidance: never allow MCP tools in non-Debug or shippable builds, because they add remote inspection and execution capabilities that can expose user data, filesystem/database contents, screenshots, UI state, and other privileged app behavior to a connected client." />
   </Target>
 </Project>

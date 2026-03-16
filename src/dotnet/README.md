@@ -60,6 +60,22 @@ Available grouped packages:
 
 At runtime, transport layers can query or execute tools through `Runtime.ToolBridge`. When a `PairingSessionClient` session is open, inbound `tool.query` and `tool.call` envelopes are handled automatically on the live WebSocket and answered according to the configured `ToolGuard`.
 
+## Build-time MCP tool enforcement
+
+`Ansight` fails builds by default when the built output contains concrete `Ansight.Tools.ITool` implementations.
+
+To explicitly allow MCP tools in an app build, set:
+
+```xml
+<PropertyGroup>
+  <AnsightAllowMCPTools>true</AnsightAllowMCPTools>
+</PropertyGroup>
+```
+
+If `AnsightAllowMCPTools` is omitted or `false`, the SDK scans the managed assemblies under `$(TargetDir)` after build and errors on bundled tool implementations.
+
+Keep `AnsightAllowMCPTools=true` limited to local Debug builds. MCP tools should never be enabled in Release or shippable builds because they expose remote inspection and privileged action capabilities over app data and runtime state.
+
 ## Notes
 
 - Ansight stores telemetry in-memory with a retention window.

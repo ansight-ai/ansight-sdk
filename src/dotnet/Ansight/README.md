@@ -133,6 +133,22 @@ When enabled, the target reads your source pairing config, captures local machin
 
 On Unix it uses `generate-ansight-developer-pairing.sh`. On Windows it uses `generate-ansight-developer-pairing.ps1`.
 
+## Build-time MCP tool enforcement
+
+The base package enforces an explicit opt-in for bundled MCP tools. By default, builds fail if the output contains concrete `Ansight.Tools.ITool` implementations.
+
+To intentionally allow them, declare:
+
+```xml
+<PropertyGroup>
+  <AnsightAllowMCPTools>true</AnsightAllowMCPTools>
+</PropertyGroup>
+```
+
+If the property is omitted or set to `false`, Ansight scans the managed assemblies under `$(TargetDir)` after build and fails when it finds packaged tool assemblies such as `Ansight.Tools.VisualTree` or custom in-app `ITool` implementations.
+
+Only use `AnsightAllowMCPTools=true` for local Debug builds. Do not enable MCP tools in Release or distributable builds, because they add remote inspection and action surfaces that can expose user data, screenshots, UI state, filesystem contents, database contents, and other privileged runtime capabilities to a connected client.
+
 ## Related packages
 
 - `Ansight.Discovery.Multicast`: UDP multicast host discovery strategy for automatic LAN pairing
