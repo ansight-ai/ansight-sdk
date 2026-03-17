@@ -52,6 +52,28 @@ public sealed class PairingDiscoveryHint
     public DateTimeOffset? CapturedAt { get; set; }
 }
 
+public sealed class PairingConnectionHint
+{
+    public const string SchemaName = "ansight.pairing-connection-hint.v1";
+
+    public required string Schema { get; set; } = SchemaName;
+    public string? Source { get; set; }
+    public required string ConfigId { get; set; }
+    public required DateTimeOffset IssuedAt { get; set; }
+    public required DateTimeOffset ExpiresAt { get; set; }
+    public required string OneTimeToken { get; set; }
+    public required PairingChallenge Challenge { get; set; }
+}
+
+public sealed class PairingQrConnectionPayload
+{
+    public const string SchemaName = "ansight.qr-pairing-connection.v1";
+
+    public required string Schema { get; set; } = SchemaName;
+    public required PairingConnectionHint Connection { get; set; }
+    public PairingDiscoveryHint? Discovery { get; set; }
+}
+
 public sealed class PairingBootstrapDocument
 {
     public const string SchemaName = "ansight.pairing-bootstrap.v1";
@@ -59,6 +81,7 @@ public sealed class PairingBootstrapDocument
     public required string Schema { get; set; } = SchemaName;
     public required PairingConfig PairingConfig { get; set; }
     public PairingDiscoveryHint? Discovery { get; set; }
+    public PairingConnectionHint? ConnectionHint { get; set; }
 }
 
 public enum PairingDiscoveryMode
@@ -239,4 +262,6 @@ public sealed class ParsedPairingDocument
 {
     public required PairingConfig Config { get; init; }
     public PairingDiscoveryHint? DiscoveryHint { get; init; }
+    public PairingConfig? TrustAnchorConfig { get; init; }
+    public PairingConnectionHint? ConnectionHint { get; init; }
 }

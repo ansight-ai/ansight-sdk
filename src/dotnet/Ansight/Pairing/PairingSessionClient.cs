@@ -47,6 +47,9 @@ public sealed class PairingSessionClient : IDisposable
     public bool TryValidateConfig(PairingConfig config, string? expectedAppId, out string error)
         => _configDocumentService.TryValidateConfig(config, expectedAppId, out error);
 
+    public bool TryValidateDocument(ParsedPairingDocument document, string? expectedAppId, out string error)
+        => _configDocumentService.TryValidateDocument(document, expectedAppId, out error);
+
     public bool TryParseDocument(string configJson, out ParsedPairingDocument? document, out string error)
         => _configDocumentService.TryParseDocument(configJson, out document, out error);
 
@@ -68,15 +71,45 @@ public sealed class PairingSessionClient : IDisposable
     {
         ArgumentNullException.ThrowIfNull(config);
 
+        return await OpenSessionAsync(
+            new ParsedPairingDocument
+            {
+                Config = config
+            },
+            clientName,
+            options,
+            progress,
+            cancellationToken);
+    }
+
+    public Task<OpenSessionResult> OpenSessionAsync(
+        ParsedPairingDocument document,
+        string clientName,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        return OpenSessionAsync(document, clientName, options: null, progress, cancellationToken);
+    }
+
+    public async Task<OpenSessionResult> OpenSessionAsync(
+        ParsedPairingDocument document,
+        string clientName,
+        PairingConnectionOptions? options,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+
         await CloseSessionAsync(CancellationToken.None);
 
         var deviceAppProfile = _deviceAppProfileResolver.Resolve(options?.DeviceAppProfile);
         var expectedAppId = _deviceAppProfileResolver.ResolveExpectedAppId(deviceAppProfile);
-        if (!TryValidateConfig(config, expectedAppId, out var validationError))
+        if (!TryValidateDocument(document, expectedAppId, out var validationError))
         {
             return OpenSessionResult.FromFailure(validationError);
         }
 
+        var config = document.Config;
         progress?.Report($"Config validated. ConfigId: {config.ConfigId}");
 
         var connectionAttempt = await _connector.ConnectAsync(config, clientName, options, progress, cancellationToken);

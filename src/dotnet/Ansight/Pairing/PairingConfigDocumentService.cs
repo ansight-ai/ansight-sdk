@@ -27,7 +27,7 @@ internal sealed class PairingConfigDocumentService
             return false;
         }
 
-        return TryValidateConfig(document.Config, expectedAppId, out error);
+        return TryValidateDocument(document, expectedAppId, out error);
     }
 
     public bool TryParseAndValidateConfig(string configJson, string? expectedAppId, out PairingConfig? config, out string error)
@@ -65,6 +65,32 @@ internal sealed class PairingConfigDocumentService
         return true;
     }
 
+    public bool TryValidateDocument(ParsedPairingDocument document, string? expectedAppId, out string error)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+
+        var trustAnchorConfig = document.TrustAnchorConfig ?? document.Config;
+        if (!VerifyPairingConfigSignature(trustAnchorConfig))
+        {
+            error = "Connection config signature is invalid.";
+            return false;
+        }
+
+        if (DateTimeOffset.UtcNow > document.Config.ExpiresAt)
+        {
+            error = $"Connection config expired at {document.Config.ExpiresAt:O}.";
+            return false;
+        }
+
+        if (!ValidateAppId(document.Config, expectedAppId, out error))
+        {
+            return false;
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
     public bool TryParseDocument(string configJson, out ParsedPairingDocument? document, out string error)
     {
         document = null;
@@ -93,10 +119,16 @@ internal sealed class PairingConfigDocumentService
                     return false;
                 }
 
+                var effectiveConfig = bootstrap.ConnectionHint is null
+                    ? bootstrap.PairingConfig
+                    : ApplyConnectionHint(bootstrap.PairingConfig, bootstrap.ConnectionHint);
+
                 document = new ParsedPairingDocument
                 {
-                    Config = bootstrap.PairingConfig,
-                    DiscoveryHint = bootstrap.Discovery
+                    Config = effectiveConfig,
+                    DiscoveryHint = bootstrap.Discovery,
+                    TrustAnchorConfig = bootstrap.ConnectionHint is null ? null : bootstrap.PairingConfig,
+                    ConnectionHint = bootstrap.ConnectionHint
                 };
 
                 error = string.Empty;
@@ -113,7 +145,9 @@ internal sealed class PairingConfigDocumentService
             document = new ParsedPairingDocument
             {
                 Config = config,
-                DiscoveryHint = null
+                DiscoveryHint = null,
+                TrustAnchorConfig = null,
+                ConnectionHint = null
             };
 
             error = string.Empty;
@@ -181,5 +215,40 @@ internal sealed class PairingConfigDocumentService
 
         error = string.Empty;
         return true;
+    }
+
+    private static PairingConfig ApplyConnectionHint(PairingConfig trustAnchorConfig, PairingConnectionHint connectionHint)
+    {
+        return new PairingConfig
+        {
+            Schema = trustAnchorConfig.Schema,
+            ConfigId = connectionHint.ConfigId,
+            AppId = trustAnchorConfig.AppId,
+            AppName = trustAnchorConfig.AppName,
+            IssuedAt = connectionHint.IssuedAt,
+            ExpiresAt = connectionHint.ExpiresAt,
+            OneTimeToken = connectionHint.OneTimeToken,
+            Host = new PairingHost
+            {
+                HostId = trustAnchorConfig.Host.HostId,
+                HostName = trustAnchorConfig.Host.HostName,
+                DiscoveryPort = trustAnchorConfig.Host.DiscoveryPort,
+                HostPubKey = trustAnchorConfig.Host.HostPubKey,
+                HostPubKeyFingerprint = trustAnchorConfig.Host.HostPubKeyFingerprint
+            },
+            Challenge = new PairingChallenge
+            {
+                Alg = connectionHint.Challenge.Alg,
+                ChallengePubKey = connectionHint.Challenge.ChallengePubKey,
+                RequireProofOnFirstPair = connectionHint.Challenge.RequireProofOnFirstPair
+            },
+            Trust = new PairingTrust
+            {
+                Mode = trustAnchorConfig.Trust.Mode,
+                RequireTokenOnFirstPair = trustAnchorConfig.Trust.RequireTokenOnFirstPair,
+                AllowLanDiscovery = trustAnchorConfig.Trust.AllowLanDiscovery
+            },
+            Signature = trustAnchorConfig.Signature
+        };
     }
 }
