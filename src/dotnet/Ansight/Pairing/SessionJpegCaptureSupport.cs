@@ -1,41 +1,91 @@
+using System.Buffers;
+using System.IO;
+
 namespace Ansight.Pairing;
+
+internal interface ISessionJpegCaptureSurface : IDisposable
+{
+    DateTimeOffset CapturedAtUtc { get; }
+}
 
 internal static class SessionJpegCaptureSupport
 {
-    public static async Task<SessionJpegFrame?> CaptureAsync(SessionJpegCaptureOptions options, CancellationToken cancellationToken)
+    public static Task<ISessionJpegCaptureSurface?> CaptureSurfaceAsync(SessionJpegCaptureOptions options, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(options);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var surface = await CaptureSurfaceAsync(options, cancellationToken);
-        if (surface is null)
+        return CaptureSurfaceCoreAsync(options, cancellationToken);
+    }
+
+    public static SessionJpegFrame? EncodeSurface(ISessionJpegCaptureSurface surface, SessionJpegCaptureOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(surface);
+        ArgumentNullException.ThrowIfNull(options);
+
+#if ANDROID
+        return surface is SessionJpegCaptureSurface androidSurface
+            ? EncodeSurface(androidSurface, options)
+            : null;
+#elif IOS || MACCATALYST
+        return surface is SessionJpegCaptureSurface appleSurface
+            ? EncodeSurface(appleSurface, options)
+            : null;
+#else
+        return null;
+#endif
+    }
+
+    private static int ResolveTargetWidth(int sourceWidth, int? maxWidth)
+    {
+        if (sourceWidth <= 0)
         {
-            return null;
+            return 0;
         }
 
-        try
+        if (!maxWidth.HasValue || maxWidth.Value >= sourceWidth)
         {
-            return await Task.Run(() =>
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                return EncodeSurface(surface, options);
-            }, cancellationToken);
+            return sourceWidth;
         }
-        finally
+
+        return maxWidth.Value;
+    }
+
+    private static int ResolveScaledHeight(int sourceWidth, int sourceHeight, int targetWidth)
+    {
+        if (sourceWidth <= 0 || sourceHeight <= 0 || targetWidth <= 0)
         {
-            surface.Dispose();
+            return 0;
         }
+
+        if (targetWidth >= sourceWidth)
+        {
+            return sourceHeight;
+        }
+
+        return Math.Max(1, (int)Math.Round(sourceHeight * (targetWidth / (double)sourceWidth)));
+    }
+
+    private static int EstimateInitialPayloadCapacity(int width, int height)
+    {
+        if (width <= 0 || height <= 0)
+        {
+            return 32 * 1024;
+        }
+
+        var estimatedJpegBytes = Math.Max(8 * 1024, (width * height) / 2);
+        return SessionJpegWireProtocol.HeaderSize + estimatedJpegBytes;
     }
 
 #if ANDROID
-    private static readonly Android.OS.Handler MainHandler = new(Android.OS.Looper.MainLooper);
+    private static readonly Android.OS.Handler MainHandler = new(Android.OS.Looper.MainLooper!);
 
-    private static Task<SessionJpegCaptureSurface?> CaptureSurfaceAsync(SessionJpegCaptureOptions options, CancellationToken cancellationToken)
+    private static Task<ISessionJpegCaptureSurface?> CaptureSurfaceCoreAsync(SessionJpegCaptureOptions options, CancellationToken cancellationToken)
     {
-        return InvokeOnUiThreadAsync(() =>
+        return InvokeOnUiThreadAsync<ISessionJpegCaptureSurface?>(() =>
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return TryCaptureSurface(out var surface) ? surface : null;
+            return TryCaptureSurface(options, out var surface) ? surface : null;
         });
     }
 
@@ -57,9 +107,9 @@ internal static class SessionJpegCaptureSupport
         return taskCompletionSource.Task;
     }
 #elif IOS || MACCATALYST
-    private static Task<SessionJpegCaptureSurface?> CaptureSurfaceAsync(SessionJpegCaptureOptions options, CancellationToken cancellationToken)
+    private static Task<ISessionJpegCaptureSurface?> CaptureSurfaceCoreAsync(SessionJpegCaptureOptions options, CancellationToken cancellationToken)
     {
-        return InvokeOnUiThreadAsync(() =>
+        return InvokeOnUiThreadAsync<ISessionJpegCaptureSurface?>(() =>
         {
             cancellationToken.ThrowIfCancellationRequested();
             return TryCaptureSurface(options, out var surface) ? surface : null;
@@ -84,12 +134,12 @@ internal static class SessionJpegCaptureSupport
         return taskCompletionSource.Task;
     }
 #else
-    private static Task<SessionJpegCaptureSurface?> CaptureSurfaceAsync(SessionJpegCaptureOptions options, CancellationToken cancellationToken)
-        => Task.FromResult<SessionJpegCaptureSurface?>(null);
+    private static Task<ISessionJpegCaptureSurface?> CaptureSurfaceCoreAsync(SessionJpegCaptureOptions options, CancellationToken cancellationToken)
+        => Task.FromResult<ISessionJpegCaptureSurface?>(null);
 #endif
 
 #if ANDROID
-    private static bool TryCaptureSurface(out SessionJpegCaptureSurface? surface)
+    private static bool TryCaptureSurface(SessionJpegCaptureOptions options, out SessionJpegCaptureSurface? surface)
     {
         var activity = AndroidActivityTracker.GetCurrentActivity();
         var rootView = activity?.Window?.DecorView?.RootView;
@@ -99,59 +149,67 @@ internal static class SessionJpegCaptureSupport
             return false;
         }
 
-        var bitmap = Android.Graphics.Bitmap.CreateBitmap(rootView.Width, rootView.Height, Android.Graphics.Bitmap.Config.Argb8888!);
+        var targetWidth = ResolveTargetWidth(rootView.Width, options.MaxWidth);
+        var targetHeight = ResolveScaledHeight(rootView.Width, rootView.Height, targetWidth);
+        if (targetWidth <= 0 || targetHeight <= 0)
+        {
+            surface = null;
+            return false;
+        }
+
+        var bitmap = Android.Graphics.Bitmap.CreateBitmap(targetWidth, targetHeight, Android.Graphics.Bitmap.Config.Argb8888!);
         using (var canvas = new Android.Graphics.Canvas(bitmap))
         {
+            if (targetWidth != rootView.Width || targetHeight != rootView.Height)
+            {
+                canvas.Scale(targetWidth / (float)rootView.Width, targetHeight / (float)rootView.Height);
+            }
+
             rootView.Draw(canvas);
         }
 
-        surface = new SessionJpegCaptureSurface(bitmap, DateTimeOffset.UtcNow);
+        surface = new SessionJpegCaptureSurface(bitmap, DateTimeOffset.UtcNow, targetWidth, targetHeight);
         return true;
     }
 
     private static SessionJpegFrame? EncodeSurface(SessionJpegCaptureSurface surface, SessionJpegCaptureOptions options)
     {
-        Android.Graphics.Bitmap workingBitmap = surface.Bitmap;
-        Android.Graphics.Bitmap? scaledBitmap = null;
-        if (options.MaxWidth.HasValue && workingBitmap.Width > options.MaxWidth.Value)
+        using var stream = new PooledBufferStream(EstimateInitialPayloadCapacity(surface.Width, surface.Height));
+        stream.ReservePrefix(SessionJpegWireProtocol.HeaderSize);
+        if (!surface.Bitmap.Compress(Android.Graphics.Bitmap.CompressFormat.Jpeg!, options.Quality, stream))
         {
-            var scaledHeight = (int)Math.Round(workingBitmap.Height * (options.MaxWidth.Value / (double)workingBitmap.Width));
-            scaledBitmap = Android.Graphics.Bitmap.CreateScaledBitmap(workingBitmap, options.MaxWidth.Value, scaledHeight, filter: true);
-            workingBitmap = scaledBitmap;
+            return null;
         }
 
-        try
-        {
-            using var stream = new MemoryStream();
-            if (!workingBitmap.Compress(Android.Graphics.Bitmap.CompressFormat.Jpeg!, options.Quality, stream))
-            {
-                return null;
-            }
+        var jpegLength = stream.LengthWritten - SessionJpegWireProtocol.HeaderSize;
+        SessionJpegWireProtocol.WriteHeader(
+            stream.GetWrittenSpan(SessionJpegWireProtocol.HeaderSize),
+            surface.CapturedAtUtc,
+            surface.Width,
+            surface.Height,
+            options.Quality,
+            jpegLength);
 
-            return new SessionJpegFrame(
-                CapturedAtUtc: surface.CapturedAtUtc,
-                Width: workingBitmap.Width,
-                Height: workingBitmap.Height,
-                Quality: options.Quality,
-                Bytes: stream.ToArray());
-        }
-        finally
-        {
-            scaledBitmap?.Dispose();
-        }
+        return stream.DetachFrame();
     }
 
-    private sealed class SessionJpegCaptureSurface : IDisposable
+    private sealed class SessionJpegCaptureSurface : ISessionJpegCaptureSurface
     {
-        public SessionJpegCaptureSurface(Android.Graphics.Bitmap bitmap, DateTimeOffset capturedAtUtc)
+        public SessionJpegCaptureSurface(Android.Graphics.Bitmap bitmap, DateTimeOffset capturedAtUtc, int width, int height)
         {
             Bitmap = bitmap;
             CapturedAtUtc = capturedAtUtc;
+            Width = width;
+            Height = height;
         }
 
         public Android.Graphics.Bitmap Bitmap { get; }
 
         public DateTimeOffset CapturedAtUtc { get; }
+
+        public int Width { get; }
+
+        public int Height { get; }
 
         public void Dispose()
         {
@@ -262,25 +320,30 @@ internal static class SessionJpegCaptureSupport
             return false;
         }
 
-        var targetSize = originalBounds.Size;
-        if (options.MaxWidth.HasValue && targetSize.Width > options.MaxWidth.Value)
+        var targetWidth = ResolveTargetWidth((int)Math.Round(originalBounds.Width), options.MaxWidth);
+        var targetHeight = ResolveScaledHeight(
+            (int)Math.Round(originalBounds.Width),
+            (int)Math.Round(originalBounds.Height),
+            targetWidth);
+        if (targetWidth <= 0 || targetHeight <= 0)
         {
-            var scaleFactor = options.MaxWidth.Value / (double)targetSize.Width;
-            targetSize = new CoreGraphics.CGSize(options.MaxWidth.Value, targetSize.Height * scaleFactor);
+            surface = null;
+            return false;
         }
 
+        var targetSize = new CoreGraphics.CGSize(targetWidth, targetHeight);
         using var renderer = new UIKit.UIGraphicsImageRenderer(targetSize);
         var image = renderer.CreateImage(renderContext =>
         {
             renderContext.CGContext.ScaleCTM((nfloat)(targetSize.Width / originalBounds.Width), (nfloat)(targetSize.Height / originalBounds.Height));
-            window.DrawViewHierarchy(originalBounds, afterScreenUpdates: true);
+            window.DrawViewHierarchy(originalBounds, afterScreenUpdates: false);
         });
 
         surface = new SessionJpegCaptureSurface(
             image,
             DateTimeOffset.UtcNow,
-            (int)Math.Round(targetSize.Width),
-            (int)Math.Round(targetSize.Height));
+            targetWidth,
+            targetHeight);
         return true;
     }
 
@@ -292,15 +355,34 @@ internal static class SessionJpegCaptureSupport
             return null;
         }
 
-        return new SessionJpegFrame(
-            CapturedAtUtc: surface.CapturedAtUtc,
-            Width: surface.Width,
-            Height: surface.Height,
-            Quality: options.Quality,
-            Bytes: imageData.ToArray());
+        using var stream = new PooledBufferStream(SessionJpegWireProtocol.HeaderSize + checked((int)imageData.Length));
+        stream.ReservePrefix(SessionJpegWireProtocol.HeaderSize);
+        using var dataStream = imageData.AsStream();
+        Span<byte> copyBuffer = stackalloc byte[8192];
+        while (true)
+        {
+            var bytesRead = dataStream.Read(copyBuffer);
+            if (bytesRead <= 0)
+            {
+                break;
+            }
+
+            stream.Write(copyBuffer[..bytesRead]);
+        }
+
+        var jpegLength = stream.LengthWritten - SessionJpegWireProtocol.HeaderSize;
+        SessionJpegWireProtocol.WriteHeader(
+            stream.GetWrittenSpan(SessionJpegWireProtocol.HeaderSize),
+            surface.CapturedAtUtc,
+            surface.Width,
+            surface.Height,
+            options.Quality,
+            jpegLength);
+
+        return stream.DetachFrame();
     }
 
-    private sealed class SessionJpegCaptureSurface : IDisposable
+    private sealed class SessionJpegCaptureSurface : ISessionJpegCaptureSurface
     {
         public SessionJpegCaptureSurface(UIKit.UIImage image, DateTimeOffset capturedAtUtc, int width, int height)
         {
@@ -343,22 +425,147 @@ internal static class SessionJpegCaptureSupport
 
         return null;
     }
-#else
-    private sealed class SessionJpegCaptureSurface : IDisposable
-    {
-        public void Dispose()
-        {
-        }
-    }
-
-    private static SessionJpegFrame? EncodeSurface(SessionJpegCaptureSurface surface, SessionJpegCaptureOptions options)
-        => null;
 #endif
 }
 
-internal sealed record SessionJpegFrame(
-    DateTimeOffset CapturedAtUtc,
-    int Width,
-    int Height,
-    int Quality,
-    byte[] Bytes);
+internal sealed class SessionJpegFrame : IDisposable
+{
+    private byte[]? _buffer;
+
+    public SessionJpegFrame(byte[] buffer, int length)
+    {
+        _buffer = buffer ?? throw new ArgumentNullException(nameof(buffer));
+        Length = length;
+    }
+
+    public int Length { get; }
+
+    public ReadOnlyMemory<byte> Payload => _buffer is null
+        ? ReadOnlyMemory<byte>.Empty
+        : _buffer.AsMemory(0, Length);
+
+    public void Dispose()
+    {
+        var buffer = Interlocked.Exchange(ref _buffer, null);
+        if (buffer is not null && buffer.Length > 0)
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
+    }
+}
+
+internal sealed class PooledBufferStream : Stream
+{
+    private byte[] _buffer;
+    private int _length;
+    private bool _detached;
+
+    public PooledBufferStream(int initialCapacity)
+    {
+        _buffer = ArrayPool<byte>.Shared.Rent(Math.Max(initialCapacity, 1024));
+    }
+
+    public override bool CanRead => false;
+
+    public override bool CanSeek => false;
+
+    public override bool CanWrite => true;
+
+    public override long Length => _length;
+
+    public override long Position
+    {
+        get => _length;
+        set => throw new NotSupportedException();
+    }
+
+    public int LengthWritten => _length;
+
+    public void ReservePrefix(int byteCount)
+    {
+        EnsureCapacity(byteCount);
+        _length = byteCount;
+    }
+
+    public Span<byte> GetWrittenSpan(int byteCount)
+    {
+        if (byteCount < 0 || byteCount > _length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(byteCount));
+        }
+
+        return _buffer.AsSpan(0, byteCount);
+    }
+
+    public SessionJpegFrame DetachFrame()
+    {
+        var buffer = _buffer;
+        var length = _length;
+        _buffer = Array.Empty<byte>();
+        _length = 0;
+        _detached = true;
+        return new SessionJpegFrame(buffer, length);
+    }
+
+    public override void Flush()
+    {
+    }
+
+    public override int Read(byte[] buffer, int offset, int count)
+        => throw new NotSupportedException();
+
+    public override long Seek(long offset, SeekOrigin origin)
+        => throw new NotSupportedException();
+
+    public override void SetLength(long value)
+        => throw new NotSupportedException();
+
+    public override void Write(byte[] buffer, int offset, int count)
+    {
+        ArgumentNullException.ThrowIfNull(buffer);
+        if ((uint)offset > buffer.Length || (uint)count > buffer.Length - offset)
+        {
+            throw new ArgumentOutOfRangeException(nameof(offset));
+        }
+
+        Write(buffer.AsSpan(offset, count));
+    }
+
+    public override void Write(ReadOnlySpan<byte> buffer)
+    {
+        EnsureCapacity(buffer.Length);
+        buffer.CopyTo(_buffer.AsSpan(_length));
+        _length += buffer.Length;
+    }
+
+    public override void WriteByte(byte value)
+    {
+        EnsureCapacity(1);
+        _buffer[_length++] = value;
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (!_detached && _buffer.Length > 0)
+        {
+            ArrayPool<byte>.Shared.Return(_buffer);
+            _buffer = Array.Empty<byte>();
+        }
+
+        base.Dispose(disposing);
+    }
+
+    private void EnsureCapacity(int additionalBytes)
+    {
+        var requiredLength = checked(_length + additionalBytes);
+        if (requiredLength <= _buffer.Length)
+        {
+            return;
+        }
+
+        var expandedBuffer = ArrayPool<byte>.Shared.Rent(Math.Max(requiredLength, _buffer.Length * 2));
+        _buffer.AsSpan(0, _length).CopyTo(expandedBuffer);
+        ArrayPool<byte>.Shared.Return(_buffer);
+        _buffer = expandedBuffer;
+    }
+}
