@@ -86,14 +86,13 @@ public sealed class PairingBootstrapDocument
 
 public enum PairingDiscoveryMode
 {
-    ConfiguredStrategy = 0,
-    AutomaticMulticast = 0,
+    ConfiguredHint = 0,
     BasicManual = 1
 }
 
 public sealed class PairingConnectionOptions
 {
-    public PairingDiscoveryMode DiscoveryMode { get; set; } = PairingDiscoveryMode.ConfiguredStrategy;
+    public PairingDiscoveryMode DiscoveryMode { get; set; } = PairingDiscoveryMode.ConfiguredHint;
     public string? ManualHostAddress { get; set; }
     public DeviceAppProfile? DeviceAppProfile { get; set; }
 }
@@ -226,11 +225,6 @@ public sealed class DeviceGraphicsProfile
     public int? RenderBackendCode { get; set; }
     public int? FpsTarget { get; set; }
     public bool? VsyncEnabled { get; set; }
-}
-
-public interface IPairingHostDiscoveryStrategy
-{
-    Task<IPAddress?> DiscoverHostAsync(PairingConfig config, CancellationToken cancellationToken);
 }
 
 public sealed class ConnectRequest

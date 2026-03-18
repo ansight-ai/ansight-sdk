@@ -2,7 +2,7 @@
 
 Ansight captures in-process telemetry for .NET Android, iOS, and Mac Catalyst apps and includes the core pairing client used to connect a mobile app to an Ansight host.
 
-The base package does not depend on any automatic discovery transport. Discovery is opt-in through an injected pairing strategy.
+The base package uses manual pairing against a known host address and the Ansight UDP pairing handshake.
 
 ## Telemetry quickstart
 
@@ -53,23 +53,6 @@ var result = await client.OpenSessionAsync(
 ```
 
 `OpenSessionAsync(...)` now sends a baseline `DeviceAppProfile` automatically immediately after the WebSocket handshake. Supply `PairingConnectionOptions.DeviceAppProfile` only when you want to add or override fields, or configure `UseDeviceAppProfileProvider(...)` on the builder to replace the automatic collector.
-
-Use an injected automatic discovery strategy:
-
-```csharp
-using Ansight.Discovery.Multicast;
-using Ansight.Pairing;
-
-var client = PairingSessionClient.CreateBuilder()
-    .UseHostDiscoveryStrategy(MulticastPairingHostDiscoveryStrategy.Instance)
-    .Build();
-
-var result = await client.OpenSessionAsync(
-    config,
-    clientName: "My App",
-    progress: null,
-    cancellationToken);
-```
 
 Create or parse a QR/bootstrap payload:
 
@@ -157,7 +140,6 @@ Only use `AnsightAllowMCPTools=true` for local Debug builds. Do not enable MCP t
 
 ## Related packages
 
-- `Ansight.Discovery.Multicast`: UDP multicast host discovery strategy for automatic LAN pairing
 - `Ansight.Tools.VisualTree`: UI hierarchy and screenshot tools
 - `Ansight.Tools.Database`: database inspection tools
 - `Ansight.Tools.FileSystem`: sandboxed file access tools
@@ -166,4 +148,4 @@ Only use `AnsightAllowMCPTools=true` for local Debug builds. Do not enable MCP t
 
 - Ansight is best-effort telemetry and has observer overhead.
 - Use platform profilers for authoritative measurements.
-- Automatic discovery is intentionally not built into the base package. Consumers opt in by providing an `IPairingHostDiscoveryStrategy`.
+- Pairing requires a host IP address supplied manually or via a saved discovery hint.

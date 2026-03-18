@@ -37,6 +37,18 @@ if ($wifiAdapter) {
         Select-Object -First 1 -ExpandProperty IPAddress
 }
 
+if (-not $hostAddress) {
+    $defaultRoute = Get-NetRoute -AddressFamily IPv4 -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue |
+        Sort-Object RouteMetric, InterfaceMetric |
+        Select-Object -First 1
+
+    if ($defaultRoute) {
+        $hostAddress = Get-NetIPAddress -InterfaceIndex $defaultRoute.IfIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+            Where-Object { $_.IPAddress -and $_.IPAddress -notlike '169.254.*' } |
+            Select-Object -First 1 -ExpandProperty IPAddress
+    }
+}
+
 $pairingConfig = Get-Content -LiteralPath $SourceFile -Raw | ConvertFrom-Json
 $document = [ordered]@{
     schema = 'ansight.pairing-bootstrap.v1'

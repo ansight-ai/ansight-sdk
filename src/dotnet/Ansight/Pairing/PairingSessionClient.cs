@@ -14,23 +14,16 @@ public sealed class PairingSessionClient : IDisposable
     private bool _disposed;
 
     public PairingSessionClient()
-        : this(hostDiscoveryStrategy: null, deviceAppProfileProvider: null)
+        : this(deviceAppProfileProvider: null)
     {
     }
 
-    public PairingSessionClient(IPairingHostDiscoveryStrategy? hostDiscoveryStrategy)
-        : this(hostDiscoveryStrategy, deviceAppProfileProvider: null)
-    {
-    }
-
-    public PairingSessionClient(
-        IPairingHostDiscoveryStrategy? hostDiscoveryStrategy,
-        IDeviceAppProfileProvider? deviceAppProfileProvider)
+    public PairingSessionClient(IDeviceAppProfileProvider? deviceAppProfileProvider)
     {
         var profileProvider = deviceAppProfileProvider ?? AutomaticDeviceAppProfileProvider.Instance;
 
         _deviceAppProfileResolver = new DeviceAppProfileResolver(profileProvider);
-        _connector = new PairingSessionConnector(hostDiscoveryStrategy);
+        _connector = new PairingSessionConnector();
         _transport = new PairingSessionTransport();
         _telemetryStreamer = new PairingTelemetryStreamer(_transport);
         _jpegStreamer = new PairingSessionJpegStreamer(_transport);

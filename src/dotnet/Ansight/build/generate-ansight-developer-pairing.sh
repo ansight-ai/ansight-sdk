@@ -19,6 +19,13 @@ if [ -n "$wifi_device" ]; then
   host_address="$(ipconfig getifaddr "$wifi_device" 2>/dev/null || true)"
 fi
 
+if [ -z "$host_address" ]; then
+  default_device="$(route -n get default 2>/dev/null | awk '/interface:/{print $2; exit}')"
+  if [ -n "$default_device" ]; then
+    host_address="$(ipconfig getifaddr "$default_device" 2>/dev/null || true)"
+  fi
+fi
+
 if [ "$wifi_name" = "You are not associated with an AirPort network." ]; then
   wifi_name=""
 fi

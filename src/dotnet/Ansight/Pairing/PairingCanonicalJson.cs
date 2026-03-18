@@ -92,7 +92,6 @@ internal static class PairingCanonicalJson
                 wsPort = PairingProtocolDefaults.WebSocketPort,
                 wsPath = PairingProtocolDefaults.WebSocketPath,
                 discoveryPort = config.Host.DiscoveryPort,
-                mdnsService = PairingProtocolDefaults.MdnsService,
                 hostPubKey = config.Host.HostPubKey,
                 hostPubKeyFingerprint = config.Host.HostPubKeyFingerprint
             },
@@ -129,7 +128,6 @@ internal static class PairingCanonicalJson
                 wsPort = PairingProtocolDefaults.WebSocketPort,
                 wsPath = PairingProtocolDefaults.WebSocketPath,
                 discoveryPort = config.Host.DiscoveryPort,
-                mdnsService = PairingProtocolDefaults.MdnsService,
                 hostPubKey = config.Host.HostPubKey,
                 hostPubKeyFingerprint = config.Host.HostPubKeyFingerprint
             },

@@ -7,13 +7,6 @@ namespace Ansight.Pairing;
 
 internal sealed class PairingSessionConnector
 {
-    private readonly IPairingHostDiscoveryStrategy? _hostDiscoveryStrategy;
-
-    public PairingSessionConnector(IPairingHostDiscoveryStrategy? hostDiscoveryStrategy)
-    {
-        _hostDiscoveryStrategy = hostDiscoveryStrategy;
-    }
-
     public async Task<PairingConnectionAttempt> ConnectAsync(
         PairingConfig config,
         string clientName,
@@ -21,45 +14,16 @@ internal sealed class PairingSessionConnector
         IProgress<string>? progress,
         CancellationToken cancellationToken)
     {
-        IPAddress? discoveredHostAddress;
-        var discoveryMode = options?.DiscoveryMode ?? PairingDiscoveryMode.ConfiguredStrategy;
-
-        if (discoveryMode == PairingDiscoveryMode.BasicManual)
+        if (!TryResolveManualHostAddress(options?.ManualHostAddress, out var hostAddress))
         {
-            if (!TryResolveManualHostAddress(options?.ManualHostAddress, out var manualHostAddress))
-            {
-                return PairingConnectionAttempt.FromFailure("Basic manual discovery requires a valid host IP address.");
-            }
-
-            progress?.Report($"Using manual host address: {manualHostAddress}");
-            discoveredHostAddress = manualHostAddress!;
-        }
-        else
-        {
-            if (_hostDiscoveryStrategy is null)
-            {
-                return PairingConnectionAttempt.FromFailure("No host discovery strategy was configured for automatic pairing.");
-            }
-
-            using var discoverTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            discoverTimeout.CancelAfter(TimeSpan.FromSeconds(8));
-
-            try
-            {
-                discoveredHostAddress = await _hostDiscoveryStrategy.DiscoverHostAsync(config, discoverTimeout.Token);
-            }
-            catch (SocketException ex)
-            {
-                return PairingConnectionAttempt.FromFailure($"Discovery strategy failed: {ex.Message}");
-            }
+            return PairingConnectionAttempt.FromFailure("Manual pairing requires a valid host IP address.");
         }
 
-        if (discoveredHostAddress is null)
-        {
-            return PairingConnectionAttempt.FromFailure("No host discovered.");
-        }
-
-        progress?.Report($"Discovered host at {discoveredHostAddress}:{config.Host.DiscoveryPort}");
+        var discoveryMode = options?.DiscoveryMode ?? PairingDiscoveryMode.ConfiguredHint;
+        progress?.Report(discoveryMode == PairingDiscoveryMode.BasicManual
+            ? $"Using manual host address: {hostAddress}"
+            : $"Using configured host hint: {hostAddress}");
+        progress?.Report($"Connecting to host at {hostAddress}:{config.Host.DiscoveryPort}");
 
         using var connectTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         connectTimeout.CancelAfter(TimeSpan.FromSeconds(5));
@@ -67,7 +31,7 @@ internal sealed class PairingSessionConnector
         ConnectResponse? connectResponse;
         try
         {
-            connectResponse = await SendConnectRequestAsync(config, clientName, discoveredHostAddress, connectTimeout.Token);
+            connectResponse = await SendConnectRequestAsync(config, clientName, hostAddress!, connectTimeout.Token);
         }
         catch (SocketException ex)
         {
@@ -90,7 +54,7 @@ internal sealed class PairingSessionConnector
 
         if (!connectResponse.Accepted)
         {
-            return PairingConnectionAttempt.FromRejected(discoveredHostAddress, connectResponse);
+            return PairingConnectionAttempt.FromRejected(hostAddress!, connectResponse);
         }
 
         if (connectResponse.WebSocketPort is null ||
@@ -101,7 +65,7 @@ internal sealed class PairingSessionConnector
         }
 
         var wsUri = new Uri(
-            $"ws://{discoveredHostAddress}:{connectResponse.WebSocketPort}{connectResponse.WebSocketPath}?token={Uri.EscapeDataString(connectResponse.WebSocketToken)}");
+            $"ws://{hostAddress}:{connectResponse.WebSocketPort}{connectResponse.WebSocketPath}?token={Uri.EscapeDataString(connectResponse.WebSocketToken)}");
         progress?.Report($"Opening WebSocket: {wsUri}");
 
         var connectedSocket = await ConnectWebSocketWithRetryAsync(wsUri, cancellationToken);
@@ -118,7 +82,7 @@ internal sealed class PairingSessionConnector
             var hostHello = await PairingSessionTransport.ReceiveTextAsync(connectedSocket, helloTimeout.Token);
             progress?.Report($"WS <- {hostHello}");
 
-            return PairingConnectionAttempt.FromSuccess(discoveredHostAddress, connectResponse, hostHello, connectedSocket);
+            return PairingConnectionAttempt.FromSuccess(hostAddress!, connectResponse, hostHello, connectedSocket);
         }
         catch (Exception ex)
         {
