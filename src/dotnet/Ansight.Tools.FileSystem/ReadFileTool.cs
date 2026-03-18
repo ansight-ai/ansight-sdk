@@ -6,6 +6,12 @@ using System.Text.Json.Nodes;
 public sealed class ReadFileTool : ITool
 {
     private const int DefaultMaxBytes = 64 * 1024;
+    private readonly FileSystemToolsOptions options;
+
+    public ReadFileTool(FileSystemToolsOptions? options = null)
+    {
+        this.options = options ?? FileSystemToolsOptions.Default;
+    }
 
     public string Category => "files";
 
@@ -29,7 +35,7 @@ public sealed class ReadFileTool : ITool
 
         try
         {
-            var roots = FileSystemSandbox.GetRoots();
+            var roots = FileSystemSandbox.GetRoots(options);
             var resolvedFile = FileSystemSandbox.ResolvePath(arguments, roots, requireExisting: true, expectDirectory: false);
             var maxBytes = FileSystemSandbox.GetInt(arguments, "maxBytes", defaultValue: DefaultMaxBytes, minimum: 1, maximum: 1024 * 1024);
             var encoding = FileSystemSandbox.GetString(arguments, "encoding");
@@ -73,6 +79,7 @@ public sealed class ReadFileTool : ITool
                 ["rootPath"] = resolvedFile.RootPath,
                 ["filePath"] = resolvedFile.FullPath,
                 ["relativePath"] = Path.GetRelativePath(resolvedFile.RootPath, resolvedFile.FullPath),
+                ["availableRoots"] = FileSystemSandbox.DescribeRoots(roots),
                 ["sizeBytes"] = fileInfo.Length,
                 ["bytesRead"] = buffer.Length,
                 ["truncated"] = truncated,

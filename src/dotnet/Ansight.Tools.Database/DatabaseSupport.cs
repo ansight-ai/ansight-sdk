@@ -3,6 +3,12 @@ namespace Ansight.Tools.Database;
 using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
 
+#if ANDROID
+using Android.App;
+#elif IOS || MACCATALYST
+using Foundation;
+#endif
+
 internal static class DatabaseSupport
 {
     private const int SqliteOk = 0;
@@ -200,15 +206,21 @@ internal static class DatabaseSupport
     private static IReadOnlyDictionary<string, string> GetRoots()
     {
         var roots = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        AddRoot(roots, "appData", Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
-        AddRoot(roots, "documents", Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
-        AddRoot(roots, "personal", Environment.GetFolderPath(Environment.SpecialFolder.Personal));
-        AddRoot(roots, "temp", Path.GetTempPath());
+        foreach (var root in GetPlatformRoots())
+        {
+            AddRoot(roots, root.Alias, root.Path);
+        }
+
         return roots;
     }
 
     private static void AddRoot(IDictionary<string, string> roots, string alias, string? path)
     {
+        if (string.IsNullOrWhiteSpace(alias))
+        {
+            throw new InvalidOperationException("Sandbox root aliases must be non-empty.");
+        }
+
         if (string.IsNullOrWhiteSpace(path))
         {
             return;
@@ -220,6 +232,17 @@ internal static class DatabaseSupport
             return;
         }
 
+        if (roots.TryGetValue(alias, out var existingPath))
+        {
+            if (string.Equals(existingPath, fullPath, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            throw new InvalidOperationException(
+                $"A sandbox root with alias '{alias}' is already registered for '{existingPath}'.");
+        }
+
         if (roots.Values.Contains(fullPath, StringComparer.Ordinal))
         {
             return;
@@ -228,9 +251,40 @@ internal static class DatabaseSupport
         roots.Add(alias, fullPath);
     }
 
+    private static IEnumerable<(string Alias, string? Path)> GetPlatformRoots()
+    {
+#if ANDROID
+        yield return ("appData", Application.Context?.FilesDir?.AbsolutePath);
+        yield return ("cache", Application.Context?.CacheDir?.AbsolutePath);
+#elif IOS || MACCATALYST
+        yield return ("appData", GetAppleDirectory(NSSearchPathDirectory.LibraryDirectory));
+        yield return ("documents", GetAppleDirectory(NSSearchPathDirectory.DocumentDirectory));
+        yield return ("cache", GetAppleDirectory(NSSearchPathDirectory.CachesDirectory));
+#else
+        yield return ("appData", Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+        yield return ("documents", Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
+        yield return ("cache", Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+#endif
+        yield return ("temp", Path.GetTempPath());
+    }
+
+#if IOS || MACCATALYST
+    private static string? GetAppleDirectory(NSSearchPathDirectory directory)
+    {
+        var directories = NSSearchPath.GetDirectories(directory, NSSearchPathDomain.User);
+        if (directories is null || directories.Length == 0)
+        {
+            return null;
+        }
+
+        return directories[0];
+    }
+#endif
+
     private static string ResolveSandboxPath(string requestedPath)
     {
         var roots = GetRoots();
+
         string fullPath;
         if (Path.IsPathRooted(requestedPath))
         {
@@ -238,13 +292,21 @@ internal static class DatabaseSupport
         }
         else
         {
-            var firstRoot = roots.FirstOrDefault();
-            if (string.IsNullOrWhiteSpace(firstRoot.Value))
+            var matchingRoot = FindExistingRelativePathMatch(roots, requestedPath);
+            if (matchingRoot.HasValue)
             {
-                throw new InvalidOperationException("No sandbox root is available for database lookup.");
+                fullPath = Path.GetFullPath(Path.Combine(matchingRoot.Value.RootPath, requestedPath));
             }
+            else
+            {
+                var defaultRoot = SelectDefaultRoot(roots);
+                if (string.IsNullOrWhiteSpace(defaultRoot.RootPath))
+                {
+                    throw new InvalidOperationException("No sandbox root is available for database lookup.");
+                }
 
-            fullPath = Path.GetFullPath(Path.Combine(firstRoot.Value, requestedPath));
+                fullPath = Path.GetFullPath(Path.Combine(defaultRoot.RootPath, requestedPath));
+            }
         }
 
         if (!roots.Values.Any(root => IsWithinRoot(fullPath, root)))
@@ -263,6 +325,45 @@ internal static class DatabaseSupport
         }
 
         return fullPath;
+    }
+
+    private static (string RootAlias, string RootPath)? FindExistingRelativePathMatch(
+        IReadOnlyDictionary<string, string> roots,
+        string requestedPath)
+    {
+        var matches = new List<(string RootAlias, string RootPath)>();
+        foreach (var root in roots)
+        {
+            var candidatePath = Path.GetFullPath(Path.Combine(root.Value, requestedPath));
+            if (!IsWithinRoot(candidatePath, root.Value))
+            {
+                continue;
+            }
+
+            if (File.Exists(candidatePath))
+            {
+                matches.Add((root.Key, root.Value));
+            }
+        }
+
+        return matches.Count switch
+        {
+            0 => null,
+            1 => matches[0],
+            _ => throw new InvalidOperationException(
+                $"The database path '{requestedPath}' exists in multiple approved sandbox roots. Use an absolute path instead.")
+        };
+    }
+
+    private static (string RootAlias, string RootPath) SelectDefaultRoot(IReadOnlyDictionary<string, string> roots)
+    {
+        if (roots.TryGetValue("appData", out var appDataPath))
+        {
+            return ("appData", appDataPath);
+        }
+
+        var firstRoot = roots.FirstOrDefault();
+        return (firstRoot.Key, firstRoot.Value);
     }
 
     private static bool LooksLikeSqliteDatabase(string filePath)

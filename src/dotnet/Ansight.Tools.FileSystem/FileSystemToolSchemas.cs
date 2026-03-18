@@ -4,6 +4,15 @@ using Ansight.Tools;
 
 internal static class FileSystemToolSchemas
 {
+    private static readonly ToolSchema SandboxRootSchema = ToolSchema.Object(
+        description: "Approved sandbox root.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["alias"] = ToolSchema.String("Sandbox root alias."),
+            ["path"] = ToolSchema.String("Absolute root path.")
+        },
+        required: new[] { "alias", "path" });
+
     private static readonly ToolSchema FileEntrySchema = ToolSchema.Object(
         description: "File or directory entry inside an approved sandbox root.",
         properties: new Dictionary<string, ToolSchema>
@@ -39,11 +48,12 @@ internal static class FileSystemToolSchemas
             ["rootPath"] = ToolSchema.String("Resolved sandbox root path."),
             ["directoryPath"] = ToolSchema.String("Resolved directory path."),
             ["relativePath"] = ToolSchema.String("Path relative to the sandbox root."),
+            ["availableRoots"] = ToolSchema.Array(SandboxRootSchema, "Approved sandbox roots visible to the tool."),
             ["entries"] = ToolSchema.Array(FileEntrySchema, "Directory entries."),
             ["truncated"] = ToolSchema.Boolean("Whether additional entries were omitted."),
             ["capturedAtUtc"] = ToolSchema.String("UTC timestamp for capture.", format: "date-time")
         },
-        required: new[] { "rootAlias", "rootPath", "directoryPath", "relativePath", "entries", "truncated", "capturedAtUtc" });
+        required: new[] { "rootAlias", "rootPath", "directoryPath", "relativePath", "availableRoots", "entries", "truncated", "capturedAtUtc" });
 
     internal static ToolSchema ReadFileArguments { get; } = ToolSchema.Object(
         description: "Arguments for reading a sandboxed file.",
@@ -64,6 +74,7 @@ internal static class FileSystemToolSchemas
             ["rootPath"] = ToolSchema.String("Resolved sandbox root path."),
             ["filePath"] = ToolSchema.String("Resolved file path."),
             ["relativePath"] = ToolSchema.String("Path relative to the sandbox root."),
+            ["availableRoots"] = ToolSchema.Array(SandboxRootSchema, "Approved sandbox roots visible to the tool."),
             ["sizeBytes"] = ToolSchema.Integer("File size in bytes."),
             ["bytesRead"] = ToolSchema.Integer("Number of bytes returned."),
             ["truncated"] = ToolSchema.Boolean("Whether additional bytes were omitted."),
@@ -73,5 +84,5 @@ internal static class FileSystemToolSchemas
             ["text"] = ToolSchema.String("UTF-8 text content when available.", nullable: true),
             ["base64"] = ToolSchema.String("Base64 content for binary payloads.", nullable: true)
         },
-        required: new[] { "rootAlias", "rootPath", "filePath", "relativePath", "sizeBytes", "bytesRead", "truncated", "capturedAtUtc", "contentType", "encoding" });
+        required: new[] { "rootAlias", "rootPath", "filePath", "relativePath", "availableRoots", "sizeBytes", "bytesRead", "truncated", "capturedAtUtc", "contentType", "encoding" });
 }

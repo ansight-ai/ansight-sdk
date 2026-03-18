@@ -13,3 +13,18 @@ var options = Options.CreateBuilder()
     .WithReadOnlyToolAccess()
     .Build();
 ```
+
+Configure additional tagged roots:
+
+```csharp
+using Ansight;
+using Ansight.Tools.FileSystem;
+
+var options = Options.CreateBuilder()
+    .WithFileSystemTools(fileSystem =>
+    {
+        fileSystem.AddRoot("logs", "/absolute/path/to/logs");
+    })
+    .WithReadOnlyToolAccess()
+    .Build();
+```

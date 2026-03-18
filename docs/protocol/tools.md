@@ -329,6 +329,8 @@ Notes:
 
 - This is app-sandbox listing, not host-machine filesystem listing.
 - Good default roots are documents, cache, temp, and known app data directories.
+- When a caller omits the sandbox root, implementations should resolve relative paths against the matching approved root rather than blindly using the first configured root.
+- Results should surface the approved root aliases/paths so callers can retry with an explicit root when needed.
 
 #### `fs.read_text`
 

@@ -6,6 +6,12 @@ public sealed class ListDirectoryTool : ITool
 {
     private const int DefaultMaxEntries = 200;
     private const int DefaultMaxDepth = 1;
+    private readonly FileSystemToolsOptions options;
+
+    public ListDirectoryTool(FileSystemToolsOptions? options = null)
+    {
+        this.options = options ?? FileSystemToolsOptions.Default;
+    }
 
     public string Category => "files";
 
@@ -29,7 +35,7 @@ public sealed class ListDirectoryTool : ITool
 
         try
         {
-            var roots = FileSystemSandbox.GetRoots();
+            var roots = FileSystemSandbox.GetRoots(options);
             var resolvedDirectory = FileSystemSandbox.ResolvePath(arguments, roots, requireExisting: true, expectDirectory: true);
             var includeHidden = FileSystemSandbox.GetBoolean(arguments, "includeHidden", defaultValue: false);
             var recursive = FileSystemSandbox.GetBoolean(arguments, "recursive", defaultValue: false);
@@ -88,6 +94,7 @@ public sealed class ListDirectoryTool : ITool
                 ["rootPath"] = resolvedDirectory.RootPath,
                 ["directoryPath"] = resolvedDirectory.FullPath,
                 ["relativePath"] = Path.GetRelativePath(resolvedDirectory.RootPath, resolvedDirectory.FullPath),
+                ["availableRoots"] = FileSystemSandbox.DescribeRoots(roots),
                 ["entries"] = entries,
                 ["truncated"] = entries.Count >= maxEntries,
                 ["capturedAtUtc"] = DateTime.UtcNow.ToString("O")
