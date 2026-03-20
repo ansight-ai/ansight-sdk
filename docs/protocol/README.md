@@ -1,370 +1,394 @@
 # Ansight Connection Protocol
 
-This document describes the transport and session design used between an Ansight-enabled app, Studio, and any MCP-compatible host/service.
+This document describes the protocol behavior currently implemented by the `.NET` SDK under [src/dotnet/Ansight](../../src/dotnet/Ansight).
 
-It covers:
-
-- how peers discover each other
-- how pairing and trust are established
-- how the session upgrades to a real-time channel
-- what features the protocol currently supports
-- where remote tools fit into the design
-
-## Design goals
-
-- Keep pairing lightweight enough for local developer workflows.
-- Separate discovery from trust so transport mechanisms can change without rewriting the security model.
-- Use a single upgraded session channel for telemetry, control, and future tool execution.
-- Allow Studio and MCP to share the same capabilities model, even if they present different UX.
+It is intentionally descriptive rather than aspirational. If this file and the SDK disagree, the SDK is the source of truth and this document should be updated.
 
 ## Roles
 
-- `app client`: the SDK running inside the mobile or desktop app
-- `host`: the developer machine or service accepting the session
-- `studio`: the primary interactive UI for inspection and debugging
-- `mcp adapter`: a machine-oriented facade that exposes the same remote capabilities as tools/resources/prompts
+- `app client`: the SDK running inside the target app
+- `host`: the machine accepting the pairing session
 
-In the current codebase, the app acts as the initiating client and the host acts as the accepting server.
+The current `.NET` SDK always behaves as the initiating client.
 
-## Transport overview
+## Current connection flow
 
-The protocol currently uses a three-stage connection model:
+The implemented session flow is:
 
-1. `Discovery`
-   The app finds the host either by manual address entry or LAN discovery.
-2. `UDP connect handoff`
-   The app sends a signed pairing-derived connect request to the host discovery port.
-3. `WebSocket session`
-   The host accepts the request and upgrades the session to a WebSocket channel used for telemetry and control messages.
+1. Parse and validate a pairing document.
+2. Resolve a host IP address from `PairingConnectionOptions.ManualHostAddress`.
+3. Send a UDP `CONNECT_REQ` JSON packet to the host discovery port.
+4. Receive a UDP `CONNECT_RESP` JSON packet with a WebSocket handoff.
+5. Open a WebSocket using the returned `token` query string.
+6. Wait for one initial text frame from the host.
+7. Attach the WebSocket transport, send an initial `DeviceAppProfile`, and start optional screenshot streaming.
 
-## Default ports and endpoints
+The relevant code paths are:
 
-Current defaults in the SDK:
+- [PairingConfigDocumentService.cs](../../src/dotnet/Ansight/Pairing/PairingConfigDocumentService.cs)
+- [PairingSessionConnector.cs](../../src/dotnet/Ansight/Pairing/PairingSessionConnector.cs)
+- [PairingSessionTransport.cs](../../src/dotnet/Ansight/Pairing/PairingSessionTransport.cs)
+- [PairingSessionClient.cs](../../src/dotnet/Ansight/Pairing/PairingSessionClient.cs)
+
+## Default constants
+
+The SDK exposes these defaults in [PairingProtocolDefaults.cs](../../src/dotnet/Ansight/Pairing/PairingProtocolDefaults.cs):
 
 - discovery UDP port: `45123`
 - WebSocket port: `45124`
 - WebSocket path: `/ws`
-- mDNS service name: `_ansightstream._tcp`
 
-These values come from [PairingProtocolDefaults.cs](../../src/dotnet/Ansight/Pairing/PairingProtocolDefaults.cs).
+Only the discovery port is directly consumed by the current client. For the WebSocket handoff, the client requires the host to return `webSocketPort`, `webSocketPath`, and `webSocketToken` in the accepted UDP response.
 
-## Pairing artifacts
+## Pairing documents
 
-The trust model is driven by a signed pairing document.
+The SDK accepts either a plain `PairingConfig` or a bootstrap wrapper document.
 
-### Pairing config
+### `PairingConfig`
 
-The base pairing object is `PairingConfig` and contains:
+The base config is defined by:
 
-- protocol/schema identity
+- [PairingConfig.cs](../../src/dotnet/Ansight/Pairing/Models/PairingConfig.cs)
+- [PairingHost.cs](../../src/dotnet/Ansight/Pairing/Models/PairingHost.cs)
+- [PairingChallenge.cs](../../src/dotnet/Ansight/Pairing/Models/PairingChallenge.cs)
+- [PairingTrust.cs](../../src/dotnet/Ansight/Pairing/Models/PairingTrust.cs)
+
+Important fields are:
+
+- `schema`
 - `configId`
-- target `appId` and `appName`
-- issue and expiry timestamps
-- a one-time token
-- host identity and public key material
-- challenge settings
-- trust policy flags
-- host signature
-
-Relevant fields are defined in [PairingModels.cs](../../src/dotnet/Ansight/Pairing/PairingModels.cs).
-
-### Bootstrap document
-
-The SDK also supports a wrapper document:
-
-- schema: `ansight.pairing-bootstrap.v1`
-- payload: `pairingConfig`
-- optional: `discovery`
-
-The optional `discovery` object is a `PairingDiscoveryHint` that can include:
-
-- host IP/address
-- host name
-- Wi-Fi name
-- capture timestamp
-- source metadata
-
-This is useful for QR handoff, local developer bootstrap files, or pre-bundled configuration.
-
-## Discovery layer
-
-Two discovery modes exist today:
-
-- `BasicManual`
-  The app connects to an explicitly supplied host IP address.
-- `ConfiguredStrategy` / `AutomaticMulticast`
-  The app uses an injected discovery strategy, currently multicast/LAN discovery for .NET.
-
-### Multicast discovery
-
-The optional multicast package uses UDP multicast LAN discovery.
-
-Request shape:
-
-- `type`: `DISCOVER_REQ`-style request identifier
-- `ver`: protocol version
-- `nonce`
 - `appId`
+- `appName`
+- `issuedAt`
+- `expiresAt`
+- `oneTimeToken`
+- `host`
+- `challenge`
+- `trust`
+- `signature`
 
-Response shape:
+### Bootstrap and QR payloads
 
-- `type`
-- `ver`
-- `hostId`
-- `hostName`
-- `wsPort`
-- `wsPath`
-- `hostPubKey`
-- `respNonce`
-- `sig`
+The SDK also parses:
 
-The important property of discovery is that it is not trusted by itself. The client validates the response signature against the public key already embedded in the pairing config before using the host.
+- `ansight.pairing-bootstrap.v1` via [PairingBootstrapDocument.cs](../../src/dotnet/Ansight/Pairing/Models/PairingBootstrapDocument.cs)
+- `ansight.pairing-connection-hint.v1` via [PairingConnectionHint.cs](../../src/dotnet/Ansight/Pairing/Models/PairingConnectionHint.cs)
+- `ansight.discovery-hint.v1` via [PairingDiscoveryHint.cs](../../src/dotnet/Ansight/Pairing/Models/PairingDiscoveryHint.cs)
+- `ansight.qr-pairing-connection.v1` via [PairingQrConnectionPayload.cs](../../src/dotnet/Ansight/Pairing/Models/PairingQrConnectionPayload.cs)
 
-## Session establishment
+When a bootstrap document includes a `connectionHint`, the parser applies the hint's `configId`, `issuedAt`, `expiresAt`, `oneTimeToken`, and `challenge` into the effective config, but signature verification still uses the original `pairingConfig` as the trust anchor.
 
-After discovery, the app sends a UDP connect request to the host.
+## Validation and trust
+
+Before opening a session, the client validates:
+
+- the pairing config signature
+- the config expiry time
+- the `appId`, when the caller supplies an expected app id
+
+Signature verification uses the host public key embedded in the config and currently accepts several historical canonical JSON forms for compatibility. That behavior lives in [PairingConfigDocumentService.cs](../../src/dotnet/Ansight/Pairing/PairingConfigDocumentService.cs) and [PairingCanonicalJson.cs](../../src/dotnet/Ansight/Pairing/PairingCanonicalJson.cs).
+
+Important current limitation: the UDP connect request, UDP connect response, and WebSocket hello are not separately signed or schema-validated beyond normal JSON parsing and source-address checks.
+
+## Host address resolution
+
+The current `.NET` connector is manual-host driven.
+
+- `PairingConnectionOptions.DiscoveryMode` supports `ConfiguredHint` and `BasicManual`
+- both modes still require `PairingConnectionOptions.ManualHostAddress` to be a valid IP address
+- `ParsedPairingDocument.DiscoveryHint` is parsed and preserved, but the connector does not currently resolve or probe it automatically
+- there is no LAN discovery implementation in the current base `.NET` SDK
+
+This means the progress message may say `Using configured host hint`, but the connector still uses the explicit `ManualHostAddress` value.
+
+## UDP connect handoff
+
+The client sends a JSON packet with camel-cased property names using [PairingJson.cs](../../src/dotnet/Ansight/Pairing/PairingJson.cs).
 
 ### Connect request
 
-Current request fields:
+Message type: `CONNECT_REQ`
 
-- `type = CONNECT_REQ`
-- `ver = 1`
-- `configId`
-- `oneTimeToken`
-- `appId`
-- `clientName`
+JSON shape:
+
+```json
+{
+  "type": "CONNECT_REQ",
+  "ver": 1,
+  "configId": "cfg_123",
+  "oneTimeToken": "token_123",
+  "appId": "com.example.app",
+  "clientName": "My App"
+}
+```
+
+Model: [ConnectRequest.cs](../../src/dotnet/Ansight/Pairing/Models/ConnectRequest.cs)
 
 ### Connect response
 
-Current response fields:
+The client accepts only responses:
 
-- `type = CONNECT_RESP`
-- `ver = 1`
-- `accepted`
-- `reason`
-- `reasonMessage`
-- `hostId`
-- `hostName`
-- `message`
-- `webSocketPort`
-- `webSocketPath`
-- `webSocketToken`
+- received from the selected host IP address
+- whose `type` is exactly `CONNECT_RESP`
 
-If accepted, the host returns a WebSocket handoff token and endpoint details.
+JSON shape:
+
+```json
+{
+  "type": "CONNECT_RESP",
+  "ver": 1,
+  "accepted": true,
+  "reason": "ok",
+  "reasonMessage": null,
+  "hostId": "host_123",
+  "hostName": "dev-machine",
+  "message": "ready",
+  "webSocketPort": 45124,
+  "webSocketPath": "/ws",
+  "webSocketToken": "ws_token"
+}
+```
+
+Model: [ConnectResponse.cs](../../src/dotnet/Ansight/Pairing/Models/ConnectResponse.cs)
+
+If `accepted` is `true` but any of `webSocketPort`, `webSocketPath`, or `webSocketToken` is missing, the client fails the connection attempt.
 
 ## WebSocket session
 
-The real-time session is established as:
+The client opens:
 
 ```text
 ws://<host-address>:<webSocketPort><webSocketPath>?token=<webSocketToken>
 ```
 
-The client opens the socket, waits for an initial host hello message, and then begins sending telemetry and control payloads.
+Current connector behavior:
 
-### Current message families
+- up to `12` connection attempts
+- each WebSocket connect attempt has a `2s` timeout
+- retries wait `250ms`
+- after connect, the client waits up to `10s` for one initial host text frame
 
-Implemented client-to-host message types in the .NET SDK:
+That first host frame is treated as an opaque hello string. The client reports it, but does not parse it into a structured schema.
 
-- `DeviceAppProfile`
-- `CLIENT_LOG`
-- `CLIENT_DONE`
-- `CLIENT_METRIC_CHANNELS`
-- `CLIENT_METRICS`
-- `CLIENT_EVENTS`
+## WebSocket receive and acknowledgement model
 
-Some payloads expect a host acknowledgement, while high-frequency telemetry payloads such as metric channel definitions and metric batches are currently sent without waiting for an ack.
+The transport implementation is in [PairingSessionTransport.cs](../../src/dotnet/Ansight/Pairing/PairingSessionTransport.cs).
 
-### Device/app profile
+Current behavior:
 
-This is the initial capability and environment snapshot the app can send after the socket opens. The schema is `ansight.device-app-profile.v1`.
+- outgoing text and binary writes are serialized through a send lock
+- request/response style sends use `SendRequestAsync(...)`
+- `SendRequestAsync(...)` waits for the next inbound non-tool text frame as the acknowledgement
+- there is no request id correlation for these acknowledgements
+- WebSocket close frames are surfaced internally as the sentinel string `<close>`
 
-It can include:
+The receive pump is text-oriented. The implemented host-to-client control path assumes text frames, not binary command frames.
 
-- device identity and OS details
-- battery, display, GPU, thermal, and network metadata
-- app version/build/debuggable flags
-- runtime stack metadata
-- graphics/runtime settings
-- permissions and tags
+## Initial profile exchange
 
-This profile should be treated as the session's initial context block and can be refreshed later if needed.
+After the WebSocket is attached, [PairingSessionClient.cs](../../src/dotnet/Ansight/Pairing/PairingSessionClient.cs) sends a baseline `DeviceAppProfile` if one is available.
 
-## Supported features
+Message type: `DeviceAppProfile`
 
-Features currently reflected in the codebase:
+Model: [DeviceAppProfile.cs](../../src/dotnet/Ansight/Pairing/Models/DeviceAppProfile.cs)
 
-- signed pairing configuration validation
-- optional bootstrap/QR documents
-- manual host connection
-- optional multicast LAN discovery
-- UDP connect handshake
-- WebSocket session handoff
-- device/app profile exchange
-- client log forwarding
-- real-time metric streaming
-- event streaming
-- explicit session completion and close
+Important top-level fields:
 
-Features implied but not fully implemented yet:
+- `type = "DeviceAppProfile"`
+- `schema = "ansight.device-app-profile.v1"`
+- `sentAt`
+- `reasonCode`
+- `profileSeq`
+- `device`
+- `app`
+- `runtime`
+- `graphics`
+- `permissions`
+- `tags`
 
-- host-to-client command messages
-- negotiated tool execution
-- richer capability advertisement
-- resumable/recoverable sessions
-- binary payload transport for screenshots or large visual trees
+This message is sent with request/ack semantics, so the client waits for one inbound text acknowledgement after sending it.
 
-## Protocol structure going forward
+## Telemetry message families
 
-The current protocol is good enough for telemetry streaming, but remote inspection features need one additional layer: explicit capability negotiation.
+Telemetry streaming is implemented in [PairingTelemetryStreamer.cs](../../src/dotnet/Ansight/TelemetryStreaming/PairingTelemetryStreamer.cs).
 
-Recommended session structure:
+### `CLIENT_LOG`
 
-1. `host_hello`
-   Includes protocol version, host identity, and supported capabilities.
-2. `client_hello`
-   Includes SDK version, platform/runtime identity, and requested capability set.
-3. `session_ready`
-   Freezes the negotiated feature set for the session.
-4. `event streams`
-   Telemetry, logs, and lifecycle events.
-5. `command streams`
-   Tool requests/responses, subscriptions, and long-running task progress.
-
-### Capability negotiation
-
-Studio and MCP should not assume every target can execute every command. Capabilities should be explicit and versioned.
-
-For the baseline read-only inspection surface, "capabilities" should mean features the SDK can infer and expose automatically from the running app session. They should not require the app team to add extra OS permissions, entitlements, or custom capability declarations just to unlock standard inspection tools.
-
-Recommended capability groups:
-
-- `telemetry.metrics`
-- `telemetry.events`
-- `telemetry.logs`
-- `inspect.device_profile`
-- `inspect.visual_tree`
-- `inspect.screenshot`
-- `inspect.navigation`
-- `storage.sql.read`
-- `storage.sql.write`
-- `fs.read`
-- `fs.write`
-- `fs.list`
-- `automation.intent`
-- `tool.exec`
-
-Each capability should advertise:
-
-- stable id
-- semantic version or revision
-- read/write/risky classification
-- payload size limits
-- whether streaming responses are supported
-
-## Communications design guidance
-
-### Envelope
-
-The protocol will be easier to evolve if all WebSocket messages converge on a common envelope:
+Sent by [PairingSessionClient.cs](../../src/dotnet/Ansight/Pairing/PairingSessionClient.cs) with request/ack semantics.
 
 ```json
 {
-  "type": "tool.call",
-  "id": "req_123",
-  "sessionId": "sess_abc",
-  "sentAt": "2026-03-15T10:00:00Z",
-  "capability": "inspect.screenshot",
-  "payload": {}
+  "source": "client",
+  "type": "CLIENT_LOG",
+  "sentAtUtc": "2026-03-20T10:00:00Z",
+  "data": "log line"
 }
 ```
 
-Recommended shared fields:
+### `CLIENT_DONE`
 
-- `type`: message kind
-- `id`: request/event correlation id
-- `replyTo`: optional parent correlation id
-- `sessionId`: logical session identifier
-- `sentAt`: UTC timestamp
-- `seq`: optional ordered stream sequence
-- `capability`: feature/tool namespace
-- `payload`: typed body
+Sent by [PairingSessionClient.cs](../../src/dotnet/Ansight/Pairing/PairingSessionClient.cs) with request/ack semantics. After the send completes, the client closes the session transport.
 
-### Delivery semantics
+```json
+{
+  "source": "client",
+  "type": "CLIENT_DONE",
+  "sentAtUtc": "2026-03-20T10:00:00Z",
+  "data": "client log stream complete"
+}
+```
 
-- Telemetry can remain best-effort and lossy under backpressure.
-- Tool execution should be request/response with explicit success, error, and cancellation states.
-- Large inspections such as screenshots or deep trees should support chunking or artifact URLs instead of forcing one huge JSON message.
-- Long-running actions should emit progress events.
+### `CLIENT_METRIC_CHANNELS`
 
-### Error model
+Sent fire-and-forget with `SendTextAsync(...)`. No acknowledgement is expected.
 
-All command-like operations should return structured failures:
+```json
+{
+  "source": "client",
+  "type": "CLIENT_METRIC_CHANNELS",
+  "sentAtUtc": "2026-03-20T10:00:00Z",
+  "channels": [
+    {
+      "id": 42,
+      "name": "render",
+      "color": "#ff8800"
+    }
+  ]
+}
+```
 
-- `code`: stable machine-readable code
-- `message`: user-readable explanation
-- `retryable`: whether the caller should retry
-- `details`: optional structured context
+Only previously unseen channel ids are announced.
 
-### Security model
+### `CLIENT_METRICS`
 
-Current trust anchors:
+Sent fire-and-forget with `SendTextAsync(...)`. No acknowledgement is expected.
 
-- signed pairing config
-- host public key validation
-- one-time token on first connection
-- optional discovery restrictions via trust policy
+```json
+{
+  "source": "client",
+  "type": "CLIENT_METRICS",
+  "sentAtUtc": "2026-03-20T10:00:00Z",
+  "metrics": [
+    {
+      "channel": 42,
+      "value": 123.0,
+      "capturedAtUtc": "2026-03-20T09:59:58Z"
+    }
+  ]
+}
+```
 
-Recommended additions for remote tooling:
+Current batching behavior:
 
-- explicit per-tool risk classification
-- host-side allow/deny policy by capability
-- optional user-presence confirmation for risky commands
-- scoped app-sandbox file system and SQL access
-- audit log of executed tool requests
+- maximum `160` metrics per batch
+- pending metric queue capped at `2000`
 
-## Compatibility and versioning
+### `CLIENT_EVENTS`
 
-Recommended versioning rules:
+Sent with request/ack semantics.
 
-- keep transport versioning coarse at the envelope/protocol level
-- version schemas independently where needed
-- require tolerant readers for additive fields
-- only break message shape on a major protocol version
+```json
+{
+  "source": "client",
+  "type": "CLIENT_EVENTS",
+  "sentAtUtc": "2026-03-20T10:00:00Z",
+  "events": [
+    {
+      "id": "3c94dd4b-5dcb-4d11-a276-b0f2630f5e4e",
+      "label": "Navigation changed",
+      "eventType": "Navigation",
+      "details": "detail",
+      "capturedAtUtc": "2026-03-20T09:59:59Z",
+      "channel": 42
+    }
+  ]
+}
+```
 
-For now, the codebase uses integer `ver` fields in UDP discovery/connect messages plus schema names for higher-level JSON payloads. That is a sensible short-term approach and can coexist with a more formal envelope version later.
+Current batching behavior:
 
-## Relationship to MCP
+- maximum `160` events per batch
+- events are deduplicated by `id` while pending
 
-MCP should be treated as a presentation layer over the same core capabilities, not a separate execution model.
+## Tool protocol on the session socket
 
-That means:
+The transport automatically intercepts inbound remote-tool requests before they reach the normal acknowledgement queue.
 
-- Studio can speak the native Ansight protocol directly for low-latency streaming.
-- An MCP server can translate the same capabilities into MCP tools/resources.
-- Capability ids, argument schemas, and result schemas should be shared so both surfaces stay aligned.
+Current supported inbound request types:
 
-The proposed tool catalog lives in [tools.md](tools.md).
+- `tool.query`
+- `tool.call`
 
-## Current gaps
+Current outbound response types:
 
-Areas that still need implementation or formalization:
+- `tool.catalog`
+- `tool.result`
+- `tool.error`
 
-- host hello/session-ready schema
-- standard WebSocket envelope
-- tool request/response messages
-- binary artifact transport
-- subscription model for continuously changing inspection data
-- capability/risk negotiation
-- host-driven commands
+The implementation lives in:
+
+- [PairingToolProtocolProcessor.cs](../../src/dotnet/Ansight/Pairing/PairingToolProtocolProcessor.cs)
+- [ToolProtocolBridge.cs](../../src/dotnet/Ansight/Tools/ToolProtocolBridge.cs)
+
+The wire format and behavior are documented in [tools.md](tools.md).
+
+## Screenshot binary stream
+
+If the runtime is initialized and `Options.SessionJpegCapture` is configured, the client starts automatic screenshot streaming after the session opens.
+
+The implementation lives in:
+
+- [PairingSessionJpegStreamer.cs](../../src/dotnet/Ansight/Screenshot/PairingSessionJpegStreamer.cs)
+- [SessionJpegWireProtocol.cs](../../src/dotnet/Ansight/Screenshot/SessionJpegWireProtocol.cs)
+
+Current behavior:
+
+- screenshots are captured from the app's own root surface
+- capture is periodic and client-driven
+- there is no host negotiation or host control message for this feature
+- each WebSocket binary frame contains one screenshot payload
+
+### Binary frame format
+
+Each binary WebSocket message is:
+
+1. a `28` byte header
+2. JPEG bytes
+
+Header layout:
+
+- bytes `0..3`: ASCII magic `ASJP`
+- byte `4`: protocol version, currently `1`
+- byte `5`: image format, currently `1` for JPEG
+- byte `6`: JPEG quality
+- byte `7`: reserved, currently `0`
+- bytes `8..15`: capture time as Unix milliseconds, little-endian `Int64`
+- bytes `16..19`: width, little-endian `Int32`
+- bytes `20..23`: height, little-endian `Int32`
+- bytes `24..27`: JPEG byte count, little-endian `Int32`
+
+## What is not implemented in the current `.NET` SDK
+
+The current codebase does not implement these features, even if older docs or proposals mention them:
+
+- automatic LAN or multicast discovery in the base pairing connector
+- a signed discovery response format
+- a signed UDP connect request or connect response
+- a structured `host_hello` or `session_ready` envelope
+- negotiated capability exchange before telemetry starts
+- a common envelope for all non-tool WebSocket messages
+- host-driven screenshot control messages
+- resumable or recoverable pairing sessions
 
 ## Summary
 
-The current Ansight protocol already has a clear backbone:
+The implemented protocol today is:
 
-- signed pairing config for trust
-- UDP discovery/connect for fast local handoff
-- WebSocket for live session traffic
-
-The next step is to formalize capabilities and command execution so Studio and MCP can both drive the same remote inspection surface without splitting the protocol.
+- signed pairing document validation
+- manual host IP selection
+- UDP `CONNECT_REQ` / `CONNECT_RESP` handoff
+- WebSocket upgrade with an opaque host hello
+- request/ack text messages for profile, logs, done, and event batches
+- fire-and-forget text messages for metric channels and metric batches
+- optional binary screenshot streaming using the `ASJP` frame header
+- automatic `tool.query` / `tool.call` handling on the live session socket

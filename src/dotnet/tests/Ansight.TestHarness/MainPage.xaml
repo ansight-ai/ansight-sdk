@@ -79,7 +79,7 @@
                                FontAttributes="Bold"
                                FontSize="16"
                                TextColor="#111111"/>
-                        <Label Text="Toggle sampling and present Ansight surfaces."
+                        <Label Text="Toggle sampling and trigger runtime-level actions."
                                FontSize="12"
                                TextColor="#666666"/>
                         
@@ -92,56 +92,6 @@
                             <Button Text="Deactivate" Clicked="OnDeactivateClicked" Margin="0,0,10,10"/>
                             <Button Text="Trigger .NET GC" Clicked="OnTriggerGcClicked" Margin="0,0,10,10"/>
                         </FlexLayout>
-
-                        <FlexLayout Direction="Row"
-                                    Wrap="Wrap"
-                                    JustifyContent="Start"
-                                    AlignItems="Center"
-                                    AlignContent="Start">
-                            <Button Text="Present sheet" Clicked="OnPresentSheetClicked" Margin="0,0,10,10"/>
-                            <Button Text="Toggle chart overlay" Clicked="OnPresentChartOverlayClicked" Margin="0,0,10,10"/>
-                            <Button Text="Dismiss overlays" Clicked="OnDismissClicked" Margin="0,0,10,10"/>
-                        </FlexLayout>
-
-                        <FlexLayout Direction="Row"
-                                    Wrap="Wrap"
-                                    JustifyContent="Start"
-                                    AlignItems="Center"
-                                    AlignContent="Start">
-                            <Button Text="Overlay top-left" Clicked="OnOverlayTopLeftClicked" Margin="0,0,10,10"/>
-                            <Button Text="Overlay top-right" Clicked="OnOverlayTopRightClicked" Margin="0,0,10,10"/>
-                            <Button Text="Overlay bottom-left" Clicked="OnOverlayBottomLeftClicked" Margin="0,0,10,10"/>
-                            <Button Text="Overlay bottom-right" Clicked="OnOverlayBottomRightClicked" Margin="0,0,10,10"/>
-                        </FlexLayout>
-                    </VerticalStackLayout>
-                </Border>
-
-                <Border Stroke="#dcdcdc"
-                        StrokeThickness="1"
-                        BackgroundColor="#ffffff"
-                        Padding="14,12">
-                    <Border.StrokeShape>
-                        <RoundRectangle CornerRadius="12"/>
-                    </Border.StrokeShape>
-                    <VerticalStackLayout Spacing="10">
-                        <Label Text="Shake predicate"
-                               FontAttributes="Bold"
-                               FontSize="16"
-                               TextColor="#111111"/>
-                        <Label Text="Shake detection fires only when both tokens match."
-                               FontSize="12"
-                               TextColor="#666666"/>
-                        <Label x:Name="ShakePredicateStatusLabel"
-                               FontSize="12"
-                               TextColor="#444444"/>
-                        <Entry x:Name="ShakePredicateCodeOneEntry"
-                               Placeholder="Token A"
-                               ClearButtonVisibility="WhileEditing"
-                               TextChanged="OnShakePredicateCodeOneChanged"/>
-                        <Entry x:Name="ShakePredicateCodeTwoEntry"
-                               Placeholder="Token B"
-                               ClearButtonVisibility="WhileEditing"
-                               TextChanged="OnShakePredicateCodeTwoChanged"/>
                     </VerticalStackLayout>
                 </Border>
 
@@ -279,65 +229,6 @@
                     </VerticalStackLayout>
                 </Border>
                 
-                <Border Stroke="#dcdcdc"
-                        StrokeThickness="1"
-                        BackgroundColor="#ffffff"
-                        Padding="14,12">
-                    <Border.StrokeShape>
-                        <RoundRectangle CornerRadius="12"/>
-                    </Border.StrokeShape>
-                    <VerticalStackLayout Spacing="10">
-                        <Label Text="Event rendering"
-                               FontAttributes="Bold"
-                               FontSize="16"
-                               TextColor="#111111"/>
-                        <Label Text="Toggle how event markers appear on the chart."
-                               FontSize="12"
-                               TextColor="#666666"/>
-                        <Label x:Name="EventRenderingStatusLabel"
-                               FontSize="12"
-                               TextColor="#444444"/>
-                        <FlexLayout Direction="Row"
-                                    Wrap="Wrap"
-                                    JustifyContent="Start"
-                                    AlignItems="Center"
-                                    AlignContent="Start">
-                            <Button Text="Labels + icons" Clicked="OnEventLabelsAndIconsClicked" Margin="0,0,10,10"/>
-                            <Button Text="Icons only" Clicked="OnEventIconsOnlyClicked" Margin="0,0,10,10"/>
-                            <Button Text="Hide events" Clicked="OnEventHiddenClicked" Margin="0,0,10,10"/>
-                        </FlexLayout>
-                    </VerticalStackLayout>
-                </Border>
-
-                <Border Stroke="#dcdcdc"
-                        StrokeThickness="1"
-                        BackgroundColor="#ffffff"
-                        Padding="14,12">
-                    <Border.StrokeShape>
-                        <RoundRectangle CornerRadius="12"/>
-                    </Border.StrokeShape>
-                    <VerticalStackLayout Spacing="10">
-                        <Label Text="Chart theme"
-                               FontAttributes="Bold"
-                               FontSize="16"
-                               TextColor="#111111"/>
-                        <Label Text="Toggle between Ansight's light and dark chart themes."
-                               FontSize="12"
-                               TextColor="#666666"/>
-                        <Label x:Name="ChartThemeStatusLabel"
-                               FontSize="12"
-                               TextColor="#444444"/>
-                        <FlexLayout Direction="Row"
-                                    Wrap="Wrap"
-                                    JustifyContent="Start"
-                                    AlignItems="Center"
-                                    AlignContent="Start">
-                            <Button Text="Light theme" Clicked="OnLightThemeClicked" Margin="0,0,10,10"/>
-                            <Button Text="Dark theme" Clicked="OnDarkThemeClicked" Margin="0,0,10,10"/>
-                        </FlexLayout>
-                    </VerticalStackLayout>
-                </Border>
-
                 <Border Stroke="#dcdcdc"
                         StrokeThickness="1"
                         BackgroundColor="#ffffff"

@@ -56,3 +56,5 @@ cat > "$output_path" <<EOF
   }
 }
 EOF
+
+echo "Ansight developer pairing discovery: source=$source_file output=$output_path wifi=${wifi_name:-<unknown>} hostName=${host_name:-<unknown>} hostAddress=${host_address:-<unknown>}"

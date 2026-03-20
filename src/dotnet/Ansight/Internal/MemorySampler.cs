@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace Ansight;
+namespace Ansight.Internal;
 
 internal static class MemorySampler
 {

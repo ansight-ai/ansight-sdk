@@ -3,7 +3,7 @@
 using System.Runtime.InteropServices;
 
 
-namespace Ansight;
+namespace Ansight.Internal;
 
 /// <summary>
 /// iOS-specific helpers for reading process memory limits and footprint.

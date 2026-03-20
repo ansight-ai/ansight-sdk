@@ -5,6 +5,8 @@ Ansight is a telemetry sampler for .NET Android, iOS, and Mac Catalyst apps.
 ## Initialize
 
 ```csharp
+using Ansight;
+
 var options = Options.CreateBuilder()
     .WithSampleFrequencyMilliseconds(500)
     .WithRetentionPeriodSeconds(10 * 60)
@@ -24,6 +26,9 @@ Runtime.InitializeAndActivate(options);
 ## Record telemetry
 
 ```csharp
+using Ansight;
+using Ansight.Telemetry.Events;
+
 Runtime.Metric(12345, channel: 42);
 Runtime.Event("cache_hit");
 Runtime.Event("cache_miss", AppEventType.Warning);
@@ -33,6 +38,9 @@ Runtime.Event("download", AppEventType.Info, channel: 42, details: "size=8mb");
 ## Custom channels
 
 ```csharp
+using Ansight;
+using Ansight.Telemetry.Channels;
+
 var options = Options.CreateBuilder()
     .AddAdditionalChannel(new Channel(42, "Cache", Colors.Orange))
     .Build();
@@ -43,6 +51,8 @@ Reserved channel IDs are rejected by `Options.Build()`.
 ## Read sampled data
 
 ```csharp
+using Ansight;
+
 var sink = Runtime.Instance.DataSink;
 
 var allChannels = sink.Channels;

@@ -1,4 +1,4 @@
-namespace Ansight;
+namespace Ansight.Internal;
 
 /// <summary>
 /// A helper class for pretty formatting a size in bytes

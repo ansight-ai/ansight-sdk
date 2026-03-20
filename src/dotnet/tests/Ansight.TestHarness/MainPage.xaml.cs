@@ -19,49 +19,20 @@ public partial class MainPage : ContentPage
     public MainPage()
     {
         InitializeComponent();
-        ShakePredicateCodeOneEntry.Text = ShakePredicateCoordinator.CodeOne;
-        ShakePredicateCodeTwoEntry.Text = ShakePredicateCoordinator.CodeTwo;
         UpdateRuntimeStatus();
-        UpdateShakePredicateStatus();
     }
 
     protected override void OnAppearing()
     {
         base.OnAppearing();
         UpdateRuntimeStatus();
-        UpdateShakePredicateStatus();
     }
 
     private void UpdateRuntimeStatus()
     {
         var isActive = Runtime.IsActive;
-        var isPresented = Runtime.IsSheetPresented;
-        StatusLabel.Text = $"Runtime {(isActive ? "active" : "inactive")} • {(isPresented ? "presented" : "hidden")}";
-        UpdateEventRenderingStatus();
-        UpdateChartThemeStatus();
-    }
-
-    private void UpdateShakePredicateStatus()
-    {
-        if (ShakePredicateStatusLabel == null)
-        {
-            return;
-        }
-
-        var allowed = ShakePredicateCoordinator.ShouldAllowShake;
-        ShakePredicateStatusLabel.Text = allowed
-            ? "Current: Allowed (tokens match)"
-            : "Current: Blocked (tokens mismatch)";
-    }
-
-    private void UpdateEventRenderingStatus()
-    {
-        EventRenderingStatusLabel.Text = $"Current: {Runtime.AppEventRenderingBehaviour}";
-    }
-
-    private void UpdateChartThemeStatus()
-    {
-        ChartThemeStatusLabel.Text = $"Current: {Runtime.ChartTheme}";
+        var fpsEnabled = Runtime.IsFramesPerSecondEnabled;
+        StatusLabel.Text = $"Runtime {(isActive ? "active" : "inactive")} • FPS {(fpsEnabled ? "enabled" : "disabled")} • Retained allocations {releaseActions.Count}";
     }
 
     private void OnActivateClicked(object? sender, EventArgs e)
@@ -92,12 +63,6 @@ public partial class MainPage : ContentPage
         UpdateRuntimeStatus();
     }
 
-    private void OnPresentSheetClicked(object? sender, EventArgs e)
-    {
-        Runtime.PresentSheet();
-        UpdateRuntimeStatus();
-    }
-
     private void OnEnableFpsClicked(object? sender, EventArgs e)
     {
         Runtime.EnableFramesPerSecond();
@@ -109,32 +74,6 @@ public partial class MainPage : ContentPage
         Runtime.DisableFramesPerSecond();
         UpdateRuntimeStatus();
     }
-    
-    private void OnEventLabelsAndIconsClicked(object? sender, EventArgs e) => SetEventRenderingBehaviour(AppEventRenderingBehaviour.LabelsAndIcons);
-
-    private void OnEventIconsOnlyClicked(object? sender, EventArgs e) => SetEventRenderingBehaviour(AppEventRenderingBehaviour.IconsOnly);
-
-    private void OnEventHiddenClicked(object? sender, EventArgs e) => SetEventRenderingBehaviour(AppEventRenderingBehaviour.None);
-
-    private void SetEventRenderingBehaviour(AppEventRenderingBehaviour behaviour)
-    {
-        Runtime.AppEventRenderingBehaviour = behaviour;
-        UpdateEventRenderingStatus();
-    }
-
-    private void OnLightThemeClicked(object? sender, EventArgs e)
-    {
-        Runtime.ChartTheme = ChartTheme.Light;
-        UpdateChartThemeStatus();
-    }
-
-    private void OnDarkThemeClicked(object? sender, EventArgs e)
-    {
-        Runtime.ChartTheme = ChartTheme.Dark;
-        UpdateChartThemeStatus();
-    }
-
-
     private void StartFrameDrop(TimeSpan interval, TimeSpan blockDuration)
     {
         StopFrameDrop();
@@ -179,57 +118,6 @@ public partial class MainPage : ContentPage
             frameDropCts = null;
         }
     }
-
-    private void OnPresentChartOverlayClicked(object? sender, EventArgs e)
-    {
-        if (Runtime.IsChartOverlayPresented)
-        {
-            Runtime.DismissOverlay();
-        }
-        else
-        {
-            Runtime.PresentOverlay(OverlayPosition.TopRight);
-        }
-
-        UpdateRuntimeStatus();
-    }
-
-    private void OnDismissClicked(object? sender, EventArgs e)
-    {
-#if ANDROID || IOS
-        Runtime.DismissOverlay();
-#endif
-        
-        Runtime.DismissSheet();
-        UpdateRuntimeStatus();
-    }
-
-    private void PresentOverlay(OverlayPosition position)
-    {
-        Runtime.PresentOverlay(position);
-        UpdateRuntimeStatus();
-    }
-
-    private void OnOverlayTopLeftClicked(object? sender, EventArgs e) => PresentOverlay(OverlayPosition.TopLeft);
-
-    private void OnOverlayTopRightClicked(object? sender, EventArgs e) => PresentOverlay(OverlayPosition.TopRight);
-
-    private void OnOverlayBottomLeftClicked(object? sender, EventArgs e) => PresentOverlay(OverlayPosition.BottomLeft);
-
-    private void OnOverlayBottomRightClicked(object? sender, EventArgs e) => PresentOverlay(OverlayPosition.BottomRight);
-
-    private void OnShakePredicateCodeOneChanged(object? sender, TextChangedEventArgs e)
-    {
-        ShakePredicateCoordinator.UpdateCodeOne(e.NewTextValue);
-        UpdateShakePredicateStatus();
-    }
-
-    private void OnShakePredicateCodeTwoChanged(object? sender, TextChangedEventArgs e)
-    {
-        ShakePredicateCoordinator.UpdateCodeTwo(e.NewTextValue);
-        UpdateShakePredicateStatus();
-    }
-
 
     private void OnLowSpikeClicked(object? sender, EventArgs e) => RunClrMemorySpike("Low", 4).SafeFireAndForget();
 
@@ -380,11 +268,6 @@ public partial class MainPage : ContentPage
     private void OnClearDataClicked(object? sender, EventArgs e)
     {
         Runtime.Clear();
-        UpdateRuntimeStatus();
-    }
-
-    private void OnCloseOverlayClicked(object? sender, EventArgs e)
-    {
         UpdateRuntimeStatus();
     }
 

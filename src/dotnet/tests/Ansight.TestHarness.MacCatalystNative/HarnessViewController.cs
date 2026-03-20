@@ -8,23 +8,18 @@ internal sealed class HarnessViewController : UIViewController
     public override void ViewDidLoad()
     {
         base.ViewDidLoad();
-        View.BackgroundColor = UIColor.SystemBackground;
+        var rootView = View ?? throw new InvalidOperationException("The view controller view is not available.");
+        rootView.BackgroundColor = UIColor.SystemBackground;
 
         var buttons = new[]
         {
-            BuildButton("Present Sheet", () => Runtime.PresentSheet()),
-            BuildButton("Present Overlay", () => Runtime.PresentOverlay()),
-            BuildButton("Dismiss Overlay", () => Runtime.DismissOverlay()),
-            BuildButton("Overlay Top-Left", () => Runtime.PresentOverlay(OverlayPosition.TopLeft)),
-            BuildButton("Overlay Top-Right", () => Runtime.PresentOverlay(OverlayPosition.TopRight)),
-            BuildButton("Overlay Bottom-Left", () => Runtime.PresentOverlay(OverlayPosition.BottomLeft)),
-            BuildButton("Overlay Bottom-Right", () => Runtime.PresentOverlay(OverlayPosition.BottomRight)),
-            BuildButton("Annotations: Labels + Icons", () => Runtime.AppEventRenderingBehaviour = AppEventRenderingBehaviour.LabelsAndIcons),
-            BuildButton("Annotations: Icons Only", () => Runtime.AppEventRenderingBehaviour = AppEventRenderingBehaviour.IconsOnly),
-            BuildButton("Annotations: None", () => Runtime.AppEventRenderingBehaviour = AppEventRenderingBehaviour.None),
-            BuildButton("Theme: Light", () => Runtime.ChartTheme = ChartTheme.Light),
-            BuildButton("Theme: Dark", () => Runtime.ChartTheme = ChartTheme.Dark),
-            BuildButton("Create Test Annotation", () => Runtime.Event("Test Annotation")),
+            BuildButton("Activate", Runtime.Activate),
+            BuildButton("Deactivate", Runtime.Deactivate),
+            BuildButton("Enable FPS", Runtime.EnableFramesPerSecond),
+            BuildButton("Disable FPS", Runtime.DisableFramesPerSecond),
+            BuildButton("Trigger .NET GC", TriggerGc),
+            BuildButton("Create Test Event", () => Runtime.Event("Test Event")),
+            BuildButton("Clear Data", Runtime.Clear),
         };
 
         var stack = new UIStackView(buttons)
@@ -40,14 +35,14 @@ internal sealed class HarnessViewController : UIViewController
         stack.TranslatesAutoresizingMaskIntoConstraints = false;
 
         scrollView.AddSubview(stack);
-        View.AddSubview(scrollView);
+        rootView.AddSubview(scrollView);
 
         NSLayoutConstraint.ActivateConstraints(new[]
         {
-            scrollView.TopAnchor.ConstraintEqualTo(View.SafeAreaLayoutGuide.TopAnchor),
-            scrollView.BottomAnchor.ConstraintEqualTo(View.SafeAreaLayoutGuide.BottomAnchor),
-            scrollView.LeadingAnchor.ConstraintEqualTo(View.SafeAreaLayoutGuide.LeadingAnchor),
-            scrollView.TrailingAnchor.ConstraintEqualTo(View.SafeAreaLayoutGuide.TrailingAnchor),
+            scrollView.TopAnchor.ConstraintEqualTo(rootView.SafeAreaLayoutGuide.TopAnchor),
+            scrollView.BottomAnchor.ConstraintEqualTo(rootView.SafeAreaLayoutGuide.BottomAnchor),
+            scrollView.LeadingAnchor.ConstraintEqualTo(rootView.SafeAreaLayoutGuide.LeadingAnchor),
+            scrollView.TrailingAnchor.ConstraintEqualTo(rootView.SafeAreaLayoutGuide.TrailingAnchor),
 
             stack.TopAnchor.ConstraintEqualTo(scrollView.ContentLayoutGuide.TopAnchor),
             stack.BottomAnchor.ConstraintEqualTo(scrollView.ContentLayoutGuide.BottomAnchor),
@@ -63,16 +58,17 @@ internal sealed class HarnessViewController : UIViewController
         button.SetTitle(text, UIControlState.Normal);
         button.TouchUpInside += (_, _) => action();
 
-        button.BackgroundColor = ToUiColor(Constants.BrandColor);
+        button.BackgroundColor = UIColor.FromRGB(250, 67, 31);
         button.SetTitleColor(UIColor.White, UIControlState.Normal);
         button.Layer.CornerRadius = 10;
-        button.ContentEdgeInsets = new UIEdgeInsets(10, 16, 10, 16);
 
         return button;
     }
 
-    private static UIColor ToUiColor(Color color)
+    private static void TriggerGc()
     {
-        return UIColor.FromRGBA(color.RedNormalized, color.GreenNormalized, color.BlueNormalized, color.AlphaNormalized);
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
     }
 }

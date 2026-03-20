@@ -5,13 +5,13 @@ namespace Ansight.Pairing;
 
 public sealed class PairingSessionClient : IDisposable
 {
-    private readonly PairingConfigDocumentService _configDocumentService = new();
-    private readonly DeviceAppProfileResolver _deviceAppProfileResolver;
-    private readonly PairingSessionConnector _connector;
-    private readonly PairingSessionTransport _transport;
-    private readonly PairingTelemetryStreamer _telemetryStreamer;
-    private readonly PairingSessionJpegStreamer _jpegStreamer;
-    private bool _disposed;
+    private readonly PairingConfigDocumentService configDocumentService = new();
+    private readonly DeviceAppProfileResolver deviceAppProfileResolver;
+    private readonly PairingSessionConnector connector;
+    private readonly PairingSessionTransport transport;
+    private readonly TelemetryStreamer telemetryStreamer;
+    private readonly PairingSessionJpegStreamer jpegStreamer;
+    private bool disposed;
 
     public PairingSessionClient()
         : this(deviceAppProfileProvider: null)
@@ -22,29 +22,29 @@ public sealed class PairingSessionClient : IDisposable
     {
         var profileProvider = deviceAppProfileProvider ?? AutomaticDeviceAppProfileProvider.Instance;
 
-        _deviceAppProfileResolver = new DeviceAppProfileResolver(profileProvider);
-        _connector = new PairingSessionConnector();
-        _transport = new PairingSessionTransport();
-        _telemetryStreamer = new PairingTelemetryStreamer(_transport);
-        _jpegStreamer = new PairingSessionJpegStreamer(_transport);
+        deviceAppProfileResolver = new DeviceAppProfileResolver(profileProvider);
+        connector = new PairingSessionConnector();
+        transport = new PairingSessionTransport();
+        telemetryStreamer = new TelemetryStreamer(transport);
+        jpegStreamer = new PairingSessionJpegStreamer(transport);
     }
 
     public static PairingSessionClientBuilder CreateBuilder() => new();
 
     public bool TryParseAndValidateDocument(string configJson, string? expectedAppId, out ParsedPairingDocument? document, out string error)
-        => _configDocumentService.TryParseAndValidateDocument(configJson, expectedAppId, out document, out error);
+        => configDocumentService.TryParseAndValidateDocument(configJson, expectedAppId, out document, out error);
 
     public bool TryParseAndValidateConfig(string configJson, string? expectedAppId, out PairingConfig? config, out string error)
-        => _configDocumentService.TryParseAndValidateConfig(configJson, expectedAppId, out config, out error);
+        => configDocumentService.TryParseAndValidateConfig(configJson, expectedAppId, out config, out error);
 
     public bool TryValidateConfig(PairingConfig config, string? expectedAppId, out string error)
-        => _configDocumentService.TryValidateConfig(config, expectedAppId, out error);
+        => configDocumentService.TryValidateConfig(config, expectedAppId, out error);
 
     public bool TryValidateDocument(ParsedPairingDocument document, string? expectedAppId, out string error)
-        => _configDocumentService.TryValidateDocument(document, expectedAppId, out error);
+        => configDocumentService.TryValidateDocument(document, expectedAppId, out error);
 
     public bool TryParseDocument(string configJson, out ParsedPairingDocument? document, out string error)
-        => _configDocumentService.TryParseDocument(configJson, out document, out error);
+        => configDocumentService.TryParseDocument(configJson, out document, out error);
 
     public Task<OpenSessionResult> OpenSessionAsync(
         PairingConfig config,
@@ -95,8 +95,8 @@ public sealed class PairingSessionClient : IDisposable
 
         await CloseSessionAsync(CancellationToken.None);
 
-        var deviceAppProfile = _deviceAppProfileResolver.Resolve(options?.DeviceAppProfile);
-        var expectedAppId = _deviceAppProfileResolver.ResolveExpectedAppId(deviceAppProfile);
+        var deviceAppProfile = deviceAppProfileResolver.Resolve(options?.DeviceAppProfile);
+        var expectedAppId = deviceAppProfileResolver.ResolveExpectedAppId(deviceAppProfile);
         if (!TryValidateDocument(document, expectedAppId, out var validationError))
         {
             return OpenSessionResult.FromFailure(validationError);
@@ -105,7 +105,7 @@ public sealed class PairingSessionClient : IDisposable
         var config = document.Config;
         progress?.Report($"Config validated. ConfigId: {config.ConfigId}");
 
-        var connectionAttempt = await _connector.ConnectAsync(config, clientName, options, progress, cancellationToken);
+        var connectionAttempt = await connector.ConnectAsync(config, clientName, options, progress, cancellationToken);
         if (!connectionAttempt.Success)
         {
             return connectionAttempt.Accepted
@@ -117,7 +117,7 @@ public sealed class PairingSessionClient : IDisposable
 
         try
         {
-            _transport.Attach(connectionAttempt.WebSocket!);
+            transport.Attach(connectionAttempt.WebSocket!);
 
             if (deviceAppProfile is not null)
             {
@@ -129,7 +129,7 @@ public sealed class PairingSessionClient : IDisposable
                 }
             }
 
-            await _jpegStreamer.StartAsync(progress);
+            await jpegStreamer.StartAsync(progress);
 
             return OpenSessionResult.FromSuccess(
                 connectionAttempt.Message,
@@ -159,7 +159,7 @@ public sealed class PairingSessionClient : IDisposable
             data = logLine.Trim()
         }, PairingJson.Compact);
 
-        return _transport.SendRequestAsync(
+        return transport.SendRequestAsync(
             payload,
             $"WS -> {payload}",
             "Log sent.",
@@ -176,10 +176,10 @@ public sealed class PairingSessionClient : IDisposable
     {
         ArgumentNullException.ThrowIfNull(profile);
 
-        _deviceAppProfileResolver.NormalizeForSend(profile);
+        deviceAppProfileResolver.NormalizeForSend(profile);
         var payload = JsonSerializer.Serialize(profile, PairingJson.Compact);
 
-        return _transport.SendRequestAsync(
+        return transport.SendRequestAsync(
             payload,
             "WS -> DeviceAppProfile",
             "Device profile sent.",
@@ -199,7 +199,7 @@ public sealed class PairingSessionClient : IDisposable
             data = "client log stream complete"
         }, PairingJson.Compact);
 
-        var result = await _transport.SendRequestAsync(
+        var result = await transport.SendRequestAsync(
             payload,
             $"WS -> {payload}",
             "Session complete.",
@@ -220,32 +220,32 @@ public sealed class PairingSessionClient : IDisposable
         IProgress<string>? progress,
         CancellationToken cancellationToken)
     {
-        return _telemetryStreamer.StartAsync(dataSink, progress, cancellationToken);
+        return telemetryStreamer.StartAsync(dataSink, progress, cancellationToken);
     }
 
     public Task<OperationResult> StopMetricsStreamingAsync(IProgress<string>? progress, CancellationToken cancellationToken)
     {
-        return _telemetryStreamer.StopAsync(progress, cancellationToken);
+        return telemetryStreamer.StopAsync(progress, cancellationToken);
     }
 
     public async Task<OperationResult> CloseSessionAsync(CancellationToken cancellationToken)
     {
-        await _telemetryStreamer.StopAsync(progress: null, CancellationToken.None);
-        await _jpegStreamer.StopAsync(CancellationToken.None);
-        return await _transport.CloseAsync(cancellationToken);
+        await telemetryStreamer.StopAsync(progress: null, CancellationToken.None);
+        await jpegStreamer.StopAsync(CancellationToken.None);
+        return await transport.CloseAsync(cancellationToken);
     }
 
     public void Dispose()
     {
-        if (_disposed)
+        if (disposed)
         {
             return;
         }
 
-        _disposed = true;
-        _telemetryStreamer.Dispose();
-        _jpegStreamer.Dispose();
-        _transport.Dispose();
+        disposed = true;
+        telemetryStreamer.Dispose();
+        jpegStreamer.Dispose();
+        transport.Dispose();
     }
 }
 

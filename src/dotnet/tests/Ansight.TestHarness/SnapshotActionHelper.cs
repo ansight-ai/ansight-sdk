@@ -19,7 +19,7 @@ internal static class SnapshotActionHelper
         await Clipboard.Default.SetTextAsync(json);
         await MainThread.InvokeOnMainThreadAsync(async () =>
         {
-            var page = Application.Current?.MainPage;
+            var page = Application.Current?.Windows.FirstOrDefault()?.Page;
             if (page != null)
             {
                 await page.DisplayAlert("Snapshot copied", "Snapshot JSON copied to clipboard.", "OK");

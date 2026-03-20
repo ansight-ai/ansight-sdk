@@ -10,20 +10,14 @@ public static class MauiProgram
         var builder = MauiApp.CreateBuilder();
         var ansightOptions = Options.CreateBuilder()
             .WithAdditionalLogger(new CustomAnsightLogCallback())
-            .WithShakeGesture()
-            .WithMauiWindowProvider()
             .WithFramesPerSecond()
             .WithSampleFrequencyMilliseconds(400)
             .WithRetentionPeriodSeconds(120)
-            .WithShakeGestureBehaviour(ShakeGestureBehaviour.Overlay)
-            .WithShakeGesturePredicate(() => ShakePredicateCoordinator.ShouldAllowShake)
             .WithAdditionalChannels(CustomAnsightConfiguration.AdditionalChannels)
-            .WithSaveSnapshotAction(SnapshotActionHelper.CopySnapshotToClipboardAsync, "COPY")
             .Build();
 
         builder
             .UseMauiApp<App>()
-            .UseAnsight(ansightOptions)
             .UseSkiaSharp()
             .ConfigureFonts(fonts =>
             {
@@ -36,10 +30,21 @@ public static class MauiProgram
 #endif
 
         var app = builder.Build();
-
-        // Activate after platform services are registered by UseAnsight.
-        Runtime.Activate();
-
+        EnsureRuntimeStarted(ansightOptions);
         return app;
+    }
+
+    private static void EnsureRuntimeStarted(Options ansightOptions)
+    {
+        if (!Runtime.IsInitialized)
+        {
+            Runtime.InitializeAndActivate(ansightOptions);
+            return;
+        }
+
+        if (!Runtime.IsActive)
+        {
+            Runtime.Activate();
+        }
     }
 }

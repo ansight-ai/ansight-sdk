@@ -7,23 +7,18 @@ internal sealed class HarnessViewController : UIViewController
     public override void ViewDidLoad()
     {
         base.ViewDidLoad();
-        View.BackgroundColor = UIColor.SystemBackground;
+        var rootView = View ?? throw new InvalidOperationException("The view controller view is not available.");
+        rootView.BackgroundColor = UIColor.SystemBackground;
 
         var buttons = new[]
         {
-            BuildButton("Present Sheet", () => Runtime.PresentSheet()),
-            BuildButton("Present Overlay", () => Runtime.PresentOverlay()),
-            BuildButton("Dismiss Overlay", () => Runtime.DismissOverlay()),
-            BuildButton("Overlay Top-Left", () => Runtime.PresentOverlay(OverlayPosition.TopLeft)),
-            BuildButton("Overlay Top-Right", () => Runtime.PresentOverlay(OverlayPosition.TopRight)),
-            BuildButton("Overlay Bottom-Left", () => Runtime.PresentOverlay(OverlayPosition.BottomLeft)),
-            BuildButton("Overlay Bottom-Right", () => Runtime.PresentOverlay(OverlayPosition.BottomRight)),
-            BuildButton("Annotations: Labels + Icons", () => Runtime.AppEventRenderingBehaviour = AppEventRenderingBehaviour.LabelsAndIcons),
-            BuildButton("Annotations: Icons Only", () => Runtime.AppEventRenderingBehaviour = AppEventRenderingBehaviour.IconsOnly),
-            BuildButton("Annotations: None", () => Runtime.AppEventRenderingBehaviour = AppEventRenderingBehaviour.None),
-            BuildButton("Theme: Light", () => Runtime.ChartTheme = ChartTheme.Light),
-            BuildButton("Theme: Dark", () => Runtime.ChartTheme = ChartTheme.Dark),
-            BuildButton("Create Test Annotation", () => Runtime.Event("Test Annotation")),
+            BuildButton("Activate", Runtime.Activate),
+            BuildButton("Deactivate", Runtime.Deactivate),
+            BuildButton("Enable FPS", Runtime.EnableFramesPerSecond),
+            BuildButton("Disable FPS", Runtime.DisableFramesPerSecond),
+            BuildButton("Trigger .NET GC", TriggerGc),
+            BuildButton("Create Test Event", () => Runtime.Event("Test Event")),
+            BuildButton("Clear Data", Runtime.Clear),
         };
 
         var stack = new UIStackView(buttons)
@@ -36,7 +31,7 @@ internal sealed class HarnessViewController : UIViewController
         };
 
         stack.AutoresizingMask = UIViewAutoresizing.FlexibleWidth | UIViewAutoresizing.FlexibleHeight;
-        View.AddSubview(stack);
+        rootView.AddSubview(stack);
     }
 
     private UIButton BuildButton(string text, Action action)
@@ -45,5 +40,12 @@ internal sealed class HarnessViewController : UIViewController
         button.SetTitle(text, UIControlState.Normal);
         button.TouchUpInside += (_, _) => action();
         return button;
+    }
+
+    private static void TriggerGc()
+    {
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
     }
 }

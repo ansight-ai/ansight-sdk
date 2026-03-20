@@ -1,4 +1,4 @@
-namespace Ansight;
+namespace Ansight.Internal;
 
 /// <summary>
 /// Ensures platform-specific telemetry services are registered before the runtime is created.
@@ -15,11 +15,11 @@ internal static class PlatformBootstrapper
         }
 
 #if ANDROID
-        RuntimePlatform.RegisterFrameRateMonitorFactory(() => new AndroidFrameRateMonitor());
+        RuntimePlatform.RegisterFrameRateMonitorFactory(() => new FrameRateMonitor());
 #elif IOS
-        RuntimePlatform.RegisterFrameRateMonitorFactory(() => new IosFrameRateMonitor());
+        RuntimePlatform.RegisterFrameRateMonitorFactory(() => new FrameRateMonitor());
 #elif MACCATALYST
-        RuntimePlatform.RegisterFrameRateMonitorFactory(() => new MacCatalystFrameRateMonitor());
+        RuntimePlatform.RegisterFrameRateMonitorFactory(() => new FrameRateMonitor());
 #endif
 
         configured = true;

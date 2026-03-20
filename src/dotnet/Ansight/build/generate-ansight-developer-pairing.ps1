@@ -69,3 +69,4 @@ if (-not (Test-Path -LiteralPath $directory)) {
 }
 
 $document | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $OutputFile -Encoding UTF8
+Write-Host "Ansight developer pairing discovery: source=$SourceFile output=$OutputFile wifi=$(if ($wifiName) { $wifiName } else { '<unknown>' }) hostName=$(if ($hostName) { $hostName } else { '<unknown>' }) hostAddress=$(if ($hostAddress) { $hostAddress } else { '<unknown>' })"

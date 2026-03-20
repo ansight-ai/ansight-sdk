@@ -8,7 +8,7 @@ public static class CustomAnsightConfiguration
 
     public static readonly List<Channel> AdditionalChannels = new List<Channel>
     {
-        new Channel(CustomMetricChannelId, "Custom Metric", new Color(255, 149, 0)),
-        new Channel(CustomEventChannelId, "Custom Events", new Color(50, 173, 230)),
+        new Channel(CustomMetricChannelId, "Custom Metric", System.Drawing.Color.FromArgb(255, 149, 0)),
+        new Channel(CustomEventChannelId, "Custom Events", System.Drawing.Color.FromArgb(50, 173, 230)),
     };
 }

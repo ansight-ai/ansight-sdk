@@ -1,4 +1,4 @@
-namespace Ansight;
+namespace Ansight.Internal;
 
 internal static class BinarySearchHelper
 {

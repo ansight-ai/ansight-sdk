@@ -37,6 +37,7 @@ Use a direct/manual host address:
 
 ```csharp
 using Ansight.Pairing;
+using Ansight.Pairing.Models;
 
 var client = new PairingSessionClient();
 
@@ -58,12 +59,13 @@ Create or parse a QR/bootstrap payload:
 
 ```csharp
 using Ansight.Pairing;
+using Ansight.Pairing.Models;
 
 var payload = QrDiscoveryPayload.Serialize(config, discoveryHint, indented: true);
 
-if (QrDiscoveryPayload.TryParse(payload, out var document))
+if (QrDiscoveryPayload.TryParseConnectionPayload(payload, out var document))
 {
-    var parsedConfig = document!.PairingConfig;
+    var connectionHint = document!.Connection;
 }
 ```
 

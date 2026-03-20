@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.CompilerServices;
 
-namespace Ansight;
+namespace Ansight.Internal;
 
 internal sealed class MemorySamplerThread : IDisposable
 {

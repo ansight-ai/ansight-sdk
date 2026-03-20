@@ -16,6 +16,8 @@ internal static class DatabaseSupport
     private const int SqliteDone = 101;
     private const int SqliteOpenReadOnly = 0x0000_0001;
 
+    internal static Func<IEnumerable<(string Alias, string? Path)>>? PlatformRootsOverride { get; set; }
+
     internal static JsonObject ListDatabases(bool includeSystemStores, int maxResults)
     {
         var roots = GetRoots();
@@ -91,8 +93,13 @@ internal static class DatabaseSupport
             """, maxRows: 512);
 
         var tableDefinitions = new JsonArray();
-        foreach (var row in tables.Rows)
+        foreach (var rowNode in tables.Rows)
         {
+            if (rowNode is not JsonObject row)
+            {
+                continue;
+            }
+
             var name = row["name"]?.GetValue<string>();
             if (string.IsNullOrWhiteSpace(name))
             {
@@ -206,7 +213,7 @@ internal static class DatabaseSupport
     private static IReadOnlyDictionary<string, string> GetRoots()
     {
         var roots = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var root in GetPlatformRoots())
+        foreach (var root in PlatformRootsOverride?.Invoke() ?? GetPlatformRoots())
         {
             AddRoot(roots, root.Alias, root.Path);
         }

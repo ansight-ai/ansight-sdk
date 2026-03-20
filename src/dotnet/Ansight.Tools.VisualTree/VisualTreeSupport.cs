@@ -663,59 +663,53 @@ internal static class VisualTreeSupport
             return false;
         }
 
-        var targetSize = originalBounds.Size;
-        if (maxWidth.HasValue && targetSize.Width > maxWidth.Value)
+        var renderScale = GetRenderScale(window);
+        var sourcePixelWidth = (int)Math.Round(originalBounds.Width * renderScale);
+        var sourcePixelHeight = (int)Math.Round(originalBounds.Height * renderScale);
+        var targetPixelWidth = sourcePixelWidth;
+        if (maxWidth.HasValue && maxWidth.Value < sourcePixelWidth)
         {
-            var scaleFactor = maxWidth.Value / (double)targetSize.Width;
-            targetSize = new CGSize(maxWidth.Value, targetSize.Height * scaleFactor);
+            targetPixelWidth = maxWidth.Value;
         }
 
-        UIGraphics.BeginImageContextWithOptions(targetSize, false, 0);
-        try
+        var targetPixelHeight = targetPixelWidth >= sourcePixelWidth
+            ? sourcePixelHeight
+            : Math.Max(1, (int)Math.Round(sourcePixelHeight * (targetPixelWidth / (double)sourcePixelWidth)));
+
+        var targetSize = new CGSize(targetPixelWidth, targetPixelHeight);
+
+        var rendererFormat = UIGraphicsImageRendererFormat.DefaultFormat;
+        rendererFormat.Opaque = false;
+        rendererFormat.Scale = 1;
+
+        using var renderer = new UIGraphicsImageRenderer(targetSize, rendererFormat);
+        using var imageData = string.Equals(format, "jpeg", StringComparison.OrdinalIgnoreCase) || string.Equals(format, "jpg", StringComparison.OrdinalIgnoreCase)
+            ? renderer.CreateJpeg((nfloat)(quality / 100d), renderContext =>
+            {
+                renderContext.CGContext.ScaleCTM((nfloat)(targetSize.Width / originalBounds.Width), (nfloat)(targetSize.Height / originalBounds.Height));
+                window.DrawViewHierarchy(originalBounds, afterScreenUpdates: true);
+            })
+            : renderer.CreatePng(renderContext =>
+            {
+                renderContext.CGContext.ScaleCTM((nfloat)(targetSize.Width / originalBounds.Width), (nfloat)(targetSize.Height / originalBounds.Height));
+                window.DrawViewHierarchy(originalBounds, afterScreenUpdates: true);
+            });
+
+        if (imageData == null)
         {
-            var context = UIGraphics.GetCurrentContext();
-            if (context == null)
-            {
-                screenshot = null;
-                error = "Unable to create a CoreGraphics screenshot context.";
-                return false;
-            }
-
-            context.ScaleCTM((nfloat)(targetSize.Width / originalBounds.Width), (nfloat)(targetSize.Height / originalBounds.Height));
-            window.DrawViewHierarchy(originalBounds, afterScreenUpdates: true);
-
-            using var image = UIGraphics.GetImageFromCurrentImageContext();
-            if (image == null)
-            {
-                screenshot = null;
-                error = "Failed to render the current UIWindow.";
-                return false;
-            }
-
-            using var imageData = string.Equals(format, "jpeg", StringComparison.OrdinalIgnoreCase) || string.Equals(format, "jpg", StringComparison.OrdinalIgnoreCase)
-                ? image.AsJPEG((nfloat)(quality / 100d))
-                : image.AsPNG();
-
-            if (imageData == null)
-            {
-                screenshot = null;
-                error = "Failed to encode the rendered screenshot.";
-                return false;
-            }
-
-            screenshot = new ScreenshotCapture(
-                Format: string.Equals(format, "jpeg", StringComparison.OrdinalIgnoreCase) || string.Equals(format, "jpg", StringComparison.OrdinalIgnoreCase) ? "jpeg" : "png",
-                Width: (int)Math.Round(targetSize.Width),
-                Height: (int)Math.Round(targetSize.Height),
-                Base64: Convert.ToBase64String(imageData.ToArray()),
-                AnnotationApplied: false && annotateNodeIds);
-            error = null;
-            return true;
+            screenshot = null;
+            error = "Failed to render or encode the current UIWindow.";
+            return false;
         }
-        finally
-        {
-            UIGraphics.EndImageContext();
-        }
+
+        screenshot = new ScreenshotCapture(
+            Format: string.Equals(format, "jpeg", StringComparison.OrdinalIgnoreCase) || string.Equals(format, "jpg", StringComparison.OrdinalIgnoreCase) ? "jpeg" : "png",
+            Width: targetPixelWidth,
+            Height: targetPixelHeight,
+            Base64: Convert.ToBase64String(imageData.ToArray()),
+            AnnotationApplied: false && annotateNodeIds);
+        error = null;
+        return true;
     }
 
     private static UIWindow? GetActiveWindow()
@@ -738,6 +732,12 @@ internal static class VisualTreeSupport
 
         return UIApplication.SharedApplication.Windows.FirstOrDefault(window => window.IsKeyWindow)
             ?? UIApplication.SharedApplication.Windows.FirstOrDefault(window => !window.Hidden);
+    }
+
+    private static nfloat GetRenderScale(UIWindow window)
+    {
+        var scale = window.Screen?.Scale ?? UIScreen.MainScreen.Scale;
+        return scale > 0 ? scale : 1;
     }
 #else
     private static Task<ToolResult> RunOnUiThreadAsync(Func<ToolResult> action) => Task.FromResult(ToolResult.Failure("Visual tree tools are only supported on Android, iOS, and Mac Catalyst.", errorCode: "visual_tree_platform_unsupported"));

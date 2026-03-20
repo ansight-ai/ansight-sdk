@@ -1,6 +1,6 @@
 using System;
 
-namespace Ansight;
+namespace Ansight.Internal;
 
 /// <summary>
 /// Allows platform heads to register platform services without taking direct dependencies in the core runtime implementation.

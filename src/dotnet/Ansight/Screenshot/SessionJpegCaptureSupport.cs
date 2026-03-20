@@ -1,0 +1,219 @@
+using System.Buffers;
+using System.IO;
+
+namespace Ansight.Screenshot;
+
+internal interface ISessionJpegCaptureSurface : IDisposable
+{
+    DateTimeOffset CapturedAtUtc { get; }
+}
+
+internal static partial class SessionJpegCaptureSupport
+{
+    public static Task<ISessionJpegCaptureSurface?> CaptureSurfaceAsync(SessionJpegCaptureOptions options, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return CaptureSurfaceCoreAsync(options, cancellationToken);
+    }
+
+    public static SessionJpegFrame? EncodeSurface(ISessionJpegCaptureSurface surface, SessionJpegCaptureOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(surface);
+        ArgumentNullException.ThrowIfNull(options);
+
+        return EncodeSurfaceCore(surface, options);
+    }
+
+    private static int ResolveTargetWidth(int sourceWidth, int? maxWidth)
+    {
+        if (sourceWidth <= 0)
+        {
+            return 0;
+        }
+
+        if (!maxWidth.HasValue || maxWidth.Value >= sourceWidth)
+        {
+            return sourceWidth;
+        }
+
+        return maxWidth.Value;
+    }
+
+    private static int ResolveScaledHeight(int sourceWidth, int sourceHeight, int targetWidth)
+    {
+        if (sourceWidth <= 0 || sourceHeight <= 0 || targetWidth <= 0)
+        {
+            return 0;
+        }
+
+        if (targetWidth >= sourceWidth)
+        {
+            return sourceHeight;
+        }
+
+        return Math.Max(1, (int)Math.Round(sourceHeight * (targetWidth / (double)sourceWidth)));
+    }
+
+    private static int EstimateInitialPayloadCapacity(int width, int height)
+    {
+        if (width <= 0 || height <= 0)
+        {
+            return 32 * 1024;
+        }
+
+        var estimatedJpegBytes = Math.Max(8 * 1024, (width * height) / 2);
+        return SessionJpegWireProtocol.HeaderSize + estimatedJpegBytes;
+    }
+
+    private static partial Task<ISessionJpegCaptureSurface?> CaptureSurfaceCoreAsync(
+        SessionJpegCaptureOptions options,
+        CancellationToken cancellationToken);
+
+    private static partial SessionJpegFrame? EncodeSurfaceCore(
+        ISessionJpegCaptureSurface surface,
+        SessionJpegCaptureOptions options);
+}
+
+internal sealed class SessionJpegFrame : IDisposable
+{
+    private byte[]? buffer;
+
+    public SessionJpegFrame(byte[] buffer, int length)
+    {
+        this.buffer = buffer ?? throw new ArgumentNullException(nameof(buffer));
+        Length = length;
+    }
+
+    public int Length { get; }
+
+    public ReadOnlyMemory<byte> Payload => buffer is null
+        ? ReadOnlyMemory<byte>.Empty
+        : buffer.AsMemory(0, Length);
+
+    public void Dispose()
+    {
+        var currentBuffer = Interlocked.Exchange(ref buffer, null);
+        if (currentBuffer is not null && currentBuffer.Length > 0)
+        {
+            ArrayPool<byte>.Shared.Return(currentBuffer);
+        }
+    }
+}
+
+internal sealed class PooledBufferStream : Stream
+{
+    private byte[] buffer;
+    private int length;
+    private bool detached;
+
+    public PooledBufferStream(int initialCapacity)
+    {
+        buffer = ArrayPool<byte>.Shared.Rent(Math.Max(initialCapacity, 1024));
+    }
+
+    public override bool CanRead => false;
+
+    public override bool CanSeek => false;
+
+    public override bool CanWrite => true;
+
+    public override long Length => length;
+
+    public override long Position
+    {
+        get => length;
+        set => throw new NotSupportedException();
+    }
+
+    public int LengthWritten => length;
+
+    public void ReservePrefix(int byteCount)
+    {
+        EnsureCapacity(byteCount);
+        length = byteCount;
+    }
+
+    public Span<byte> GetWrittenSpan(int byteCount)
+    {
+        if (byteCount < 0 || byteCount > length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(byteCount));
+        }
+
+        return buffer.AsSpan(0, byteCount);
+    }
+
+    public SessionJpegFrame DetachFrame()
+    {
+        var detachedBuffer = buffer;
+        var detachedLength = length;
+        buffer = Array.Empty<byte>();
+        length = 0;
+        detached = true;
+        return new SessionJpegFrame(detachedBuffer, detachedLength);
+    }
+
+    public override void Flush()
+    {
+    }
+
+    public override int Read(byte[] buffer, int offset, int count)
+        => throw new NotSupportedException();
+
+    public override long Seek(long offset, SeekOrigin origin)
+        => throw new NotSupportedException();
+
+    public override void SetLength(long value)
+        => throw new NotSupportedException();
+
+    public override void Write(byte[] sourceBuffer, int offset, int count)
+    {
+        ArgumentNullException.ThrowIfNull(sourceBuffer);
+        if ((uint)offset > sourceBuffer.Length || (uint)count > sourceBuffer.Length - offset)
+        {
+            throw new ArgumentOutOfRangeException(nameof(offset));
+        }
+
+        Write(sourceBuffer.AsSpan(offset, count));
+    }
+
+    public override void Write(ReadOnlySpan<byte> sourceBuffer)
+    {
+        EnsureCapacity(sourceBuffer.Length);
+        sourceBuffer.CopyTo(buffer.AsSpan(length));
+        length += sourceBuffer.Length;
+    }
+
+    public override void WriteByte(byte value)
+    {
+        EnsureCapacity(1);
+        buffer[length++] = value;
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (!detached && buffer.Length > 0)
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+            buffer = Array.Empty<byte>();
+        }
+
+        base.Dispose(disposing);
+    }
+
+    private void EnsureCapacity(int additionalBytes)
+    {
+        var requiredLength = checked(length + additionalBytes);
+        if (requiredLength <= buffer.Length)
+        {
+            return;
+        }
+
+        var expandedBuffer = ArrayPool<byte>.Shared.Rent(Math.Max(requiredLength, buffer.Length * 2));
+        buffer.AsSpan(0, length).CopyTo(expandedBuffer);
+        ArrayPool<byte>.Shared.Return(buffer);
+        buffer = expandedBuffer;
+    }
+}

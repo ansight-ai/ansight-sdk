@@ -6,21 +6,21 @@ namespace Ansight.Pairing;
 
 internal sealed class PairingSessionTransport : IDisposable
 {
-    private ClientWebSocket? _webSocket;
-    private readonly SemaphoreSlim _sendLock = new(1, 1);
-    private readonly SemaphoreSlim _requestLock = new(1, 1);
-    private CancellationTokenSource? _receivePumpCts;
-    private Task? _receivePumpTask;
-    private Channel<string>? _incomingMessages;
-    private bool _disposed;
+    private ClientWebSocket? webSocket;
+    private readonly SemaphoreSlim sendLock = new(1, 1);
+    private readonly SemaphoreSlim requestLock = new(1, 1);
+    private CancellationTokenSource? receivePumpCts;
+    private Task? receivePumpTask;
+    private Channel<string>? incomingMessages;
+    private bool disposed;
 
-    public bool IsOpen => _webSocket is { State: WebSocketState.Open };
+    public bool IsOpen => webSocket is { State: WebSocketState.Open };
 
     public void Attach(ClientWebSocket webSocket)
     {
         ArgumentNullException.ThrowIfNull(webSocket);
 
-        _webSocket = webSocket;
+        this.webSocket = webSocket;
         StartReceivePump(webSocket);
     }
 
@@ -33,7 +33,7 @@ internal sealed class PairingSessionTransport : IDisposable
         TimeSpan acknowledgementTimeout,
         CancellationToken cancellationToken)
     {
-        var webSocket = _webSocket;
+        var webSocket = this.webSocket;
         if (webSocket is null || webSocket.State != WebSocketState.Open)
         {
             return OperationResult.FromFailure("WebSocket session is not open.");
@@ -41,7 +41,7 @@ internal sealed class PairingSessionTransport : IDisposable
 
         try
         {
-            await _requestLock.WaitAsync(cancellationToken);
+            await requestLock.WaitAsync(cancellationToken);
             try
             {
                 await SendPayloadAsync(webSocket, payload, cancellationToken);
@@ -60,7 +60,7 @@ internal sealed class PairingSessionTransport : IDisposable
             }
             finally
             {
-                _requestLock.Release();
+                requestLock.Release();
             }
 
             return OperationResult.FromSuccess(successMessage);
@@ -74,7 +74,7 @@ internal sealed class PairingSessionTransport : IDisposable
 
     public async Task<OperationResult> SendTextAsync(string payload, CancellationToken cancellationToken)
     {
-        var webSocket = _webSocket;
+        var webSocket = this.webSocket;
         if (webSocket is null || webSocket.State != WebSocketState.Open)
         {
             return OperationResult.FromFailure("WebSocket session is not open.");
@@ -96,7 +96,7 @@ internal sealed class PairingSessionTransport : IDisposable
         WebSocketMessageType messageType,
         CancellationToken cancellationToken)
     {
-        var webSocket = _webSocket;
+        var webSocket = this.webSocket;
         if (webSocket is null || webSocket.State != WebSocketState.Open)
         {
             return OperationResult.FromFailure("WebSocket session is not open.");
@@ -115,15 +115,15 @@ internal sealed class PairingSessionTransport : IDisposable
 
     public async Task<OperationResult> CloseAsync(CancellationToken cancellationToken)
     {
-        var webSocket = _webSocket;
-        var receivePumpCts = _receivePumpCts;
-        var receivePumpTask = _receivePumpTask;
-        var incomingMessages = _incomingMessages;
+        var webSocket = this.webSocket;
+        var receivePumpCts = this.receivePumpCts;
+        var receivePumpTask = this.receivePumpTask;
+        var incomingMessages = this.incomingMessages;
 
-        _webSocket = null;
-        _receivePumpCts = null;
-        _receivePumpTask = null;
-        _incomingMessages = null;
+        this.webSocket = null;
+        this.receivePumpCts = null;
+        this.receivePumpTask = null;
+        this.incomingMessages = null;
 
         receivePumpCts?.Cancel();
 
@@ -206,32 +206,32 @@ internal sealed class PairingSessionTransport : IDisposable
 
     public void Dispose()
     {
-        if (_disposed)
+        if (disposed)
         {
             return;
         }
 
-        _disposed = true;
-        _receivePumpCts?.Cancel();
-        _receivePumpCts?.Dispose();
-        _webSocket?.Dispose();
-        _incomingMessages?.Writer.TryComplete();
-        _sendLock.Dispose();
-        _requestLock.Dispose();
-        _webSocket = null;
-        _receivePumpTask = null;
-        _receivePumpCts = null;
-        _incomingMessages = null;
+        disposed = true;
+        receivePumpCts?.Cancel();
+        receivePumpCts?.Dispose();
+        webSocket?.Dispose();
+        incomingMessages?.Writer.TryComplete();
+        sendLock.Dispose();
+        requestLock.Dispose();
+        webSocket = null;
+        receivePumpTask = null;
+        receivePumpCts = null;
+        incomingMessages = null;
     }
 
     private void StartReceivePump(ClientWebSocket webSocket)
     {
-        _incomingMessages = System.Threading.Channels.Channel.CreateUnbounded<string>(new UnboundedChannelOptions
+        incomingMessages = System.Threading.Channels.Channel.CreateUnbounded<string>(new UnboundedChannelOptions
         {
             SingleWriter = true
         });
-        _receivePumpCts = new CancellationTokenSource();
-        _receivePumpTask = Task.Run(() => RunReceivePumpAsync(webSocket, _incomingMessages.Writer, _receivePumpCts.Token));
+        receivePumpCts = new CancellationTokenSource();
+        receivePumpTask = Task.Run(() => RunReceivePumpAsync(webSocket, incomingMessages.Writer, receivePumpCts.Token));
     }
 
     private async Task RunReceivePumpAsync(
@@ -285,7 +285,7 @@ internal sealed class PairingSessionTransport : IDisposable
 
     private async Task<string> ReceiveInboundMessageAsync(CancellationToken cancellationToken)
     {
-        var incomingMessages = _incomingMessages;
+        var incomingMessages = this.incomingMessages;
         if (incomingMessages is null)
         {
             return "<close>";
@@ -303,7 +303,7 @@ internal sealed class PairingSessionTransport : IDisposable
 
     private async Task SendPayloadAsync(ClientWebSocket webSocket, string payload, CancellationToken cancellationToken)
     {
-        await _sendLock.WaitAsync(cancellationToken);
+        await sendLock.WaitAsync(cancellationToken);
         try
         {
             using var sendTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -312,7 +312,7 @@ internal sealed class PairingSessionTransport : IDisposable
         }
         finally
         {
-            _sendLock.Release();
+            sendLock.Release();
         }
     }
 
@@ -322,7 +322,7 @@ internal sealed class PairingSessionTransport : IDisposable
         WebSocketMessageType messageType,
         CancellationToken cancellationToken)
     {
-        await _sendLock.WaitAsync(cancellationToken);
+        await sendLock.WaitAsync(cancellationToken);
         try
         {
             using var sendTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -331,8 +331,8 @@ internal sealed class PairingSessionTransport : IDisposable
         }
         finally
         {
-            _sendLock.Release();
-        }
+            sendLock.Release();
+    }
     }
 
     private static async Task SendTextAsync(ClientWebSocket webSocket, string payload, CancellationToken cancellationToken)
