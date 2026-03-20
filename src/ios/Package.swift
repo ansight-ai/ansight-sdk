@@ -5,6 +5,7 @@ let package = Package(
     name: "AnsightKit",
     platforms: [
         .iOS(.v15),
+        .macOS(.v11),
     ],
     products: [
         .library(
@@ -15,7 +16,28 @@ let package = Package(
     targets: [
         .target(
             name: "AnsightKit",
-            path: "Sources/AnsightKit"
+            path: "Sources/AnsightKit",
+            plugins: [
+                .plugin(name: "AnsightBuildToolPlugin"),
+            ]
+        ),
+        .executableTarget(
+            name: "AnsightBuildTool",
+            path: "Plugins/AnsightBuildTool"
+        ),
+        .plugin(
+            name: "AnsightBuildToolPlugin",
+            capability: .buildTool(),
+            dependencies: [
+                "AnsightBuildTool",
+            ]
+        ),
+        .testTarget(
+            name: "AnsightKitTests",
+            dependencies: [
+                "AnsightKit",
+            ],
+            path: "Tests/AnsightKitTests"
         ),
     ]
 )

@@ -13,7 +13,7 @@ struct ContentView: View {
                         .fontWeight(.semibold)
 
                     Button("Initialize runtime") {
-                        AnsightRuntime.shared.initialize()
+                        try? AnsightRuntime.shared.initialize()
                         refresh()
                     }
 
@@ -39,7 +39,7 @@ struct ContentView: View {
 
                     Button("Open harness session") {
                         _ = try? AnsightRuntime.shared.openSession(
-                            pairingJson: #"{"schema":"ansight.pairing-config.v1"}"#,
+                            pairingJson: "",
                             options: PairingOpenOptions(
                                 clientName: "iOS Harness",
                                 manualHostAddress: "127.0.0.1"
@@ -73,6 +73,13 @@ struct ContentView: View {
         metricsRecorded=\(snapshot.metricsRecorded)
         eventsRecorded=\(snapshot.eventsRecorded)
         registeredTools=\(snapshot.registeredTools)
+        executableTools=\(snapshot.executableTools)
+        toolDiscoveryEnabled=\(snapshot.toolDiscoveryEnabled)
+        toolExecutionEnabled=\(snapshot.toolExecutionEnabled)
+        embeddedDeveloperPairingAvailable=\(snapshot.embeddedDeveloperPairingAvailable)
+        detectedBundledTools=\(snapshot.detectedBundledTools.joined(separator: ","))
+        lastPairingConfigId=\(snapshot.lastPairingConfigId ?? "<none>")
+        resolvedHostAddress=\(snapshot.resolvedHostAddress ?? "<none>")
         sessionMessage=\(snapshot.sessionMessage ?? "<none>")
         lastMetric=\(String(describing: snapshot.lastMetric))
         lastEvent=\(String(describing: snapshot.lastEvent))

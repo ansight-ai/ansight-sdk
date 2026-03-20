@@ -24,14 +24,17 @@ public static class QrDiscoveryPayload
     {
         ArgumentNullException.ThrowIfNull(config);
 
-        var payload = new PairingQrConnectionPayload
-        {
-            Schema = PairingQrConnectionPayload.SchemaName,
-            Connection = CreateConnectionHint(config, discoveryHint.Source),
-            Discovery = Create(discoveryHint)
-        };
+        var payload = CreateConnectionPayload(config, discoveryHint);
 
         return JsonSerializer.Serialize(payload, indented ? PairingJson.Pretty : PairingJson.Compact);
+    }
+
+    public static string SerializeCompactCode(PairingConfig config, PairingDiscoveryHint discoveryHint)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        ArgumentNullException.ThrowIfNull(discoveryHint);
+
+        return PairingCodeGenerator.Serialize(CreateConnectionPayload(config, discoveryHint));
     }
 
     public static PairingConnectionHint CreateConnectionHint(PairingConfig config, string? source = null)
@@ -92,6 +95,16 @@ public static class QrDiscoveryPayload
             return false;
         }
 
+        if (PairingCodeGenerator.TryParse(payload, out connectionPayload))
+        {
+            return connectionPayload?.Connection is not null &&
+                   string.Equals(connectionPayload.Schema, PairingQrConnectionPayload.SchemaName, StringComparison.Ordinal) &&
+                   string.Equals(connectionPayload.Connection.Schema, PairingConnectionHint.SchemaName, StringComparison.Ordinal) &&
+                   !string.IsNullOrWhiteSpace(connectionPayload.Connection.ConfigId) &&
+                   !string.IsNullOrWhiteSpace(connectionPayload.Connection.OneTimeToken) &&
+                   !string.IsNullOrWhiteSpace(connectionPayload.Discovery?.HostAddress);
+        }
+
         try
         {
             connectionPayload = JsonSerializer.Deserialize<PairingQrConnectionPayload>(payload, PairingJson.Compact);
@@ -106,6 +119,16 @@ public static class QrDiscoveryPayload
             connectionPayload = null;
             return false;
         }
+    }
+
+    private static PairingQrConnectionPayload CreateConnectionPayload(PairingConfig config, PairingDiscoveryHint discoveryHint)
+    {
+        return new PairingQrConnectionPayload
+        {
+            Schema = PairingQrConnectionPayload.SchemaName,
+            Connection = CreateConnectionHint(config, discoveryHint.Source),
+            Discovery = Create(discoveryHint)
+        };
     }
 
     private const string SchemaName = PairingDiscoveryHint.SchemaName;

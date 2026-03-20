@@ -9,7 +9,7 @@ public sealed class ToolGuard
 
     public static ToolGuard Disabled { get; } = new(discoveryEnabled: false, executionEnabled: false, Array.Empty<ToolScope>(), Array.Empty<string>());
 
-    public static ToolGuard ReadOnly { get; } = new(discoveryEnabled: true, executionEnabled: true, new[] { ToolScope.Read }, Array.Empty<string>());
+    public static ToolGuard ReadOnly { get; } = new(discoveryEnabled: true, executionEnabled: true, [ToolScope.Read], Array.Empty<string>());
 
     public static ToolGuard FullAccess { get; } = new(
         discoveryEnabled: true,

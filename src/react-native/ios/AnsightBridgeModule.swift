@@ -15,8 +15,12 @@ final class AnsightBridgeModule: NSObject {
         resolver resolve: RCTPromiseResolveBlock,
         rejecter reject: RCTPromiseRejectBlock
     ) {
-        AnsightRuntime.shared.initialize(options: options.toOptions())
-        resolve(nil)
+        do {
+            try AnsightRuntime.shared.initialize(options: options.toOptions())
+            resolve(nil)
+        } catch {
+            reject("ansight_initialize_failed", error.localizedDescription, error)
+        }
     }
 
     @objc(activate:rejecter:)
@@ -101,7 +105,8 @@ final class AnsightBridgeModule: NSObject {
                     clientName: options["clientName"] as? String ?? "",
                     manualHostAddress: options["manualHostAddress"] as? String ?? "",
                     expectedAppId: options["expectedAppId"] as? String,
-                    profileOverride: options["profileOverride"] as? [String: String] ?? [:]
+                    profileOverride: options["profileOverride"] as? [String: String] ?? [:],
+                    allowDiscoveryHintHostFallback: (options["allowDiscoveryHintHostFallback"] as? NSNumber)?.boolValue ?? true
                 )
             )
 
@@ -109,6 +114,11 @@ final class AnsightBridgeModule: NSObject {
                 "success": result.success,
                 "message": result.message,
                 "sessionId": result.sessionId as Any,
+                "configId": result.configId as Any,
+                "appId": result.appId as Any,
+                "resolvedHostAddress": result.resolvedHostAddress as Any,
+                "usedEmbeddedDeveloperPairing": result.usedEmbeddedDeveloperPairing,
+                "discoverySource": result.discoverySource as Any,
             ])
         } catch {
             reject("ansight_open_session_failed", error.localizedDescription, error)
@@ -166,7 +176,14 @@ final class AnsightBridgeModule: NSObject {
             "metricsRecorded": snapshot.metricsRecorded,
             "eventsRecorded": snapshot.eventsRecorded,
             "registeredTools": snapshot.registeredTools,
+            "executableTools": snapshot.executableTools,
+            "toolDiscoveryEnabled": snapshot.toolDiscoveryEnabled,
+            "toolExecutionEnabled": snapshot.toolExecutionEnabled,
+            "embeddedDeveloperPairingAvailable": snapshot.embeddedDeveloperPairingAvailable,
+            "detectedBundledTools": snapshot.detectedBundledTools,
             "sessionMessage": snapshot.sessionMessage as Any,
+            "lastPairingConfigId": snapshot.lastPairingConfigId as Any,
+            "resolvedHostAddress": snapshot.resolvedHostAddress as Any,
             "lastMetric": snapshot.lastMetric.map {
                 [
                     "value": $0.value,
@@ -206,7 +223,17 @@ private extension NSDictionary? {
             sampleFrequencyMilliseconds: (options["sampleFrequencyMilliseconds"] as? NSNumber)?.intValue ?? 500,
             retentionPeriodSeconds: (options["retentionPeriodSeconds"] as? NSNumber)?.intValue ?? 600,
             enableFramesPerSecond: (options["enableFramesPerSecond"] as? NSNumber)?.boolValue ?? true,
-            additionalChannels: channels
+            additionalChannels: channels,
+            toolGuard: (options["toolAccess"] as? String).map { rawValue in
+                switch rawValue.lowercased() {
+                case "readonly", "read":
+                    return .readOnly
+                case "all", "full":
+                    return .fullAccess
+                default:
+                    return .disabled
+                }
+            } ?? .disabled
         )
     }
 }

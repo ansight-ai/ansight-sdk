@@ -14,7 +14,7 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin {
             switch call.method {
             case "initialize":
                 let options = (call.arguments as? [String: Any] ?? [:]).toOptions()
-                AnsightRuntime.shared.initialize(options: options)
+                try AnsightRuntime.shared.initialize(options: options)
                 result(nil)
             case "activate":
                 try AnsightRuntime.shared.activate()
@@ -52,13 +52,19 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin {
                         clientName: options["clientName"] as? String ?? "",
                         manualHostAddress: options["manualHostAddress"] as? String ?? "",
                         expectedAppId: options["expectedAppId"] as? String,
-                        profileOverride: options["profileOverride"] as? [String: String] ?? [:]
+                        profileOverride: options["profileOverride"] as? [String: String] ?? [:],
+                        allowDiscoveryHintHostFallback: (options["allowDiscoveryHintHostFallback"] as? NSNumber)?.boolValue ?? true
                     )
                 )
                 result([
                     "success": session.success,
                     "message": session.message,
                     "sessionId": session.sessionId as Any,
+                    "configId": session.configId as Any,
+                    "appId": session.appId as Any,
+                    "resolvedHostAddress": session.resolvedHostAddress as Any,
+                    "usedEmbeddedDeveloperPairing": session.usedEmbeddedDeveloperPairing,
+                    "discoverySource": session.discoverySource as Any,
                 ])
             case "completeSession":
                 AnsightRuntime.shared.completeSession()
@@ -85,7 +91,14 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin {
                     "metricsRecorded": snapshot.metricsRecorded,
                     "eventsRecorded": snapshot.eventsRecorded,
                     "registeredTools": snapshot.registeredTools,
+                    "executableTools": snapshot.executableTools,
+                    "toolDiscoveryEnabled": snapshot.toolDiscoveryEnabled,
+                    "toolExecutionEnabled": snapshot.toolExecutionEnabled,
+                    "embeddedDeveloperPairingAvailable": snapshot.embeddedDeveloperPairingAvailable,
+                    "detectedBundledTools": snapshot.detectedBundledTools,
                     "sessionMessage": snapshot.sessionMessage as Any,
+                    "lastPairingConfigId": snapshot.lastPairingConfigId as Any,
+                    "resolvedHostAddress": snapshot.resolvedHostAddress as Any,
                     "lastMetric": snapshot.lastMetric.map {
                         [
                             "value": $0.value,
@@ -133,7 +146,17 @@ private extension Dictionary where Key == String, Value == Any {
             sampleFrequencyMilliseconds: (self["sampleFrequencyMilliseconds"] as? NSNumber)?.intValue ?? 500,
             retentionPeriodSeconds: (self["retentionPeriodSeconds"] as? NSNumber)?.intValue ?? 600,
             enableFramesPerSecond: (self["enableFramesPerSecond"] as? NSNumber)?.boolValue ?? true,
-            additionalChannels: channels
+            additionalChannels: channels,
+            toolGuard: (self["toolAccess"] as? String).map { rawValue in
+                switch rawValue.lowercased() {
+                case "readonly", "read":
+                    return .readOnly
+                case "all", "full":
+                    return .fullAccess
+                default:
+                    return .disabled
+                }
+            } ?? .disabled
         )
     }
 }

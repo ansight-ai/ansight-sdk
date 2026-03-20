@@ -82,6 +82,36 @@ internal static class PairingTestDocumentFactory
         };
     }
 
+    public static PairingDiscoveryHint CreateDiscoveryHint(
+        string hostAddress = "127.0.0.1",
+        string? hostName = "test-host",
+        string? wifiName = null,
+        string? source = "unit-test",
+        DateTimeOffset? capturedAt = null)
+    {
+        return new PairingDiscoveryHint
+        {
+            Schema = PairingDiscoveryHint.SchemaName,
+            Source = source,
+            HostAddress = hostAddress,
+            HostName = hostName,
+            WifiName = wifiName,
+            CapturedAt = capturedAt ?? DateTimeOffset.UtcNow
+        };
+    }
+
+    public static PairingQrConnectionPayload CreateQrConnectionPayload(
+        PairingConnectionHint? connectionHint = null,
+        PairingDiscoveryHint? discoveryHint = null)
+    {
+        return new PairingQrConnectionPayload
+        {
+            Schema = PairingQrConnectionPayload.SchemaName,
+            Connection = connectionHint ?? CreateConnectionHint(),
+            Discovery = discoveryHint ?? CreateDiscoveryHint()
+        };
+    }
+
     public static string CreateBootstrapJson(
         PairingConfig pairingConfig,
         PairingConnectionHint? connectionHint = null)
@@ -91,12 +121,7 @@ internal static class PairingTestDocumentFactory
             Schema = PairingBootstrapDocument.SchemaName,
             PairingConfig = pairingConfig,
             ConnectionHint = connectionHint,
-            Discovery = new PairingDiscoveryHint
-            {
-                Schema = PairingDiscoveryHint.SchemaName,
-                Source = "unit-test",
-                HostAddress = "127.0.0.1"
-            }
+            Discovery = CreateDiscoveryHint(hostName: null, wifiName: null, capturedAt: null)
         };
 
         return JsonSerializer.Serialize(bootstrap, PairingJson.Compact);

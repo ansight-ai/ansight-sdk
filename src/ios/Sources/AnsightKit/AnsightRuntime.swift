@@ -4,6 +4,7 @@ public final class AnsightRuntime: @unchecked Sendable {
     public static let shared = AnsightRuntime()
 
     private let lock = NSLock()
+    private let pairingDocumentService = PairingConfigDocumentService()
 
     private var options = AnsightOptions()
     private var initialized = false
@@ -12,14 +13,21 @@ public final class AnsightRuntime: @unchecked Sendable {
     private var sessionMessage: String?
     private var metrics: [RecordedMetric] = []
     private var events: [RecordedEvent] = []
-    private var tools: [String: AnsightToolDescriptor] = [:]
+    private var tools: [String: RegisteredTool] = [:]
+    private var lastPairingDocument: ParsedPairingDocument?
+    private var resolvedHostAddress: String?
 
     private init() {}
 
-    public func initialize(options: AnsightOptions = .init()) {
+    public func initialize(options: AnsightOptions = .init()) throws {
+        let validatedOptions = try options.validated()
+
         lock.withLock {
-            self.options = options
+            self.options = validatedOptions
             initialized = true
+            sessionOpen = false
+            lastPairingDocument = nil
+            resolvedHostAddress = nil
             sessionMessage = "Runtime initialized."
         }
     }
@@ -46,6 +54,8 @@ public final class AnsightRuntime: @unchecked Sendable {
         lock.withLock {
             metrics.removeAll()
             events.removeAll()
+            lastPairingDocument = nil
+            resolvedHostAddress = nil
             sessionMessage = "Runtime buffers cleared."
         }
     }
@@ -104,25 +114,66 @@ public final class AnsightRuntime: @unchecked Sendable {
                 throw RuntimeError.notInitialized("AnsightRuntime must be initialized before opening a session.")
             }
 
-            guard !pairingJson.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                return OpenSessionResult(success: false, message: "Pairing JSON is required.", sessionId: nil)
+            let trimmedPairingJson = pairingJson.trimmingCharacters(in: .whitespacesAndNewlines)
+            let embeddedPairingJson = AnsightDeveloperMode.embeddedPairingJson
+            let effectivePairingJson = trimmedPairingJson.isEmpty ? embeddedPairingJson ?? "" : pairingJson
+            let usedEmbeddedDeveloperPairing = trimmedPairingJson.isEmpty && embeddedPairingJson != nil
+
+            guard !effectivePairingJson.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                return OpenSessionResult(
+                    success: false,
+                    message: "Pairing JSON is required unless an embedded developer pairing config is available.",
+                    sessionId: nil
+                )
             }
 
-            guard !options.manualHostAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                return OpenSessionResult(success: false, message: "Manual host address is required.", sessionId: nil)
+            let document = try pairingDocumentService.parseAndValidateDocument(
+                effectivePairingJson,
+                expectedAppId: options.expectedAppId
+            )
+
+            let manualHostAddress = options.manualHostAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+            let hintedHostAddress = document.discoveryHint?.hostAddress?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let effectiveHostAddress: String
+            if !manualHostAddress.isEmpty {
+                effectiveHostAddress = manualHostAddress
+            } else if options.allowDiscoveryHintHostFallback, !hintedHostAddress.isEmpty {
+                effectiveHostAddress = hintedHostAddress
+            } else {
+                return OpenSessionResult(
+                    success: false,
+                    message: "Manual host address is required unless the pairing document includes a discovery host hint.",
+                    sessionId: nil,
+                    configId: document.config.configId,
+                    appId: document.config.appId,
+                    usedEmbeddedDeveloperPairing: usedEmbeddedDeveloperPairing,
+                    discoverySource: document.discoveryHint?.source
+                )
             }
 
             sessionOpen = true
             let sessionId = "ios-\(UUID().uuidString)"
+            lastPairingDocument = document
+            resolvedHostAddress = effectiveHostAddress
             sessionMessage =
-                "Harness session opened locally for \(options.clientName). Network transport is not implemented yet."
-            return OpenSessionResult(success: true, message: sessionMessage ?? "Session opened.", sessionId: sessionId)
+                "Harness session opened locally for \(options.clientName) using config \(document.config.configId) at \(effectiveHostAddress). Network transport is not implemented yet."
+            return OpenSessionResult(
+                success: true,
+                message: sessionMessage ?? "Session opened.",
+                sessionId: sessionId,
+                configId: document.config.configId,
+                appId: document.config.appId,
+                resolvedHostAddress: effectiveHostAddress,
+                usedEmbeddedDeveloperPairing: usedEmbeddedDeveloperPairing,
+                discoverySource: document.discoveryHint?.source
+            )
         }
     }
 
     public func completeSession() {
         lock.withLock {
             sessionOpen = false
+            resolvedHostAddress = nil
             sessionMessage = "Harness session completed locally."
         }
     }
@@ -130,6 +181,7 @@ public final class AnsightRuntime: @unchecked Sendable {
     public func closeSession() {
         lock.withLock {
             sessionOpen = false
+            resolvedHostAddress = nil
             sessionMessage = "Harness session closed."
         }
     }
@@ -140,22 +192,57 @@ public final class AnsightRuntime: @unchecked Sendable {
         }
 
         lock.withLock {
-            tools[tool.id] = tool
+            tools[tool.id] = RegisteredTool(descriptor: tool, execute: nil)
             sessionMessage = "Registered tool \(tool.id)."
         }
     }
 
+    public func registerTool(_ tool: any AnsightTool) throws {
+        let descriptor = tool.descriptor
+        guard !descriptor.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw RuntimeError.invalidInput("Tool id must not be blank.")
+        }
+
+        lock.withLock {
+            tools[descriptor.id] = RegisteredTool(
+                descriptor: descriptor,
+                execute: tool.execute(arguments:)
+            )
+            sessionMessage = "Registered executable tool \(descriptor.id)."
+        }
+    }
+
+    public func handleToolProtocolMessage(_ json: String) throws -> String? {
+        let bridge = lock.withLock {
+            AnsightToolProtocolBridge(registry: tools, guardPolicy: options.toolGuard)
+        }
+
+        guard initialized else {
+            return bridge.runtimeNotInitializedResponse(for: json)
+        }
+
+        return try bridge.handleIfSupported(json)
+    }
+
     public func snapshot() -> AnsightDebugSnapshot {
         lock.withLock {
-            AnsightDebugSnapshot(
+            let executableTools = tools.values.filter { $0.execute != nil }.count
+            return AnsightDebugSnapshot(
                 initialized: initialized,
                 active: active,
                 sessionOpen: sessionOpen,
                 metricsRecorded: metrics.count,
                 eventsRecorded: events.count,
                 registeredTools: tools.count,
+                executableTools: executableTools,
+                toolDiscoveryEnabled: options.toolGuard.discoveryEnabled,
+                toolExecutionEnabled: options.toolGuard.executionEnabled,
+                embeddedDeveloperPairingAvailable: AnsightDeveloperMode.embeddedPairingJson != nil,
+                detectedBundledTools: AnsightDeveloperMode.bundledToolScanReport.detectedToolTypes,
                 lastMetric: metrics.last,
                 lastEvent: events.last,
+                lastPairingConfigId: lastPairingDocument?.config.configId,
+                resolvedHostAddress: resolvedHostAddress,
                 sessionMessage: sessionMessage
             )
         }

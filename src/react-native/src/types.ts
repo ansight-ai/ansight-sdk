@@ -9,6 +9,7 @@ export type AnsightOptions = {
   retentionPeriodSeconds?: number;
   enableFramesPerSecond?: boolean;
   additionalChannels?: AnsightChannel[];
+  toolAccess?: "disabled" | "read" | "readonly" | "full" | "all";
 };
 
 export type AnsightEventType =
@@ -26,12 +27,18 @@ export type PairingOpenOptions = {
   manualHostAddress: string;
   expectedAppId?: string;
   profileOverride?: Record<string, string>;
+  allowDiscoveryHintHostFallback?: boolean;
 };
 
 export type OpenSessionResult = {
   success: boolean;
   message: string;
   sessionId?: string | null;
+  configId?: string | null;
+  appId?: string | null;
+  resolvedHostAddress?: string | null;
+  usedEmbeddedDeveloperPairing?: boolean;
+  discoverySource?: string | null;
 };
 
 export type AnsightDebugSnapshot = {
@@ -41,7 +48,14 @@ export type AnsightDebugSnapshot = {
   metricsRecorded: number;
   eventsRecorded: number;
   registeredTools: number;
+  executableTools: number;
+  toolDiscoveryEnabled: boolean;
+  toolExecutionEnabled: boolean;
+  embeddedDeveloperPairingAvailable: boolean;
+  detectedBundledTools: string[];
   sessionMessage?: string | null;
+  lastPairingConfigId?: string | null;
+  resolvedHostAddress?: string | null;
   lastMetric?: {
     value: number;
     channel: number;
@@ -60,7 +74,10 @@ export type AnsightDebugSnapshot = {
 export type AnsightToolDescriptor = {
   id: string;
   name: string;
+  description?: string;
+  category?: string;
   scope?: string;
+  keywords?: string;
 };
 
 export type EventOptions = {
