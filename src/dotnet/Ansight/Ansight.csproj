@@ -21,7 +21,7 @@
     <PackageTags>observability;memory;metrics;debugging;fps;telemetry;mobile;android;ios;mac;maccatalyst;performance</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageIcon>ansight_small.png</PackageIcon>
+    <PackageIcon>icon.png</PackageIcon>
     <NoWarn>$(NoWarn);NU5110;NU5111</NoWarn>
   </PropertyGroup>
 
@@ -30,7 +30,10 @@
                       ReferenceOutputAssembly="false"
                       PrivateAssets="all" />
     <None Include="README.md" Pack="true" PackagePath="\"/>
-    <None Include="..\img\ansight_small.png" Pack="true" PackagePath="\"/>
+    <None Include="..\..\..\branding\icon.png"
+          Link="icon.png"
+          Pack="true"
+          PackagePath="\"/>
     <None Include="build\Ansight.targets" Pack="true" PackagePath="buildTransitive\Ansight.targets" />
     <None Include="..\Ansight.Build\bin\$(Configuration)\netstandard2.0\Ansight.Build.dll"
           Pack="true"

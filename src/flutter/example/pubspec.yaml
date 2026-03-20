@@ -1,0 +1,16 @@
+name: ansight_flutter_example
+description: Example harness for the Ansight Flutter bridge.
+publish_to: "none"
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  ansight_flutter:
+    path: ../
+
+flutter:
+  uses-material-design: true

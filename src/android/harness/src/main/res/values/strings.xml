@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ansight Android Harness</string>
+    <string name="initialize">Initialize runtime</string>
+    <string name="activate">Activate runtime</string>
+    <string name="record_metric">Record metric</string>
+    <string name="record_event">Record event</string>
+    <string name="open_session">Open harness session</string>
+    <string name="clear_buffers">Clear buffers</string>
+</resources>

@@ -1,0 +1,22 @@
+name: ansight_flutter
+description: Flutter bridge for the Ansight native runtimes.
+version: 0.1.0
+publish_to: "none"
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  plugin_platform_interface: ^2.1.8
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: ai.ansight.flutter
+        pluginClass: AnsightFlutterPlugin
+      ios:
+        pluginClass: AnsightFlutterPlugin

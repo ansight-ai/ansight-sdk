@@ -1,0 +1,31 @@
+plugins {
+    id("com.android.library")
+    id("org.jetbrains.kotlin.android")
+}
+
+val ansightRuntimeCoordinates = providers
+    .gradleProperty("ansightRuntimeCoordinates")
+    .orElse("ai.ansight:ansight-runtime-android:0.1.0-dev")
+
+android {
+    namespace = "ai.ansight.reactnative"
+    compileSdk = 35
+
+    defaultConfig {
+        minSdk = 26
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+}
+
+dependencies {
+    implementation(ansightRuntimeCoordinates.get())
+    implementation("com.facebook.react:react-android:+")
+}

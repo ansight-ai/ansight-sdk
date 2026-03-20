@@ -1,0 +1,22 @@
+name: AnsightNativeHarness
+options:
+  minimumXcodeGenVersion: 2.38.0
+packages:
+  AnsightKit:
+    path: ../../
+targets:
+  AnsightNativeHarness:
+    type: application
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - AnsightNativeHarness
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ai.ansight.nativeharness
+        PRODUCT_NAME: AnsightNativeHarness
+        INFOPLIST_FILE: AnsightNativeHarness/Info.plist
+        SWIFT_VERSION: 6.0
+    dependencies:
+      - package: AnsightKit
+        product: AnsightKit
