@@ -21,7 +21,9 @@ public static class FileSystemOptionsBuilderExtensions
         return builder.AddTools(new ITool[]
         {
             new ListDirectoryTool(options),
-            new ReadFileTool(options)
+            new ReadFileTool(options),
+            new DownloadFileTool(options),
+            new BeginBinaryDownloadTool(options)
         });
     }
 }

@@ -6,6 +6,7 @@ namespace Ansight.Pairing;
 public static class PairingCodeGenerator
 {
     public const string FormatPrefix = "apc1";
+    private const string MinifiedFormatPrefix = "apm1";
 
     public static string Serialize(PairingConfig config, PairingDiscoveryHint discoveryHint)
     {
@@ -63,7 +64,7 @@ public static class PairingCodeGenerator
             .Replace('\r', '\n');
         var fields = normalizedPayload.Split('\n').ToList();
         TrimTrailingEmptyLines(fields);
-        if (fields.Count < 9 || !string.Equals(fields[0], FormatPrefix, StringComparison.Ordinal))
+        if (fields.Count < 9 || !IsSupportedFormatPrefix(fields[0]))
         {
             return false;
         }
@@ -256,6 +257,12 @@ public static class PairingCodeGenerator
             default:
                 return false;
         }
+    }
+
+    private static bool IsSupportedFormatPrefix(string value)
+    {
+        return string.Equals(value, FormatPrefix, StringComparison.Ordinal) ||
+               string.Equals(value, MinifiedFormatPrefix, StringComparison.Ordinal);
     }
 
     private static void TrimTrailingEmptyLines(List<string> lines)

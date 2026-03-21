@@ -2,6 +2,13 @@
 
 Grouped sandboxed file access tool registrations for the Ansight .NET SDK.
 
+Registered tools:
+
+- `files.list_directory`
+- `files.read_file`
+- `files.download_file`
+- `files.begin_binary_download`
+
 ## Usage
 
 ```csharp
@@ -13,6 +20,51 @@ var options = Options.CreateBuilder()
     .WithReadOnlyToolAccess()
     .Build();
 ```
+
+## MCP-facing file transfer
+
+`files.begin_binary_download` is the bridge-oriented path when an MCP caller wants the SDK to stream raw bytes over the pairing WebSocket and materialize the file in a host temp directory of the caller's choosing. The app SDK does not choose or know the host temp path; it only returns metadata and then emits binary frames keyed by a `transferId`.
+
+Binary download request arguments:
+
+- `root`: optional sandbox root alias
+- `path`: file path relative to the root
+- `chunkBytes`: maximum bytes to include in each binary websocket frame
+- `downloadId`: optional caller-supplied correlation id for mapping the transfer to a host temp file
+
+Binary download response highlights:
+
+- `downloadId`, `transferId`
+- `fileName`, `fileExtension`, `mimeType`
+- `sizeBytes`, `lastModifiedUtc`, `version`
+- `deliveryMode = websocket_binary`
+- `wireProtocol = ansight.file-transfer.v1`
+
+The host-side MCP bridge is expected to:
+
+- choose the temp directory and local file path
+- call `files.begin_binary_download`
+- map `transferId` to that local temp file
+- write incoming `ASFT` binary frames into the chosen file until the `complete` frame arrives
+
+`files.download_file` remains available as a JSON fallback when the caller cannot consume binary websocket frames. It stays inside the configured sandbox roots, returns best-effort file metadata for tool selection, and pages large files through ordinary `tool.result` payloads.
+
+JSON fallback request arguments:
+
+- `root`: optional sandbox root alias
+- `path`: file path relative to the root
+- `offsetBytes`: starting byte offset for the chunk
+- `maxBytes`: maximum bytes to return for the chunk
+- `encoding`: `auto`, `utf8`, or `base64`
+- `expectedVersion`: optional version token from a prior chunk
+
+JSON fallback response highlights:
+
+- `fileName`, `fileExtension`, `mimeType`
+- `sizeBytes`, `lastModifiedUtc`, `version`
+- `offsetBytes`, `bytesRead`, `hasMore`, `nextOffsetBytes`
+- `contentType`, `encoding`, and either `text` or `base64`
+- `nextRequest`, which contains the next `tool.call` payload to continue the download safely
 
 Configure additional tagged roots:
 

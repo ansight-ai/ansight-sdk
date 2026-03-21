@@ -144,6 +144,12 @@ public sealed class ToolProtocolBridge
             }
         }
 
+        arguments[ToolExecutionArgumentNames.RequestId] = request.Id;
+        if (!string.IsNullOrWhiteSpace(request.SessionId))
+        {
+            arguments[ToolExecutionArgumentNames.SessionId] = request.SessionId!;
+        }
+
         try
         {
             var result = await tool.Execute(arguments);

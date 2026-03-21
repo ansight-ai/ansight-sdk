@@ -332,6 +332,51 @@ The implementation lives in:
 
 The wire format and behavior are documented in [tools.md](tools.md).
 
+## Binary file transfer stream
+
+The `.NET` SDK now supports bridge-oriented binary file transfer over the live pairing WebSocket.
+
+The control plane is a normal tool call:
+
+- the host sends `tool.call` for `files.begin_binary_download`
+- the SDK replies with `tool.result` containing `downloadId`, `transferId`, file metadata, `deliveryMode = websocket_binary`, and `wireProtocol = ansight.file-transfer.v1`
+- after that `tool.result` has been sent, the SDK begins emitting binary WebSocket frames for that transfer
+
+Important boundary:
+
+- the app SDK never chooses or knows the host temp directory
+- the MCP bridge or host is responsible for mapping `downloadId` / `transferId` to a local temp file path and writing the binary frames there
+
+The implementation lives in:
+
+- [BeginBinaryDownloadTool.cs](../../src/dotnet/Ansight.Tools.FileSystem/BeginBinaryDownloadTool.cs)
+- [PairingBinaryTransferHub.cs](../../src/dotnet/Ansight/Pairing/PairingBinaryTransferHub.cs)
+- [PairingFileTransferWireProtocol.cs](../../src/dotnet/Ansight/Pairing/PairingFileTransferWireProtocol.cs)
+
+### Binary frame format
+
+Each binary WebSocket message is:
+
+1. a `56` byte header
+2. zero or more payload bytes
+
+Header layout:
+
+- bytes `0..3`: ASCII magic `ASFT`
+- byte `4`: protocol version, currently `1`
+- byte `5`: frame type
+- bytes `6..7`: reserved, currently `0`
+- bytes `8..39`: `transferId` as `32` lowercase ASCII hex characters
+- bytes `40..43`: sequence number, little-endian `Int32`
+- bytes `44..51`: file offset for this frame, little-endian `Int64`
+- bytes `52..55`: payload byte count, little-endian `Int32`
+
+Frame types:
+
+- `1`: chunk
+- `2`: complete
+- `3`: error
+
 ## Screenshot binary stream
 
 If the runtime is initialized and `Options.SessionJpegCapture` is configured, the client starts automatic screenshot streaming after the session opens.
@@ -390,5 +435,6 @@ The implemented protocol today is:
 - WebSocket upgrade with an opaque host hello
 - request/ack text messages for profile, logs, done, and event batches
 - fire-and-forget text messages for metric channels and metric batches
+- binary file transfer initiated by `files.begin_binary_download` using the `ASFT` frame header
 - optional binary screenshot streaming using the `ASJP` frame header
 - automatic `tool.query` / `tool.call` handling on the live session socket

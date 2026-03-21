@@ -96,6 +96,8 @@ The feature packages currently group tools by capability area:
 Registered tools remain disabled until the app opts into a guard policy such as `WithReadOnlyToolAccess()` or `WithAllToolAccess()`.
 When a pairing session is open, inbound `tool.query` and `tool.call` protocol messages are handled automatically and answered on the active WebSocket using that guard policy.
 
+For host-local temp-file workflows, `Ansight.Tools.FileSystem` exposes `files.begin_binary_download`, which returns transfer metadata and then streams `ASFT` binary frames over the pairing WebSocket. A host or MCP bridge can map that `transferId` to its own temp directory and write the incoming bytes there.
+
 ## Embedded developer pairing target
 
 The base package ships an optional MSBuild target that can prebundle a developer pairing bootstrap file during build.

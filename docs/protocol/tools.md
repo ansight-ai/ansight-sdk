@@ -151,6 +151,25 @@ Response payload shape:
 }
 ```
 
+Tool results remain ordinary JSON payloads. A tool can either keep the entire transfer inside `tool.result` payloads, or it can return JSON metadata first and then use an out-of-band binary stream on the same WebSocket. The `.NET` file-system package now does both.
+
+`files.download_file` keeps the transfer in JSON and returns:
+
+- file metadata such as `fileName`, `fileExtension`, and `mimeType`
+- a stable `version` token for resumable reads
+- `offsetBytes`, `bytesRead`, `hasMore`, and `nextOffsetBytes`
+- either `text` (`encoding = utf-8`) or `base64` (`encoding = base64`)
+- a `nextRequest` object containing the next `tool.call` payload when more data remains
+
+`files.begin_binary_download` returns:
+
+- `downloadId` and `transferId`
+- `fileName`, `fileExtension`, `mimeType`, `sizeBytes`, and `version`
+- `deliveryMode = websocket_binary`
+- `wireProtocol = ansight.file-transfer.v1`
+
+After that `tool.result` is sent, the SDK starts emitting binary WebSocket frames for the requested file. That path is intended for MCP bridges that want to write directly into a caller-chosen temp directory and then return the local path to the agent.
+
 ## Response types
 
 ### `tool.catalog`
@@ -226,9 +245,13 @@ The current `.NET` implementation does not add:
 
 - cancellation messages
 - progress events
-- chunked tool results
+- generic transport-level chunked tool results
 - binary artifact references inside the tool protocol itself
 - request correlation beyond normal `id` / `replyTo`
 - a separate capability namespace per tool family
+
+Individual tools may still page their own results with ordinary JSON fields such as offsets or continuation arguments. `files.download_file` uses that pattern for resumable file transfer.
+
+The tool protocol still does not embed host-local file paths or host temp-directory decisions. Those remain the responsibility of the MCP bridge consuming the SDK's `files.begin_binary_download` result and subsequent binary frames.
 
 Large screenshots are not transported through `tool.result`; they use the session's separate binary screenshot stream described in [README.md](README.md).

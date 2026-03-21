@@ -66,6 +66,12 @@ internal static class PairingToolProtocolProcessor
         }
 
         await sendAsync(webSocket, SerializeToolEnvelope(response), cancellationToken);
+        if (Runtime.IsInitialized &&
+            string.Equals(envelope!.Type, ToolProtocolBridge.CallType, StringComparison.Ordinal))
+        {
+            Runtime.MutableInstance.BinaryTransferHub.TryStartQueuedTransfer(envelope.Id);
+        }
+
         return true;
     }
 

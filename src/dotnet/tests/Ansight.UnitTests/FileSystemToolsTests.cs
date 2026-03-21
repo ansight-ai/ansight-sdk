@@ -14,7 +14,7 @@ public sealed class FileSystemToolsTests
             .Build();
 
         Assert.Equal(
-            ["files.list_directory", "files.read_file"],
+            ["files.list_directory", "files.read_file", "files.download_file", "files.begin_binary_download"],
             options.Tools.Select(tool => tool.Id));
     }
 
@@ -47,11 +47,16 @@ public sealed class FileSystemToolsTests
         var relativePaths = entries
             .Select(node => Assert.IsType<JsonObject>(node)["relativePath"]?.GetValue<string>())
             .ToArray();
+        var readmeEntry = entries
+            .Select(node => Assert.IsType<JsonObject>(node))
+            .Single(entry => entry["name"]?.GetValue<string>() == "readme.txt");
 
         Assert.Contains(Path.Combine("content", "readme.txt"), relativePaths);
         Assert.Contains(Path.Combine("content", "nested"), relativePaths);
         Assert.Contains(Path.Combine("content", "nested", "notes.txt"), relativePaths);
         Assert.DoesNotContain(Path.Combine("content", ".secret.txt"), relativePaths);
+        Assert.Equal(".txt", readmeEntry["fileExtension"]?.GetValue<string>());
+        Assert.Equal("text/plain", readmeEntry["mimeType"]?.GetValue<string>());
         Assert.False(payload["truncated"]!.GetValue<bool>());
     }
 
@@ -91,9 +96,13 @@ public sealed class FileSystemToolsTests
         var payload = Assert.IsType<JsonObject>(result.Payload);
         Assert.Equal("text", payload["contentType"]?.GetValue<string>());
         Assert.Equal("utf-8", payload["encoding"]?.GetValue<string>());
+        Assert.Equal("notes.txt", payload["fileName"]?.GetValue<string>());
+        Assert.Equal(".txt", payload["fileExtension"]?.GetValue<string>());
+        Assert.Equal("text/plain", payload["mimeType"]?.GetValue<string>());
         Assert.Equal("hello", payload["text"]?.GetValue<string>());
         Assert.True(payload["truncated"]!.GetValue<bool>());
         Assert.Equal(5, payload["bytesRead"]!.GetValue<int>());
+        Assert.NotNull(payload["version"]?.GetValue<string>());
     }
 
     [Fact]
@@ -116,7 +125,131 @@ public sealed class FileSystemToolsTests
         var payload = Assert.IsType<JsonObject>(result.Payload);
         Assert.Equal("binary", payload["contentType"]?.GetValue<string>());
         Assert.Equal("base64", payload["encoding"]?.GetValue<string>());
+        Assert.Equal(".bin", payload["fileExtension"]?.GetValue<string>());
+        Assert.Equal("application/octet-stream", payload["mimeType"]?.GetValue<string>());
         Assert.Equal(Convert.ToBase64String(bytes), payload["base64"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task DownloadFileTool_Execute_ReturnsChunkMetadataAndContinuation()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        var bytes = Enumerable.Range(0, 10).Select(value => (byte)value).ToArray();
+        _ = tempDirectory.WriteBinaryFile("payload.bin", bytes);
+
+        var tool = new DownloadFileTool(CreateOptions(tempDirectory.RootPath));
+        var result = await tool.Execute(new Dictionary<string, string>
+        {
+            ["root"] = "workspace",
+            ["path"] = "payload.bin",
+            ["offsetBytes"] = "2",
+            ["maxBytes"] = "3",
+            ["encoding"] = "base64"
+        });
+
+        Assert.True(result.IsSuccess);
+
+        var payload = Assert.IsType<JsonObject>(result.Payload);
+        Assert.Equal("payload.bin", payload["fileName"]?.GetValue<string>());
+        Assert.Equal(".bin", payload["fileExtension"]?.GetValue<string>());
+        Assert.Equal("application/octet-stream", payload["mimeType"]?.GetValue<string>());
+        Assert.Equal(10L, payload["sizeBytes"]?.GetValue<long>());
+        Assert.Equal(2L, payload["offsetBytes"]?.GetValue<long>());
+        Assert.Equal(3, payload["requestedMaxBytes"]?.GetValue<int>());
+        Assert.Equal(3, payload["bytesRead"]?.GetValue<int>());
+        Assert.True(payload["hasMore"]!.GetValue<bool>());
+        Assert.Equal(5L, payload["nextOffsetBytes"]?.GetValue<long>());
+        Assert.Equal("binary", payload["contentType"]?.GetValue<string>());
+        Assert.Equal("base64", payload["encoding"]?.GetValue<string>());
+        Assert.Equal(Convert.ToBase64String(bytes.Skip(2).Take(3).ToArray()), payload["base64"]?.GetValue<string>());
+
+        var version = payload["version"]?.GetValue<string>();
+        Assert.False(string.IsNullOrWhiteSpace(version));
+
+        var nextRequest = Assert.IsType<JsonObject>(payload["nextRequest"]);
+        Assert.Equal("files.download_file", nextRequest["toolId"]?.GetValue<string>());
+
+        var nextArguments = Assert.IsType<JsonObject>(nextRequest["arguments"]);
+        Assert.Equal("workspace", nextArguments["root"]?.GetValue<string>());
+        Assert.Equal("payload.bin", nextArguments["path"]?.GetValue<string>());
+        Assert.Equal("5", nextArguments["offsetBytes"]?.GetValue<string>());
+        Assert.Equal("3", nextArguments["maxBytes"]?.GetValue<string>());
+        Assert.Equal("base64", nextArguments["encoding"]?.GetValue<string>());
+        Assert.Equal(version, nextArguments["expectedVersion"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task DownloadFileTool_Execute_AutoDetectsTextPayloads()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        _ = tempDirectory.WriteTextFile("notes.md", "hello world");
+
+        var tool = new DownloadFileTool(CreateOptions(tempDirectory.RootPath));
+        var result = await tool.Execute(new Dictionary<string, string>
+        {
+            ["root"] = "workspace",
+            ["path"] = "notes.md",
+            ["offsetBytes"] = "0",
+            ["maxBytes"] = "5"
+        });
+
+        Assert.True(result.IsSuccess);
+
+        var payload = Assert.IsType<JsonObject>(result.Payload);
+        Assert.Equal("text", payload["contentType"]?.GetValue<string>());
+        Assert.Equal("utf-8", payload["encoding"]?.GetValue<string>());
+        Assert.Equal("text/markdown", payload["mimeType"]?.GetValue<string>());
+        Assert.Equal("hello", payload["text"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task DownloadFileTool_Execute_RejectsVersionMismatch()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        _ = tempDirectory.WriteTextFile("notes.txt", "hello");
+
+        var tool = new DownloadFileTool(CreateOptions(tempDirectory.RootPath));
+        var initialResult = await tool.Execute(new Dictionary<string, string>
+        {
+            ["root"] = "workspace",
+            ["path"] = "notes.txt",
+            ["maxBytes"] = "2"
+        });
+
+        Assert.True(initialResult.IsSuccess);
+        var initialPayload = Assert.IsType<JsonObject>(initialResult.Payload);
+        var version = initialPayload["version"]!.GetValue<string>();
+
+        _ = tempDirectory.WriteTextFile("notes.txt", "hello world");
+
+        var resumedResult = await tool.Execute(new Dictionary<string, string>
+        {
+            ["root"] = "workspace",
+            ["path"] = "notes.txt",
+            ["offsetBytes"] = "2",
+            ["maxBytes"] = "2",
+            ["expectedVersion"] = version
+        });
+
+        Assert.False(resumedResult.IsSuccess);
+        Assert.Equal("filesystem_download_version_mismatch", resumedResult.ErrorCode);
+    }
+
+    [Fact]
+    public async Task BeginBinaryDownloadTool_Execute_RequiresActiveRuntimeAndPairingSession()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        _ = tempDirectory.WriteBinaryFile("payload.bin", [1, 2, 3, 4]);
+
+        var tool = new BeginBinaryDownloadTool(CreateOptions(tempDirectory.RootPath));
+        var result = await tool.Execute(new Dictionary<string, string>
+        {
+            ["root"] = "workspace",
+            ["path"] = "payload.bin"
+        });
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("filesystem_binary_download_unavailable", result.ErrorCode);
     }
 
     private static FileSystemToolsOptions CreateOptions(string rootPath)

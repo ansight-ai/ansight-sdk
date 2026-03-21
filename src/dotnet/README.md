@@ -66,6 +66,8 @@ At runtime, transport layers can query or execute tools through `Runtime.ToolBri
 
 Pairing sessions also send a baseline `DeviceAppProfile` automatically after the WebSocket handshake so hosts can always capture app/device details without per-app setup.
 
+`Ansight.Tools.FileSystem` includes `files.begin_binary_download` for bridge-oriented sandbox file transfer. The tool reports `transferId`, `fileExtension`, `mimeType`, and a stable `version` token, then streams `ASFT` binary frames over the pairing WebSocket so an MCP bridge can write the file into a caller-chosen temp directory and return that local path to the agent. `files.download_file` remains as a JSON/base64 fallback.
+
 ## Build-time MCP tool enforcement
 
 `Ansight` fails builds by default when the built output contains concrete `Ansight.Tools.ITool` implementations.

@@ -126,6 +126,8 @@ When a `PairingSessionClient` WebSocket session is open, inbound `tool.query` an
 
 `PairingSessionClient.ProcessToolProtocolMessageAsync(...)` remains available for manual/raw message processing outside the live WebSocket flow.
 
+For MCP-style file extraction, `Ansight.Tools.FileSystem` exposes `files.begin_binary_download` for bridge implementations that want a real host-local temp file. The tool returns `downloadId`, `transferId`, `fileName`, `fileExtension`, `mimeType`, and a stable `version` token, then streams `ASFT` binary frames over the pairing WebSocket so the host can write them into a caller-chosen temp directory. `files.download_file` remains available as a JSON/base64 fallback.
+
 ## Build-time MCP tool enforcement
 
 Ansight enforces an explicit opt-in for bundled MCP tools. Builds fail by default when the managed assemblies in `$(TargetDir)` contain concrete `Ansight.Tools.ITool` implementations.

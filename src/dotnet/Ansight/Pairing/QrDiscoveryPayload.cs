@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace Ansight.Pairing;
 
-public static class QrDiscoveryPayload
+public static partial class QrDiscoveryPayload
 {
     public const string Schema = PairingDiscoveryHint.SchemaName;
 
@@ -10,7 +10,7 @@ public static class QrDiscoveryPayload
     {
         ArgumentNullException.ThrowIfNull(discoveryHint);
 
-        discoveryHint.Schema = SchemaName;
+        discoveryHint.Schema = schemaName;
         return discoveryHint;
     }
 
@@ -71,19 +71,20 @@ public static class QrDiscoveryPayload
             if (TryParseConnectionPayload(payload, out var connectionPayload))
             {
                 discoveryHint = connectionPayload!.Discovery;
-                return discoveryHint is not null &&
-                       string.Equals(discoveryHint.Schema, PairingDiscoveryHint.SchemaName, StringComparison.Ordinal) &&
-                       !string.IsNullOrWhiteSpace(discoveryHint.HostAddress);
+                return IsValidDiscoveryHint(discoveryHint);
             }
 
             discoveryHint = JsonSerializer.Deserialize<PairingDiscoveryHint>(payload, PairingJson.Compact);
-            return discoveryHint is not null &&
-                   string.Equals(discoveryHint.Schema, PairingDiscoveryHint.SchemaName, StringComparison.Ordinal) &&
-                   !string.IsNullOrWhiteSpace(discoveryHint.HostAddress);
+            if (IsValidDiscoveryHint(discoveryHint))
+            {
+                return true;
+            }
+
+            return TryParseMinifiedDiscoveryPayload(payload, out discoveryHint);
         }
         catch
         {
-            return false;
+            return TryParseMinifiedDiscoveryPayload(payload, out discoveryHint);
         }
     }
 
@@ -97,28 +98,51 @@ public static class QrDiscoveryPayload
 
         if (PairingCodeGenerator.TryParse(payload, out connectionPayload))
         {
-            return connectionPayload?.Connection is not null &&
-                   string.Equals(connectionPayload.Schema, PairingQrConnectionPayload.SchemaName, StringComparison.Ordinal) &&
-                   string.Equals(connectionPayload.Connection.Schema, PairingConnectionHint.SchemaName, StringComparison.Ordinal) &&
-                   !string.IsNullOrWhiteSpace(connectionPayload.Connection.ConfigId) &&
-                   !string.IsNullOrWhiteSpace(connectionPayload.Connection.OneTimeToken) &&
-                   !string.IsNullOrWhiteSpace(connectionPayload.Discovery?.HostAddress);
+            return IsValidConnectionPayload(connectionPayload, requireDiscoveryHostAddress: true);
         }
 
         try
         {
             connectionPayload = JsonSerializer.Deserialize<PairingQrConnectionPayload>(payload, PairingJson.Compact);
-            return connectionPayload?.Connection is not null &&
-                   string.Equals(connectionPayload.Schema, PairingQrConnectionPayload.SchemaName, StringComparison.Ordinal) &&
-                   string.Equals(connectionPayload.Connection.Schema, PairingConnectionHint.SchemaName, StringComparison.Ordinal) &&
-                   !string.IsNullOrWhiteSpace(connectionPayload.Connection.ConfigId) &&
-                   !string.IsNullOrWhiteSpace(connectionPayload.Connection.OneTimeToken);
+            if (IsValidConnectionPayload(connectionPayload, requireDiscoveryHostAddress: false))
+            {
+                return true;
+            }
+
+            if (TryParseMinifiedConnectionPayload(payload, out connectionPayload))
+            {
+                return true;
+            }
+
+            return false;
         }
         catch
         {
-            connectionPayload = null;
+            return TryParseMinifiedConnectionPayload(payload, out connectionPayload);
+        }
+    }
+
+    private static bool IsValidDiscoveryHint(PairingDiscoveryHint? discoveryHint)
+    {
+        return discoveryHint is not null &&
+               string.Equals(discoveryHint.Schema, PairingDiscoveryHint.SchemaName, StringComparison.Ordinal) &&
+               !string.IsNullOrWhiteSpace(discoveryHint.HostAddress);
+    }
+
+    private static bool IsValidConnectionPayload(
+        PairingQrConnectionPayload? connectionPayload,
+        bool requireDiscoveryHostAddress)
+    {
+        if (connectionPayload?.Connection is null ||
+            !string.Equals(connectionPayload.Schema, PairingQrConnectionPayload.SchemaName, StringComparison.Ordinal) ||
+            !string.Equals(connectionPayload.Connection.Schema, PairingConnectionHint.SchemaName, StringComparison.Ordinal) ||
+            string.IsNullOrWhiteSpace(connectionPayload.Connection.ConfigId) ||
+            string.IsNullOrWhiteSpace(connectionPayload.Connection.OneTimeToken))
+        {
             return false;
         }
+
+        return !requireDiscoveryHostAddress || !string.IsNullOrWhiteSpace(connectionPayload.Discovery?.HostAddress);
     }
 
     private static PairingQrConnectionPayload CreateConnectionPayload(PairingConfig config, PairingDiscoveryHint discoveryHint)
@@ -131,5 +155,5 @@ public static class QrDiscoveryPayload
         };
     }
 
-    private const string SchemaName = PairingDiscoveryHint.SchemaName;
+    private const string schemaName = PairingDiscoveryHint.SchemaName;
 }

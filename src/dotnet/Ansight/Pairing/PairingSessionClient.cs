@@ -118,6 +118,10 @@ public sealed class PairingSessionClient : IDisposable
         try
         {
             transport.Attach(connectionAttempt.WebSocket!);
+            if (Runtime.IsInitialized)
+            {
+                Runtime.MutableInstance.BinaryTransferHub.AttachTransport(transport);
+            }
 
             if (deviceAppProfile is not null)
             {
@@ -232,7 +236,13 @@ public sealed class PairingSessionClient : IDisposable
     {
         await telemetryStreamer.StopAsync(progress: null, CancellationToken.None);
         await jpegStreamer.StopAsync(CancellationToken.None);
-        return await transport.CloseAsync(cancellationToken);
+        var result = await transport.CloseAsync(cancellationToken);
+        if (Runtime.IsInitialized)
+        {
+            Runtime.MutableInstance.BinaryTransferHub.DetachTransport(transport);
+        }
+
+        return result;
     }
 
     public void Dispose()
@@ -245,6 +255,11 @@ public sealed class PairingSessionClient : IDisposable
         disposed = true;
         telemetryStreamer.Dispose();
         jpegStreamer.Dispose();
+        if (Runtime.IsInitialized)
+        {
+            Runtime.MutableInstance.BinaryTransferHub.DetachTransport(transport);
+        }
+
         transport.Dispose();
     }
 }

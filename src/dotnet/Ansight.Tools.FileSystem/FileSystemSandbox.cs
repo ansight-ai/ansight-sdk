@@ -136,9 +136,13 @@ internal static class FileSystemSandbox
     {
         var isDirectory = entry.Attributes.HasFlag(FileAttributes.Directory);
         long? sizeBytes = null;
+        string? fileExtension = null;
+        string? mimeType = null;
         if (!isDirectory && entry is FileInfo fileInfo)
         {
             sizeBytes = fileInfo.Length;
+            fileExtension = FileSystemContentDescriptor.GetFileExtension(fileInfo.Name);
+            mimeType = FileSystemContentDescriptor.GetMimeType(fileInfo.Name);
         }
 
         return new JsonObject
@@ -149,6 +153,8 @@ internal static class FileSystemSandbox
             ["rootAlias"] = rootAlias,
             ["kind"] = isDirectory ? "directory" : "file",
             ["sizeBytes"] = sizeBytes,
+            ["fileExtension"] = fileExtension,
+            ["mimeType"] = mimeType,
             ["lastModifiedUtc"] = entry.LastWriteTimeUtc.ToString("O"),
             ["isHidden"] = IsHidden(entry)
         };
@@ -197,6 +203,21 @@ internal static class FileSystemSandbox
             "0" => false,
             _ => throw new InvalidOperationException($"The argument '{key}' must be a boolean.")
         };
+    }
+
+    internal static long GetLong(IReadOnlyDictionary<string, string> arguments, string key, long defaultValue, long minimum, long maximum)
+    {
+        if (!arguments.TryGetValue(key, out var rawValue) || string.IsNullOrWhiteSpace(rawValue))
+        {
+            return defaultValue;
+        }
+
+        if (!long.TryParse(rawValue, out var parsedValue))
+        {
+            throw new InvalidOperationException($"The argument '{key}' must be an integer.");
+        }
+
+        return Math.Clamp(parsedValue, minimum, maximum);
     }
 
     internal static string? GetString(IReadOnlyDictionary<string, string> arguments, string key)

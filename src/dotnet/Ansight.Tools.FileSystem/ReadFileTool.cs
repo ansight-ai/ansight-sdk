@@ -1,6 +1,5 @@
 namespace Ansight.Tools.FileSystem;
 
-using System.Text;
 using System.Text.Json.Nodes;
 
 public sealed class ReadFileTool : ITool
@@ -39,6 +38,7 @@ public sealed class ReadFileTool : ITool
             var resolvedFile = FileSystemSandbox.ResolvePath(arguments, roots, requireExisting: true, expectDirectory: false);
             var maxBytes = FileSystemSandbox.GetInt(arguments, "maxBytes", defaultValue: DefaultMaxBytes, minimum: 1, maximum: 1024 * 1024);
             var encoding = FileSystemSandbox.GetString(arguments, "encoding");
+            var fileInfo = new FileInfo(resolvedFile.FullPath);
 
             byte[] buffer;
             await using (var stream = new FileStream(resolvedFile.FullPath, FileMode.Open, FileAccess.Read, FileShare.Read))
@@ -63,41 +63,21 @@ public sealed class ReadFileTool : ITool
                 }
             }
 
-            var fileInfo = new FileInfo(resolvedFile.FullPath);
             var truncated = fileInfo.Length > buffer.Length;
-            var requestedEncoding = encoding?.Trim().ToLowerInvariant();
-            var isText = requestedEncoding switch
-            {
-                "utf8" => true,
-                "base64" => false,
-                _ => FileSystemSandbox.IsUtf8(buffer)
-            };
+            var payload = FileSystemContentDescriptor.CreateResolvedFilePayload(resolvedFile, roots, fileInfo);
+            payload["bytesRead"] = buffer.Length;
+            payload["truncated"] = truncated;
+            payload["capturedAtUtc"] = DateTime.UtcNow.ToString("O");
 
-            var payload = new JsonObject
-            {
-                ["rootAlias"] = resolvedFile.RootAlias,
-                ["rootPath"] = resolvedFile.RootPath,
-                ["filePath"] = resolvedFile.FullPath,
-                ["relativePath"] = Path.GetRelativePath(resolvedFile.RootPath, resolvedFile.FullPath),
-                ["availableRoots"] = FileSystemSandbox.DescribeRoots(roots),
-                ["sizeBytes"] = fileInfo.Length,
-                ["bytesRead"] = buffer.Length,
-                ["truncated"] = truncated,
-                ["capturedAtUtc"] = DateTime.UtcNow.ToString("O")
-            };
+            var encodedContent = FileSystemContentDescriptor.EncodeContent(
+                buffer,
+                payload["mimeType"]!.GetValue<string>(),
+                encoding);
 
-            if (isText)
-            {
-                payload["contentType"] = "text";
-                payload["encoding"] = "utf-8";
-                payload["text"] = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: false).GetString(buffer);
-            }
-            else
-            {
-                payload["contentType"] = "binary";
-                payload["encoding"] = "base64";
-                payload["base64"] = Convert.ToBase64String(buffer);
-            }
+            payload["contentType"] = encodedContent.ContentType;
+            payload["encoding"] = encodedContent.Encoding;
+            payload["text"] = encodedContent.Text;
+            payload["base64"] = encodedContent.Base64;
 
             return ToolResult.Success(payload);
         }

@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using Ansight.Pairing;
 using Ansight.Tools;
 
 namespace Ansight;
@@ -16,6 +17,7 @@ internal class RuntimeImpl : IRuntime
 
     public IDataSink DataSink => mutableDataSink;
     internal Options Options => options;
+    internal PairingBinaryTransferHub BinaryTransferHub { get; } = new();
 
     public ToolProtocolBridge ToolBridge { get; }
 
