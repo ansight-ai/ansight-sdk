@@ -15,7 +15,8 @@ internal class RuntimeImpl : IRuntime
 
     private readonly MutableDataSink mutableDataSink;
     private readonly IFrameRateMonitor frameRateMonitor;
-    private readonly HostAutoProbeCoordinator? hostAutoProbeCoordinator;
+    private readonly HostConnectionManager hostConnection;
+    private readonly HostPairingManager hostPairing;
     private bool fpsTrackingEnabled;
 
     public IDataSink DataSink => mutableDataSink;
@@ -26,6 +27,10 @@ internal class RuntimeImpl : IRuntime
 
     public ToolProtocolBridge ToolBridge { get; }
 
+    public IHostConnection HostConnection => hostConnection;
+
+    public IHostPairing HostPairing => hostPairing;
+
     public RuntimeImpl(Options options)
     {
         this.options = options ?? throw new ArgumentNullException(nameof(options));
@@ -35,9 +40,8 @@ internal class RuntimeImpl : IRuntime
         frameRateMonitor = FrameRateMonitorFactory.Create();
         fpsTrackingEnabled = options.EnableFramesPerSecond;
         ToolBridge = options.Tools.CreateBridge(options.ToolGuard);
-        hostAutoProbeCoordinator = options.HostAutoProbe.Enabled
-            ? new HostAutoProbeCoordinator(this, options.HostAutoProbe)
-            : null;
+        hostConnection = new HostConnectionManager(this, options.HostAutoProbe);
+        hostPairing = new HostPairingManager(hostConnection, options.HostPairing);
     }
 
     public bool IsActive { get; private set; }
@@ -73,7 +77,7 @@ internal class RuntimeImpl : IRuntime
             Logger.Info($"Memory sampler started with frequency {options.SampleFrequencyMilliseconds}ms.");
         }
 
-        hostAutoProbeCoordinator?.OnActivated();
+        hostConnection.OnRuntimeActivated();
         OnActivated?.Invoke(this, EventArgs.Empty);
     }
 
@@ -94,7 +98,7 @@ internal class RuntimeImpl : IRuntime
         }
 
         frameRateMonitor.Stop();
-        hostAutoProbeCoordinator?.OnDeactivated();
+        hostConnection.OnRuntimeDeactivated();
         OnDeactivated?.Invoke(this, EventArgs.Empty);
     }
 

@@ -25,6 +25,23 @@ When `WithSessionJpegCapture(...)` is enabled, the pairing client will periodica
 
 Host auto-probe is enabled by default. While `Runtime` is active, Ansight will periodically try to reconnect to the most recent successful pairing profile if one is cached, pause probing while that session stays open, and resume after a reconnect delay if the session closes. Disable it with `WithoutHostAutoProbe()` or customize it with `WithHostAutoProbe(new HostAutoProbeOptions { ... })`.
 
+Runtime-owned host pairing now also owns stored and bundled profile resolution. If your app bundles `ansight.developer-pairing.json` or `ansight.json`, register loaders once during runtime initialization and then use `Runtime.HostPairing` for startup reconnect, QR payload handling, and stored-profile recovery.
+
+```csharp
+var options = Options.CreateBuilder()
+    .WithHostPairing(new HostPairingOptions
+    {
+        BundledDeveloperProfileLoader = cancellationToken => LoadBundledTextAsync("ansight.developer-pairing.json", cancellationToken),
+        BundledProfileLoader = cancellationToken => LoadBundledTextAsync("ansight.json", cancellationToken)
+    })
+    .Build();
+
+Runtime.Initialize(options);
+
+var autoConnectResult = await Runtime.HostPairing.AutoConnectAsync();
+var qrConnectResult = await Runtime.HostPairing.ConnectFromPayloadAsync(payload, "QR pairing code");
+```
+
 ## Data access
 
 ```csharp
@@ -52,6 +69,8 @@ var result = await client.OpenSessionAsync(
 ```
 
 `OpenSessionAsync(...)` now sends a baseline `DeviceAppProfile` automatically immediately after the WebSocket handshake. Supply `PairingConnectionOptions.DeviceAppProfile` only when you want to add or override fields, or configure `UseDeviceAppProfileProvider(...)` on the builder to replace the automatic collector.
+
+Apps that initialize the runtime should generally prefer `Runtime.HostPairing` and `Runtime.HostConnection` over creating their own long-lived `PairingSessionClient` instances, because the runtime-owned surfaces coordinate stored profiles, auto-probe, metrics streaming, and disconnect state in one place.
 
 Create or parse a QR/bootstrap payload:
 

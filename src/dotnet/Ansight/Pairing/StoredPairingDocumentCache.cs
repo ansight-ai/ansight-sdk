@@ -72,7 +72,7 @@ internal sealed class StoredPairingDocumentCache
             Directory.CreateDirectory(directoryPath);
         }
 
-        var json = SerializeDocument(document);
+        var json = PairingDocumentJson.Serialize(document, indented: true);
         File.WriteAllText(cacheFilePath, json);
     }
 
@@ -90,27 +90,6 @@ internal sealed class StoredPairingDocumentCache
             // Best effort.
         }
     }
-
-    private static string SerializeDocument(ParsedPairingDocument document)
-    {
-        if (document.DiscoveryHint is null &&
-            document.ConnectionHint is null &&
-            document.TrustAnchorConfig is null)
-        {
-            return JsonSerializer.Serialize(document.Config, PairingJson.Pretty);
-        }
-
-        var bootstrap = new PairingBootstrapDocument
-        {
-            Schema = PairingBootstrapDocument.SchemaName,
-            PairingConfig = document.TrustAnchorConfig ?? document.Config,
-            Discovery = document.DiscoveryHint,
-            ConnectionHint = document.ConnectionHint
-        };
-
-        return JsonSerializer.Serialize(bootstrap, PairingJson.Pretty);
-    }
-
     internal static string ResolveCacheKey(IDeviceAppProfileProvider profileProvider)
     {
         ArgumentNullException.ThrowIfNull(profileProvider);

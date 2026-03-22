@@ -4,26 +4,21 @@ namespace Ansight;
 
 internal sealed class HostAutoProbeCoordinator : IDisposable
 {
-    private readonly RuntimeImpl runtime;
     private readonly HostAutoProbeOptions options;
     private readonly IHostAutoProbeSessionClient autoProbeSessionClient;
     private readonly Lock gate = new();
     private readonly IProgress<string> progress;
     private CancellationTokenSource? loopCts;
     private Task? loopTask;
-    private TaskCompletionSource<bool> sessionClosedSignal = CreateClosedSignal();
     private bool disposed;
 
     public HostAutoProbeCoordinator(
-        RuntimeImpl runtime,
         HostAutoProbeOptions options,
         IHostAutoProbeSessionClient? autoProbeSessionClient = null)
     {
-        this.runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
         this.options = options?.Clone() ?? throw new ArgumentNullException(nameof(options));
-        this.autoProbeSessionClient = autoProbeSessionClient ?? new PairingSessionClient();
+        this.autoProbeSessionClient = autoProbeSessionClient ?? throw new ArgumentNullException(nameof(autoProbeSessionClient));
         progress = new Progress<string>(HandleProgressMessage);
-        this.autoProbeSessionClient.SessionClosed += HandleSessionClosed;
     }
 
     public void OnActivated()
@@ -56,7 +51,6 @@ internal sealed class HostAutoProbeCoordinator : IDisposable
                 return;
             }
 
-            sessionClosedSignal.TrySetResult(true);
             currentLoopCts = loopCts;
             loopCts = null;
             loopTask = null;
@@ -64,7 +58,7 @@ internal sealed class HostAutoProbeCoordinator : IDisposable
 
         currentLoopCts?.Cancel();
         currentLoopCts?.Dispose();
-        _ = autoProbeSessionClient.CloseSessionAsync(CancellationToken.None);
+        _ = autoProbeSessionClient.DisconnectAsync(CancellationToken.None);
     }
 
     public void Dispose()
@@ -76,8 +70,6 @@ internal sealed class HostAutoProbeCoordinator : IDisposable
 
         OnDeactivated();
         disposed = true;
-        autoProbeSessionClient.SessionClosed -= HandleSessionClosed;
-        autoProbeSessionClient.Dispose();
     }
 
     private async Task RunAsync(CancellationToken cancellationToken)
@@ -91,45 +83,36 @@ internal sealed class HostAutoProbeCoordinator : IDisposable
 
             while (!cancellationToken.IsCancellationRequested)
             {
-                if (!autoProbeSessionClient.HasCachedPairingProfile)
+                if (autoProbeSessionClient.IsConnected)
                 {
                     await Task.Delay(options.ProbeInterval, cancellationToken);
                     continue;
                 }
 
-                ResetSessionClosedSignal();
+                if (autoProbeSessionClient.LastDisconnectedAtUtc is { } lastDisconnectedAtUtc)
+                {
+                    var remainingReconnectDelay = (lastDisconnectedAtUtc + options.ReconnectDelay) - DateTimeOffset.UtcNow;
+                    if (remainingReconnectDelay > TimeSpan.Zero)
+                    {
+                        await Task.Delay(remainingReconnectDelay, cancellationToken);
+                        continue;
+                    }
+                }
 
-                var sessionResult = await autoProbeSessionClient.OpenCachedSessionAsync(
+                if (!autoProbeSessionClient.HasCachedProfile)
+                {
+                    await Task.Delay(options.ProbeInterval, cancellationToken);
+                    continue;
+                }
+
+                var sessionResult = await autoProbeSessionClient.ConnectUsingCachedProfileAsync(
                     options.ClientName,
                     progress,
                     cancellationToken);
                 if (!sessionResult.Success)
                 {
                     await Task.Delay(options.ProbeInterval, cancellationToken);
-                    continue;
                 }
-
-                progress.Report("Ansight host session connected.");
-                var metricsResult = await autoProbeSessionClient.StartMetricsStreamingAsync(
-                    runtime.DataSink,
-                    progress,
-                    cancellationToken);
-                if (!metricsResult.Success)
-                {
-                    progress.Report($"Metrics stream could not start: {metricsResult.Message}");
-                    await autoProbeSessionClient.CloseSessionAsync(CancellationToken.None);
-                    await Task.Delay(options.ReconnectDelay, cancellationToken);
-                    continue;
-                }
-
-                await WaitForSessionClosedAsync(cancellationToken);
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    break;
-                }
-
-                progress.Report("Ansight host session closed. Waiting before retry.");
-                await Task.Delay(options.ReconnectDelay, cancellationToken);
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -143,34 +126,5 @@ internal sealed class HostAutoProbeCoordinator : IDisposable
         {
             Logger.Info($"[Ansight Host auto-probe] {message}");
         }
-    }
-
-    private void HandleSessionClosed(object? sender, EventArgs e)
-    {
-        lock (gate)
-        {
-            sessionClosedSignal.TrySetResult(true);
-        }
-    }
-
-    private void ResetSessionClosedSignal()
-    {
-        lock (gate)
-        {
-            sessionClosedSignal = CreateClosedSignal();
-        }
-    }
-
-    private Task WaitForSessionClosedAsync(CancellationToken cancellationToken)
-    {
-        lock (gate)
-        {
-            return sessionClosedSignal.Task.WaitAsync(cancellationToken);
-        }
-    }
-
-    private static TaskCompletionSource<bool> CreateClosedSignal()
-    {
-        return new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 }

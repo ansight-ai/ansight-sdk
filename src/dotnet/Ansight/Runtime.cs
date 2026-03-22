@@ -22,6 +22,22 @@ public static class Runtime
     public static IRuntime Instance => MutableInstance;
 
     /// <summary>
+    /// Controls the runtime-owned host connection used for pairing and live streaming.
+    /// Returns a disconnected no-op controller until the runtime is initialized.
+    /// </summary>
+    public static IHostConnection HostConnection => IsInitialized
+        ? MutableInstance.HostConnection
+        : NullHostConnection.Instance;
+
+    /// <summary>
+    /// Controls runtime-owned pairing profiles and profile-based connection flows.
+    /// Returns a no-op controller until the runtime is initialized.
+    /// </summary>
+    public static IHostPairing HostPairing => IsInitialized
+        ? MutableInstance.HostPairing
+        : NullHostPairing.Instance;
+
+    /// <summary>
     /// Indicates whether the runtime has been initialised via <see cref="Initialize(Options)"/> or <see cref="InitializeAndActivate(Options)"/>.
     /// </summary>
     public static bool IsInitialized

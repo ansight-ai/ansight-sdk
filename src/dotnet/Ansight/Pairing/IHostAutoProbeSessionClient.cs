@@ -1,24 +1,17 @@
 namespace Ansight.Pairing;
 
-internal interface IHostAutoProbeSessionClient : IDisposable
+internal interface IHostAutoProbeSessionClient
 {
-    event EventHandler? SessionClosed;
+    bool IsConnected { get; }
 
-    bool IsSessionOpen { get; }
+    bool HasCachedProfile { get; }
 
-    bool HasCachedPairingProfile { get; }
+    DateTimeOffset? LastDisconnectedAtUtc { get; }
 
-    Task<OpenSessionResult> OpenCachedSessionAsync(
+    Task<HostConnectionActionResult> ConnectUsingCachedProfileAsync(
         string? clientName,
         IProgress<string>? progress,
         CancellationToken cancellationToken);
 
-    Task<OperationResult> StartMetricsStreamingAsync(
-        IDataSink dataSink,
-        IProgress<string>? progress,
-        CancellationToken cancellationToken);
-
-    Task<OperationResult> CloseSessionAsync(CancellationToken cancellationToken);
-
-    void ClearCachedPairingProfile();
+    Task<HostConnectionActionResult> DisconnectAsync(CancellationToken cancellationToken);
 }

@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace Ansight.Pairing;
 
-public sealed class PairingSessionClient : IDisposable, IHostAutoProbeSessionClient
+public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionClient
 {
     private static readonly HashSet<string> CachedProfileResetReasonCodes = new(StringComparer.Ordinal)
     {
@@ -59,15 +59,25 @@ public sealed class PairingSessionClient : IDisposable, IHostAutoProbeSessionCli
 
     internal bool HasCachedPairingProfile => storedPairingDocumentCache.HasCachedDocument;
 
-    event EventHandler? IHostAutoProbeSessionClient.SessionClosed
+    event EventHandler? IHostConnectionSessionClient.SessionClosed
     {
         add => SessionClosed += value;
         remove => SessionClosed -= value;
     }
 
-    bool IHostAutoProbeSessionClient.IsSessionOpen => IsSessionOpen;
+    bool IHostConnectionSessionClient.IsSessionOpen => IsSessionOpen;
 
-    bool IHostAutoProbeSessionClient.HasCachedPairingProfile => HasCachedPairingProfile;
+    bool IHostConnectionSessionClient.HasCachedPairingProfile => HasCachedPairingProfile;
+
+    bool IHostConnectionSessionClient.TryParseAndValidateDocument(
+        string configJson,
+        out ParsedPairingDocument? document,
+        out string error)
+        => TryParseAndValidateDocument(
+            configJson,
+            deviceAppProfileResolver.ResolveExpectedAppId(deviceAppProfileResolver.Resolve(callerProfile: null)),
+            out document,
+            out error);
 
     public bool TryParseAndValidateDocument(string configJson, string? expectedAppId, out ParsedPairingDocument? document, out string error)
         => configDocumentService.TryParseAndValidateDocument(configJson, expectedAppId, out document, out error);
@@ -342,14 +352,25 @@ public sealed class PairingSessionClient : IDisposable, IHostAutoProbeSessionCli
         storedPairingDocumentCache.Clear();
     }
 
-    Task<OpenSessionResult> IHostAutoProbeSessionClient.OpenCachedSessionAsync(
+    Task<OpenSessionResult> IHostConnectionSessionClient.OpenSessionAsync(
+        ParsedPairingDocument document,
+        string clientName,
+        PairingConnectionOptions? options,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+        => OpenSessionAsync(document, clientName, options, progress, cancellationToken);
+
+    Task<OpenSessionResult> IHostConnectionSessionClient.OpenCachedSessionAsync(
         string? clientName,
         IProgress<string>? progress,
         CancellationToken cancellationToken)
         => OpenCachedSessionAsync(clientName, progress, cancellationToken);
 
-    void IHostAutoProbeSessionClient.ClearCachedPairingProfile()
+    void IHostConnectionSessionClient.ClearCachedPairingProfile()
         => ClearCachedPairingProfile();
+
+    string IHostConnectionSessionClient.ResolveClientName(string? overrideClientName)
+        => ResolveClientName(overrideClientName, deviceAppProfileResolver.Resolve(callerProfile: null));
 
     public void Dispose()
     {

@@ -36,6 +36,22 @@ When `WithSessionJpegCapture(...)` is enabled, the pairing client will periodica
 
 Host auto-probe is enabled by default. While `Runtime` is active, Ansight will periodically try to reconnect to the most recent successful pairing profile if one is cached, pause probing while that session stays open, and resume after a reconnect delay if the session closes. Disable it with `WithoutHostAutoProbe()` or customize it with `WithHostAutoProbe(new HostAutoProbeOptions { ... })`.
 
+Runtime-owned host pairing also manages stored and bundled pairing profiles. Configure bundled loaders once at initialization, then use `Runtime.HostPairing` to auto-connect, recover from saved-profile expiry, or handle QR payloads without app-specific pairing orchestration.
+
+```csharp
+var options = Options.CreateBuilder()
+    .WithHostPairing(new HostPairingOptions
+    {
+        BundledDeveloperProfileLoader = cancellationToken => LoadBundledTextAsync("ansight.developer-pairing.json", cancellationToken),
+        BundledProfileLoader = cancellationToken => LoadBundledTextAsync("ansight.json", cancellationToken)
+    })
+    .Build();
+
+Runtime.Initialize(options);
+
+var autoConnectResult = await Runtime.HostPairing.AutoConnectAsync();
+```
+
 ## Accessing sampled data
 
 ```csharp

@@ -23,7 +23,8 @@ public class Options
         EnableFramesPerSecond = true,
         Tools = ToolRegistry.Empty,
         ToolGuard = ToolGuard.Disabled,
-        HostAutoProbe = HostAutoProbeOptions.EnabledDefault.Clone()
+        HostAutoProbe = HostAutoProbeOptions.EnabledDefault.Clone(),
+        HostPairing = HostPairingOptions.Default.Clone()
     };
 
     /// <summary>
@@ -82,6 +83,11 @@ public class Options
     /// </summary>
     public HostAutoProbeOptions HostAutoProbe { get; private set; } = HostAutoProbeOptions.EnabledDefault.Clone();
 
+    /// <summary>
+    /// Runtime-owned pairing profile configuration used to resolve stored and bundled pairing documents.
+    /// </summary>
+    public HostPairingOptions HostPairing { get; private set; } = HostPairingOptions.Default.Clone();
+
     public void Validate()
     {
         if (SampleFrequencyMilliseconds > Constants.MaxSampleFrequencyMilliseconds)
@@ -122,6 +128,7 @@ public class Options
         ToolGuard = ToolGuard ?? ToolGuard.Disabled;
         ToolGuard.Validate();
         HostAutoProbe ??= HostAutoProbeOptions.EnabledDefault.Clone();
+        HostPairing ??= HostPairingOptions.Default.Clone();
 
         if (HostAutoProbe.InitialDelay < TimeSpan.Zero)
         {
@@ -209,7 +216,8 @@ public class Options
                         MaxWidth = initialOptions.SessionJpegCapture.MaxWidth
                     },
                 ToolGuard = initialOptions.ToolGuard ?? ToolGuard.Disabled,
-                HostAutoProbe = initialOptions.HostAutoProbe?.Clone() ?? HostAutoProbeOptions.EnabledDefault.Clone()
+                HostAutoProbe = initialOptions.HostAutoProbe?.Clone() ?? HostAutoProbeOptions.EnabledDefault.Clone(),
+                HostPairing = initialOptions.HostPairing?.Clone() ?? HostPairingOptions.Default.Clone()
             };
         }
 
@@ -430,6 +438,15 @@ public class Options
         public OptionsBuilder WithoutHostAutoProbe()
         {
             options.HostAutoProbe = HostAutoProbeOptions.DisabledDefault.Clone();
+            return this;
+        }
+
+        /// <summary>
+        /// Replaces the runtime-owned host pairing configuration.
+        /// </summary>
+        public OptionsBuilder WithHostPairing(HostPairingOptions? hostPairing = null)
+        {
+            options.HostPairing = (hostPairing ?? HostPairingOptions.Default).Clone();
             return this;
         }
 

@@ -1,4 +1,3 @@
-using System.Net;
 using Ansight.Pairing;
 
 namespace Ansight.UnitTests;
@@ -6,90 +5,77 @@ namespace Ansight.UnitTests;
 public sealed class HostAutoProbeCoordinatorTests
 {
     [Fact]
-    public async Task OnActivated_UsesCachedProfileAndStartsTelemetry()
+    public async Task OnActivated_UsesCachedProfileUntilConnected()
     {
-        var runtime = CreateRuntime();
-        using var client = new FakeHostAutoProbeSessionClient();
-        client.EnqueueOpenResult(CreateOpenSuccess());
-        client.MetricsStartResult = OperationResult.FromSuccess("metrics");
+        var client = new FakeHostAutoProbeSessionClient();
+        client.EnqueueConnectResult(HostConnectionActionResult.FromSuccess("connected"));
 
         using var coordinator = new HostAutoProbeCoordinator(
-            runtime,
             CreateAutoProbeOptions(),
             client);
 
         coordinator.OnActivated();
 
-        await WaitForAsync(() => client.OpenCachedSessionCallCount == 1 && client.StartMetricsStreamingCallCount == 1);
+        await WaitForAsync(() => client.ConnectUsingCachedProfileCallCount == 1);
 
-        Assert.Equal(1, client.OpenCachedSessionCallCount);
-        Assert.Equal(1, client.StartMetricsStreamingCallCount);
+        Assert.Equal(1, client.ConnectUsingCachedProfileCallCount);
     }
 
     [Fact]
     public async Task DoesNotProbeUntilActivated()
     {
-        var runtime = CreateRuntime();
-        using var client = new FakeHostAutoProbeSessionClient();
-        client.EnqueueOpenResult(CreateOpenSuccess());
+        var client = new FakeHostAutoProbeSessionClient();
+        client.EnqueueConnectResult(HostConnectionActionResult.FromSuccess("connected"));
 
         using var coordinator = new HostAutoProbeCoordinator(
-            runtime,
             CreateAutoProbeOptions(),
             client);
 
         await Task.Delay(60);
 
-        Assert.Equal(0, client.OpenCachedSessionCallCount);
-        Assert.Equal(0, client.StartMetricsStreamingCallCount);
+        Assert.Equal(0, client.ConnectUsingCachedProfileCallCount);
     }
 
     [Fact]
-    public async Task SessionClosed_RestartsProbeAfterReconnectDelay()
+    public async Task ConnectionLost_RestartsProbeAfterReconnectDelay()
     {
-        var runtime = CreateRuntime();
-        using var client = new FakeHostAutoProbeSessionClient();
-        client.EnqueueOpenResult(CreateOpenSuccess());
-        client.EnqueueOpenResult(CreateOpenSuccess());
-        client.MetricsStartResult = OperationResult.FromSuccess("metrics");
+        var client = new FakeHostAutoProbeSessionClient();
+        client.EnqueueConnectResult(HostConnectionActionResult.FromSuccess("connected"));
+        client.EnqueueConnectResult(HostConnectionActionResult.FromSuccess("reconnected"));
 
         using var coordinator = new HostAutoProbeCoordinator(
-            runtime,
             CreateAutoProbeOptions(reconnectDelayMs: 30),
             client);
 
         coordinator.OnActivated();
-        await WaitForAsync(() => client.OpenCachedSessionCallCount == 1 && client.StartMetricsStreamingCallCount == 1);
+        await WaitForAsync(() => client.ConnectUsingCachedProfileCallCount == 1);
 
-        client.RaiseSessionClosed();
+        client.MarkDisconnected();
 
-        await WaitForAsync(() => client.OpenCachedSessionCallCount >= 2);
-        Assert.True(client.OpenCachedSessionCallCount >= 2);
+        await WaitForAsync(() => client.ConnectUsingCachedProfileCallCount >= 2);
+        Assert.True(client.ConnectUsingCachedProfileCallCount >= 2);
     }
 
     [Fact]
-    public async Task OnDeactivated_ClosesCurrentSessionAndStopsFurtherReconnects()
+    public async Task OnDeactivated_DisconnectsAndStopsFurtherReconnects()
     {
-        var runtime = CreateRuntime();
-        using var client = new FakeHostAutoProbeSessionClient();
-        client.EnqueueOpenResult(CreateOpenSuccess());
-        client.EnqueueOpenResult(CreateOpenSuccess());
-        client.MetricsStartResult = OperationResult.FromSuccess("metrics");
+        var client = new FakeHostAutoProbeSessionClient();
+        client.EnqueueConnectResult(HostConnectionActionResult.FromSuccess("connected"));
+        client.EnqueueConnectResult(HostConnectionActionResult.FromSuccess("reconnected"));
 
         using var coordinator = new HostAutoProbeCoordinator(
-            runtime,
             CreateAutoProbeOptions(reconnectDelayMs: 30),
             client);
 
         coordinator.OnActivated();
-        await WaitForAsync(() => client.OpenCachedSessionCallCount == 1 && client.StartMetricsStreamingCallCount == 1);
+        await WaitForAsync(() => client.ConnectUsingCachedProfileCallCount == 1);
 
         coordinator.OnDeactivated();
-        client.RaiseSessionClosed();
+        client.MarkDisconnected();
         await Task.Delay(80);
 
-        Assert.True(client.CloseSessionCallCount >= 1);
-        Assert.Equal(1, client.OpenCachedSessionCallCount);
+        Assert.True(client.DisconnectCallCount >= 1);
+        Assert.Equal(1, client.ConnectUsingCachedProfileCallCount);
     }
 
     [Fact]
@@ -98,14 +84,6 @@ public sealed class HostAutoProbeCoordinatorTests
         var options = Options.CreateBuilder().Build();
 
         Assert.True(options.HostAutoProbe.Enabled);
-    }
-
-    private static RuntimeImpl CreateRuntime()
-    {
-        var options = Options.CreateBuilder()
-            .WithoutHostAutoProbe()
-            .Build();
-        return new RuntimeImpl(options);
     }
 
     private static HostAutoProbeOptions CreateAutoProbeOptions(
@@ -121,27 +99,6 @@ public sealed class HostAutoProbeCoordinatorTests
             ReconnectDelay = TimeSpan.FromMilliseconds(reconnectDelayMs),
             ClientName = "Unit Test App"
         };
-    }
-
-    private static OpenSessionResult CreateOpenSuccess()
-    {
-        return OpenSessionResult.FromSuccess(
-            "connected",
-            IPAddress.Loopback,
-            new ConnectResponse
-            {
-                Type = "CONNECT_RESP",
-                Ver = 1,
-                Accepted = true,
-                Reason = "ok",
-                HostId = "host-1",
-                HostName = "Studio",
-                Message = "ready",
-                WebSocketPort = 45124,
-                WebSocketPath = "/ws",
-                WebSocketToken = "token"
-            },
-            "HOST_HELLO");
     }
 
     private static async Task WaitForAsync(Func<bool> predicate, int timeoutMs = 1000)
@@ -160,79 +117,53 @@ public sealed class HostAutoProbeCoordinatorTests
 
     private sealed class FakeHostAutoProbeSessionClient : IHostAutoProbeSessionClient
     {
-        private readonly Queue<OpenSessionResult> openResults = new();
+        private readonly Queue<HostConnectionActionResult> connectResults = new();
 
-        public int OpenCachedSessionCallCount { get; private set; }
+        public int ConnectUsingCachedProfileCallCount { get; private set; }
 
-        public int StartMetricsStreamingCallCount { get; private set; }
+        public int DisconnectCallCount { get; private set; }
 
-        public int CloseSessionCallCount { get; private set; }
+        public bool IsConnected { get; private set; }
 
-        public bool IsSessionOpen { get; private set; }
+        public bool HasCachedProfile { get; set; } = true;
 
-        public bool HasCachedPairingProfile { get; set; } = true;
+        public DateTimeOffset? LastDisconnectedAtUtc { get; private set; }
 
-        public OperationResult MetricsStartResult { get; set; } = OperationResult.FromSuccess("metrics");
-
-        public event EventHandler? SessionClosed;
-
-        public void EnqueueOpenResult(OpenSessionResult result)
+        public void EnqueueConnectResult(HostConnectionActionResult result)
         {
-            openResults.Enqueue(result);
+            connectResults.Enqueue(result);
         }
 
-        public Task<OpenSessionResult> OpenCachedSessionAsync(
+        public Task<HostConnectionActionResult> ConnectUsingCachedProfileAsync(
             string? clientName,
             IProgress<string>? progress,
             CancellationToken cancellationToken)
         {
-            OpenCachedSessionCallCount++;
-            var result = openResults.Count > 0
-                ? openResults.Dequeue()
-                : OpenSessionResult.FromFailure("no queued result");
-            IsSessionOpen = result.Success;
+            ConnectUsingCachedProfileCallCount++;
+            var result = connectResults.Count > 0
+                ? connectResults.Dequeue()
+                : HostConnectionActionResult.FromFailure("no queued result");
+            IsConnected = result.Success;
+            if (result.Success)
+            {
+                LastDisconnectedAtUtc = null;
+            }
+
             return Task.FromResult(result);
         }
 
-        public Task<OperationResult> StartMetricsStreamingAsync(
-            IDataSink dataSink,
-            IProgress<string>? progress,
-            CancellationToken cancellationToken)
+        public Task<HostConnectionActionResult> DisconnectAsync(CancellationToken cancellationToken)
         {
-            StartMetricsStreamingCallCount++;
-            if (!MetricsStartResult.Success)
-            {
-                IsSessionOpen = false;
-            }
-
-            return Task.FromResult(MetricsStartResult);
+            DisconnectCallCount++;
+            IsConnected = false;
+            LastDisconnectedAtUtc = DateTimeOffset.UtcNow;
+            return Task.FromResult(HostConnectionActionResult.FromSuccess("disconnected"));
         }
 
-        public Task<OperationResult> CloseSessionAsync(CancellationToken cancellationToken)
+        public void MarkDisconnected()
         {
-            CloseSessionCallCount++;
-            if (IsSessionOpen)
-            {
-                IsSessionOpen = false;
-                SessionClosed?.Invoke(this, EventArgs.Empty);
-            }
-
-            return Task.FromResult(OperationResult.FromSuccess("closed"));
-        }
-
-        public void ClearCachedPairingProfile()
-        {
-            HasCachedPairingProfile = false;
-        }
-
-        public void RaiseSessionClosed()
-        {
-            IsSessionOpen = false;
-            SessionClosed?.Invoke(this, EventArgs.Empty);
-        }
-
-        public void Dispose()
-        {
+            IsConnected = false;
+            LastDisconnectedAtUtc = DateTimeOffset.UtcNow;
         }
     }
 }
