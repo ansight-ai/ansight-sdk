@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace Ansight.Telemetry.Data;
 
-internal class MutableDataSink : IDataSink
+internal class MutableDataSink : IDataSink, IAppLifecycleStateSource
 {
     private static readonly Comparer<AppEvent> EventCapturedAtComparer =
         Comparer<AppEvent>.Create((a, b) => a.CapturedAtUtc.CompareTo(b.CapturedAtUtc));
@@ -44,6 +44,7 @@ internal class MutableDataSink : IDataSink
         }
 #endif
         
+        channels[Constants.ReservedChannels.Lifecycle_Id] = new Channel(Constants.ReservedChannels.Lifecycle_Id, Constants.ReservedChannels.Lifecycle_Name, Constants.ReservedChannels.Lifecycle_Color);
         channels[Constants.ReservedChannels.ChannelNotSpecified_Id] = new Channel(Constants.ReservedChannels.ChannelNotSpecified_Id, "Not Specified", default(Color));
 
         if (options.AdditionalChannels != null 
@@ -75,9 +76,13 @@ internal class MutableDataSink : IDataSink
     private DateTime minEventsDateTime = DateTime.MaxValue;
     private DateTime maxEventsDateTime = DateTime.MinValue;
     private readonly Dictionary<byte, List<AppEvent>> eventsByChannel = new Dictionary<byte, List<AppEvent>>();
+    private readonly Lock appLifecycleLock = new Lock();
+    private AppLifecycleState currentAppLifecycleState = AppLifecycleState.Unknown;
+    private DateTimeOffset? currentAppLifecycleStateChangedUtc;
 
     public event EventHandler<MetricsUpdatedEventArgs>? OnMetricsUpdated;
     public event EventHandler<AppEventsUpdatedEventArgs>? OnEventsUpdated;
+    public event EventHandler<AppLifecycleStateChangedEventArgs>? AppLifecycleStateChanged;
     
     public IReadOnlyList<Channel> Channels
     {
@@ -127,6 +132,28 @@ internal class MutableDataSink : IDataSink
                 }
 
                 return events;
+            }
+        }
+    }
+
+    public AppLifecycleState CurrentAppLifecycleState
+    {
+        get
+        {
+            lock (appLifecycleLock)
+            {
+                return currentAppLifecycleState;
+            }
+        }
+    }
+
+    public DateTimeOffset? CurrentAppLifecycleStateChangedUtc
+    {
+        get
+        {
+            lock (appLifecycleLock)
+            {
+                return currentAppLifecycleStateChangedUtc;
             }
         }
     }
@@ -655,23 +682,47 @@ internal class MutableDataSink : IDataSink
         if (string.IsNullOrWhiteSpace(label)) throw new ArgumentException("Value cannot be null or whitespace.", nameof(label));
 
         details ??= string.Empty;
-        
-        MutateEvents(metrics =>
+
+        AddEvent(label, type, channel, details, DateTime.UtcNow);
+    }
+
+    internal bool SetAppLifecycleState(AppLifecycleState state, DateTimeOffset? changedAtUtc = null, bool emitTransitionEvent = true)
+    {
+        var effectiveChangedAtUtc = (changedAtUtc ?? DateTimeOffset.UtcNow).ToUniversalTime();
+
+        lock (appLifecycleLock)
         {
-            if (!metrics.TryGetValue(channel, out var channelEvents))
+            if (currentAppLifecycleState == state)
             {
-                return Array.Empty<AppEvent>();
+                return false;
             }
 
-            var @event = new AppEvent(label, type, details, DateTime.UtcNow, externalId: null, channel); 
-            
-            channelEvents.Add(@event);
+            currentAppLifecycleState = state;
+            currentAppLifecycleStateChangedUtc = effectiveChangedAtUtc;
+        }
 
-            return new List<AppEvent>()
+        if (emitTransitionEvent)
+        {
+            var lifecycleLabel = state switch
             {
-                @event
+                AppLifecycleState.Foreground => "App moved to foreground",
+                AppLifecycleState.Background => "App moved to background",
+                _ => null
             };
-        });
+
+            if (!string.IsNullOrWhiteSpace(lifecycleLabel))
+            {
+                AddEvent(
+                    lifecycleLabel,
+                    AppEventType.Lifecycle,
+                    Constants.ReservedChannels.Lifecycle_Id,
+                    string.Empty,
+                    effectiveChangedAtUtc.UtcDateTime);
+            }
+        }
+
+        AppLifecycleStateChanged?.Invoke(this, new AppLifecycleStateChangedEventArgs(state, effectiveChangedAtUtc));
+        return true;
     }
 
     public Snapshot Snapshot()
@@ -715,7 +766,33 @@ internal class MutableDataSink : IDataSink
             snapshot.Events = channelSnapshots;
         }
 
+        lock (appLifecycleLock)
+        {
+            snapshot.AppState = currentAppLifecycleState;
+            snapshot.AppStateChangedUtc = currentAppLifecycleStateChangedUtc;
+        }
+
         return snapshot;
+    }
+
+    private void AddEvent(string label, AppEventType type, byte channel, string details, DateTime capturedAtUtc)
+    {
+        MutateEvents(metrics =>
+        {
+            if (!metrics.TryGetValue(channel, out var channelEvents))
+            {
+                return Array.Empty<AppEvent>();
+            }
+
+            var @event = new AppEvent(label, type, details, capturedAtUtc, externalId: null, channel);
+
+            channelEvents.Add(@event);
+
+            return new List<AppEvent>
+            {
+                @event
+            };
+        });
     }
 
 

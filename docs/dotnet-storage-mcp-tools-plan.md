@@ -15,6 +15,9 @@ These packages should expose a cross-platform tool surface while using native pl
 - iOS:
   - preferences via `NSUserDefaults`
   - secure storage via Keychain
+- Mac Catalyst:
+  - preferences via `NSUserDefaults`
+  - secure storage via Keychain
 
 This work should follow the same packaging and fluent registration pattern already used by:
 
@@ -24,7 +27,7 @@ This work should follow the same packaging and fluent registration pattern alrea
 
 ## Goals
 
-- Add native Android and iOS storage MCP tool SDKs as separate NuGet packages.
+- Add native Android, iOS, and Mac Catalyst storage MCP tool SDKs as separate NuGet packages.
 - Keep the public tool contracts consistent across platforms.
 - Support both read and write operations.
 - Preserve the current Ansight security posture:
@@ -98,7 +101,7 @@ Not recommended for v1:
 
 - `secure.list_keys`
 
-Reason: Android/iOS secure-store enumeration behavior is not a clean cross-platform guarantee and exposes more risk than value.
+Reason: Android/Apple secure-store enumeration behavior is not a clean cross-platform guarantee and exposes more risk than value.
 
 ## Native Implementation Strategy
 
@@ -107,7 +110,7 @@ Reason: Android/iOS secure-store enumeration behavior is not a clean cross-platf
 Use partial or platform-split support files:
 
 - `PreferencesSupport.Android.cs`
-- `PreferencesSupport.iOS.cs`
+- `PreferencesSupport.Apple.cs`
 - `PreferencesSupport.Default.cs`
 
 Platform behavior:
@@ -115,7 +118,7 @@ Platform behavior:
 - Android:
   - read/write named `SharedPreferences`
   - support a default store name when not specified
-- iOS:
+- Apple (`iOS` + `Mac Catalyst`):
   - read/write `NSUserDefaults`
   - support standard defaults first
   - optional suite-name support if needed later
@@ -133,7 +136,7 @@ Returned values should be normalized into a common JSON shape:
 Use platform-split support files:
 
 - `SecureStorageSupport.Android.cs`
-- `SecureStorageSupport.iOS.cs`
+- `SecureStorageSupport.Apple.cs`
 - `SecureStorageSupport.Default.cs`
 
 Platform behavior:
@@ -141,7 +144,7 @@ Platform behavior:
 - Android:
   - use a direct Keystore-backed implementation
   - avoid taking a new dependency unless native implementation proves too costly
-- iOS:
+- Apple (`iOS` + `Mac Catalyst`):
   - use Keychain APIs directly
 
 Returned values should be normalized into a common JSON shape:
@@ -340,7 +343,7 @@ Result:
 - Create project and README.
 - Add schemas and tool definitions.
 - Implement Android `SharedPreferences` support.
-- Implement iOS `NSUserDefaults` support.
+- Implement Apple `NSUserDefaults` support for `iOS` and `Mac Catalyst`.
 - Add host fallback implementation.
 - Add unit tests for:
   - tool registration
@@ -354,7 +357,7 @@ Result:
 - Create project and README.
 - Add schemas and tool definitions.
 - Implement Android Keystore-backed support.
-- Implement iOS Keychain support.
+- Implement Apple Keychain support for `iOS` and `Mac Catalyst`.
 - Add host fallback implementation.
 - Add options for explicit key allow-listing.
 - Add unit tests for:
@@ -368,15 +371,15 @@ Result:
 Use the MAUI test harness only as a validation host.
 
 - Add project references to the new packages in Debug only.
-- Set `AnsightAllowMCPTools=true` in Debug only.
+- Set `AnsightAllowRemoteTools=true` in Debug only.
 - Register the new tool packages in `MauiProgram.cs`.
 - Seed the harness with known test values for preferences and secure storage.
 - Add simple in-app controls or startup seeding to validate native behavior.
 
-### Phase 5: iOS metadata updates
+### Phase 5: Apple metadata updates
 
-- Enable the `NSUserDefaults` privacy manifest entry in the MAUI harness.
-- Confirm whether any additional Keychain-related entitlements or configuration are needed for the chosen secure-storage implementation.
+- Enable the `NSUserDefaults` privacy manifest entry in the MAUI harness for Apple targets.
+- Confirm whether any additional Keychain-related entitlements or configuration are needed for the chosen secure-storage implementation on `iOS` and `Mac Catalyst`.
 
 ### Phase 6: Docs
 
@@ -413,6 +416,7 @@ Validate on:
 
 - Android device or emulator
 - iOS simulator/device
+- Mac Catalyst app host
 
 Scenarios:
 
@@ -425,7 +429,7 @@ Scenarios:
 
 ## Risks
 
-- Secure storage parity between Android and iOS is weaker than preferences parity.
+- Secure storage parity between Android and Apple platforms is weaker than preferences parity.
 - Key enumeration in secure storage is likely to become a design and security problem.
 - Preferences value typing differs by platform and must be normalized carefully.
 - Any write-capable tool increases the importance of precise guard configuration.
@@ -434,8 +438,8 @@ Scenarios:
 ## Acceptance Criteria
 
 - Two new NuGet-packable tool packages exist and build successfully.
-- Preferences tools use native Android and iOS implementations.
-- Secure storage tools use native Android and iOS implementations.
+- Preferences tools use native Android, iOS, and Mac Catalyst implementations.
+- Secure storage tools use native Android, iOS, and Mac Catalyst implementations.
 - Host builds compile with default fallback implementations.
 - Tool registration matches existing Ansight package conventions.
 - Storage writes require explicit non-read-only guard configuration.

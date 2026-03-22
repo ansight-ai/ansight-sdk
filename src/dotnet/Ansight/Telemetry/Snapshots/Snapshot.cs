@@ -8,6 +8,10 @@ public class Snapshot
     
     public List<EventsSnapshot>? Events { get; set; }
 
+    public AppLifecycleState AppState { get; set; } = AppLifecycleState.Unknown;
+
+    public DateTimeOffset? AppStateChangedUtc { get; set; }
+
 }
 
 public class MetricsSnapshot

@@ -3,11 +3,13 @@ using Ansight;
 
 namespace Ansight.IntegrationTests.Support;
 
-internal sealed class TestDataSink : IDataSink
+internal sealed class TestDataSink : IDataSink, IAppLifecycleStateSource
 {
     private readonly List<Channel> channels;
     private readonly List<Metric> metrics;
     private readonly List<AppEvent> events;
+    private AppLifecycleState currentAppLifecycleState = AppLifecycleState.Unknown;
+    private DateTimeOffset? currentAppLifecycleStateChangedUtc;
 
     public TestDataSink(
         IEnumerable<Channel> channels,
@@ -25,9 +27,15 @@ internal sealed class TestDataSink : IDataSink
 
     public IReadOnlyList<AppEvent> Events => events.ToArray();
 
+    public AppLifecycleState CurrentAppLifecycleState => currentAppLifecycleState;
+
+    public DateTimeOffset? CurrentAppLifecycleStateChangedUtc => currentAppLifecycleStateChangedUtc;
+
     public event EventHandler<MetricsUpdatedEventArgs>? OnMetricsUpdated;
 
     public event EventHandler<AppEventsUpdatedEventArgs>? OnEventsUpdated;
+
+    public event EventHandler<AppLifecycleStateChangedEventArgs>? AppLifecycleStateChanged;
 
     public void AddMetric(Metric metric)
     {
@@ -41,6 +49,18 @@ internal sealed class TestDataSink : IDataSink
         events.Add(@event);
         events.Sort();
         OnEventsUpdated?.Invoke(this, new AppEventsUpdatedEventArgs([@event], Array.Empty<AppEvent>()));
+    }
+
+    public void SetAppLifecycleState(AppLifecycleState state, DateTimeOffset? changedAtUtc = null)
+    {
+        if (currentAppLifecycleState == state)
+        {
+            return;
+        }
+
+        currentAppLifecycleState = state;
+        currentAppLifecycleStateChangedUtc = (changedAtUtc ?? DateTimeOffset.UtcNow).ToUniversalTime();
+        AppLifecycleStateChanged?.Invoke(this, new AppLifecycleStateChangedEventArgs(state, currentAppLifecycleStateChangedUtc));
     }
 
     public IReadOnlyList<Metric> GetMetricsForChannel(Channel channel) => GetMetricsForChannel(channel.Id);
@@ -124,7 +144,9 @@ internal sealed class TestDataSink : IDataSink
             {
                 ChannelId = channel.Id,
                 Events = GetEventsForChannel(channel.Id).ToList()
-            }).ToList()
+            }).ToList(),
+            AppState = currentAppLifecycleState,
+            AppStateChangedUtc = currentAppLifecycleStateChangedUtc
         };
     }
 

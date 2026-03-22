@@ -59,7 +59,9 @@ struct BuildConfiguration {
         self.packageDirectory = packageDirectory
         developerPairingEnabled = Self.isEnabled(environment["ANSIGHT_DEVELOPER_PAIRING_ENABLED"])
         developerPairingSourceFile = sourceFile
-        allowBundledTools = Self.isEnabled(environment["ANSIGHT_ALLOW_MCP_TOOLS"])
+        allowBundledTools = Self.isEnabled(
+            environment["ANSIGHT_ALLOW_REMOTE_TOOLS"] ?? environment["ANSIGHT_ALLOW_MCP_TOOLS"]
+        )
     }
 
     private static func argumentValue(_ arguments: [String], index: Int, name: String) throws -> String {
@@ -106,7 +108,8 @@ struct AnsightBuildToolMain {
             fputs(
                 """
                 error: Ansight detected concrete AnsightTool implementations in this target: \(summary). \
-                Set ANSIGHT_ALLOW_MCP_TOOLS=true only for local developer builds.
+                Set ANSIGHT_ALLOW_REMOTE_TOOLS=true only for local developer builds. \
+                The legacy ANSIGHT_ALLOW_MCP_TOOLS alias is still accepted.
                 """,
                 stderr
             )

@@ -10,6 +10,11 @@ public static class Runtime
     private static readonly Lock runtimeLock = new Lock();
 
     private static RuntimeImpl? runtime;
+    private static AppLifecycleState currentAppLifecycleState = AppLifecycleState.Unknown;
+    private static DateTimeOffset? currentAppLifecycleStateChangedUtc;
+    private static long appLifecycleStateVersion;
+
+    internal static event EventHandler<AppLifecycleStateChangedEventArgs>? AppLifecycleStateChanged;
 
     /// <summary>
     /// The singleton runtime instance; throws if <see cref="Initialize(Options)"/> has not been called first.
@@ -51,6 +56,11 @@ public static class Runtime
     {
         Logger.Info($"Initialising Runtime (activateImmediately: {activateImmediately}).");
 
+        RuntimeImpl createdRuntime;
+        AppLifecycleState initialAppLifecycleState;
+        DateTimeOffset? initialAppLifecycleStateChangedUtc;
+        long initialAppLifecycleStateVersion;
+
         lock (runtimeLock)
         {
             if (runtime != null)
@@ -68,8 +78,18 @@ public static class Runtime
             }
 
             runtime = new RuntimeImpl(options);
+            createdRuntime = runtime;
+            initialAppLifecycleState = currentAppLifecycleState;
+            initialAppLifecycleStateChangedUtc = currentAppLifecycleStateChangedUtc;
+            initialAppLifecycleStateVersion = appLifecycleStateVersion;
             Logger.Info("Runtime initialisation complete.");
         }
+
+        createdRuntime.SetAppLifecycleState(
+            initialAppLifecycleState,
+            initialAppLifecycleStateChangedUtc,
+            emitTransitionEvent: initialAppLifecycleState is AppLifecycleState.Foreground or AppLifecycleState.Background,
+            initialAppLifecycleStateVersion);
 
         if (activateImmediately)
         {
@@ -133,6 +153,66 @@ public static class Runtime
         }
 
         Instance.Clear();
+    }
+
+    /// <summary>
+    /// The current app lifecycle state tracked by Ansight.
+    /// </summary>
+    public static AppLifecycleState CurrentAppLifecycleState
+    {
+        get
+        {
+            lock (runtimeLock)
+            {
+                return currentAppLifecycleState;
+            }
+        }
+    }
+
+    /// <summary>
+    /// The UTC timestamp when <see cref="CurrentAppLifecycleState"/> last changed.
+    /// </summary>
+    public static DateTimeOffset? CurrentAppLifecycleStateChangedUtc
+    {
+        get
+        {
+            lock (runtimeLock)
+            {
+                return currentAppLifecycleStateChangedUtc;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Sets the current app lifecycle state.
+    /// </summary>
+    public static void SetAppLifecycleState(AppLifecycleState state, DateTimeOffset? changedAtUtc = null)
+    {
+        RuntimeImpl? currentRuntime;
+        AppLifecycleStateChangedEventArgs? eventArgs;
+        long version;
+        var effectiveChangedAtUtc = (changedAtUtc ?? DateTimeOffset.UtcNow).ToUniversalTime();
+
+        lock (runtimeLock)
+        {
+            if (currentAppLifecycleState == state)
+            {
+                return;
+            }
+
+            currentAppLifecycleState = state;
+            currentAppLifecycleStateChangedUtc = effectiveChangedAtUtc;
+            version = ++appLifecycleStateVersion;
+            currentRuntime = runtime;
+            eventArgs = new AppLifecycleStateChangedEventArgs(state, effectiveChangedAtUtc);
+        }
+
+        currentRuntime?.SetAppLifecycleState(
+            state,
+            effectiveChangedAtUtc,
+            emitTransitionEvent: true,
+            version);
+        AppLifecycleStateChanged?.Invoke(null, eventArgs);
     }
 
     /// <summary>

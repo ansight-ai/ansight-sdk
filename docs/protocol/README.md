@@ -350,6 +350,7 @@ Important boundary:
 The implementation lives in:
 
 - [BeginBinaryDownloadTool.cs](../../src/dotnet/Ansight.Tools.FileSystem/BeginBinaryDownloadTool.cs)
+- [BinaryFileDownloadManager.cs](../../src/dotnet/Ansight.Host/BinaryFileDownloadManager.cs)
 - [PairingBinaryTransferHub.cs](../../src/dotnet/Ansight/Pairing/PairingBinaryTransferHub.cs)
 - [PairingFileTransferWireProtocol.cs](../../src/dotnet/Ansight/Pairing/PairingFileTransferWireProtocol.cs)
 

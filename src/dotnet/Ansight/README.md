@@ -1,8 +1,8 @@
 # Ansight
 
-Ansight captures in-process telemetry for .NET Android, iOS, and Mac Catalyst apps and includes the core pairing client used to connect a mobile app to an Ansight host.
+Ansight captures in-process telemetry for .NET Android, iOS, and Mac Catalyst apps and includes the core pairing client used to open live sessions from a mobile app.
 
-The base package uses manual pairing against a known host address and the Ansight UDP pairing handshake.
+The base package supports direct/manual pairing and the Ansight UDP pairing handshake.
 
 ## Telemetry quickstart
 
@@ -21,7 +21,7 @@ Runtime.Metric(123, channel: 10);
 Runtime.Event("network_request_started");
 ```
 
-When `WithSessionJpegCapture(...)` is enabled, the pairing client will periodically capture the app's own root window/view as a JPEG and stream it over live Ansight pairing sessions. Studio can then show the latest live frame or scrub historical frames against the telemetry timeline. This feature adds extra rendering, encoding, and transport work and can negatively affect runtime performance while it is active.
+When `WithSessionJpegCapture(...)` is enabled, the pairing client will periodically capture the app's own root window/view as a JPEG and stream it over live Ansight pairing sessions. Connected tooling can inspect the latest live frame or correlate historical frames with the telemetry timeline. This feature adds extra rendering, encoding, and transport work and can negatively affect runtime performance while it is active.
 
 ## Data access
 
@@ -33,7 +33,7 @@ var allEvents = sink.Events;
 
 ## Pairing quickstart
 
-Use a direct/manual host address:
+Open a pairing session:
 
 ```csharp
 using Ansight.Pairing;
@@ -44,11 +44,7 @@ var client = new PairingSessionClient();
 var result = await client.OpenSessionAsync(
     config,
     clientName: "My App",
-    new PairingConnectionOptions
-    {
-        DiscoveryMode = PairingDiscoveryMode.BasicManual,
-        ManualHostAddress = "192.168.1.10"
-    },
+    connectionOptions,
     progress: null,
     cancellationToken);
 ```
@@ -96,7 +92,7 @@ The feature packages currently group tools by capability area:
 Registered tools remain disabled until the app opts into a guard policy such as `WithReadOnlyToolAccess()` or `WithAllToolAccess()`.
 When a pairing session is open, inbound `tool.query` and `tool.call` protocol messages are handled automatically and answered on the active WebSocket using that guard policy.
 
-For host-local temp-file workflows, `Ansight.Tools.FileSystem` exposes `files.begin_binary_download`, which returns transfer metadata and then streams `ASFT` binary frames over the pairing WebSocket. A host or MCP bridge can map that `transferId` to its own temp directory and write the incoming bytes there.
+For local temp-file workflows, `Ansight.Tools.FileSystem` exposes `files.begin_binary_download`, which returns transfer metadata and then streams `ASFT` binary frames over the pairing WebSocket. A bridge can map that `transferId` to its own temp directory and write the incoming bytes there.
 
 ## Embedded developer pairing target
 
@@ -122,25 +118,25 @@ Optional properties:
 When enabled, the target reads your source pairing config, captures local machine metadata when available, and writes a bootstrap document containing:
 
 - the original `PairingConfig`
-- a `PairingDiscoveryHint` with host IP, host name, and Wi-Fi name when available
+- a `PairingDiscoveryHint` with network address, machine name, and Wi-Fi name when available
 
 On Unix it uses `generate-ansight-developer-pairing.sh`. On Windows it uses `generate-ansight-developer-pairing.ps1`.
 
-## Build-time MCP tool enforcement
+## Build-time Remote Tool Enforcement
 
-The base package enforces an explicit opt-in for bundled MCP tools. By default, builds fail if the output contains concrete `Ansight.Tools.ITool` implementations.
+The base package enforces an explicit opt-in for bundled remote tools. By default, builds fail if the output contains concrete `Ansight.Tools.ITool` implementations.
 
 To intentionally allow them, declare:
 
 ```xml
 <PropertyGroup>
-  <AnsightAllowMCPTools>true</AnsightAllowMCPTools>
+  <AnsightAllowRemoteTools>true</AnsightAllowRemoteTools>
 </PropertyGroup>
 ```
 
-If the property is omitted or set to `false`, Ansight scans the managed assemblies under `$(TargetDir)` after build and fails when it finds packaged tool assemblies such as `Ansight.Tools.VisualTree` or custom in-app `ITool` implementations.
+If the property is omitted or set to `false`, Ansight scans the managed assemblies under `$(TargetDir)` after build and fails when it finds packaged tool assemblies such as `Ansight.Tools.VisualTree` or custom in-app `ITool` implementations. The legacy `AnsightAllowMCPTools` alias is still accepted for compatibility.
 
-Only use `AnsightAllowMCPTools=true` for local Debug builds. Do not enable MCP tools in Release or distributable builds, because they add remote inspection and action surfaces that can expose user data, screenshots, UI state, filesystem contents, database contents, and other privileged runtime capabilities to a connected client.
+Only use `AnsightAllowRemoteTools=true` for local Debug builds. Do not enable remote tools in Release or distributable builds, because they add remote inspection and action surfaces that can expose user data, screenshots, UI state, filesystem contents, database contents, and other privileged runtime capabilities to a connected client.
 
 ## Related packages
 
@@ -152,4 +148,4 @@ Only use `AnsightAllowMCPTools=true` for local Debug builds. Do not enable MCP t
 
 - Ansight is best-effort telemetry and has observer overhead.
 - Use platform profilers for authoritative measurements.
-- Pairing requires a host IP address supplied manually or via a saved discovery hint.
+- Pairing requires a reachable address supplied manually or via a saved discovery hint.

@@ -10,6 +10,8 @@ internal class RuntimeImpl : IRuntime
     private readonly Options options;
     private MemorySamplerThread? samplerThread;
     private readonly Lock samplerLock = new Lock();
+    private readonly Lock appLifecycleLock = new();
+    private long appLifecycleVersion;
 
     private readonly MutableDataSink mutableDataSink;
     private readonly IFrameRateMonitor frameRateMonitor;
@@ -18,6 +20,8 @@ internal class RuntimeImpl : IRuntime
     public IDataSink DataSink => mutableDataSink;
     internal Options Options => options;
     internal PairingBinaryTransferHub BinaryTransferHub { get; } = new();
+    internal AppLifecycleState CurrentAppLifecycleState => mutableDataSink.CurrentAppLifecycleState;
+    internal DateTimeOffset? CurrentAppLifecycleStateChangedUtc => mutableDataSink.CurrentAppLifecycleStateChangedUtc;
 
     public ToolProtocolBridge ToolBridge { get; }
 
@@ -182,5 +186,24 @@ internal class RuntimeImpl : IRuntime
     {
         Logger.Info("Clearing data sink contents.");
         mutableDataSink.Clear();
+    }
+
+    internal bool SetAppLifecycleState(
+        AppLifecycleState state,
+        DateTimeOffset? changedAtUtc,
+        bool emitTransitionEvent,
+        long version)
+    {
+        lock (appLifecycleLock)
+        {
+            if (version < appLifecycleVersion)
+            {
+                return false;
+            }
+
+            appLifecycleVersion = version;
+        }
+
+        return mutableDataSink.SetAppLifecycleState(state, changedAtUtc, emitTransitionEvent);
     }
 }

@@ -170,6 +170,8 @@ Tool results remain ordinary JSON payloads. A tool can either keep the entire tr
 
 After that `tool.result` is sent, the SDK starts emitting binary WebSocket frames for the requested file. That path is intended for MCP bridges that want to write directly into a caller-chosen temp directory and then return the local path to the agent.
 
+The host-side reference implementation for that flow lives in `Ansight.Host` as `BinaryFileDownloadManager`.
+
 ## Response types
 
 ### `tool.catalog`

@@ -12,5 +12,6 @@ public enum AppEventType
     Error,
     Exception,
     Gc,
-    Navigation
+    Navigation,
+    Lifecycle
 }

@@ -19,11 +19,11 @@ Environment variables:
 
 - `ANSIGHT_DEVELOPER_PAIRING_ENABLED=true`
 - `ANSIGHT_DEVELOPER_PAIRING_SOURCE_FILE=/absolute/path/to/ansight.json` (optional; defaults to `src/ios/ansight.json` when present)
-- `ANSIGHT_ALLOW_MCP_TOOLS=true` to permit bundled `AnsightTool` implementations
+- `ANSIGHT_ALLOW_REMOTE_TOOLS=true` to permit bundled `AnsightTool` implementations
 
 With developer pairing enabled, the build tool reads the source pairing config, captures local host metadata when available, and generates an embedded bootstrap document that you can access at runtime through `AnsightDeveloperMode.embeddedPairingJson`.
 
-Without `ANSIGHT_ALLOW_MCP_TOOLS=true`, the build fails when the target source contains concrete `AnsightTool` conformances.
+Without `ANSIGHT_ALLOW_REMOTE_TOOLS=true`, the build fails when the target source contains concrete `AnsightTool` conformances. The legacy `ANSIGHT_ALLOW_MCP_TOOLS` alias is still accepted for compatibility.
 
 ## Current limits
 

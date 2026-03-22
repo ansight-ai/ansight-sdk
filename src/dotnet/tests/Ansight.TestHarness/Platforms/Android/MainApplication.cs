@@ -1,5 +1,6 @@
 ﻿using Android.App;
 using Android.Runtime;
+using Ansight.Platforms.Android;
 
 namespace Ansight.TestHarness;
 
@@ -12,4 +13,10 @@ public class MainApplication : MauiApplication
     }
 
     protected override MauiApp CreateMauiApp() => MauiProgram.CreateMauiApp();
+
+    public override void OnCreate()
+    {
+        base.OnCreate();
+        AndroidAppLifecycleTracker.Register(this);
+    }
 }

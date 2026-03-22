@@ -23,14 +23,14 @@ var options = Options.CreateBuilder()
 
 ## MCP-facing file transfer
 
-`files.begin_binary_download` is the bridge-oriented path when an MCP caller wants the SDK to stream raw bytes over the pairing WebSocket and materialize the file in a host temp directory of the caller's choosing. The app SDK does not choose or know the host temp path; it only returns metadata and then emits binary frames keyed by a `transferId`.
+`files.begin_binary_download` is the bridge-oriented path when an MCP caller wants the SDK to stream raw bytes over the pairing WebSocket and materialize the file in a caller-chosen local temp directory. The app SDK does not choose or know that temp path; it only returns metadata and then emits binary frames keyed by a `transferId`.
 
 Binary download request arguments:
 
 - `root`: optional sandbox root alias
 - `path`: file path relative to the root
 - `chunkBytes`: maximum bytes to include in each binary websocket frame
-- `downloadId`: optional caller-supplied correlation id for mapping the transfer to a host temp file
+- `downloadId`: optional caller-supplied correlation id for mapping the transfer to a local temp file
 
 Binary download response highlights:
 
@@ -40,7 +40,7 @@ Binary download response highlights:
 - `deliveryMode = websocket_binary`
 - `wireProtocol = ansight.file-transfer.v1`
 
-The host-side MCP bridge is expected to:
+The consuming MCP bridge is expected to:
 
 - choose the temp directory and local file path
 - call `files.begin_binary_download`

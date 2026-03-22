@@ -126,23 +126,23 @@ When a `PairingSessionClient` WebSocket session is open, inbound `tool.query` an
 
 `PairingSessionClient.ProcessToolProtocolMessageAsync(...)` remains available for manual/raw message processing outside the live WebSocket flow.
 
-For MCP-style file extraction, `Ansight.Tools.FileSystem` exposes `files.begin_binary_download` for bridge implementations that want a real host-local temp file. The tool returns `downloadId`, `transferId`, `fileName`, `fileExtension`, `mimeType`, and a stable `version` token, then streams `ASFT` binary frames over the pairing WebSocket so the host can write them into a caller-chosen temp directory. `files.download_file` remains available as a JSON/base64 fallback.
+For MCP-style file extraction, `Ansight.Tools.FileSystem` exposes `files.begin_binary_download` for bridge implementations that want a real local temp file. The tool returns `downloadId`, `transferId`, `fileName`, `fileExtension`, `mimeType`, and a stable `version` token, then streams `ASFT` binary frames over the pairing WebSocket so the bridge can write them into a caller-chosen temp directory. `files.download_file` remains available as a JSON/base64 fallback.
 
-## Build-time MCP tool enforcement
+## Build-time Remote Tool Enforcement
 
-Ansight enforces an explicit opt-in for bundled MCP tools. Builds fail by default when the managed assemblies in `$(TargetDir)` contain concrete `Ansight.Tools.ITool` implementations.
+Ansight enforces an explicit opt-in for bundled remote tools. Builds fail by default when the managed assemblies in `$(TargetDir)` contain concrete `Ansight.Tools.ITool` implementations.
 
 Allow them explicitly with:
 
 ```xml
 <PropertyGroup>
-  <AnsightAllowMCPTools>true</AnsightAllowMCPTools>
+  <AnsightAllowRemoteTools>true</AnsightAllowRemoteTools>
 </PropertyGroup>
 ```
 
 Leave the property unset, or set it to `false`, to keep the default build failure.
 
-Treat `AnsightAllowMCPTools=true` as a local-Debug-only override. Do not enable MCP tools in Release or distributable builds, because they add remote inspection and execution surfaces that can expose sensitive app data and privileged runtime behavior to a connected client.
+Treat `AnsightAllowRemoteTools=true` as a local-Debug-only override. The legacy `AnsightAllowMCPTools` alias is still accepted for compatibility. Do not enable remote tools in Release or distributable builds, because they add remote inspection and execution surfaces that can expose sensitive app data and privileged runtime behavior to a connected client.
 
 ## Supported target frameworks
 

@@ -3,8 +3,13 @@
     <AnsightDeveloperPairingEnabled Condition="'$(AnsightDeveloperPairingEnabled)' == ''">false</AnsightDeveloperPairingEnabled>
     <AnsightDeveloperPairingSourceFile Condition="'$(AnsightDeveloperPairingSourceFile)' == ''">$(MSBuildProjectDirectory)/ansight.json</AnsightDeveloperPairingSourceFile>
     <AnsightDeveloperPairingOutputFile Condition="'$(AnsightDeveloperPairingOutputFile)' == ''">$(BaseIntermediateOutputPath)ansight.developer-pairing.json</AnsightDeveloperPairingOutputFile>
-    <AnsightAllowMCPTools Condition="'$(AnsightAllowMCPTools)' == ''">false</AnsightAllowMCPTools>
-    <_AnsightAllowMCPToolsNormalized>$([System.String]::Copy('$(AnsightAllowMCPTools)').ToLowerInvariant())</_AnsightAllowMCPToolsNormalized>
+    <_AnsightAllowRemoteToolsConfigured>$(AnsightAllowRemoteTools)</_AnsightAllowRemoteToolsConfigured>
+    <_AnsightAllowMCPToolsConfigured>$(AnsightAllowMCPTools)</_AnsightAllowMCPToolsConfigured>
+    <_AnsightAllowRemoteToolsConfiguredNormalized>$([System.String]::Copy('$(_AnsightAllowRemoteToolsConfigured)').ToLowerInvariant())</_AnsightAllowRemoteToolsConfiguredNormalized>
+    <_AnsightAllowMCPToolsConfiguredNormalized>$([System.String]::Copy('$(_AnsightAllowMCPToolsConfigured)').ToLowerInvariant())</_AnsightAllowMCPToolsConfiguredNormalized>
+    <AnsightAllowRemoteTools Condition="'$(AnsightAllowRemoteTools)' == '' and '$(AnsightAllowMCPTools)' != ''">$(AnsightAllowMCPTools)</AnsightAllowRemoteTools>
+    <AnsightAllowRemoteTools Condition="'$(AnsightAllowRemoteTools)' == ''">false</AnsightAllowRemoteTools>
+    <_AnsightAllowRemoteToolsNormalized>$([System.String]::Copy('$(AnsightAllowRemoteTools)').ToLowerInvariant())</_AnsightAllowRemoteToolsNormalized>
     <_AnsightConfigurationNormalized>$([System.String]::Copy('$(Configuration)').ToLowerInvariant())</_AnsightConfigurationNormalized>
     <_AnsightBuildTaskAssemblyPackagePath>$(MSBuildThisFileDirectory)Ansight.Build.dll</_AnsightBuildTaskAssemblyPackagePath>
     <_AnsightBuildTaskAssemblySourcePath>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\Ansight.Build\bin\$(Configuration)\netstandard2.0\Ansight.Build.dll'))</_AnsightBuildTaskAssemblySourcePath>
@@ -16,16 +21,20 @@
              AssemblyFile="$(_AnsightBuildTaskAssemblyPath)"
              Runtime="NET" />
 
-  <Target Name="ValidateAnsightMcpToolPolicy"
+  <Target Name="ValidateAnsightRemoteToolPolicy"
           BeforeTargets="Build"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(IsCrossTargetingBuild)' != 'true'">
-    <Error Condition="'$(_AnsightAllowMCPToolsNormalized)' != 'true' and '$(_AnsightAllowMCPToolsNormalized)' != 'false'"
-           Text="AnsightAllowMCPTools must be either 'true' or 'false'." />
-    <Warning Condition="'$(_AnsightAllowMCPToolsNormalized)' == 'true' and '$(Configuration)' != '' and '$(_AnsightConfigurationNormalized)' != 'debug'"
-             Text="AnsightAllowMCPTools=true for non-Debug configuration '$(Configuration)'. MCP tools are intended only for local debugging. Do not ship them in Release or distribution builds because they expose remote inspection and action surfaces that can reveal user data, app state, filesystem contents, database contents, screenshots, and other privileged runtime capabilities to a connected client." />
-    <Message Condition="'$(_AnsightAllowMCPToolsNormalized)' == 'true'"
+    <Error Condition="'$(_AnsightAllowRemoteToolsNormalized)' != 'true' and '$(_AnsightAllowRemoteToolsNormalized)' != 'false'"
+           Text="AnsightAllowRemoteTools must be either 'true' or 'false'. The legacy AnsightAllowMCPTools alias is still accepted." />
+    <Warning Condition="'$(_AnsightAllowMCPToolsConfigured)' != '' and '$(_AnsightAllowRemoteToolsConfigured)' == ''"
+             Text="AnsightAllowMCPTools is deprecated. Use AnsightAllowRemoteTools instead." />
+    <Warning Condition="'$(_AnsightAllowMCPToolsConfigured)' != '' and '$(_AnsightAllowRemoteToolsConfigured)' != '' and '$(_AnsightAllowMCPToolsConfiguredNormalized)' != '$(_AnsightAllowRemoteToolsConfiguredNormalized)'"
+             Text="Both AnsightAllowRemoteTools and AnsightAllowMCPTools were set with different values. AnsightAllowRemoteTools takes precedence." />
+    <Warning Condition="'$(_AnsightAllowRemoteToolsNormalized)' == 'true' and '$(Configuration)' != '' and '$(_AnsightConfigurationNormalized)' != 'debug'"
+             Text="AnsightAllowRemoteTools=true for non-Debug configuration '$(Configuration)'. Remote tools are intended only for local debugging. Do not ship them in Release or distribution builds because they expose remote inspection and action surfaces that can reveal user data, app state, filesystem contents, database contents, screenshots, and other privileged runtime capabilities to a connected client." />
+    <Message Condition="'$(_AnsightAllowRemoteToolsNormalized)' == 'true'"
              Importance="High"
-             Text="Ansight MCP tools are explicitly enabled for this build via AnsightAllowMCPTools=true. Keep this limited to local Debug builds and exclude tool packages from Release/distribution builds with MSBuild conditions." />
+             Text="Ansight remote tools are explicitly enabled for this build via AnsightAllowRemoteTools=true. Keep this limited to local Debug builds and exclude tool packages from Release/distribution builds with MSBuild conditions." />
   </Target>
 
   <Target Name="GenerateAnsightDeveloperPairing"
@@ -55,9 +64,9 @@
 
   <Target Name="CheckAnsightToolImplementations"
           AfterTargets="Build"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(IsCrossTargetingBuild)' != 'true' and '$(_AnsightAllowMCPToolsNormalized)' != 'true' and Exists('$(TargetDir)')">
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(IsCrossTargetingBuild)' != 'true' and '$(_AnsightAllowRemoteToolsNormalized)' != 'true' and Exists('$(TargetDir)')">
     <Error Condition="!Exists('$(_AnsightBuildTaskAssemblyPath)')"
-           Text="Ansight MCP tool enforcement is enabled, but the Ansight build task assembly was not found. Expected one of: '$(_AnsightBuildTaskAssemblyPackagePath)' or '$(_AnsightBuildTaskAssemblySourcePath)'." />
+           Text="Ansight remote tool enforcement is enabled, but the Ansight build task assembly was not found. Expected one of: '$(_AnsightBuildTaskAssemblyPackagePath)' or '$(_AnsightBuildTaskAssemblySourcePath)'." />
     <ItemGroup>
       <_AnsightToolResolverAssembly Include="@(ReferencePath)" />
       <_AnsightToolResolverAssembly Include="@(ReferenceCopyLocalPaths)" />
@@ -75,8 +84,8 @@
 
     <Message Condition="'@(_AnsightDetectedTool)' != ''"
              Importance="High"
-             Text="Ansight blocked MCP tools in this build. Detected tool implementations: $(_AnsightDetectedToolSummary)." />
+             Text="Ansight blocked remote tools in this build. Detected tool implementations: $(_AnsightDetectedToolSummary)." />
     <Error Condition="'@(_AnsightDetectedTool)' != ''"
-           Text="Ansight detected concrete ITool implementations in the build output: $(_AnsightDetectedToolSummary). Fix: remove the tool package/reference from this build, or make it Debug-only with MSBuild conditions. Only if this is an intentional local debugging build, set AnsightAllowMCPTools=true. Security guidance: never allow MCP tools in non-Debug or shippable builds, because they add remote inspection and execution capabilities that can expose user data, filesystem/database contents, screenshots, UI state, and other privileged app behavior to a connected client." />
+           Text="Ansight detected concrete ITool implementations in the build output: $(_AnsightDetectedToolSummary). Fix: remove the tool package/reference from this build, or make it Debug-only with MSBuild conditions. Only if this is an intentional local debugging build, set AnsightAllowRemoteTools=true. Security guidance: never allow remote tools in non-Debug or shippable builds, because they add remote inspection and execution capabilities that can expose user data, filesystem/database contents, screenshots, UI state, and other privileged app behavior to a connected client." />
   </Target>
 </Project>

@@ -9,6 +9,7 @@ public sealed class PairingSessionClient : IDisposable
     private readonly DeviceAppProfileResolver deviceAppProfileResolver;
     private readonly PairingSessionConnector connector;
     private readonly PairingSessionTransport transport;
+    private readonly PairingSessionAppStateStreamer appStateStreamer;
     private readonly TelemetryStreamer telemetryStreamer;
     private readonly PairingSessionJpegStreamer jpegStreamer;
     private bool disposed;
@@ -25,6 +26,7 @@ public sealed class PairingSessionClient : IDisposable
         deviceAppProfileResolver = new DeviceAppProfileResolver(profileProvider);
         connector = new PairingSessionConnector();
         transport = new PairingSessionTransport();
+        appStateStreamer = new PairingSessionAppStateStreamer(transport);
         telemetryStreamer = new TelemetryStreamer(transport);
         jpegStreamer = new PairingSessionJpegStreamer(transport);
     }
@@ -133,6 +135,13 @@ public sealed class PairingSessionClient : IDisposable
                 }
             }
 
+            var appStateResult = await appStateStreamer.StartAsync(progress, cancellationToken);
+            if (!appStateResult.Success)
+            {
+                await CloseSessionAsync(CancellationToken.None);
+                return OpenSessionResult.FromFailure(appStateResult.Message);
+            }
+
             await jpegStreamer.StartAsync(progress);
 
             return OpenSessionResult.FromSuccess(
@@ -234,6 +243,7 @@ public sealed class PairingSessionClient : IDisposable
 
     public async Task<OperationResult> CloseSessionAsync(CancellationToken cancellationToken)
     {
+        await appStateStreamer.StopAsync(CancellationToken.None);
         await telemetryStreamer.StopAsync(progress: null, CancellationToken.None);
         await jpegStreamer.StopAsync(CancellationToken.None);
         var result = await transport.CloseAsync(cancellationToken);
@@ -253,6 +263,7 @@ public sealed class PairingSessionClient : IDisposable
         }
 
         disposed = true;
+        appStateStreamer.Dispose();
         telemetryStreamer.Dispose();
         jpegStreamer.Dispose();
         if (Runtime.IsInitialized)
