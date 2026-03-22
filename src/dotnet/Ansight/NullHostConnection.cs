@@ -31,27 +31,39 @@ internal sealed class NullHostConnection : IHostConnection
         ParsedPairingDocument document,
         string? clientName = null,
         PairingConnectionOptions? connectionOptions = null,
-        IProgress<string>? progress = null,
+        IProgress<HostPairingProgressUpdate>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(HostConnectionActionResult.FromFailure(StatusSummary));
+        return Task.FromResult(HostConnectionActionResult.FromFailure(
+            StatusSummary,
+            kind: HostPairingActionKind.ConnectFromPayload,
+            source: HostPairingSource.HostConnection));
     }
 
     public Task<HostConnectionActionResult> ConnectUsingCachedProfileAsync(
         string? clientName = null,
-        IProgress<string>? progress = null,
+        IProgress<HostPairingProgressUpdate>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(HostConnectionActionResult.FromFailure(StatusSummary));
+        return Task.FromResult(HostConnectionActionResult.FromFailure(
+            StatusSummary,
+            kind: HostPairingActionKind.ConnectUsingCachedProfile,
+            source: HostPairingSource.CachedProfile));
     }
 
     public Task<HostConnectionActionResult> DisconnectAsync(CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(HostConnectionActionResult.FromFailure(StatusSummary));
+        return Task.FromResult(HostConnectionActionResult.FromFailure(
+            StatusSummary,
+            kind: HostPairingActionKind.Disconnect,
+            source: HostPairingSource.HostConnection));
     }
 
     public HostConnectionActionResult ClearCachedProfile()
     {
-        return HostConnectionActionResult.FromFailure(StatusSummary);
+        return HostConnectionActionResult.FromFailure(
+            StatusSummary,
+            kind: HostPairingActionKind.ClearStoredProfiles,
+            source: HostPairingSource.CachedProfile);
     }
 }

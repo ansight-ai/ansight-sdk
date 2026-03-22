@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using Ansight.Pairing;
 using Ansight.Pairing.Models;
@@ -17,13 +18,19 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
     private readonly IHostConnection hostConnection;
     private readonly HostPairingOptions options;
     private readonly StoredHostPairingProfileStore preferredProfileStore;
+    private readonly Func<bool> isRuntimeActive;
     private readonly SemaphoreSlim operationGate = new(1, 1);
+    private readonly Lock statusGate = new();
+    private HostPairingStatusSnapshot status;
+    private HostPairingCapabilities capabilities;
+    private bool hasBundledProfile;
     private bool disposed;
 
     internal HostPairingManager(
         IHostConnection hostConnection,
         HostPairingOptions options,
-        StoredHostPairingProfileStore? preferredProfileStore = null)
+        StoredHostPairingProfileStore? preferredProfileStore = null,
+        Func<bool>? isRuntimeActive = null)
     {
         this.hostConnection = hostConnection ?? throw new ArgumentNullException(nameof(hostConnection));
         this.options = options?.Clone() ?? throw new ArgumentNullException(nameof(options));
@@ -31,13 +38,69 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
                                      ?? new StoredHostPairingProfileStore(
                                          StoredPairingDocumentCache.ResolveCacheKey(AutomaticDeviceAppProfileProvider.Instance),
                                          this.options.PreferredProfilePath);
+        this.isRuntimeActive = isRuntimeActive ?? (() => Runtime.IsActive);
+        hasBundledProfile = false;
+        status = BuildStatusSnapshot(hasBundledProfile);
+        capabilities = BuildCapabilities(hasBundledProfile);
+        this.hostConnection.StatusChanged += HandleHostConnectionStatusChanged;
+        UpdateStatusAndCapabilities(hasBundledProfile);
     }
 
     public bool HasPreferredProfile => preferredProfileStore.HasStoredDocument;
 
+    public bool IsConnected => hostConnection.IsConnected;
+
+    public HostPairingStatusSnapshot Status
+    {
+        get
+        {
+            lock (statusGate)
+            {
+                return status;
+            }
+        }
+    }
+
+    public HostPairingCapabilities Capabilities
+    {
+        get
+        {
+            lock (statusGate)
+            {
+                return capabilities;
+            }
+        }
+    }
+
+    public event EventHandler<HostPairingStatusChangedEventArgs>? StatusChanged;
+
+    public async Task<HostPairingCapabilities> RefreshCapabilitiesAsync(CancellationToken cancellationToken = default)
+    {
+        var resolvedHasBundledProfile = await ResolveBundledProfileAvailabilityAsync(cancellationToken);
+        return UpdateStatusAndCapabilities(resolvedHasBundledProfile);
+    }
+
+    public bool CanReadPayload(HostPairingPayloadReadKind kind)
+    {
+        if (options.PayloadReader is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            return options.PayloadReader.CanRead(kind);
+        }
+        catch (Exception ex)
+        {
+            Logger.Warning($"Failed to resolve payload reader support for {kind}: {ex.Message}");
+            return false;
+        }
+    }
+
     public async Task<HostPairingActionResult> AutoConnectAsync(
         string? clientName = null,
-        IProgress<string>? progress = null,
+        IProgress<HostPairingProgressUpdate>? progress = null,
         CancellationToken cancellationToken = default)
     {
         await operationGate.WaitAsync(cancellationToken);
@@ -45,7 +108,10 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
         {
             if (hostConnection.IsConnected)
             {
-                return HostPairingActionResult.FromSuccess(hostConnection.StatusSummary);
+                return HostPairingActionResult.FromSuccess(
+                    hostConnection.StatusSummary,
+                    HostPairingActionKind.AutoConnect,
+                    HostPairingSource.HostConnection);
             }
 
             if (hostConnection.HasCachedProfile)
@@ -53,7 +119,7 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
                 var cachedProfileResult = await hostConnection.ConnectUsingCachedProfileAsync(clientName, progress, cancellationToken);
                 if (cachedProfileResult.Success)
                 {
-                    return ToPairingResult(cachedProfileResult);
+                    return ToPairingResult(cachedProfileResult, HostPairingActionKind.AutoConnect);
                 }
             }
 
@@ -63,20 +129,26 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
                     clientName,
                     progress,
                     cancellationToken,
+                    HostPairingActionKind.AutoConnect,
                     allowBundledRetry: true);
             }
 
-            return await ConnectUsingBundledProfileCoreAsync(clientName, progress, cancellationToken);
+            return await ConnectUsingBundledProfileCoreAsync(
+                clientName,
+                progress,
+                cancellationToken,
+                HostPairingActionKind.AutoConnect);
         }
         finally
         {
+            UpdateStatusAndCapabilities(hasBundledProfile);
             operationGate.Release();
         }
     }
 
     public async Task<HostPairingActionResult> ConnectUsingStoredProfileAsync(
         string? clientName = null,
-        IProgress<string>? progress = null,
+        IProgress<HostPairingProgressUpdate>? progress = null,
         CancellationToken cancellationToken = default)
     {
         await operationGate.WaitAsync(cancellationToken);
@@ -84,7 +156,10 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
         {
             if (hostConnection.IsConnected)
             {
-                return HostPairingActionResult.FromSuccess(hostConnection.StatusSummary);
+                return HostPairingActionResult.FromSuccess(
+                    hostConnection.StatusSummary,
+                    HostPairingActionKind.ConnectUsingStoredProfile,
+                    HostPairingSource.HostConnection);
             }
 
             if (hostConnection.HasCachedProfile)
@@ -92,39 +167,49 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
                 var cachedProfileResult = await hostConnection.ConnectUsingCachedProfileAsync(clientName, progress, cancellationToken);
                 if (cachedProfileResult.Success)
                 {
-                    return ToPairingResult(cachedProfileResult);
+                    return ToPairingResult(cachedProfileResult, HostPairingActionKind.ConnectUsingStoredProfile);
                 }
             }
 
             if (!HasPreferredProfile)
             {
-                return HostPairingActionResult.FromFailure("No saved Ansight pairing profile is available.");
+                return HostPairingActionResult.FromFailure(
+                    "No saved Ansight pairing profile is available.",
+                    HostPairingActionKind.ConnectUsingStoredProfile,
+                    HostPairingSource.StoredProfile);
             }
 
             return await ConnectUsingPreferredProfileCoreAsync(
                 clientName,
                 progress,
                 cancellationToken,
+                HostPairingActionKind.ConnectUsingStoredProfile,
                 allowBundledRetry: true);
         }
         finally
         {
+            UpdateStatusAndCapabilities(hasBundledProfile);
             operationGate.Release();
         }
     }
 
     public async Task<HostPairingActionResult> ConnectUsingBundledProfileAsync(
         string? clientName = null,
-        IProgress<string>? progress = null,
+        IProgress<HostPairingProgressUpdate>? progress = null,
         CancellationToken cancellationToken = default)
     {
         await operationGate.WaitAsync(cancellationToken);
         try
         {
-            return await ConnectUsingBundledProfileCoreAsync(clientName, progress, cancellationToken);
+            return await ConnectUsingBundledProfileCoreAsync(
+                clientName,
+                progress,
+                cancellationToken,
+                HostPairingActionKind.ConnectUsingBundledProfile);
         }
         finally
         {
+            UpdateStatusAndCapabilities(hasBundledProfile);
             operationGate.Release();
         }
     }
@@ -133,12 +218,15 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
         string payload,
         string? sourceDescription = null,
         string? clientName = null,
-        IProgress<string>? progress = null,
+        IProgress<HostPairingProgressUpdate>? progress = null,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(payload))
         {
-            return HostPairingActionResult.FromFailure("Paste or load a pairing config.");
+            return HostPairingActionResult.FromFailure(
+                "Paste or load a pairing config.",
+                HostPairingActionKind.ConnectFromPayload,
+                HostPairingSource.Payload);
         }
 
         await operationGate.WaitAsync(cancellationToken);
@@ -154,27 +242,116 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
         }
         finally
         {
+            UpdateStatusAndCapabilities(hasBundledProfile);
+            operationGate.Release();
+        }
+    }
+
+    public async Task<HostPairingActionResult> ConnectFromPayloadReaderAsync(
+        HostPairingPayloadReadRequest request,
+        string? clientName = null,
+        IProgress<HostPairingProgressUpdate>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (options.PayloadReader is null || !CanReadPayload(request.Kind))
+        {
+            return HostPairingActionResult.FromFailure(
+                $"No host pairing payload reader is registered for {request.Kind}.",
+                HostPairingActionKind.ConnectFromPayload,
+                HostPairingSource.PayloadReader);
+        }
+
+        string? payload;
+        try
+        {
+            payload = await options.PayloadReader.ReadPayloadAsync(request, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            return HostPairingActionResult.FromFailure(
+                $"Failed to read a pairing payload: {ex.Message}",
+                HostPairingActionKind.ConnectFromPayload,
+                HostPairingSource.PayloadReader);
+        }
+
+        if (string.IsNullOrWhiteSpace(payload))
+        {
+            return HostPairingActionResult.FromFailure(
+                "No pairing payload was provided.",
+                HostPairingActionKind.ConnectFromPayload,
+                HostPairingSource.PayloadReader);
+        }
+
+        return await ConnectFromPayloadAsync(
+            payload,
+            request.SourceDescription,
+            clientName,
+            progress,
+            cancellationToken);
+    }
+
+    public async Task<HostPairingActionResult> DisconnectAsync(CancellationToken cancellationToken = default)
+    {
+        await operationGate.WaitAsync(cancellationToken);
+        try
+        {
+            var result = await hostConnection.DisconnectAsync(cancellationToken);
+            return ToPairingResult(result, HostPairingActionKind.Disconnect);
+        }
+        finally
+        {
+            UpdateStatusAndCapabilities(hasBundledProfile);
             operationGate.Release();
         }
     }
 
     public HostPairingActionResult ClearStoredProfiles()
     {
+        operationGate.Wait();
         try
         {
+            if (hostConnection.IsConnected)
+            {
+                return HostPairingActionResult.FromFailure(
+                    "Disconnect from the Ansight host before clearing pairing profiles.",
+                    HostPairingActionKind.ClearStoredProfiles,
+                    HostPairingSource.StoredProfile);
+            }
+
             preferredProfileStore.Clear();
             var cachedProfileResult = hostConnection.ClearCachedProfile();
             if (!cachedProfileResult.Success)
             {
-                return HostPairingActionResult.FromFailure(cachedProfileResult.Message);
+                return HostPairingActionResult.FromFailure(
+                    cachedProfileResult.Message,
+                    HostPairingActionKind.ClearStoredProfiles,
+                    cachedProfileResult.Source,
+                    cachedProfileResult.ReasonCode);
             }
 
-            return HostPairingActionResult.FromSuccess("Cleared stored Ansight pairing profiles.");
+            return HostPairingActionResult.FromSuccess(
+                "Cleared stored Ansight pairing profiles.",
+                HostPairingActionKind.ClearStoredProfiles,
+                HostPairingSource.StoredProfile);
         }
         catch (Exception ex)
         {
             Logger.Exception(ex);
-            return HostPairingActionResult.FromFailure($"Failed to clear stored Ansight pairing profiles: {ex.Message}");
+            return HostPairingActionResult.FromFailure(
+                $"Failed to clear stored Ansight pairing profiles: {ex.Message}",
+                HostPairingActionKind.ClearStoredProfiles,
+                HostPairingSource.StoredProfile);
+        }
+        finally
+        {
+            UpdateStatusAndCapabilities(hasBundledProfile);
+            operationGate.Release();
         }
     }
 
@@ -186,6 +363,7 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
         }
 
         disposed = true;
+        hostConnection.StatusChanged -= HandleHostConnectionStatusChanged;
         operationGate.Dispose();
     }
 
@@ -193,7 +371,7 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
         string payload,
         string? sourceDescription,
         string? clientName,
-        IProgress<string>? progress,
+        IProgress<HostPairingProgressUpdate>? progress,
         CancellationToken cancellationToken,
         bool preferPreferredProfiles)
     {
@@ -204,14 +382,18 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
             cancellationToken);
         if (!resolvedDocument.Success || resolvedDocument.Document is null)
         {
-            return HostPairingActionResult.FromFailure(resolvedDocument.Message);
+            return HostPairingActionResult.FromFailure(
+                resolvedDocument.Message,
+                HostPairingActionKind.ConnectFromPayload,
+                resolvedDocument.Source);
         }
 
         var connectResult = await ConnectResolvedDocumentAsync(
             resolvedDocument,
             clientName,
             progress,
-            cancellationToken);
+            cancellationToken,
+            HostPairingActionKind.ConnectFromPayload);
         if (ShouldRetryWithBundledProfile(connectResult, resolvedDocument.Source) && preferPreferredProfiles)
         {
             return await ConnectFromPayloadCoreAsync(
@@ -223,51 +405,61 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
                 preferPreferredProfiles: false);
         }
 
-        return ToPairingResult(connectResult);
+        return ToPairingResult(connectResult, HostPairingActionKind.ConnectFromPayload);
     }
 
     private async Task<HostPairingActionResult> ConnectUsingPreferredProfileCoreAsync(
         string? clientName,
-        IProgress<string>? progress,
+        IProgress<HostPairingProgressUpdate>? progress,
         CancellationToken cancellationToken,
+        HostPairingActionKind actionKind,
         bool allowBundledRetry)
     {
         var preferredDocument = await TryResolvePreferredPairingDocumentAsync();
         if (!preferredDocument.Success || preferredDocument.Document is null)
         {
-            return HostPairingActionResult.FromFailure(preferredDocument.Message);
+            return HostPairingActionResult.FromFailure(
+                preferredDocument.Message,
+                actionKind,
+                preferredDocument.Source);
         }
 
         var connectResult = await ConnectResolvedDocumentAsync(
             preferredDocument,
             clientName,
             progress,
-            cancellationToken);
+            cancellationToken,
+            actionKind);
         if (allowBundledRetry && ShouldRetryWithBundledProfile(connectResult, preferredDocument.Source))
         {
-            return await ConnectUsingBundledProfileCoreAsync(clientName, progress, cancellationToken);
+            return await ConnectUsingBundledProfileCoreAsync(clientName, progress, cancellationToken, actionKind);
         }
 
-        return ToPairingResult(connectResult);
+        return ToPairingResult(connectResult, actionKind);
     }
 
     private async Task<HostPairingActionResult> ConnectUsingBundledProfileCoreAsync(
         string? clientName,
-        IProgress<string>? progress,
-        CancellationToken cancellationToken)
+        IProgress<HostPairingProgressUpdate>? progress,
+        CancellationToken cancellationToken,
+        HostPairingActionKind actionKind)
     {
         var bundledDocument = await TryResolveBundledPairingDocumentAsync(cancellationToken);
         if (!bundledDocument.Success || bundledDocument.Document is null)
         {
-            return HostPairingActionResult.FromFailure(bundledDocument.Message);
+            return HostPairingActionResult.FromFailure(
+                bundledDocument.Message,
+                actionKind,
+                bundledDocument.Source);
         }
 
         var connectResult = await ConnectResolvedDocumentAsync(
             bundledDocument,
             clientName,
             progress,
-            cancellationToken);
-        return ToPairingResult(connectResult);
+            cancellationToken,
+            actionKind);
+        return ToPairingResult(connectResult, actionKind);
     }
 
     private async Task<ResolvedPairingDocument> ResolvePairingDocumentAsync(
@@ -302,7 +494,7 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
             return ResolvedPairingDocument.FromSuccess(
                 bootstrapDocument,
                 $"Loaded {sourceDescription ?? "QR pairing code"}.",
-                baseDocument.Source);
+                HostPairingSource.QrConnectionPayload);
         }
 
         if (QrDiscoveryPayload.TryParse(payload, out var discoveryHint))
@@ -331,7 +523,7 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
             return ResolvedPairingDocument.FromSuccess(
                 validatedDocument,
                 $"Loaded {sourceDescription ?? "QR discovery code"}.",
-                baseDocument.Source);
+                HostPairingSource.QrDiscoveryPayload);
         }
 
         if (!hostConnection.TryParseAndValidateDocument(payload, out var document, out var error) || document is null)
@@ -342,7 +534,7 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
         return ResolvedPairingDocument.FromSuccess(
             document,
             $"Loaded {sourceDescription ?? "pairing code"}.",
-            HostPairingDocumentSource.Payload);
+            HostPairingSource.Payload);
     }
 
     private async Task<ResolvedPairingDocument> ResolveBaseDocumentForPayloadAsync(
@@ -380,14 +572,15 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
         return Task.FromResult(ResolvedPairingDocument.FromSuccess(
             document,
             "Using saved pairing profile.",
-            HostPairingDocumentSource.PreferredProfile));
+            HostPairingSource.StoredProfile));
     }
 
     private async Task<ResolvedPairingDocument> TryResolveBundledPairingDocumentAsync(CancellationToken cancellationToken)
     {
         var bundledDeveloperDocument = await TryLoadBundledDocumentAsync(
-            options.BundledDeveloperProfileLoader,
+            ResolveBundledDocumentLoader(HostPairingSource.BundledDeveloperProfile),
             "Using bundled developer pairing config.",
+            HostPairingSource.BundledDeveloperProfile,
             cancellationToken);
         if (bundledDeveloperDocument.Success)
         {
@@ -395,8 +588,9 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
         }
 
         var bundledDocument = await TryLoadBundledDocumentAsync(
-            options.BundledProfileLoader,
+            ResolveBundledDocumentLoader(HostPairingSource.BundledProfile),
             "Using bundled pairing config.",
+            HostPairingSource.BundledProfile,
             cancellationToken);
         if (bundledDocument.Success)
         {
@@ -409,6 +603,7 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
     private async Task<ResolvedPairingDocument> TryLoadBundledDocumentAsync(
         Func<CancellationToken, Task<string?>>? loader,
         string successMessage,
+        HostPairingSource source,
         CancellationToken cancellationToken)
     {
         if (loader is null)
@@ -445,14 +640,15 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
         return ResolvedPairingDocument.FromSuccess(
             document,
             successMessage,
-            HostPairingDocumentSource.BundledProfile);
+            source);
     }
 
     private async Task<HostConnectionActionResult> ConnectResolvedDocumentAsync(
         ResolvedPairingDocument resolvedDocument,
         string? clientName,
-        IProgress<string>? progress,
-        CancellationToken cancellationToken)
+        IProgress<HostPairingProgressUpdate>? progress,
+        CancellationToken cancellationToken,
+        HostPairingActionKind actionKind)
     {
         ArgumentNullException.ThrowIfNull(resolvedDocument.Document);
 
@@ -484,7 +680,13 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
             },
             progress,
             cancellationToken);
-        if (!connectResult.Success && resolvedDocument.Source == HostPairingDocumentSource.PreferredProfile)
+        connectResult = connectResult with
+        {
+            Kind = actionKind,
+            Source = resolvedDocument.Source,
+            ReasonCode = connectResult.ReasonCode ?? connectResult.SessionResult?.RejectionCode
+        };
+        if (!connectResult.Success && resolvedDocument.Source == HostPairingSource.StoredProfile)
         {
             var rejectionCode = connectResult.SessionResult?.RejectionCode;
             if (!string.IsNullOrWhiteSpace(rejectionCode) &&
@@ -497,22 +699,126 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
         return connectResult;
     }
 
-    private static HostPairingActionResult ToPairingResult(HostConnectionActionResult connectResult)
+    private static HostPairingActionResult ToPairingResult(
+        HostConnectionActionResult connectResult,
+        HostPairingActionKind fallbackKind)
     {
+        var actionKind = connectResult.Kind == HostPairingActionKind.None ? fallbackKind : connectResult.Kind;
         return connectResult.Success
-            ? HostPairingActionResult.FromSuccess(connectResult.Message)
-            : HostPairingActionResult.FromFailure(connectResult.Message);
+            ? HostPairingActionResult.FromSuccess(connectResult.Message, actionKind, connectResult.Source, connectResult.ReasonCode)
+            : HostPairingActionResult.FromFailure(connectResult.Message, actionKind, connectResult.Source, connectResult.ReasonCode);
     }
 
     private static bool ShouldRetryWithBundledProfile(
         HostConnectionActionResult connectResult,
-        HostPairingDocumentSource source)
+        HostPairingSource source)
     {
         var rejectionCode = connectResult.SessionResult?.RejectionCode;
         return !connectResult.Success &&
-               source == HostPairingDocumentSource.PreferredProfile &&
+               source == HostPairingSource.StoredProfile &&
                !string.IsNullOrWhiteSpace(rejectionCode) &&
                StoredProfileResetReasonCodes.Contains(rejectionCode);
+    }
+
+    private async Task<bool> ResolveBundledProfileAvailabilityAsync(CancellationToken cancellationToken)
+    {
+        if (await TryResolveBundledProfileAvailabilityAsync(
+                ResolveBundledDocumentLoader(HostPairingSource.BundledDeveloperProfile),
+                HostPairingSource.BundledDeveloperProfile,
+                cancellationToken))
+        {
+            hasBundledProfile = true;
+            return true;
+        }
+
+        var hasBundled = await TryResolveBundledProfileAvailabilityAsync(
+            ResolveBundledDocumentLoader(HostPairingSource.BundledProfile),
+            HostPairingSource.BundledProfile,
+            cancellationToken);
+        hasBundledProfile = hasBundled;
+        return hasBundled;
+    }
+
+    private async Task<bool> TryResolveBundledProfileAvailabilityAsync(
+        Func<CancellationToken, Task<string?>>? loader,
+        HostPairingSource source,
+        CancellationToken cancellationToken)
+    {
+        if (loader is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            var json = await loader(cancellationToken);
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return false;
+            }
+
+            return hostConnection.TryParseAndValidateDocument(json, out var _, out var _);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Logger.Warning($"Failed to probe {DescribeSource(source)} availability: {ex.Message}");
+            return false;
+        }
+    }
+
+    private Func<CancellationToken, Task<string?>>? ResolveBundledDocumentLoader(HostPairingSource source)
+    {
+        return source switch
+        {
+            HostPairingSource.BundledDeveloperProfile => ResolveBundledDocumentLoader(
+                options.BundledDeveloperProfileLoader,
+                HostPairingOptions.BundledDeveloperAssetName),
+            HostPairingSource.BundledProfile => ResolveBundledDocumentLoader(
+                options.BundledProfileLoader,
+                HostPairingOptions.BundledAssetName),
+            _ => null
+        };
+    }
+
+    private Func<CancellationToken, Task<string?>>? ResolveBundledDocumentLoader(
+        Func<CancellationToken, Task<string?>>? explicitLoader,
+        string logicalName)
+    {
+        if (explicitLoader is not null)
+        {
+            return explicitLoader;
+        }
+
+        var bundledProfileAssembly = options.BundledProfileAssembly;
+        if (bundledProfileAssembly is null)
+        {
+            return null;
+        }
+
+        return cancellationToken => LoadEmbeddedResourceTextAsync(bundledProfileAssembly, logicalName, cancellationToken);
+    }
+
+    private static async Task<string?> LoadEmbeddedResourceTextAsync(
+        Assembly assembly,
+        string logicalName,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        await using var stream = assembly.GetManifestResourceStream(logicalName);
+        if (stream is null)
+        {
+            return null;
+        }
+
+        using var reader = new StreamReader(stream);
+        var text = await reader.ReadToEndAsync();
+        cancellationToken.ThrowIfCancellationRequested();
+        return text;
     }
 
     private static void LogPairingExpectation(ParsedPairingDocument document)
@@ -542,27 +848,146 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
         return null;
     }
 
-    private enum HostPairingDocumentSource
+    private static string DescribeSource(HostPairingSource source)
     {
-        None = 0,
-        PreferredProfile = 1,
-        BundledProfile = 2,
-        Payload = 3
+        return source switch
+        {
+            HostPairingSource.BundledDeveloperProfile => "the bundled developer pairing profile",
+            HostPairingSource.BundledProfile => "the bundled pairing profile",
+            _ => "the bundled pairing source"
+        };
+    }
+
+    private void HandleHostConnectionStatusChanged(object? sender, HostConnectionStatusChangedEventArgs e)
+    {
+        UpdateStatusAndCapabilities(hasBundledProfile);
+    }
+
+    private HostPairingCapabilities UpdateStatusAndCapabilities(bool nextHasBundledProfile)
+    {
+        EventHandler<HostPairingStatusChangedEventArgs>? statusChanged;
+        HostPairingStatusChangedEventArgs? args = null;
+
+        lock (statusGate)
+        {
+            hasBundledProfile = nextHasBundledProfile;
+            var nextStatus = BuildStatusSnapshot(nextHasBundledProfile);
+            var nextCapabilities = BuildCapabilities(nextHasBundledProfile);
+            if (Equals(status, nextStatus) && Equals(capabilities, nextCapabilities))
+            {
+                return capabilities;
+            }
+
+            status = nextStatus;
+            capabilities = nextCapabilities;
+            statusChanged = StatusChanged;
+            args = new HostPairingStatusChangedEventArgs(status, capabilities);
+        }
+
+        statusChanged?.Invoke(this, args);
+        return Capabilities;
+    }
+
+    private HostPairingStatusSnapshot BuildStatusSnapshot(bool nextHasBundledProfile)
+    {
+        if (!isRuntimeActive())
+        {
+            return new HostPairingStatusSnapshot(
+                IsRuntimeActive: false,
+                IsConnected: hostConnection.IsConnected,
+                ConnectionState: hostConnection.State,
+                HasCachedProfile: hostConnection.HasCachedProfile,
+                HasPreferredProfile: HasPreferredProfile,
+                HasBundledProfile: nextHasBundledProfile,
+                SummaryKind: HostPairingSummaryKind.RuntimeInactive,
+                SummaryMessage: "Activate Ansight before connecting to a host.");
+        }
+
+        if (hostConnection.State == HostConnectionState.Connecting)
+        {
+            return new HostPairingStatusSnapshot(
+                true,
+                hostConnection.IsConnected,
+                hostConnection.State,
+                hostConnection.HasCachedProfile,
+                HasPreferredProfile,
+                nextHasBundledProfile,
+                HostPairingSummaryKind.Connecting,
+                hostConnection.StatusSummary);
+        }
+
+        if (hostConnection.State == HostConnectionState.Connected)
+        {
+            return new HostPairingStatusSnapshot(
+                true,
+                hostConnection.IsConnected,
+                hostConnection.State,
+                hostConnection.HasCachedProfile,
+                HasPreferredProfile,
+                nextHasBundledProfile,
+                HostPairingSummaryKind.Connected,
+                hostConnection.StatusSummary);
+        }
+
+        var availableSources = 0;
+        if (hostConnection.HasCachedProfile)
+        {
+            availableSources++;
+        }
+
+        if (HasPreferredProfile)
+        {
+            availableSources++;
+        }
+
+        if (nextHasBundledProfile)
+        {
+            availableSources++;
+        }
+
+        var (summaryKind, summaryMessage) = availableSources switch
+        {
+            0 => (HostPairingSummaryKind.DisconnectedNoProfiles, "No Ansight pairing profiles are available."),
+            > 1 => (HostPairingSummaryKind.DisconnectedMultipleProfilesAvailable, "Multiple Ansight pairing profiles are available."),
+            _ when hostConnection.HasCachedProfile => (HostPairingSummaryKind.DisconnectedCachedProfileAvailable, "A cached Ansight host pairing profile is available."),
+            _ when HasPreferredProfile => (HostPairingSummaryKind.DisconnectedStoredProfileAvailable, "A saved Ansight pairing profile is available."),
+            _ => (HostPairingSummaryKind.DisconnectedBundledProfileAvailable, "A bundled Ansight pairing profile is available.")
+        };
+
+        return new HostPairingStatusSnapshot(
+            true,
+            hostConnection.IsConnected,
+            hostConnection.State,
+            hostConnection.HasCachedProfile,
+            HasPreferredProfile,
+            nextHasBundledProfile,
+            summaryKind,
+            summaryMessage);
+    }
+
+    private HostPairingCapabilities BuildCapabilities(bool nextHasBundledProfile)
+    {
+        var runtimeIsActive = isRuntimeActive();
+        return new HostPairingCapabilities(
+            CanConnectUsingStored: runtimeIsActive && (hostConnection.HasCachedProfile || HasPreferredProfile),
+            CanConnectUsingBundled: runtimeIsActive && nextHasBundledProfile,
+            CanClearProfiles: !hostConnection.IsConnected && (hostConnection.HasCachedProfile || HasPreferredProfile),
+            CanUseQrPayloadWithBaseProfile: runtimeIsActive && (HasPreferredProfile || nextHasBundledProfile));
     }
 
     private sealed record ResolvedPairingDocument(
         bool Success,
         ParsedPairingDocument? Document,
         string Message,
-        HostPairingDocumentSource Source)
+        HostPairingSource Source)
     {
         public static ResolvedPairingDocument FromFailure(string message)
-            => new(false, null, message, HostPairingDocumentSource.None);
+            => new(false, null, message, HostPairingSource.None);
 
         public static ResolvedPairingDocument FromSuccess(
             ParsedPairingDocument document,
             string message,
-            HostPairingDocumentSource source)
+            HostPairingSource source)
             => new(true, document, message, source);
     }
 }

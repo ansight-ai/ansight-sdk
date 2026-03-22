@@ -23,12 +23,12 @@ public interface IHostConnection
         ParsedPairingDocument document,
         string? clientName = null,
         PairingConnectionOptions? connectionOptions = null,
-        IProgress<string>? progress = null,
+        IProgress<HostPairingProgressUpdate>? progress = null,
         CancellationToken cancellationToken = default);
 
     Task<HostConnectionActionResult> ConnectUsingCachedProfileAsync(
         string? clientName = null,
-        IProgress<string>? progress = null,
+        IProgress<HostPairingProgressUpdate>? progress = null,
         CancellationToken cancellationToken = default);
 
     Task<HostConnectionActionResult> DisconnectAsync(CancellationToken cancellationToken = default);

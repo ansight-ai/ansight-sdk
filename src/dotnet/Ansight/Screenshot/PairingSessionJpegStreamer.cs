@@ -16,7 +16,7 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
         this.transport = transport;
     }
 
-    public async Task StartAsync(IProgress<string>? progress)
+    public async Task StartAsync(IProgress<HostPairingProgressUpdate>? progress)
     {
         await StopAsync(CancellationToken.None);
 
@@ -28,8 +28,11 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
 
         captureCts = new CancellationTokenSource();
         captureTask = Task.Run(() => RunCapturePumpAsync(options, progress, captureCts.Token));
-        progress?.Report(
-            $"Session JPEG capture started ({options.IntervalMilliseconds}ms, quality {options.Quality}, max width {(options.MaxWidth?.ToString() ?? "native")}).");
+        HostPairingProgressReporter.Report(
+            progress,
+            HostPairingProgressKind.SessionJpegCapture,
+            $"Session JPEG capture started ({options.IntervalMilliseconds}ms, quality {options.Quality}, max width {(options.MaxWidth?.ToString() ?? "native")}).",
+            source: HostPairingSource.SessionJpegCapture);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
@@ -98,7 +101,7 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
 
     private async Task RunCapturePumpAsync(
         SessionJpegCaptureOptions options,
-        IProgress<string>? progress,
+        IProgress<HostPairingProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -170,7 +173,7 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
     private async Task RunEncodePumpAsync(
         SessionJpegCaptureOptions options,
         LatestSessionJpegSurfaceQueue pendingSurfaces,
-        IProgress<string>? progress,
+        IProgress<HostPairingProgressUpdate>? progress,
         CancellationTokenSource linkedCancellation,
         CancellationToken cancellationToken)
     {
@@ -204,7 +207,11 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
                     var sendResult = await transport.SendBinaryAsync(frame.Payload, WebSocketMessageType.Binary, cancellationToken);
                     if (!sendResult.Success)
                     {
-                        progress?.Report($"Session JPEG capture stopped: {sendResult.Message}");
+                        HostPairingProgressReporter.Report(
+                            progress,
+                            HostPairingProgressKind.Warning,
+                            $"Session JPEG capture stopped: {sendResult.Message}",
+                            source: HostPairingSource.SessionJpegCapture);
                         linkedCancellation.Cancel();
                         return;
                     }

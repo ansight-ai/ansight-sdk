@@ -202,7 +202,7 @@ public sealed class HostConnectionManagerTests
             ParsedPairingDocument document,
             string clientName,
             PairingConnectionOptions? options,
-            IProgress<string>? progress,
+            IProgress<HostPairingProgressUpdate>? progress,
             CancellationToken cancellationToken)
         {
             OpenSessionCallCount++;
@@ -212,7 +212,7 @@ public sealed class HostConnectionManagerTests
 
         public Task<OpenSessionResult> OpenCachedSessionAsync(
             string? clientName,
-            IProgress<string>? progress,
+            IProgress<HostPairingProgressUpdate>? progress,
             CancellationToken cancellationToken)
         {
             OpenCachedSessionCallCount++;
@@ -222,7 +222,7 @@ public sealed class HostConnectionManagerTests
 
         public Task<OperationResult> StartMetricsStreamingAsync(
             IDataSink dataSink,
-            IProgress<string>? progress,
+            IProgress<HostPairingProgressUpdate>? progress,
             CancellationToken cancellationToken)
         {
             StartMetricsStreamingCallCount++;

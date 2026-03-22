@@ -78,7 +78,7 @@ internal sealed class HostConnectionManager : IHostConnection, IHostAutoProbeSes
         ParsedPairingDocument document,
         string? clientName = null,
         PairingConnectionOptions? connectionOptions = null,
-        IProgress<string>? progress = null,
+        IProgress<HostPairingProgressUpdate>? progress = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -86,6 +86,8 @@ internal sealed class HostConnectionManager : IHostConnection, IHostAutoProbeSes
         return ConnectCoreAsync(
             reuseExistingConnection: false,
             $"Connecting to Ansight host using {DescribeConnectionTarget(document)}.",
+            HostPairingActionKind.Connect,
+            HostPairingSource.HostConnection,
             (resolvedClientName, effectiveProgress, effectiveCancellationToken) => sessionClient.OpenSessionAsync(
                 document,
                 resolvedClientName,
@@ -99,7 +101,7 @@ internal sealed class HostConnectionManager : IHostConnection, IHostAutoProbeSes
 
     public Task<HostConnectionActionResult> ConnectUsingCachedProfileAsync(
         string? clientName = null,
-        IProgress<string>? progress = null,
+        IProgress<HostPairingProgressUpdate>? progress = null,
         CancellationToken cancellationToken = default)
     {
         return ConnectUsingCachedProfileCoreAsync(clientName, progress, cancellationToken);
@@ -107,7 +109,7 @@ internal sealed class HostConnectionManager : IHostConnection, IHostAutoProbeSes
 
     Task<HostConnectionActionResult> IHostAutoProbeSessionClient.ConnectUsingCachedProfileAsync(
         string? clientName,
-        IProgress<string>? progress,
+        IProgress<HostPairingProgressUpdate>? progress,
         CancellationToken cancellationToken)
         => ConnectUsingCachedProfileCoreAsync(clientName, progress, cancellationToken);
 
@@ -120,15 +122,24 @@ internal sealed class HostConnectionManager : IHostConnection, IHostAutoProbeSes
             activeSessionResult = null;
             SetStatus(HostConnectionState.Disconnected, runtime.IsActive ? BuildDisconnectedSummary() : BuildInactiveSummary());
             return result.Success
-                ? HostConnectionActionResult.FromSuccess(result.Message)
-                : HostConnectionActionResult.FromFailure(result.Message);
+                ? HostConnectionActionResult.FromSuccess(
+                    result.Message,
+                    kind: HostPairingActionKind.Disconnect,
+                    source: HostPairingSource.HostConnection)
+                : HostConnectionActionResult.FromFailure(
+                    result.Message,
+                    kind: HostPairingActionKind.Disconnect,
+                    source: HostPairingSource.HostConnection);
         }
         catch (Exception ex)
         {
             Logger.Exception(ex);
             activeSessionResult = null;
             SetStatus(HostConnectionState.Disconnected, runtime.IsActive ? BuildDisconnectedSummary() : BuildInactiveSummary());
-            return HostConnectionActionResult.FromFailure($"Failed to disconnect from the Ansight host: {ex.Message}");
+            return HostConnectionActionResult.FromFailure(
+                $"Failed to disconnect from the Ansight host: {ex.Message}",
+                kind: HostPairingActionKind.Disconnect,
+                source: HostPairingSource.HostConnection);
         }
         finally
         {
@@ -146,12 +157,18 @@ internal sealed class HostConnectionManager : IHostConnection, IHostAutoProbeSes
                 SetStatus(HostConnectionState.Disconnected, BuildDisconnectedSummary());
             }
 
-            return HostConnectionActionResult.FromSuccess("Cleared the cached Ansight host pairing profile.");
+            return HostConnectionActionResult.FromSuccess(
+                "Cleared the cached Ansight host pairing profile.",
+                kind: HostPairingActionKind.ClearStoredProfiles,
+                source: HostPairingSource.CachedProfile);
         }
         catch (Exception ex)
         {
             Logger.Exception(ex);
-            return HostConnectionActionResult.FromFailure($"Failed to clear the cached Ansight host pairing profile: {ex.Message}");
+            return HostConnectionActionResult.FromFailure(
+                $"Failed to clear the cached Ansight host pairing profile: {ex.Message}",
+                kind: HostPairingActionKind.ClearStoredProfiles,
+                source: HostPairingSource.CachedProfile);
         }
     }
 
@@ -192,12 +209,14 @@ internal sealed class HostConnectionManager : IHostConnection, IHostAutoProbeSes
 
     private Task<HostConnectionActionResult> ConnectUsingCachedProfileCoreAsync(
         string? clientName,
-        IProgress<string>? progress,
+        IProgress<HostPairingProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         return ConnectCoreAsync(
             reuseExistingConnection: true,
             "Connecting to the cached Ansight host pairing profile.",
+            HostPairingActionKind.ConnectUsingCachedProfile,
+            HostPairingSource.CachedProfile,
             (resolvedClientName, effectiveProgress, effectiveCancellationToken) => sessionClient.OpenCachedSessionAsync(
                 resolvedClientName,
                 effectiveProgress,
@@ -210,16 +229,21 @@ internal sealed class HostConnectionManager : IHostConnection, IHostAutoProbeSes
     private async Task<HostConnectionActionResult> ConnectCoreAsync(
         bool reuseExistingConnection,
         string connectingSummary,
-        Func<string, IProgress<string>?, CancellationToken, Task<OpenSessionResult>> openAsync,
+        HostPairingActionKind actionKind,
+        HostPairingSource actionSource,
+        Func<string, IProgress<HostPairingProgressUpdate>?, CancellationToken, Task<OpenSessionResult>> openAsync,
         string? clientName,
-        IProgress<string>? progress,
+        IProgress<HostPairingProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         if (!runtime.IsActive)
         {
             var inactiveMessage = "Activate Ansight before connecting to a host.";
             SetStatus(HostConnectionState.Disconnected, inactiveMessage);
-            return HostConnectionActionResult.FromFailure(inactiveMessage);
+            return HostConnectionActionResult.FromFailure(
+                inactiveMessage,
+                kind: actionKind,
+                source: actionSource);
         }
 
         await operationGate.WaitAsync(cancellationToken);
@@ -227,7 +251,11 @@ internal sealed class HostConnectionManager : IHostConnection, IHostAutoProbeSes
         {
             if (reuseExistingConnection && sessionClient.IsSessionOpen)
             {
-                return HostConnectionActionResult.FromSuccess(StatusSummary, activeSessionResult);
+                return HostConnectionActionResult.FromSuccess(
+                    StatusSummary,
+                    activeSessionResult,
+                    actionKind,
+                    actionSource);
             }
 
             var resolvedClientName = sessionClient.ResolveClientName(
@@ -239,7 +267,12 @@ internal sealed class HostConnectionManager : IHostConnection, IHostAutoProbeSes
             {
                 activeSessionResult = null;
                 SetStatus(HostConnectionState.Disconnected, ResolveFailureMessage(openResult));
-                return HostConnectionActionResult.FromFailure(ResolveFailureMessage(openResult), openResult);
+                return HostConnectionActionResult.FromFailure(
+                    ResolveFailureMessage(openResult),
+                    openResult,
+                    actionKind,
+                    actionSource,
+                    openResult.RejectionCode);
             }
 
             activeSessionResult = openResult;
@@ -252,12 +285,22 @@ internal sealed class HostConnectionManager : IHostConnection, IHostAutoProbeSes
                 await sessionClient.CloseSessionAsync(CancellationToken.None);
                 activeSessionResult = null;
                 SetStatus(HostConnectionState.Disconnected, metricsResult.Message);
-                return HostConnectionActionResult.FromFailure(metricsResult.Message, openResult);
+                return HostConnectionActionResult.FromFailure(
+                    metricsResult.Message,
+                    openResult,
+                    actionKind,
+                    actionSource,
+                    openResult.RejectionCode);
             }
 
             LastDisconnectedAtUtc = null;
             SetStatus(HostConnectionState.Connected, BuildConnectedSummary(openResult));
-            return HostConnectionActionResult.FromSuccess("Connected to the Ansight host.", openResult);
+            return HostConnectionActionResult.FromSuccess(
+                "Connected to the Ansight host.",
+                openResult,
+                actionKind,
+                actionSource,
+                openResult.RejectionCode);
         }
         catch (OperationCanceledException)
         {
@@ -278,7 +321,10 @@ internal sealed class HostConnectionManager : IHostConnection, IHostAutoProbeSes
             activeSessionResult = null;
             var message = $"Connection failed: {ex.Message}";
             SetStatus(HostConnectionState.Disconnected, message);
-            return HostConnectionActionResult.FromFailure(message);
+            return HostConnectionActionResult.FromFailure(
+                message,
+                kind: actionKind,
+                source: actionSource);
         }
         finally
         {

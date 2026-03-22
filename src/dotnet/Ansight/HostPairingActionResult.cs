@@ -5,11 +5,22 @@ namespace Ansight;
 /// </summary>
 public sealed record HostPairingActionResult(
     bool Success,
-    string Message)
+    string Message,
+    HostPairingActionKind Kind = HostPairingActionKind.None,
+    HostPairingSource Source = HostPairingSource.None,
+    string? ReasonCode = null)
 {
-    public static HostPairingActionResult FromSuccess(string message)
-        => new(true, message);
+    public static HostPairingActionResult FromSuccess(
+        string message,
+        HostPairingActionKind kind = HostPairingActionKind.None,
+        HostPairingSource source = HostPairingSource.None,
+        string? reasonCode = null)
+        => new(true, message, kind, source, reasonCode);
 
-    public static HostPairingActionResult FromFailure(string message)
-        => new(false, message);
+    public static HostPairingActionResult FromFailure(
+        string message,
+        HostPairingActionKind kind = HostPairingActionKind.None,
+        HostPairingSource source = HostPairingSource.None,
+        string? reasonCode = null)
+        => new(false, message, kind, source, reasonCode);
 }

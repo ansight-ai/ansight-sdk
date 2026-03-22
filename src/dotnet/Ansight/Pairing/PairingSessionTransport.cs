@@ -33,9 +33,11 @@ internal sealed class PairingSessionTransport : IDisposable
         string? outboundProgressMessage,
         string successMessage,
         string failurePrefix,
-        IProgress<string>? progress,
+        IProgress<HostPairingProgressUpdate>? progress,
         TimeSpan acknowledgementTimeout,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        HostPairingSource source = HostPairingSource.Transport,
+        HostPairingProgressKind kind = HostPairingProgressKind.Transport)
     {
         var webSocket = this.webSocket;
         if (webSocket is null || webSocket.State != WebSocketState.Open)
@@ -49,12 +51,22 @@ internal sealed class PairingSessionTransport : IDisposable
             try
             {
                 await SendPayloadAsync(webSocket, payload, cancellationToken);
-                progress?.Report(outboundProgressMessage ?? $"WS -> {payload}");
+                HostPairingProgressReporter.Report(
+                    progress,
+                    kind,
+                    outboundProgressMessage ?? $"WS -> {payload}",
+                    isVerbose: true,
+                    source: source);
 
                 using var ackTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 ackTimeout.CancelAfter(acknowledgementTimeout);
                 var hostAck = await ReceiveInboundMessageAsync(ackTimeout.Token);
-                progress?.Report($"WS <- {hostAck}");
+                HostPairingProgressReporter.Report(
+                    progress,
+                    kind,
+                    $"WS <- {hostAck}",
+                    isVerbose: true,
+                    source: source);
 
                 if (string.Equals(hostAck, "<close>", StringComparison.Ordinal))
                 {

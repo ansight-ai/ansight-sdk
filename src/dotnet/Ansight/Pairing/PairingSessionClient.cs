@@ -97,7 +97,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
     public Task<OpenSessionResult> OpenSessionAsync(
         PairingConfig config,
         string clientName,
-        IProgress<string>? progress,
+        IProgress<HostPairingProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         return OpenSessionAsync(config, clientName, options: null, progress, cancellationToken);
@@ -107,7 +107,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         PairingConfig config,
         string clientName,
         PairingConnectionOptions? options,
-        IProgress<string>? progress,
+        IProgress<HostPairingProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(config);
@@ -126,7 +126,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
     public Task<OpenSessionResult> OpenSessionAsync(
         ParsedPairingDocument document,
         string clientName,
-        IProgress<string>? progress,
+        IProgress<HostPairingProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         return OpenSessionAsync(document, clientName, options: null, progress, cancellationToken);
@@ -136,7 +136,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         ParsedPairingDocument document,
         string clientName,
         PairingConnectionOptions? options,
-        IProgress<string>? progress,
+        IProgress<HostPairingProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -151,7 +151,11 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         }
 
         var config = document.Config;
-        progress?.Report($"Config validated. ConfigId: {config.ConfigId}");
+        HostPairingProgressReporter.Report(
+            progress,
+            HostPairingProgressKind.Validation,
+            $"Config validated. ConfigId: {config.ConfigId}",
+            source: HostPairingSource.Payload);
 
         var connectionAttempt = await connector.ConnectAsync(config, clientName, options, progress, cancellationToken);
         if (!connectionAttempt.Success)
@@ -211,7 +215,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         }
     }
 
-    public Task<OperationResult> SendClientLogAsync(string logLine, IProgress<string>? progress, CancellationToken cancellationToken)
+    public Task<OperationResult> SendClientLogAsync(string logLine, IProgress<HostPairingProgressUpdate>? progress, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(logLine))
         {
@@ -233,12 +237,14 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
             "Failed to send log",
             progress,
             TimeSpan.FromSeconds(15),
-            cancellationToken);
+            cancellationToken,
+            HostPairingSource.Transport,
+            HostPairingProgressKind.Transport);
     }
 
     public Task<OperationResult> SendDeviceAppProfileAsync(
         DeviceAppProfile profile,
-        IProgress<string>? progress,
+        IProgress<HostPairingProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(profile);
@@ -253,10 +259,12 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
             "Failed to send device profile",
             progress,
             TimeSpan.FromSeconds(15),
-            cancellationToken);
+            cancellationToken,
+            HostPairingSource.HostConnection,
+            HostPairingProgressKind.Connection);
     }
 
-    public async Task<OperationResult> CompleteSessionAsync(IProgress<string>? progress, CancellationToken cancellationToken)
+    public async Task<OperationResult> CompleteSessionAsync(IProgress<HostPairingProgressUpdate>? progress, CancellationToken cancellationToken)
     {
         var payload = JsonSerializer.Serialize(new
         {
@@ -273,7 +281,9 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
             "Failed to complete session",
             progress,
             TimeSpan.FromSeconds(10),
-            cancellationToken);
+            cancellationToken,
+            HostPairingSource.Transport,
+            HostPairingProgressKind.Transport);
 
         await CloseSessionAsync(CancellationToken.None);
         return result;
@@ -284,13 +294,13 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
 
     public Task<OperationResult> StartMetricsStreamingAsync(
         IDataSink dataSink,
-        IProgress<string>? progress,
+        IProgress<HostPairingProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         return telemetryStreamer.StartAsync(dataSink, progress, cancellationToken);
     }
 
-    public Task<OperationResult> StopMetricsStreamingAsync(IProgress<string>? progress, CancellationToken cancellationToken)
+    public Task<OperationResult> StopMetricsStreamingAsync(IProgress<HostPairingProgressUpdate>? progress, CancellationToken cancellationToken)
     {
         return telemetryStreamer.StopAsync(progress, cancellationToken);
     }
@@ -311,7 +321,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
 
     internal async Task<OpenSessionResult> OpenCachedSessionAsync(
         string? clientName,
-        IProgress<string>? progress,
+        IProgress<HostPairingProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         var baselineProfile = deviceAppProfileResolver.Resolve(callerProfile: null);
@@ -356,13 +366,13 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         ParsedPairingDocument document,
         string clientName,
         PairingConnectionOptions? options,
-        IProgress<string>? progress,
+        IProgress<HostPairingProgressUpdate>? progress,
         CancellationToken cancellationToken)
         => OpenSessionAsync(document, clientName, options, progress, cancellationToken);
 
     Task<OpenSessionResult> IHostConnectionSessionClient.OpenCachedSessionAsync(
         string? clientName,
-        IProgress<string>? progress,
+        IProgress<HostPairingProgressUpdate>? progress,
         CancellationToken cancellationToken)
         => OpenCachedSessionAsync(clientName, progress, cancellationToken);
 

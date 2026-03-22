@@ -1,3 +1,5 @@
+using System.Reflection;
+
 namespace Ansight;
 
 /// <summary>
@@ -5,6 +7,16 @@ namespace Ansight;
 /// </summary>
 public sealed class HostPairingOptions
 {
+    /// <summary>
+    /// Logical name for the bundled developer pairing embedded resource.
+    /// </summary>
+    public const string BundledDeveloperAssetName = "ansight.developer-pairing.json";
+
+    /// <summary>
+    /// Logical name for the bundled pairing embedded resource.
+    /// </summary>
+    public const string BundledAssetName = "ansight.json";
+
     /// <summary>
     /// Default host pairing configuration.
     /// </summary>
@@ -17,24 +29,38 @@ public sealed class HostPairingOptions
     public string? PreferredProfilePath { get; set; }
 
     /// <summary>
+    /// Optional assembly containing embedded bundled pairing resources.
+    /// When supplied, the SDK looks for embedded resources whose logical names are exactly
+    /// <c>ansight.developer-pairing.json</c> and <c>ansight.json</c>.
+    /// </summary>
+    public Assembly? BundledProfileAssembly { get; set; }
+
+    /// <summary>
     /// Optional loader for a bundled developer pairing bootstrap document.
-    /// This is typically backed by an app-package asset such as <c>ansight.developer-pairing.json</c>.
+    /// When set, this overrides loading <c>ansight.developer-pairing.json</c> from <see cref="BundledProfileAssembly"/>.
     /// </summary>
     public Func<CancellationToken, Task<string?>>? BundledDeveloperProfileLoader { get; set; }
 
     /// <summary>
     /// Optional loader for a bundled pairing document.
-    /// This is typically backed by an app-package asset such as <c>ansight.json</c>.
+    /// When set, this overrides loading <c>ansight.json</c> from <see cref="BundledProfileAssembly"/>.
     /// </summary>
     public Func<CancellationToken, Task<string?>>? BundledProfileLoader { get; set; }
+
+    /// <summary>
+    /// Optional platform-owned reader used to obtain pairing payloads from sources such as files or QR scanners.
+    /// </summary>
+    public IHostPairingPayloadReader? PayloadReader { get; set; }
 
     internal HostPairingOptions Clone()
     {
         return new HostPairingOptions
         {
             PreferredProfilePath = PreferredProfilePath,
+            BundledProfileAssembly = BundledProfileAssembly,
             BundledDeveloperProfileLoader = BundledDeveloperProfileLoader,
-            BundledProfileLoader = BundledProfileLoader
+            BundledProfileLoader = BundledProfileLoader,
+            PayloadReader = PayloadReader
         };
     }
 }

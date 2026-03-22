@@ -7,7 +7,7 @@ internal sealed class HostAutoProbeCoordinator : IDisposable
     private readonly HostAutoProbeOptions options;
     private readonly IHostAutoProbeSessionClient autoProbeSessionClient;
     private readonly Lock gate = new();
-    private readonly IProgress<string> progress;
+    private readonly IProgress<HostPairingProgressUpdate> progress;
     private CancellationTokenSource? loopCts;
     private Task? loopTask;
     private bool disposed;
@@ -18,7 +18,7 @@ internal sealed class HostAutoProbeCoordinator : IDisposable
     {
         this.options = options?.Clone() ?? throw new ArgumentNullException(nameof(options));
         this.autoProbeSessionClient = autoProbeSessionClient ?? throw new ArgumentNullException(nameof(autoProbeSessionClient));
-        progress = new Progress<string>(HandleProgressMessage);
+        progress = new Progress<HostPairingProgressUpdate>(HandleProgressUpdate);
     }
 
     public void OnActivated()
@@ -120,11 +120,19 @@ internal sealed class HostAutoProbeCoordinator : IDisposable
         }
     }
 
-    private void HandleProgressMessage(string? message)
+    private void HandleProgressUpdate(HostPairingProgressUpdate? update)
     {
-        if (!string.IsNullOrWhiteSpace(message))
+        if (update is null || string.IsNullOrWhiteSpace(update.Message))
         {
-            Logger.Info($"[Ansight Host auto-probe] {message}");
+            return;
         }
+
+        if (update.IsVerbose)
+        {
+            Logger.Info($"[Ansight Host auto-probe] {update.Message}");
+            return;
+        }
+
+        Logger.Info($"[Ansight Host auto-probe] {update.Kind}: {update.Message}");
     }
 }

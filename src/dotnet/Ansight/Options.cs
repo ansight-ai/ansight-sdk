@@ -451,6 +451,18 @@ public class Options
         }
 
         /// <summary>
+        /// Mutates the runtime-owned host pairing configuration in-place.
+        /// </summary>
+        public OptionsBuilder ConfigureHostPairing(Action<HostPairingOptions> configure)
+        {
+            ArgumentNullException.ThrowIfNull(configure);
+
+            options.HostPairing ??= HostPairingOptions.Default.Clone();
+            configure(options.HostPairing);
+            return this;
+        }
+
+        /// <summary>
         /// Validates and returns the configured options.
         /// </summary>
         public Options Build()

@@ -11,7 +11,7 @@ internal sealed class PairingSessionConnector
         PairingConfig config,
         string clientName,
         PairingConnectionOptions? options,
-        IProgress<string>? progress,
+        IProgress<HostPairingProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         if (!TryResolveManualHostAddress(options?.ManualHostAddress, out var hostAddress))
@@ -20,10 +20,18 @@ internal sealed class PairingSessionConnector
         }
 
         var discoveryMode = options?.DiscoveryMode ?? PairingDiscoveryMode.ConfiguredHint;
-        progress?.Report(discoveryMode == PairingDiscoveryMode.BasicManual
-            ? $"Using manual host address: {hostAddress}"
-            : $"Using configured host hint: {hostAddress}");
-        progress?.Report($"Connecting to host at {hostAddress}:{config.Host.DiscoveryPort}");
+        HostPairingProgressReporter.Report(
+            progress,
+            HostPairingProgressKind.Connection,
+            discoveryMode == PairingDiscoveryMode.BasicManual
+                ? $"Using manual host address: {hostAddress}"
+                : $"Using configured host hint: {hostAddress}",
+            source: HostPairingSource.HostConnection);
+        HostPairingProgressReporter.Report(
+            progress,
+            HostPairingProgressKind.Connection,
+            $"Connecting to host at {hostAddress}:{config.Host.DiscoveryPort}",
+            source: HostPairingSource.HostConnection);
 
         using var connectTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         connectTimeout.CancelAfter(TimeSpan.FromSeconds(5));
@@ -43,14 +51,34 @@ internal sealed class PairingSessionConnector
             return PairingConnectionAttempt.FromFailure("No connect response from host.");
         }
 
-        progress?.Report($"Host response: {connectResponse.Message}");
+        HostPairingProgressReporter.Report(
+            progress,
+            HostPairingProgressKind.Connection,
+            $"Host response: {connectResponse.Message}",
+            source: HostPairingSource.HostConnection,
+            reasonCode: connectResponse.Reason);
         if (!string.IsNullOrWhiteSpace(connectResponse.ReasonMessage))
         {
-            progress?.Report($"Reason: {connectResponse.ReasonMessage}");
+            HostPairingProgressReporter.Report(
+                progress,
+                HostPairingProgressKind.Connection,
+                $"Reason: {connectResponse.ReasonMessage}",
+                source: HostPairingSource.HostConnection,
+                reasonCode: connectResponse.Reason);
         }
 
-        progress?.Report($"Reason code: {connectResponse.Reason}");
-        progress?.Report($"Accepted: {connectResponse.Accepted}");
+        HostPairingProgressReporter.Report(
+            progress,
+            HostPairingProgressKind.Connection,
+            $"Reason code: {connectResponse.Reason}",
+            source: HostPairingSource.HostConnection,
+            reasonCode: connectResponse.Reason);
+        HostPairingProgressReporter.Report(
+            progress,
+            HostPairingProgressKind.Connection,
+            $"Accepted: {connectResponse.Accepted}",
+            source: HostPairingSource.HostConnection,
+            reasonCode: connectResponse.Reason);
 
         if (!connectResponse.Accepted)
         {
@@ -66,7 +94,11 @@ internal sealed class PairingSessionConnector
 
         var wsUri = new Uri(
             $"ws://{hostAddress}:{connectResponse.WebSocketPort}{connectResponse.WebSocketPath}?token={Uri.EscapeDataString(connectResponse.WebSocketToken)}");
-        progress?.Report($"Opening WebSocket: {wsUri}");
+        HostPairingProgressReporter.Report(
+            progress,
+            HostPairingProgressKind.Connection,
+            $"Opening WebSocket: {wsUri}",
+            source: HostPairingSource.Transport);
 
         var connectedSocket = await ConnectWebSocketWithRetryAsync(wsUri, cancellationToken);
         if (connectedSocket is null)
@@ -80,7 +112,12 @@ internal sealed class PairingSessionConnector
             helloTimeout.CancelAfter(TimeSpan.FromSeconds(10));
 
             var hostHello = await PairingSessionTransport.ReceiveTextAsync(connectedSocket, helloTimeout.Token);
-            progress?.Report($"WS <- {hostHello}");
+            HostPairingProgressReporter.Report(
+                progress,
+                HostPairingProgressKind.Transport,
+                $"WS <- {hostHello}",
+                isVerbose: true,
+                source: HostPairingSource.Transport);
 
             return PairingConnectionAttempt.FromSuccess(hostAddress!, connectResponse, hostHello, connectedSocket);
         }

@@ -18,7 +18,7 @@ internal sealed class PairingSessionAppStateStreamer : IDisposable
     }
 
     public async Task<OperationResult> StartAsync(
-        IProgress<string>? progress,
+        IProgress<HostPairingProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         if (!transport.IsOpen)
@@ -88,7 +88,7 @@ internal sealed class PairingSessionAppStateStreamer : IDisposable
         _ = SendAppStateIfNeededAsync(args.State, args.ChangedAtUtc, progress: null, CancellationToken.None);
     }
 
-    private Task<OperationResult> SendCurrentStateAsync(IProgress<string>? progress, CancellationToken cancellationToken)
+    private Task<OperationResult> SendCurrentStateAsync(IProgress<HostPairingProgressUpdate>? progress, CancellationToken cancellationToken)
     {
         return SendAppStateIfNeededAsync(
             Runtime.CurrentAppLifecycleState,
@@ -100,7 +100,7 @@ internal sealed class PairingSessionAppStateStreamer : IDisposable
     private async Task<OperationResult> SendAppStateIfNeededAsync(
         AppLifecycleState state,
         DateTimeOffset? changedAtUtc,
-        IProgress<string>? progress,
+        IProgress<HostPairingProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         bool isStarted;
@@ -149,7 +149,9 @@ internal sealed class PairingSessionAppStateStreamer : IDisposable
                 "Failed to send app state",
                 progress,
                 TimeSpan.FromSeconds(15),
-                cancellationToken);
+                cancellationToken,
+                HostPairingSource.AppState,
+                HostPairingProgressKind.AppState);
             if (result.Success)
             {
                 lock (stateLock)

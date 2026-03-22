@@ -8,15 +8,24 @@ namespace Ansight;
 public sealed record HostConnectionActionResult(
     bool Success,
     string Message,
-    OpenSessionResult? SessionResult = null)
+    OpenSessionResult? SessionResult = null,
+    HostPairingActionKind Kind = HostPairingActionKind.None,
+    HostPairingSource Source = HostPairingSource.None,
+    string? ReasonCode = null)
 {
     public static HostConnectionActionResult FromSuccess(
         string message,
-        OpenSessionResult? sessionResult = null)
-        => new(true, message, sessionResult);
+        OpenSessionResult? sessionResult = null,
+        HostPairingActionKind kind = HostPairingActionKind.None,
+        HostPairingSource source = HostPairingSource.None,
+        string? reasonCode = null)
+        => new(true, message, sessionResult, kind, source, reasonCode);
 
     public static HostConnectionActionResult FromFailure(
         string message,
-        OpenSessionResult? sessionResult = null)
-        => new(false, message, sessionResult);
+        OpenSessionResult? sessionResult = null,
+        HostPairingActionKind kind = HostPairingActionKind.None,
+        HostPairingSource source = HostPairingSource.None,
+        string? reasonCode = null)
+        => new(false, message, sessionResult, kind, source, reasonCode);
 }
