@@ -66,4 +66,29 @@ public sealed class PairingConfigDocumentServiceTests
         Assert.True(success, error);
         Assert.Equal(string.Empty, error);
     }
+
+    [Fact]
+    public void TryParseAndValidateDocument_WhenBootstrapDocumentIsExpired_ReturnsFalseAndNullDocument()
+    {
+        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var expiredConfig = PairingTestDocumentFactory.CreateSignedConfig(
+            signingKey,
+            appId: "com.ansight.test",
+            expiresAt: DateTimeOffset.UtcNow.AddMinutes(-5));
+        var expiredJson = PairingTestDocumentFactory.CreateBootstrapJson(
+            expiredConfig,
+            PairingTestDocumentFactory.CreateConnectionHint(expiresAt: DateTimeOffset.UtcNow.AddMinutes(-5)));
+
+        var sut = new PairingConfigDocumentService();
+
+        var success = sut.TryParseAndValidateDocument(
+            expiredJson,
+            "com.ansight.test",
+            out var document,
+            out var error);
+
+        Assert.False(success);
+        Assert.Null(document);
+        Assert.Contains("expired", error, StringComparison.OrdinalIgnoreCase);
+    }
 }

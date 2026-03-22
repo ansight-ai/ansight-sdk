@@ -27,7 +27,13 @@ internal sealed class PairingConfigDocumentService
             return false;
         }
 
-        return TryValidateDocument(document, expectedAppId, out error);
+        if (!TryValidateDocument(document, expectedAppId, out error))
+        {
+            document = null;
+            return false;
+        }
+
+        return true;
     }
 
     public bool TryParseAndValidateConfig(string configJson, string? expectedAppId, out PairingConfig? config, out string error)

@@ -1,10 +1,19 @@
 using System.Net;
+using System.Reflection;
 using System.Text.Json;
 
 namespace Ansight.Pairing;
 
-public sealed class PairingSessionClient : IDisposable
+public sealed class PairingSessionClient : IDisposable, IHostAutoProbeSessionClient
 {
+    private static readonly HashSet<string> CachedProfileResetReasonCodes = new(StringComparer.Ordinal)
+    {
+        "PairingRequired",
+        "PairingTokenInvalid",
+        "PairingTokenExpired",
+        "PairingProofInvalid"
+    };
+
     private readonly PairingConfigDocumentService configDocumentService = new();
     private readonly DeviceAppProfileResolver deviceAppProfileResolver;
     private readonly PairingSessionConnector connector;
@@ -12,14 +21,22 @@ public sealed class PairingSessionClient : IDisposable
     private readonly PairingSessionAppStateStreamer appStateStreamer;
     private readonly TelemetryStreamer telemetryStreamer;
     private readonly PairingSessionJpegStreamer jpegStreamer;
+    private readonly StoredPairingDocumentCache storedPairingDocumentCache;
     private bool disposed;
 
     public PairingSessionClient()
-        : this(deviceAppProfileProvider: null)
+        : this(deviceAppProfileProvider: null, storedPairingDocumentCache: null)
     {
     }
 
     public PairingSessionClient(IDeviceAppProfileProvider? deviceAppProfileProvider)
+        : this(deviceAppProfileProvider, storedPairingDocumentCache: null)
+    {
+    }
+
+    internal PairingSessionClient(
+        IDeviceAppProfileProvider? deviceAppProfileProvider,
+        StoredPairingDocumentCache? storedPairingDocumentCache)
     {
         var profileProvider = deviceAppProfileProvider ?? AutomaticDeviceAppProfileProvider.Instance;
 
@@ -29,9 +46,28 @@ public sealed class PairingSessionClient : IDisposable
         appStateStreamer = new PairingSessionAppStateStreamer(transport);
         telemetryStreamer = new TelemetryStreamer(transport);
         jpegStreamer = new PairingSessionJpegStreamer(transport);
+        this.storedPairingDocumentCache = storedPairingDocumentCache
+                                         ?? new StoredPairingDocumentCache(StoredPairingDocumentCache.ResolveCacheKey(profileProvider));
+        transport.Closed += HandleTransportClosed;
     }
 
     public static PairingSessionClientBuilder CreateBuilder() => new();
+
+    internal event EventHandler? SessionClosed;
+
+    internal bool IsSessionOpen => transport.IsOpen;
+
+    internal bool HasCachedPairingProfile => storedPairingDocumentCache.HasCachedDocument;
+
+    event EventHandler? IHostAutoProbeSessionClient.SessionClosed
+    {
+        add => SessionClosed += value;
+        remove => SessionClosed -= value;
+    }
+
+    bool IHostAutoProbeSessionClient.IsSessionOpen => IsSessionOpen;
+
+    bool IHostAutoProbeSessionClient.HasCachedPairingProfile => HasCachedPairingProfile;
 
     public bool TryParseAndValidateDocument(string configJson, string? expectedAppId, out ParsedPairingDocument? document, out string error)
         => configDocumentService.TryParseAndValidateDocument(configJson, expectedAppId, out document, out error);
@@ -143,6 +179,14 @@ public sealed class PairingSessionClient : IDisposable
             }
 
             await jpegStreamer.StartAsync(progress);
+            try
+            {
+                storedPairingDocumentCache.Save(CreateCachedDocument(document, connectionAttempt.HostAddress));
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning($"Failed to cache pairing profile for auto-probe: {ex.Message}");
+            }
 
             return OpenSessionResult.FromSuccess(
                 connectionAttempt.Message,
@@ -255,6 +299,58 @@ public sealed class PairingSessionClient : IDisposable
         return result;
     }
 
+    internal async Task<OpenSessionResult> OpenCachedSessionAsync(
+        string? clientName,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        var baselineProfile = deviceAppProfileResolver.Resolve(callerProfile: null);
+        var expectedAppId = deviceAppProfileResolver.ResolveExpectedAppId(baselineProfile);
+        if (!storedPairingDocumentCache.TryLoadValidated(expectedAppId, out var document, out var error) || document is null)
+        {
+            return OpenSessionResult.FromFailure(error);
+        }
+
+        var hostAddress = document.DiscoveryHint?.HostAddress?.Trim();
+        if (string.IsNullOrWhiteSpace(hostAddress))
+        {
+            storedPairingDocumentCache.Clear();
+            return OpenSessionResult.FromFailure("Cached pairing profile does not include a discovery host address and was cleared.");
+        }
+
+        var result = await OpenSessionAsync(
+            document,
+            ResolveClientName(clientName, baselineProfile),
+            new PairingConnectionOptions
+            {
+                DiscoveryMode = PairingDiscoveryMode.ConfiguredHint,
+                ManualHostAddress = hostAddress
+            },
+            progress,
+            cancellationToken);
+
+        if (!result.Success && ShouldClearCachedPairingProfile(result))
+        {
+            storedPairingDocumentCache.Clear();
+        }
+
+        return result;
+    }
+
+    internal void ClearCachedPairingProfile()
+    {
+        storedPairingDocumentCache.Clear();
+    }
+
+    Task<OpenSessionResult> IHostAutoProbeSessionClient.OpenCachedSessionAsync(
+        string? clientName,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+        => OpenCachedSessionAsync(clientName, progress, cancellationToken);
+
+    void IHostAutoProbeSessionClient.ClearCachedPairingProfile()
+        => ClearCachedPairingProfile();
+
     public void Dispose()
     {
         if (disposed)
@@ -263,6 +359,7 @@ public sealed class PairingSessionClient : IDisposable
         }
 
         disposed = true;
+        transport.Closed -= HandleTransportClosed;
         appStateStreamer.Dispose();
         telemetryStreamer.Dispose();
         jpegStreamer.Dispose();
@@ -272,6 +369,76 @@ public sealed class PairingSessionClient : IDisposable
         }
 
         transport.Dispose();
+    }
+
+    private void HandleTransportClosed(object? sender, EventArgs e)
+    {
+        SessionClosed?.Invoke(this, EventArgs.Empty);
+    }
+
+    internal static ParsedPairingDocument CreateCachedDocument(
+        ParsedPairingDocument document,
+        IPAddress? connectedHostAddress,
+        DateTimeOffset? capturedAt = null)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+
+        var hostAddress = connectedHostAddress?.ToString()?.Trim();
+        var existingDiscoveryHint = document.DiscoveryHint;
+        PairingDiscoveryHint? cachedDiscoveryHint = null;
+        if (existingDiscoveryHint is not null || !string.IsNullOrWhiteSpace(hostAddress))
+        {
+            cachedDiscoveryHint = new PairingDiscoveryHint
+            {
+                Schema = string.IsNullOrWhiteSpace(existingDiscoveryHint?.Schema)
+                    ? PairingDiscoveryHint.SchemaName
+                    : existingDiscoveryHint.Schema,
+                Source = existingDiscoveryHint?.Source ?? "live-session",
+                HostAddress = string.IsNullOrWhiteSpace(hostAddress)
+                    ? existingDiscoveryHint?.HostAddress
+                    : hostAddress,
+                HostName = existingDiscoveryHint?.HostName,
+                WifiName = existingDiscoveryHint?.WifiName,
+                CapturedAt = string.IsNullOrWhiteSpace(hostAddress)
+                    ? existingDiscoveryHint?.CapturedAt
+                    : capturedAt ?? DateTimeOffset.UtcNow
+            };
+        }
+
+        return new ParsedPairingDocument
+        {
+            Config = document.Config,
+            DiscoveryHint = cachedDiscoveryHint,
+            TrustAnchorConfig = document.TrustAnchorConfig,
+            ConnectionHint = document.ConnectionHint
+        };
+    }
+
+    private static bool ShouldClearCachedPairingProfile(OpenSessionResult result)
+    {
+        return !string.IsNullOrWhiteSpace(result.RejectionCode) &&
+               CachedProfileResetReasonCodes.Contains(result.RejectionCode);
+    }
+
+    private static string ResolveClientName(string? overrideClientName, DeviceAppProfile? deviceAppProfile)
+    {
+        if (!string.IsNullOrWhiteSpace(overrideClientName))
+        {
+            return overrideClientName.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(deviceAppProfile?.App?.AppName))
+        {
+            return deviceAppProfile.App.AppName.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(deviceAppProfile?.App?.AppId))
+        {
+            return deviceAppProfile.App.AppId.Trim();
+        }
+
+        return Assembly.GetEntryAssembly()?.GetName().Name?.Trim()
+               ?? "Ansight App";
     }
 }
 

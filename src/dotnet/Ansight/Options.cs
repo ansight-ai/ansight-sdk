@@ -22,7 +22,8 @@ public class Options
         AdditionalLogger = new ConsoleLogger(),
         EnableFramesPerSecond = true,
         Tools = ToolRegistry.Empty,
-        ToolGuard = ToolGuard.Disabled
+        ToolGuard = ToolGuard.Disabled,
+        HostAutoProbe = HostAutoProbeOptions.EnabledDefault.Clone()
     };
 
     /// <summary>
@@ -76,6 +77,11 @@ public class Options
     /// </summary>
     public ToolGuard ToolGuard { get; private set; } = ToolGuard.Disabled;
 
+    /// <summary>
+    /// Background host auto-probe policy used while the runtime is active.
+    /// </summary>
+    public HostAutoProbeOptions HostAutoProbe { get; private set; } = HostAutoProbeOptions.EnabledDefault.Clone();
+
     public void Validate()
     {
         if (SampleFrequencyMilliseconds > Constants.MaxSampleFrequencyMilliseconds)
@@ -115,6 +121,25 @@ public class Options
         Tools.Validate();
         ToolGuard = ToolGuard ?? ToolGuard.Disabled;
         ToolGuard.Validate();
+        HostAutoProbe ??= HostAutoProbeOptions.EnabledDefault.Clone();
+
+        if (HostAutoProbe.InitialDelay < TimeSpan.Zero)
+        {
+            Logger.Warning("The 'HostAutoProbe.InitialDelay' was negative. It has been coerced to zero.");
+            HostAutoProbe.InitialDelay = TimeSpan.Zero;
+        }
+
+        if (HostAutoProbe.ProbeInterval < TimeSpan.FromSeconds(1))
+        {
+            Logger.Warning("The 'HostAutoProbe.ProbeInterval' was below one second. It has been coerced to one second.");
+            HostAutoProbe.ProbeInterval = TimeSpan.FromSeconds(1);
+        }
+
+        if (HostAutoProbe.ReconnectDelay < TimeSpan.FromSeconds(1))
+        {
+            Logger.Warning("The 'HostAutoProbe.ReconnectDelay' was below one second. It has been coerced to one second.");
+            HostAutoProbe.ReconnectDelay = TimeSpan.FromSeconds(1);
+        }
 
         if (SessionJpegCapture is not null)
         {
@@ -183,7 +208,8 @@ public class Options
                         Quality = initialOptions.SessionJpegCapture.Quality,
                         MaxWidth = initialOptions.SessionJpegCapture.MaxWidth
                     },
-                ToolGuard = initialOptions.ToolGuard ?? ToolGuard.Disabled
+                ToolGuard = initialOptions.ToolGuard ?? ToolGuard.Disabled,
+                HostAutoProbe = initialOptions.HostAutoProbe?.Clone() ?? HostAutoProbeOptions.EnabledDefault.Clone()
             };
         }
 
@@ -385,6 +411,25 @@ public class Options
         public OptionsBuilder WithAllToolAccess()
         {
             options.ToolGuard = ToolGuard.FullAccess;
+            return this;
+        }
+
+        /// <summary>
+        /// Enables host auto-probe using the provided options or the package defaults when omitted.
+        /// </summary>
+        public OptionsBuilder WithHostAutoProbe(HostAutoProbeOptions? hostAutoProbe = null)
+        {
+            options.HostAutoProbe = (hostAutoProbe ?? HostAutoProbeOptions.EnabledDefault).Clone();
+            options.HostAutoProbe.Enabled = true;
+            return this;
+        }
+
+        /// <summary>
+        /// Disables host auto-probe.
+        /// </summary>
+        public OptionsBuilder WithoutHostAutoProbe()
+        {
+            options.HostAutoProbe = HostAutoProbeOptions.DisabledDefault.Clone();
             return this;
         }
 

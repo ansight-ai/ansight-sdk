@@ -12,15 +12,19 @@ internal sealed class PairingSessionTransport : IDisposable
     private CancellationTokenSource? receivePumpCts;
     private Task? receivePumpTask;
     private Channel<string>? incomingMessages;
+    private int closeNotificationState;
     private bool disposed;
 
     public bool IsOpen => webSocket is { State: WebSocketState.Open };
+
+    internal event EventHandler? Closed;
 
     public void Attach(ClientWebSocket webSocket)
     {
         ArgumentNullException.ThrowIfNull(webSocket);
 
         this.webSocket = webSocket;
+        Interlocked.Exchange(ref closeNotificationState, 0);
         StartReceivePump(webSocket);
     }
 
@@ -119,6 +123,7 @@ internal sealed class PairingSessionTransport : IDisposable
         var receivePumpCts = this.receivePumpCts;
         var receivePumpTask = this.receivePumpTask;
         var incomingMessages = this.incomingMessages;
+        var hadSession = webSocket is not null || receivePumpTask is not null || receivePumpCts is not null;
 
         this.webSocket = null;
         this.receivePumpCts = null;
@@ -132,6 +137,11 @@ internal sealed class PairingSessionTransport : IDisposable
             incomingMessages?.Writer.TryWrite("<close>");
             incomingMessages?.Writer.TryComplete();
             receivePumpCts?.Dispose();
+            if (hadSession)
+            {
+                NotifyClosed();
+            }
+
             return OperationResult.FromSuccess("Session already closed.");
         }
 
@@ -172,6 +182,10 @@ internal sealed class PairingSessionTransport : IDisposable
         receivePumpCts?.Dispose();
         incomingMessages?.Writer.TryWrite("<close>");
         incomingMessages?.Writer.TryComplete();
+        if (hadSession)
+        {
+            NotifyClosed();
+        }
 
         return OperationResult.FromSuccess("Session disconnected.");
     }
@@ -256,12 +270,14 @@ internal sealed class PairingSessionTransport : IDisposable
                 catch
                 {
                     await writer.WriteAsync("<close>", CancellationToken.None);
+                    NotifyClosed();
                     break;
                 }
 
                 if (string.Equals(message, "<close>", StringComparison.Ordinal))
                 {
                     await writer.WriteAsync(message, CancellationToken.None);
+                    NotifyClosed();
                     break;
                 }
 
@@ -349,5 +365,15 @@ internal sealed class PairingSessionTransport : IDisposable
         CancellationToken cancellationToken)
     {
         await webSocket.SendAsync(payload, messageType, WebSocketMessageFlags.EndOfMessage, cancellationToken);
+    }
+
+    private void NotifyClosed()
+    {
+        if (Interlocked.Exchange(ref closeNotificationState, 1) != 0)
+        {
+            return;
+        }
+
+        Closed?.Invoke(this, EventArgs.Empty);
     }
 }
