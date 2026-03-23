@@ -6,7 +6,7 @@ public sealed class PairingDiscoveryHint
 
     public required string Schema { get; set; } = SchemaName;
     public string? Source { get; set; }
-    public string? HostAddress { get; set; }
+    public string[]? HostAddresses { get; set; }
     public string? HostName { get; set; }
     public string? WifiName { get; set; }
     public DateTimeOffset? CapturedAt { get; set; }

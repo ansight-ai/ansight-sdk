@@ -88,6 +88,65 @@ internal static class QrDiscoveryPayloadJsonElementExtensions
         }
     }
 
+    public static bool TryReadOptionalStringArrayValue(
+        this JsonElement element,
+        IReadOnlyList<string> propertyNames,
+        out string[]? values)
+    {
+        values = null;
+        if (!element.TryGetPropertyValue(propertyNames, out var propertyValue))
+        {
+            return true;
+        }
+
+        switch (propertyValue.ValueKind)
+        {
+            case JsonValueKind.Null:
+            case JsonValueKind.Undefined:
+                return true;
+
+            case JsonValueKind.String:
+                var singleValue = propertyValue.GetString();
+                if (string.IsNullOrWhiteSpace(singleValue))
+                {
+                    return true;
+                }
+
+                values = new[] { singleValue };
+                return true;
+
+            case JsonValueKind.Array:
+                var parsedValues = new List<string>();
+                foreach (var item in propertyValue.EnumerateArray())
+                {
+                    switch (item.ValueKind)
+                    {
+                        case JsonValueKind.Null:
+                        case JsonValueKind.Undefined:
+                            continue;
+
+                        case JsonValueKind.String:
+                            var itemValue = item.GetString();
+                            if (!string.IsNullOrWhiteSpace(itemValue))
+                            {
+                                parsedValues.Add(itemValue);
+                            }
+
+                            continue;
+
+                        default:
+                            return false;
+                    }
+                }
+
+                values = parsedValues.Count == 0 ? null : parsedValues.ToArray();
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
     public static bool TryReadRequiredDateTimeOffsetValue(
         this JsonElement element,
         IReadOnlyList<string> propertyNames,

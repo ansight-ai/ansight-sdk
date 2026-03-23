@@ -6,12 +6,14 @@ namespace Ansight.Pairing;
 
 public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionClient
 {
-    private static readonly HashSet<string> CachedProfileResetReasonCodes = new(StringComparer.Ordinal)
+    private static readonly HashSet<string> CachedProfileResetCodes = new(StringComparer.Ordinal)
     {
         "PairingRequired",
         "PairingTokenInvalid",
         "PairingTokenExpired",
-        "PairingProofInvalid"
+        "PairingProofInvalid",
+        PairingFailureCodes.UdpBootstrapFailed,
+        PairingFailureCodes.UdpBootstrapTimeout
     };
 
     private readonly PairingConfigDocumentService configDocumentService = new();
@@ -161,9 +163,9 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         if (!connectionAttempt.Success)
         {
             return connectionAttempt.Accepted
-                ? OpenSessionResult.FromFailure(connectionAttempt.Message)
+                ? OpenSessionResult.FromFailure(connectionAttempt.Message, connectionAttempt.FailureCode)
                 : connectionAttempt.ConnectResponse is null || connectionAttempt.HostAddress is null
-                    ? OpenSessionResult.FromFailure(connectionAttempt.Message)
+                    ? OpenSessionResult.FromFailure(connectionAttempt.Message, connectionAttempt.FailureCode)
                     : OpenSessionResult.FromRejected(connectionAttempt.HostAddress, connectionAttempt.ConnectResponse);
         }
 
@@ -331,7 +333,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
             return OpenSessionResult.FromFailure(error);
         }
 
-        var hostAddress = document.DiscoveryHint?.HostAddress?.Trim();
+        var hostAddress = PairingDiscoveryHintHostAddresses.ResolvePrimary(document.DiscoveryHint);
         if (string.IsNullOrWhiteSpace(hostAddress))
         {
             storedPairingDocumentCache.Clear();
@@ -416,8 +418,11 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
 
         var hostAddress = connectedHostAddress?.ToString()?.Trim();
         var existingDiscoveryHint = document.DiscoveryHint;
+        var cachedHostAddresses = string.IsNullOrWhiteSpace(hostAddress)
+            ? PairingDiscoveryHintHostAddresses.Normalize(existingDiscoveryHint)
+            : new[] { hostAddress };
         PairingDiscoveryHint? cachedDiscoveryHint = null;
-        if (existingDiscoveryHint is not null || !string.IsNullOrWhiteSpace(hostAddress))
+        if (existingDiscoveryHint is not null || cachedHostAddresses.Length > 0)
         {
             cachedDiscoveryHint = new PairingDiscoveryHint
             {
@@ -425,9 +430,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
                     ? PairingDiscoveryHint.SchemaName
                     : existingDiscoveryHint.Schema,
                 Source = existingDiscoveryHint?.Source ?? "live-session",
-                HostAddress = string.IsNullOrWhiteSpace(hostAddress)
-                    ? existingDiscoveryHint?.HostAddress
-                    : hostAddress,
+                HostAddresses = cachedHostAddresses.Length == 0 ? null : cachedHostAddresses,
                 HostName = existingDiscoveryHint?.HostName,
                 WifiName = existingDiscoveryHint?.WifiName,
                 CapturedAt = string.IsNullOrWhiteSpace(hostAddress)
@@ -445,10 +448,43 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         };
     }
 
+    internal static ParsedPairingDocument CreatePreferredDocument(ParsedPairingDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+
+        var existingDiscoveryHint = document.DiscoveryHint;
+        PairingDiscoveryHint? preferredDiscoveryHint = null;
+        if (existingDiscoveryHint is not null)
+        {
+            preferredDiscoveryHint = new PairingDiscoveryHint
+            {
+                Schema = string.IsNullOrWhiteSpace(existingDiscoveryHint.Schema)
+                    ? PairingDiscoveryHint.SchemaName
+                    : existingDiscoveryHint.Schema,
+                Source = existingDiscoveryHint.Source,
+                HostAddresses = null,
+                HostName = existingDiscoveryHint.HostName,
+                WifiName = existingDiscoveryHint.WifiName,
+                CapturedAt = existingDiscoveryHint.CapturedAt
+            };
+        }
+
+        return new ParsedPairingDocument
+        {
+            Config = document.Config,
+            DiscoveryHint = preferredDiscoveryHint,
+            TrustAnchorConfig = document.TrustAnchorConfig,
+            ConnectionHint = document.ConnectionHint
+        };
+    }
+
     private static bool ShouldClearCachedPairingProfile(OpenSessionResult result)
     {
-        return !string.IsNullOrWhiteSpace(result.RejectionCode) &&
-               CachedProfileResetReasonCodes.Contains(result.RejectionCode);
+        var resetCode = string.IsNullOrWhiteSpace(result.RejectionCode)
+            ? result.FailureCode
+            : result.RejectionCode;
+        return !string.IsNullOrWhiteSpace(resetCode) &&
+               CachedProfileResetCodes.Contains(resetCode);
     }
 
     private static string ResolveClientName(string? overrideClientName, DeviceAppProfile? deviceAppProfile)
@@ -479,9 +515,10 @@ public sealed record OpenSessionResult(
     string Message,
     IPAddress? HostAddress,
     ConnectResponse? ConnectResponse,
-    string? HostHello)
+    string? HostHello,
+    string? FailureCode = null)
 {
-    public static OpenSessionResult FromFailure(string message) => new(false, false, message, null, null, null);
+    public static OpenSessionResult FromFailure(string message, string? failureCode = null) => new(false, false, message, null, null, null, failureCode);
 
     public string? RejectionCode => Accepted ? null : ConnectResponse?.Reason;
 
@@ -490,14 +527,14 @@ public sealed record OpenSessionResult(
         : FirstNonEmpty(ConnectResponse?.ReasonMessage, ConnectResponse?.Message, Message);
 
     public static OpenSessionResult FromRejected(IPAddress hostAddress, ConnectResponse connectResponse) =>
-        new(false, false, FirstNonEmpty(connectResponse.ReasonMessage, connectResponse.Message, "Host rejected the connection request."), hostAddress, connectResponse, null);
+        new(false, false, FirstNonEmpty(connectResponse.ReasonMessage, connectResponse.Message, "Host rejected the connection request."), hostAddress, connectResponse, null, null);
 
     public static OpenSessionResult FromSuccess(
         string message,
         IPAddress hostAddress,
         ConnectResponse connectResponse,
         string hostHello) =>
-        new(true, true, message, hostAddress, connectResponse, hostHello);
+        new(true, true, message, hostAddress, connectResponse, hostHello, null);
 
     private static string FirstNonEmpty(params string?[] values)
     {

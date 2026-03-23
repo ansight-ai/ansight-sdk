@@ -154,34 +154,66 @@ struct AnsightBuildToolMain {
     }
 
     private static func makeDiscoveryHint() -> [String: Any] {
+        let hostAddresses = preferredHostAddresses()
         [
             "schema": "ansight.discovery-hint.v1",
             "source": "developer-pairing-swiftpm",
-            "hostAddress": preferredHostAddress() as Any,
+            "hostAddresses": hostAddresses,
             "hostName": shell("hostname")?.trimmingCharacters(in: .whitespacesAndNewlines) as Any,
             "wifiName": currentWifiName() as Any,
             "capturedAt": makeTimestamp(),
         ]
     }
 
-    private static func preferredHostAddress() -> String? {
-        if let wifiDevice = shell(#"networksetup -listallhardwareports | awk '/Wi-Fi|AirPort/{getline; print $2; exit}'"#)?
+    private static func preferredHostAddresses() -> [String] {
+        let wifiDevice = shell(#"networksetup -listallhardwareports | awk '/Wi-Fi|AirPort/{getline; print $2; exit}'"#)?
             .trimmingCharacters(in: .whitespacesAndNewlines),
-            !wifiDevice.isEmpty,
-            let wifiAddress = shell("ipconfig getifaddr \(wifiDevice)")?.trimmingCharacters(in: .whitespacesAndNewlines),
-            !wifiAddress.isEmpty {
-            return wifiAddress
+        let defaultDevice = shell(#"route -n get default | awk '/interface:/{print $2; exit}'"#)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        var hostAddresses: [String] = []
+        if let defaultDevice, !defaultDevice.isEmpty {
+            appendInterfaceAddresses(for: defaultDevice, to: &hostAddresses)
         }
 
-        if let defaultDevice = shell(#"route -n get default | awk '/interface:/{print $2; exit}'"#)?
-            .trimmingCharacters(in: .whitespacesAndNewlines),
-            !defaultDevice.isEmpty,
-            let address = shell("ipconfig getifaddr \(defaultDevice)")?.trimmingCharacters(in: .whitespacesAndNewlines),
-            !address.isEmpty {
-            return address
+        if let wifiDevice, !wifiDevice.isEmpty, wifiDevice != defaultDevice {
+            appendInterfaceAddresses(for: wifiDevice, to: &hostAddresses)
         }
 
-        return nil
+        return hostAddresses
+    }
+
+    private static func appendInterfaceAddresses(for device: String, to hostAddresses: inout [String]) {
+        guard let rawAddresses = shell("""
+            ifconfig \(device) 2>/dev/null | awk '
+              /^[[:space:]]*inet / {
+                address = $2
+                if (address != "127.0.0.1" && address !~ /^169\\.254\\./) {
+                  print address
+                }
+              }
+              /^[[:space:]]*inet6 / {
+                address = $2
+                sub(/%.*/, "", address)
+                lower = tolower(address)
+                if (lower != "::1" && lower !~ /^fe80:/) {
+                  print address
+                }
+              }
+            '
+            """) else {
+            return
+        }
+
+        rawAddresses
+            .split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .forEach { address in
+                if !hostAddresses.contains(where: { $0.caseInsensitiveCompare(address) == .orderedSame }) {
+                    hostAddresses.append(address)
+                }
+            }
     }
 
     private static func currentWifiName() -> String? {

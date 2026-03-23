@@ -33,7 +33,7 @@ public sealed class StoredPairingDocumentCacheTests
             Assert.NotNull(loadedDocument);
             Assert.Equal(document!.Config.ConfigId, loadedDocument!.Config.ConfigId);
             Assert.Equal(document.Config.OneTimeToken, loadedDocument.Config.OneTimeToken);
-            Assert.Equal(document.DiscoveryHint?.HostAddress, loadedDocument.DiscoveryHint?.HostAddress);
+            Assert.Equal(document.DiscoveryHint?.HostAddresses, loadedDocument.DiscoveryHint?.HostAddresses);
             Assert.Equal(document.ConnectionHint?.ConfigId, loadedDocument.ConnectionHint?.ConfigId);
             Assert.Equal(document.TrustAnchorConfig?.ConfigId, loadedDocument.TrustAnchorConfig?.ConfigId);
         }

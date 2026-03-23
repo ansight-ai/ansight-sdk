@@ -125,6 +125,11 @@ internal sealed class PairingConfigDocumentService
                     return false;
                 }
 
+                if (bootstrap.Discovery is not null)
+                {
+                    PairingDiscoveryHintHostAddresses.NormalizeInPlace(bootstrap.Discovery);
+                }
+
                 var effectiveConfig = bootstrap.ConnectionHint is null
                     ? bootstrap.PairingConfig
                     : ApplyConnectionHint(bootstrap.PairingConfig, bootstrap.ConnectionHint);

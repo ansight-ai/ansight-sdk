@@ -272,7 +272,7 @@ internal sealed class HostConnectionManager : IHostConnection, IHostAutoProbeSes
                     openResult,
                     actionKind,
                     actionSource,
-                    openResult.RejectionCode);
+                    openResult.RejectionCode ?? openResult.FailureCode);
             }
 
             activeSessionResult = openResult;
@@ -290,7 +290,7 @@ internal sealed class HostConnectionManager : IHostConnection, IHostAutoProbeSes
                     openResult,
                     actionKind,
                     actionSource,
-                    openResult.RejectionCode);
+                    openResult.RejectionCode ?? openResult.FailureCode);
             }
 
             LastDisconnectedAtUtc = null;
@@ -300,7 +300,7 @@ internal sealed class HostConnectionManager : IHostConnection, IHostAutoProbeSes
                 openResult,
                 actionKind,
                 actionSource,
-                openResult.RejectionCode);
+                openResult.RejectionCode ?? openResult.FailureCode);
         }
         catch (OperationCanceledException)
         {

@@ -16,7 +16,9 @@ internal sealed class PairingSessionConnector
     {
         if (!TryResolveManualHostAddress(options?.ManualHostAddress, out var hostAddress))
         {
-            return PairingConnectionAttempt.FromFailure("Manual pairing requires a valid host IP address.");
+            return PairingConnectionAttempt.FromFailure(
+                "A current host address is required. Import a fresh Studio QR code or enter the host IP manually.",
+                PairingFailureCodes.HostAddressRequired);
         }
 
         var discoveryMode = options?.DiscoveryMode ?? PairingDiscoveryMode.ConfiguredHint;
@@ -43,12 +45,16 @@ internal sealed class PairingSessionConnector
         }
         catch (SocketException ex)
         {
-            return PairingConnectionAttempt.FromFailure($"UDP connect failed: {ex.Message}");
+            return PairingConnectionAttempt.FromFailure(
+                $"UDP connect failed: {ex.Message}",
+                PairingFailureCodes.UdpBootstrapFailed);
         }
 
         if (connectResponse is null)
         {
-            return PairingConnectionAttempt.FromFailure("No connect response from host.");
+            return PairingConnectionAttempt.FromFailure(
+                "No connect response from host. The remembered host address may be stale. Import a fresh Studio QR code or enter the host IP manually.",
+                PairingFailureCodes.UdpBootstrapTimeout);
         }
 
         HostPairingProgressReporter.Report(
@@ -89,11 +95,16 @@ internal sealed class PairingSessionConnector
             string.IsNullOrWhiteSpace(connectResponse.WebSocketPath) ||
             string.IsNullOrWhiteSpace(connectResponse.WebSocketToken))
         {
-            return PairingConnectionAttempt.FromFailure("Host did not provide a WebSocket handoff.");
+            return PairingConnectionAttempt.FromFailure(
+                "Host did not provide a WebSocket handoff.",
+                PairingFailureCodes.WebSocketHandoffUnavailable);
         }
 
-        var wsUri = new Uri(
-            $"ws://{hostAddress}:{connectResponse.WebSocketPort}{connectResponse.WebSocketPath}?token={Uri.EscapeDataString(connectResponse.WebSocketToken)}");
+        var wsUri = BuildWebSocketUri(
+            hostAddress!,
+            connectResponse.WebSocketPort.Value,
+            connectResponse.WebSocketPath,
+            connectResponse.WebSocketToken);
         HostPairingProgressReporter.Report(
             progress,
             HostPairingProgressKind.Connection,
@@ -103,7 +114,9 @@ internal sealed class PairingSessionConnector
         var connectedSocket = await ConnectWebSocketWithRetryAsync(wsUri, cancellationToken);
         if (connectedSocket is null)
         {
-            return PairingConnectionAttempt.FromFailure("WebSocket endpoint did not become reachable in time.");
+            return PairingConnectionAttempt.FromFailure(
+                "WebSocket endpoint did not become reachable in time.",
+                PairingFailureCodes.WebSocketEndpointUnreachable);
         }
 
         try
@@ -124,7 +137,9 @@ internal sealed class PairingSessionConnector
         catch (Exception ex)
         {
             connectedSocket.Dispose();
-            return PairingConnectionAttempt.FromFailure($"WebSocket handshake failed: {ex.Message}");
+            return PairingConnectionAttempt.FromFailure(
+                $"WebSocket handshake failed: {ex.Message}",
+                PairingFailureCodes.WebSocketHandshakeFailed);
         }
     }
 
@@ -174,7 +189,7 @@ internal sealed class PairingSessionConnector
         IPAddress hostAddress,
         CancellationToken cancellationToken)
     {
-        using var udpClient = new UdpClient(0);
+        using var udpClient = new UdpClient(hostAddress.AddressFamily);
 
         var request = new ConnectRequest
         {
@@ -223,6 +238,16 @@ internal sealed class PairingSessionConnector
         return null;
     }
 
+    private static Uri BuildWebSocketUri(IPAddress hostAddress, int port, string path, string token)
+    {
+        var builder = new UriBuilder(Uri.UriSchemeWs, hostAddress.ToString(), port)
+        {
+            Path = path,
+            Query = $"token={Uri.EscapeDataString(token)}"
+        };
+        return builder.Uri;
+    }
+
     private static bool TryResolveManualHostAddress(string? manualHostAddress, out IPAddress? hostAddress)
     {
         hostAddress = null;
@@ -242,18 +267,19 @@ internal sealed record PairingConnectionAttempt(
     IPAddress? HostAddress,
     ConnectResponse? ConnectResponse,
     string? HostHello,
-    ClientWebSocket? WebSocket)
+    ClientWebSocket? WebSocket,
+    string? FailureCode)
 {
-    public static PairingConnectionAttempt FromFailure(string message)
-        => new(false, false, message, null, null, null, null);
+    public static PairingConnectionAttempt FromFailure(string message, string? failureCode = null)
+        => new(false, false, message, null, null, null, null, failureCode);
 
     public static PairingConnectionAttempt FromRejected(IPAddress hostAddress, ConnectResponse connectResponse)
-        => new(false, false, connectResponse.ReasonMessage ?? connectResponse.Message, hostAddress, connectResponse, null, null);
+        => new(false, false, connectResponse.ReasonMessage ?? connectResponse.Message, hostAddress, connectResponse, null, null, null);
 
     public static PairingConnectionAttempt FromSuccess(
         IPAddress hostAddress,
         ConnectResponse connectResponse,
         string hostHello,
         ClientWebSocket webSocket)
-        => new(true, true, "Connected to host and WebSocket session is ready.", hostAddress, connectResponse, hostHello, webSocket);
+        => new(true, true, "Connected to host and WebSocket session is ready.", hostAddress, connectResponse, hostHello, webSocket, null);
 }

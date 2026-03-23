@@ -145,7 +145,7 @@ public sealed class HostConnectionManagerTests
             {
                 Schema = PairingDiscoveryHint.SchemaName,
                 Source = "unit-test",
-                HostAddress = "127.0.0.1"
+                HostAddresses = new[] { "127.0.0.1" }
             }
         };
     }

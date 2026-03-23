@@ -432,7 +432,10 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
             actionKind);
         if (allowBundledRetry && ShouldRetryWithBundledProfile(connectResult, preferredDocument.Source))
         {
-            return await ConnectUsingBundledProfileCoreAsync(clientName, progress, cancellationToken, actionKind);
+            var bundledResult = await ConnectUsingBundledProfileCoreAsync(clientName, progress, cancellationToken, actionKind);
+            return bundledResult.Success || bundledResult.Source != HostPairingSource.None
+                ? bundledResult
+                : ToPairingResult(connectResult, actionKind);
         }
 
         return ToPairingResult(connectResult, actionKind);
@@ -569,8 +572,21 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
             return Task.FromResult(ResolvedPairingDocument.FromFailure(clearedError));
         }
 
+        var preferredDocument = PairingSessionClient.CreatePreferredDocument(document);
+        if (HasStoredHostAddress(document))
+        {
+            try
+            {
+                preferredProfileStore.Save(preferredDocument);
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning($"Failed to rewrite the saved Ansight pairing profile without a remembered host address: {ex.Message}");
+            }
+        }
+
         return Task.FromResult(ResolvedPairingDocument.FromSuccess(
-            document,
+            preferredDocument,
             "Using saved pairing profile.",
             HostPairingSource.StoredProfile));
     }
@@ -654,7 +670,7 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
 
         try
         {
-            preferredProfileStore.Save(resolvedDocument.Document);
+            preferredProfileStore.Save(PairingSessionClient.CreatePreferredDocument(resolvedDocument.Document));
         }
         catch (Exception ex)
         {
@@ -663,19 +679,22 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
 
         LogPairingExpectation(resolvedDocument.Document);
 
-        var manualHostAddress = string.IsNullOrWhiteSpace(resolvedDocument.Document.DiscoveryHint?.HostAddress)
-            ? null
-            : resolvedDocument.Document.DiscoveryHint.HostAddress.Trim();
-        var discoveryMode = string.IsNullOrWhiteSpace(manualHostAddress)
-            ? PairingDiscoveryMode.ConfiguredHint
-            : PairingDiscoveryMode.BasicManual;
+        var manualHostAddress = PairingDiscoveryHintHostAddresses.ResolvePrimary(resolvedDocument.Document.DiscoveryHint);
+        if (string.IsNullOrWhiteSpace(manualHostAddress))
+        {
+            return HostConnectionActionResult.FromFailure(
+                "A current Ansight host address is required. Import a fresh Studio QR code or enter the host IP manually.",
+                kind: actionKind,
+                source: resolvedDocument.Source,
+                reasonCode: PairingFailureCodes.HostAddressRequired);
+        }
 
         var connectResult = await hostConnection.ConnectAsync(
             resolvedDocument.Document,
             clientName,
             new PairingConnectionOptions
             {
-                DiscoveryMode = discoveryMode,
+                DiscoveryMode = PairingDiscoveryMode.BasicManual,
                 ManualHostAddress = manualHostAddress
             },
             progress,
@@ -688,7 +707,7 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
         };
         if (!connectResult.Success && resolvedDocument.Source == HostPairingSource.StoredProfile)
         {
-            var rejectionCode = connectResult.SessionResult?.RejectionCode;
+            var rejectionCode = connectResult.ReasonCode;
             if (!string.IsNullOrWhiteSpace(rejectionCode) &&
                 StoredProfileResetReasonCodes.Contains(rejectionCode))
             {
@@ -713,11 +732,12 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
         HostConnectionActionResult connectResult,
         HostPairingSource source)
     {
-        var rejectionCode = connectResult.SessionResult?.RejectionCode;
+        var rejectionCode = connectResult.ReasonCode;
         return !connectResult.Success &&
                source == HostPairingSource.StoredProfile &&
                !string.IsNullOrWhiteSpace(rejectionCode) &&
-               StoredProfileResetReasonCodes.Contains(rejectionCode);
+               (StoredProfileResetReasonCodes.Contains(rejectionCode) ||
+                string.Equals(rejectionCode, PairingFailureCodes.HostAddressRequired, StringComparison.Ordinal));
     }
 
     private async Task<bool> ResolveBundledProfileAvailabilityAsync(CancellationToken cancellationToken)
@@ -823,7 +843,7 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
 
     private static void LogPairingExpectation(ParsedPairingDocument document)
     {
-        var expectedHostAddress = FirstNonEmpty(document.DiscoveryHint?.HostAddress);
+        var expectedHostAddress = PairingDiscoveryHintHostAddresses.ResolvePrimary(document.DiscoveryHint);
         var expectedWifiName = FirstNonEmpty(document.DiscoveryHint?.WifiName);
         var expectedHostName = FirstNonEmpty(document.DiscoveryHint?.HostName, document.Config.Host.HostName);
         var discoveryPort = document.Config.Host.DiscoveryPort;
@@ -846,6 +866,11 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
         }
 
         return null;
+    }
+
+    private static bool HasStoredHostAddress(ParsedPairingDocument document)
+    {
+        return !string.IsNullOrWhiteSpace(PairingDiscoveryHintHostAddresses.ResolvePrimary(document.DiscoveryHint));
     }
 
     private static string DescribeSource(HostPairingSource source)

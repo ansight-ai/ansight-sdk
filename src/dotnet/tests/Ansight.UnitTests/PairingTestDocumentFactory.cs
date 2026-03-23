@@ -84,16 +84,18 @@ internal static class PairingTestDocumentFactory
 
     public static PairingDiscoveryHint CreateDiscoveryHint(
         string hostAddress = "127.0.0.1",
+        string[]? hostAddresses = null,
         string? hostName = "test-host",
         string? wifiName = null,
         string? source = "unit-test",
         DateTimeOffset? capturedAt = null)
     {
+        var resolvedHostAddresses = hostAddresses ?? new[] { hostAddress };
         return new PairingDiscoveryHint
         {
             Schema = PairingDiscoveryHint.SchemaName,
             Source = source,
-            HostAddress = hostAddress,
+            HostAddresses = resolvedHostAddresses,
             HostName = hostName,
             WifiName = wifiName,
             CapturedAt = capturedAt ?? DateTimeOffset.UtcNow

@@ -15,12 +15,12 @@ public static partial class QrDiscoveryPayload
     private static readonly string[] challengeAlgPropertyNames = ["alg", "a"];
     private static readonly string[] challengePubKeyPropertyNames = ["challengePubKey", "cpk", "pk", "pubKey"];
     private static readonly string[] requireProofPropertyNames = ["requireProofOnFirstPair", "requireProof", "proof", "rp"];
-    private static readonly string[] hostAddressPropertyNames = ["hostAddress", "ha", "ip", "addr", "address"];
+    private static readonly string[] hostAddressesPropertyNames = ["hostAddresses", "has", "ips", "addresses"];
     private static readonly string[] hostNamePropertyNames = ["hostName", "hn", "name"];
     private static readonly string[] wifiNamePropertyNames = ["wifiName", "wn", "wifi", "ssid"];
     private static readonly string[] capturedAtPropertyNames = ["capturedAt", "ca", "captured", "ts"];
     private static readonly string[] minifiedConnectionSignalPropertyNames = ["ci", "ia", "iat", "ea", "exp", "ot", "ch", "cpk", "pk", "rp"];
-    private static readonly string[] minifiedDiscoverySignalPropertyNames = ["ha", "hn", "wn", "ca", "ts"];
+    private static readonly string[] minifiedDiscoverySignalPropertyNames = ["has", "ips", "hn", "wn", "ca", "ts"];
 
     private static bool TryParseMinifiedConnectionPayload(string payload, out PairingQrConnectionPayload? connectionPayload)
     {
@@ -161,7 +161,7 @@ public static partial class QrDiscoveryPayload
         discoveryHint = null;
         if (!TryParseOptionalDiscoveryHint(candidate, root, fallbackSource, out var parsedDiscoveryHint) ||
             parsedDiscoveryHint is null ||
-            string.IsNullOrWhiteSpace(parsedDiscoveryHint.HostAddress))
+            string.IsNullOrWhiteSpace(PairingDiscoveryHintHostAddresses.ResolvePrimary(parsedDiscoveryHint)))
         {
             return false;
         }
@@ -182,7 +182,7 @@ public static partial class QrDiscoveryPayload
             return false;
         }
 
-        if (!candidate.TryReadOptionalStringValue(hostAddressPropertyNames, out var hostAddress) ||
+        if (!candidate.TryReadOptionalStringArrayValue(hostAddressesPropertyNames, out var hostAddresses) ||
             !candidate.TryReadOptionalStringValue(hostNamePropertyNames, out var hostName) ||
             !candidate.TryReadOptionalStringValue(wifiNamePropertyNames, out var wifiName) ||
             !candidate.TryReadOptionalDateTimeOffsetValue(capturedAtPropertyNames, out var capturedAt) ||
@@ -193,7 +193,8 @@ public static partial class QrDiscoveryPayload
         }
 
         var source = FirstNonEmpty(candidateSource, rootSource, fallbackSource);
-        if (string.IsNullOrWhiteSpace(hostAddress) &&
+        var normalizedHostAddresses = PairingDiscoveryHintHostAddresses.Normalize(hostAddresses);
+        if (normalizedHostAddresses.Length == 0 &&
             string.IsNullOrWhiteSpace(hostName) &&
             string.IsNullOrWhiteSpace(wifiName) &&
             capturedAt is null &&
@@ -206,7 +207,7 @@ public static partial class QrDiscoveryPayload
         {
             Schema = PairingDiscoveryHint.SchemaName,
             Source = source,
-            HostAddress = hostAddress,
+            HostAddresses = normalizedHostAddresses.Length == 0 ? null : normalizedHostAddresses,
             HostName = hostName,
             WifiName = wifiName,
             CapturedAt = capturedAt

@@ -29,6 +29,7 @@ public static class PairingCodeGenerator
 
         var discovery = payload.Discovery;
         var source = payload.Connection.Source ?? discovery?.Source;
+        var hostAddresses = PairingDiscoveryHintHostAddresses.Normalize(discovery);
         var lines = new List<string>
         {
             FormatPrefix,
@@ -39,7 +40,7 @@ public static class PairingCodeGenerator
             Escape(payload.Connection.Challenge.Alg),
             payload.Connection.Challenge.RequireProofOnFirstPair ? "1" : "0",
             Escape(payload.Connection.Challenge.ChallengePubKey),
-            Escape(discovery?.HostAddress),
+            EscapeHostAddresses(hostAddresses),
             Escape(discovery?.HostName),
             Escape(discovery?.WifiName),
             discovery?.CapturedAt is DateTimeOffset capturedAt
@@ -76,7 +77,7 @@ public static class PairingCodeGenerator
             || !TryUnescapeRequired(fields, 5, out var challengeAlg)
             || !TryParseProofFlag(fields, 6, out var requireProofOnFirstPair)
             || !TryUnescapeRequired(fields, 7, out var challengePubKey)
-            || !TryUnescapeRequired(fields, 8, out var hostAddress))
+            || !TryUnescapeRequired(fields, 8, out var rawHostAddresses))
         {
             return false;
         }
@@ -88,6 +89,8 @@ public static class PairingCodeGenerator
         {
             return false;
         }
+
+        var hostAddresses = ParseHostAddresses(rawHostAddresses);
 
         connectionPayload = new PairingQrConnectionPayload
         {
@@ -111,7 +114,7 @@ public static class PairingCodeGenerator
             {
                 Schema = PairingDiscoveryHint.SchemaName,
                 Source = source,
-                HostAddress = hostAddress,
+                HostAddresses = hostAddresses.Length == 0 ? null : hostAddresses,
                 HostName = hostName,
                 WifiName = wifiName,
                 CapturedAt = capturedAt
@@ -132,6 +135,21 @@ public static class PairingCodeGenerator
             .Replace("\\", "\\\\", StringComparison.Ordinal)
             .Replace("\n", "\\n", StringComparison.Ordinal)
             .Replace("\r", "\\r", StringComparison.Ordinal);
+    }
+
+    private static string EscapeHostAddresses(IReadOnlyList<string> hostAddresses)
+    {
+        return hostAddresses.Count == 0
+            ? string.Empty
+            : string.Join('|', hostAddresses.Select(Escape));
+    }
+
+    private static string[] ParseHostAddresses(string? rawHostAddresses)
+    {
+        var parsedHostAddresses = string.IsNullOrWhiteSpace(rawHostAddresses)
+            ? Array.Empty<string>()
+            : rawHostAddresses.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return PairingDiscoveryHintHostAddresses.Normalize(parsedHostAddresses);
     }
 
     private static bool TryUnescapeRequired(IReadOnlyList<string> fields, int index, out string value)

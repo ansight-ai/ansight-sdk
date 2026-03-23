@@ -64,11 +64,11 @@ public sealed class HostPairingManagerTests
         Assert.Equal("token-override", connectedDocument.Config.OneTimeToken);
         Assert.Equal("challenge-override", connectedDocument.Config.Challenge.ChallengePubKey);
         Assert.Equal("cfg-base", connectedDocument.TrustAnchorConfig?.ConfigId);
-        Assert.Equal("10.0.0.25", connectedDocument.DiscoveryHint?.HostAddress);
+        Assert.Equal(new[] { "10.0.0.25" }, connectedDocument.DiscoveryHint?.HostAddresses);
     }
 
     [Fact]
-    public async Task ConnectUsingStoredProfileAsync_WhenStoredProfileIsRejectedWithResetCode_RetriesBundledProfile()
+    public async Task ConnectUsingStoredProfileAsync_WhenStoredProfileNeedsAFreshHostAddress_FallsBackToBundledProfile()
     {
         var preferredProfilePath = CreateTempFilePath();
         using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
@@ -76,7 +76,6 @@ public sealed class HostPairingManagerTests
         var bundledDocument = CreateDocument(signingKey, configId: "cfg-bundled", hostAddress: "192.168.1.20");
 
         using var hostConnection = new FakeHostConnection();
-        hostConnection.ConnectResults.Enqueue(CreateRejectedConnectionResult("PairingTokenExpired", "Saved token expired."));
         hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using bundled profile."));
         using var manager = CreateManager(
             hostConnection,
@@ -90,10 +89,36 @@ public sealed class HostPairingManagerTests
         var result = await manager.ConnectUsingStoredProfileAsync();
 
         Assert.True(result.Success);
-        Assert.Equal(2, hostConnection.ConnectDocuments.Count);
-        Assert.Equal("cfg-preferred", hostConnection.ConnectDocuments[0].Config.ConfigId);
-        Assert.Equal("cfg-bundled", hostConnection.ConnectDocuments[1].Config.ConfigId);
+        var connectedDocument = Assert.Single(hostConnection.ConnectDocuments);
+        Assert.Equal("cfg-bundled", connectedDocument.Config.ConfigId);
         Assert.True(manager.HasPreferredProfile);
+    }
+
+    [Fact]
+    public async Task ConnectUsingStoredProfileAsync_WhenStoredProfileContainsRememberedHostAddress_RewritesItWithoutTheAddress()
+    {
+        var preferredProfilePath = CreateTempFilePath();
+        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var preferredDocument = CreateDocument(signingKey, configId: "cfg-preferred", hostAddress: "192.168.1.10");
+
+        using var hostConnection = new FakeHostConnection();
+        using var manager = CreateManager(hostConnection, preferredProfilePath);
+        SavePreferredProfile(preferredProfilePath, preferredDocument);
+
+        var result = await manager.ConnectUsingStoredProfileAsync();
+
+        Assert.False(result.Success);
+        Assert.Equal(PairingFailureCodes.HostAddressRequired, result.ReasonCode);
+        Assert.Empty(hostConnection.ConnectDocuments);
+
+        var store = new StoredHostPairingProfileStore("unit-test", preferredProfilePath);
+        Assert.True(store.TryLoad(out var storedJson, out var error), error);
+
+        var documentService = new PairingConfigDocumentService();
+        Assert.True(documentService.TryParseAndValidateDocument(storedJson!, "com.ansight.test", out var storedDocument, out error), error);
+        Assert.NotNull(storedDocument);
+        Assert.NotNull(storedDocument!.DiscoveryHint);
+        Assert.Null(storedDocument.DiscoveryHint.HostAddresses);
     }
 
     [Fact]
