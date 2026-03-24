@@ -13,7 +13,7 @@ public sealed class SetSecureStorageValueTool : ITool
 
     public ToolScope Scope => ToolScope.Write;
 
-    public string Id => "secure.set_value";
+    public string Id => SecureStorageToolIds.SetValue;
 
     public string Name => "Set Secure Storage Value";
 
@@ -24,6 +24,8 @@ public sealed class SetSecureStorageValueTool : ITool
     public ToolSchema ArgumentsSchema => SecureStorageToolSchemas.SetValueArguments;
 
     public ToolSchema ResultSchema => SecureStorageToolSchemas.SetValueResult;
+
+    public ToolSecurity Security => SecureStorageToolSecurityProfiles.SetValue;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

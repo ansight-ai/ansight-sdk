@@ -6,7 +6,7 @@ public sealed class GetVisualTreeTool : ITool
 
     public ToolScope Scope => ToolScope.Read;
 
-    public string Id => "ui.get_visual_tree";
+    public string Id => VisualTreeToolIds.GetVisualTree;
 
     public string Name => "Get Visual Tree";
 
@@ -17,6 +17,8 @@ public sealed class GetVisualTreeTool : ITool
     public ToolSchema ArgumentsSchema => VisualTreeToolSchemas.GetVisualTreeArguments;
 
     public ToolSchema ResultSchema => VisualTreeToolSchemas.VisualTreeResult;
+
+    public ToolSecurity Security => VisualTreeToolSecurityProfiles.GetVisualTree;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

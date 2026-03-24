@@ -14,7 +14,7 @@ public sealed class FileSystemToolsTests
             .Build();
 
         Assert.Equal(
-            ["files.list_directory", "files.read_file", "files.download_file", "files.begin_binary_download"],
+            [FileSystemToolIds.ListDirectory, FileSystemToolIds.ReadFile, FileSystemToolIds.DownloadFile, FileSystemToolIds.BeginBinaryDownload],
             options.Tools.Select(tool => tool.Id));
     }
 
@@ -167,7 +167,7 @@ public sealed class FileSystemToolsTests
         Assert.False(string.IsNullOrWhiteSpace(version));
 
         var nextRequest = Assert.IsType<JsonObject>(payload["nextRequest"]);
-        Assert.Equal("files.download_file", nextRequest["toolId"]?.GetValue<string>());
+        Assert.Equal(FileSystemToolIds.DownloadFile, nextRequest["toolId"]?.GetValue<string>());
 
         var nextArguments = Assert.IsType<JsonObject>(nextRequest["arguments"]);
         Assert.Equal("workspace", nextArguments["root"]?.GetValue<string>());

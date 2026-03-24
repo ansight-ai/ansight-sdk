@@ -18,6 +18,8 @@ public interface ITool
 
     ToolSchema ResultSchema { get; }
 
+    ToolSecurity Security => ToolSecurity.Unspecified;
+
     ToolDefinition Definition => new(
         Id,
         Name,
@@ -26,7 +28,10 @@ public interface ITool
         Scope,
         Keywords,
         ArgumentsSchema,
-        ResultSchema);
+        ResultSchema)
+    {
+        Security = Security
+    };
 
     Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments);
 }

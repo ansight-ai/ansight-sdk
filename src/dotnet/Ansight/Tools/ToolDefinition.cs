@@ -8,4 +8,7 @@ public sealed record ToolDefinition(
     ToolScope Scope,
     string Keywords,
     ToolSchema ArgumentsSchema,
-    ToolSchema ResultSchema);
+    ToolSchema ResultSchema)
+{
+    public ToolSecurity Security { get; init; } = ToolSecurity.Unspecified;
+}

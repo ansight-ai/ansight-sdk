@@ -13,7 +13,7 @@ public sealed class ListPreferenceKeysTool : ITool
 
     public ToolScope Scope => ToolScope.Read;
 
-    public string Id => "prefs.list_keys";
+    public string Id => PreferencesToolIds.ListKeys;
 
     public string Name => "List Preference Keys";
 
@@ -24,6 +24,8 @@ public sealed class ListPreferenceKeysTool : ITool
     public ToolSchema ArgumentsSchema => PreferencesToolSchemas.ListKeysArguments;
 
     public ToolSchema ResultSchema => PreferencesToolSchemas.ListKeysResult;
+
+    public ToolSecurity Security => PreferencesToolSecurityProfiles.ListKeys;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

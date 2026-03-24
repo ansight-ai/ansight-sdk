@@ -12,7 +12,7 @@ public sealed class VisualTreeToolsTests
             .Build();
 
         Assert.Equal(
-            ["ui.get_visual_tree", "ui.get_screenshot", "ui.inspect_node"],
+            [VisualTreeToolIds.GetVisualTree, VisualTreeToolIds.GetScreenshot, VisualTreeToolIds.InspectNode],
             options.Tools.Select(tool => tool.Id));
     }
 

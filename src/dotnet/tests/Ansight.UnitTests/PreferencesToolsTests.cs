@@ -13,7 +13,7 @@ public sealed class PreferencesToolsTests
             .Build();
 
         Assert.Equal(
-            ["prefs.list_keys", "prefs.get_value", "prefs.set_value", "prefs.remove_key"],
+            [PreferencesToolIds.ListKeys, PreferencesToolIds.GetValue, PreferencesToolIds.SetValue, PreferencesToolIds.RemoveKey],
             options.Tools.Select(tool => tool.Id));
     }
 

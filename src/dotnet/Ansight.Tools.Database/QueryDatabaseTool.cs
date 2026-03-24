@@ -8,7 +8,7 @@ public sealed class QueryDatabaseTool : ITool
 
     public ToolScope Scope => ToolScope.Read;
 
-    public string Id => "data.query";
+    public string Id => DatabaseToolIds.Query;
 
     public string Name => "Query Database";
 
@@ -19,6 +19,8 @@ public sealed class QueryDatabaseTool : ITool
     public ToolSchema ArgumentsSchema => DatabaseToolSchemas.QueryArguments;
 
     public ToolSchema ResultSchema => DatabaseToolSchemas.QueryResult;
+
+    public ToolSecurity Security => DatabaseToolSecurityProfiles.Query;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

@@ -16,7 +16,7 @@ public sealed class ReadFileTool : ITool
 
     public ToolScope Scope => ToolScope.Read;
 
-    public string Id => "files.read_file";
+    public string Id => FileSystemToolIds.ReadFile;
 
     public string Name => "Read File";
 
@@ -27,6 +27,8 @@ public sealed class ReadFileTool : ITool
     public ToolSchema ArgumentsSchema => FileSystemToolSchemas.ReadFileArguments;
 
     public ToolSchema ResultSchema => FileSystemToolSchemas.ReadFileResult;
+
+    public ToolSecurity Security => FileSystemToolSecurityProfiles.ReadFile;
 
     public async Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

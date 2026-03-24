@@ -33,7 +33,7 @@ public sealed class BeginBinaryDownloadTool : ITool
 
     public ToolScope Scope => ToolScope.Read;
 
-    public string Id => "files.begin_binary_download";
+    public string Id => FileSystemToolIds.BeginBinaryDownload;
 
     public string Name => "Begin Binary Download";
 
@@ -44,6 +44,8 @@ public sealed class BeginBinaryDownloadTool : ITool
     public ToolSchema ArgumentsSchema => FileSystemToolSchemas.BeginBinaryDownloadArguments;
 
     public ToolSchema ResultSchema => FileSystemToolSchemas.BeginBinaryDownloadResult;
+
+    public ToolSecurity Security => FileSystemToolSecurityProfiles.BeginBinaryDownload;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

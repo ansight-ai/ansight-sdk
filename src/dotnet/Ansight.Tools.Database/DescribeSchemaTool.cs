@@ -6,7 +6,7 @@ public sealed class DescribeSchemaTool : ITool
 
     public ToolScope Scope => ToolScope.Read;
 
-    public string Id => "data.describe_schema";
+    public string Id => DatabaseToolIds.DescribeSchema;
 
     public string Name => "Describe Schema";
 
@@ -17,6 +17,8 @@ public sealed class DescribeSchemaTool : ITool
     public ToolSchema ArgumentsSchema => DatabaseToolSchemas.DescribeSchemaArguments;
 
     public ToolSchema ResultSchema => DatabaseToolSchemas.DescribeSchemaResult;
+
+    public ToolSecurity Security => DatabaseToolSecurityProfiles.DescribeSchema;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

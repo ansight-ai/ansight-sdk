@@ -17,7 +17,7 @@ public sealed class ListDirectoryTool : ITool
 
     public ToolScope Scope => ToolScope.Read;
 
-    public string Id => "files.list_directory";
+    public string Id => FileSystemToolIds.ListDirectory;
 
     public string Name => "List Directory";
 
@@ -28,6 +28,8 @@ public sealed class ListDirectoryTool : ITool
     public ToolSchema ArgumentsSchema => FileSystemToolSchemas.ListDirectoryArguments;
 
     public ToolSchema ResultSchema => FileSystemToolSchemas.ListDirectoryResult;
+
+    public ToolSecurity Security => FileSystemToolSecurityProfiles.ListDirectory;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

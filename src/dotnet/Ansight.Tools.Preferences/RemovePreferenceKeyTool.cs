@@ -13,7 +13,7 @@ public sealed class RemovePreferenceKeyTool : ITool
 
     public ToolScope Scope => ToolScope.Delete;
 
-    public string Id => "prefs.remove_key";
+    public string Id => PreferencesToolIds.RemoveKey;
 
     public string Name => "Remove Preference Key";
 
@@ -24,6 +24,8 @@ public sealed class RemovePreferenceKeyTool : ITool
     public ToolSchema ArgumentsSchema => PreferencesToolSchemas.RemoveKeyArguments;
 
     public ToolSchema ResultSchema => PreferencesToolSchemas.RemoveKeyResult;
+
+    public ToolSecurity Security => PreferencesToolSecurityProfiles.RemoveKey;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

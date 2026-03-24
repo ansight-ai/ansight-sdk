@@ -100,6 +100,11 @@ Response payload shape:
       "category": "Diagnostics",
       "scope": "Read",
       "keywords": "example",
+      "security": {
+        "level": "High",
+        "summary": "Reads and exports sensitive app data.",
+        "implications": ["reads_app_data", "exports_data"]
+      },
       "argumentsSchema": {},
       "resultSchema": {}
     }
@@ -231,8 +236,15 @@ Catalog entries are generated from registered `ToolDefinition` values and curren
 - `category`
 - `scope`
 - `keywords`
+- `security` when the tool supplies a structured security annotation
 - `argumentsSchema`
 - `resultSchema`
+
+The `security` object is informational metadata intended for catalog consumers such as Studio or MCP bridges. In the current `.NET` implementation it contains:
+
+- `level`
+- `summary`
+- `implications`
 
 `argumentsSchema` and `resultSchema` are emitted from [ToolSchema.cs](../../src/dotnet/Ansight/Tools/ToolSchema.cs) as JSON-schema-like objects.
 

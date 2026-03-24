@@ -13,7 +13,7 @@ public sealed class SetPreferenceValueTool : ITool
 
     public ToolScope Scope => ToolScope.Write;
 
-    public string Id => "prefs.set_value";
+    public string Id => PreferencesToolIds.SetValue;
 
     public string Name => "Set Preference Value";
 
@@ -24,6 +24,8 @@ public sealed class SetPreferenceValueTool : ITool
     public ToolSchema ArgumentsSchema => PreferencesToolSchemas.SetValueArguments;
 
     public ToolSchema ResultSchema => PreferencesToolSchemas.SetValueResult;
+
+    public ToolSecurity Security => PreferencesToolSecurityProfiles.SetValue;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

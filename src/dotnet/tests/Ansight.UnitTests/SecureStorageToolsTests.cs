@@ -13,7 +13,7 @@ public sealed class SecureStorageToolsTests
             .Build();
 
         Assert.Equal(
-            ["secure.get_value", "secure.set_value", "secure.remove_key"],
+            [SecureStorageToolIds.GetValue, SecureStorageToolIds.SetValue, SecureStorageToolIds.RemoveKey],
             options.Tools.Select(tool => tool.Id));
     }
 

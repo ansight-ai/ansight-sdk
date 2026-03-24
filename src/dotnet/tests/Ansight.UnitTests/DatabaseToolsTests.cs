@@ -14,7 +14,7 @@ public sealed class DatabaseToolsTests
             .Build();
 
         Assert.Equal(
-            ["data.list_databases", "data.describe_schema", "data.query"],
+            [DatabaseToolIds.ListDatabases, DatabaseToolIds.DescribeSchema, DatabaseToolIds.Query],
             options.Tools.Select(tool => tool.Id));
     }
 

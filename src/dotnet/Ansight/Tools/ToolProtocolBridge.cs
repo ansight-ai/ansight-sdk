@@ -215,7 +215,7 @@ public sealed class ToolProtocolBridge
 
     private static JsonObject ToJson(ToolDefinition definition)
     {
-        return new JsonObject
+        var json = new JsonObject
         {
             ["id"] = definition.Id,
             ["name"] = definition.Name,
@@ -226,5 +226,12 @@ public sealed class ToolProtocolBridge
             ["argumentsSchema"] = definition.ArgumentsSchema.ToJson(),
             ["resultSchema"] = definition.ResultSchema.ToJson()
         };
+
+        if (definition.Security is { IsSpecified: true } security)
+        {
+            json["security"] = security.ToJson();
+        }
+
+        return json;
     }
 }
