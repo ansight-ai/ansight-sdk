@@ -53,6 +53,33 @@ public sealed class PairingSessionTransportIntegrationTests
         await transport.CloseAsync(CancellationToken.None);
     }
 
+    [Fact]
+    public async Task SendBinaryAsync_WithFragments_TransfersBinaryPayload()
+    {
+        await using var server = await LoopbackWebSocketServer.StartAsync();
+        using var webSocket = await ConnectAsync(server.WebSocketUri);
+        using var transport = new PairingSessionTransport();
+        transport.Attach(webSocket);
+
+        var payload = Encoding.UTF8.GetBytes("frame-payload");
+        var result = await transport.SendBinaryAsync(
+            async (sendFragmentAsync, cancellationToken) =>
+            {
+                await sendFragmentAsync(payload.AsMemory(0, 5), endOfMessage: false, cancellationToken);
+                await sendFragmentAsync(payload.AsMemory(5, 1), endOfMessage: false, cancellationToken);
+                await sendFragmentAsync(payload.AsMemory(6), endOfMessage: true, cancellationToken);
+            },
+            CancellationToken.None);
+
+        await server.WaitForBinaryMessagesAsync(1, TimeSpan.FromSeconds(2));
+
+        Assert.True(result.Success, result.Message);
+        Assert.Single(server.BinaryMessages);
+        Assert.Equal(payload, server.BinaryMessages[0]);
+
+        await transport.CloseAsync(CancellationToken.None);
+    }
+
     private static async Task<ClientWebSocket> ConnectAsync(Uri webSocketUri)
     {
         var webSocket = new ClientWebSocket();

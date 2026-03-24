@@ -19,9 +19,10 @@ Runtime.InitializeAndActivate(options);
 
 Runtime.Metric(123, channel: 10);
 Runtime.Event("network_request_started");
+Runtime.ScreenViewed("CheckoutPage");
 ```
 
-When `WithSessionJpegCapture(...)` is enabled, the pairing client will periodically capture the app's own root window/view as a JPEG and stream it over live Ansight pairing sessions. Connected tooling can inspect the latest live frame or correlate historical frames with the telemetry timeline. This feature adds extra rendering, encoding, and transport work and can negatively affect runtime performance while it is active.
+When `WithSessionJpegCapture(...)` is enabled, the pairing client will capture the app's own root window/view as a JPEG and stream it over live Ansight pairing sessions. Capture remains client-driven, but the next interval is delayed until the previous frame has finished encoding and sending so the stream self-throttles under load. Connected tooling can inspect the latest live frame or correlate historical frames with the telemetry timeline. This feature adds extra rendering, encoding, and transport work and can negatively affect runtime performance while it is active.
 
 Host auto-probe is enabled by default. While `Runtime` is active, Ansight will periodically try to reconnect to the most recent successful pairing profile if one is cached, pause probing while that session stays open, and resume after a reconnect delay if the session closes. Disable it with `WithoutHostAutoProbe()` or customize it with `WithHostAutoProbe(new HostAutoProbeOptions { ... })`.
 
@@ -94,13 +95,24 @@ The base package owns the tool abstractions and registration surface, including 
 using Ansight;
 using Ansight.Tools.Database;
 using Ansight.Tools.FileSystem;
+using Ansight.Tools.Preferences;
+using Ansight.Tools.SecureStorage;
 using Ansight.Tools.VisualTree;
 
 var options = Options.CreateBuilder()
     .WithVisualTreeTools()
     .WithDatabaseTools()
     .WithFileSystemTools()
-    .WithReadOnlyToolAccess()
+    .WithPreferencesTools(preferences =>
+    {
+        preferences.AllowKeyPrefix("com.example.");
+    })
+    .WithSecureStorageTools(secure =>
+    {
+        secure.WithStorageIdentifier("MyApp");
+        secure.AllowKey("session_token");
+    })
+    .WithReadWriteToolAccess()
     .Build();
 ```
 
@@ -109,8 +121,11 @@ The feature packages currently group tools by capability area:
 - `Ansight.Tools.VisualTree`
 - `Ansight.Tools.Database`
 - `Ansight.Tools.FileSystem`
+- `Ansight.Tools.Preferences`
+- `Ansight.Tools.SecureStorage`
 
-Registered tools remain disabled until the app opts into a guard policy such as `WithReadOnlyToolAccess()` or `WithAllToolAccess()`.
+Registered tools remain disabled until the app opts into a guard policy such as `WithReadOnlyToolAccess()`, `WithReadWriteToolAccess()`, or `WithAllToolAccess()`.
+The storage packages mark `remove` operations as `Delete`, so those stay disabled unless the app chooses `WithAllToolAccess()` or a custom `ToolGuard`.
 When a pairing session is open, inbound `tool.query` and `tool.call` protocol messages are handled automatically and answered on the active WebSocket using that guard policy.
 
 For local temp-file workflows, `Ansight.Tools.FileSystem` exposes `files.begin_binary_download`, which returns transfer metadata and then streams `ASFT` binary frames over the pairing WebSocket. A bridge can map that `transferId` to its own temp directory and write the incoming bytes there.
@@ -164,6 +179,8 @@ Only use `AnsightAllowRemoteTools=true` for local Debug builds. Do not enable re
 - `Ansight.Tools.VisualTree`: UI hierarchy and screenshot tools
 - `Ansight.Tools.Database`: database inspection tools
 - `Ansight.Tools.FileSystem`: sandboxed file access tools
+- `Ansight.Tools.Preferences`: shared-preferences and user-defaults tools
+- `Ansight.Tools.SecureStorage`: encrypted storage and Keychain tools
 
 ## Notes
 

@@ -7,6 +7,12 @@ public partial class NavigationTestPage : ContentPage
         InitializeComponent();
     }
 
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+        Runtime.ScreenViewed(nameof(NavigationTestPage));
+    }
+
     private async void OnPopClicked(object? sender, EventArgs e)
     {
         if (Navigation == null)

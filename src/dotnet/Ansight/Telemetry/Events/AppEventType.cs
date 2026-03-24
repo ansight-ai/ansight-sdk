@@ -13,5 +13,6 @@ public enum AppEventType
     Exception,
     Gc,
     Navigation,
+    ScreenViewed,
     Lifecycle
 }

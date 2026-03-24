@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using System.Net.WebSockets;
 using Ansight.Pairing;
 
 namespace Ansight.Screenshot;
@@ -104,107 +102,40 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
         IProgress<HostPairingProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
-        using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        using var pendingSurfaces = new LatestSessionJpegSurfaceQueue();
-        var workerTask = Task.Run(
-            () => RunEncodePumpAsync(options, pendingSurfaces, progress, linkedCancellation, linkedCancellation.Token),
-            linkedCancellation.Token);
-
         var interval = TimeSpan.FromMilliseconds(options.IntervalMilliseconds);
-        var nextCaptureAt = Stopwatch.GetTimestamp();
+        var captureImmediately = true;
 
-        try
+        while (!cancellationToken.IsCancellationRequested)
         {
-            while (!linkedCancellation.Token.IsCancellationRequested)
+            if (!captureImmediately)
             {
-                var remainingDelay = nextCaptureAt - Stopwatch.GetTimestamp();
-                if (remainingDelay > 0)
-                {
-                    try
-                    {
-                        await Task.Delay(TimeSpan.FromSeconds(remainingDelay / (double)Stopwatch.Frequency), linkedCancellation.Token);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        break;
-                    }
-                }
-
                 try
                 {
-                    var surface = await SessionJpegCaptureSupport.CaptureSurfaceAsync(options, linkedCancellation.Token);
-                    if (surface is not null)
-                    {
-                        pendingSurfaces.Enqueue(surface);
-                    }
+                    await Task.Delay(interval, cancellationToken);
                 }
                 catch (OperationCanceledException)
                 {
                     break;
                 }
-                catch (Exception ex)
-                {
-                    Logger.Warning($"Session JPEG capture skipped: {ex.Message}");
-                }
-
-                nextCaptureAt += (long)(interval.TotalSeconds * Stopwatch.Frequency);
-                var now = Stopwatch.GetTimestamp();
-                if (nextCaptureAt < now - (long)(interval.TotalSeconds * Stopwatch.Frequency))
-                {
-                    nextCaptureAt = now;
-                }
             }
-        }
-        finally
-        {
-            pendingSurfaces.Complete();
-            linkedCancellation.Cancel();
+
+            captureImmediately = false;
 
             try
             {
-                await workerTask;
-            }
-            catch (OperationCanceledException)
-            {
-            }
-        }
-    }
-
-    private async Task RunEncodePumpAsync(
-        SessionJpegCaptureOptions options,
-        LatestSessionJpegSurfaceQueue pendingSurfaces,
-        IProgress<HostPairingProgressUpdate>? progress,
-        CancellationTokenSource linkedCancellation,
-        CancellationToken cancellationToken)
-    {
-        while (!cancellationToken.IsCancellationRequested)
-        {
-            ISessionJpegCaptureSurface? surface;
-            try
-            {
-                surface = await pendingSurfaces.DequeueAsync(cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-
-            if (surface is null)
-            {
-                break;
-            }
-
-            using (surface)
-            {
-                try
+                var surface = await SessionJpegCaptureSupport.CaptureSurfaceAsync(options, cancellationToken);
+                if (surface is null)
                 {
-                    using var frame = SessionJpegCaptureSupport.EncodeSurface(surface, options);
-                    if (frame is null)
-                    {
-                        continue;
-                    }
+                    continue;
+                }
 
-                    var sendResult = await transport.SendBinaryAsync(frame.Payload, WebSocketMessageType.Binary, cancellationToken);
+                using (surface)
+                {
+                    var sendResult = await SessionJpegCaptureSupport.SendSurfaceAsync(
+                        surface,
+                        options,
+                        transport,
+                        cancellationToken);
                     if (!sendResult.Success)
                     {
                         HostPairingProgressReporter.Report(
@@ -212,108 +143,18 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
                             HostPairingProgressKind.Warning,
                             $"Session JPEG capture stopped: {sendResult.Message}",
                             source: HostPairingSource.SessionJpegCapture);
-                        linkedCancellation.Cancel();
                         return;
                     }
                 }
-                catch (OperationCanceledException)
-                {
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    Logger.Warning($"Session JPEG capture skipped: {ex.Message}");
-                }
             }
-        }
-    }
-
-    private sealed class LatestSessionJpegSurfaceQueue : IDisposable
-    {
-        private readonly Lock gate = new();
-        private readonly SemaphoreSlim signal = new(0);
-        private ISessionJpegCaptureSurface? pendingSurface;
-        private bool hasSignal;
-        private bool completed;
-
-        public void Enqueue(ISessionJpegCaptureSurface surface)
-        {
-            ArgumentNullException.ThrowIfNull(surface);
-
-            var releaseSignal = false;
-            ISessionJpegCaptureSurface? displacedSurface = null;
-            lock (gate)
+            catch (OperationCanceledException)
             {
-                if (completed)
-                {
-                    displacedSurface = surface;
-                }
-                else
-                {
-                    displacedSurface = pendingSurface;
-                    pendingSurface = surface;
-                    if (!hasSignal)
-                    {
-                        hasSignal = true;
-                        releaseSignal = true;
-                    }
-                }
+                break;
             }
-
-            displacedSurface?.Dispose();
-
-            if (releaseSignal)
+            catch (Exception ex)
             {
-                signal.Release();
+                Logger.Warning($"Session JPEG capture skipped: {ex.Message}");
             }
-        }
-
-        public async Task<ISessionJpegCaptureSurface?> DequeueAsync(CancellationToken cancellationToken)
-        {
-            await signal.WaitAsync(cancellationToken);
-
-            lock (gate)
-            {
-                hasSignal = false;
-                var surface = pendingSurface;
-                pendingSurface = null;
-                return surface;
-            }
-        }
-
-        public void Complete()
-        {
-            var releaseSignal = false;
-            ISessionJpegCaptureSurface? displacedSurface = null;
-            lock (gate)
-            {
-                if (completed)
-                {
-                    return;
-                }
-
-                completed = true;
-                displacedSurface = pendingSurface;
-                pendingSurface = null;
-                if (!hasSignal)
-                {
-                    hasSignal = true;
-                    releaseSignal = true;
-                }
-            }
-
-            displacedSurface?.Dispose();
-
-            if (releaseSignal)
-            {
-                signal.Release();
-            }
-        }
-
-        public void Dispose()
-        {
-            Complete();
-            signal.Dispose();
         }
     }
 }

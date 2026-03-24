@@ -4,6 +4,11 @@ using System.Threading.Channels;
 
 namespace Ansight.Pairing;
 
+internal delegate Task BinaryFragmentSender(
+    ReadOnlyMemory<byte> payload,
+    bool endOfMessage,
+    CancellationToken cancellationToken);
+
 internal sealed class PairingSessionTransport : IDisposable
 {
     private ClientWebSocket? webSocket;
@@ -122,6 +127,46 @@ internal sealed class PairingSessionTransport : IDisposable
         {
             await SendPayloadAsync(webSocket, payload, messageType, cancellationToken);
             return OperationResult.FromSuccess("Payload sent.");
+        }
+        catch (Exception ex)
+        {
+            return OperationResult.FromFailure($"Failed to send WebSocket payload: {ex.Message}");
+        }
+    }
+
+    public async Task<OperationResult> SendBinaryAsync(
+        Func<BinaryFragmentSender, CancellationToken, Task> payloadWriter,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(payloadWriter);
+
+        var webSocket = this.webSocket;
+        if (webSocket is null || webSocket.State != WebSocketState.Open)
+        {
+            return OperationResult.FromFailure("WebSocket session is not open.");
+        }
+
+        try
+        {
+            await sendLock.WaitAsync(cancellationToken);
+            try
+            {
+                using var sendTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                sendTimeout.CancelAfter(TimeSpan.FromSeconds(10));
+                await payloadWriter(
+                    (payload, endOfMessage, fragmentCancellationToken) => SendBinaryFragmentAsync(
+                        webSocket,
+                        payload,
+                        WebSocketMessageType.Binary,
+                        endOfMessage,
+                        fragmentCancellationToken),
+                    sendTimeout.Token);
+                return OperationResult.FromSuccess("Payload sent.");
+            }
+            finally
+            {
+                sendLock.Release();
+            }
         }
         catch (Exception ex)
         {
@@ -355,12 +400,12 @@ internal sealed class PairingSessionTransport : IDisposable
         {
             using var sendTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             sendTimeout.CancelAfter(TimeSpan.FromSeconds(10));
-            await SendBinaryAsync(webSocket, payload, messageType, sendTimeout.Token);
+            await SendBinaryFragmentAsync(webSocket, payload, messageType, endOfMessage: true, sendTimeout.Token);
         }
         finally
         {
             sendLock.Release();
-    }
+        }
     }
 
     private static async Task SendTextAsync(ClientWebSocket webSocket, string payload, CancellationToken cancellationToken)
@@ -370,13 +415,18 @@ internal sealed class PairingSessionTransport : IDisposable
         await webSocket.SendAsync(segment, WebSocketMessageType.Text, true, cancellationToken);
     }
 
-    private static async Task SendBinaryAsync(
+    private static async Task SendBinaryFragmentAsync(
         ClientWebSocket webSocket,
         ReadOnlyMemory<byte> payload,
         WebSocketMessageType messageType,
+        bool endOfMessage,
         CancellationToken cancellationToken)
     {
-        await webSocket.SendAsync(payload, messageType, WebSocketMessageFlags.EndOfMessage, cancellationToken);
+        await webSocket.SendAsync(
+            payload,
+            messageType,
+            endOfMessage ? WebSocketMessageFlags.EndOfMessage : default,
+            cancellationToken);
     }
 
     private void NotifyClosed()

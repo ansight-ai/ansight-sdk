@@ -192,6 +192,38 @@ internal class RuntimeImpl : IRuntime
         mutableDataSink.Event(label, type, channel, details);
     }
 
+    public void ScreenViewed(string screenName)
+    {
+        if (string.IsNullOrWhiteSpace(screenName)) throw new ArgumentException("Value cannot be null or whitespace.", nameof(screenName));
+
+        Logger.Info($"Recording screen view '{screenName}' on detached channel.");
+        mutableDataSink.ScreenViewed(screenName);
+    }
+
+    public void ScreenViewed(string screenName, string details)
+    {
+        if (string.IsNullOrWhiteSpace(screenName)) throw new ArgumentException("Value cannot be null or whitespace.", nameof(screenName));
+
+        Logger.Info($"Recording screen view '{screenName}' with details on detached channel.");
+        mutableDataSink.ScreenViewed(screenName, details);
+    }
+
+    public void ScreenViewed(string screenName, byte channel)
+    {
+        if (string.IsNullOrWhiteSpace(screenName)) throw new ArgumentException("Value cannot be null or whitespace.", nameof(screenName));
+
+        Logger.Info($"Recording screen view '{screenName}' on channel {channel}.");
+        mutableDataSink.ScreenViewed(screenName, channel);
+    }
+
+    public void ScreenViewed(string screenName, byte channel, string details)
+    {
+        if (string.IsNullOrWhiteSpace(screenName)) throw new ArgumentException("Value cannot be null or whitespace.", nameof(screenName));
+
+        Logger.Info($"Recording screen view '{screenName}' with details on channel {channel}.");
+        mutableDataSink.ScreenViewed(screenName, channel, details);
+    }
+
     public void Clear()
     {
         Logger.Info("Clearing data sink contents.");

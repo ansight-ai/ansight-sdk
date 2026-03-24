@@ -404,4 +404,76 @@ public static class Runtime
 
         Instance.Event(label, type, channel, details);
     }
+
+    /// <summary>
+    /// Captures a screen-viewed event using the given <paramref name="screenName"/> against the unspecified channel.
+    /// </summary>
+    public static void ScreenViewed(string screenName)
+    {
+        if (!IsInitialized)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(screenName))
+        {
+            throw new ArgumentException("Value cannot be null or whitespace.", nameof(screenName));
+        }
+
+        Instance.ScreenViewed(screenName);
+    }
+
+    /// <summary>
+    /// Captures a screen-viewed event using the given <paramref name="screenName"/> and <paramref name="details"/> against the unspecified channel.
+    /// </summary>
+    public static void ScreenViewed(string screenName, string details)
+    {
+        if (!IsInitialized)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(screenName))
+        {
+            throw new ArgumentException("Value cannot be null or whitespace.", nameof(screenName));
+        }
+
+        Instance.ScreenViewed(screenName, details);
+    }
+
+    /// <summary>
+    /// Captures a screen-viewed event using the given <paramref name="screenName"/> against the <paramref name="channel"/>.
+    /// </summary>
+    public static void ScreenViewed(string screenName, byte channel)
+    {
+        if (!IsInitialized)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(screenName))
+        {
+            throw new ArgumentException("Value cannot be null or whitespace.", nameof(screenName));
+        }
+
+        Instance.ScreenViewed(screenName, channel);
+    }
+
+    /// <summary>
+    /// Captures a screen-viewed event using the given <paramref name="screenName"/>, <paramref name="channel"/>, and <paramref name="details"/>.
+    /// </summary>
+    public static void ScreenViewed(string screenName, byte channel, string details)
+    {
+        if (!IsInitialized)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(screenName))
+        {
+            throw new ArgumentException("Value cannot be null or whitespace.", nameof(screenName));
+        }
+
+        Instance.ScreenViewed(screenName, channel, details);
+    }
 }

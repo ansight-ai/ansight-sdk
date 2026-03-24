@@ -1,4 +1,6 @@
 #if !ANDROID && !IOS && !MACCATALYST
+using Ansight.Pairing;
+
 namespace Ansight.Screenshot;
 
 internal static partial class SessionJpegCaptureSupport
@@ -10,11 +12,13 @@ internal static partial class SessionJpegCaptureSupport
         return Task.FromResult<ISessionJpegCaptureSurface?>(null);
     }
 
-    private static partial SessionJpegFrame? EncodeSurfaceCore(
+    private static partial Task<OperationResult> SendSurfaceCoreAsync(
         ISessionJpegCaptureSurface surface,
-        SessionJpegCaptureOptions options)
+        SessionJpegCaptureOptions options,
+        PairingSessionTransport transport,
+        CancellationToken cancellationToken)
     {
-        return null;
+        return Task.FromResult(OperationResult.FromFailure("Session JPEG capture is unavailable on this platform."));
     }
 }
 #endif

@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.IO;
+using Ansight.Pairing;
 
 namespace Ansight.Screenshot;
 
@@ -10,6 +11,8 @@ internal interface ISessionJpegCaptureSurface : IDisposable
 
 internal static partial class SessionJpegCaptureSupport
 {
+    private static int lastEncodedJpegBytes = 32 * 1024;
+
     public static Task<ISessionJpegCaptureSurface?> CaptureSurfaceAsync(SessionJpegCaptureOptions options, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -18,12 +21,17 @@ internal static partial class SessionJpegCaptureSupport
         return CaptureSurfaceCoreAsync(options, cancellationToken);
     }
 
-    public static SessionJpegFrame? EncodeSurface(ISessionJpegCaptureSurface surface, SessionJpegCaptureOptions options)
+    public static Task<OperationResult> SendSurfaceAsync(
+        ISessionJpegCaptureSurface surface,
+        SessionJpegCaptureOptions options,
+        PairingSessionTransport transport,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(surface);
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(transport);
 
-        return EncodeSurfaceCore(surface, options);
+        return SendSurfaceCoreAsync(surface, options, transport, cancellationToken);
     }
 
     private static int ResolveTargetWidth(int sourceWidth, int? maxWidth)
@@ -56,24 +64,41 @@ internal static partial class SessionJpegCaptureSupport
         return Math.Max(1, (int)Math.Round(sourceHeight * (targetWidth / (double)sourceWidth)));
     }
 
-    private static int EstimateInitialPayloadCapacity(int width, int height)
+    internal static int EstimateInitialJpegByteCapacity(int width, int height)
     {
+        var lastEncodedBytes = Volatile.Read(ref lastEncodedJpegBytes);
+        if (lastEncodedBytes > 0)
+        {
+            return Math.Max(8 * 1024, lastEncodedBytes);
+        }
+
         if (width <= 0 || height <= 0)
         {
             return 32 * 1024;
         }
 
-        var estimatedJpegBytes = Math.Max(8 * 1024, (width * height) / 2);
-        return SessionJpegWireProtocol.HeaderSize + estimatedJpegBytes;
+        return Math.Max(8 * 1024, (width * height) / 2);
+    }
+
+    internal static void RecordEncodedJpegByteCount(int jpegByteCount)
+    {
+        if (jpegByteCount <= 0)
+        {
+            return;
+        }
+
+        Volatile.Write(ref lastEncodedJpegBytes, jpegByteCount);
     }
 
     private static partial Task<ISessionJpegCaptureSurface?> CaptureSurfaceCoreAsync(
         SessionJpegCaptureOptions options,
         CancellationToken cancellationToken);
 
-    private static partial SessionJpegFrame? EncodeSurfaceCore(
+    private static partial Task<OperationResult> SendSurfaceCoreAsync(
         ISessionJpegCaptureSurface surface,
-        SessionJpegCaptureOptions options);
+        SessionJpegCaptureOptions options,
+        PairingSessionTransport transport,
+        CancellationToken cancellationToken);
 }
 
 internal sealed class SessionJpegFrame : IDisposable

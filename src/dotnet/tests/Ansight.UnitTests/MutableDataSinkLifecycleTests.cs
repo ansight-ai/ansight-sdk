@@ -11,7 +11,7 @@ public sealed class MutableDataSinkLifecycleTests
             .WithRetentionPeriodSeconds(Constants.DefaultRetentionPeriodSeconds)
             .Build();
         var dataSink = new MutableDataSink(options);
-        var changedAtUtc = DateTimeOffset.Parse("2026-03-22T01:02:03Z");
+        var changedAtUtc = DateTimeOffset.UtcNow;
 
         var didChange = dataSink.SetAppLifecycleState(AppLifecycleState.Foreground, changedAtUtc);
         var snapshot = dataSink.Snapshot();
@@ -37,10 +37,11 @@ public sealed class MutableDataSinkLifecycleTests
             .WithRetentionPeriodSeconds(Constants.DefaultRetentionPeriodSeconds)
             .Build();
         var dataSink = new MutableDataSink(options);
+        var currentUtc = DateTimeOffset.UtcNow;
 
-        Assert.False(dataSink.SetAppLifecycleState(AppLifecycleState.Unknown, DateTimeOffset.Parse("2026-03-22T01:00:00Z")));
-        Assert.True(dataSink.SetAppLifecycleState(AppLifecycleState.Background, DateTimeOffset.Parse("2026-03-22T01:01:00Z")));
-        Assert.False(dataSink.SetAppLifecycleState(AppLifecycleState.Background, DateTimeOffset.Parse("2026-03-22T01:02:00Z")));
+        Assert.False(dataSink.SetAppLifecycleState(AppLifecycleState.Unknown, currentUtc.AddSeconds(-2)));
+        Assert.True(dataSink.SetAppLifecycleState(AppLifecycleState.Background, currentUtc.AddSeconds(-1)));
+        Assert.False(dataSink.SetAppLifecycleState(AppLifecycleState.Background, currentUtc));
 
         var lifecycleEvents = Assert.Single(dataSink.Snapshot().Events!, item => item.ChannelId == Constants.ReservedChannels.Lifecycle_Id).Events!;
         Assert.Single(lifecycleEvents);

@@ -7,6 +7,12 @@ public partial class ModalTestPage : ContentPage
         InitializeComponent();
     }
 
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+        Runtime.ScreenViewed(nameof(ModalTestPage), "presentation=modal");
+    }
+
     private async void OnDismissClicked(object? sender, EventArgs e)
     {
         if (Navigation == null)

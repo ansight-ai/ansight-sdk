@@ -26,7 +26,7 @@ public sealed class PairingTelemetryStreamerIntegrationTests
             Value = 123,
             CapturedAtUtc = DateTime.UtcNow.AddSeconds(-2)
         };
-        var appEvent = new AppEvent("Navigation changed", AppEventType.Navigation, "detail", DateTime.UtcNow.AddSeconds(-1), externalId: null, channel.Id);
+        var appEvent = new AppEvent("CheckoutPage", AppEventType.ScreenViewed, "route=/checkout", DateTime.UtcNow.AddSeconds(-1), externalId: null, channel.Id);
         var dataSink = new TestDataSink([channel], [metric], [appEvent]);
         using var streamer = new TelemetryStreamer(transport);
 
@@ -37,6 +37,7 @@ public sealed class PairingTelemetryStreamerIntegrationTests
         Assert.Contains(server.TextMessages, message => GetMessageType(message) == "CLIENT_METRIC_CHANNELS");
         Assert.Contains(server.TextMessages, message => GetMessageType(message) == "CLIENT_METRICS");
         Assert.Contains(server.TextMessages, message => GetMessageType(message) == "CLIENT_EVENTS");
+        Assert.Contains(server.TextMessages, message => message.Contains("\"eventType\":\"ScreenViewed\"", StringComparison.Ordinal));
 
         await streamer.StopAsync(progress: null, CancellationToken.None);
         await transport.CloseAsync(CancellationToken.None);

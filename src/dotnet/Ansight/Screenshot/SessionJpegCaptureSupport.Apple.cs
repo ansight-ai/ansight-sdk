@@ -1,10 +1,19 @@
 #if IOS || MACCATALYST
+using System.Buffers;
+using System.Runtime.InteropServices;
+using CoreGraphics;
+using Foundation;
 using UIKit;
+using Ansight.Pairing;
 
 namespace Ansight.Screenshot;
 
 internal static partial class SessionJpegCaptureSupport
 {
+    private const int JpegChunkByteCount = 64 * 1024;
+    private static readonly Lock rendererGate = new();
+    private static CachedImageRenderer? cachedImageRenderer;
+
     private static partial Task<ISessionJpegCaptureSurface?> CaptureSurfaceCoreAsync(
         SessionJpegCaptureOptions options,
         CancellationToken cancellationToken)
@@ -16,13 +25,15 @@ internal static partial class SessionJpegCaptureSupport
         });
     }
 
-    private static partial SessionJpegFrame? EncodeSurfaceCore(
+    private static partial Task<OperationResult> SendSurfaceCoreAsync(
         ISessionJpegCaptureSurface surface,
-        SessionJpegCaptureOptions options)
+        SessionJpegCaptureOptions options,
+        PairingSessionTransport transport,
+        CancellationToken cancellationToken)
     {
         return surface is SessionJpegCaptureSurface appleSurface
-            ? EncodeSurface(appleSurface, options)
-            : null;
+            ? SendSurfaceAsync(appleSurface, options, transport, cancellationToken)
+            : Task.FromResult(OperationResult.FromFailure("Session JPEG capture surface type mismatch."));
     }
 
     private static Task<T?> InvokeOnUiThreadAsync<T>(Func<T?> capture)
@@ -32,6 +43,7 @@ internal static partial class SessionJpegCaptureSupport
         {
             try
             {
+                using var autoreleasePool = new NSAutoreleasePool();
                 taskCompletionSource.SetResult(capture());
             }
             catch (Exception ex)
@@ -71,12 +83,8 @@ internal static partial class SessionJpegCaptureSupport
             return false;
         }
 
-        var targetSize = new CoreGraphics.CGSize(targetWidth, targetHeight);
-        var rendererFormat = UIGraphicsImageRendererFormat.DefaultFormat;
-        rendererFormat.Opaque = window.Opaque;
-        rendererFormat.Scale = 1;
-
-        using var renderer = new UIGraphicsImageRenderer(targetSize, rendererFormat);
+        var targetSize = new CGSize(targetWidth, targetHeight);
+        var renderer = GetRenderer(targetWidth, targetHeight, window.Opaque);
         var image = renderer.CreateImage(renderContext =>
         {
             renderContext.CGContext.ScaleCTM(
@@ -93,39 +101,71 @@ internal static partial class SessionJpegCaptureSupport
         return true;
     }
 
-    private static SessionJpegFrame? EncodeSurface(SessionJpegCaptureSurface surface, SessionJpegCaptureOptions options)
+    private static async Task<OperationResult> SendSurfaceAsync(
+        SessionJpegCaptureSurface surface,
+        SessionJpegCaptureOptions options,
+        PairingSessionTransport transport,
+        CancellationToken cancellationToken)
     {
+        using var autoreleasePool = new NSAutoreleasePool();
         using var imageData = surface.Image.AsJPEG((nfloat)(options.Quality / 100d));
         if (imageData is null)
         {
-            return null;
+            return OperationResult.FromSuccess("Session JPEG frame skipped.");
         }
 
-        using var stream = new PooledBufferStream(SessionJpegWireProtocol.HeaderSize + checked((int)imageData.Length));
-        stream.ReservePrefix(SessionJpegWireProtocol.HeaderSize);
-        using var dataStream = imageData.AsStream();
-        Span<byte> copyBuffer = stackalloc byte[8192];
-        while (true)
+        var jpegByteCount = checked((int)imageData.Length);
+        RecordEncodedJpegByteCount(jpegByteCount);
+
+        byte[]? headerBuffer = null;
+        byte[]? chunkBuffer = null;
+        try
         {
-            var bytesRead = dataStream.Read(copyBuffer);
-            if (bytesRead <= 0)
+            headerBuffer = ArrayPool<byte>.Shared.Rent(SessionJpegWireProtocol.HeaderSize);
+            chunkBuffer = ArrayPool<byte>.Shared.Rent(JpegChunkByteCount);
+
+            SessionJpegWireProtocol.WriteHeader(
+                headerBuffer.AsSpan(0, SessionJpegWireProtocol.HeaderSize),
+                surface.CapturedAtUtc,
+                surface.Width,
+                surface.Height,
+                options.Quality,
+                jpegByteCount);
+
+            return await transport.SendBinaryAsync(
+                async (sendFragmentAsync, sendCancellationToken) =>
+                {
+                    await sendFragmentAsync(
+                        headerBuffer.AsMemory(0, SessionJpegWireProtocol.HeaderSize),
+                        endOfMessage: jpegByteCount == 0,
+                        sendCancellationToken);
+
+                    var payloadOffset = 0;
+                    while (payloadOffset < jpegByteCount)
+                    {
+                        var bytesToSend = Math.Min(chunkBuffer.Length, jpegByteCount - payloadOffset);
+                        Marshal.Copy(IntPtr.Add(imageData.Bytes, payloadOffset), chunkBuffer, 0, bytesToSend);
+                        payloadOffset += bytesToSend;
+                        await sendFragmentAsync(
+                            chunkBuffer.AsMemory(0, bytesToSend),
+                            endOfMessage: payloadOffset == jpegByteCount,
+                            sendCancellationToken);
+                    }
+                },
+                cancellationToken);
+        }
+        finally
+        {
+            if (chunkBuffer is not null)
             {
-                break;
+                ArrayPool<byte>.Shared.Return(chunkBuffer);
             }
 
-            stream.Write(copyBuffer[..bytesRead]);
+            if (headerBuffer is not null)
+            {
+                ArrayPool<byte>.Shared.Return(headerBuffer);
+            }
         }
-
-        var jpegLength = stream.LengthWritten - SessionJpegWireProtocol.HeaderSize;
-        SessionJpegWireProtocol.WriteHeader(
-            stream.GetWrittenSpan(SessionJpegWireProtocol.HeaderSize),
-            surface.CapturedAtUtc,
-            surface.Width,
-            surface.Height,
-            options.Quality,
-            jpegLength);
-
-        return stream.DetachFrame();
     }
 
     private static UIWindow? GetActiveWindow()
@@ -154,6 +194,21 @@ internal static partial class SessionJpegCaptureSupport
         return scale > 0 ? scale : 1;
     }
 
+    private static UIGraphicsImageRenderer GetRenderer(int width, int height, bool opaque)
+    {
+        lock (rendererGate)
+        {
+            if (cachedImageRenderer is not null && cachedImageRenderer.Matches(width, height, opaque))
+            {
+                return cachedImageRenderer.Renderer;
+            }
+
+            cachedImageRenderer?.Dispose();
+            cachedImageRenderer = new CachedImageRenderer(width, height, opaque);
+            return cachedImageRenderer.Renderer;
+        }
+    }
+
     private sealed class SessionJpegCaptureSurface : ISessionJpegCaptureSurface
     {
         public SessionJpegCaptureSurface(UIImage image, DateTimeOffset capturedAtUtc, int width, int height)
@@ -175,6 +230,39 @@ internal static partial class SessionJpegCaptureSupport
         public void Dispose()
         {
             Image.Dispose();
+        }
+    }
+
+    private sealed class CachedImageRenderer : IDisposable
+    {
+        public CachedImageRenderer(int width, int height, bool opaque)
+        {
+            Width = width;
+            Height = height;
+            Opaque = opaque;
+
+            var rendererFormat = UIGraphicsImageRendererFormat.DefaultFormat;
+            rendererFormat.Opaque = opaque;
+            rendererFormat.Scale = 1;
+            Renderer = new UIGraphicsImageRenderer(new CGSize(width, height), rendererFormat);
+        }
+
+        public int Width { get; }
+
+        public int Height { get; }
+
+        public bool Opaque { get; }
+
+        public UIGraphicsImageRenderer Renderer { get; }
+
+        public bool Matches(int width, int height, bool opaque)
+        {
+            return Width == width && Height == height && Opaque == opaque;
+        }
+
+        public void Dispose()
+        {
+            Renderer.Dispose();
         }
     }
 }

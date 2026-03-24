@@ -686,6 +686,28 @@ internal class MutableDataSink : IDataSink, IAppLifecycleStateSource
         AddEvent(label, type, channel, details, DateTime.UtcNow);
     }
 
+    public void ScreenViewed(string screenName)
+    {
+        ScreenViewed(screenName, Constants.ReservedChannels.ChannelNotSpecified_Id, string.Empty);
+    }
+
+    public void ScreenViewed(string screenName, string details)
+    {
+        ScreenViewed(screenName, Constants.ReservedChannels.ChannelNotSpecified_Id, details);
+    }
+
+    public void ScreenViewed(string screenName, byte channel)
+    {
+        ScreenViewed(screenName, channel, string.Empty);
+    }
+
+    public void ScreenViewed(string screenName, byte channel, string details)
+    {
+        if (string.IsNullOrWhiteSpace(screenName)) throw new ArgumentException("Value cannot be null or whitespace.", nameof(screenName));
+
+        Event(screenName, AppEventType.ScreenViewed, channel, details ?? string.Empty);
+    }
+
     internal bool SetAppLifecycleState(AppLifecycleState state, DateTimeOffset? changedAtUtc = null, bool emitTransitionEvent = true)
     {
         var effectiveChangedAtUtc = (changedAtUtc ?? DateTimeOffset.UtcNow).ToUniversalTime();

@@ -173,7 +173,6 @@ public sealed class HostPairingManagerIntegrationTests
         {
             Schema = PairingDiscoveryHint.SchemaName,
             Source = "integration-test",
-            HostAddress = hostAddress,
             HostName = "test-host",
             CapturedAt = DateTimeOffset.UtcNow
         };

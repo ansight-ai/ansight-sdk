@@ -309,6 +309,7 @@ Current batching behavior:
 
 - maximum `160` events per batch
 - events are deduplicated by `id` while pending
+- built-in event types are sent as their enum names, for example `Navigation`, `Lifecycle`, or `ScreenViewed`
 
 ## Tool protocol on the session socket
 
@@ -390,11 +391,11 @@ The implementation lives in:
 Current behavior:
 
 - screenshots are captured from the app's own root surface
-- capture is periodic and client-driven
+- capture is client-driven and backpressure-driven; the next interval does not start until the previous frame has finished sending
 - there is no host negotiation or host control message for this feature
-- each WebSocket binary frame contains one screenshot payload
+- each WebSocket binary message contains one screenshot payload and may be fragmented at the WebSocket frame layer
 
-### Binary frame format
+### Binary message format
 
 Each binary WebSocket message is:
 

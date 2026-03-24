@@ -414,6 +414,16 @@ public class Options
         }
 
         /// <summary>
+        /// Enables discovery and execution for read and write tools.
+        /// Delete-scoped tools remain disabled.
+        /// </summary>
+        public OptionsBuilder WithReadWriteToolAccess()
+        {
+            options.ToolGuard = ToolGuard.ReadWrite;
+            return this;
+        }
+
+        /// <summary>
         /// Enables discovery and execution for all registered tool scopes.
         /// </summary>
         public OptionsBuilder WithAllToolAccess()

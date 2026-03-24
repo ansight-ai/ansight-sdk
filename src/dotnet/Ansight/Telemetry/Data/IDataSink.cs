@@ -116,6 +116,26 @@ public interface IDataSink
     void Event(string label, AppEventType type, byte channel, string details);
 
     /// <summary>
+    /// Records that a screen was viewed on the unspecified channel.
+    /// </summary>
+    void ScreenViewed(string screenName);
+
+    /// <summary>
+    /// Records that a screen was viewed on the unspecified channel with additional details.
+    /// </summary>
+    void ScreenViewed(string screenName, string details);
+
+    /// <summary>
+    /// Records that a screen was viewed for the given channel.
+    /// </summary>
+    void ScreenViewed(string screenName, byte channel);
+
+    /// <summary>
+    /// Records that a screen was viewed for the given channel with additional details.
+    /// </summary>
+    void ScreenViewed(string screenName, byte channel, string details);
+
+    /// <summary>
     /// Creates a full copy of the data currently in the data sink for export.
     /// </summary>
     Snapshot Snapshot();

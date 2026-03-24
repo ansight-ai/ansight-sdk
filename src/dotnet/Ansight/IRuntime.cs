@@ -103,6 +103,26 @@ public interface IRuntime
     void Event(string label, AppEventType type, byte channel, string details);
 
     /// <summary>
+    /// Captures a screen-viewed event using the given <paramref name="screenName"/> against the unspecified channel.
+    /// </summary>
+    void ScreenViewed(string screenName);
+
+    /// <summary>
+    /// Captures a screen-viewed event using the given <paramref name="screenName"/> and <paramref name="details"/> against the unspecified channel.
+    /// </summary>
+    void ScreenViewed(string screenName, string details);
+
+    /// <summary>
+    /// Captures a screen-viewed event using the given <paramref name="screenName"/> against the <paramref name="channel"/>.
+    /// </summary>
+    void ScreenViewed(string screenName, byte channel);
+
+    /// <summary>
+    /// Captures a screen-viewed event using the given <paramref name="screenName"/>, <paramref name="channel"/>, and <paramref name="details"/>.
+    /// </summary>
+    void ScreenViewed(string screenName, byte channel, string details);
+
+    /// <summary>
     /// Clears the backing data sink, removing all recorded metrics and events.
     /// </summary>
     void Clear();

@@ -16,6 +16,8 @@ using UIKit;
 
 internal static class VisualTreeSupport
 {
+    private static int lastEncodedScreenshotBytes = 32 * 1024;
+
     internal static Task<ToolResult> GetVisualTreeAsync(IReadOnlyDictionary<string, string> arguments)
     {
         var includeBounds = GetBoolean(arguments, "includeBounds", defaultValue: true);
@@ -462,7 +464,7 @@ internal static class VisualTreeSupport
 
         try
         {
-            using var stream = new MemoryStream();
+            using var stream = new MemoryStream(Math.Max(EstimateInitialEncodedScreenshotCapacity(workingBitmap.Width, workingBitmap.Height), 1024));
             var success = string.Equals(format, "jpeg", StringComparison.OrdinalIgnoreCase) || string.Equals(format, "jpg", StringComparison.OrdinalIgnoreCase)
                 ? workingBitmap.Compress(Bitmap.CompressFormat.Jpeg!, quality, stream)
                 : workingBitmap.Compress(Bitmap.CompressFormat.Png!, 100, stream);
@@ -474,11 +476,13 @@ internal static class VisualTreeSupport
                 return false;
             }
 
+            var encodedLength = checked((int)stream.Length);
+            ReportEncodedScreenshotBytes(encodedLength);
             screenshot = new ScreenshotCapture(
                 Format: string.Equals(format, "jpeg", StringComparison.OrdinalIgnoreCase) || string.Equals(format, "jpg", StringComparison.OrdinalIgnoreCase) ? "jpeg" : "png",
                 Width: workingBitmap.Width,
                 Height: workingBitmap.Height,
-                Base64: Convert.ToBase64String(stream.ToArray()),
+                Base64: ToBase64String(stream, encodedLength),
                 AnnotationApplied: false && annotateNodeIds);
             error = null;
             return true;
@@ -568,6 +572,7 @@ internal static class VisualTreeSupport
         {
             try
             {
+                using var autoreleasePool = new NSAutoreleasePool();
                 completion.TrySetResult(action());
             }
             catch (Exception exception)
@@ -702,11 +707,12 @@ internal static class VisualTreeSupport
             return false;
         }
 
+        ReportEncodedScreenshotBytes(checked((long)imageData.Length));
         screenshot = new ScreenshotCapture(
             Format: string.Equals(format, "jpeg", StringComparison.OrdinalIgnoreCase) || string.Equals(format, "jpg", StringComparison.OrdinalIgnoreCase) ? "jpeg" : "png",
             Width: targetPixelWidth,
             Height: targetPixelHeight,
-            Base64: Convert.ToBase64String(imageData.ToArray()),
+            Base64: imageData.GetBase64EncodedString(NSDataBase64EncodingOptions.None) ?? string.Empty,
             AnnotationApplied: false && annotateNodeIds);
         error = null;
         return true;
@@ -755,4 +761,40 @@ internal static class VisualTreeSupport
         return false;
     }
 #endif
+
+    private static int EstimateInitialEncodedScreenshotCapacity(int width, int height)
+    {
+        var lastEncodedBytes = Volatile.Read(ref lastEncodedScreenshotBytes);
+        if (lastEncodedBytes > 0)
+        {
+            return Math.Max(8 * 1024, lastEncodedBytes);
+        }
+
+        if (width <= 0 || height <= 0)
+        {
+            return 32 * 1024;
+        }
+
+        return Math.Max(8 * 1024, (width * height) / 2);
+    }
+
+    private static void ReportEncodedScreenshotBytes(long byteCount)
+    {
+        if (byteCount <= 0 || byteCount > int.MaxValue)
+        {
+            return;
+        }
+
+        Volatile.Write(ref lastEncodedScreenshotBytes, (int)byteCount);
+    }
+
+    private static string ToBase64String(MemoryStream stream, int encodedLength)
+    {
+        if (stream.TryGetBuffer(out var encodedBuffer))
+        {
+            return Convert.ToBase64String(encodedBuffer.AsSpan(0, encodedLength));
+        }
+
+        return Convert.ToBase64String(stream.ToArray());
+    }
 }

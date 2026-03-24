@@ -30,9 +30,10 @@ Runtime.InitializeAndActivate(options);
 
 Runtime.Metric(2048, channel: 10);
 Runtime.Event("sync_started");
+Runtime.ScreenViewed("HomePage");
 ```
 
-When `WithSessionJpegCapture(...)` is enabled, the pairing client will periodically capture the app's own root window/view as a JPEG and stream it over live Ansight pairing sessions. Connected tooling can inspect the latest live frame or correlate historical frames with the telemetry timeline. This feature adds extra rendering, encoding, and transport work and can negatively affect runtime performance while it is active.
+When `WithSessionJpegCapture(...)` is enabled, the pairing client will capture the app's own root window/view as a JPEG and stream it over live Ansight pairing sessions. Capture remains client-driven, but the next interval is delayed until the previous frame has finished encoding and sending so the stream self-throttles under load. Connected tooling can inspect the latest live frame or correlate historical frames with the telemetry timeline. This feature adds extra rendering, encoding, and transport work and can negatively affect runtime performance while it is active.
 
 Host auto-probe is enabled by default. While `Runtime` is active, Ansight will periodically try to reconnect to the most recent successful pairing profile if one is cached, pause probing while that session stays open, and resume after a reconnect delay if the session closes. Disable it with `WithoutHostAutoProbe()` or customize it with `WithHostAutoProbe(new HostAutoProbeOptions { ... })`.
 
@@ -79,6 +80,10 @@ Available grouped packages:
 - `Ansight.Tools.VisualTree`
 - `Ansight.Tools.Database`
 - `Ansight.Tools.FileSystem`
+- `Ansight.Tools.Preferences`
+- `Ansight.Tools.SecureStorage`
+
+`WithReadWriteToolAccess()` enables read and write tools while keeping delete-scoped tools disabled. The storage packages register remove operations as `Delete`, so use `WithAllToolAccess()` or a custom `ToolGuard` when you want key removal enabled.
 
 At runtime, transport layers can query or execute tools through `Runtime.ToolBridge`. When a `PairingSessionClient` session is open, inbound `tool.query` and `tool.call` envelopes are handled automatically on the live WebSocket and answered according to the configured `ToolGuard`.
 

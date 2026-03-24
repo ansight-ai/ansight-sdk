@@ -94,13 +94,24 @@ The core `Ansight` package contains `ITool`, `ToolScope`, `ToolSchema`, `ToolDef
 using Ansight;
 using Ansight.Tools.Database;
 using Ansight.Tools.FileSystem;
+using Ansight.Tools.Preferences;
+using Ansight.Tools.SecureStorage;
 using Ansight.Tools.VisualTree;
 
 var options = Options.CreateBuilder()
     .WithVisualTreeTools()
     .WithDatabaseTools()
     .WithFileSystemTools()
-    .WithReadOnlyToolAccess()
+    .WithPreferencesTools(preferences =>
+    {
+        preferences.AllowKeyPrefix("com.example.");
+    })
+    .WithSecureStorageTools(secure =>
+    {
+        secure.WithStorageIdentifier("MyApp");
+        secure.AllowKey("session_token");
+    })
+    .WithReadWriteToolAccess()
     .Build();
 ```
 
@@ -108,8 +119,11 @@ Registered tools are guarded explicitly. Use:
 
 - `WithToolsDisabled()` to disable discovery and execution
 - `WithReadOnlyToolAccess()` to enable read tools
+- `WithReadWriteToolAccess()` to enable read and write tools
 - `WithAllToolAccess()` to enable all registered scopes
 - `WithToolGuard(...)` for a custom policy
+
+The storage packages register `remove` operations as `Delete`, so `WithReadWriteToolAccess()` intentionally keeps those hidden and non-executable.
 
 The runtime exposes a protocol bridge for transport layers:
 

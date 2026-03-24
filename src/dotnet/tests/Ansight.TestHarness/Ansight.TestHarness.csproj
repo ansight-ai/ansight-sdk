@@ -26,6 +26,7 @@
         <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
         <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
         <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
+        <AnsightAllowRemoteTools>true</AnsightAllowRemoteTools>
     </PropertyGroup>
 
     <ItemGroup>
@@ -58,6 +59,8 @@
 
     <ItemGroup>
       <ProjectReference Include="..\..\Ansight\Ansight.csproj" />
+      <ProjectReference Include="..\..\Ansight.Tools.Preferences\Ansight.Tools.Preferences.csproj" />
+      <ProjectReference Include="..\..\Ansight.Tools.SecureStorage\Ansight.Tools.SecureStorage.csproj" />
     </ItemGroup>
 
 </Project>

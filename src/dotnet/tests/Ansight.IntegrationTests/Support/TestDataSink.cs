@@ -130,6 +130,18 @@ internal sealed class TestDataSink : IDataSink, IAppLifecycleStateSource
     public void Event(string label, AppEventType type, byte channel, string details)
         => AddEvent(CreateEvent(label, type, channel, details));
 
+    public void ScreenViewed(string screenName)
+        => AddEvent(CreateEvent(screenName, AppEventType.ScreenViewed, Constants.ReservedChannels.ChannelNotSpecified_Id, string.Empty));
+
+    public void ScreenViewed(string screenName, string details)
+        => AddEvent(CreateEvent(screenName, AppEventType.ScreenViewed, Constants.ReservedChannels.ChannelNotSpecified_Id, details));
+
+    public void ScreenViewed(string screenName, byte channel)
+        => AddEvent(CreateEvent(screenName, AppEventType.ScreenViewed, channel, string.Empty));
+
+    public void ScreenViewed(string screenName, byte channel, string details)
+        => AddEvent(CreateEvent(screenName, AppEventType.ScreenViewed, channel, details));
+
     public Snapshot Snapshot()
     {
         return new Snapshot
