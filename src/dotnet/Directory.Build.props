@@ -1,0 +1,23 @@
+<Project>
+
+  <PropertyGroup>
+    <AnsightPackageVersion>0.1.0-pre1</AnsightPackageVersion>
+    <AnsightPackageProjectUrl>https://www.ansight.ai</AnsightPackageProjectUrl>
+    <AnsightRepositoryUrl>https://github.com/ansight-ai/ansight-sdk</AnsightRepositoryUrl>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageVersion Condition="'$(PackageVersion)' == ''">$(AnsightPackageVersion)</PackageVersion>
+    <Authors Condition="'$(Authors)' == ''">Ansight AI</Authors>
+    <Company Condition="'$(Company)' == ''">Ansight AI</Company>
+    <Product Condition="'$(Product)' == ''">Ansight</Product>
+    <PackageProjectUrl Condition="'$(PackageProjectUrl)' == ''">$(AnsightPackageProjectUrl)</PackageProjectUrl>
+    <RepositoryUrl Condition="'$(RepositoryUrl)' == ''">$(AnsightRepositoryUrl)</RepositoryUrl>
+    <RepositoryType Condition="'$(RepositoryType)' == ''">git</RepositoryType>
+    <PackageLicenseExpression Condition="'$(PackageLicenseExpression)' == ''">MIT</PackageLicenseExpression>
+    <PackageReadmeFile Condition="'$(PackageReadmeFile)' == ''">README.md</PackageReadmeFile>
+    <PackageIcon Condition="'$(PackageIcon)' == ''">icon.png</PackageIcon>
+    <PackageOutputPath Condition="'$(PackageOutputPath)' == ''">$(MSBuildThisFileDirectory)products</PackageOutputPath>
+  </PropertyGroup>
+
+</Project>

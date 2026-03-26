@@ -1,0 +1,17 @@
+<Project>
+
+  <ItemGroup Condition="'$(IsPackable)' == 'true' and Exists('$(MSBuildProjectDirectory)/README.md')">
+    <None Include="$(MSBuildProjectDirectory)/README.md"
+          Link="README.md"
+          Pack="true"
+          PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(IsPackable)' == 'true'">
+    <None Include="$(MSBuildThisFileDirectory)..\..\branding\icon.png"
+          Link="icon.png"
+          Pack="true"
+          PackagePath="\" />
+  </ItemGroup>
+
+</Project>
