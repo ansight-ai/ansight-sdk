@@ -37,20 +37,23 @@ When `WithSessionJpegCapture(...)` is enabled, the pairing client will capture t
 
 Host auto-probe is enabled by default. While `Runtime` is active, Ansight will periodically try to reconnect to the most recent successful pairing profile if one is cached, pause probing while that session stays open, and resume after a reconnect delay if the session closes. Disable it with `WithoutHostAutoProbe()` or customize it with `WithHostAutoProbe(new HostAutoProbeOptions { ... })`.
 
-Runtime-owned host pairing also manages stored and bundled pairing profiles. Configure bundled loaders once at initialization, then use `Runtime.HostPairing` to auto-connect, recover from saved-profile expiry, or handle QR payloads without app-specific pairing orchestration.
+Runtime-owned host pairing also manages stored and bundled pairing profiles. If your app bundles `ansight.developer-pairing.json`, Ansight now attempts startup auto-connect automatically when the runtime becomes active. Configure bundled profile resolution once at initialization, then use `Runtime.HostPairing` when you need to retry auto-connect explicitly, recover from saved-profile expiry, or handle QR payloads without app-specific pairing orchestration.
 
 ```csharp
-var options = Options.CreateBuilder()
-    .WithHostPairing(new HostPairingOptions
+public static class AppBootstrap
+{
+    public static void ConfigureAnsight()
     {
-        BundledDeveloperProfileLoader = cancellationToken => LoadBundledTextAsync("ansight.developer-pairing.json", cancellationToken),
-        BundledProfileLoader = cancellationToken => LoadBundledTextAsync("ansight.json", cancellationToken)
-    })
-    .Build();
+        var options = Options.CreateBuilder()
+            .WithHostPairing(new HostPairingOptions
+            {
+                BundledProfileAssembly = typeof(AppBootstrap).Assembly
+            })
+            .Build();
 
-Runtime.Initialize(options);
-
-var autoConnectResult = await Runtime.HostPairing.AutoConnectAsync();
+        Runtime.InitializeAndActivate(options);
+    }
+}
 ```
 
 ## Accessing sampled data
@@ -103,7 +106,7 @@ To explicitly allow remote tools in an app build, set:
 </PropertyGroup>
 ```
 
-If `AnsightAllowRemoteTools` is omitted or `false`, the SDK scans the managed assemblies under `$(TargetDir)` after build and errors on bundled tool implementations. The legacy `AnsightAllowMCPTools` alias is still accepted for compatibility.
+If `AnsightAllowRemoteTools` is omitted or `false`, the SDK scans the managed assemblies under `$(TargetDir)` after build and errors on bundled tool implementations.
 
 Keep `AnsightAllowRemoteTools=true` limited to local Debug builds. Remote tools should never be enabled in Release or shippable builds because they expose remote inspection and privileged action capabilities over app data and runtime state.
 

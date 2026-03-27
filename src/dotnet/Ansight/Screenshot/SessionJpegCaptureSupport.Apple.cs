@@ -43,7 +43,6 @@ internal static partial class SessionJpegCaptureSupport
         {
             try
             {
-                using var autoreleasePool = new NSAutoreleasePool();
                 taskCompletionSource.SetResult(capture());
             }
             catch (Exception ex)
@@ -107,23 +106,32 @@ internal static partial class SessionJpegCaptureSupport
         PairingSessionTransport transport,
         CancellationToken cancellationToken)
     {
+        using var payload = EncodeSurface(surface, options);
+        if (payload is null)
+        {
+            return OperationResult.FromSuccess("Session JPEG frame skipped.");
+        }
+
+        return await transport.SendBinaryAsync(payload.WriteAsync, cancellationToken);
+    }
+
+    private static EncodedJpegPayload? EncodeSurface(SessionJpegCaptureSurface surface, SessionJpegCaptureOptions options)
+    {
         using var autoreleasePool = new NSAutoreleasePool();
         using var imageData = surface.Image.AsJPEG((nfloat)(options.Quality / 100d));
         if (imageData is null)
         {
-            return OperationResult.FromSuccess("Session JPEG frame skipped.");
+            return null;
         }
 
         var jpegByteCount = checked((int)imageData.Length);
         RecordEncodedJpegByteCount(jpegByteCount);
 
-        byte[]? headerBuffer = null;
-        byte[]? chunkBuffer = null;
+        var headerBuffer = ArrayPool<byte>.Shared.Rent(SessionJpegWireProtocol.HeaderSize);
+        byte[][]? chunkBuffers = null;
+        int[]? chunkLengths = null;
         try
         {
-            headerBuffer = ArrayPool<byte>.Shared.Rent(SessionJpegWireProtocol.HeaderSize);
-            chunkBuffer = ArrayPool<byte>.Shared.Rent(JpegChunkByteCount);
-
             SessionJpegWireProtocol.WriteHeader(
                 headerBuffer.AsSpan(0, SessionJpegWireProtocol.HeaderSize),
                 surface.CapturedAtUtc,
@@ -132,39 +140,41 @@ internal static partial class SessionJpegCaptureSupport
                 options.Quality,
                 jpegByteCount);
 
-            return await transport.SendBinaryAsync(
-                async (sendFragmentAsync, sendCancellationToken) =>
-                {
-                    await sendFragmentAsync(
-                        headerBuffer.AsMemory(0, SessionJpegWireProtocol.HeaderSize),
-                        endOfMessage: jpegByteCount == 0,
-                        sendCancellationToken);
+            var chunkCount = jpegByteCount == 0
+                ? 0
+                : (jpegByteCount + JpegChunkByteCount - 1) / JpegChunkByteCount;
+            chunkBuffers = chunkCount == 0 ? Array.Empty<byte[]>() : new byte[chunkCount][];
+            chunkLengths = chunkCount == 0 ? Array.Empty<int>() : new int[chunkCount];
 
-                    var payloadOffset = 0;
-                    while (payloadOffset < jpegByteCount)
-                    {
-                        var bytesToSend = Math.Min(chunkBuffer.Length, jpegByteCount - payloadOffset);
-                        Marshal.Copy(IntPtr.Add(imageData.Bytes, payloadOffset), chunkBuffer, 0, bytesToSend);
-                        payloadOffset += bytesToSend;
-                        await sendFragmentAsync(
-                            chunkBuffer.AsMemory(0, bytesToSend),
-                            endOfMessage: payloadOffset == jpegByteCount,
-                            sendCancellationToken);
-                    }
-                },
-                cancellationToken);
+            var payloadOffset = 0;
+            for (var index = 0; index < chunkCount; index++)
+            {
+                var bytesToCopy = Math.Min(JpegChunkByteCount, jpegByteCount - payloadOffset);
+                var chunkBuffer = ArrayPool<byte>.Shared.Rent(bytesToCopy);
+                Marshal.Copy(IntPtr.Add(imageData.Bytes, payloadOffset), chunkBuffer, 0, bytesToCopy);
+                payloadOffset += bytesToCopy;
+
+                chunkBuffers[index] = chunkBuffer;
+                chunkLengths[index] = bytesToCopy;
+            }
+
+            return new EncodedJpegPayload(headerBuffer, chunkBuffers, chunkLengths);
         }
-        finally
+        catch
         {
-            if (chunkBuffer is not null)
+            if (chunkBuffers is not null)
             {
-                ArrayPool<byte>.Shared.Return(chunkBuffer);
+                foreach (var chunkBuffer in chunkBuffers)
+                {
+                    if (chunkBuffer is not null)
+                    {
+                        ArrayPool<byte>.Shared.Return(chunkBuffer);
+                    }
+                }
             }
 
-            if (headerBuffer is not null)
-            {
-                ArrayPool<byte>.Shared.Return(headerBuffer);
-            }
+            ArrayPool<byte>.Shared.Return(headerBuffer);
+            throw;
         }
     }
 
@@ -211,15 +221,17 @@ internal static partial class SessionJpegCaptureSupport
 
     private sealed class SessionJpegCaptureSurface : ISessionJpegCaptureSurface
     {
+        private UIImage? image;
+
         public SessionJpegCaptureSurface(UIImage image, DateTimeOffset capturedAtUtc, int width, int height)
         {
-            Image = image;
+            this.image = image;
             CapturedAtUtc = capturedAtUtc;
             Width = width;
             Height = height;
         }
 
-        public UIImage Image { get; }
+        public UIImage Image => image ?? throw new ObjectDisposedException(nameof(SessionJpegCaptureSurface));
 
         public DateTimeOffset CapturedAtUtc { get; }
 
@@ -229,7 +241,80 @@ internal static partial class SessionJpegCaptureSupport
 
         public void Dispose()
         {
-            Image.Dispose();
+            var currentImage = Interlocked.Exchange(ref image, null);
+            if (currentImage is null)
+            {
+                return;
+            }
+
+            if (NSThread.Current.IsMainThread)
+            {
+                currentImage.Dispose();
+                return;
+            }
+
+            UIApplication.SharedApplication.BeginInvokeOnMainThread(currentImage.Dispose);
+        }
+    }
+
+    private sealed class EncodedJpegPayload : IDisposable
+    {
+        private byte[]? headerBuffer;
+        private byte[][]? chunkBuffers;
+        private int[]? chunkLengths;
+
+        public EncodedJpegPayload(byte[] headerBuffer, byte[][] chunkBuffers, int[] chunkLengths)
+        {
+            this.headerBuffer = headerBuffer;
+            this.chunkBuffers = chunkBuffers;
+            this.chunkLengths = chunkLengths;
+        }
+
+        public async Task WriteAsync(BinaryFragmentSender sendFragmentAsync, CancellationToken cancellationToken)
+        {
+            ObjectDisposedException.ThrowIf(headerBuffer is null, this);
+
+            var currentHeaderBuffer = headerBuffer;
+            var currentChunkBuffers = chunkBuffers ?? Array.Empty<byte[]>();
+            var currentChunkLengths = chunkLengths ?? Array.Empty<int>();
+
+            await sendFragmentAsync(
+                currentHeaderBuffer.AsMemory(0, SessionJpegWireProtocol.HeaderSize),
+                endOfMessage: currentChunkLengths.Length == 0,
+                cancellationToken);
+
+            for (var index = 0; index < currentChunkLengths.Length; index++)
+            {
+                await sendFragmentAsync(
+                    currentChunkBuffers[index].AsMemory(0, currentChunkLengths[index]),
+                    endOfMessage: index == currentChunkLengths.Length - 1,
+                    cancellationToken);
+            }
+        }
+
+        public void Dispose()
+        {
+            var currentHeaderBuffer = Interlocked.Exchange(ref headerBuffer, null);
+            var currentChunkBuffers = Interlocked.Exchange(ref chunkBuffers, null);
+            chunkLengths = null;
+
+            if (currentHeaderBuffer is not null)
+            {
+                ArrayPool<byte>.Shared.Return(currentHeaderBuffer);
+            }
+
+            if (currentChunkBuffers is null)
+            {
+                return;
+            }
+
+            foreach (var chunkBuffer in currentChunkBuffers)
+            {
+                if (chunkBuffer is not null)
+                {
+                    ArrayPool<byte>.Shared.Return(chunkBuffer);
+                }
+            }
         }
     }
 

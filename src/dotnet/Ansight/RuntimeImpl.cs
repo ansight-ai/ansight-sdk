@@ -78,6 +78,17 @@ internal class RuntimeImpl : IRuntime
         }
 
         hostConnection.OnRuntimeActivated();
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await hostPairing.HandleRuntimeActivatedAsync(CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                Logger.Exception(ex);
+            }
+        }, CancellationToken.None);
         OnActivated?.Invoke(this, EventArgs.Empty);
     }
 

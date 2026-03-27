@@ -246,7 +246,11 @@ internal static partial class SessionJpegCaptureSupport
         {
             if (IsReusable)
             {
-                inUse = false;
+                lock (captureStateGate)
+                {
+                    inUse = false;
+                }
+
                 return;
             }
 

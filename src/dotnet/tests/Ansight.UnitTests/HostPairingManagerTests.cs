@@ -204,6 +204,53 @@ public sealed class HostPairingManagerTests
     }
 
     [Fact]
+    public async Task HandleRuntimeActivatedAsync_WhenBundledDeveloperProfileExists_AttemptsAutoConnect()
+    {
+        var preferredProfilePath = CreateTempFilePath();
+        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var bundledDeveloperDocument = CreateDocument(signingKey, configId: "cfg-developer", hostAddress: "192.168.1.30");
+
+        using var hostConnection = new FakeHostConnection();
+        hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using bundled developer profile."));
+        using var manager = CreateManager(
+            hostConnection,
+            preferredProfilePath,
+            new HostPairingOptions
+            {
+                BundledDeveloperProfileLoader = _ => Task.FromResult<string?>(PairingDocumentJson.Serialize(bundledDeveloperDocument))
+            });
+
+        await manager.HandleRuntimeActivatedAsync();
+
+        var connectedDocument = Assert.Single(hostConnection.ConnectDocuments);
+        Assert.Equal("cfg-developer", connectedDocument.Config.ConfigId);
+        Assert.True(manager.Status.HasBundledProfile);
+    }
+
+    [Fact]
+    public async Task HandleRuntimeActivatedAsync_WhenOnlyBundledProfileExists_DoesNotAttemptAutoConnect()
+    {
+        var preferredProfilePath = CreateTempFilePath();
+        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var bundledDocument = CreateDocument(signingKey, configId: "cfg-bundled", hostAddress: "192.168.1.20");
+
+        using var hostConnection = new FakeHostConnection();
+        hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using bundled profile."));
+        using var manager = CreateManager(
+            hostConnection,
+            preferredProfilePath,
+            new HostPairingOptions
+            {
+                BundledProfileLoader = _ => Task.FromResult<string?>(PairingDocumentJson.Serialize(bundledDocument))
+            });
+
+        await manager.HandleRuntimeActivatedAsync();
+
+        Assert.Empty(hostConnection.ConnectDocuments);
+        Assert.False(hostConnection.IsConnected);
+    }
+
+    [Fact]
     public void ClearStoredProfiles_ClearsPreferredStoreAndCachedHostProfile()
     {
         var preferredProfilePath = CreateTempFilePath();

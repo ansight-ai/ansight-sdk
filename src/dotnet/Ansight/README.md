@@ -26,21 +26,24 @@ When `WithSessionJpegCapture(...)` is enabled, the pairing client will capture t
 
 Host auto-probe is enabled by default. While `Runtime` is active, Ansight will periodically try to reconnect to the most recent successful pairing profile if one is cached, pause probing while that session stays open, and resume after a reconnect delay if the session closes. Disable it with `WithoutHostAutoProbe()` or customize it with `WithHostAutoProbe(new HostAutoProbeOptions { ... })`.
 
-Runtime-owned host pairing now also owns stored and bundled profile resolution. If your app bundles `ansight.developer-pairing.json` or `ansight.json`, register loaders once during runtime initialization and then use `Runtime.HostPairing` for startup reconnect, QR payload handling, and stored-profile recovery.
+Runtime-owned host pairing now also owns stored and bundled profile resolution. If your app bundles `ansight.developer-pairing.json`, Ansight now attempts startup auto-connect automatically when the runtime becomes active. Configure bundled profile resolution once during runtime initialization, then use `Runtime.HostPairing` when you need to retry auto-connect explicitly, handle QR payloads, or recover from saved-profile expiry.
 
 ```csharp
-var options = Options.CreateBuilder()
-    .WithHostPairing(new HostPairingOptions
+public static class AppBootstrap
+{
+    public static async Task ConfigureAnsightAsync(string payload)
     {
-        BundledDeveloperProfileLoader = cancellationToken => LoadBundledTextAsync("ansight.developer-pairing.json", cancellationToken),
-        BundledProfileLoader = cancellationToken => LoadBundledTextAsync("ansight.json", cancellationToken)
-    })
-    .Build();
+        var options = Options.CreateBuilder()
+            .WithHostPairing(new HostPairingOptions
+            {
+                BundledProfileAssembly = typeof(AppBootstrap).Assembly
+            })
+            .Build();
 
-Runtime.Initialize(options);
-
-var autoConnectResult = await Runtime.HostPairing.AutoConnectAsync();
-var qrConnectResult = await Runtime.HostPairing.ConnectFromPayloadAsync(payload, "QR pairing code");
+        Runtime.InitializeAndActivate(options);
+        var qrConnectResult = await Runtime.HostPairing.ConnectFromPayloadAsync(payload, "QR pairing code");
+    }
+}
 ```
 
 ## Data access
@@ -151,6 +154,17 @@ Optional properties:
 </PropertyGroup>
 ```
 
+Embed both pairing files as exact-name resources so the runtime can resolve them from `BundledProfileAssembly`:
+
+```xml
+<ItemGroup>
+  <EmbeddedResource Include="ansight.json" LogicalName="ansight.json" />
+  <EmbeddedResource Include="$(BaseIntermediateOutputPath)ansight.developer-pairing.json"
+                    LogicalName="ansight.developer-pairing.json"
+                    Condition="'$(AnsightDeveloperPairingEnabled)' == 'true' and Exists('$(BaseIntermediateOutputPath)ansight.developer-pairing.json')" />
+</ItemGroup>
+```
+
 When enabled, the target reads your source pairing config, captures local machine metadata when available, and writes a bootstrap document containing:
 
 - the original `PairingConfig`
@@ -170,7 +184,7 @@ To intentionally allow them, declare:
 </PropertyGroup>
 ```
 
-If the property is omitted or set to `false`, Ansight scans the managed assemblies under `$(TargetDir)` after build and fails when it finds packaged tool assemblies such as `Ansight.Tools.VisualTree` or custom in-app `ITool` implementations. The legacy `AnsightAllowMCPTools` alias is still accepted for compatibility.
+If the property is omitted or set to `false`, Ansight scans the managed assemblies under `$(TargetDir)` after build and fails when it finds packaged tool assemblies such as `Ansight.Tools.VisualTree` or custom in-app `ITool` implementations.
 
 Only use `AnsightAllowRemoteTools=true` for local Debug builds. Do not enable remote tools in Release or distributable builds, because they add remote inspection and action surfaces that can expose user data, screenshots, UI state, filesystem contents, database contents, and other privileged runtime capabilities to a connected client.
 

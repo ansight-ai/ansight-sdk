@@ -23,11 +23,13 @@ append_unique_host_address() {
   fi
 
   local existing
-  for existing in "${host_addresses[@]}"; do
-    if [ "$existing" = "$candidate" ]; then
-      return
-    fi
-  done
+  if [ "${#host_addresses[@]}" -gt 0 ]; then
+    for existing in "${host_addresses[@]}"; do
+      if [ "$existing" = "$candidate" ]; then
+        return
+      fi
+    done
+  fi
 
   host_addresses+=("$candidate")
 }
@@ -69,16 +71,18 @@ if [ -n "$wifi_device" ] && [ "$wifi_device" != "$default_device" ]; then
   collect_interface_addresses "$wifi_device"
 fi
 
-for address in "${host_addresses[@]}"; do
-  case "$address" in
-    *:*)
-      ;;
-    *)
-      host_address="$address"
-      break
-      ;;
-  esac
-done
+if [ "${#host_addresses[@]}" -gt 0 ]; then
+  for address in "${host_addresses[@]}"; do
+    case "$address" in
+      *:*)
+        ;;
+      *)
+        host_address="$address"
+        break
+        ;;
+    esac
+  done
+fi
 
 if [ -z "$host_address" ] && [ "${#host_addresses[@]}" -gt 0 ]; then
   host_address="${host_addresses[0]}"
@@ -115,7 +119,11 @@ json_array() {
 
 mkdir -p "$(dirname "$output_path")"
 pairing_config_json="$(cat "$source_file")"
-host_addresses_json="$(json_array "${host_addresses[@]}")"
+if [ "${#host_addresses[@]}" -gt 0 ]; then
+  host_addresses_json="$(json_array "${host_addresses[@]}")"
+else
+  host_addresses_json="[]"
+fi
 
 cat > "$output_path" <<EOF
 {

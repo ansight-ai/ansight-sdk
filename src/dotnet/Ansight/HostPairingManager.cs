@@ -367,6 +367,35 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
         operationGate.Dispose();
     }
 
+    internal async Task HandleRuntimeActivatedAsync(CancellationToken cancellationToken = default)
+    {
+        if (disposed || hostConnection.IsConnected || !isRuntimeActive())
+        {
+            return;
+        }
+
+        var hasBundledDeveloperProfile = await TryResolveBundledProfileAvailabilityAsync(
+            ResolveBundledDocumentLoader(HostPairingSource.BundledDeveloperProfile),
+            HostPairingSource.BundledDeveloperProfile,
+            cancellationToken);
+        if (!hasBundledDeveloperProfile || disposed || !isRuntimeActive())
+        {
+            return;
+        }
+
+        UpdateStatusAndCapabilities(hasBundledProfile || hasBundledDeveloperProfile);
+        Logger.Info("Bundled developer pairing config detected. Attempting Ansight startup auto-connect.");
+
+        var result = await AutoConnectAsync(progress: null, cancellationToken: cancellationToken);
+        if (result.Success)
+        {
+            Logger.Info($"Ansight startup auto-connect succeeded. {result.Message}");
+            return;
+        }
+
+        Logger.Warning($"Ansight startup auto-connect failed. {result.Message}");
+    }
+
     private async Task<HostPairingActionResult> ConnectFromPayloadCoreAsync(
         string payload,
         string? sourceDescription,

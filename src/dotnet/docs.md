@@ -156,7 +156,7 @@ Allow them explicitly with:
 
 Leave the property unset, or set it to `false`, to keep the default build failure.
 
-Treat `AnsightAllowRemoteTools=true` as a local-Debug-only override. The legacy `AnsightAllowMCPTools` alias is still accepted for compatibility. Do not enable remote tools in Release or distributable builds, because they add remote inspection and execution surfaces that can expose sensitive app data and privileged runtime behavior to a connected client.
+Treat `AnsightAllowRemoteTools=true` as a local-Debug-only override. Do not enable remote tools in Release or distributable builds, because they add remote inspection and execution surfaces that can expose sensitive app data and privileged runtime behavior to a connected client.
 
 ## Supported target frameworks
 
