@@ -4,7 +4,9 @@ using System.Text.Json.Nodes;
 
 #if ANDROID
 using Android.App;
+using Android.Content;
 using Android.Graphics;
+using Android.Runtime;
 using Android.OS;
 using Android.Views;
 using Android.Widget;
@@ -110,6 +112,29 @@ internal static class VisualTreeSupport
         var maxWidth = GetOptionalInt(arguments, "maxWidth", minimum: 1, maximum: 8192);
         var annotateNodeIds = GetBoolean(arguments, "annotateNodeIds", defaultValue: false);
 
+#if ANDROID
+        return RunOnUiThreadAsync(async () =>
+        {
+            var screenshotResult = await CaptureScreenshotAsync(format, quality, maxWidth, annotateNodeIds);
+            if (screenshotResult.Screenshot == null)
+            {
+                return ToolResult.Failure(screenshotResult.Error ?? "Unable to capture a screenshot.", errorCode: "visual_screenshot_failed");
+            }
+
+            var payload = new JsonObject
+            {
+                ["platform"] = CurrentPlatform,
+                ["capturedAtUtc"] = DateTime.UtcNow.ToString("O"),
+                ["format"] = screenshotResult.Screenshot.Format,
+                ["width"] = screenshotResult.Screenshot.Width,
+                ["height"] = screenshotResult.Screenshot.Height,
+                ["base64"] = screenshotResult.Screenshot.Base64,
+                ["annotationApplied"] = screenshotResult.Screenshot.AnnotationApplied
+            };
+
+            return ToolResult.Success(payload);
+        });
+#else
         return RunOnUiThreadAsync(() =>
         {
             if (!TryCaptureScreenshot(format, quality, maxWidth, annotateNodeIds, out var screenshot, out var error))
@@ -130,6 +155,7 @@ internal static class VisualTreeSupport
 
             return ToolResult.Success(payload);
         });
+#endif
     }
 
     private static string CurrentPlatform
@@ -364,6 +390,30 @@ internal static class VisualTreeSupport
         return completion.Task;
     }
 
+    private static Task<ToolResult> RunOnUiThreadAsync(Func<Task<ToolResult>> action)
+    {
+        var activity = AndroidActivityTracker.GetCurrentActivity();
+        if (activity == null)
+        {
+            return Task.FromResult(ToolResult.Failure("No foreground Android activity is available.", errorCode: "visual_tree_no_activity"));
+        }
+
+        var completion = new TaskCompletionSource<ToolResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        activity.RunOnUiThread(async () =>
+        {
+            try
+            {
+                completion.TrySetResult(await action());
+            }
+            catch (Exception exception)
+            {
+                completion.TrySetResult(ToolResult.Failure(exception.Message, errorCode: "visual_tree_execution_failed"));
+            }
+        });
+
+        return completion.Task;
+    }
+
     private static bool TryCaptureTree(bool includeProperties, out VisualNode? rootNode, out string? error)
     {
         var activity = AndroidActivityTracker.GetCurrentActivity();
@@ -436,21 +486,22 @@ internal static class VisualTreeSupport
         };
     }
 
-    private static bool TryCaptureScreenshot(string format, int quality, int? maxWidth, bool annotateNodeIds, out ScreenshotCapture? screenshot, out string? error)
+    private static async Task<AndroidScreenshotCaptureResult> CaptureScreenshotAsync(string format, int quality, int? maxWidth, bool annotateNodeIds)
     {
         var activity = AndroidActivityTracker.GetCurrentActivity();
         var rootView = activity?.Window?.DecorView?.RootView;
         if (rootView == null || rootView.Width <= 0 || rootView.Height <= 0)
         {
-            screenshot = null;
-            error = "No Android root view is available for screenshot capture.";
-            return false;
+            return new AndroidScreenshotCaptureResult(null, "No Android root view is available for screenshot capture.");
         }
 
         using var bitmap = Bitmap.CreateBitmap(rootView.Width, rootView.Height, Bitmap.Config.Argb8888!);
         using (var canvas = new Canvas(bitmap))
         {
-            rootView.Draw(canvas);
+            if (!await TryCaptureSceneAsync(activity!, rootView, bitmap, canvas))
+            {
+                rootView.Draw(canvas);
+            }
         }
 
         Bitmap workingBitmap = bitmap;
@@ -471,25 +522,510 @@ internal static class VisualTreeSupport
 
             if (!success)
             {
-                screenshot = null;
-                error = "Android bitmap compression failed.";
-                return false;
+                return new AndroidScreenshotCaptureResult(null, "Android bitmap compression failed.");
             }
 
             var encodedLength = checked((int)stream.Length);
             ReportEncodedScreenshotBytes(encodedLength);
-            screenshot = new ScreenshotCapture(
+            return new AndroidScreenshotCaptureResult(
+                new ScreenshotCapture(
                 Format: string.Equals(format, "jpeg", StringComparison.OrdinalIgnoreCase) || string.Equals(format, "jpg", StringComparison.OrdinalIgnoreCase) ? "jpeg" : "png",
                 Width: workingBitmap.Width,
                 Height: workingBitmap.Height,
                 Base64: ToBase64String(stream, encodedLength),
-                AnnotationApplied: false && annotateNodeIds);
-            error = null;
-            return true;
+                AnnotationApplied: false && annotateNodeIds),
+                null);
         }
         finally
         {
             scaledBitmap?.Dispose();
+        }
+    }
+
+    private static async Task<bool> TryCaptureSceneAsync(Activity activity, View rootView, Bitmap bitmap, Canvas canvas)
+    {
+        var capturedActivityWindow = await TryCaptureActivityWindowAsync(activity, bitmap);
+        var topLevelViews = GetTopLevelViews(activity);
+        if (topLevelViews.Count == 0)
+        {
+            return capturedActivityWindow;
+        }
+
+        var overlaidSurfaceHandles = new HashSet<nint>();
+        foreach (var topLevelView in topLevelViews)
+        {
+            var shouldDrawTopLevelView = !(capturedActivityWindow && topLevelView.Handle == rootView.Handle);
+            if (shouldDrawTopLevelView)
+            {
+                DrawTopLevelView(canvas, topLevelView);
+            }
+
+            await OverlaySurfaceBackedChildrenAsync(canvas, topLevelView, overlaidSurfaceHandles);
+        }
+
+        await OverlayFragmentHostedSurfaceBackedViewsAsync(activity, canvas, overlaidSurfaceHandles);
+        return true;
+    }
+
+    private static async Task<bool> TryCaptureActivityWindowAsync(Activity activity, Bitmap bitmap)
+    {
+        if (Build.VERSION.SdkInt < BuildVersionCodes.O || activity.Window == null)
+        {
+            return false;
+        }
+
+        var completion = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        try
+        {
+            PixelCopy.Request(
+                activity.Window,
+                bitmap,
+                new PixelCopyFinishedListener(completion),
+                PixelCopyThread.GetHandler());
+        }
+        catch
+        {
+            return false;
+        }
+
+        return await completion.Task == (int)PixelCopyResult.Success;
+    }
+
+    private static List<View> GetTopLevelViews(Activity activity)
+    {
+        var topLevelViews = new List<View>();
+        var activityRootView = activity.Window?.DecorView?.RootView;
+        var packageName = activity.PackageName ?? string.Empty;
+        try
+        {
+            var windowManagerGlobalClass = JNIEnv.FindClass("android/view/WindowManagerGlobal");
+            if (windowManagerGlobalClass != IntPtr.Zero)
+            {
+                var getInstanceMethod = JNIEnv.GetStaticMethodID(windowManagerGlobalClass, "getInstance", "()Landroid/view/WindowManagerGlobal;");
+                if (getInstanceMethod != IntPtr.Zero)
+                {
+                    var windowManagerGlobalHandle = JNIEnv.CallStaticObjectMethod(windowManagerGlobalClass, getInstanceMethod);
+                    if (windowManagerGlobalHandle != IntPtr.Zero)
+                    {
+                        using var windowManagerGlobal = Java.Lang.Object.GetObject<Java.Lang.Object>(windowManagerGlobalHandle, JniHandleOwnership.TransferLocalRef);
+                        if (windowManagerGlobal == null)
+                        {
+                            return topLevelViews;
+                        }
+
+                        var viewsField = JNIEnv.GetFieldID(windowManagerGlobalClass, "mViews", "Ljava/util/ArrayList;");
+                        if (viewsField != IntPtr.Zero)
+                        {
+                            var viewsHandle = JNIEnv.GetObjectField(windowManagerGlobal.Handle, viewsField);
+                            if (viewsHandle != IntPtr.Zero)
+                            {
+                                using var views = Java.Lang.Object.GetObject<JavaList<View>>(viewsHandle, JniHandleOwnership.TransferLocalRef);
+                                if (views == null)
+                                {
+                                    return topLevelViews;
+                                }
+
+                                foreach (var view in views)
+                                {
+                                    if (view != null && ShouldCaptureTopLevelView(view, activity, packageName))
+                                    {
+                                        topLevelViews.Add(view);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        if (activityRootView != null)
+        {
+            var orderedViews = new List<View> { activityRootView };
+            foreach (var topLevelView in topLevelViews)
+            {
+                if (!IsSameJavaObject(topLevelView, activityRootView))
+                {
+                    orderedViews.Add(topLevelView);
+                }
+            }
+
+            return orderedViews;
+        }
+
+        return topLevelViews;
+    }
+
+    private static bool ShouldCaptureTopLevelView(View? view, Activity activity, string packageName)
+    {
+        if (!IsVisibleForCapture(view))
+        {
+            return false;
+        }
+
+        if (BelongsToActivityContext(view!.Context, activity))
+        {
+            return true;
+        }
+
+        var context = view!.Context;
+        while (context is ContextWrapper contextWrapper && contextWrapper.BaseContext != null && !ReferenceEquals(context, contextWrapper.BaseContext))
+        {
+            if (string.Equals(context.PackageName, packageName, StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            context = contextWrapper.BaseContext;
+        }
+
+        return string.Equals(context?.PackageName, packageName, StringComparison.Ordinal);
+    }
+
+    private static bool BelongsToActivityContext(Context? context, Activity activity)
+    {
+        while (context is ContextWrapper contextWrapper && contextWrapper.BaseContext != null && !ReferenceEquals(context, contextWrapper.BaseContext))
+        {
+            if (IsSameJavaObject(context as Java.Lang.Object, activity) ||
+                IsSameJavaObject(contextWrapper.BaseContext as Java.Lang.Object, activity))
+            {
+                return true;
+            }
+
+            context = contextWrapper.BaseContext;
+        }
+
+        return IsSameJavaObject(context as Java.Lang.Object, activity);
+    }
+
+    private static bool IsSameJavaObject(Java.Lang.Object? left, Java.Lang.Object? right)
+    {
+        return left != null &&
+            right != null &&
+            left.Handle != IntPtr.Zero &&
+            right.Handle != IntPtr.Zero &&
+            JNIEnv.IsSameObject(left.Handle, right.Handle);
+    }
+
+    private static bool IsVisibleForCapture(View? view)
+    {
+        return view != null &&
+            view.Visibility == ViewStates.Visible &&
+            view.Alpha > 0 &&
+            view.Width > 0 &&
+            view.Height > 0;
+    }
+
+    private static void DrawTopLevelView(Canvas canvas, View topLevelView)
+    {
+        var location = new int[2];
+        topLevelView.GetLocationOnScreen(location);
+
+        var saveCount = canvas.Save();
+        try
+        {
+            canvas.Translate(location[0], location[1]);
+            topLevelView.Draw(canvas);
+        }
+        finally
+        {
+            canvas.RestoreToCount(saveCount);
+        }
+    }
+
+    private static async Task OverlaySurfaceBackedChildrenAsync(Canvas canvas, View rootView, HashSet<nint> overlaidSurfaceHandles)
+    {
+        var specialViews = new List<View>();
+        CollectSurfaceBackedViews(rootView, specialViews, overlaidSurfaceHandles);
+        foreach (var specialView in specialViews)
+        {
+            switch (specialView)
+            {
+                case SurfaceView surfaceView:
+                    await OverlaySurfaceViewAsync(canvas, surfaceView);
+                    break;
+                case TextureView textureView:
+                    OverlayTextureView(canvas, textureView);
+                    break;
+            }
+        }
+    }
+
+    private static async Task OverlayFragmentHostedSurfaceBackedViewsAsync(Activity activity, Canvas canvas, HashSet<nint> overlaidSurfaceHandles)
+    {
+        foreach (var fragmentView in GetFragmentRootViews(activity))
+        {
+            await OverlaySurfaceBackedChildrenAsync(canvas, fragmentView, overlaidSurfaceHandles);
+        }
+    }
+
+    private static List<View> GetFragmentRootViews(Activity activity)
+    {
+        var fragmentRootViews = new List<View>();
+        var visitedViewHandles = new HashSet<nint>();
+
+        try
+        {
+            var supportFragmentManager = activity.GetType().GetProperty("SupportFragmentManager")?.GetValue(activity);
+            if (supportFragmentManager != null)
+            {
+                CollectFragmentManagerRootViews(supportFragmentManager, fragmentRootViews, visitedViewHandles);
+
+                foreach (var topLevelView in GetTopLevelViews(activity))
+                {
+                    CollectFragmentContainerRootViews(topLevelView, supportFragmentManager, fragmentRootViews, visitedViewHandles);
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        return fragmentRootViews;
+    }
+
+    private static void CollectFragmentManagerRootViews(object fragmentManager, List<View> results, HashSet<nint> visitedViewHandles)
+    {
+        if (fragmentManager.GetType().GetProperty("Fragments")?.GetValue(fragmentManager) is not System.Collections.IEnumerable fragments)
+        {
+            return;
+        }
+
+        foreach (var fragment in fragments)
+        {
+            CollectFragmentObject(fragment, results, visitedViewHandles);
+        }
+    }
+
+    private static void CollectFragmentObject(object? fragment, List<View> results, HashSet<nint> visitedViewHandles)
+    {
+        if (fragment == null)
+        {
+            return;
+        }
+
+        if (fragment.GetType().GetProperty("View")?.GetValue(fragment) is View fragmentView &&
+            IsVisibleForCapture(fragmentView) &&
+            visitedViewHandles.Add(fragmentView.Handle))
+        {
+            results.Add(fragmentView);
+        }
+
+        var dialog = fragment.GetType().GetProperty("Dialog")?.GetValue(fragment);
+        var dialogWindow = dialog?.GetType().GetProperty("Window")?.GetValue(dialog);
+        if (dialogWindow?.GetType().GetProperty("DecorView")?.GetValue(dialogWindow) is View decorView &&
+            IsVisibleForCapture(decorView) &&
+            visitedViewHandles.Add(decorView.Handle))
+        {
+            results.Add(decorView);
+        }
+
+        var childFragmentManager = fragment.GetType().GetProperty("ChildFragmentManager")?.GetValue(fragment);
+        if (childFragmentManager != null)
+        {
+            CollectFragmentManagerRootViews(childFragmentManager, results, visitedViewHandles);
+        }
+    }
+
+    private static void CollectFragmentContainerRootViews(
+        View rootView,
+        object fragmentManager,
+        List<View> results,
+        HashSet<nint> visitedViewHandles)
+    {
+        foreach (var fragmentContainerView in GetFragmentContainerViews(rootView))
+        {
+            var fragment = TryFindFragmentById(fragmentManager, fragmentContainerView.Id);
+            if (fragment != null)
+            {
+                CollectFragmentObject(fragment, results, visitedViewHandles);
+            }
+        }
+    }
+
+    private static List<View> GetFragmentContainerViews(View rootView)
+    {
+        var fragmentContainerViews = new List<View>();
+        CollectFragmentContainerViews(rootView, fragmentContainerViews);
+        return fragmentContainerViews;
+    }
+
+    private static void CollectFragmentContainerViews(View view, List<View> results)
+    {
+        if (!IsVisibleForCapture(view))
+        {
+            return;
+        }
+
+        var className = view.Class?.Name ?? view.GetType().FullName;
+        if (string.Equals(className, "androidx.fragment.app.FragmentContainerView", StringComparison.Ordinal) ||
+            string.Equals(view.Class?.SimpleName, "FragmentContainerView", StringComparison.Ordinal))
+        {
+            results.Add(view);
+        }
+
+        if (view is not ViewGroup viewGroup)
+        {
+            return;
+        }
+
+        for (var index = 0; index < viewGroup.ChildCount; index++)
+        {
+            var child = viewGroup.GetChildAt(index);
+            if (child != null)
+            {
+                CollectFragmentContainerViews(child, results);
+            }
+        }
+    }
+
+    private static object? TryFindFragmentById(object fragmentManager, int viewId)
+    {
+        if (viewId <= 0)
+        {
+            return null;
+        }
+
+        try
+        {
+            return fragmentManager.GetType().GetMethod("FindFragmentById", new[] { typeof(int) })?.Invoke(fragmentManager, new object[] { viewId });
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static void CollectSurfaceBackedViews(View view, List<View> results, HashSet<nint> overlaidSurfaceHandles)
+    {
+        if (!IsVisibleForCapture(view))
+        {
+            return;
+        }
+
+        if ((view is SurfaceView || view is TextureView) &&
+            overlaidSurfaceHandles.Add(view.Handle))
+        {
+            results.Add(view);
+        }
+
+        if (view is not ViewGroup viewGroup)
+        {
+            return;
+        }
+
+        for (var index = 0; index < viewGroup.ChildCount; index++)
+        {
+            var child = viewGroup.GetChildAt(index);
+            if (child != null)
+            {
+                CollectSurfaceBackedViews(child, results, overlaidSurfaceHandles);
+            }
+        }
+    }
+
+    private static async Task OverlaySurfaceViewAsync(Canvas canvas, SurfaceView surfaceView)
+    {
+        if (Build.VERSION.SdkInt < BuildVersionCodes.O ||
+            !IsVisibleForCapture(surfaceView) ||
+            surfaceView.Holder?.Surface == null ||
+            !surfaceView.Holder.Surface.IsValid)
+        {
+            return;
+        }
+
+        var completion = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var bitmap = Bitmap.CreateBitmap(surfaceView.Width, surfaceView.Height, Bitmap.Config.Argb8888!);
+        try
+        {
+            PixelCopy.Request(
+                surfaceView,
+                bitmap,
+                new PixelCopyFinishedListener(completion),
+                PixelCopyThread.GetHandler());
+        }
+        catch
+        {
+            return;
+        }
+
+        if (await completion.Task != (int)PixelCopyResult.Success)
+        {
+            return;
+        }
+
+        DrawOverlayBitmap(canvas, surfaceView, bitmap);
+    }
+
+    private static void OverlayTextureView(Canvas canvas, TextureView textureView)
+    {
+        if (!IsVisibleForCapture(textureView) || !textureView.IsAvailable)
+        {
+            return;
+        }
+
+        using var bitmap = textureView.Bitmap;
+        if (bitmap == null)
+        {
+            return;
+        }
+
+        DrawOverlayBitmap(canvas, textureView, bitmap);
+    }
+
+    private static void DrawOverlayBitmap(Canvas canvas, View view, Bitmap bitmap)
+    {
+        var location = new int[2];
+        view.GetLocationOnScreen(location);
+        var destination = new RectF(
+            location[0],
+            location[1],
+            location[0] + view.Width,
+            location[1] + view.Height);
+        canvas.DrawBitmap(bitmap, null, destination, null);
+    }
+
+    private sealed record AndroidScreenshotCaptureResult(ScreenshotCapture? Screenshot, string? Error);
+
+    private sealed class PixelCopyFinishedListener : Java.Lang.Object, PixelCopy.IOnPixelCopyFinishedListener
+    {
+        private readonly TaskCompletionSource<int> completion;
+
+        public PixelCopyFinishedListener(TaskCompletionSource<int> completion)
+        {
+            this.completion = completion;
+        }
+
+        public void OnPixelCopyFinished(int copyResult)
+        {
+            completion.TrySetResult(copyResult);
+        }
+    }
+
+    private static class PixelCopyThread
+    {
+        private static readonly Lock sync = new();
+        private static HandlerThread? handlerThread;
+        private static Handler? handler;
+
+        internal static Handler GetHandler()
+        {
+            lock (sync)
+            {
+                if (handlerThread == null || !handlerThread.IsAlive)
+                {
+                    handler?.Dispose();
+                    handlerThread?.Dispose();
+                    handlerThread = new HandlerThread("AnsightVisualTreePixelCopy");
+                    handlerThread.Start();
+                    handler = new Handler(handlerThread.Looper!);
+                }
+
+                return handler!;
+            }
         }
     }
 
@@ -504,7 +1040,18 @@ internal static class VisualTreeSupport
             EnsureRegistered();
             lock (Sync)
             {
-                return instance?.currentActivity;
+                if (instance?.currentActivity is { } currentActivity)
+                {
+                    return currentActivity;
+                }
+
+                var resolvedActivity = TryResolveCurrentActivity();
+                if (resolvedActivity != null && instance != null)
+                {
+                    instance.currentActivity = resolvedActivity;
+                }
+
+                return resolvedActivity;
             }
         }
 
@@ -530,6 +1077,29 @@ internal static class VisualTreeSupport
                 instance = new AndroidActivityTracker();
                 application.RegisterActivityLifecycleCallbacks(instance);
             }
+        }
+
+        private static Activity? TryResolveCurrentActivity()
+        {
+            foreach (var assemblyName in new[] { "Microsoft.Maui.Essentials", "Microsoft.Maui" })
+            {
+                try
+                {
+                    var platformType = Type.GetType($"Microsoft.Maui.ApplicationModel.Platform, {assemblyName}", throwOnError: false);
+                    var currentActivityProperty = platformType?.GetProperty(
+                        "CurrentActivity",
+                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                    if (currentActivityProperty?.GetValue(null) is Activity activity)
+                    {
+                        return activity;
+                    }
+                }
+                catch
+                {
+                }
+            }
+
+            return null;
         }
 
         public void OnActivityCreated(Activity activity, Bundle? savedInstanceState) { }
