@@ -312,6 +312,8 @@ public class Options
         /// <summary>
         /// Replaces the registered tool collection.
         /// </summary>
+        /// <param name="tools">Tools to register for remote discovery and execution.</param>
+        /// <returns>The current builder.</returns>
         public OptionsBuilder WithTools(IEnumerable<ITool> tools)
         {
             if (tools == null) throw new ArgumentNullException(nameof(tools));
@@ -323,6 +325,8 @@ public class Options
         /// <summary>
         /// Adds a single tool to the registered tool collection.
         /// </summary>
+        /// <param name="tool">Tool to add.</param>
+        /// <returns>The current builder.</returns>
         public OptionsBuilder AddTool(ITool tool)
         {
             if (tool == null) throw new ArgumentNullException(nameof(tool));
@@ -334,6 +338,8 @@ public class Options
         /// <summary>
         /// Adds multiple tools to the registered tool collection.
         /// </summary>
+        /// <param name="tools">Tools to add.</param>
+        /// <returns>The current builder.</returns>
         public OptionsBuilder AddTools(IEnumerable<ITool> tools)
         {
             if (tools == null) throw new ArgumentNullException(nameof(tools));
@@ -389,6 +395,8 @@ public class Options
         /// <summary>
         /// Replaces the tool guard policy.
         /// </summary>
+        /// <param name="toolGuard">Guard policy that controls tool discovery and execution.</param>
+        /// <returns>The current builder.</returns>
         public OptionsBuilder WithToolGuard(ToolGuard toolGuard)
         {
             options.ToolGuard = toolGuard ?? throw new ArgumentNullException(nameof(toolGuard));
@@ -398,6 +406,7 @@ public class Options
         /// <summary>
         /// Disables both tool discovery and tool execution.
         /// </summary>
+        /// <returns>The current builder.</returns>
         public OptionsBuilder WithToolsDisabled()
         {
             options.ToolGuard = ToolGuard.Disabled;
@@ -407,6 +416,7 @@ public class Options
         /// <summary>
         /// Enables discovery and execution for read-only tools.
         /// </summary>
+        /// <returns>The current builder.</returns>
         public OptionsBuilder WithReadOnlyToolAccess()
         {
             options.ToolGuard = ToolGuard.ReadOnly;
@@ -417,6 +427,7 @@ public class Options
         /// Enables discovery and execution for read and write tools.
         /// Delete-scoped tools remain disabled.
         /// </summary>
+        /// <returns>The current builder.</returns>
         public OptionsBuilder WithReadWriteToolAccess()
         {
             options.ToolGuard = ToolGuard.ReadWrite;
@@ -426,6 +437,7 @@ public class Options
         /// <summary>
         /// Enables discovery and execution for all registered tool scopes.
         /// </summary>
+        /// <returns>The current builder.</returns>
         public OptionsBuilder WithAllToolAccess()
         {
             options.ToolGuard = ToolGuard.FullAccess;

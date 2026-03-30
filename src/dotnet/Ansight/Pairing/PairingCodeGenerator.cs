@@ -3,11 +3,23 @@ using Ansight.Pairing.Models;
 
 namespace Ansight.Pairing;
 
+/// <summary>
+/// Encodes and decodes the compact text format used for QR-friendly Ansight pairing payloads.
+/// </summary>
 public static class PairingCodeGenerator
 {
+    /// <summary>
+    /// Prefix used by the newline-delimited compact pairing code format.
+    /// </summary>
     public const string FormatPrefix = "apc1";
     private const string MinifiedFormatPrefix = "apm1";
 
+    /// <summary>
+    /// Creates a compact pairing code from a pairing config and discovery hint.
+    /// </summary>
+    /// <param name="config">Signed pairing configuration to encode.</param>
+    /// <param name="discoveryHint">Discovery information to include in the payload.</param>
+    /// <returns>A compact pairing code suitable for QR generation or clipboard sharing.</returns>
     public static string Serialize(PairingConfig config, PairingDiscoveryHint discoveryHint)
     {
         ArgumentNullException.ThrowIfNull(config);
@@ -21,6 +33,11 @@ public static class PairingCodeGenerator
         });
     }
 
+    /// <summary>
+    /// Creates a compact pairing code from a fully assembled QR connection payload.
+    /// </summary>
+    /// <param name="payload">Payload containing connection and optional discovery data.</param>
+    /// <returns>A compact pairing code string.</returns>
     public static string Serialize(PairingQrConnectionPayload payload)
     {
         ArgumentNullException.ThrowIfNull(payload);
@@ -53,6 +70,12 @@ public static class PairingCodeGenerator
         return string.Join('\n', lines);
     }
 
+    /// <summary>
+    /// Attempts to parse a compact pairing code into a structured QR connection payload.
+    /// </summary>
+    /// <param name="payload">Compact payload text to decode.</param>
+    /// <param name="connectionPayload">Parsed connection payload when decoding succeeds.</param>
+    /// <returns><see langword="true"/> when the payload was recognized and decoded successfully; otherwise, <see langword="false"/>.</returns>
     public static bool TryParse(string payload, out PairingQrConnectionPayload? connectionPayload)
     {
         connectionPayload = null;

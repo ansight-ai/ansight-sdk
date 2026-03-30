@@ -43,6 +43,7 @@ internal static partial class DeviceAppProfileCollector
         var assemblyVersion = ResolveAssemblyVersion();
         var profile = new DeviceApplicationProfile
         {
+            ProcessId = global::System.Environment.ProcessId,
             EnvironmentCode = ResolveEnvironmentCode(),
             Debuggable = ResolveIsDebuggable(),
             VersionName = assemblyVersion,

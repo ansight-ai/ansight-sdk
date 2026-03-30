@@ -17,7 +17,8 @@ public sealed class DeviceAppProfileResolverTests
             App = new DeviceApplicationProfile
             {
                 AppId = "com.ansight.test",
-                AppName = "Ansight"
+                AppName = "Ansight",
+                ProcessId = 101
             },
             Permissions = new Dictionary<string, string>
             {
@@ -50,6 +51,7 @@ public sealed class DeviceAppProfileResolverTests
         Assert.Equal("iPhone 16 Pro", merged.Device.Model);
         Assert.Equal("com.ansight.test", merged.App!.AppId);
         Assert.Equal("Caller Override", merged.App.AppName);
+        Assert.Equal(101, merged.App.ProcessId);
         Assert.Single(merged.Tags!);
         Assert.Equal("caller-tag", merged.Tags![0]);
         Assert.Equal("allowed", merged.Permissions!["camera"]);

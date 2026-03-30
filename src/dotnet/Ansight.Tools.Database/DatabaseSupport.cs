@@ -1,6 +1,7 @@
 namespace Ansight.Tools.Database;
 
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.Json.Nodes;
 
 #if ANDROID
@@ -429,11 +430,7 @@ internal static class DatabaseSupport
 
     private static QueryResult ExecuteReadOnly(SqliteDatabase database, string sql, int maxRows)
     {
-        var prepareResult = sqlite3_prepare_v2(database.Handle, sql, -1, out var statement, out _);
-        if (prepareResult != SqliteOk || statement == IntPtr.Zero)
-        {
-            throw new InvalidOperationException($"Failed to prepare SQLite statement: {GetError(database.Handle)}");
-        }
+        var statement = PrepareSingleStatement(database, sql);
 
         try
         {
@@ -488,6 +485,56 @@ internal static class DatabaseSupport
         }
     }
 
+    private static IntPtr PrepareSingleStatement(SqliteDatabase database, string sql)
+    {
+        var sqlBytes = Encoding.UTF8.GetBytes(sql + "\0");
+        var sqlHandle = GCHandle.Alloc(sqlBytes, GCHandleType.Pinned);
+
+        try
+        {
+            var sqlPointer = sqlHandle.AddrOfPinnedObject();
+            var prepareResult = sqlite3_prepare_v2(database.Handle, sqlPointer, sqlBytes.Length, out var statement, out var tail);
+            if (prepareResult != SqliteOk || statement == IntPtr.Zero)
+            {
+                if (statement != IntPtr.Zero)
+                {
+                    sqlite3_finalize(statement);
+                }
+
+                throw new InvalidOperationException($"Failed to prepare SQLite statement: {GetError(database.Handle)}");
+            }
+
+            if (HasRemainingSql(sqlBytes, sqlPointer, tail))
+            {
+                sqlite3_finalize(statement);
+                throw new InvalidOperationException("Only a single read-only SQLite statement is supported.");
+            }
+
+            return statement;
+        }
+        finally
+        {
+            sqlHandle.Free();
+        }
+    }
+
+    private static bool HasRemainingSql(byte[] sqlBytes, IntPtr sqlPointer, IntPtr tail)
+    {
+        if (tail == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        var offset = checked((int)(tail.ToInt64() - sqlPointer.ToInt64()));
+        if (offset < 0 || offset >= sqlBytes.Length - 1)
+        {
+            return false;
+        }
+
+        var remainingSql = Encoding.UTF8.GetString(sqlBytes, offset, (sqlBytes.Length - 1) - offset);
+        return !string.IsNullOrWhiteSpace(remainingSql);
+    }
+
     private static JsonNode? ReadColumnValue(IntPtr statement, int columnIndex)
     {
         return sqlite3_column_type(statement, columnIndex) switch
@@ -533,8 +580,8 @@ internal static class DatabaseSupport
     [DllImport("sqlite3", EntryPoint = "sqlite3_close_v2")]
     private static extern int sqlite3_close_v2(IntPtr db);
 
-    [DllImport("sqlite3", EntryPoint = "sqlite3_prepare_v2", CharSet = CharSet.Ansi)]
-    private static extern int sqlite3_prepare_v2(IntPtr db, string sql, int numBytes, out IntPtr statement, out IntPtr tail);
+    [DllImport("sqlite3", EntryPoint = "sqlite3_prepare_v2")]
+    private static extern int sqlite3_prepare_v2(IntPtr db, IntPtr sql, int numBytes, out IntPtr statement, out IntPtr tail);
 
     [DllImport("sqlite3", EntryPoint = "sqlite3_step")]
     private static extern int sqlite3_step(IntPtr statement);

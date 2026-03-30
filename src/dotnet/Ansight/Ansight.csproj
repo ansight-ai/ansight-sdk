@@ -4,6 +4,7 @@
     <TargetFrameworks>net9.0;net9.0-android;net9.0-ios;net9.0-maccatalyst</TargetFrameworks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <AssemblyName>Ansight</AssemblyName>
     <RootNamespace>Ansight</RootNamespace>
 
@@ -13,7 +14,7 @@
     <PackageId>Ansight</PackageId>
     <Description>Telemetry, pairing, and remote tool infrastructure for .NET Android, iOS, and Mac Catalyst apps.</Description>
     <PackageTags>observability;memory;metrics;debugging;fps;telemetry;mobile;android;ios;mac;maccatalyst;performance</PackageTags>
-    <NoWarn>$(NoWarn);NU5110;NU5111</NoWarn>
+    <NoWarn>$(NoWarn);NU5110;NU5111;CS1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

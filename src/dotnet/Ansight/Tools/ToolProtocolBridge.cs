@@ -3,29 +3,73 @@ namespace Ansight.Tools;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
+/// <summary>
+/// Protocol adapter that exposes registered tools through the Ansight tool query/call envelope format.
+/// </summary>
 public sealed class ToolProtocolBridge
 {
+    /// <summary>
+    /// Capability identifier declared on tool protocol envelopes handled by this bridge.
+    /// </summary>
     public const string Capability = "tool.exec";
+
+    /// <summary>
+    /// Envelope type used by clients to query the visible tool catalog.
+    /// </summary>
     public const string QueryType = "tool.query";
+
+    /// <summary>
+    /// Envelope type used by the bridge to return a tool catalog.
+    /// </summary>
     public const string CatalogType = "tool.catalog";
+
+    /// <summary>
+    /// Envelope type used by clients to invoke a tool.
+    /// </summary>
     public const string CallType = "tool.call";
+
+    /// <summary>
+    /// Envelope type used by the bridge to return a successful tool call result.
+    /// </summary>
     public const string ResultType = "tool.result";
+
+    /// <summary>
+    /// Envelope type used by the bridge to return a protocol or execution error.
+    /// </summary>
     public const string ErrorType = "tool.error";
 
     private readonly ToolRegistry registry;
     private readonly ToolGuard guard;
 
+    /// <summary>
+    /// Creates a protocol bridge over a tool registry and guard policy.
+    /// </summary>
+    /// <param name="registry">Tool registry that supplies the catalog and execution targets.</param>
+    /// <param name="guard">Guard policy that controls discovery and execution.</param>
     public ToolProtocolBridge(ToolRegistry registry, ToolGuard guard)
     {
         this.registry = registry ?? throw new ArgumentNullException(nameof(registry));
         this.guard = guard ?? throw new ArgumentNullException(nameof(guard));
     }
 
+    /// <summary>
+    /// Guard policy currently applied by the bridge.
+    /// </summary>
     public ToolGuard Guard => guard;
 
+    /// <summary>
+    /// Returns the visible tool catalog after applying the current guard policy.
+    /// </summary>
+    /// <returns>Visible tool definitions.</returns>
     public IReadOnlyList<ToolDefinition> GetVisibleTools()
         => registry.Where(guard.IsToolVisible).Select(tool => tool.Definition).ToList();
 
+    /// <summary>
+    /// Handles a tool-protocol envelope and returns the corresponding catalog, result, or error envelope.
+    /// </summary>
+    /// <param name="envelope">Incoming tool-protocol envelope.</param>
+    /// <param name="cancellationToken">Cancellation token for tool execution.</param>
+    /// <returns>Response envelope produced by the bridge.</returns>
     public async Task<ToolProtocolEnvelope> HandleAsync(ToolProtocolEnvelope envelope, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(envelope);
@@ -38,6 +82,13 @@ public sealed class ToolProtocolBridge
         };
     }
 
+    /// <summary>
+    /// Attempts to parse a JSON tool-protocol envelope.
+    /// </summary>
+    /// <param name="json">JSON text to parse.</param>
+    /// <param name="envelope">Parsed envelope when parsing succeeds.</param>
+    /// <param name="error">Parsing or validation error message when parsing fails.</param>
+    /// <returns><see langword="true"/> when the JSON parsed into a valid envelope; otherwise, <see langword="false"/>.</returns>
     public bool TryParseEnvelope(string json, out ToolProtocolEnvelope? envelope, out string error)
     {
         envelope = null;
@@ -62,6 +113,12 @@ public sealed class ToolProtocolBridge
         }
     }
 
+    /// <summary>
+    /// Serializes a tool-protocol envelope to JSON.
+    /// </summary>
+    /// <param name="envelope">Envelope to serialize.</param>
+    /// <param name="indented"><see langword="true"/> to format the JSON with indentation.</param>
+    /// <returns>Serialized envelope JSON.</returns>
     public string SerializeEnvelope(ToolProtocolEnvelope envelope, bool indented = false)
     {
         ArgumentNullException.ThrowIfNull(envelope);

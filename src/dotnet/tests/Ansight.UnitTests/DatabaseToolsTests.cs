@@ -135,6 +135,27 @@ public sealed class DatabaseToolsTests
         Assert.Contains("read-only", result.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task QueryDatabaseTool_Execute_RejectsMultipleStatements()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        var databasePath = tempDirectory.CreateSqliteDatabase(
+            "app.sqlite",
+            "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL);",
+            "INSERT INTO users (name) VALUES ('Ada');");
+        using var rootOverride = new DatabaseRootsOverrideScope(("appData", tempDirectory.RootPath));
+
+        var result = await new QueryDatabaseTool().Execute(new Dictionary<string, string>
+        {
+            ["path"] = databasePath,
+            ["sql"] = "SELECT id, name FROM users ORDER BY id; SELECT COUNT(*) FROM users"
+        });
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("database_query_failed", result.ErrorCode);
+        Assert.Contains("single", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     private sealed class DatabaseRootsOverrideScope : IDisposable
     {
         private readonly Func<IEnumerable<(string Alias, string? Path)>>? previousRootsOverride;

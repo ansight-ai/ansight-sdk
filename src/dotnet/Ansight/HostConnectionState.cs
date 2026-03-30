@@ -5,7 +5,18 @@ namespace Ansight;
 /// </summary>
 public enum HostConnectionState
 {
+    /// <summary>
+    /// No live Ansight host session is currently connected.
+    /// </summary>
     Disconnected = 0,
+
+    /// <summary>
+    /// A connection attempt is in progress.
+    /// </summary>
     Connecting = 1,
+
+    /// <summary>
+    /// A live Ansight host session is currently connected.
+    /// </summary>
     Connected = 2
 }

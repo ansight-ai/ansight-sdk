@@ -9,10 +9,10 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
 {
     private static readonly HashSet<string> StoredProfileResetReasonCodes = new(StringComparer.Ordinal)
     {
-        "PairingRequired",
-        "PairingTokenInvalid",
-        "PairingTokenExpired",
-        "PairingProofInvalid"
+        PairingFailureCodes.PairingRequired,
+        PairingFailureCodes.PairingTokenInvalid,
+        PairingFailureCodes.PairingTokenExpired,
+        PairingFailureCodes.PairingProofInvalid
     };
 
     private readonly IHostConnection hostConnection;
