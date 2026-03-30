@@ -1,4 +1,4 @@
-namespace Ansight.Internal;
+namespace Ansight.Telemetry.Data;
 
 internal static class BinarySearchHelper
 {

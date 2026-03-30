@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace Ansight.Internal;
+namespace Ansight.Telemetry.Memory;
 
 internal static class MemorySampler
 {

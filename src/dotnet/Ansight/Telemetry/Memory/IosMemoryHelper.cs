@@ -3,12 +3,12 @@
 using System.Runtime.InteropServices;
 
 
-namespace Ansight.Internal;
+namespace Ansight.Telemetry.Memory;
 
 /// <summary>
 /// iOS-specific helpers for reading process memory limits and footprint.
 /// </summary>
-public static class IosMemoryHelper
+internal static class IosMemoryHelper
 {
     // --- Public API -----------------------------------------------------
 

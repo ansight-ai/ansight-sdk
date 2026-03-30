@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Runtime.InteropServices;
+using Ansight.Telemetry.Memory;
 
 namespace Ansight.Telemetry.Data;
 

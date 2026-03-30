@@ -1,5 +1,6 @@
 namespace Ansight;
 
+using Ansight.Platforms;
 using Ansight.Tools;
 
 /// <summary>

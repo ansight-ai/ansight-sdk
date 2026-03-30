@@ -18,7 +18,7 @@ internal static class FrameRateMonitorFactory
 {
     public static IFrameRateMonitor Create()
     {
-        return RuntimePlatform.CreateFrameRateMonitorFallback(() =>
+        return FrameRateMonitorRegistry.Create(() =>
         {
 #if ANDROID || IOS || MACCATALYST
             return new FrameRateMonitor();

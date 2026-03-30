@@ -1,4 +1,4 @@
-namespace Ansight.Internal;
+namespace Ansight.Telemetry.Memory;
 
 internal sealed record MemorySnapshot(
     long TotalPssBytes,            // Android: PSS; iOS: 0 (not available)

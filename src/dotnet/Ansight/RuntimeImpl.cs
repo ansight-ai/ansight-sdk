@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using Ansight.Pairing;
+using Ansight.Telemetry.Memory;
 using Ansight.Tools;
 
 namespace Ansight;
