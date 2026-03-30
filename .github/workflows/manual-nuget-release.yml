@@ -1,0 +1,143 @@
+name: Manual NuGet Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: NuGet package version to build, for example 0.1.0 or 0.1.0-rc.1
+        required: true
+        type: string
+      publish:
+        description: Publish the generated packages to nuget.org
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: manual-nuget-release-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and Pack
+    runs-on: macos-latest
+    timeout-minutes: 45
+    outputs:
+      package_version: ${{ steps.version.outputs.package_version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Normalize version
+        id: version
+        shell: bash
+        run: |
+          version="${{ inputs.version }}"
+          version="${version#v}"
+
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+            echo "Version must be a SemVer package version such as 1.2.3 or 1.2.3-rc.1." >&2
+            exit 1
+          fi
+
+          echo "package_version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Restore workloads
+        run: dotnet workload restore src/dotnet/Ansight.Sdk.sln
+
+      - name: Restore
+        run: dotnet restore src/dotnet/Ansight.Sdk.sln
+
+      - name: Build
+        run: >
+          dotnet build src/dotnet/Ansight.Sdk.sln
+          -c Release
+          --no-restore
+          -p:PackageVersion=${{ steps.version.outputs.package_version }}
+          -p:GeneratePackageOnBuild=false
+          -p:ContinuousIntegrationBuild=true
+
+      - name: Run unit tests
+        run: dotnet test src/dotnet/tests/Ansight.UnitTests/Ansight.UnitTests.csproj -c Release --no-build --no-restore
+
+      - name: Pack
+        run: >
+          dotnet pack src/dotnet/Ansight.Sdk.sln
+          -c Release
+          --no-build
+          --output artifacts/nuget
+          -p:PackageVersion=${{ steps.version.outputs.package_version }}
+          -p:GeneratePackageOnBuild=false
+          -p:IncludeSymbols=true
+          -p:SymbolPackageFormat=snupkg
+          -p:ContinuousIntegrationBuild=true
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages-${{ steps.version.outputs.package_version }}
+          path: artifacts/nuget/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish to nuget.org
+    needs: build
+    if: ${{ inputs.publish }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-packages-${{ needs.build.outputs.package_version }}
+          path: artifacts/nuget
+
+      - name: Publish packages
+        shell: bash
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          NUGET_SOURCE: https://api.nuget.org/v3/index.json
+        run: |
+          if [[ -z "$NUGET_API_KEY" ]]; then
+            echo "NUGET_API_KEY secret is not configured." >&2
+            exit 1
+          fi
+
+          shopt -s nullglob
+
+          packages=(artifacts/nuget/*.nupkg)
+          symbols=(artifacts/nuget/*.snupkg)
+
+          if (( ${#packages[@]} == 0 )); then
+            echo "No .nupkg files were produced." >&2
+            exit 1
+          fi
+
+          for package in "${packages[@]}"; do
+            dotnet nuget push "$package" \
+              --api-key "$NUGET_API_KEY" \
+              --source "$NUGET_SOURCE" \
+              --skip-duplicate
+          done
+
+          for symbol in "${symbols[@]}"; do
+            dotnet nuget push "$symbol" \
+              --api-key "$NUGET_API_KEY" \
+              --source "$NUGET_SOURCE" \
+              --skip-duplicate
+          done
