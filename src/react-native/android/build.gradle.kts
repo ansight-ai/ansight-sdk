@@ -5,7 +5,7 @@ plugins {
 
 val ansightRuntimeCoordinates = providers
     .gradleProperty("ansightRuntimeCoordinates")
-    .orElse("ai.ansight:ansight-runtime-android:0.1.0-dev")
+    .orElse("ai.ansight:ansight-runtime-android:0.1.0-pre1")
 
 android {
     namespace = "ai.ansight.reactnative"

@@ -14,13 +14,8 @@ internal static class ReflectionToolSchemas
         {
             ["displayName"] = ToolSchema.String("Human-readable root name."),
             ["description"] = ToolSchema.String("Optional root description.", nullable: true),
-            ["category"] = ToolSchema.String("Optional root category.", nullable: true),
-            ["tags"] = ToolSchema.Array(ToolSchema.String("Root tag."), "Optional metadata tags.", nullable: true),
-            ["containsSensitiveData"] = ToolSchema.Boolean("Whether the root may contain sensitive runtime state.", nullable: true),
-            ["attributes"] = ToolSchema.Object(
-                description: "Custom string metadata attached to the root.",
-                additionalProperties: true,
-                nullable: true)
+            ["hints"] = ToolSchema.Array(ToolSchema.String("Root hint."), "Optional metadata hints.", nullable: true),
+            ["containsSensitiveData"] = ToolSchema.Boolean("Whether the root may contain sensitive runtime state.", nullable: true)
         },
         required: new[] { "displayName" });
 
@@ -35,8 +30,8 @@ internal static class ReflectionToolSchemas
             ["available"] = ToolSchema.Boolean("Whether the root currently resolves to a live object."),
             ["runtimeType"] = ToolSchema.String("Resolved runtime type name when available.", nullable: true),
             ["memberVisibility"] = ToolSchema.String("Effective member visibility.", enumValues: new[] { "PublicOnly", "PublicAndNonPublic" }),
-            ["canWriteMembers"] = ToolSchema.Boolean("Whether any member writes are allow-listed."),
-            ["canInvokeMethods"] = ToolSchema.Boolean("Whether any method invocations are allow-listed."),
+            ["canWriteMembers"] = ToolSchema.Boolean("Whether any member writes are enabled by path, type, or wildcard rules."),
+            ["canInvokeMethods"] = ToolSchema.Boolean("Whether any method invocations are enabled by signature, type, or wildcard rules."),
             ["resolutionError"] = ToolSchema.String("Safe error summary when resolution failed.", nullable: true)
         },
         required: new[] { "id", "metadata", "registrationKind", "available", "memberVisibility", "canWriteMembers", "canInvokeMethods" });
@@ -65,7 +60,7 @@ internal static class ReflectionToolSchemas
             ["returnType"] = ToolSchema.String("Method return type."),
             ["parameterTypes"] = ToolSchema.Array(ToolSchema.String("Parameter type name."), "Method parameter types."),
             ["visibility"] = ToolSchema.String("Method visibility.", enumValues: new[] { "public", "non_public" }),
-            ["invokable"] = ToolSchema.Boolean("Whether the method is currently allow-listed for invocation.", nullable: true)
+            ["invokable"] = ToolSchema.Boolean("Whether the method is currently enabled for invocation by signature, type, or wildcard rules.", nullable: true)
         },
         required: new[] { "name", "signature", "declaringType", "returnType", "parameterTypes", "visibility" });
 

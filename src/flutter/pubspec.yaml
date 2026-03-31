@@ -1,6 +1,6 @@
 name: ansight_flutter
 description: Flutter bridge for the Ansight native runtimes.
-version: 0.1.0
+version: 0.1.0-pre1
 publish_to: "none"
 
 environment:

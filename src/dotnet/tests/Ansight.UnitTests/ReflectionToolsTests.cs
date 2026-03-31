@@ -39,13 +39,8 @@ public sealed class ReflectionToolsTests
                     new ReflectionRootMetadata("Current Session")
                     {
                         Description = "Session VM",
-                        Category = "view-model",
-                        Tags = ["debug", "session"],
-                        ContainsSensitiveData = true,
-                        Attributes = new Dictionary<string, string>
-                        {
-                            ["team"] = "sdk"
-                        }
+                        Hints = ["debug", "session"],
+                        ContainsSensitiveData = true
                     },
                     root => root
                         .AllowWritableMembers("SelectedTab")
@@ -59,8 +54,7 @@ public sealed class ReflectionToolsTests
         var roots = Assert.IsType<JsonArray>(payload["roots"]);
         var root = Assert.IsType<JsonObject>(Assert.Single(roots));
         var metadata = Assert.IsType<JsonObject>(root["metadata"]);
-        var tags = Assert.IsType<JsonArray>(metadata["tags"]);
-        var attributes = Assert.IsType<JsonObject>(metadata["attributes"]);
+        var hints = Assert.IsType<JsonArray>(metadata["hints"]);
 
         Assert.Equal("session", root["id"]?.GetValue<string>());
         Assert.Equal("reference", root["registrationKind"]?.GetValue<string>());
@@ -69,8 +63,10 @@ public sealed class ReflectionToolsTests
         Assert.True(root["canWriteMembers"]!.GetValue<bool>());
         Assert.True(root["canInvokeMethods"]!.GetValue<bool>());
         Assert.Equal("Current Session", metadata["displayName"]?.GetValue<string>());
-        Assert.Contains(tags.Select(node => node!.GetValue<string>()), value => value == "debug");
-        Assert.Equal("sdk", attributes["team"]?.GetValue<string>());
+        Assert.Contains(hints.Select(node => node!.GetValue<string>()), value => value == "debug");
+        Assert.True(metadata["containsSensitiveData"]!.GetValue<bool>());
+        Assert.Null(metadata["category"]);
+        Assert.Null(metadata["attributes"]);
     }
 
     [Fact]
@@ -157,6 +153,41 @@ public sealed class ReflectionToolsTests
     }
 
     [Fact]
+    public async Task InspectObjectTool_Execute_StopsExpansionWhenMaxDepthIsExhausted()
+    {
+        var model = new ReflectionRootModel();
+        var tool = new InspectObjectTool(
+            ReflectionToolsOptions.CreateBuilder()
+                .WithAssemblyTraversalMode(ReflectionAssemblyTraversalMode.AllowAll)
+                .WithNamespaceTraversalMode(ReflectionNamespaceTraversalMode.AllowAll)
+                .AddRoot("session", model, new ReflectionRootMetadata("Session"))
+                .Build());
+
+        var result = await tool.Execute(new Dictionary<string, string>
+        {
+            ["root"] = "session",
+            ["maxDepth"] = "1"
+        });
+
+        Assert.True(result.IsSuccess);
+        var snapshot = Assert.IsType<JsonObject>(Assert.IsType<JsonObject>(result.Payload)["snapshot"]);
+        var members = Assert.IsType<JsonArray>(snapshot["members"]);
+        var childMember = members
+            .Select(node => Assert.IsType<JsonObject>(node))
+            .Single(node => node["name"]?.GetValue<string>() == "Child");
+        var childSnapshot = Assert.IsType<JsonObject>(childMember["value"]);
+        var childMembers = Assert.IsType<JsonArray>(childSnapshot["members"]);
+        var nestedMember = childMembers
+            .Select(node => Assert.IsType<JsonObject>(node))
+            .Single(node => node["name"]?.GetValue<string>() == "Nested");
+        var nestedSnapshot = Assert.IsType<JsonObject>(nestedMember["value"]);
+
+        Assert.True(nestedSnapshot["expandable"]!.GetValue<bool>());
+        Assert.Null(nestedSnapshot["members"]);
+        Assert.Null(nestedSnapshot["items"]);
+    }
+
+    [Fact]
     public async Task InspectObjectTool_Execute_UsesOpaqueSnapshotsForDisallowedTypes()
     {
         var model = new ReflectionRootModel();
@@ -183,6 +214,31 @@ public sealed class ReflectionToolsTests
     }
 
     [Fact]
+    public async Task InspectObjectTool_Execute_UsesOpaqueSnapshotsByDefaultUntilTraversalIsExplicitlyAllowed()
+    {
+        var model = new ReflectionRootModel();
+        var tool = new InspectObjectTool(
+            ReflectionToolsOptions.CreateBuilder()
+                .AddRoot("session", model, new ReflectionRootMetadata("Session"))
+                .Build());
+
+        var result = await tool.Execute(new Dictionary<string, string>
+        {
+            ["root"] = "session"
+        });
+
+        Assert.True(result.IsSuccess);
+        var snapshot = Assert.IsType<JsonObject>(Assert.IsType<JsonObject>(result.Payload)["snapshot"]);
+        var members = Assert.IsType<JsonArray>(snapshot["members"]);
+        var childMember = members
+            .Select(node => Assert.IsType<JsonObject>(node))
+            .Single(node => node["name"]?.GetValue<string>() == "Child");
+        var childSnapshot = Assert.IsType<JsonObject>(childMember["value"]);
+
+        Assert.True(childSnapshot["opaque"]!.GetValue<bool>());
+    }
+
+    [Fact]
     public async Task InspectObjectTool_Execute_HonorsNonPublicVisibility()
     {
         var model = new ReflectionRootModel();
@@ -206,6 +262,44 @@ public sealed class ReflectionToolsTests
         Assert.Contains(
             members.Select(node => Assert.IsType<JsonObject>(node)["name"]?.GetValue<string>()),
             name => name == "secretToken");
+    }
+
+    [Fact]
+    public async Task InspectObjectTool_Execute_MarksTypeWideWriteAndInvokePermissions()
+    {
+        var model = new ReflectionRootModel();
+        var tool = new InspectObjectTool(
+            ReflectionToolsOptions.CreateBuilder()
+                .WithAssemblyTraversalMode(ReflectionAssemblyTraversalMode.AllowAll)
+                .WithNamespaceTraversalMode(ReflectionNamespaceTraversalMode.AllowAll)
+                .AddRoot(
+                    "session",
+                    model,
+                    new ReflectionRootMetadata("Session"),
+                    root => root
+                        .AllowAllWritableMembersOn<ReflectionChildModel>()
+                        .AllowAllInvokableMethodsOn<ReflectionChildModel>())
+                .Build());
+
+        var result = await tool.Execute(new Dictionary<string, string>
+        {
+            ["root"] = "session",
+            ["path"] = "Child"
+        });
+
+        Assert.True(result.IsSuccess);
+        var snapshot = Assert.IsType<JsonObject>(Assert.IsType<JsonObject>(result.Payload)["snapshot"]);
+        var members = Assert.IsType<JsonArray>(snapshot["members"]);
+        var methods = Assert.IsType<JsonArray>(snapshot["methods"]);
+        var nameMember = members
+            .Select(node => Assert.IsType<JsonObject>(node))
+            .Single(node => node["name"]?.GetValue<string>() == "Name");
+        var renameMethod = methods
+            .Select(node => Assert.IsType<JsonObject>(node))
+            .Single(node => node["signature"]?.GetValue<string>() == "Rename(System.String)");
+
+        Assert.True(nameMember["allowedWrite"]!.GetValue<bool>());
+        Assert.True(renameMethod["invokable"]!.GetValue<bool>());
     }
 
     [Fact]
@@ -256,6 +350,34 @@ public sealed class ReflectionToolsTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal("Updated", model.Child.Name);
+        var payload = Assert.IsType<JsonObject>(result.Payload);
+        var snapshot = Assert.IsType<JsonObject>(payload["snapshot"]);
+        Assert.Equal("Child.Name", snapshot["path"]?.GetValue<string>());
+        Assert.Equal("Updated", snapshot["preview"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task SetMemberValueTool_Execute_WritesMembersWhenTypeWideWritesAreEnabled()
+    {
+        var model = new ReflectionRootModel();
+        var tool = new SetMemberValueTool(
+            ReflectionToolsOptions.CreateBuilder()
+                .AddRoot(
+                    "session",
+                    model,
+                    new ReflectionRootMetadata("Session"),
+                    root => root.AllowAllWritableMembersOn<ReflectionChildModel>())
+                .Build());
+
+        var result = await tool.Execute(new Dictionary<string, string>
+        {
+            ["root"] = "session",
+            ["path"] = "Child.Name",
+            ["valueJson"] = "\"Type Enabled\""
+        });
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Type Enabled", model.Child.Name);
     }
 
     [Fact]
@@ -328,6 +450,32 @@ public sealed class ReflectionToolsTests
     }
 
     [Fact]
+    public async Task InvokeMethodTool_Execute_InvokesMethodsWhenTypeWideInvocationsAreEnabled()
+    {
+        var model = new ReflectionRootModel();
+        var tool = new InvokeMethodTool(
+            ReflectionToolsOptions.CreateBuilder()
+                .AddRoot(
+                    "session",
+                    model,
+                    new ReflectionRootMetadata("Session"),
+                    root => root.AllowAllInvokableMethodsOn<ReflectionChildModel>())
+                .Build());
+
+        var result = await tool.Execute(new Dictionary<string, string>
+        {
+            ["root"] = "session",
+            ["targetPath"] = "Child",
+            ["method"] = "Rename",
+            ["parameterTypesJson"] = "[\"System.String\"]",
+            ["argumentsJson"] = "[\"Type Enabled Child\"]"
+        });
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Type Enabled Child", model.Child.Name);
+    }
+
+    [Fact]
     public async Task InvokeMethodTool_Execute_RejectsDisallowedMethods()
     {
         var model = new ReflectionRootModel();
@@ -379,10 +527,8 @@ public sealed class ReflectionToolsTests
                     new ReflectionRootModel(),
                     new ReflectionRootMetadata("Current Session")
                     {
-                        Attributes = new Dictionary<string, string>
-                        {
-                            ["team"] = "sdk"
-                        }
+                        Hints = ["debug", "session"],
+                        ContainsSensitiveData = true
                     });
             })
             .WithReadWriteToolAccess()
@@ -420,15 +566,32 @@ public sealed class ReflectionToolsTests
         var roots = Assert.IsType<JsonArray>(resultPayload["roots"]);
         var root = Assert.IsType<JsonObject>(Assert.Single(roots));
         var metadata = Assert.IsType<JsonObject>(root["metadata"]);
-        var attributes = Assert.IsType<JsonObject>(metadata["attributes"]);
+        var hints = Assert.IsType<JsonArray>(metadata["hints"]);
 
         Assert.Equal("Current Session", metadata["displayName"]?.GetValue<string>());
-        Assert.Equal("sdk", attributes["team"]?.GetValue<string>());
+        Assert.Contains(hints.Select(node => node!.GetValue<string>()), value => value == "session");
+        Assert.True(metadata["containsSensitiveData"]!.GetValue<bool>());
+        Assert.Null(metadata["category"]);
+        Assert.Null(metadata["attributes"]);
+    }
+
+    [Fact]
+    public void ReflectionToolsOptions_Build_UsesExplicitTraversalModes()
+    {
+        var options = ReflectionToolsOptions.CreateBuilder()
+            .WithAssemblyTraversalMode(ReflectionAssemblyTraversalMode.AllowAll)
+            .WithNamespaceTraversalMode(ReflectionNamespaceTraversalMode.AllowAll)
+            .Build();
+
+        Assert.Equal(ReflectionAssemblyTraversalMode.AllowAll, options.AssemblyTraversalMode);
+        Assert.Equal(ReflectionNamespaceTraversalMode.AllowAll, options.NamespaceTraversalMode);
     }
 
     private static ReflectionToolsOptions CreateOptions(ReflectionRootModel model)
     {
         return ReflectionToolsOptions.CreateBuilder()
+            .WithAssemblyTraversalMode(ReflectionAssemblyTraversalMode.AllowAll)
+            .WithNamespaceTraversalMode(ReflectionNamespaceTraversalMode.AllowAll)
             .AddRoot("session", model, new ReflectionRootMetadata("Session"))
             .Build();
     }
@@ -497,13 +660,26 @@ public sealed class ReflectionToolsTests
         public ReflectionChildModel(string name)
         {
             Name = name;
+            Nested = new ReflectionGrandchildModel($"Nested {name}");
         }
 
         public string Name { get; set; }
+
+        public ReflectionGrandchildModel Nested { get; }
 
         public void Rename(string value)
         {
             Name = value;
         }
+    }
+
+    public sealed class ReflectionGrandchildModel
+    {
+        public ReflectionGrandchildModel(string detail)
+        {
+            Detail = detail;
+        }
+
+        public string Detail { get; }
     }
 }

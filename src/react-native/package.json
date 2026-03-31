@@ -1,6 +1,6 @@
 {
   "name": "@ansight/react-native",
-  "version": "0.1.0",
+  "version": "0.1.0-pre1",
   "private": true,
   "main": "src/index.ts",
   "react-native": "src/index.ts",

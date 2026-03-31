@@ -1,7 +1,7 @@
 {
   "name": "ansight-react-native-example",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.0-pre1",
   "scripts": {
     "start": "react-native start",
     "android": "react-native run-android"

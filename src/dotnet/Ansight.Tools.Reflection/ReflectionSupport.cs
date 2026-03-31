@@ -33,8 +33,8 @@ internal static class ReflectionSupport
                 ["available"] = resolution.Available,
                 ["runtimeType"] = resolution.Value?.GetType().FullName,
                 ["memberVisibility"] = GetEffectiveVisibility(options, root).ToString(),
-                ["canWriteMembers"] = root.AllowedWritableMembers.Count > 0,
-                ["canInvokeMethods"] = root.AllowedInvokableMethods.Count > 0,
+                ["canWriteMembers"] = root.CanWriteMembers,
+                ["canInvokeMethods"] = root.CanInvokeMethods,
                 ["resolutionError"] = resolution.Available
                     ? null
                     : string.IsNullOrWhiteSpace(resolution.Error) ? null : resolution.Error
@@ -103,7 +103,7 @@ internal static class ReflectionSupport
             ["genericArity"] = type.IsGenericType ? type.GetGenericArguments().Length : 0,
             ["memberVisibility"] = visibility.ToString(),
             ["members"] = DescribeMembers(type, visibility),
-            ["methods"] = DescribeMethods(type, visibility, allowedInvocations: null, targetPath: null),
+            ["methods"] = DescribeMethods(type, visibility, registration: null, targetPath: null),
             ["capturedAtUtc"] = DateTime.UtcNow.ToString("O")
         };
     }
@@ -114,11 +114,6 @@ internal static class ReflectionSupport
         var path = GetRequiredString(arguments, "path");
         var valueJson = GetRequiredString(arguments, "valueJson");
         var registration = GetRoot(options, rootId);
-        if (!registration.AllowedWritableMembers.Contains(path))
-        {
-            throw new InvalidOperationException($"Member path '{path}' is not allowed for writes on root '{rootId}'.");
-        }
-
         var resolution = registration.Resolve();
         if (!resolution.Available || resolution.Value == null)
         {
@@ -143,6 +138,11 @@ internal static class ReflectionSupport
         var member = FindMember(parent.Value.GetType(), memberName, memberVisibility)
                      ?? throw new InvalidOperationException($"Member '{memberName}' was not found.");
 
+        if (!registration.IsWriteAllowed(path, parent.Value.GetType()))
+        {
+            throw new InvalidOperationException($"Member path '{path}' is not allowed for writes on root '{rootId}'.");
+        }
+
         if (member is PropertyInfo property)
         {
             if (!property.CanWrite || property.SetMethod == null)
@@ -152,7 +152,8 @@ internal static class ReflectionSupport
 
             var convertedValue = ConvertValue(ParseJsonArgument(valueJson), property.PropertyType);
             property.SetValue(parent.Value, convertedValue);
-            return CreateMutationResult(rootId, path, parent.Value, property.PropertyType, updated: true);
+            var updatedValue = property.GetValue(parent.Value);
+            return CreateMutationResult(options, registration, rootId, path, updatedValue, property.PropertyType, updated: true);
         }
 
         if (member is FieldInfo field)
@@ -164,7 +165,8 @@ internal static class ReflectionSupport
 
             var convertedValue = ConvertValue(ParseJsonArgument(valueJson), field.FieldType);
             field.SetValue(parent.Value, convertedValue);
-            return CreateMutationResult(rootId, path, parent.Value, field.FieldType, updated: true);
+            var updatedValue = field.GetValue(parent.Value);
+            return CreateMutationResult(options, registration, rootId, path, updatedValue, field.FieldType, updated: true);
         }
 
         throw new InvalidOperationException($"Member '{memberName}' is not writable.");
@@ -201,10 +203,9 @@ internal static class ReflectionSupport
         }
 
         var methodSignature = CreateMethodSignature(method);
-        var invocationKey = CreateInvocationKey(targetPath, methodSignature);
-        if (!registration.AllowedInvokableMethods.Contains(invocationKey) &&
-            !(string.IsNullOrWhiteSpace(targetPath) && registration.AllowedInvokableMethods.Contains(methodSignature)))
+        if (!registration.IsInvocationAllowed(targetPath, methodSignature, target.Value.GetType()))
         {
+            var invocationKey = CreateInvocationKey(targetPath, methodSignature);
             throw new InvalidOperationException($"Method '{invocationKey}' is not allowed for invocation on root '{rootId}'.");
         }
 
@@ -246,24 +247,22 @@ internal static class ReflectionSupport
         };
     }
 
-    private static JsonObject CreateMutationResult(string rootId, string path, object value, Type declaredType, bool updated)
+    private static JsonObject CreateMutationResult(
+        ReflectionToolsOptions options,
+        ReflectionRootRegistration registration,
+        string rootId,
+        string path,
+        object? value,
+        Type declaredType,
+        bool updated)
     {
-        var registration = new ReflectionRootRegistration(
-            "__mutation__",
-            new ReflectionRootMetadata("mutation"),
-            ReflectionRootRegistrationKind.Reference,
-            ReflectionReferenceStrength.Strong,
-            () => value,
-            ReflectionMemberVisibility.PublicAndNonPublic,
-            Array.Empty<string>(),
-            Array.Empty<string>());
-        var state = new ReflectionSnapshotState(ReflectionToolsOptions.Default, registration, DefaultMaxItemsPerCollection);
+        var state = new ReflectionSnapshotState(options, registration, DefaultMaxItemsPerCollection);
         return new JsonObject
         {
             ["root"] = rootId,
             ["path"] = path,
             ["updated"] = updated,
-            ["snapshot"] = CreateSnapshot(value, declaredType, path: null, depthRemaining: 1, state, allowExpansion: true, isRoot: false),
+            ["snapshot"] = CreateSnapshot(value, declaredType, path, depthRemaining: 1, state, allowExpansion: true, isRoot: false),
             ["capturedAtUtc"] = DateTime.UtcNow.ToString("O")
         };
     }
@@ -290,26 +289,18 @@ internal static class ReflectionSupport
 
     private static JsonObject ToJson(ReflectionRootMetadata metadata)
     {
-        var tags = new JsonArray();
-        foreach (var tag in metadata.Tags)
+        var hints = new JsonArray();
+        foreach (var hint in metadata.Hints)
         {
-            tags.Add(tag);
-        }
-
-        var attributes = new JsonObject();
-        foreach (var pair in metadata.Attributes)
-        {
-            attributes[pair.Key] = pair.Value;
+            hints.Add(hint);
         }
 
         return new JsonObject
         {
             ["displayName"] = metadata.DisplayName,
             ["description"] = metadata.Description,
-            ["category"] = metadata.Category,
-            ["tags"] = tags,
-            ["containsSensitiveData"] = metadata.ContainsSensitiveData,
-            ["attributes"] = attributes
+            ["hints"] = hints,
+            ["containsSensitiveData"] = metadata.ContainsSensitiveData
         };
     }
 
@@ -346,7 +337,7 @@ internal static class ReflectionSupport
     private static JsonArray DescribeMethods(
         Type type,
         ReflectionMemberVisibility visibility,
-        IReadOnlyCollection<string>? allowedInvocations,
+        ReflectionRootRegistration? registration,
         string? targetPath)
     {
         var results = new JsonArray();
@@ -363,11 +354,9 @@ internal static class ReflectionSupport
                 ["visibility"] = method.IsPublic ? "public" : "non_public"
             };
 
-            if (allowedInvocations != null)
+            if (registration != null)
             {
-                var invocationKey = CreateInvocationKey(targetPath, signature);
-                descriptor["invokable"] = allowedInvocations.Contains(invocationKey) ||
-                                          (string.IsNullOrWhiteSpace(targetPath) && allowedInvocations.Contains(signature));
+                descriptor["invokable"] = registration.IsInvocationAllowed(targetPath, signature, type);
             }
 
             results.Add(descriptor);
@@ -414,6 +403,12 @@ internal static class ReflectionSupport
             return snapshot;
         }
 
+        if (!allowExpansion)
+        {
+            snapshot["expandable"] = CanExpand(effectiveType, state.MemberVisibility);
+            return snapshot;
+        }
+
         if (!state.TryEnter(value, path))
         {
             snapshot["cycleDetected"] = true;
@@ -448,7 +443,7 @@ internal static class ReflectionSupport
 
             snapshot["expandable"] = members.Count > 0;
             snapshot["members"] = members;
-            snapshot["methods"] = DescribeMethods(effectiveType, state.MemberVisibility, state.Root.AllowedInvokableMethods, path);
+            snapshot["methods"] = DescribeMethods(effectiveType, state.MemberVisibility, state.Root, path);
             return snapshot;
         }
         finally
@@ -506,7 +501,7 @@ internal static class ReflectionSupport
             ["readable"] = readable,
             ["writable"] = writable,
             ["visibility"] = IsPublic(member) ? "public" : "non_public",
-            ["allowedWrite"] = state.Root.AllowedWritableMembers.Contains(childPath),
+            ["allowedWrite"] = state.Root.IsWriteAllowed(childPath, instance.GetType()),
             ["error"] = error
         };
 
@@ -1146,6 +1141,26 @@ internal static class ReflectionSupport
             candidate.GetGenericTypeDefinition() == typeof(IDictionary<,>) &&
             candidate.GetGenericArguments()[0] == typeof(string));
 
+    private static bool CanExpand(Type type, ReflectionMemberVisibility visibility)
+    {
+        if (typeof(IDictionary).IsAssignableFrom(type) || ImplementsGenericDictionary(type))
+        {
+            return true;
+        }
+
+        if (type.IsArray)
+        {
+            return true;
+        }
+
+        if (typeof(IEnumerable).IsAssignableFrom(type) && type != typeof(string))
+        {
+            return true;
+        }
+
+        return EnumerateMembers(type, visibility).Count > 0;
+    }
+
     private static Type? TryGetListElementType(Type type)
     {
         if (type.IsArray)
@@ -1461,19 +1476,23 @@ internal static class ReflectionSupport
 
         public bool IsTypeAllowed(Type type)
         {
-            if (options.AllowedAssemblies.Count == 0 && options.AllowedNamespacePrefixes.Count == 0)
+            if (options.AssemblyTraversalMode == ReflectionAssemblyTraversalMode.AllowAll ||
+                options.NamespaceTraversalMode == ReflectionNamespaceTraversalMode.AllowAll)
             {
                 return true;
             }
 
             var assemblyName = type.Assembly.GetName().Name;
-            if (!string.IsNullOrWhiteSpace(assemblyName) && options.AllowedAssemblies.Contains(assemblyName))
+            if (options.AssemblyTraversalMode == ReflectionAssemblyTraversalMode.AllowListedOnly &&
+                !string.IsNullOrWhiteSpace(assemblyName) &&
+                options.AllowedAssemblies.Contains(assemblyName))
             {
                 return true;
             }
 
             var namespaceName = type.Namespace ?? string.Empty;
-            return options.AllowedNamespacePrefixes.Any(prefix =>
+            return options.NamespaceTraversalMode == ReflectionNamespaceTraversalMode.AllowListedOnly &&
+                   options.AllowedNamespacePrefixes.Any(prefix =>
                 namespaceName.StartsWith(prefix, StringComparison.Ordinal));
         }
     }

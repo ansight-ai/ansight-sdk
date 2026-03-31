@@ -6,7 +6,7 @@ The native harness app lives in `harness/`.
 
 ## Local publication
 
-The Android runtime publishes as `ai.ansight:ansight-runtime-android:0.1.0-dev` by default.
+The Android runtime publishes as `ai.ansight:ansight-runtime-android:0.1.0-pre1` by default.
 
 1. Create `local.properties` in this directory with your Android SDK path.
 2. Publish the release AAR to your local Maven cache:

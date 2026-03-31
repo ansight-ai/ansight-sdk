@@ -5,7 +5,7 @@ plugins {
 }
 
 group = providers.gradleProperty("ansightAndroidGroup").orElse("ai.ansight").get()
-version = providers.gradleProperty("ansightAndroidVersion").orElse("0.1.0-dev").get()
+version = providers.gradleProperty("ansightAndroidVersion").orElse("0.1.0-pre1").get()
 
 val ansightAndroidArtifactId = providers
     .gradleProperty("ansightAndroidArtifactId")

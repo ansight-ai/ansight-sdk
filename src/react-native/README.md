@@ -17,7 +17,7 @@ Publish the Android runtime first from `src/android`:
 Then add `mavenLocal()` in the host Android project's repository list and let the bridge resolve:
 
 ```properties
-ansightRuntimeCoordinates=ai.ansight:ansight-runtime-android:0.1.0-dev
+ansightRuntimeCoordinates=ai.ansight:ansight-runtime-android:0.1.0-pre1
 ```
 
 `ansightRuntimeCoordinates` is optional if you keep the default coordinates.

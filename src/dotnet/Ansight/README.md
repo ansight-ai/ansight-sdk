@@ -113,6 +113,8 @@ var options = Options.CreateBuilder()
     })
     .WithReflectionTools(reflection =>
     {
+        reflection.WithAssemblyTraversalMode(ReflectionAssemblyTraversalMode.AllowAll);
+        reflection.WithNamespaceTraversalMode(ReflectionNamespaceTraversalMode.AllowAll);
         reflection.AddRoot(
             "session",
             new DebugSessionViewModel(),
@@ -128,6 +130,8 @@ var options = Options.CreateBuilder()
 ```
 
 The feature packages currently group tools by capability area:
+
+Reflection roots support path-based write/invoke allow-lists plus type-wide helpers like `AllowAllWritableMembersOn<T>()` and `AllowAllInvokableMethodsOn<T>()` when an entire reachable type should be enabled.
 
 - `Ansight.Tools.VisualTree`
 - `Ansight.Tools.Reflection`

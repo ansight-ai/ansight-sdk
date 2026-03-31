@@ -6,17 +6,23 @@ public sealed class ReflectionToolsOptions
         Array.Empty<ReflectionRootRegistration>(),
         Array.Empty<string>(),
         Array.Empty<string>(),
+        ReflectionAssemblyTraversalMode.AllowListedOnly,
+        ReflectionNamespaceTraversalMode.AllowListedOnly,
         ReflectionMemberVisibility.PublicOnly);
 
     internal ReflectionToolsOptions(
         IReadOnlyList<ReflectionRootRegistration> roots,
         IReadOnlyCollection<string> allowedAssemblies,
         IReadOnlyCollection<string> allowedNamespacePrefixes,
+        ReflectionAssemblyTraversalMode assemblyTraversalMode,
+        ReflectionNamespaceTraversalMode namespaceTraversalMode,
         ReflectionMemberVisibility defaultMemberVisibility)
     {
         Roots = roots;
         AllowedAssemblies = allowedAssemblies;
         AllowedNamespacePrefixes = allowedNamespacePrefixes;
+        AssemblyTraversalMode = assemblyTraversalMode;
+        NamespaceTraversalMode = namespaceTraversalMode;
         DefaultMemberVisibility = defaultMemberVisibility;
     }
 
@@ -26,9 +32,25 @@ public sealed class ReflectionToolsOptions
 
     public IReadOnlyCollection<string> AllowedNamespacePrefixes { get; }
 
+    public ReflectionAssemblyTraversalMode AssemblyTraversalMode { get; }
+
+    public ReflectionNamespaceTraversalMode NamespaceTraversalMode { get; }
+
     public ReflectionMemberVisibility DefaultMemberVisibility { get; }
 
     public static ReflectionToolsOptionsBuilder CreateBuilder() => new();
+}
+
+public enum ReflectionAssemblyTraversalMode
+{
+    AllowListedOnly = 0,
+    AllowAll = 1
+}
+
+public enum ReflectionNamespaceTraversalMode
+{
+    AllowListedOnly = 0,
+    AllowAll = 1
 }
 
 public sealed class ReflectionToolsOptionsBuilder
@@ -36,6 +58,8 @@ public sealed class ReflectionToolsOptionsBuilder
     private readonly Dictionary<string, ReflectionRootRegistration> rootsById = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> allowedAssemblies = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> allowedNamespacePrefixes = new(StringComparer.Ordinal);
+    private ReflectionAssemblyTraversalMode assemblyTraversalMode = ReflectionAssemblyTraversalMode.AllowListedOnly;
+    private ReflectionNamespaceTraversalMode namespaceTraversalMode = ReflectionNamespaceTraversalMode.AllowListedOnly;
     private ReflectionMemberVisibility defaultMemberVisibility = ReflectionMemberVisibility.PublicOnly;
 
     public ReflectionToolsOptionsBuilder AddRoot(
@@ -151,6 +175,18 @@ public sealed class ReflectionToolsOptionsBuilder
         return this;
     }
 
+    public ReflectionToolsOptionsBuilder WithAssemblyTraversalMode(ReflectionAssemblyTraversalMode mode)
+    {
+        assemblyTraversalMode = mode;
+        return this;
+    }
+
+    public ReflectionToolsOptionsBuilder WithNamespaceTraversalMode(ReflectionNamespaceTraversalMode mode)
+    {
+        namespaceTraversalMode = mode;
+        return this;
+    }
+
     public ReflectionToolsOptionsBuilder WithDefaultMemberVisibility(ReflectionMemberVisibility visibility)
     {
         defaultMemberVisibility = visibility;
@@ -162,6 +198,8 @@ public sealed class ReflectionToolsOptionsBuilder
             rootsById.Values.OrderBy(root => root.Id, StringComparer.OrdinalIgnoreCase).ToList(),
             allowedAssemblies.ToArray(),
             allowedNamespacePrefixes.ToArray(),
+            assemblyTraversalMode,
+            namespaceTraversalMode,
             defaultMemberVisibility);
 
     private ReflectionToolsOptionsBuilder AddRootCore(
@@ -193,18 +231,11 @@ public sealed class ReflectionToolsOptionsBuilder
         {
             DisplayName = metadata.DisplayName.Trim(),
             Description = string.IsNullOrWhiteSpace(metadata.Description) ? null : metadata.Description.Trim(),
-            Category = string.IsNullOrWhiteSpace(metadata.Category) ? null : metadata.Category.Trim(),
-            Tags = metadata.Tags
-                .Where(tag => !string.IsNullOrWhiteSpace(tag))
-                .Select(tag => tag.Trim())
+            Hints = metadata.Hints
+                .Where(hint => !string.IsNullOrWhiteSpace(hint))
+                .Select(hint => hint.Trim())
                 .Distinct(StringComparer.Ordinal)
                 .ToArray(),
-            Attributes = metadata.Attributes
-                .Where(pair => !string.IsNullOrWhiteSpace(pair.Key))
-                .ToDictionary(
-                    pair => pair.Key.Trim(),
-                    pair => pair.Value?.Trim() ?? string.Empty,
-                    StringComparer.Ordinal)
         };
     }
 
@@ -221,6 +252,10 @@ public sealed class ReflectionRootBuilder
 {
     private readonly HashSet<string> allowedWritableMembers = new(StringComparer.Ordinal);
     private readonly HashSet<string> allowedInvokableMethods = new(StringComparer.Ordinal);
+    private readonly HashSet<Type> allowedWritableTypes = new();
+    private readonly HashSet<Type> allowedInvokableTypes = new();
+    private bool allowAllWritableMembers;
+    private bool allowAllInvokableMethods;
     private ReflectionMemberVisibility? memberVisibility;
 
     public ReflectionRootBuilder WithMemberVisibility(ReflectionMemberVisibility visibility)
@@ -246,6 +281,28 @@ public sealed class ReflectionRootBuilder
         return this;
     }
 
+    public ReflectionRootBuilder AllowAllWritableMembers()
+    {
+        allowAllWritableMembers = true;
+        return this;
+    }
+
+    public ReflectionRootBuilder AllowAllWritableMembersOn(params Type[] types)
+    {
+        ArgumentNullException.ThrowIfNull(types);
+
+        foreach (var type in types)
+        {
+            ArgumentNullException.ThrowIfNull(type);
+            allowedWritableTypes.Add(type);
+        }
+
+        return this;
+    }
+
+    public ReflectionRootBuilder AllowAllWritableMembersOn<T>()
+        => AllowAllWritableMembersOn(typeof(T));
+
     public ReflectionRootBuilder AllowInvokableMethods(params string[] methodSignatures)
     {
         ArgumentNullException.ThrowIfNull(methodSignatures);
@@ -263,6 +320,28 @@ public sealed class ReflectionRootBuilder
         return this;
     }
 
+    public ReflectionRootBuilder AllowAllInvokableMethods()
+    {
+        allowAllInvokableMethods = true;
+        return this;
+    }
+
+    public ReflectionRootBuilder AllowAllInvokableMethodsOn(params Type[] types)
+    {
+        ArgumentNullException.ThrowIfNull(types);
+
+        foreach (var type in types)
+        {
+            ArgumentNullException.ThrowIfNull(type);
+            allowedInvokableTypes.Add(type);
+        }
+
+        return this;
+    }
+
+    public ReflectionRootBuilder AllowAllInvokableMethodsOn<T>()
+        => AllowAllInvokableMethodsOn(typeof(T));
+
     internal ReflectionRootRegistration Build(
         string id,
         ReflectionRootMetadata metadata,
@@ -277,8 +356,12 @@ public sealed class ReflectionRootBuilder
             referenceStrength,
             resolver,
             memberVisibility,
+            allowAllWritableMembers,
             allowedWritableMembers.ToArray(),
-            allowedInvokableMethods.ToArray());
+            allowedWritableTypes.ToArray(),
+            allowAllInvokableMethods,
+            allowedInvokableMethods.ToArray(),
+            allowedInvokableTypes.ToArray());
     }
 }
 
@@ -303,8 +386,12 @@ internal sealed class ReflectionRootRegistration
         ReflectionReferenceStrength? referenceStrength,
         Func<object?> resolver,
         ReflectionMemberVisibility? memberVisibility,
+        bool allowAllWritableMembers,
         IReadOnlyCollection<string> allowedWritableMembers,
-        IReadOnlyCollection<string> allowedInvokableMethods)
+        IReadOnlyCollection<Type> allowedWritableTypes,
+        bool allowAllInvokableMethods,
+        IReadOnlyCollection<string> allowedInvokableMethods,
+        IReadOnlyCollection<Type> allowedInvokableTypes)
     {
         Id = id;
         Metadata = metadata;
@@ -312,8 +399,12 @@ internal sealed class ReflectionRootRegistration
         ReferenceStrength = referenceStrength;
         this.resolver = resolver;
         MemberVisibility = memberVisibility;
+        AllowAllWritableMembers = allowAllWritableMembers;
         AllowedWritableMembers = allowedWritableMembers;
+        AllowedWritableTypes = allowedWritableTypes;
+        AllowAllInvokableMethods = allowAllInvokableMethods;
         AllowedInvokableMethods = allowedInvokableMethods;
+        AllowedInvokableTypes = allowedInvokableTypes;
     }
 
     private readonly Func<object?> resolver;
@@ -328,9 +419,44 @@ internal sealed class ReflectionRootRegistration
 
     public ReflectionMemberVisibility? MemberVisibility { get; }
 
+    public bool AllowAllWritableMembers { get; }
+
     public IReadOnlyCollection<string> AllowedWritableMembers { get; }
 
+    public IReadOnlyCollection<Type> AllowedWritableTypes { get; }
+
+    public bool AllowAllInvokableMethods { get; }
+
     public IReadOnlyCollection<string> AllowedInvokableMethods { get; }
+
+    public IReadOnlyCollection<Type> AllowedInvokableTypes { get; }
+
+    public bool CanWriteMembers
+        => AllowAllWritableMembers || AllowedWritableMembers.Count > 0 || AllowedWritableTypes.Count > 0;
+
+    public bool CanInvokeMethods
+        => AllowAllInvokableMethods || AllowedInvokableMethods.Count > 0 || AllowedInvokableTypes.Count > 0;
+
+    public bool IsWriteAllowed(string path, Type targetType)
+        => AllowAllWritableMembers ||
+           AllowedWritableMembers.Contains(path) ||
+           AllowedWritableTypes.Any(type => type.IsAssignableFrom(targetType));
+
+    public bool IsInvocationAllowed(string? targetPath, string signature, Type targetType)
+    {
+        if (AllowAllInvokableMethods ||
+            AllowedInvokableTypes.Any(type => type.IsAssignableFrom(targetType)))
+        {
+            return true;
+        }
+
+        var invocationKey = string.IsNullOrWhiteSpace(targetPath)
+            ? signature
+            : targetPath + "#" + signature;
+
+        return AllowedInvokableMethods.Contains(invocationKey) ||
+               (string.IsNullOrWhiteSpace(targetPath) && AllowedInvokableMethods.Contains(signature));
+    }
 
     public ReflectionRootResolution Resolve()
     {

@@ -109,6 +109,8 @@ var options = Options.CreateBuilder()
     })
     .WithReflectionTools(reflection =>
     {
+        reflection.WithAssemblyTraversalMode(ReflectionAssemblyTraversalMode.AllowAll);
+        reflection.WithNamespaceTraversalMode(ReflectionNamespaceTraversalMode.AllowAll);
         reflection.AddRoot(
             "session",
             new DebugSessionViewModel(),
@@ -132,6 +134,8 @@ Registered tools are guarded explicitly. Use:
 - `WithToolGuard(...)` for a custom policy
 
 The storage packages register `remove` operations as `Delete`, so `WithReadWriteToolAccess()` intentionally keeps those hidden and non-executable.
+
+Reflection roots support path-based write/invoke allow-lists plus type-wide helpers like `AllowAllWritableMembersOn<T>()` and `AllowAllInvokableMethodsOn<T>()` when an entire reachable type should be enabled.
 
 The runtime exposes a protocol bridge for transport layers:
 

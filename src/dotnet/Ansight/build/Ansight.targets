@@ -22,9 +22,9 @@
     <Error Condition="'$(_AnsightAllowRemoteToolsNormalized)' != 'true' and '$(_AnsightAllowRemoteToolsNormalized)' != 'false'"
            Text="AnsightAllowRemoteTools must be either 'true' or 'false'." />
     <Warning Condition="'$(_AnsightAllowRemoteToolsNormalized)' == 'true' and ('$(_AnsightConfigurationNormalized)' == '' or '$(_AnsightConfigurationNormalized)' != 'debug')"
-             Text="Ansight remote tools are explicitly enabled for this non-debug build via AnsightAllowRemoteTools=true. Keep this limited to local Debug builds and exclude tool packages from Release/distribution builds with MSBuild conditions." />
+             Text="Ansight remote tools are explicitly enabled for this build via AnsightAllowRemoteTools=true. Keep this limited to local Debug builds and exclude tool packages from Release/distribution builds with MSBuild conditions." />
     <Warning Condition="'$(_AnsightAllowRemoteToolsNormalized)' == 'true' and '$(_AnsightConfigurationNormalized)' == 'debug'"
-             Text="Ansight remote tools are explicitly enabled for this non-debug build via AnsightAllowRemoteTools=true. Keep this limited to local Debug builds and exclude tool packages from Release/distribution builds with MSBuild conditions." />
+             Text="Ansight remote tools are explicitly enabled for this build via AnsightAllowRemoteTools=true. Keep this limited to local Debug builds and exclude tool packages from Release/distribution builds with MSBuild conditions." />
   </Target>
 
   <Target Name="GenerateAnsightDeveloperPairing"
