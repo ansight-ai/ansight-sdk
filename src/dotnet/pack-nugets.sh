@@ -9,6 +9,7 @@ projects=(
   "Ansight.Tools.Database/Ansight.Tools.Database.csproj"
   "Ansight.Tools.FileSystem/Ansight.Tools.FileSystem.csproj"
   "Ansight.Tools.Preferences/Ansight.Tools.Preferences.csproj"
+  "Ansight.Tools.Reflection/Ansight.Tools.Reflection.csproj"
   "Ansight.Tools.SecureStorage/Ansight.Tools.SecureStorage.csproj"
   "Ansight.Tools.VisualTree/Ansight.Tools.VisualTree.csproj"
 )

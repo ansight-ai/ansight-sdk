@@ -61,6 +61,21 @@ public static class ToolSecurityImplications
     public const string InspectsUi = "inspects_ui";
 
     /// <summary>
+    /// Indicates that the tool can inspect live runtime object state in memory.
+    /// </summary>
+    public const string InspectsRuntimeState = "inspects_runtime_state";
+
+    /// <summary>
+    /// Indicates that the tool can mutate live runtime object state in memory.
+    /// </summary>
+    public const string MutatesRuntimeState = "mutates_runtime_state";
+
+    /// <summary>
+    /// Indicates that the tool can invoke application code through reflected method calls.
+    /// </summary>
+    public const string InvokesAppCode = "invokes_app_code";
+
+    /// <summary>
     /// Indicates that the tool can capture screenshots of the app UI.
     /// </summary>
     public const string CapturesScreenshots = "captures_screenshots";

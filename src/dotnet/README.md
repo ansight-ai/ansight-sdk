@@ -71,9 +71,17 @@ Tool abstractions stay in the `Ansight` package. Each tool exposes a `ToolDefini
 ```csharp
 using Ansight;
 using Ansight.Tools.VisualTree;
+using Ansight.Tools.Reflection;
 
 var options = Options.CreateBuilder()
     .WithVisualTreeTools()
+    .WithReflectionTools(reflection =>
+    {
+        reflection.AddRoot(
+            "session",
+            new DebugSessionViewModel(),
+            new ReflectionRootMetadata("Current Session"));
+    })
     .WithReadOnlyToolAccess()
     .Build();
 ```
@@ -81,6 +89,7 @@ var options = Options.CreateBuilder()
 Available grouped packages:
 
 - `Ansight.Tools.VisualTree`
+- `Ansight.Tools.Reflection`
 - `Ansight.Tools.Database`
 - `Ansight.Tools.FileSystem`
 - `Ansight.Tools.Preferences`

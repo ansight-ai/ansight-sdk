@@ -99,6 +99,7 @@ using Ansight;
 using Ansight.Tools.Database;
 using Ansight.Tools.FileSystem;
 using Ansight.Tools.Preferences;
+using Ansight.Tools.Reflection;
 using Ansight.Tools.SecureStorage;
 using Ansight.Tools.VisualTree;
 
@@ -109,6 +110,13 @@ var options = Options.CreateBuilder()
     .WithPreferencesTools(preferences =>
     {
         preferences.AllowKeyPrefix("com.example.");
+    })
+    .WithReflectionTools(reflection =>
+    {
+        reflection.AddRoot(
+            "session",
+            new DebugSessionViewModel(),
+            new ReflectionRootMetadata("Current Session"));
     })
     .WithSecureStorageTools(secure =>
     {
@@ -122,6 +130,7 @@ var options = Options.CreateBuilder()
 The feature packages currently group tools by capability area:
 
 - `Ansight.Tools.VisualTree`
+- `Ansight.Tools.Reflection`
 - `Ansight.Tools.Database`
 - `Ansight.Tools.FileSystem`
 - `Ansight.Tools.Preferences`
@@ -191,6 +200,7 @@ Only use `AnsightAllowRemoteTools=true` for local Debug builds. Do not enable re
 ## Related packages
 
 - `Ansight.Tools.VisualTree`: UI hierarchy and screenshot tools
+- `Ansight.Tools.Reflection`: live object reflection and guarded runtime mutation tools
 - `Ansight.Tools.Database`: database inspection tools
 - `Ansight.Tools.FileSystem`: sandboxed file access tools
 - `Ansight.Tools.Preferences`: shared-preferences and user-defaults tools

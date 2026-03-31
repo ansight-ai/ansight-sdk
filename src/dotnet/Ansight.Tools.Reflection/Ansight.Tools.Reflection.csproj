@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net9.0;net9.0-android;net9.0-ios;net9.0-maccatalyst</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>Ansight.Tools.Reflection</AssemblyName>
+    <RootNamespace>Ansight.Tools.Reflection</RootNamespace>
+
+    <IsPackable>true</IsPackable>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageId>Ansight.Tools.Reflection</PackageId>
+    <Description>Live object reflection, metadata inspection, and guarded mutation tools for the Ansight .NET SDK.</Description>
+    <PackageTags>ansight;tools;reflection;inspection;runtime;debugging</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Ansight\Ansight.csproj" />
+  </ItemGroup>
+
+</Project>

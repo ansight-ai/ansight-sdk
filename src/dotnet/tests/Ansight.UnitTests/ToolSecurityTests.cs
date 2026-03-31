@@ -3,6 +3,7 @@ using Ansight.Tools;
 using Ansight.Tools.Database;
 using Ansight.Tools.FileSystem;
 using Ansight.Tools.Preferences;
+using Ansight.Tools.Reflection;
 using Ansight.Tools.SecureStorage;
 using Ansight.Tools.VisualTree;
 
@@ -29,6 +30,11 @@ public sealed class ToolSecurityTests
         { new GetVisualTreeTool(), ToolSecurityLevel.High, ToolSecurityImplications.InspectsUi },
         { new GetScreenshotTool(), ToolSecurityLevel.High, ToolSecurityImplications.CapturesScreenshots },
         { new InspectNodeTool(), ToolSecurityLevel.High, ToolSecurityImplications.InspectsUi },
+        { new ListReflectionRootsTool(), ToolSecurityLevel.High, ToolSecurityImplications.InspectsRuntimeState },
+        { new InspectObjectTool(), ToolSecurityLevel.Critical, ToolSecurityImplications.InspectsRuntimeState },
+        { new DescribeTypeTool(), ToolSecurityLevel.Moderate, ToolSecurityImplications.MetadataDisclosure },
+        { new SetMemberValueTool(), ToolSecurityLevel.Critical, ToolSecurityImplications.MutatesRuntimeState },
+        { new InvokeMethodTool(), ToolSecurityLevel.Critical, ToolSecurityImplications.InvokesAppCode },
     };
 
     [Theory]

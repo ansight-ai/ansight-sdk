@@ -1,0 +1,43 @@
+namespace Ansight.Tools.Reflection;
+
+public sealed class InvokeMethodTool : ITool
+{
+    private readonly ReflectionToolsOptions options;
+
+    public InvokeMethodTool(ReflectionToolsOptions? options = null)
+    {
+        this.options = options ?? ReflectionToolsOptions.Default;
+    }
+
+    public string Category => "reflect";
+
+    public ToolScope Scope => ToolScope.Write;
+
+    public string Id => ReflectionToolIds.InvokeMethod;
+
+    public string Name => "Invoke Method";
+
+    public string Description => "Invokes an explicitly allow-listed instance method on a live object.";
+
+    public string Keywords => "reflection invoke method runtime";
+
+    public ToolSchema ArgumentsSchema => ReflectionToolSchemas.InvokeMethodArguments;
+
+    public ToolSchema ResultSchema => ReflectionToolSchemas.InvokeMethodResult;
+
+    public ToolSecurity Security => ReflectionToolSecurityProfiles.InvokeMethod;
+
+    public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
+    {
+        ArgumentNullException.ThrowIfNull(arguments);
+
+        try
+        {
+            return Task.FromResult(ToolResult.Success(ReflectionSupport.InvokeMethod(options, arguments)));
+        }
+        catch (Exception exception)
+        {
+            return Task.FromResult(ToolResult.Failure(exception.Message, errorCode: "reflect_invoke_failed"));
+        }
+    }
+}

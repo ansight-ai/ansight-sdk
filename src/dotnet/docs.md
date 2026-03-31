@@ -95,6 +95,7 @@ using Ansight;
 using Ansight.Tools.Database;
 using Ansight.Tools.FileSystem;
 using Ansight.Tools.Preferences;
+using Ansight.Tools.Reflection;
 using Ansight.Tools.SecureStorage;
 using Ansight.Tools.VisualTree;
 
@@ -105,6 +106,13 @@ var options = Options.CreateBuilder()
     .WithPreferencesTools(preferences =>
     {
         preferences.AllowKeyPrefix("com.example.");
+    })
+    .WithReflectionTools(reflection =>
+    {
+        reflection.AddRoot(
+            "session",
+            new DebugSessionViewModel(),
+            new ReflectionRootMetadata("Current Session"));
     })
     .WithSecureStorageTools(secure =>
     {
