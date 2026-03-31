@@ -16,6 +16,15 @@ on:
 permissions:
   contents: read
 
+env:
+  EXPECTED_PACKAGES: >-
+    Ansight
+    Ansight.Tools.VisualTree
+    Ansight.Tools.Database
+    Ansight.Tools.FileSystem
+    Ansight.Tools.Preferences
+    Ansight.Tools.SecureStorage
+
 concurrency:
   group: manual-nuget-release-${{ inputs.version }}
   cancel-in-progress: false
@@ -81,6 +90,49 @@ jobs:
           -p:SymbolPackageFormat=snupkg
           -p:ContinuousIntegrationBuild=true
 
+      - name: Verify package set
+        shell: bash
+        run: |
+          version="${{ steps.version.outputs.package_version }}"
+          read -r -a expected_packages <<< "$EXPECTED_PACKAGES"
+
+          shopt -s nullglob
+          packages=(artifacts/nuget/*.nupkg)
+          symbols=(artifacts/nuget/*.snupkg)
+          missing=0
+
+          if (( ${#packages[@]} != ${#expected_packages[@]} )); then
+            echo "Expected ${#expected_packages[@]} .nupkg files but found ${#packages[@]}." >&2
+            missing=1
+          fi
+
+          if (( ${#symbols[@]} != ${#expected_packages[@]} )); then
+            echo "Expected ${#expected_packages[@]} .snupkg files but found ${#symbols[@]}." >&2
+            missing=1
+          fi
+
+          for package_id in "${expected_packages[@]}"; do
+            package_path="artifacts/nuget/${package_id}.${version}.nupkg"
+            symbol_path="artifacts/nuget/${package_id}.${version}.snupkg"
+
+            if [[ ! -f "$package_path" ]]; then
+              echo "Missing package: $package_path" >&2
+              missing=1
+            fi
+
+            if [[ ! -f "$symbol_path" ]]; then
+              echo "Missing symbol package: $symbol_path" >&2
+              missing=1
+            fi
+          done
+
+          if (( missing )); then
+            echo "Package verification failed." >&2
+            exit 1
+          fi
+
+          printf '%s\n' "${packages[@]}" "${symbols[@]}" | sort
+
       - name: Upload packages
         uses: actions/upload-artifact@v4
         with:
@@ -107,36 +159,70 @@ jobs:
           name: nuget-packages-${{ needs.build.outputs.package_version }}
           path: artifacts/nuget
 
+      - name: Verify downloaded package set
+        shell: bash
+        run: |
+          version="${{ needs.build.outputs.package_version }}"
+          read -r -a expected_packages <<< "$EXPECTED_PACKAGES"
+
+          shopt -s nullglob
+          packages=(artifacts/nuget/*.nupkg)
+          symbols=(artifacts/nuget/*.snupkg)
+          missing=0
+
+          if (( ${#packages[@]} != ${#expected_packages[@]} )); then
+            echo "Expected ${#expected_packages[@]} .nupkg files but found ${#packages[@]}." >&2
+            missing=1
+          fi
+
+          if (( ${#symbols[@]} != ${#expected_packages[@]} )); then
+            echo "Expected ${#expected_packages[@]} .snupkg files but found ${#symbols[@]}." >&2
+            missing=1
+          fi
+
+          for package_id in "${expected_packages[@]}"; do
+            package_path="artifacts/nuget/${package_id}.${version}.nupkg"
+            symbol_path="artifacts/nuget/${package_id}.${version}.snupkg"
+
+            if [[ ! -f "$package_path" ]]; then
+              echo "Missing package: $package_path" >&2
+              missing=1
+            fi
+
+            if [[ ! -f "$symbol_path" ]]; then
+              echo "Missing symbol package: $symbol_path" >&2
+              missing=1
+            fi
+          done
+
+          if (( missing )); then
+            echo "Package verification failed." >&2
+            exit 1
+          fi
+
       - name: Publish packages
         shell: bash
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
           NUGET_SOURCE: https://api.nuget.org/v3/index.json
         run: |
+          version="${{ needs.build.outputs.package_version }}"
+          read -r -a expected_packages <<< "$EXPECTED_PACKAGES"
+
           if [[ -z "$NUGET_API_KEY" ]]; then
             echo "NUGET_API_KEY secret is not configured." >&2
             exit 1
           fi
 
-          shopt -s nullglob
-
-          packages=(artifacts/nuget/*.nupkg)
-          symbols=(artifacts/nuget/*.snupkg)
-
-          if (( ${#packages[@]} == 0 )); then
-            echo "No .nupkg files were produced." >&2
-            exit 1
-          fi
-
-          for package in "${packages[@]}"; do
-            dotnet nuget push "$package" \
+          for package_id in "${expected_packages[@]}"; do
+            dotnet nuget push "artifacts/nuget/${package_id}.${version}.nupkg" \
               --api-key "$NUGET_API_KEY" \
               --source "$NUGET_SOURCE" \
               --skip-duplicate
           done
 
-          for symbol in "${symbols[@]}"; do
-            dotnet nuget push "$symbol" \
+          for package_id in "${expected_packages[@]}"; do
+            dotnet nuget push "artifacts/nuget/${package_id}.${version}.snupkg" \
               --api-key "$NUGET_API_KEY" \
               --source "$NUGET_SOURCE" \
               --skip-duplicate
