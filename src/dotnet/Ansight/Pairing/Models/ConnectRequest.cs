@@ -34,4 +34,9 @@ public sealed class ConnectRequest
     /// Human-readable name presented to the host for this client.
     /// </summary>
     public required string ClientName { get; set; }
+
+    /// <summary>
+    /// Process-lifetime identifier for the SDK runtime instance.
+    /// </summary>
+    public string? ProcessSessionId { get; set; }
 }

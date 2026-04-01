@@ -198,7 +198,8 @@ internal sealed class PairingSessionConnector
             ConfigId = config.ConfigId,
             OneTimeToken = config.OneTimeToken,
             AppId = config.AppId,
-            ClientName = clientName
+            ClientName = clientName,
+            ProcessSessionId = ProcessSessionIdentity.Current
         };
 
         var bytes = JsonSerializer.SerializeToUtf8Bytes(request, PairingJson.Compact);
