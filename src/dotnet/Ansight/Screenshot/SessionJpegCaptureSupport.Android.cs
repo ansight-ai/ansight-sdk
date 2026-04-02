@@ -93,23 +93,7 @@ internal static partial class SessionJpegCaptureSupport
         try
         {
             captureState.Clear();
-            if (!await TryCaptureSceneAsync(activity!, rootView, captureState.Bitmap, captureState.Canvas, targetWidth, targetHeight, cancellationToken))
-            {
-                var saveCount = captureState.Canvas.Save();
-                try
-                {
-                    if (targetWidth != rootView.Width || targetHeight != rootView.Height)
-                    {
-                        captureState.Canvas.Scale(targetWidth / (float)rootView.Width, targetHeight / (float)rootView.Height);
-                    }
-
-                    rootView.Draw(captureState.Canvas);
-                }
-                finally
-                {
-                    captureState.Canvas.RestoreToCount(saveCount);
-                }
-            }
+            await CaptureSceneAsync(activity!, rootView, captureState.Canvas, targetWidth, targetHeight, cancellationToken);
 
             return new SessionJpegCaptureSurface(captureState, DateTimeOffset.UtcNow, targetWidth, targetHeight);
         }
@@ -120,65 +104,36 @@ internal static partial class SessionJpegCaptureSupport
         }
     }
 
-    private static async Task<bool> TryCaptureSceneAsync(
+    private static async Task CaptureSceneAsync(
         Activity activity,
         View rootView,
-        Bitmap bitmap,
         Canvas canvas,
         int targetWidth,
         int targetHeight,
         CancellationToken cancellationToken)
     {
-        var capturedActivityWindow = await TryCaptureActivityWindowAsync(activity, bitmap, cancellationToken);
         var topLevelViews = GetTopLevelViews(activity);
-        if (topLevelViews.Count == 0)
-        {
-            return capturedActivityWindow;
-        }
-
+        var rootLocation = GetViewLocationOnScreen(rootView);
         var scaleX = targetWidth / (float)rootView.Width;
         var scaleY = targetHeight / (float)rootView.Height;
+
+        if (topLevelViews.Count == 0)
+        {
+            DrawView(canvas, rootView, rootLocation, scaleX, scaleY);
+            await OverlaySurfaceBackedChildrenAsync(canvas, rootView, rootLocation, scaleX, scaleY, new HashSet<nint>(), cancellationToken);
+            return;
+        }
+
         var overlaidSurfaceHandles = new HashSet<nint>();
 
         foreach (var topLevelView in topLevelViews)
         {
-            var shouldDrawTopLevelView = !(capturedActivityWindow && topLevelView.Handle == rootView.Handle);
-            if (shouldDrawTopLevelView)
-            {
-                DrawTopLevelView(canvas, topLevelView, scaleX, scaleY);
-            }
+            DrawView(canvas, topLevelView, rootLocation, scaleX, scaleY);
 
-            await OverlaySurfaceBackedChildrenAsync(canvas, topLevelView, scaleX, scaleY, overlaidSurfaceHandles, cancellationToken);
+            await OverlaySurfaceBackedChildrenAsync(canvas, topLevelView, rootLocation, scaleX, scaleY, overlaidSurfaceHandles, cancellationToken);
         }
 
-        await OverlayFragmentHostedSurfaceBackedViewsAsync(activity, canvas, scaleX, scaleY, overlaidSurfaceHandles, cancellationToken);
-        return true;
-    }
-
-    private static async Task<bool> TryCaptureActivityWindowAsync(Activity activity, Bitmap bitmap, CancellationToken cancellationToken)
-    {
-        if (Android.OS.Build.VERSION.SdkInt < Android.OS.BuildVersionCodes.O || activity.Window == null)
-        {
-            return false;
-        }
-
-        var completion = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var registration = cancellationToken.Register(() => completion.TrySetCanceled(cancellationToken));
-
-        try
-        {
-            PixelCopy.Request(
-                activity.Window,
-                bitmap,
-                new PixelCopyFinishedListener(completion),
-                PixelCopyThread.GetHandler());
-        }
-        catch
-        {
-            return false;
-        }
-
-        return await completion.Task == (int)PixelCopyResult.Success;
+        await OverlayFragmentHostedSurfaceBackedViewsAsync(activity, canvas, rootLocation, scaleX, scaleY, overlaidSurfaceHandles, cancellationToken);
     }
 
     private static List<View> GetTopLevelViews(Activity activity)
@@ -309,17 +264,16 @@ internal static partial class SessionJpegCaptureSupport
             view.Height > 0;
     }
 
-    private static void DrawTopLevelView(Canvas canvas, View topLevelView, float scaleX, float scaleY)
+    private static void DrawView(Canvas canvas, View view, (int X, int Y) rootLocation, float scaleX, float scaleY)
     {
-        var location = new int[2];
-        topLevelView.GetLocationOnScreen(location);
+        var location = GetViewLocationOnScreen(view);
 
         var saveCount = canvas.Save();
         try
         {
             canvas.Scale(scaleX, scaleY);
-            canvas.Translate(location[0], location[1]);
-            topLevelView.Draw(canvas);
+            canvas.Translate(location.X - rootLocation.X, location.Y - rootLocation.Y);
+            view.Draw(canvas);
         }
         finally
         {
@@ -330,6 +284,7 @@ internal static partial class SessionJpegCaptureSupport
     private static async Task OverlaySurfaceBackedChildrenAsync(
         Canvas canvas,
         View rootView,
+        (int X, int Y) rootLocation,
         float scaleX,
         float scaleY,
         HashSet<nint> overlaidSurfaceHandles,
@@ -342,10 +297,10 @@ internal static partial class SessionJpegCaptureSupport
             switch (specialView)
             {
                 case SurfaceView surfaceView:
-                    await OverlaySurfaceViewAsync(canvas, surfaceView, scaleX, scaleY, cancellationToken);
+                    await OverlaySurfaceViewAsync(canvas, surfaceView, rootLocation, scaleX, scaleY, cancellationToken);
                     break;
                 case TextureView textureView:
-                    OverlayTextureView(canvas, textureView, scaleX, scaleY);
+                    OverlayTextureView(canvas, textureView, rootLocation, scaleX, scaleY);
                     break;
             }
         }
@@ -354,6 +309,7 @@ internal static partial class SessionJpegCaptureSupport
     private static async Task OverlayFragmentHostedSurfaceBackedViewsAsync(
         Activity activity,
         Canvas canvas,
+        (int X, int Y) rootLocation,
         float scaleX,
         float scaleY,
         HashSet<nint> overlaidSurfaceHandles,
@@ -364,6 +320,7 @@ internal static partial class SessionJpegCaptureSupport
             await OverlaySurfaceBackedChildrenAsync(
                 canvas,
                 fragmentView,
+                rootLocation,
                 scaleX,
                 scaleY,
                 overlaidSurfaceHandles,
@@ -536,7 +493,13 @@ internal static partial class SessionJpegCaptureSupport
         }
     }
 
-    private static async Task OverlaySurfaceViewAsync(Canvas canvas, SurfaceView surfaceView, float scaleX, float scaleY, CancellationToken cancellationToken)
+    private static async Task OverlaySurfaceViewAsync(
+        Canvas canvas,
+        SurfaceView surfaceView,
+        (int X, int Y) rootLocation,
+        float scaleX,
+        float scaleY,
+        CancellationToken cancellationToken)
     {
         if (Android.OS.Build.VERSION.SdkInt < Android.OS.BuildVersionCodes.O ||
             !IsVisibleForCapture(surfaceView) ||
@@ -568,10 +531,15 @@ internal static partial class SessionJpegCaptureSupport
             return;
         }
 
-        DrawOverlayBitmap(canvas, surfaceView, bitmap, scaleX, scaleY);
+        DrawOverlayBitmap(canvas, surfaceView, bitmap, rootLocation, scaleX, scaleY);
     }
 
-    private static void OverlayTextureView(Canvas canvas, TextureView textureView, float scaleX, float scaleY)
+    private static void OverlayTextureView(
+        Canvas canvas,
+        TextureView textureView,
+        (int X, int Y) rootLocation,
+        float scaleX,
+        float scaleY)
     {
         if (!IsVisibleForCapture(textureView) || !textureView.IsAvailable)
         {
@@ -584,19 +552,33 @@ internal static partial class SessionJpegCaptureSupport
             return;
         }
 
-        DrawOverlayBitmap(canvas, textureView, bitmap, scaleX, scaleY);
+        DrawOverlayBitmap(canvas, textureView, bitmap, rootLocation, scaleX, scaleY);
     }
 
-    private static void DrawOverlayBitmap(Canvas canvas, View view, Bitmap bitmap, float scaleX, float scaleY)
+    private static void DrawOverlayBitmap(
+        Canvas canvas,
+        View view,
+        Bitmap bitmap,
+        (int X, int Y) rootLocation,
+        float scaleX,
+        float scaleY)
+    {
+        var location = GetViewLocationOnScreen(view);
+        var left = (location.X - rootLocation.X) * scaleX;
+        var top = (location.Y - rootLocation.Y) * scaleY;
+        var destination = new RectF(
+            left,
+            top,
+            left + (view.Width * scaleX),
+            top + (view.Height * scaleY));
+        canvas.DrawBitmap(bitmap, null, destination, null);
+    }
+
+    private static (int X, int Y) GetViewLocationOnScreen(View view)
     {
         var location = new int[2];
         view.GetLocationOnScreen(location);
-        var destination = new RectF(
-            location[0] * scaleX,
-            location[1] * scaleY,
-            (location[0] + view.Width) * scaleX,
-            (location[1] + view.Height) * scaleY);
-        canvas.DrawBitmap(bitmap, null, destination, null);
+        return (location[0], location[1]);
     }
 
     private static async Task<OperationResult> SendSurfaceAsync(

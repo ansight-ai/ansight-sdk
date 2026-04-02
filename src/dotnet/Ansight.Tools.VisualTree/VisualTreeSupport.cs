@@ -498,10 +498,7 @@ internal static class VisualTreeSupport
         using var bitmap = Bitmap.CreateBitmap(rootView.Width, rootView.Height, Bitmap.Config.Argb8888!);
         using (var canvas = new Canvas(bitmap))
         {
-            if (!await TryCaptureSceneAsync(activity!, rootView, bitmap, canvas))
-            {
-                rootView.Draw(canvas);
-            }
+            await CaptureSceneAsync(activity!, rootView, canvas);
         }
 
         Bitmap workingBitmap = bitmap;
@@ -542,53 +539,27 @@ internal static class VisualTreeSupport
         }
     }
 
-    private static async Task<bool> TryCaptureSceneAsync(Activity activity, View rootView, Bitmap bitmap, Canvas canvas)
+    private static async Task CaptureSceneAsync(Activity activity, View rootView, Canvas canvas)
     {
-        var capturedActivityWindow = await TryCaptureActivityWindowAsync(activity, bitmap);
         var topLevelViews = GetTopLevelViews(activity);
+        var rootLocation = GetViewLocationOnScreen(rootView);
+
         if (topLevelViews.Count == 0)
         {
-            return capturedActivityWindow;
+            DrawView(canvas, rootView, rootLocation);
+            await OverlaySurfaceBackedChildrenAsync(canvas, rootView, rootLocation, new HashSet<nint>());
+            return;
         }
 
         var overlaidSurfaceHandles = new HashSet<nint>();
         foreach (var topLevelView in topLevelViews)
         {
-            var shouldDrawTopLevelView = !(capturedActivityWindow && topLevelView.Handle == rootView.Handle);
-            if (shouldDrawTopLevelView)
-            {
-                DrawTopLevelView(canvas, topLevelView);
-            }
+            DrawView(canvas, topLevelView, rootLocation);
 
-            await OverlaySurfaceBackedChildrenAsync(canvas, topLevelView, overlaidSurfaceHandles);
+            await OverlaySurfaceBackedChildrenAsync(canvas, topLevelView, rootLocation, overlaidSurfaceHandles);
         }
 
-        await OverlayFragmentHostedSurfaceBackedViewsAsync(activity, canvas, overlaidSurfaceHandles);
-        return true;
-    }
-
-    private static async Task<bool> TryCaptureActivityWindowAsync(Activity activity, Bitmap bitmap)
-    {
-        if (Build.VERSION.SdkInt < BuildVersionCodes.O || activity.Window == null)
-        {
-            return false;
-        }
-
-        var completion = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
-        try
-        {
-            PixelCopy.Request(
-                activity.Window,
-                bitmap,
-                new PixelCopyFinishedListener(completion),
-                PixelCopyThread.GetHandler());
-        }
-        catch
-        {
-            return false;
-        }
-
-        return await completion.Task == (int)PixelCopyResult.Success;
+        await OverlayFragmentHostedSurfaceBackedViewsAsync(activity, canvas, rootLocation, overlaidSurfaceHandles);
     }
 
     private static List<View> GetTopLevelViews(Activity activity)
@@ -719,16 +690,15 @@ internal static class VisualTreeSupport
             view.Height > 0;
     }
 
-    private static void DrawTopLevelView(Canvas canvas, View topLevelView)
+    private static void DrawView(Canvas canvas, View view, (int X, int Y) rootLocation)
     {
-        var location = new int[2];
-        topLevelView.GetLocationOnScreen(location);
+        var location = GetViewLocationOnScreen(view);
 
         var saveCount = canvas.Save();
         try
         {
-            canvas.Translate(location[0], location[1]);
-            topLevelView.Draw(canvas);
+            canvas.Translate(location.X - rootLocation.X, location.Y - rootLocation.Y);
+            view.Draw(canvas);
         }
         finally
         {
@@ -736,7 +706,11 @@ internal static class VisualTreeSupport
         }
     }
 
-    private static async Task OverlaySurfaceBackedChildrenAsync(Canvas canvas, View rootView, HashSet<nint> overlaidSurfaceHandles)
+    private static async Task OverlaySurfaceBackedChildrenAsync(
+        Canvas canvas,
+        View rootView,
+        (int X, int Y) rootLocation,
+        HashSet<nint> overlaidSurfaceHandles)
     {
         var specialViews = new List<View>();
         CollectSurfaceBackedViews(rootView, specialViews, overlaidSurfaceHandles);
@@ -745,20 +719,24 @@ internal static class VisualTreeSupport
             switch (specialView)
             {
                 case SurfaceView surfaceView:
-                    await OverlaySurfaceViewAsync(canvas, surfaceView);
+                    await OverlaySurfaceViewAsync(canvas, surfaceView, rootLocation);
                     break;
                 case TextureView textureView:
-                    OverlayTextureView(canvas, textureView);
+                    OverlayTextureView(canvas, textureView, rootLocation);
                     break;
             }
         }
     }
 
-    private static async Task OverlayFragmentHostedSurfaceBackedViewsAsync(Activity activity, Canvas canvas, HashSet<nint> overlaidSurfaceHandles)
+    private static async Task OverlayFragmentHostedSurfaceBackedViewsAsync(
+        Activity activity,
+        Canvas canvas,
+        (int X, int Y) rootLocation,
+        HashSet<nint> overlaidSurfaceHandles)
     {
         foreach (var fragmentView in GetFragmentRootViews(activity))
         {
-            await OverlaySurfaceBackedChildrenAsync(canvas, fragmentView, overlaidSurfaceHandles);
+            await OverlaySurfaceBackedChildrenAsync(canvas, fragmentView, rootLocation, overlaidSurfaceHandles);
         }
     }
 
@@ -927,7 +905,7 @@ internal static class VisualTreeSupport
         }
     }
 
-    private static async Task OverlaySurfaceViewAsync(Canvas canvas, SurfaceView surfaceView)
+    private static async Task OverlaySurfaceViewAsync(Canvas canvas, SurfaceView surfaceView, (int X, int Y) rootLocation)
     {
         if (Build.VERSION.SdkInt < BuildVersionCodes.O ||
             !IsVisibleForCapture(surfaceView) ||
@@ -957,10 +935,10 @@ internal static class VisualTreeSupport
             return;
         }
 
-        DrawOverlayBitmap(canvas, surfaceView, bitmap);
+        DrawOverlayBitmap(canvas, surfaceView, bitmap, rootLocation);
     }
 
-    private static void OverlayTextureView(Canvas canvas, TextureView textureView)
+    private static void OverlayTextureView(Canvas canvas, TextureView textureView, (int X, int Y) rootLocation)
     {
         if (!IsVisibleForCapture(textureView) || !textureView.IsAvailable)
         {
@@ -973,19 +951,25 @@ internal static class VisualTreeSupport
             return;
         }
 
-        DrawOverlayBitmap(canvas, textureView, bitmap);
+        DrawOverlayBitmap(canvas, textureView, bitmap, rootLocation);
     }
 
-    private static void DrawOverlayBitmap(Canvas canvas, View view, Bitmap bitmap)
+    private static void DrawOverlayBitmap(Canvas canvas, View view, Bitmap bitmap, (int X, int Y) rootLocation)
+    {
+        var location = GetViewLocationOnScreen(view);
+        var destination = new RectF(
+            location.X - rootLocation.X,
+            location.Y - rootLocation.Y,
+            location.X - rootLocation.X + view.Width,
+            location.Y - rootLocation.Y + view.Height);
+        canvas.DrawBitmap(bitmap, null, destination, null);
+    }
+
+    private static (int X, int Y) GetViewLocationOnScreen(View view)
     {
         var location = new int[2];
         view.GetLocationOnScreen(location);
-        var destination = new RectF(
-            location[0],
-            location[1],
-            location[0] + view.Width,
-            location[1] + view.Height);
-        canvas.DrawBitmap(bitmap, null, destination, null);
+        return (location[0], location[1]);
     }
 
     private sealed record AndroidScreenshotCaptureResult(ScreenshotCapture? Screenshot, string? Error);
