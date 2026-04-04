@@ -133,6 +133,60 @@ jobs:
 
           printf '%s\n' "${packages[@]}" "${symbols[@]}" | sort
 
+      - name: Verify Ansight developer pairing script in package
+        shell: bash
+        run: |
+          version="${{ steps.version.outputs.package_version }}"
+          package_path="artifacts/nuget/Ansight.${version}.nupkg"
+          temp_dir="$(mktemp -d)"
+          package_dir="${temp_dir}/package"
+          input_path="${temp_dir}/ansight.json"
+          output_path="${temp_dir}/ansight.developer-pairing.json"
+
+          unzip -q "$package_path" -d "$package_dir"
+
+          cat > "$input_path" <<'EOF'
+          {
+            "schema": "ansight.pairing-config.v1",
+            "configId": "manual-release-check",
+            "appId": "ai.ansight.test",
+            "appName": "Manual Release Check",
+            "issuedAt": "2026-01-01T00:00:00Z",
+            "expiresAt": "2027-01-01T00:00:00Z",
+            "oneTimeToken": "manual-release-check-token",
+            "host": {
+              "hostId": "manual-release-check-host",
+              "hostName": "Manual Release Check Host",
+              "discoveryPort": 45123,
+              "hostPubKey": "manual-release-check-key",
+              "hostPubKeyFingerprint": "manual-release-check-fingerprint"
+            },
+            "challenge": {
+              "alg": "ECDSA-P256",
+              "challengePubKey": "manual-release-check-challenge-key",
+              "requireProofOnFirstPair": true
+            },
+            "trust": {
+              "mode": "pinned-key+token+challenge",
+              "requireTokenOnFirstPair": true,
+              "allowLanDiscovery": false
+            },
+            "signature": "manual-release-check-signature"
+          }
+          EOF
+
+          bash "${package_dir}/buildTransitive/generate-ansight-developer-pairing.sh" "$input_path" "$output_path"
+
+          if [[ ! -f "$output_path" ]]; then
+            echo "Expected developer pairing output file was not generated." >&2
+            exit 1
+          fi
+
+          if ! grep -q '"schema": "ansight.pairing-bootstrap.v1"' "$output_path"; then
+            echo "Generated developer pairing file did not contain the bootstrap schema." >&2
+            exit 1
+          fi
+
       - name: Upload packages
         uses: actions/upload-artifact@v4
         with:

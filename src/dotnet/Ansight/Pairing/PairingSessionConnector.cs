@@ -7,6 +7,18 @@ namespace Ansight.Pairing;
 
 internal sealed class PairingSessionConnector
 {
+    private readonly Func<PairingWifiPreflightStatus> wifiStatusProvider;
+
+    public PairingSessionConnector()
+        : this(PairingWifiPreflight.GetStatus)
+    {
+    }
+
+    internal PairingSessionConnector(Func<PairingWifiPreflightStatus> wifiStatusProvider)
+    {
+        this.wifiStatusProvider = wifiStatusProvider ?? throw new ArgumentNullException(nameof(wifiStatusProvider));
+    }
+
     public async Task<PairingConnectionAttempt> ConnectAsync(
         PairingConfig config,
         string clientName,
@@ -19,6 +31,22 @@ internal sealed class PairingSessionConnector
             return PairingConnectionAttempt.FromFailure(
                 "A current host address is required. Import a fresh Studio QR code or enter the host IP manually.",
                 PairingFailureCodes.HostAddressRequired);
+        }
+
+        if (wifiStatusProvider() == PairingWifiPreflightStatus.NotConnected)
+        {
+            const string wifiRequiredMessage = "Ansight is unavailable because this device is not connected to Wi-Fi.";
+
+            HostPairingProgressReporter.Report(
+                progress,
+                HostPairingProgressKind.Connection,
+                wifiRequiredMessage,
+                source: HostPairingSource.HostConnection,
+                reasonCode: PairingFailureCodes.WifiRequired);
+
+            return PairingConnectionAttempt.FromFailure(
+                wifiRequiredMessage,
+                PairingFailureCodes.WifiRequired);
         }
 
         var discoveryMode = options?.DiscoveryMode ?? PairingDiscoveryMode.ConfiguredHint;

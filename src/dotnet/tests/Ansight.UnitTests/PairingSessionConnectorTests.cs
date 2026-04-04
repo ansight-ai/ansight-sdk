@@ -4,11 +4,39 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Ansight.Pairing;
+using Ansight.Pairing.Models;
 
 namespace Ansight.UnitTests;
 
 public sealed class PairingSessionConnectorTests
 {
+    [Fact]
+    public async Task ConnectAsync_WhenWifiIsUnavailable_ReturnsSpecificFailure()
+    {
+        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var connector = new PairingSessionConnector(() => PairingWifiPreflightStatus.NotConnected);
+        var config = PairingTestDocumentFactory.CreateSignedConfig(signingKey);
+
+        var result = await connector.ConnectAsync(
+            config,
+            "Unit Test App",
+            new PairingConnectionOptions
+            {
+                DiscoveryMode = PairingDiscoveryMode.BasicManual,
+                ManualHostAddress = IPAddress.Loopback.ToString()
+            },
+            progress: null,
+            CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.False(result.Accepted);
+        Assert.Equal("Ansight is unavailable because this device is not connected to Wi-Fi.", result.Message);
+        Assert.Equal(PairingFailureCodes.WifiRequired, result.FailureCode);
+        Assert.Null(result.HostAddress);
+        Assert.Null(result.ConnectResponse);
+        Assert.Null(result.WebSocket);
+    }
+
     [Fact]
     public async Task SendConnectRequestAsync_IncludesStableProcessSessionId()
     {

@@ -11,6 +11,11 @@ public static class PairingFailureCodes
     public const string HostAddressRequired = "HostAddressRequired";
 
     /// <summary>
+    /// The device is not connected to Wi-Fi, so a live pairing session cannot be opened.
+    /// </summary>
+    public const string WifiRequired = "WifiRequired";
+
+    /// <summary>
     /// The host requires the client to pair again before a session can be opened.
     /// </summary>
     public const string PairingRequired = "PairingRequired";
