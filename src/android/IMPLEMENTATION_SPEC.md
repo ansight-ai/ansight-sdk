@@ -61,34 +61,26 @@ Wire behavior should match:
 
 The Android runtime must accept:
 
-- `ansight.pairing-config.v1`
-- `ansight.pairing-bootstrap.v1`
-- `ansight.pairing-connection-hint.v1`
-- `ansight.discovery-hint.v1`
-- `ansight.qr-pairing-connection.v1`
+- `ansight.pairing-ticket.v1`
 
 Validation rules:
 
 - verify config signature using the host public key
-- accept the same historical canonical JSON variants as `.NET`
 - reject expired configs
 - optionally reject mismatched `appId`
 
-Bootstrap detail:
-
-- if `connectionHint` exists, use its `configId`, `issuedAt`, `expiresAt`, `oneTimeToken`, and `challenge` in the effective config
-- still verify the signature against the original `pairingConfig`
+The ticket must carry the signed config plus a discovery hint with one or more host addresses.
 
 ### Session connect flow
 
 Current interoperable flow:
 
-1. Parse and validate pairing document.
-2. Resolve manual host IP.
+1. Parse and validate pairing ticket.
+2. Resolve host IP from the pairing ticket discovery hint.
 3. Send UDP `CONNECT_REQ` to the discovery port.
 4. Receive UDP `CONNECT_RESP`.
 5. Open `ws://<host-ip>:<issued-port><issued-path>?token=<issued-token>`.
-6. Wait for the first host text frame.
+6. Start structured `CONTROL_REQ` / `CONTROL_RESP` traffic.
 7. Send baseline `DeviceAppProfile`.
 8. Start optional telemetry and screenshot streaming.
 
@@ -102,32 +94,18 @@ Timing to match:
 
 Compatibility details:
 
-- manual host IP is required today
 - discovery port default is `45123`
 - Studio currently issues an ephemeral WebSocket session port in `56500-56599`
 - Studio path is `/ws`
-- the initial host frame should be treated as opaque text even though Studio currently sends `HOST_HELLO`
 
 ### Ack model
 
-The Android runtime must preserve the current ordering model:
+The Android runtime must preserve the current control model:
 
-- request/ack text sends are serialized
-- only one request/ack send is in flight
-- ack waits for the next inbound non-tool text message
-- acknowledgements are not correlated by request id
-- tool protocol responses must be intercepted so they never satisfy the ack wait
-
-Current host ack behavior:
-
-- ack `CLIENT_LOG`
-- ack `CLIENT_DONE`
-- ack `CLIENT_EVENTS`
-- ack `DeviceAppProfile`
-- do not ack `CLIENT_METRIC_CHANNELS`
-- do not ack `CLIENT_METRICS`
-- do not ack binary JPEG frames
-- do not ack tool protocol responses
+- control sends are serialized
+- only one control request is in flight at a time
+- responses are correlated by request id
+- telemetry and binary JPEG frames remain fire-and-forget
 
 Timeouts to mirror:
 

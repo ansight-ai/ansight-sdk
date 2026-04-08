@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Ansight.Pairing;
 
@@ -18,7 +19,7 @@ internal sealed class PairingSessionAppStateStreamer : IDisposable
     }
 
     public async Task<OperationResult> StartAsync(
-        IProgress<HostPairingProgressUpdate>? progress,
+        IProgress<StudioConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         if (!transport.IsOpen)
@@ -88,7 +89,7 @@ internal sealed class PairingSessionAppStateStreamer : IDisposable
         _ = SendAppStateIfNeededAsync(args.State, args.ChangedAtUtc, progress: null, CancellationToken.None);
     }
 
-    private Task<OperationResult> SendCurrentStateAsync(IProgress<HostPairingProgressUpdate>? progress, CancellationToken cancellationToken)
+    private Task<OperationResult> SendCurrentStateAsync(IProgress<StudioConnectionProgressUpdate>? progress, CancellationToken cancellationToken)
     {
         return SendAppStateIfNeededAsync(
             Runtime.CurrentAppLifecycleState,
@@ -100,7 +101,7 @@ internal sealed class PairingSessionAppStateStreamer : IDisposable
     private async Task<OperationResult> SendAppStateIfNeededAsync(
         AppLifecycleState state,
         DateTimeOffset? changedAtUtc,
-        IProgress<HostPairingProgressUpdate>? progress,
+        IProgress<StudioConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         bool isStarted;
@@ -133,25 +134,23 @@ internal sealed class PairingSessionAppStateStreamer : IDisposable
                 return OperationResult.FromSuccess("App state already sent.");
             }
 
-            var payload = JsonSerializer.Serialize(new
+            var payload = new JsonObject
             {
-                source = "client",
-                type = "CLIENT_APP_STATE",
-                sentAtUtc = DateTimeOffset.UtcNow,
-                state = SerializeState(state),
-                changedAtUtc = changedAtUtc?.ToUniversalTime()
-            }, PairingJson.Compact);
+                ["state"] = SerializeState(state),
+                ["changedAtUtc"] = changedAtUtc?.ToUniversalTime()
+            };
 
-            var result = await transport.SendRequestAsync(
+            var result = await transport.SendControlRequestAsync(
+                PairingControlActions.AppState,
                 payload,
-                $"WS -> {payload}",
+                "WS -> app.state",
                 "App state sent.",
                 "Failed to send app state",
                 progress,
                 TimeSpan.FromSeconds(15),
                 cancellationToken,
-                HostPairingSource.AppState,
-                HostPairingProgressKind.AppState);
+                StudioConnectionSource.AppState,
+                StudioConnectionProgressKind.AppState);
             if (result.Success)
             {
                 lock (stateLock)

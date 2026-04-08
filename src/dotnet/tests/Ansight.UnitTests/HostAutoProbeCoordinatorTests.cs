@@ -136,7 +136,7 @@ public sealed class HostAutoProbeCoordinatorTests
 
         public Task<HostConnectionActionResult> ConnectUsingCachedProfileAsync(
             string? clientName,
-            IProgress<HostPairingProgressUpdate>? progress,
+            IProgress<StudioConnectionProgressUpdate>? progress,
             CancellationToken cancellationToken)
         {
             ConnectUsingCachedProfileCallCount++;

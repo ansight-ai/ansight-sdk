@@ -41,8 +41,7 @@ struct ContentView: View {
                         _ = try? AnsightRuntime.shared.openSession(
                             pairingJson: "",
                             options: PairingOpenOptions(
-                                clientName: "iOS Harness",
-                                manualHostAddress: "127.0.0.1"
+                                clientName: "iOS Harness"
                             )
                         )
                         refresh()

@@ -25,7 +25,7 @@ internal sealed class StoredHostPairingProfileStore
 
         if (!File.Exists(filePath))
         {
-            error = "No saved Ansight pairing profile is available.";
+            error = "No saved Ansight Studio ticket is available.";
             return false;
         }
 
@@ -36,7 +36,7 @@ internal sealed class StoredHostPairingProfileStore
         }
         catch (Exception ex)
         {
-            error = $"Failed to read saved Ansight pairing profile: {ex.Message}";
+            error = $"Failed to read saved Ansight Studio ticket: {ex.Message}";
             return false;
         }
     }
@@ -51,7 +51,9 @@ internal sealed class StoredHostPairingProfileStore
             Directory.CreateDirectory(directoryPath);
         }
 
-        File.WriteAllText(filePath, PairingDocumentJson.Serialize(document, indented: true));
+        var ticket = PairingConfigDocumentService.CreateTicket(document);
+        var json = PairingTicketJson.Serialize(ticket, indented: true);
+        File.WriteAllText(filePath, json);
     }
 
     public void Clear()

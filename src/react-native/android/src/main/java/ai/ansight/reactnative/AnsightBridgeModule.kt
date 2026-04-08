@@ -80,7 +80,6 @@ class AnsightBridgeModule(
                 pairingJson = pairingJson,
                 options = PairingOpenOptions(
                     clientName = options.getString("clientName").orEmpty(),
-                    manualHostAddress = options.getString("manualHostAddress").orEmpty(),
                     expectedAppId = options.getString("expectedAppId"),
                     profileOverride = options.getMap("profileOverride").toStringMap(),
                 ),

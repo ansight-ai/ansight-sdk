@@ -47,43 +47,62 @@ public protocol AnsightTool: Sendable {
     func execute(arguments: [String: String]) throws -> AnsightToolExecutionResult
 }
 
+public struct AnsightToolCapability: Sendable, Codable, Equatable, Hashable {
+    public let value: String
+
+    public init(_ value: String) {
+        self.value = value.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    public static let ui = AnsightToolCapability("ui")
+    public static let reflection = AnsightToolCapability("reflect")
+    public static let database = AnsightToolCapability("data")
+    public static let fileSystem = AnsightToolCapability("files")
+    public static let preferences = AnsightToolCapability("prefs")
+    public static let secureStorage = AnsightToolCapability("secure")
+
+    public static func fromCategory(_ category: String) -> AnsightToolCapability {
+        AnsightToolCapability(category.lowercased())
+    }
+}
+
 public struct AnsightToolGuard: Sendable, Codable, Equatable {
     public static let disabled = AnsightToolGuard(
         discoveryEnabled: false,
         executionEnabled: false,
         allowedScopes: [],
-        allowedToolIds: []
+        allowedCapabilities: []
     )
 
     public static let readOnly = AnsightToolGuard(
         discoveryEnabled: true,
         executionEnabled: true,
         allowedScopes: [.read],
-        allowedToolIds: []
+        allowedCapabilities: []
     )
 
     public static let fullAccess = AnsightToolGuard(
         discoveryEnabled: true,
         executionEnabled: true,
         allowedScopes: AnsightToolScope.allCases,
-        allowedToolIds: []
+        allowedCapabilities: []
     )
 
     public let discoveryEnabled: Bool
     public let executionEnabled: Bool
     public let allowedScopes: [AnsightToolScope]
-    public let allowedToolIds: [String]
+    public let allowedCapabilities: [AnsightToolCapability]
 
     public init(
         discoveryEnabled: Bool,
         executionEnabled: Bool,
         allowedScopes: [AnsightToolScope],
-        allowedToolIds: [String] = []
+        allowedCapabilities: [AnsightToolCapability] = []
     ) {
         self.discoveryEnabled = discoveryEnabled
         self.executionEnabled = executionEnabled
         self.allowedScopes = allowedScopes
-        self.allowedToolIds = allowedToolIds
+        self.allowedCapabilities = allowedCapabilities
     }
 
     public func validate() throws {
@@ -104,9 +123,9 @@ public struct AnsightToolGuard: Sendable, Codable, Equatable {
         }
 
         guard isAllowed(descriptor) else {
-            return allowedToolIds.isEmpty
+            return allowedCapabilities.isEmpty
                 ? "Tool scope '\(descriptor.scope)' is not enabled by the current guard policy."
-                : "Tool '\(descriptor.id)' is not allowed by the current guard policy."
+                : "Tool capability '\(descriptor.capability.value)' is not allowed by the current guard policy."
         }
 
         return nil
@@ -117,7 +136,7 @@ public struct AnsightToolGuard: Sendable, Codable, Equatable {
             return false
         }
 
-        return allowedToolIds.isEmpty || allowedToolIds.contains { $0.caseInsensitiveCompare(descriptor.id) == .orderedSame }
+        return allowedCapabilities.isEmpty || allowedCapabilities.contains(descriptor.capability)
     }
 }
 
@@ -275,7 +294,7 @@ internal struct AnsightToolProtocolBridge {
                     "discoveryEnabled": .bool(guardPolicy.discoveryEnabled),
                     "executionEnabled": .bool(guardPolicy.executionEnabled),
                     "allowedScopes": .array(guardPolicy.allowedScopes.map { .string($0.rawValue) }),
-                    "allowedToolIds": .array(guardPolicy.allowedToolIds.map(JSONValue.string)),
+                    "allowedCapabilities": .array(guardPolicy.allowedCapabilities.map { .string($0.value) }),
                 ]),
                 "tools": .array(visibleTools.map { descriptor in
                     .object([

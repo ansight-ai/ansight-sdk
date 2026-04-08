@@ -100,95 +100,64 @@ public struct PairingDiscoveryHint: Sendable, Codable, Equatable {
 
     public var schema: String
     public var source: String?
-    public var hostAddress: String?
+    public var hostAddresses: [String]?
     public var hostName: String?
     public var wifiName: String?
     public var capturedAt: String?
+
+    public var hostAddress: String? {
+        get { hostAddresses?.first(where: { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) }
+        set {
+            hostAddresses = newValue.map { [$0] }
+        }
+    }
 
     public init(
         schema: String = PairingDiscoveryHint.schemaName,
         source: String? = nil,
         hostAddress: String? = nil,
+        hostAddresses: [String]? = nil,
         hostName: String? = nil,
         wifiName: String? = nil,
         capturedAt: String? = nil
     ) {
         self.schema = schema
         self.source = source
-        self.hostAddress = hostAddress
+        self.hostAddresses = hostAddresses ?? hostAddress.map { [$0] }
         self.hostName = hostName
         self.wifiName = wifiName
         self.capturedAt = capturedAt
     }
 }
 
-public struct PairingConnectionHint: Sendable, Codable, Equatable {
-    public static let schemaName = "ansight.pairing-connection-hint.v1"
+public struct PairingTicket: Sendable, Codable, Equatable {
+    public static let schemaName = "ansight.pairing-ticket.v1"
 
     public var schema: String
-    public var source: String?
-    public var configId: String
-    public var issuedAt: String
-    public var expiresAt: String
-    public var oneTimeToken: String
-    public var challenge: PairingChallenge
-
-    public init(
-        schema: String = PairingConnectionHint.schemaName,
-        source: String? = nil,
-        configId: String,
-        issuedAt: String,
-        expiresAt: String,
-        oneTimeToken: String,
-        challenge: PairingChallenge
-    ) {
-        self.schema = schema
-        self.source = source
-        self.configId = configId
-        self.issuedAt = issuedAt
-        self.expiresAt = expiresAt
-        self.oneTimeToken = oneTimeToken
-        self.challenge = challenge
-    }
-}
-
-public struct PairingBootstrapDocument: Sendable, Codable, Equatable {
-    public static let schemaName = "ansight.pairing-bootstrap.v1"
-
-    public var schema: String
-    public var pairingConfig: PairingConfig
+    public var config: PairingConfig
     public var discovery: PairingDiscoveryHint?
-    public var connectionHint: PairingConnectionHint?
 
     public init(
-        schema: String = PairingBootstrapDocument.schemaName,
-        pairingConfig: PairingConfig,
-        discovery: PairingDiscoveryHint? = nil,
-        connectionHint: PairingConnectionHint? = nil
+        schema: String = PairingTicket.schemaName,
+        config: PairingConfig,
+        discovery: PairingDiscoveryHint? = nil
     ) {
         self.schema = schema
-        self.pairingConfig = pairingConfig
+        self.config = config
         self.discovery = discovery
-        self.connectionHint = connectionHint
     }
 }
 
 public struct ParsedPairingDocument: Sendable, Codable, Equatable {
     public var config: PairingConfig
     public var discoveryHint: PairingDiscoveryHint?
-    public var trustAnchorConfig: PairingConfig?
-    public var connectionHint: PairingConnectionHint?
 
     public init(
         config: PairingConfig,
-        discoveryHint: PairingDiscoveryHint? = nil,
-        trustAnchorConfig: PairingConfig? = nil,
-        connectionHint: PairingConnectionHint? = nil
+        discoveryHint: PairingDiscoveryHint? = nil
     ) {
         self.config = config
         self.discoveryHint = discoveryHint
-        self.trustAnchorConfig = trustAnchorConfig
-        self.connectionHint = connectionHint
     }
 }
 
@@ -207,44 +176,49 @@ public struct PairingConfigDocumentService: Sendable {
     public func parseDocument(_ configJson: String) throws -> ParsedPairingDocument {
         let trimmedJson = configJson.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedJson.isEmpty else {
-            throw PairingDocumentError.invalidDocument("Paste or load a pairing config.")
+            throw PairingDocumentError.invalidDocument("Paste or load a pairing ticket.")
         }
 
         let data = Data(trimmedJson.utf8)
         let rootObject = try decodeJSONObject(data)
         let schema = rootObject["schema"] as? String
 
-        if schema == PairingBootstrapDocument.schemaName {
-            let bootstrap = try JSONDecoder.ansightDecoder.decode(PairingBootstrapDocument.self, from: data)
-            let effectiveConfig = bootstrap.connectionHint.map {
-                applyConnectionHint(trustAnchorConfig: bootstrap.pairingConfig, connectionHint: $0)
-            } ?? bootstrap.pairingConfig
-
-            return ParsedPairingDocument(
-                config: effectiveConfig,
-                discoveryHint: bootstrap.discovery,
-                trustAnchorConfig: bootstrap.connectionHint == nil ? nil : bootstrap.pairingConfig,
-                connectionHint: bootstrap.connectionHint
+        if schema == "ansight.pairing-bootstrap.v1" {
+            throw PairingDocumentError.invalidDocument(
+                "Legacy bootstrap pairing payloads are no longer supported. Export a fresh pairing ticket from Ansight Studio."
             )
         }
 
-        let config = try JSONDecoder.ansightDecoder.decode(PairingConfig.self, from: data)
-        return ParsedPairingDocument(config: config)
+        guard schema == PairingTicket.schemaName else {
+            let resolvedSchema = schema?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if resolvedSchema.isEmpty {
+                throw PairingDocumentError.invalidDocument("Pairing payloads must be pairing tickets.")
+            }
+
+            throw PairingDocumentError.invalidDocument(
+                "Unsupported pairing payload schema '\(resolvedSchema)'. Export a fresh pairing ticket from Ansight Studio."
+            )
+        }
+
+        let ticket = try JSONDecoder.ansightDecoder.decode(PairingTicket.self, from: data)
+        return ParsedPairingDocument(
+            config: ticket.config,
+            discoveryHint: normalizeDiscovery(ticket.discovery)
+        )
     }
 
     public func validateDocument(_ document: ParsedPairingDocument, expectedAppId: String? = nil) throws {
-        let trustAnchor = document.trustAnchorConfig ?? document.config
-        guard verifyPairingConfigSignature(trustAnchor) else {
-            throw PairingDocumentError.invalidDocument("Connection config signature is invalid.")
+        guard verifyPairingConfigSignature(document.config) else {
+            throw PairingDocumentError.invalidDocument("Pairing ticket config signature is invalid.")
         }
 
         guard let expiresAt = parseTimestamp(document.config.expiresAt) else {
-            throw PairingDocumentError.invalidDocument("Connection config expiry could not be parsed.")
+            throw PairingDocumentError.invalidDocument("Pairing ticket config expiry could not be parsed.")
         }
 
         guard Date() <= expiresAt else {
             throw PairingDocumentError.invalidDocument(
-                "Connection config expired at \(document.config.expiresAt)."
+                "Pairing ticket expired at \(document.config.expiresAt)."
             )
         }
 
@@ -279,51 +253,35 @@ public struct PairingConfigDocumentService: Sendable {
             return false
         }
 
-        let signables = PairingCanonicalJSON.signables(for: config)
-        for signable in signables {
-            let data = Data(signable.utf8)
+        let data = Data(PairingCanonicalJSON.serializePairingConfigForSignature(config).utf8)
 
-            if let rawSignature = try? P256.Signing.ECDSASignature(rawRepresentation: signatureData),
-               publicKey.isValidSignature(rawSignature, for: data) {
-                return true
-            }
+        if let rawSignature = try? P256.Signing.ECDSASignature(rawRepresentation: signatureData),
+           publicKey.isValidSignature(rawSignature, for: data) {
+            return true
+        }
 
-            if let derSignature = try? P256.Signing.ECDSASignature(derRepresentation: signatureData),
-               publicKey.isValidSignature(derSignature, for: data) {
-                return true
-            }
+        if let derSignature = try? P256.Signing.ECDSASignature(derRepresentation: signatureData),
+           publicKey.isValidSignature(derSignature, for: data) {
+            return true
         }
 
         return false
     }
 
-    private func applyConnectionHint(
-        trustAnchorConfig: PairingConfig,
-        connectionHint: PairingConnectionHint
-    ) -> PairingConfig {
-        PairingConfig(
-            schema: trustAnchorConfig.schema,
-            configId: connectionHint.configId,
-            appId: trustAnchorConfig.appId,
-            appName: trustAnchorConfig.appName,
-            issuedAt: connectionHint.issuedAt,
-            expiresAt: connectionHint.expiresAt,
-            oneTimeToken: connectionHint.oneTimeToken,
-            host: PairingHost(
-                hostId: trustAnchorConfig.host.hostId,
-                hostName: trustAnchorConfig.host.hostName,
-                discoveryPort: trustAnchorConfig.host.discoveryPort,
-                hostPubKey: trustAnchorConfig.host.hostPubKey,
-                hostPubKeyFingerprint: trustAnchorConfig.host.hostPubKeyFingerprint
-            ),
-            challenge: connectionHint.challenge,
-            trust: PairingTrust(
-                mode: trustAnchorConfig.trust.mode,
-                requireTokenOnFirstPair: trustAnchorConfig.trust.requireTokenOnFirstPair,
-                allowLanDiscovery: trustAnchorConfig.trust.allowLanDiscovery
-            ),
-            signature: trustAnchorConfig.signature
-        )
+    private func normalizeDiscovery(_ discoveryHint: PairingDiscoveryHint?) -> PairingDiscoveryHint? {
+        guard var discoveryHint else {
+            return nil
+        }
+
+        let normalizedAddresses = (discoveryHint.hostAddresses ?? [])
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        discoveryHint.hostAddresses = normalizedAddresses.isEmpty ? nil : normalizedAddresses
+        if discoveryHint.schema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            discoveryHint.schema = PairingDiscoveryHint.schemaName
+        }
+
+        return discoveryHint
     }
 
     private func parseTimestamp(_ rawValue: String) -> Date? {
@@ -348,33 +306,7 @@ public struct PairingConfigDocumentService: Sendable {
 }
 
 enum PairingCanonicalJSON {
-    static func signables(for config: PairingConfig) -> [String] {
-        [
-            serializePairingConfigForSignature(config),
-            serializePairingConfigForSignatureWithoutHostIdentity(config),
-            serializeTransportPairingConfigForSignature(config),
-            serializeTransportPairingConfigForSignatureWithoutHostIdentity(config),
-            serializeLegacyPairingConfigForSignature(config),
-            serializeLegacyPairingConfigForSignatureWithoutHostIdentity(config),
-        ]
-    }
-
-    private static func serializePairingConfigForSignature(_ config: PairingConfig) -> String {
-        serializeConfig(
-            config: config,
-            hostJson: serializeHost(
-                hostId: config.host.hostId,
-                hostName: config.host.hostName,
-                wsPort: nil,
-                wsPath: nil,
-                discoveryPort: config.host.discoveryPort,
-                hostPubKey: config.host.hostPubKey,
-                hostPubKeyFingerprint: config.host.hostPubKeyFingerprint
-            )
-        )
-    }
-
-    private static func serializePairingConfigForSignatureWithoutHostIdentity(_ config: PairingConfig) -> String {
+    static func serializePairingConfigForSignature(_ config: PairingConfig) -> String {
         serializeConfig(
             config: config,
             hostJson: serializeHost(
@@ -383,66 +315,6 @@ enum PairingCanonicalJSON {
                 wsPort: nil,
                 wsPath: nil,
                 discoveryPort: config.host.discoveryPort,
-                hostPubKey: config.host.hostPubKey,
-                hostPubKeyFingerprint: config.host.hostPubKeyFingerprint
-            )
-        )
-    }
-
-    private static func serializeTransportPairingConfigForSignature(_ config: PairingConfig) -> String {
-        serializeConfig(
-            config: config,
-            hostJson: serializeHost(
-                hostId: config.host.hostId,
-                hostName: config.host.hostName,
-                wsPort: PairingProtocolDefaults.webSocketPort,
-                wsPath: PairingProtocolDefaults.webSocketPath,
-                discoveryPort: config.host.discoveryPort,
-                hostPubKey: config.host.hostPubKey,
-                hostPubKeyFingerprint: config.host.hostPubKeyFingerprint
-            )
-        )
-    }
-
-    private static func serializeTransportPairingConfigForSignatureWithoutHostIdentity(_ config: PairingConfig) -> String {
-        serializeConfig(
-            config: config,
-            hostJson: serializeHost(
-                hostId: nil,
-                hostName: nil,
-                wsPort: PairingProtocolDefaults.webSocketPort,
-                wsPath: PairingProtocolDefaults.webSocketPath,
-                discoveryPort: config.host.discoveryPort,
-                hostPubKey: config.host.hostPubKey,
-                hostPubKeyFingerprint: config.host.hostPubKeyFingerprint
-            )
-        )
-    }
-
-    private static func serializeLegacyPairingConfigForSignature(_ config: PairingConfig) -> String {
-        serializeConfig(
-            config: config,
-            hostJson: serializeHost(
-                hostId: config.host.hostId,
-                hostName: config.host.hostName,
-                wsPort: nil,
-                wsPath: nil,
-                discoveryPort: nil,
-                hostPubKey: config.host.hostPubKey,
-                hostPubKeyFingerprint: config.host.hostPubKeyFingerprint
-            )
-        )
-    }
-
-    private static func serializeLegacyPairingConfigForSignatureWithoutHostIdentity(_ config: PairingConfig) -> String {
-        serializeConfig(
-            config: config,
-            hostJson: serializeHost(
-                hostId: nil,
-                hostName: nil,
-                wsPort: nil,
-                wsPath: nil,
-                discoveryPort: nil,
                 hostPubKey: config.host.hostPubKey,
                 hostPubKeyFingerprint: config.host.hostPubKeyFingerprint
             )

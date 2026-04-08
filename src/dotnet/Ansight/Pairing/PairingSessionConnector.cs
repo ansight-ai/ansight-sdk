@@ -20,16 +20,25 @@ internal sealed class PairingSessionConnector
     }
 
     public async Task<PairingConnectionAttempt> ConnectAsync(
-        PairingConfig config,
+        ParsedPairingDocument document,
         string clientName,
         PairingConnectionOptions? options,
-        IProgress<HostPairingProgressUpdate>? progress,
+        IProgress<StudioConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
-        if (!TryResolveManualHostAddress(options?.ManualHostAddress, out var hostAddress))
+        ArgumentNullException.ThrowIfNull(document);
+
+        var config = document.Config;
+        var configuredHostAddress = options?.HostAddressOverride;
+        if (string.IsNullOrWhiteSpace(configuredHostAddress))
+        {
+            configuredHostAddress = PairingDiscoveryHintHostAddresses.ResolvePrimary(document.DiscoveryHint);
+        }
+
+        if (!TryResolveHostAddress(configuredHostAddress, out var hostAddress))
         {
             return PairingConnectionAttempt.FromFailure(
-                "A current host address is required. Import a fresh Studio QR code or enter the host IP manually.",
+                "A current host address is required. Import a fresh pairing ticket or compact pairing code.",
                 PairingFailureCodes.HostAddressRequired);
         }
 
@@ -39,9 +48,9 @@ internal sealed class PairingSessionConnector
 
             HostPairingProgressReporter.Report(
                 progress,
-                HostPairingProgressKind.Connection,
+                StudioConnectionProgressKind.Connection,
                 wifiRequiredMessage,
-                source: HostPairingSource.HostConnection,
+                source: StudioConnectionSource.HostConnection,
                 reasonCode: PairingFailureCodes.WifiRequired);
 
             return PairingConnectionAttempt.FromFailure(
@@ -49,20 +58,19 @@ internal sealed class PairingSessionConnector
                 PairingFailureCodes.WifiRequired);
         }
 
-        var discoveryPort = ResolveDiscoveryPort(options);
-        var discoveryMode = options?.DiscoveryMode ?? PairingDiscoveryMode.ConfiguredHint;
+        var discoveryPort = ResolveDiscoveryPort(document, options);
         HostPairingProgressReporter.Report(
             progress,
-            HostPairingProgressKind.Connection,
-            discoveryMode == PairingDiscoveryMode.BasicManual
-                ? $"Using manual host address: {hostAddress}"
-                : $"Using configured host hint: {hostAddress}",
-            source: HostPairingSource.HostConnection);
+            StudioConnectionProgressKind.Connection,
+            string.IsNullOrWhiteSpace(options?.HostAddressOverride)
+                ? $"Using pairing ticket host address: {hostAddress}"
+                : $"Using host override address: {hostAddress}",
+            source: StudioConnectionSource.HostConnection);
         HostPairingProgressReporter.Report(
             progress,
-            HostPairingProgressKind.Connection,
+            StudioConnectionProgressKind.Connection,
             $"Connecting to host at {hostAddress}:{discoveryPort}",
-            source: HostPairingSource.HostConnection);
+            source: StudioConnectionSource.HostConnection);
 
         using var connectTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         connectTimeout.CancelAfter(TimeSpan.FromSeconds(5));
@@ -93,31 +101,31 @@ internal sealed class PairingSessionConnector
 
         HostPairingProgressReporter.Report(
             progress,
-            HostPairingProgressKind.Connection,
+            StudioConnectionProgressKind.Connection,
             $"Host response: {connectResponse.Message}",
-            source: HostPairingSource.HostConnection,
+            source: StudioConnectionSource.HostConnection,
             reasonCode: connectResponse.Reason);
         if (!string.IsNullOrWhiteSpace(connectResponse.ReasonMessage))
         {
             HostPairingProgressReporter.Report(
                 progress,
-                HostPairingProgressKind.Connection,
+                StudioConnectionProgressKind.Connection,
                 $"Reason: {connectResponse.ReasonMessage}",
-                source: HostPairingSource.HostConnection,
+                source: StudioConnectionSource.HostConnection,
                 reasonCode: connectResponse.Reason);
         }
 
         HostPairingProgressReporter.Report(
             progress,
-            HostPairingProgressKind.Connection,
+            StudioConnectionProgressKind.Connection,
             $"Reason code: {connectResponse.Reason}",
-            source: HostPairingSource.HostConnection,
+            source: StudioConnectionSource.HostConnection,
             reasonCode: connectResponse.Reason);
         HostPairingProgressReporter.Report(
             progress,
-            HostPairingProgressKind.Connection,
+            StudioConnectionProgressKind.Connection,
             $"Accepted: {connectResponse.Accepted}",
-            source: HostPairingSource.HostConnection,
+            source: StudioConnectionSource.HostConnection,
             reasonCode: connectResponse.Reason);
 
         if (!connectResponse.Accepted)
@@ -141,9 +149,9 @@ internal sealed class PairingSessionConnector
             connectResponse.WebSocketToken);
         HostPairingProgressReporter.Report(
             progress,
-            HostPairingProgressKind.Connection,
+            StudioConnectionProgressKind.Connection,
             $"Opening WebSocket: {wsUri}",
-            source: HostPairingSource.Transport);
+            source: StudioConnectionSource.Transport);
 
         var connectedSocket = await ConnectWebSocketWithRetryAsync(wsUri, cancellationToken);
         if (connectedSocket is null)
@@ -153,28 +161,7 @@ internal sealed class PairingSessionConnector
                 PairingFailureCodes.WebSocketEndpointUnreachable);
         }
 
-        try
-        {
-            using var helloTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            helloTimeout.CancelAfter(TimeSpan.FromSeconds(10));
-
-            var hostHello = await PairingSessionTransport.ReceiveTextAsync(connectedSocket, helloTimeout.Token);
-            HostPairingProgressReporter.Report(
-                progress,
-                HostPairingProgressKind.Transport,
-                $"WS <- {hostHello}",
-                isVerbose: true,
-                source: HostPairingSource.Transport);
-
-            return PairingConnectionAttempt.FromSuccess(hostAddress!, connectResponse, hostHello, connectedSocket);
-        }
-        catch (Exception ex)
-        {
-            connectedSocket.Dispose();
-            return PairingConnectionAttempt.FromFailure(
-                $"WebSocket handshake failed: {ex.Message}",
-                PairingFailureCodes.WebSocketHandshakeFailed);
-        }
+        return PairingConnectionAttempt.FromSuccess(hostAddress!, connectResponse, connectedSocket);
     }
 
     private static async Task<ClientWebSocket?> ConnectWebSocketWithRetryAsync(Uri wsUri, CancellationToken cancellationToken)
@@ -284,22 +271,34 @@ internal sealed class PairingSessionConnector
         return builder.Uri;
     }
 
-    private static int ResolveDiscoveryPort(PairingConnectionOptions? options)
+    private static int ResolveDiscoveryPort(ParsedPairingDocument document, PairingConnectionOptions? options)
     {
-        return options?.DiscoveryPort is > 0 and <= ushort.MaxValue
-            ? options.DiscoveryPort.Value
-            : PairingProtocolDefaults.DiscoveryPort;
+        var candidates = new[]
+        {
+            options?.DiscoveryPort,
+            document.DiscoveryHint?.DiscoveryPort
+        };
+
+        foreach (var candidate in candidates)
+        {
+            if (candidate is > 0 and <= ushort.MaxValue)
+            {
+                return candidate.Value;
+            }
+        }
+
+        return PairingProtocolDefaults.DiscoveryPort;
     }
 
-    private static bool TryResolveManualHostAddress(string? manualHostAddress, out IPAddress? hostAddress)
+    private static bool TryResolveHostAddress(string? hostAddressText, out IPAddress? hostAddress)
     {
         hostAddress = null;
-        if (string.IsNullOrWhiteSpace(manualHostAddress))
+        if (string.IsNullOrWhiteSpace(hostAddressText))
         {
             return false;
         }
 
-        return IPAddress.TryParse(manualHostAddress.Trim(), out hostAddress);
+        return IPAddress.TryParse(hostAddressText.Trim(), out hostAddress);
     }
 }
 
@@ -309,20 +308,18 @@ internal sealed record PairingConnectionAttempt(
     string Message,
     IPAddress? HostAddress,
     ConnectResponse? ConnectResponse,
-    string? HostHello,
     ClientWebSocket? WebSocket,
     string? FailureCode)
 {
     public static PairingConnectionAttempt FromFailure(string message, string? failureCode = null)
-        => new(false, false, message, null, null, null, null, failureCode);
+        => new(false, false, message, null, null, null, failureCode);
 
     public static PairingConnectionAttempt FromRejected(IPAddress hostAddress, ConnectResponse connectResponse)
-        => new(false, false, connectResponse.ReasonMessage ?? connectResponse.Message, hostAddress, connectResponse, null, null, null);
+        => new(false, false, connectResponse.ReasonMessage ?? connectResponse.Message, hostAddress, connectResponse, null, null);
 
     public static PairingConnectionAttempt FromSuccess(
         IPAddress hostAddress,
         ConnectResponse connectResponse,
-        string hostHello,
         ClientWebSocket webSocket)
-        => new(true, true, "Connected to host and WebSocket session is ready.", hostAddress, connectResponse, hostHello, webSocket, null);
+        => new(true, true, "Connected to host and WebSocket session is ready.", hostAddress, connectResponse, webSocket, null);
 }

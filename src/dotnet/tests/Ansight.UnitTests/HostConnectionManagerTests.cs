@@ -167,8 +167,7 @@ public sealed class HostConnectionManagerTests
                 WebSocketPort = 45124,
                 WebSocketPath = "/ws",
                 WebSocketToken = "token"
-            },
-            "HOST_HELLO");
+            });
     }
 
     private sealed class FakeHostConnectionSessionClient : IHostConnectionSessionClient
@@ -202,7 +201,7 @@ public sealed class HostConnectionManagerTests
             ParsedPairingDocument document,
             string clientName,
             PairingConnectionOptions? options,
-            IProgress<HostPairingProgressUpdate>? progress,
+            IProgress<StudioConnectionProgressUpdate>? progress,
             CancellationToken cancellationToken)
         {
             OpenSessionCallCount++;
@@ -212,7 +211,7 @@ public sealed class HostConnectionManagerTests
 
         public Task<OpenSessionResult> OpenCachedSessionAsync(
             string? clientName,
-            IProgress<HostPairingProgressUpdate>? progress,
+            IProgress<StudioConnectionProgressUpdate>? progress,
             CancellationToken cancellationToken)
         {
             OpenCachedSessionCallCount++;
@@ -222,7 +221,7 @@ public sealed class HostConnectionManagerTests
 
         public Task<OperationResult> StartMetricsStreamingAsync(
             IDataSink dataSink,
-            IProgress<HostPairingProgressUpdate>? progress,
+            IProgress<StudioConnectionProgressUpdate>? progress,
             CancellationToken cancellationToken)
         {
             StartMetricsStreamingCallCount++;

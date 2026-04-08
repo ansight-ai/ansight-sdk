@@ -1,14 +1,14 @@
 namespace Ansight.UnitTests;
 
-public sealed class HostPairingOptionsBuilderTests
+public sealed class StudioConnectionOptionsBuilderTests
 {
     [Fact]
-    public async Task WithBundledHostPairing_WhenUsingBundledAssetLoader_ConfiguresStandardAssetLoaders()
+    public async Task WithBundledStudioConnection_WhenUsingBundledAssetLoader_ConfiguresStandardAssetLoaders()
     {
         var requestedAssetNames = new List<string>();
-        var payloadReader = new FakeHostPairingPayloadReader();
+        var payloadReader = new FakeHostPairingTicketReader();
         var options = Options.CreateBuilder()
-            .WithBundledHostPairing(
+            .WithBundledStudioConnection(
                 (assetName, cancellationToken) =>
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -18,52 +18,52 @@ public sealed class HostPairingOptionsBuilderTests
                 payloadReader)
             .Build();
 
-        Assert.NotNull(options.HostPairing.BundledDeveloperProfileLoader);
-        Assert.NotNull(options.HostPairing.BundledProfileLoader);
-        Assert.Same(payloadReader, options.HostPairing.PayloadReader);
+        Assert.NotNull(options.StudioConnection.BundledDeveloperTicketLoader);
+        Assert.NotNull(options.StudioConnection.BundledTicketLoader);
+        Assert.Same(payloadReader, options.StudioConnection.TicketReader);
 
-        var bundledDeveloperText = await options.HostPairing.BundledDeveloperProfileLoader!(CancellationToken.None);
-        var bundledProfileText = await options.HostPairing.BundledProfileLoader!(CancellationToken.None);
+        var bundledDeveloperText = await options.StudioConnection.BundledDeveloperTicketLoader!(CancellationToken.None);
+        var bundledProfileText = await options.StudioConnection.BundledTicketLoader!(CancellationToken.None);
 
         Assert.Equal(
-            [HostPairingOptions.BundledDeveloperAssetName, HostPairingOptions.BundledAssetName],
+            [StudioConnectionOptions.BundledDeveloperTicketAssetName, StudioConnectionOptions.BundledTicketAssetName],
             requestedAssetNames);
-        Assert.Equal(HostPairingOptions.BundledDeveloperAssetName, bundledDeveloperText);
-        Assert.Equal(HostPairingOptions.BundledAssetName, bundledProfileText);
+        Assert.Equal(StudioConnectionOptions.BundledDeveloperTicketAssetName, bundledDeveloperText);
+        Assert.Equal(StudioConnectionOptions.BundledTicketAssetName, bundledProfileText);
     }
 
     [Fact]
-    public void WithBundledHostPairing_WhenUsingAssembly_ConfiguresBundledProfileAssemblyAndPayloadReader()
+    public void WithBundledStudioConnection_WhenUsingAssembly_ConfiguresBundledTicketAssemblyAndTicketReader()
     {
-        var payloadReader = new FakeHostPairingPayloadReader();
-        var bundledProfileAssembly = typeof(HostPairingOptionsBuilderTests).Assembly;
+        var payloadReader = new FakeHostPairingTicketReader();
+        var bundledProfileAssembly = typeof(StudioConnectionOptionsBuilderTests).Assembly;
         var options = Options.CreateBuilder()
-            .WithBundledHostPairing(bundledProfileAssembly, payloadReader)
+            .WithBundledStudioConnection(bundledProfileAssembly, payloadReader)
             .Build();
 
-        Assert.Same(bundledProfileAssembly, options.HostPairing.BundledProfileAssembly);
-        Assert.Same(payloadReader, options.HostPairing.PayloadReader);
+        Assert.Same(bundledProfileAssembly, options.StudioConnection.BundledTicketAssembly);
+        Assert.Same(payloadReader, options.StudioConnection.TicketReader);
     }
 
     [Fact]
-    public void WithHostPairingDiscoveryPort_ConfiguresTheBootstrapPortOverride()
+    public void WithStudioConnectionDiscoveryPort_ConfiguresTheBootstrapPortOverride()
     {
         var options = Options.CreateBuilder()
-            .WithHostPairingDiscoveryPort(45200)
+            .WithStudioConnectionDiscoveryPort(45200)
             .Build();
 
-        Assert.Equal(45200, options.HostPairing.DiscoveryPort);
+        Assert.Equal(45200, options.StudioConnection.DiscoveryPort);
     }
 
-    private sealed class FakeHostPairingPayloadReader : IHostPairingPayloadReader
+    private sealed class FakeHostPairingTicketReader : IStudioConnectionTicketReader
     {
-        public bool CanRead(HostPairingPayloadReadKind kind)
+        public bool CanRead(StudioConnectionRequestKind kind)
         {
-            return kind == HostPairingPayloadReadKind.File;
+            return kind == StudioConnectionRequestKind.File;
         }
 
-        public Task<string?> ReadPayloadAsync(
-            HostPairingPayloadReadRequest request,
+        public Task<string?> ReadTicketPayloadAsync(
+            StudioConnectionRequest request,
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();

@@ -127,8 +127,8 @@ fi
 
 cat > "$output_path" <<EOF
 {
-  "schema": "ansight.pairing-bootstrap.v1",
-  "pairingConfig": $pairing_config_json,
+  "schema": "ansight.pairing-ticket.v1",
+  "config": $pairing_config_json,
   "discovery": {
     "schema": "ansight.discovery-hint.v1",
     "source": "developer-pairing-msbuild",

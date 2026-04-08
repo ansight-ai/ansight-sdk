@@ -15,16 +15,16 @@ public sealed class PairingSessionConnectorTests
     {
         using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var connector = new PairingSessionConnector(() => PairingWifiPreflightStatus.NotConnected);
-        var config = PairingTestDocumentFactory.CreateSignedConfig(signingKey);
+        var document = new ParsedPairingDocument
+        {
+            Config = PairingTestDocumentFactory.CreateSignedConfig(signingKey),
+            DiscoveryHint = PairingTestDocumentFactory.CreateDiscoveryHint(hostAddress: IPAddress.Loopback.ToString())
+        };
 
         var result = await connector.ConnectAsync(
-            config,
+            document,
             "Unit Test App",
-            new PairingConnectionOptions
-            {
-                DiscoveryMode = PairingDiscoveryMode.BasicManual,
-                ManualHostAddress = IPAddress.Loopback.ToString()
-            },
+            null,
             progress: null,
             CancellationToken.None);
 
@@ -96,14 +96,17 @@ public sealed class PairingSessionConnectorTests
         var listenerEndPoint = (IPEndPoint)listener.Client.LocalEndPoint!;
         var connector = new PairingSessionConnector(() => PairingWifiPreflightStatus.Connected);
         var config = PairingTestDocumentFactory.CreateSignedConfig(signingKey, discoveryPort: 41000);
+        var document = new ParsedPairingDocument
+        {
+            Config = config,
+            DiscoveryHint = PairingTestDocumentFactory.CreateDiscoveryHint(hostAddress: IPAddress.Loopback.ToString(), discoveryPort: 41000)
+        };
 
         var connectTask = connector.ConnectAsync(
-            config,
+            document,
             "Unit Test App",
             new PairingConnectionOptions
             {
-                DiscoveryMode = PairingDiscoveryMode.BasicManual,
-                ManualHostAddress = IPAddress.Loopback.ToString(),
                 DiscoveryPort = listenerEndPoint.Port
             },
             progress: null,

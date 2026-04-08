@@ -8,17 +8,17 @@ using System.Text.Json.Nodes;
 public sealed class ToolGuard
 {
     private readonly HashSet<ToolScope> allowedScopes;
-    private readonly HashSet<string> allowedToolIds;
+    private readonly HashSet<string> allowedCapabilities;
 
     /// <summary>
     /// Guard preset that disables both tool discovery and execution.
     /// </summary>
-    public static ToolGuard Disabled { get; } = new(discoveryEnabled: false, executionEnabled: false, Array.Empty<ToolScope>(), Array.Empty<string>());
+    public static ToolGuard Disabled { get; } = new(discoveryEnabled: false, executionEnabled: false, Array.Empty<ToolScope>(), Array.Empty<ToolCapability>());
 
     /// <summary>
     /// Guard preset that allows discovery and execution for read-scoped tools only.
     /// </summary>
-    public static ToolGuard ReadOnly { get; } = new(discoveryEnabled: true, executionEnabled: true, [ToolScope.Read], Array.Empty<string>());
+    public static ToolGuard ReadOnly { get; } = new(discoveryEnabled: true, executionEnabled: true, [ToolScope.Read], Array.Empty<ToolCapability>());
 
     /// <summary>
     /// Guard preset that allows discovery and execution for read- and write-scoped tools.
@@ -27,7 +27,7 @@ public sealed class ToolGuard
         discoveryEnabled: true,
         executionEnabled: true,
         new[] { ToolScope.Read, ToolScope.Write },
-        Array.Empty<string>());
+        Array.Empty<ToolCapability>());
 
     /// <summary>
     /// Guard preset that allows discovery and execution for every tool scope.
@@ -36,7 +36,7 @@ public sealed class ToolGuard
         discoveryEnabled: true,
         executionEnabled: true,
         Enum.GetValues<ToolScope>(),
-        Array.Empty<string>());
+        Array.Empty<ToolCapability>());
 
     /// <summary>
     /// Creates a tool guard with explicit discovery, execution, scope, and per-tool rules.
@@ -44,19 +44,21 @@ public sealed class ToolGuard
     /// <param name="discoveryEnabled"><see langword="true"/> to include allowed tools in discovery catalogs.</param>
     /// <param name="executionEnabled"><see langword="true"/> to allow execution of allowed tools.</param>
     /// <param name="allowedScopes">Tool scopes enabled by this guard.</param>
-    /// <param name="allowedToolIds">Optional allow-list of tool ids. When empty, all tools in the allowed scopes are eligible.</param>
+    /// <param name="allowedCapabilities">Optional allow-list of tool capabilities. When empty, all tools in the allowed scopes are eligible.</param>
     public ToolGuard(
         bool discoveryEnabled,
         bool executionEnabled,
         IEnumerable<ToolScope> allowedScopes,
-        IEnumerable<string>? allowedToolIds = null)
+        IEnumerable<ToolCapability>? allowedCapabilities = null)
     {
         ArgumentNullException.ThrowIfNull(allowedScopes);
 
         DiscoveryEnabled = discoveryEnabled;
         ExecutionEnabled = executionEnabled;
         this.allowedScopes = new HashSet<ToolScope>(allowedScopes);
-        this.allowedToolIds = new HashSet<string>(allowedToolIds ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+        this.allowedCapabilities = new HashSet<string>(
+            (allowedCapabilities ?? Array.Empty<ToolCapability>()).Select(capability => capability.Value),
+            StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -75,9 +77,12 @@ public sealed class ToolGuard
     public IReadOnlyCollection<ToolScope> AllowedScopes => allowedScopes;
 
     /// <summary>
-    /// Optional allow-list of tool ids enabled by this guard.
+    /// Optional allow-list of tool capabilities enabled by this guard.
     /// </summary>
-    public IReadOnlyCollection<string> AllowedToolIds => allowedToolIds;
+    public IReadOnlyCollection<ToolCapability> AllowedCapabilities => allowedCapabilities
+        .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+        .Select(value => new ToolCapability(value))
+        .ToArray();
 
     /// <summary>
     /// Determines whether a tool should appear in discovery results under this guard.
@@ -112,9 +117,9 @@ public sealed class ToolGuard
             return false;
         }
 
-        if (allowedToolIds.Count > 0 && !allowedToolIds.Contains(tool.Id))
+        if (allowedCapabilities.Count > 0 && !allowedCapabilities.Contains(tool.Capability.Value))
         {
-            reason = $"Tool '{tool.Id}' is not allowed by the current guard policy.";
+            reason = $"Tool capability '{tool.Capability}' is not allowed by the current guard policy.";
             return false;
         }
 
@@ -134,10 +139,10 @@ public sealed class ToolGuard
             scopes.Add(scope.ToString());
         }
 
-        var toolIds = new JsonArray();
-        foreach (var toolId in allowedToolIds.OrderBy(id => id, StringComparer.OrdinalIgnoreCase))
+        var capabilities = new JsonArray();
+        foreach (var capability in allowedCapabilities.OrderBy(value => value, StringComparer.OrdinalIgnoreCase))
         {
-            toolIds.Add(toolId);
+            capabilities.Add(capability);
         }
 
         return new JsonObject
@@ -145,7 +150,7 @@ public sealed class ToolGuard
             ["discoveryEnabled"] = DiscoveryEnabled,
             ["executionEnabled"] = ExecutionEnabled,
             ["allowedScopes"] = scopes,
-            ["allowedToolIds"] = toolIds
+            ["allowedCapabilities"] = capabilities
         };
     }
 
@@ -167,6 +172,6 @@ public sealed class ToolGuard
             return false;
         }
 
-        return allowedToolIds.Count == 0 || allowedToolIds.Contains(tool.Id);
+        return allowedCapabilities.Count == 0 || allowedCapabilities.Contains(tool.Capability.Value);
     }
 }

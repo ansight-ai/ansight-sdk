@@ -22,14 +22,14 @@ public sealed class HostPairingManagerIntegrationTests
         using var hostConnection = new HostConnectionManager(runtime, HostAutoProbeOptions.DisabledDefault, sessionClient);
         using var hostPairing = new HostPairingManager(
             hostConnection,
-            new HostPairingOptions
+            new StudioConnectionOptions
             {
-                PreferredProfilePath = preferredProfilePath,
-                BundledProfileLoader = _ => Task.FromResult<string?>(PairingDocumentJson.Serialize(bundledDocument))
+                SavedTicketPath = preferredProfilePath,
+                BundledTicketLoader = _ => Task.FromResult<string?>(CreateTicketJson(bundledDocument))
             },
             new StoredHostPairingProfileStore("integration-test", preferredProfilePath));
 
-        var result = await hostPairing.AutoConnectAsync();
+        var result = await hostPairing.ConnectAsync(StudioConnectionRequest.Auto());
 
         Assert.True(result.Success);
         Assert.True(hostConnection.IsConnected);
@@ -41,7 +41,7 @@ public sealed class HostPairingManagerIntegrationTests
     }
 
     [Fact]
-    public async Task ConnectFromPayloadAsync_WhenStoredProfileAndQrPayloadAreProvided_ConnectsMergedDocument()
+    public async Task ConnectFromPayloadAsync_WhenPairingTicketIsProvided_ConnectsThatTicket()
     {
         var preferredProfilePath = CreateTempFilePath();
         using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
@@ -54,29 +54,26 @@ public sealed class HostPairingManagerIntegrationTests
         using var hostConnection = new HostConnectionManager(runtime, HostAutoProbeOptions.DisabledDefault, sessionClient);
         using var hostPairing = new HostPairingManager(
             hostConnection,
-            new HostPairingOptions
+            new StudioConnectionOptions
             {
-                PreferredProfilePath = preferredProfilePath
+                SavedTicketPath = preferredProfilePath
             },
             new StoredHostPairingProfileStore("integration-test", preferredProfilePath));
         SavePreferredProfile(preferredProfilePath, preferredDocument);
 
-        var payload = JsonSerializer.Serialize(
-            CreateQrConnectionPayload(
-                connectionHint: CreateConnectionHint(
-                    configId: "cfg-override",
-                    oneTimeToken: "token-override",
-                    challengePubKey: "challenge-override"),
-                discoveryHint: CreateDiscoveryHint(hostAddress: "127.0.0.1")),
-            PairingJson.Compact);
+        var payload = PairingTicketJson.Serialize(
+            new Ansight.Pairing.Models.PairingTicket
+            {
+                Config = CreateSignedConfig(signingKey, configId: "cfg-override"),
+                Discovery = CreateDiscoveryHint(hostAddress: "127.0.0.1")
+            });
 
-        var result = await hostPairing.ConnectFromPayloadAsync(payload, "QR pairing code");
+        var result = await hostPairing.ConnectAsync(StudioConnectionRequest.PayloadText(payload, "pairing ticket"));
 
         Assert.True(result.Success);
         Assert.Equal(1, sessionClient.OpenSessionCallCount);
         Assert.Equal(1, sessionClient.StartMetricsStreamingCallCount);
         Assert.Equal("cfg-override", sessionClient.LastOpenedDocument?.Config.ConfigId);
-        Assert.Equal("cfg-base", sessionClient.LastOpenedDocument?.TrustAnchorConfig?.ConfigId);
         Assert.Contains("Streaming live metrics to Studio", hostConnection.StatusSummary, StringComparison.Ordinal);
 
         runtime.Deactivate();
@@ -146,48 +143,26 @@ public sealed class HostPairingManagerIntegrationTests
         return config;
     }
 
-    private static PairingConnectionHint CreateConnectionHint(
-        string configId,
-        string oneTimeToken,
-        string challengePubKey)
-    {
-        return new PairingConnectionHint
-        {
-            Schema = PairingConnectionHint.SchemaName,
-            ConfigId = configId,
-            IssuedAt = DateTimeOffset.UtcNow.AddMinutes(-1),
-            ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(10),
-            OneTimeToken = oneTimeToken,
-            Challenge = new PairingChallenge
-            {
-                Alg = "ECDH-P256",
-                ChallengePubKey = challengePubKey,
-                RequireProofOnFirstPair = false
-            }
-        };
-    }
-
     private static PairingDiscoveryHint CreateDiscoveryHint(string hostAddress)
     {
         return new PairingDiscoveryHint
         {
             Schema = PairingDiscoveryHint.SchemaName,
             Source = "integration-test",
+            HostAddresses = new[] { hostAddress },
             HostName = "test-host",
             CapturedAt = DateTimeOffset.UtcNow
         };
     }
 
-    private static PairingQrConnectionPayload CreateQrConnectionPayload(
-        PairingConnectionHint connectionHint,
-        PairingDiscoveryHint discoveryHint)
+    private static string CreateTicketJson(ParsedPairingDocument document)
     {
-        return new PairingQrConnectionPayload
-        {
-            Schema = PairingQrConnectionPayload.SchemaName,
-            Connection = connectionHint,
-            Discovery = discoveryHint
-        };
+        return PairingTicketJson.Serialize(
+            new Ansight.Pairing.Models.PairingTicket
+            {
+                Config = document.Config,
+                Discovery = document.DiscoveryHint
+            });
     }
 
     private static void SavePreferredProfile(string preferredProfilePath, ParsedPairingDocument document)
@@ -220,8 +195,7 @@ public sealed class HostPairingManagerIntegrationTests
                 WebSocketPort = 45124,
                 WebSocketPath = "/ws",
                 WebSocketToken = "token"
-            },
-            "HOST_HELLO");
+            });
     }
 
     private sealed class FakeHostConnectionSessionClient : IHostConnectionSessionClient
@@ -255,7 +229,7 @@ public sealed class HostPairingManagerIntegrationTests
             ParsedPairingDocument document,
             string clientName,
             PairingConnectionOptions? options,
-            IProgress<HostPairingProgressUpdate>? progress,
+            IProgress<StudioConnectionProgressUpdate>? progress,
             CancellationToken cancellationToken)
         {
             OpenSessionCallCount++;
@@ -266,7 +240,7 @@ public sealed class HostPairingManagerIntegrationTests
 
         public Task<OpenSessionResult> OpenCachedSessionAsync(
             string? clientName,
-            IProgress<HostPairingProgressUpdate>? progress,
+            IProgress<StudioConnectionProgressUpdate>? progress,
             CancellationToken cancellationToken)
         {
             OpenCachedSessionCallCount++;
@@ -276,7 +250,7 @@ public sealed class HostPairingManagerIntegrationTests
 
         public Task<OperationResult> StartMetricsStreamingAsync(
             IDataSink dataSink,
-            IProgress<HostPairingProgressUpdate>? progress,
+            IProgress<StudioConnectionProgressUpdate>? progress,
             CancellationToken cancellationToken)
         {
             StartMetricsStreamingCallCount++;

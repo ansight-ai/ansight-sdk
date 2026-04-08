@@ -54,9 +54,8 @@ export default function App() {
           <Button
             title="Open harness session"
             onPress={async () => {
-              await Ansight.openSession('{"schema":"ansight.pairing-config.v1"}', {
+              await Ansight.openSession('{"schema":"ansight.pairing-ticket.v1"}', {
                 clientName: "React Native Harness",
-                manualHostAddress: "127.0.0.1",
               });
               await refresh();
             }}

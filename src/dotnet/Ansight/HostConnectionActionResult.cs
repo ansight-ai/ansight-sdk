@@ -9,23 +9,23 @@ public sealed record HostConnectionActionResult(
     bool Success,
     string Message,
     OpenSessionResult? SessionResult = null,
-    HostPairingActionKind Kind = HostPairingActionKind.None,
-    HostPairingSource Source = HostPairingSource.None,
+    StudioConnectionActionKind Kind = StudioConnectionActionKind.None,
+    StudioConnectionSource Source = StudioConnectionSource.None,
     string? ReasonCode = null)
 {
     public static HostConnectionActionResult FromSuccess(
         string message,
         OpenSessionResult? sessionResult = null,
-        HostPairingActionKind kind = HostPairingActionKind.None,
-        HostPairingSource source = HostPairingSource.None,
+        StudioConnectionActionKind kind = StudioConnectionActionKind.None,
+        StudioConnectionSource source = StudioConnectionSource.None,
         string? reasonCode = null)
         => new(true, message, sessionResult, kind, source, reasonCode);
 
     public static HostConnectionActionResult FromFailure(
         string message,
         OpenSessionResult? sessionResult = null,
-        HostPairingActionKind kind = HostPairingActionKind.None,
-        HostPairingSource source = HostPairingSource.None,
+        StudioConnectionActionKind kind = StudioConnectionActionKind.None,
+        StudioConnectionSource source = StudioConnectionSource.None,
         string? reasonCode = null)
         => new(false, message, sessionResult, kind, source, reasonCode);
 }

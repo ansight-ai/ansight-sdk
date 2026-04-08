@@ -59,24 +59,18 @@ enum AnsightEventType {
 class PairingOpenOptions {
   const PairingOpenOptions({
     required this.clientName,
-    required this.manualHostAddress,
     this.expectedAppId,
     this.profileOverride = const {},
-    this.allowDiscoveryHintHostFallback = true,
   });
 
   final String clientName;
-  final String manualHostAddress;
   final String? expectedAppId;
   final Map<String, String> profileOverride;
-  final bool allowDiscoveryHintHostFallback;
 
   Map<String, Object?> toMap() => {
         "clientName": clientName,
-        "manualHostAddress": manualHostAddress,
         "expectedAppId": expectedAppId,
         "profileOverride": profileOverride,
-        "allowDiscoveryHintHostFallback": allowDiscoveryHintHostFallback,
       };
 }
 

@@ -6,14 +6,10 @@ namespace Ansight.Pairing.Models;
 public sealed class PairingConnectionOptions
 {
     /// <summary>
-    /// Selects whether the client should use configured discovery data or a manually supplied host address.
+    /// Optional manual host-address override for advanced recovery scenarios.
+    /// When omitted, Ansight uses the address embedded in the pairing ticket.
     /// </summary>
-    public PairingDiscoveryMode DiscoveryMode { get; set; } = PairingDiscoveryMode.ConfiguredHint;
-
-    /// <summary>
-    /// Manual host address to use when <see cref="DiscoveryMode"/> is <see cref="PairingDiscoveryMode.BasicManual"/>.
-    /// </summary>
-    public string? ManualHostAddress { get; set; }
+    public string? HostAddressOverride { get; set; }
 
     /// <summary>
     /// Optional UDP discovery port to use for the initial pairing bootstrap.

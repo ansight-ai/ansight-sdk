@@ -24,10 +24,8 @@ export type AnsightEventType =
 
 export type PairingOpenOptions = {
   clientName: string;
-  manualHostAddress: string;
   expectedAppId?: string;
   profileOverride?: Record<string, string>;
-  allowDiscoveryHintHostFallback?: boolean;
 };
 
 export type OpenSessionResult = {

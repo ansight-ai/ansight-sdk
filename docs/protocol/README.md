@@ -16,12 +16,11 @@ The current `.NET` SDK always behaves as the initiating client.
 The implemented session flow is:
 
 1. Parse and validate a pairing document.
-2. Resolve a host IP address from `PairingConnectionOptions.ManualHostAddress`.
+2. Resolve a host IP address from the pairing ticket discovery hint or `PairingConnectionOptions.HostAddressOverride`.
 3. Send a UDP `CONNECT_REQ` JSON packet to the host discovery port.
 4. Receive a UDP `CONNECT_RESP` JSON packet with a WebSocket handoff.
 5. Open a WebSocket using the returned `token` query string.
-6. Wait for one initial text frame from the host.
-7. Attach the WebSocket transport, send an initial `DeviceAppProfile`, and start optional screenshot streaming.
+6. Attach the WebSocket transport, send control requests for `session.open` and `device.profile`, then start optional screenshot streaming.
 
 The relevant code paths are:
 
@@ -42,7 +41,7 @@ Only the discovery port is directly consumed by the current client. For the WebS
 
 ## Pairing documents
 
-The SDK accepts either a plain `PairingConfig` or a bootstrap wrapper document.
+The app-facing SDK flow accepts pairing tickets or compact pairing ticket codes. The low-level client also accepts a plain `PairingConfig` as a direct input.
 
 ### `PairingConfig`
 
@@ -67,16 +66,16 @@ Important fields are:
 - `trust`
 - `signature`
 
-### Bootstrap and QR payloads
+### Pairing tickets
 
-The SDK also parses:
+The ticket wrapper is defined by:
 
-- `ansight.pairing-bootstrap.v1` via [PairingBootstrapDocument.cs](../../src/dotnet/Ansight/Pairing/Models/PairingBootstrapDocument.cs)
-- `ansight.pairing-connection-hint.v1` via [PairingConnectionHint.cs](../../src/dotnet/Ansight/Pairing/Models/PairingConnectionHint.cs)
-- `ansight.discovery-hint.v1` via [PairingDiscoveryHint.cs](../../src/dotnet/Ansight/Pairing/Models/PairingDiscoveryHint.cs)
-- `ansight.qr-pairing-connection.v1` via [PairingQrConnectionPayload.cs](../../src/dotnet/Ansight/Pairing/Models/PairingQrConnectionPayload.cs)
+- [PairingTicket.cs](../../src/dotnet/Ansight/Pairing/Models/PairingTicket.cs)
+- [PairingTicketJson.cs](../../src/dotnet/Ansight/Pairing/PairingTicketJson.cs)
+- [PairingTicketCodeGenerator.cs](../../src/dotnet/Ansight/Pairing/PairingTicketCodeGenerator.cs)
+- [PairingDiscoveryHint.cs](../../src/dotnet/Ansight/Pairing/Models/PairingDiscoveryHint.cs)
 
-When a bootstrap document includes a `connectionHint`, the parser applies the hint's `configId`, `issuedAt`, `expiresAt`, `oneTimeToken`, and `challenge` into the effective config, but signature verification still uses the original `pairingConfig` as the trust anchor.
+`ansight.pairing-ticket.v1` carries the signed `PairingConfig` plus the discovery metadata needed to reach the host. Legacy bootstrap and QR payload shapes are no longer accepted by the runtime-owned connection surface.
 
 ## Validation and trust
 
@@ -88,18 +87,15 @@ Before opening a session, the client validates:
 
 Signature verification uses the host public key embedded in the config and currently accepts several historical canonical JSON forms for compatibility. That behavior lives in [PairingConfigDocumentService.cs](../../src/dotnet/Ansight/Pairing/PairingConfigDocumentService.cs) and [PairingCanonicalJson.cs](../../src/dotnet/Ansight/Pairing/PairingCanonicalJson.cs).
 
-Important current limitation: the UDP connect request, UDP connect response, and WebSocket hello are not separately signed or schema-validated beyond normal JSON parsing and source-address checks.
+Important current limitation: the UDP connect request and UDP connect response are not separately signed beyond normal JSON parsing and source-address checks.
 
 ## Host address resolution
 
-The current `.NET` connector is manual-host driven.
+The current `.NET` connector is ticket-driven.
 
-- `PairingConnectionOptions.DiscoveryMode` supports `ConfiguredHint` and `BasicManual`
-- both modes still require `PairingConnectionOptions.ManualHostAddress` to be a valid IP address
-- `ParsedPairingDocument.DiscoveryHint` is parsed and preserved, but the connector does not currently resolve or probe it automatically
-- there is no LAN discovery implementation in the current base `.NET` SDK
-
-This means the progress message may say `Using configured host hint`, but the connector still uses the explicit `ManualHostAddress` value.
+- `ParsedPairingDocument.DiscoveryHint` is the primary source of the target host address
+- `PairingConnectionOptions.HostAddressOverride` is an explicit escape hatch for advanced recovery scenarios
+- there is no LAN discovery implementation in the current base `.NET` SDK beyond the hint already embedded in the ticket
 
 ## UDP connect handoff
 
@@ -166,29 +162,27 @@ Current connector behavior:
 - up to `12` connection attempts
 - each WebSocket connect attempt has a `2s` timeout
 - retries wait `250ms`
-- after connect, the client waits up to `10s` for one initial host text frame
+- after connect, the client immediately begins structured control requests
 
-That first host frame is treated as an opaque hello string. The client reports it, but does not parse it into a structured schema.
-
-## WebSocket receive and acknowledgement model
+## WebSocket receive and control model
 
 The transport implementation is in [PairingSessionTransport.cs](../../src/dotnet/Ansight/Pairing/PairingSessionTransport.cs).
 
 Current behavior:
 
 - outgoing text and binary writes are serialized through a send lock
-- request/response style sends use `SendRequestAsync(...)`
-- `SendRequestAsync(...)` waits for the next inbound non-tool text frame as the acknowledgement
-- there is no request id correlation for these acknowledgements
+- request/response control sends use `SendControlRequestAsync(...)`
+- every control request carries a unique request id
+- the host replies with `CONTROL_RESP` envelopes correlated by `replyTo`
 - WebSocket close frames are surfaced internally as the sentinel string `<close>`
 
-The receive pump is text-oriented. The implemented host-to-client control path assumes text frames, not binary command frames.
+The receive pump is text-oriented. Structured control traffic uses `CONTROL_REQ` and `CONTROL_RESP` JSON envelopes, while telemetry and screenshot streams remain fire-and-forget.
 
 ## Initial profile exchange
 
 After the WebSocket is attached, [PairingSessionClient.cs](../../src/dotnet/Ansight/Pairing/PairingSessionClient.cs) sends a baseline `DeviceAppProfile` if one is available.
 
-Message type: `DeviceAppProfile`
+Control action: `device.profile`
 
 Model: [DeviceAppProfile.cs](../../src/dotnet/Ansight/Pairing/Models/DeviceAppProfile.cs)
 
@@ -206,7 +200,7 @@ Important top-level fields:
 - `permissions`
 - `tags`
 
-This message is sent with request/ack semantics, so the client waits for one inbound text acknowledgement after sending it.
+This payload is sent with request/response semantics, so the client waits for a correlated control response after sending it.
 
 ## Telemetry message families
 

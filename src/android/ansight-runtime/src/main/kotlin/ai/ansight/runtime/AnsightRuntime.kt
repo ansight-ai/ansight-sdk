@@ -91,10 +91,6 @@ object AnsightRuntime {
                 return OpenSessionResult(false, "Pairing JSON is required.")
             }
 
-            if (options.manualHostAddress.isBlank()) {
-                return OpenSessionResult(false, "Manual host address is required.")
-            }
-
             sessionOpen = true
             val sessionId = "android-${UUID.randomUUID()}"
             sessionMessage =

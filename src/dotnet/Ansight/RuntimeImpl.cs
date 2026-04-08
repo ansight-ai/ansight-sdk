@@ -28,9 +28,7 @@ internal class RuntimeImpl : IRuntime
 
     public ToolProtocolBridge ToolBridge { get; }
 
-    public IHostConnection HostConnection => hostConnection;
-
-    public IHostPairing HostPairing => hostPairing;
+    public IStudioConnection StudioConnection => hostPairing;
 
     public RuntimeImpl(Options options)
     {
@@ -42,7 +40,7 @@ internal class RuntimeImpl : IRuntime
         fpsTrackingEnabled = options.EnableFramesPerSecond;
         ToolBridge = options.Tools.CreateBridge(options.ToolGuard);
         hostConnection = new HostConnectionManager(this, options.HostAutoProbe);
-        hostPairing = new HostPairingManager(hostConnection, options.HostPairing);
+        hostPairing = new HostPairingManager(hostConnection, options.StudioConnection);
     }
 
     public bool IsActive { get; private set; }

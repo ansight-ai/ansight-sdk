@@ -26,7 +26,6 @@ enum class AnsightEventType {
 
 data class PairingOpenOptions(
     val clientName: String,
-    val manualHostAddress: String,
     val expectedAppId: String? = null,
     val profileOverride: Map<String, String> = emptyMap(),
 )

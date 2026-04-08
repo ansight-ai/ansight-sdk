@@ -3,7 +3,7 @@ namespace Ansight;
 /// <summary>
 /// Categorizes structured host pairing progress updates.
 /// </summary>
-public enum HostPairingProgressKind
+public enum StudioConnectionProgressKind
 {
     Info = 0,
     Validation = 1,

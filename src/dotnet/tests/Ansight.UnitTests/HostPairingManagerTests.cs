@@ -18,16 +18,16 @@ public sealed class HostPairingManagerTests
         using var manager = CreateManager(
             hostConnection,
             preferredProfilePath,
-            new HostPairingOptions
+            new StudioConnectionOptions
             {
-                BundledProfileLoader = _ =>
+                BundledTicketLoader = _ =>
                 {
                     bundledLoaderCallCount++;
                     return Task.FromResult<string?>(null);
                 }
             });
 
-        var result = await manager.AutoConnectAsync();
+        var result = await manager.ConnectAsync(StudioConnectionRequest.Auto());
 
         Assert.True(result.Success);
         Assert.Equal(1, hostConnection.CachedConnectCallCount);
@@ -36,7 +36,7 @@ public sealed class HostPairingManagerTests
     }
 
     [Fact]
-    public async Task ConnectFromPayloadAsync_WhenQrConnectionPayloadIsProvided_MergesWithStoredPreferredProfile()
+    public async Task ConnectFromPayloadAsync_WhenPairingTicketIsProvided_ConnectsThatTicket()
     {
         var preferredProfilePath = CreateTempFilePath();
         using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
@@ -47,25 +47,26 @@ public sealed class HostPairingManagerTests
         using var manager = CreateManager(hostConnection, preferredProfilePath);
         SavePreferredProfile(preferredProfilePath, preferredDocument);
 
-        var payload = JsonSerializer.Serialize(
-            PairingTestDocumentFactory.CreateQrConnectionPayload(
-                connectionHint: PairingTestDocumentFactory.CreateConnectionHint(
+        var payload = PairingTicketJson.Serialize(
+            new Ansight.Pairing.Models.PairingTicket
+            {
+                Config = PairingTestDocumentFactory.CreateSignedConfig(
+                    signingKey,
                     configId: "cfg-override",
                     oneTimeToken: "token-override",
                     challengePubKey: "challenge-override"),
-                discoveryHint: PairingTestDocumentFactory.CreateDiscoveryHint(
+                Discovery = PairingTestDocumentFactory.CreateDiscoveryHint(
                     hostAddress: "10.0.0.25",
-                    discoveryPort: 45200)),
-            PairingJson.Compact);
+                    discoveryPort: 45200)
+            });
 
-        var result = await manager.ConnectFromPayloadAsync(payload, "QR pairing code");
+        var result = await manager.ConnectAsync(StudioConnectionRequest.PayloadText(payload, "pairing ticket"));
 
         Assert.True(result.Success);
         var connectedDocument = Assert.Single(hostConnection.ConnectDocuments);
         Assert.Equal("cfg-override", connectedDocument.Config.ConfigId);
         Assert.Equal("token-override", connectedDocument.Config.OneTimeToken);
         Assert.Equal("challenge-override", connectedDocument.Config.Challenge.ChallengePubKey);
-        Assert.Equal("cfg-base", connectedDocument.TrustAnchorConfig?.ConfigId);
         Assert.Equal(new[] { "10.0.0.25" }, connectedDocument.DiscoveryHint?.HostAddresses);
         Assert.Equal(45200, hostConnection.LastConnectionOptions?.DiscoveryPort);
     }
@@ -82,13 +83,13 @@ public sealed class HostPairingManagerTests
         using var manager = CreateManager(
             hostConnection,
             preferredProfilePath,
-            new HostPairingOptions
+            new StudioConnectionOptions
             {
                 DiscoveryPort = 45200,
-                BundledProfileLoader = _ => Task.FromResult<string?>(PairingDocumentJson.Serialize(bundledDocument))
+                BundledTicketLoader = _ => Task.FromResult<string?>(CreateTicketJson(bundledDocument))
             });
 
-        var result = await manager.ConnectUsingBundledProfileAsync();
+        var result = await manager.ConnectAsync(StudioConnectionRequest.BundledTicket());
 
         Assert.True(result.Success);
         Assert.Equal(45200, hostConnection.LastConnectionOptions?.DiscoveryPort);
@@ -107,18 +108,18 @@ public sealed class HostPairingManagerTests
         using var manager = CreateManager(
             hostConnection,
             preferredProfilePath,
-            new HostPairingOptions
+            new StudioConnectionOptions
             {
-                BundledProfileLoader = _ => Task.FromResult<string?>(PairingDocumentJson.Serialize(bundledDocument))
+                BundledTicketLoader = _ => Task.FromResult<string?>(CreateTicketJson(bundledDocument))
             });
         SavePreferredProfile(preferredProfilePath, preferredDocument);
 
-        var result = await manager.ConnectUsingStoredProfileAsync();
+        var result = await manager.ConnectAsync(StudioConnectionRequest.SavedTicket());
 
         Assert.True(result.Success);
         var connectedDocument = Assert.Single(hostConnection.ConnectDocuments);
         Assert.Equal("cfg-bundled", connectedDocument.Config.ConfigId);
-        Assert.True(manager.HasPreferredProfile);
+        Assert.True(manager.HasSavedTicket);
     }
 
     [Fact]
@@ -132,7 +133,7 @@ public sealed class HostPairingManagerTests
         using var manager = CreateManager(hostConnection, preferredProfilePath);
         SavePreferredProfile(preferredProfilePath, preferredDocument);
 
-        var result = await manager.ConnectUsingStoredProfileAsync();
+        var result = await manager.ConnectAsync(StudioConnectionRequest.SavedTicket());
 
         Assert.False(result.Success);
         Assert.Equal(PairingFailureCodes.HostAddressRequired, result.ReasonCode);
@@ -157,19 +158,19 @@ public sealed class HostPairingManagerTests
         using var manager = CreateManager(
             hostConnection,
             preferredProfilePath,
-            new HostPairingOptions
+            new StudioConnectionOptions
             {
-                BundledProfileLoader = _ =>
+                BundledTicketLoader = _ =>
                 {
                     bundledLoaderCallCount++;
                     return Task.FromResult<string?>(null);
                 }
             });
 
-        var result = await manager.ConnectUsingStoredProfileAsync();
+        var result = await manager.ConnectAsync(StudioConnectionRequest.SavedTicket());
 
         Assert.False(result.Success);
-        Assert.Contains("No saved Ansight pairing profile is available.", result.Message, StringComparison.Ordinal);
+        Assert.Contains("No saved Ansight pairing ticket is available.", result.Message, StringComparison.Ordinal);
         Assert.Equal(0, bundledLoaderCallCount);
     }
 
@@ -185,12 +186,12 @@ public sealed class HostPairingManagerTests
         using var manager = CreateManager(
             hostConnection,
             preferredProfilePath,
-            new HostPairingOptions
+            new StudioConnectionOptions
             {
-                BundledProfileLoader = _ => Task.FromResult<string?>(PairingDocumentJson.Serialize(bundledDocument))
+                BundledTicketLoader = _ => Task.FromResult<string?>(CreateTicketJson(bundledDocument))
             });
 
-        var result = await manager.AutoConnectAsync();
+        var result = await manager.ConnectAsync(StudioConnectionRequest.Auto());
 
         Assert.True(result.Success);
         var connectedDocument = Assert.Single(hostConnection.ConnectDocuments);
@@ -198,7 +199,7 @@ public sealed class HostPairingManagerTests
     }
 
     [Fact]
-    public async Task AutoConnectAsync_WhenBundledProfileAssemblyContainsEmbeddedResources_PrefersDeveloperResourceLogicalName()
+    public async Task AutoConnectAsync_WhenBundledTicketAssemblyContainsEmbeddedResources_PrefersDeveloperResourceLogicalName()
     {
         var preferredProfilePath = CreateTempFilePath();
         using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
@@ -218,12 +219,12 @@ public sealed class HostPairingManagerTests
         using var manager = CreateManager(
             hostConnection,
             preferredProfilePath,
-            new HostPairingOptions
+            new StudioConnectionOptions
             {
-                BundledProfileAssembly = typeof(HostPairingManagerTests).Assembly
+                BundledTicketAssembly = typeof(HostPairingManagerTests).Assembly
             });
 
-        var result = await manager.AutoConnectAsync();
+        var result = await manager.ConnectAsync(StudioConnectionRequest.Auto());
 
         Assert.True(result.Success);
         var connectedDocument = Assert.Single(hostConnection.ConnectDocuments);
@@ -242,16 +243,16 @@ public sealed class HostPairingManagerTests
         using var manager = CreateManager(
             hostConnection,
             preferredProfilePath,
-            new HostPairingOptions
+            new StudioConnectionOptions
             {
-                BundledDeveloperProfileLoader = _ => Task.FromResult<string?>(PairingDocumentJson.Serialize(bundledDeveloperDocument))
+                BundledDeveloperTicketLoader = _ => Task.FromResult<string?>(CreateTicketJson(bundledDeveloperDocument))
             });
 
         await manager.HandleRuntimeActivatedAsync();
 
         var connectedDocument = Assert.Single(hostConnection.ConnectDocuments);
         Assert.Equal("cfg-developer", connectedDocument.Config.ConfigId);
-        Assert.True(manager.Status.HasBundledProfile);
+        Assert.True(manager.Status.HasBundledTicket);
     }
 
     [Fact]
@@ -266,9 +267,9 @@ public sealed class HostPairingManagerTests
         using var manager = CreateManager(
             hostConnection,
             preferredProfilePath,
-            new HostPairingOptions
+            new StudioConnectionOptions
             {
-                BundledProfileLoader = _ => Task.FromResult<string?>(PairingDocumentJson.Serialize(bundledDocument))
+                BundledTicketLoader = _ => Task.FromResult<string?>(CreateTicketJson(bundledDocument))
             });
 
         await manager.HandleRuntimeActivatedAsync();
@@ -289,10 +290,10 @@ public sealed class HostPairingManagerTests
         using var manager = CreateManager(hostConnection, preferredProfilePath);
         SavePreferredProfile(preferredProfilePath, preferredDocument);
 
-        var result = manager.ClearStoredProfiles();
+        var result = manager.ClearSavedTickets();
 
         Assert.True(result.Success);
-        Assert.False(manager.HasPreferredProfile);
+        Assert.False(manager.HasSavedTicket);
         Assert.Equal(1, hostConnection.ClearCachedProfileCallCount);
         Assert.False(hostConnection.HasCachedProfile);
     }
@@ -307,16 +308,16 @@ public sealed class HostPairingManagerTests
         using var manager = CreateManager(
             hostConnection,
             preferredProfilePath,
-            new HostPairingOptions
+            new StudioConnectionOptions
             {
-                BundledProfileLoader = _ => Task.FromResult<string?>(PairingDocumentJson.Serialize(bundledDocument))
+                BundledTicketLoader = _ => Task.FromResult<string?>(CreateTicketJson(bundledDocument))
             });
 
         var capabilities = await manager.RefreshCapabilitiesAsync();
 
-        Assert.True(capabilities.CanConnectUsingBundled);
-        Assert.True(manager.Status.HasBundledProfile);
-        Assert.Equal(HostPairingSummaryKind.DisconnectedBundledProfileAvailable, manager.Status.SummaryKind);
+        Assert.True(capabilities.CanConnectUsingBundledTicket);
+        Assert.True(manager.Status.HasBundledTicket);
+        Assert.Equal(StudioConnectionSummaryKind.DisconnectedBundledTicketAvailable, manager.Status.SummaryKind);
     }
 
     [Fact]
@@ -331,17 +332,17 @@ public sealed class HostPairingManagerTests
         SavePreferredProfile(preferredProfilePath, preferredDocument);
         using var manager = CreateManager(hostConnection, preferredProfilePath);
 
-        Assert.Equal(HostPairingSummaryKind.DisconnectedMultipleProfilesAvailable, manager.Status.SummaryKind);
-        Assert.True(manager.Capabilities.CanConnectUsingStored);
+        Assert.Equal(StudioConnectionSummaryKind.DisconnectedMultipleTicketsAvailable, manager.Status.SummaryKind);
+        Assert.True(manager.Capabilities.CanConnectUsingSavedTicket);
     }
 
     private static HostPairingManager CreateManager(
         FakeHostConnection hostConnection,
         string preferredProfilePath,
-        HostPairingOptions? options = null)
+        StudioConnectionOptions? options = null)
     {
-        var configuredOptions = options ?? new HostPairingOptions();
-        configuredOptions.PreferredProfilePath = preferredProfilePath;
+        var configuredOptions = options ?? new StudioConnectionOptions();
+        configuredOptions.SavedTicketPath = preferredProfilePath;
 
         return new HostPairingManager(
             hostConnection,
@@ -366,6 +367,16 @@ public sealed class HostPairingManagerTests
     {
         var store = new StoredHostPairingProfileStore("unit-test", preferredProfilePath);
         store.Save(document);
+    }
+
+    private static string CreateTicketJson(ParsedPairingDocument document)
+    {
+        return PairingTicketJson.Serialize(
+            new Ansight.Pairing.Models.PairingTicket
+            {
+                Config = document.Config,
+                Discovery = document.DiscoveryHint
+            });
     }
 
     private static string CreateTempFilePath()
@@ -394,8 +405,7 @@ public sealed class HostPairingManagerTests
                     WebSocketPort = 45124,
                     WebSocketPath = "/ws",
                     WebSocketToken = "token"
-                },
-                "HOST_HELLO"));
+                }));
     }
 
     private static HostConnectionActionResult CreateRejectedConnectionResult(string rejectionCode, string rejectionMessage)
@@ -461,7 +471,7 @@ public sealed class HostPairingManagerTests
             ParsedPairingDocument document,
             string? clientName = null,
             PairingConnectionOptions? connectionOptions = null,
-            IProgress<HostPairingProgressUpdate>? progress = null,
+            IProgress<StudioConnectionProgressUpdate>? progress = null,
             CancellationToken cancellationToken = default)
         {
             ConnectDocuments.Add(document);
@@ -475,7 +485,7 @@ public sealed class HostPairingManagerTests
 
         public Task<HostConnectionActionResult> ConnectUsingCachedProfileAsync(
             string? clientName = null,
-            IProgress<HostPairingProgressUpdate>? progress = null,
+            IProgress<StudioConnectionProgressUpdate>? progress = null,
             CancellationToken cancellationToken = default)
         {
             CachedConnectCallCount++;
@@ -500,7 +510,7 @@ public sealed class HostPairingManagerTests
             ClearCachedProfileCallCount++;
             HasCachedProfile = false;
             RaiseStatusChanged();
-            return HostConnectionActionResult.FromSuccess("Cleared the cached Ansight host pairing profile.");
+            return HostConnectionActionResult.FromSuccess("Cleared the cached Ansight Studio session.");
         }
 
         public void Dispose()

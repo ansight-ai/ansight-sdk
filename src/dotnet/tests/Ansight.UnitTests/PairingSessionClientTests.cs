@@ -12,8 +12,7 @@ public sealed class PairingSessionClientTests
         using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var document = new ParsedPairingDocument
         {
-            Config = PairingTestDocumentFactory.CreateSignedConfig(signingKey),
-            ConnectionHint = PairingTestDocumentFactory.CreateConnectionHint()
+            Config = PairingTestDocumentFactory.CreateSignedConfig(signingKey)
         };
         var capturedAt = new DateTimeOffset(2026, 03, 22, 03, 50, 00, TimeSpan.Zero);
 
@@ -30,7 +29,6 @@ public sealed class PairingSessionClientTests
         Assert.Equal(45200, cachedDocument.DiscoveryHint.DiscoveryPort);
         Assert.Equal(capturedAt, cachedDocument.DiscoveryHint.CapturedAt);
         Assert.Same(document.Config, cachedDocument.Config);
-        Assert.Same(document.ConnectionHint, cachedDocument.ConnectionHint);
     }
 
     [Fact]
@@ -47,8 +45,7 @@ public sealed class PairingSessionClientTests
                 discoveryPort: 45200,
                 hostName: "Studio",
                 wifiName: "Office Wifi",
-                capturedAt: capturedAt),
-            ConnectionHint = PairingTestDocumentFactory.CreateConnectionHint()
+                capturedAt: capturedAt)
         };
 
         var preferredDocument = PairingSessionClient.CreatePreferredDocument(document);
@@ -61,6 +58,5 @@ public sealed class PairingSessionClientTests
         Assert.Equal("Office Wifi", preferredDocument.DiscoveryHint.WifiName);
         Assert.Equal(capturedAt, preferredDocument.DiscoveryHint.CapturedAt);
         Assert.Same(document.Config, preferredDocument.Config);
-        Assert.Same(document.ConnectionHint, preferredDocument.ConnectionHint);
     }
 }

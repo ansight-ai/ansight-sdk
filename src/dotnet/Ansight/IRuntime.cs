@@ -18,14 +18,9 @@ public interface IRuntime
     ToolProtocolBridge ToolBridge { get; }
 
     /// <summary>
-    /// Controls the runtime-owned host connection used for pairing and live streaming.
+    /// Controls the unified runtime-owned Studio connection surface.
     /// </summary>
-    IHostConnection HostConnection { get; }
-
-    /// <summary>
-    /// Controls runtime-owned pairing profiles and profile-based connection flows.
-    /// </summary>
-    IHostPairing HostPairing { get; }
+    IStudioConnection StudioConnection { get; }
 
     /// <summary>
     /// True when periodic sampling is active.

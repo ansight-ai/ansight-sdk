@@ -94,7 +94,6 @@ export type AnsightOptions = {
 
 export type PairingOpenOptions = {
   clientName: string;
-  manualHostAddress: string;
   expectedAppId?: string;
   profileOverride?: Partial<DeviceAppProfile>;
 };

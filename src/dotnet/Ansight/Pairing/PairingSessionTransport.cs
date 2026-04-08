@@ -1,6 +1,7 @@
 using System.Net.WebSockets;
 using System.Text;
-using System.Threading.Channels;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Ansight.Pairing;
 
@@ -14,9 +15,10 @@ internal sealed class PairingSessionTransport : IDisposable
     private ClientWebSocket? webSocket;
     private readonly SemaphoreSlim sendLock = new(1, 1);
     private readonly SemaphoreSlim requestLock = new(1, 1);
+    private readonly Lock responseGate = new();
+    private readonly Dictionary<string, TaskCompletionSource<PairingControlEnvelope>> pendingResponses = new(StringComparer.Ordinal);
     private CancellationTokenSource? receivePumpCts;
     private Task? receivePumpTask;
-    private Channel<string>? incomingMessages;
     private int closeNotificationState;
     private bool disposed;
 
@@ -33,21 +35,38 @@ internal sealed class PairingSessionTransport : IDisposable
         StartReceivePump(webSocket);
     }
 
-    public async Task<OperationResult> SendRequestAsync(
-        string payload,
+    public async Task<OperationResult> SendControlRequestAsync(
+        string action,
+        JsonObject? payload,
         string? outboundProgressMessage,
         string successMessage,
         string failurePrefix,
-        IProgress<HostPairingProgressUpdate>? progress,
+        IProgress<StudioConnectionProgressUpdate>? progress,
         TimeSpan acknowledgementTimeout,
         CancellationToken cancellationToken,
-        HostPairingSource source = HostPairingSource.Transport,
-        HostPairingProgressKind kind = HostPairingProgressKind.Transport)
+        StudioConnectionSource source = StudioConnectionSource.Transport,
+        StudioConnectionProgressKind kind = StudioConnectionProgressKind.Transport)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(action);
+
         var webSocket = this.webSocket;
         if (webSocket is null || webSocket.State != WebSocketState.Open)
         {
             return OperationResult.FromFailure("WebSocket session is not open.");
+        }
+
+        var requestId = $"client.{Guid.NewGuid():N}";
+        var envelope = new PairingControlEnvelope
+        {
+            Type = PairingControlEnvelope.RequestType,
+            Id = requestId,
+            Action = action.Trim(),
+            Payload = payload
+        };
+        var responseSource = new TaskCompletionSource<PairingControlEnvelope>(TaskCreationOptions.RunContinuationsAsynchronously);
+        lock (responseGate)
+        {
+            pendingResponses[requestId] = responseSource;
         }
 
         try
@@ -55,41 +74,53 @@ internal sealed class PairingSessionTransport : IDisposable
             await requestLock.WaitAsync(cancellationToken);
             try
             {
-                await SendPayloadAsync(webSocket, payload, cancellationToken);
+                var messageJson = JsonSerializer.Serialize(envelope, PairingJson.Compact);
+                await SendPayloadAsync(webSocket, messageJson, cancellationToken);
                 HostPairingProgressReporter.Report(
                     progress,
                     kind,
-                    outboundProgressMessage ?? $"WS -> {payload}",
+                    outboundProgressMessage ?? $"WS -> {action}",
                     isVerbose: true,
                     source: source);
-
-                using var ackTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                ackTimeout.CancelAfter(acknowledgementTimeout);
-                var hostAck = await ReceiveInboundMessageAsync(ackTimeout.Token);
-                HostPairingProgressReporter.Report(
-                    progress,
-                    kind,
-                    $"WS <- {hostAck}",
-                    isVerbose: true,
-                    source: source);
-
-                if (string.Equals(hostAck, "<close>", StringComparison.Ordinal))
-                {
-                    await CloseAsync(CancellationToken.None);
-                    return OperationResult.FromFailure("Host closed the WebSocket session.");
-                }
             }
             finally
             {
                 requestLock.Release();
             }
 
-            return OperationResult.FromSuccess(successMessage);
+            using var responseTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            responseTimeout.CancelAfter(acknowledgementTimeout);
+            var response = await responseSource.Task.WaitAsync(responseTimeout.Token);
+            HostPairingProgressReporter.Report(
+                progress,
+                kind,
+                $"WS <- {response.Action}: {response.Message ?? (response.Success ? "ok" : "failed")}",
+                isVerbose: true,
+                source: source);
+
+            if (!response.Success)
+            {
+                return OperationResult.FromFailure($"{failurePrefix}: {response.Message ?? "request failed"}");
+            }
+
+            return OperationResult.FromSuccess(string.IsNullOrWhiteSpace(response.Message) ? successMessage : response.Message!);
+        }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            await CloseAsync(CancellationToken.None);
+            return OperationResult.FromFailure($"{failurePrefix}: {ex.Message}");
         }
         catch (Exception ex)
         {
             await CloseAsync(CancellationToken.None);
             return OperationResult.FromFailure($"{failurePrefix}: {ex.Message}");
+        }
+        finally
+        {
+            lock (responseGate)
+            {
+                pendingResponses.Remove(requestId);
+            }
         }
     }
 
@@ -179,20 +210,17 @@ internal sealed class PairingSessionTransport : IDisposable
         var webSocket = this.webSocket;
         var receivePumpCts = this.receivePumpCts;
         var receivePumpTask = this.receivePumpTask;
-        var incomingMessages = this.incomingMessages;
         var hadSession = webSocket is not null || receivePumpTask is not null || receivePumpCts is not null;
 
         this.webSocket = null;
         this.receivePumpCts = null;
         this.receivePumpTask = null;
-        this.incomingMessages = null;
 
         receivePumpCts?.Cancel();
+        FailPendingResponses("WebSocket session closed.");
 
         if (webSocket is null)
         {
-            incomingMessages?.Writer.TryWrite("<close>");
-            incomingMessages?.Writer.TryComplete();
             receivePumpCts?.Dispose();
             if (hadSession)
             {
@@ -237,8 +265,6 @@ internal sealed class PairingSessionTransport : IDisposable
         }
 
         receivePumpCts?.Dispose();
-        incomingMessages?.Writer.TryWrite("<close>");
-        incomingMessages?.Writer.TryComplete();
         if (hadSession)
         {
             NotifyClosed();
@@ -286,91 +312,63 @@ internal sealed class PairingSessionTransport : IDisposable
         receivePumpCts?.Cancel();
         receivePumpCts?.Dispose();
         webSocket?.Dispose();
-        incomingMessages?.Writer.TryComplete();
         sendLock.Dispose();
         requestLock.Dispose();
+        FailPendingResponses("WebSocket session disposed.");
         webSocket = null;
         receivePumpTask = null;
         receivePumpCts = null;
-        incomingMessages = null;
     }
 
     private void StartReceivePump(ClientWebSocket webSocket)
     {
-        incomingMessages = System.Threading.Channels.Channel.CreateUnbounded<string>(new UnboundedChannelOptions
-        {
-            SingleWriter = true
-        });
         receivePumpCts = new CancellationTokenSource();
-        receivePumpTask = Task.Run(() => RunReceivePumpAsync(webSocket, incomingMessages.Writer, receivePumpCts.Token));
+        receivePumpTask = Task.Run(() => RunReceivePumpAsync(webSocket, receivePumpCts.Token));
     }
 
     private async Task RunReceivePumpAsync(
         ClientWebSocket webSocket,
-        ChannelWriter<string> writer,
         CancellationToken cancellationToken)
     {
-        try
+        while (!cancellationToken.IsCancellationRequested)
         {
-            while (!cancellationToken.IsCancellationRequested)
+            string message;
+
+            try
             {
-                string message;
-
-                try
-                {
-                    message = await ReceiveTextAsync(webSocket, cancellationToken);
-                }
-                catch (OperationCanceledException)
-                {
-                    break;
-                }
-                catch
-                {
-                    await writer.WriteAsync("<close>", CancellationToken.None);
-                    NotifyClosed();
-                    break;
-                }
-
-                if (string.Equals(message, "<close>", StringComparison.Ordinal))
-                {
-                    await writer.WriteAsync(message, CancellationToken.None);
-                    NotifyClosed();
-                    break;
-                }
-
-                if (await PairingToolProtocolProcessor.TryHandleIncomingMessageAsync(
-                        webSocket,
-                        message,
-                        SendPayloadAsync,
-                        cancellationToken))
-                {
-                    continue;
-                }
-
-                await writer.WriteAsync(message, cancellationToken);
+                message = await ReceiveTextAsync(webSocket, cancellationToken);
             }
-        }
-        finally
-        {
-            writer.TryComplete();
-        }
-    }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch
+            {
+                NotifyClosed();
+                break;
+            }
 
-    private async Task<string> ReceiveInboundMessageAsync(CancellationToken cancellationToken)
-    {
-        var incomingMessages = this.incomingMessages;
-        if (incomingMessages is null)
-        {
-            return "<close>";
-        }
+            if (string.Equals(message, "<close>", StringComparison.Ordinal))
+            {
+                NotifyClosed();
+                break;
+            }
 
-        try
-        {
-            return await incomingMessages.Reader.ReadAsync(cancellationToken);
-        }
-        catch (ChannelClosedException)
-        {
-            return "<close>";
+            if (await PairingToolProtocolProcessor.TryHandleIncomingMessageAsync(
+                    webSocket,
+                    message,
+                    SendPayloadAsync,
+                    cancellationToken))
+            {
+                continue;
+            }
+
+            if (TryHandleControlResponse(message))
+            {
+                continue;
+            }
+
+            Logger.Warning($"Ignoring unexpected pairing socket message: {message}");
         }
     }
 
@@ -437,5 +435,59 @@ internal sealed class PairingSessionTransport : IDisposable
         }
 
         Closed?.Invoke(this, EventArgs.Empty);
+    }
+
+    private bool TryHandleControlResponse(string message)
+    {
+        PairingControlEnvelope? envelope;
+        try
+        {
+            envelope = JsonSerializer.Deserialize<PairingControlEnvelope>(message, PairingJson.Compact);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+
+        if (envelope is null ||
+            !string.Equals(envelope.Type, PairingControlEnvelope.ResponseType, StringComparison.Ordinal) ||
+            string.IsNullOrWhiteSpace(envelope.ReplyTo))
+        {
+            return false;
+        }
+
+        TaskCompletionSource<PairingControlEnvelope>? responseSource;
+        lock (responseGate)
+        {
+            if (!pendingResponses.TryGetValue(envelope.ReplyTo, out responseSource))
+            {
+                return false;
+            }
+
+            pendingResponses.Remove(envelope.ReplyTo);
+        }
+
+        return responseSource.TrySetResult(envelope);
+    }
+
+    private void FailPendingResponses(string reason)
+    {
+        TaskCompletionSource<PairingControlEnvelope>[] responseSources;
+        lock (responseGate)
+        {
+            responseSources = pendingResponses.Values.ToArray();
+            pendingResponses.Clear();
+        }
+
+        if (responseSources.Length == 0)
+        {
+            return;
+        }
+
+        var exception = new IOException(reason);
+        foreach (var responseSource in responseSources)
+        {
+            responseSource.TrySetException(exception);
+        }
     }
 }

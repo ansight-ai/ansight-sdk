@@ -122,7 +122,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             guard !effectivePairingJson.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 return OpenSessionResult(
                     success: false,
-                    message: "Pairing JSON is required unless an embedded developer pairing config is available.",
+                    message: "Pairing ticket JSON is required unless an embedded developer pairing ticket is available.",
                     sessionId: nil
                 )
             }
@@ -132,17 +132,13 @@ public final class AnsightRuntime: @unchecked Sendable {
                 expectedAppId: options.expectedAppId
             )
 
-            let manualHostAddress = options.manualHostAddress.trimmingCharacters(in: .whitespacesAndNewlines)
-            let hintedHostAddress = document.discoveryHint?.hostAddress?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            let effectiveHostAddress: String
-            if !manualHostAddress.isEmpty {
-                effectiveHostAddress = manualHostAddress
-            } else if options.allowDiscoveryHintHostFallback, !hintedHostAddress.isEmpty {
-                effectiveHostAddress = hintedHostAddress
-            } else {
+            let hintedHostAddress = document.discoveryHint?.hostAddresses?
+                .first(where: { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            guard !hintedHostAddress.isEmpty else {
                 return OpenSessionResult(
                     success: false,
-                    message: "Manual host address is required unless the pairing document includes a discovery host hint.",
+                    message: "Pairing ticket must include a discovery host hint.",
                     sessionId: nil,
                     configId: document.config.configId,
                     appId: document.config.appId,
@@ -154,16 +150,16 @@ public final class AnsightRuntime: @unchecked Sendable {
             sessionOpen = true
             let sessionId = "ios-\(UUID().uuidString)"
             lastPairingDocument = document
-            resolvedHostAddress = effectiveHostAddress
+            resolvedHostAddress = hintedHostAddress
             sessionMessage =
-                "Harness session opened locally for \(options.clientName) using config \(document.config.configId) at \(effectiveHostAddress). Network transport is not implemented yet."
+                "Harness session opened locally for \(options.clientName) using config \(document.config.configId) at \(hintedHostAddress). Network transport is not implemented yet."
             return OpenSessionResult(
                 success: true,
                 message: sessionMessage ?? "Session opened.",
                 sessionId: sessionId,
                 configId: document.config.configId,
                 appId: document.config.appId,
-                resolvedHostAddress: effectiveHostAddress,
+                resolvedHostAddress: hintedHostAddress,
                 usedEmbeddedDeveloperPairing: usedEmbeddedDeveloperPairing,
                 discoverySource: document.discoveryHint?.source
             )

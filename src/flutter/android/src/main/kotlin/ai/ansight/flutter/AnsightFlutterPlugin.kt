@@ -69,7 +69,6 @@ class AnsightFlutterPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                         pairingJson = args["pairingJson"] as String,
                         options = PairingOpenOptions(
                             clientName = options["clientName"] as String,
-                            manualHostAddress = options["manualHostAddress"] as String,
                             expectedAppId = options["expectedAppId"] as String?,
                             profileOverride = (options["profileOverride"] as Map<String, Any?>? ?: emptyMap())
                                 .mapValues { it.value?.toString().orEmpty() },

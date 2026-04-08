@@ -1,23 +1,49 @@
 using System.Net.WebSockets;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Ansight.IntegrationTests.Support;
 using Ansight.Pairing;
+using Ansight.Pairing.Models;
 
 namespace Ansight.IntegrationTests;
 
 public sealed class PairingSessionTransportIntegrationTests
 {
     [Fact]
-    public async Task SendRequestAsync_SendsPayloadAndWaitsForAck()
+    public async Task SendControlRequestAsync_SendsEnvelopeAndWaitsForResponse()
     {
-        await using var server = await LoopbackWebSocketServer.StartAsync(_ => "ACK");
+        await using var server = await LoopbackWebSocketServer.StartAsync(message =>
+        {
+            var request = JsonSerializer.Deserialize<PairingControlEnvelope>(message, PairingJson.Compact);
+            if (request is null)
+            {
+                return null;
+            }
+
+            return JsonSerializer.Serialize(
+                new PairingControlEnvelope
+                {
+                    Type = PairingControlEnvelope.ResponseType,
+                    Id = "host.response",
+                    ReplyTo = request.Id,
+                    Action = request.Action,
+                    Success = true,
+                    Message = "ok"
+                },
+                PairingJson.Compact);
+        });
         using var webSocket = await ConnectAsync(server.WebSocketUri);
         using var transport = new PairingSessionTransport();
         transport.Attach(webSocket);
 
-        var result = await transport.SendRequestAsync(
-            "{\"type\":\"PING\"}",
-            outboundProgressMessage: null,
+        var result = await transport.SendControlRequestAsync(
+            "test.ping",
+            new JsonObject
+            {
+                ["value"] = 42
+            },
+            outboundProgressMessage: "ping",
             successMessage: "ok",
             failurePrefix: "failed",
             progress: null,
@@ -28,7 +54,8 @@ public sealed class PairingSessionTransportIntegrationTests
 
         Assert.True(result.Success, result.Message);
         Assert.Single(server.TextMessages);
-        Assert.Contains("\"type\":\"PING\"", server.TextMessages[0], StringComparison.Ordinal);
+        Assert.Contains(PairingControlEnvelope.RequestType, server.TextMessages[0], StringComparison.Ordinal);
+        Assert.Contains("\"action\":\"test.ping\"", server.TextMessages[0], StringComparison.Ordinal);
 
         await transport.CloseAsync(CancellationToken.None);
     }

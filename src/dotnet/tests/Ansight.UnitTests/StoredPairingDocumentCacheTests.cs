@@ -6,16 +6,16 @@ namespace Ansight.UnitTests;
 public sealed class StoredPairingDocumentCacheTests
 {
     [Fact]
-    public void Save_AndLoadValidated_RoundTripsBootstrapDocument()
+    public void Save_AndLoadValidated_RoundTripsPairingTicket()
     {
         using var signingKey = ECDsa.Create();
         var pairingConfig = PairingTestDocumentFactory.CreateSignedConfig(signingKey, appId: "com.ansight.cache-test");
-        var bootstrapJson = PairingTestDocumentFactory.CreateBootstrapJson(
+        var ticketJson = PairingTestDocumentFactory.CreateTicketJson(
             pairingConfig,
-            PairingTestDocumentFactory.CreateConnectionHint());
+            PairingTestDocumentFactory.CreateDiscoveryHint(hostAddress: "127.0.0.1"));
         var service = new PairingConfigDocumentService();
         Assert.True(service.TryParseAndValidateDocument(
-            bootstrapJson,
+            ticketJson,
             "com.ansight.cache-test",
             out var document,
             out var parseError), parseError);
@@ -34,8 +34,6 @@ public sealed class StoredPairingDocumentCacheTests
             Assert.Equal(document!.Config.ConfigId, loadedDocument!.Config.ConfigId);
             Assert.Equal(document.Config.OneTimeToken, loadedDocument.Config.OneTimeToken);
             Assert.Equal(document.DiscoveryHint?.HostAddresses, loadedDocument.DiscoveryHint?.HostAddresses);
-            Assert.Equal(document.ConnectionHint?.ConfigId, loadedDocument.ConnectionHint?.ConfigId);
-            Assert.Equal(document.TrustAnchorConfig?.ConfigId, loadedDocument.TrustAnchorConfig?.ConfigId);
         }
         finally
         {
@@ -54,9 +52,7 @@ public sealed class StoredPairingDocumentCacheTests
             signingKey,
             appId: "com.ansight.cache-test",
             expiresAt: DateTimeOffset.UtcNow.AddMinutes(-5));
-        var expiredJson = PairingTestDocumentFactory.CreateBootstrapJson(
-            expiredConfig,
-            PairingTestDocumentFactory.CreateConnectionHint(expiresAt: DateTimeOffset.UtcNow.AddMinutes(-5)));
+        var expiredJson = PairingTestDocumentFactory.CreateTicketJson(expiredConfig);
 
         var cacheFilePath = Path.Combine(Path.GetTempPath(), $"ansight-cache-{Guid.NewGuid():N}.json");
         try

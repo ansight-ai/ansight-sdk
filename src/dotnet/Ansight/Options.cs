@@ -25,7 +25,7 @@ public class Options
         Tools = ToolRegistry.Empty,
         ToolGuard = ToolGuard.Disabled,
         HostAutoProbe = HostAutoProbeOptions.EnabledDefault.Clone(),
-        HostPairing = HostPairingOptions.Default.Clone()
+        StudioConnection = StudioConnectionOptions.Default.Clone()
     };
 
     /// <summary>
@@ -85,9 +85,9 @@ public class Options
     public HostAutoProbeOptions HostAutoProbe { get; private set; } = HostAutoProbeOptions.EnabledDefault.Clone();
 
     /// <summary>
-    /// Runtime-owned pairing profile configuration used to resolve stored and bundled pairing documents.
+    /// Runtime-owned Studio connection configuration used to resolve saved and bundled tickets.
     /// </summary>
-    public HostPairingOptions HostPairing { get; private set; } = HostPairingOptions.Default.Clone();
+    public StudioConnectionOptions StudioConnection { get; private set; } = StudioConnectionOptions.Default.Clone();
 
     public void Validate()
     {
@@ -129,7 +129,7 @@ public class Options
         ToolGuard = ToolGuard ?? ToolGuard.Disabled;
         ToolGuard.Validate();
         HostAutoProbe ??= HostAutoProbeOptions.EnabledDefault.Clone();
-        HostPairing ??= HostPairingOptions.Default.Clone();
+        StudioConnection ??= StudioConnectionOptions.Default.Clone();
 
         if (HostAutoProbe.InitialDelay < TimeSpan.Zero)
         {
@@ -218,7 +218,7 @@ public class Options
                     },
                 ToolGuard = initialOptions.ToolGuard ?? ToolGuard.Disabled,
                 HostAutoProbe = initialOptions.HostAutoProbe?.Clone() ?? HostAutoProbeOptions.EnabledDefault.Clone(),
-                HostPairing = initialOptions.HostPairing?.Clone() ?? HostPairingOptions.Default.Clone()
+                StudioConnection = initialOptions.StudioConnection?.Clone() ?? StudioConnectionOptions.Default.Clone()
             };
         }
 
@@ -465,78 +465,78 @@ public class Options
         }
 
         /// <summary>
-        /// Replaces the runtime-owned host pairing configuration.
+        /// Replaces the runtime-owned Studio connection configuration.
         /// </summary>
-        public OptionsBuilder WithHostPairing(HostPairingOptions? hostPairing = null)
+        public OptionsBuilder WithStudioConnection(StudioConnectionOptions? studioConnection = null)
         {
-            options.HostPairing = (hostPairing ?? HostPairingOptions.Default).Clone();
+            options.StudioConnection = (studioConnection ?? StudioConnectionOptions.Default).Clone();
             return this;
         }
 
         /// <summary>
-        /// Configures runtime-owned host pairing to resolve the standard bundled pairing asset names from the provided assembly.
+        /// Configures runtime-owned Studio connection ticket loading from the provided assembly.
         /// </summary>
-        /// <param name="bundledProfileAssembly">Assembly containing resources named <c>ansight.developer-pairing.json</c> and/or <c>ansight.json</c>.</param>
-        /// <param name="payloadReader">Optional platform-owned pairing payload reader.</param>
+        /// <param name="bundledTicketAssembly">Assembly containing resources named <c>ansight.developer-pairing.json</c> and/or <c>ansight.json</c>.</param>
+        /// <param name="ticketReader">Optional platform-owned ticket reader.</param>
         /// <returns>The current builder.</returns>
-        public OptionsBuilder WithBundledHostPairing(
-            Assembly bundledProfileAssembly,
-            IHostPairingPayloadReader? payloadReader = null)
+        public OptionsBuilder WithBundledStudioConnection(
+            Assembly bundledTicketAssembly,
+            IStudioConnectionTicketReader? ticketReader = null)
         {
-            ArgumentNullException.ThrowIfNull(bundledProfileAssembly);
+            ArgumentNullException.ThrowIfNull(bundledTicketAssembly);
 
-            return ConfigureHostPairing(hostPairing =>
+            return ConfigureStudioConnection(studioConnection =>
             {
-                hostPairing.UseBundledProfileAssembly(bundledProfileAssembly);
-                if (payloadReader is not null)
+                studioConnection.UseBundledTicketAssembly(bundledTicketAssembly);
+                if (ticketReader is not null)
                 {
-                    hostPairing.UsePayloadReader(payloadReader);
+                    studioConnection.UseTicketReader(ticketReader);
                 }
             });
         }
 
         /// <summary>
-        /// Configures runtime-owned host pairing to resolve the standard bundled pairing asset names from a shared text asset loader.
+        /// Configures runtime-owned Studio connection ticket loading from a shared text asset loader.
         /// </summary>
         /// <param name="bundledAssetLoader">Loader that resolves bundled text assets by logical asset name.</param>
-        /// <param name="payloadReader">Optional platform-owned pairing payload reader.</param>
+        /// <param name="ticketReader">Optional platform-owned ticket reader.</param>
         /// <returns>The current builder.</returns>
-        public OptionsBuilder WithBundledHostPairing(
-            HostPairingBundledAssetLoader bundledAssetLoader,
-            IHostPairingPayloadReader? payloadReader = null)
+        public OptionsBuilder WithBundledStudioConnection(
+            StudioConnectionBundledAssetLoader bundledAssetLoader,
+            IStudioConnectionTicketReader? ticketReader = null)
         {
             ArgumentNullException.ThrowIfNull(bundledAssetLoader);
 
-            return ConfigureHostPairing(hostPairing =>
+            return ConfigureStudioConnection(studioConnection =>
             {
-                hostPairing.UseBundledTextAssets(bundledAssetLoader);
-                if (payloadReader is not null)
+                studioConnection.UseBundledTextAssets(bundledAssetLoader);
+                if (ticketReader is not null)
                 {
-                    hostPairing.UsePayloadReader(payloadReader);
+                    studioConnection.UseTicketReader(ticketReader);
                 }
             });
         }
 
         /// <summary>
-        /// Mutates the runtime-owned host pairing configuration in-place.
+        /// Mutates the runtime-owned Studio connection configuration in-place.
         /// </summary>
-        public OptionsBuilder ConfigureHostPairing(Action<HostPairingOptions> configure)
+        public OptionsBuilder ConfigureStudioConnection(Action<StudioConnectionOptions> configure)
         {
             ArgumentNullException.ThrowIfNull(configure);
 
-            options.HostPairing ??= HostPairingOptions.Default.Clone();
-            configure(options.HostPairing);
+            options.StudioConnection ??= StudioConnectionOptions.Default.Clone();
+            configure(options.StudioConnection);
             return this;
         }
 
         /// <summary>
-        /// Configures the UDP discovery port used for runtime-owned host pairing connections.
+        /// Configures the UDP discovery port used for runtime-owned Studio connections.
         /// </summary>
-        /// <param name="discoveryPort">UDP discovery port to use for the initial pairing bootstrap.</param>
+        /// <param name="discoveryPort">UDP discovery port to use for initial host discovery.</param>
         /// <returns>The current builder.</returns>
-        public OptionsBuilder WithHostPairingDiscoveryPort(int discoveryPort)
+        public OptionsBuilder WithStudioConnectionDiscoveryPort(int discoveryPort)
         {
-            return ConfigureHostPairing(hostPairing => hostPairing.UseDiscoveryPort(discoveryPort));
+            return ConfigureStudioConnection(studioConnection => studioConnection.UseDiscoveryPort(discoveryPort));
         }
 
         /// <summary>

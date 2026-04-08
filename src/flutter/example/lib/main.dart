@@ -72,10 +72,9 @@ class _HarnessAppState extends State<HarnessApp> {
             ElevatedButton(
               onPressed: () async {
                 await AnsightFlutter.openSession(
-                  '{"schema":"ansight.pairing-config.v1"}',
+                  '{"schema":"ansight.pairing-ticket.v1"}',
                   const PairingOpenOptions(
                     clientName: "Flutter Harness",
-                    manualHostAddress: "127.0.0.1",
                   ),
                 );
                 await refresh();

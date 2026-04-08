@@ -59,9 +59,7 @@ struct BuildConfiguration {
         self.packageDirectory = packageDirectory
         developerPairingEnabled = Self.isEnabled(environment["ANSIGHT_DEVELOPER_PAIRING_ENABLED"])
         developerPairingSourceFile = sourceFile
-        allowBundledTools = Self.isEnabled(
-            environment["ANSIGHT_ALLOW_REMOTE_TOOLS"] ?? environment["ANSIGHT_ALLOW_MCP_TOOLS"]
-        )
+        allowBundledTools = Self.isEnabled(environment["ANSIGHT_ALLOW_REMOTE_TOOLS"])
     }
 
     private static func argumentValue(_ arguments: [String], index: Int, name: String) throws -> String {
@@ -108,8 +106,7 @@ struct AnsightBuildToolMain {
             fputs(
                 """
                 error: Ansight detected concrete AnsightTool implementations in this target: \(summary). \
-                Set ANSIGHT_ALLOW_REMOTE_TOOLS=true only for local developer builds. \
-                The legacy ANSIGHT_ALLOW_MCP_TOOLS alias is still accepted.
+                Set ANSIGHT_ALLOW_REMOTE_TOOLS=true only for local developer builds.
                 """,
                 stderr
             )
@@ -144,8 +141,8 @@ struct AnsightBuildToolMain {
         let discoveryHint = makeDiscoveryHint()
 
         let document: [String: Any] = [
-            "schema": "ansight.pairing-bootstrap.v1",
-            "pairingConfig": pairingConfigObject,
+            "schema": "ansight.pairing-ticket.v1",
+            "config": pairingConfigObject,
             "discovery": discoveryHint,
         ]
 
@@ -155,7 +152,7 @@ struct AnsightBuildToolMain {
 
     private static func makeDiscoveryHint() -> [String: Any] {
         let hostAddresses = preferredHostAddresses()
-        [
+        return [
             "schema": "ansight.discovery-hint.v1",
             "source": "developer-pairing-swiftpm",
             "hostAddresses": hostAddresses,
@@ -167,7 +164,7 @@ struct AnsightBuildToolMain {
 
     private static func preferredHostAddresses() -> [String] {
         let wifiDevice = shell(#"networksetup -listallhardwareports | awk '/Wi-Fi|AirPort/{getline; print $2; exit}'"#)?
-            .trimmingCharacters(in: .whitespacesAndNewlines),
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         let defaultDevice = shell(#"route -n get default | awk '/interface:/{print $2; exit}'"#)?
             .trimmingCharacters(in: .whitespacesAndNewlines)
 

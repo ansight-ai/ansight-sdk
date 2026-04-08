@@ -92,7 +92,7 @@ For embedded resources, configure the runtime-owned pairing flow with the app as
 
 ```csharp
 var options = Options.CreateBuilder()
-    .WithBundledHostPairing(typeof(App).Assembly)
+    .WithBundledStudioConnection(typeof(App).Assembly)
     .Build();
 ```
 
@@ -100,9 +100,9 @@ For packaged text assets such as MAUI app assets, provide a shared loader for th
 
 ```csharp
 var options = Options.CreateBuilder()
-    .WithBundledHostPairing(
+    .WithBundledStudioConnection(
         (assetName, cancellationToken) => TryLoadBundledTextAssetAsync(assetName, cancellationToken),
-        payloadReader: new MyHostPairingPayloadReader())
+        ticketReader: new MyStudioConnectionTicketReader())
     .Build();
 ```
 

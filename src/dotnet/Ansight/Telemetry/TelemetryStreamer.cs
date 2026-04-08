@@ -35,7 +35,7 @@ internal sealed class TelemetryStreamer : IDisposable
 
     public async Task<OperationResult> StartAsync(
         IDataSink dataSink,
-        IProgress<HostPairingProgressUpdate>? progress,
+        IProgress<StudioConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(dataSink);
@@ -177,13 +177,13 @@ internal sealed class TelemetryStreamer : IDisposable
 
         HostPairingProgressReporter.Report(
             progress,
-            HostPairingProgressKind.Telemetry,
+            StudioConnectionProgressKind.Telemetry,
             "Telemetry streaming started.",
-            source: HostPairingSource.Telemetry);
+            source: StudioConnectionSource.Telemetry);
         return OperationResult.FromSuccess("Telemetry streaming started.");
     }
 
-    public async Task<OperationResult> StopAsync(IProgress<HostPairingProgressUpdate>? progress, CancellationToken cancellationToken)
+    public async Task<OperationResult> StopAsync(IProgress<StudioConnectionProgressUpdate>? progress, CancellationToken cancellationToken)
     {
         IDataSink? dataSink;
         EventHandler<MetricsUpdatedEventArgs>? metricsUpdatedHandler;
@@ -275,9 +275,9 @@ internal sealed class TelemetryStreamer : IDisposable
 
         HostPairingProgressReporter.Report(
             progress,
-            HostPairingProgressKind.Telemetry,
+            StudioConnectionProgressKind.Telemetry,
             "Telemetry streaming stopped.",
-            source: HostPairingSource.Telemetry);
+            source: StudioConnectionSource.Telemetry);
         return OperationResult.FromSuccess("Telemetry streaming stopped.");
     }
 
@@ -316,7 +316,7 @@ internal sealed class TelemetryStreamer : IDisposable
         eventsPumpCts = null;
     }
 
-    private async Task RunMetricsPumpAsync(IProgress<HostPairingProgressUpdate>? progress, CancellationToken cancellationToken)
+    private async Task RunMetricsPumpAsync(IProgress<StudioConnectionProgressUpdate>? progress, CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -364,9 +364,9 @@ internal sealed class TelemetryStreamer : IDisposable
                     {
                         HostPairingProgressReporter.Report(
                             progress,
-                            HostPairingProgressKind.Warning,
+                            StudioConnectionProgressKind.Warning,
                             $"Metrics streaming stopped: {channelResult.Message}",
-                            source: HostPairingSource.Telemetry);
+                            source: StudioConnectionSource.Telemetry);
                         return;
                     }
                 }
@@ -376,16 +376,16 @@ internal sealed class TelemetryStreamer : IDisposable
                 {
                     HostPairingProgressReporter.Report(
                         progress,
-                        HostPairingProgressKind.Warning,
+                        StudioConnectionProgressKind.Warning,
                         $"Metrics streaming stopped: {metricsResult.Message}",
-                        source: HostPairingSource.Telemetry);
+                        source: StudioConnectionSource.Telemetry);
                     return;
                 }
             }
         }
     }
 
-    private async Task RunEventsPumpAsync(IProgress<HostPairingProgressUpdate>? progress, CancellationToken cancellationToken)
+    private async Task RunEventsPumpAsync(IProgress<StudioConnectionProgressUpdate>? progress, CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -423,9 +423,9 @@ internal sealed class TelemetryStreamer : IDisposable
                 {
                     HostPairingProgressReporter.Report(
                         progress,
-                        HostPairingProgressKind.Warning,
+                        StudioConnectionProgressKind.Warning,
                         $"Events streaming stopped: {eventsResult.Message}",
-                        source: HostPairingSource.Telemetry);
+                        source: StudioConnectionSource.Telemetry);
                     return;
                 }
 
@@ -445,7 +445,7 @@ internal sealed class TelemetryStreamer : IDisposable
 
     private async Task<OperationResult> SendMetricChannelDefinitionsAsync(
         IReadOnlyList<Channel> channels,
-        IProgress<HostPairingProgressUpdate>? progress,
+        IProgress<StudioConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         if (channels.Count == 0)
@@ -487,10 +487,10 @@ internal sealed class TelemetryStreamer : IDisposable
 
         HostPairingProgressReporter.Report(
             progress,
-            HostPairingProgressKind.Telemetry,
+            StudioConnectionProgressKind.Telemetry,
             $"WS -> announced {newChannels.Length} metric channels",
             isVerbose: true,
-            source: HostPairingSource.Telemetry);
+            source: StudioConnectionSource.Telemetry);
         return OperationResult.FromSuccess("Metric channel definitions sent.");
     }
 
@@ -521,7 +521,7 @@ internal sealed class TelemetryStreamer : IDisposable
 
     private Task<OperationResult> SendEventsBatchAsync(
         IReadOnlyList<AppEvent> events,
-        IProgress<HostPairingProgressUpdate>? progress,
+        IProgress<StudioConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         if (events.Count == 0)
@@ -545,16 +545,18 @@ internal sealed class TelemetryStreamer : IDisposable
             }).ToArray()
         }, PairingJson.Compact);
 
-        return transport.SendRequestAsync(
-            payload,
-            $"WS -> streamed {events.Count} events",
-            "Event batch sent.",
-            "Failed to send events",
-            progress,
-            TimeSpan.FromSeconds(15),
-            cancellationToken,
-            HostPairingSource.Telemetry,
-            HostPairingProgressKind.Telemetry);
+        var sendTask = transport.SendTextAsync(payload, cancellationToken);
+        if (progress is not null)
+        {
+            HostPairingProgressReporter.Report(
+                progress,
+                StudioConnectionProgressKind.Telemetry,
+                $"WS -> streamed {events.Count} events",
+                isVerbose: true,
+                source: StudioConnectionSource.Telemetry);
+        }
+
+        return sendTask;
     }
 
     private static string ToColorHex(System.Drawing.Color color) => $"#{color.R:X2}{color.G:X2}{color.B:X2}";

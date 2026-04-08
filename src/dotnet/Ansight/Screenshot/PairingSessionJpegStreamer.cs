@@ -14,7 +14,7 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
         this.transport = transport;
     }
 
-    public async Task StartAsync(IProgress<HostPairingProgressUpdate>? progress)
+    public async Task StartAsync(IProgress<StudioConnectionProgressUpdate>? progress)
     {
         await StopAsync(CancellationToken.None);
 
@@ -28,9 +28,9 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
         captureTask = Task.Run(() => RunCapturePumpAsync(options, progress, captureCts.Token));
         HostPairingProgressReporter.Report(
             progress,
-            HostPairingProgressKind.SessionJpegCapture,
+            StudioConnectionProgressKind.SessionJpegCapture,
             $"Session JPEG capture started ({options.IntervalMilliseconds}ms, quality {options.Quality}, max width {(options.MaxWidth?.ToString() ?? "native")}).",
-            source: HostPairingSource.SessionJpegCapture);
+            source: StudioConnectionSource.SessionJpegCapture);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
@@ -99,7 +99,7 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
 
     private async Task RunCapturePumpAsync(
         SessionJpegCaptureOptions options,
-        IProgress<HostPairingProgressUpdate>? progress,
+        IProgress<StudioConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         var interval = TimeSpan.FromMilliseconds(options.IntervalMilliseconds);
@@ -140,9 +140,9 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
                     {
                         HostPairingProgressReporter.Report(
                             progress,
-                            HostPairingProgressKind.Warning,
+                            StudioConnectionProgressKind.Warning,
                             $"Session JPEG capture stopped: {sendResult.Message}",
-                            source: HostPairingSource.SessionJpegCapture);
+                            source: StudioConnectionSource.SessionJpegCapture);
                         return;
                     }
                 }

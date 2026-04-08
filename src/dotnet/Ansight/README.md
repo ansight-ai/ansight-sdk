@@ -24,9 +24,9 @@ Runtime.ScreenViewed("CheckoutPage");
 
 When `WithSessionJpegCapture(...)` is enabled, the pairing client will capture the app's own root window/view as a JPEG and stream it over live Ansight pairing sessions. Capture remains client-driven, but the next interval is delayed until the previous frame has finished encoding and sending so the stream self-throttles under load. Connected tooling can inspect the latest live frame or correlate historical frames with the telemetry timeline. This feature adds extra rendering, encoding, and transport work and can negatively affect runtime performance while it is active.
 
-Host auto-probe is enabled by default. While `Runtime` is active, Ansight will periodically try to reconnect to the most recent successful pairing profile if one is cached, pause probing while that session stays open, and resume after a reconnect delay if the session closes. Disable it with `WithoutHostAutoProbe()` or customize it with `WithHostAutoProbe(new HostAutoProbeOptions { ... })`.
+Host auto-probe is enabled by default. While `Runtime` is active, Ansight will periodically try to reconnect to the most recent successful Studio session if one is cached, pause probing while that session stays open, and resume after a reconnect delay if the session closes. Disable it with `WithoutHostAutoProbe()` or customize it with `WithHostAutoProbe(new HostAutoProbeOptions { ... })`.
 
-Runtime-owned host pairing now also owns stored and bundled profile resolution. If your app bundles `ansight.developer-pairing.json`, Ansight now attempts startup auto-connect automatically when the runtime becomes active. Configure bundled profile resolution once during runtime initialization, then use `Runtime.HostPairing` when you need to retry auto-connect explicitly, handle QR payloads, or recover from saved-profile expiry.
+Runtime-owned Studio connection now also owns saved and bundled ticket resolution. If your app bundles `ansight.developer-pairing.json`, Ansight now attempts startup auto-connect automatically when the runtime becomes active. Configure bundled ticket resolution once during runtime initialization, then use `Runtime.StudioConnection` when you need to retry auto-connect explicitly, handle pairing tickets, or recover from saved-ticket expiry.
 
 ```csharp
 public static class AppBootstrap
@@ -34,11 +34,12 @@ public static class AppBootstrap
     public static async Task ConfigureAnsightAsync(string payload)
     {
         var options = Options.CreateBuilder()
-            .WithBundledHostPairing(typeof(AppBootstrap).Assembly)
+            .WithBundledStudioConnection(typeof(AppBootstrap).Assembly)
             .Build();
 
         Runtime.InitializeAndActivate(options);
-        var qrConnectResult = await Runtime.HostPairing.ConnectFromPayloadAsync(payload, "QR pairing code");
+        var connectResult = await Runtime.StudioConnection.ConnectAsync(
+            StudioConnectionRequest.PayloadText(payload, "pairing ticket"));
     }
 }
 ```
@@ -47,9 +48,9 @@ When the pairing documents live in packaged text assets instead of embedded reso
 
 ```csharp
 var options = Options.CreateBuilder()
-    .WithBundledHostPairing(
+    .WithBundledStudioConnection(
         (assetName, cancellationToken) => TryLoadBundledTextAssetAsync(assetName, cancellationToken),
-        payloadReader: new MyHostPairingPayloadReader())
+        ticketReader: new MyStudioConnectionTicketReader())
     .Build();
 ```
 
@@ -81,19 +82,26 @@ var result = await client.OpenSessionAsync(
 
 `OpenSessionAsync(...)` now sends a baseline `DeviceAppProfile` automatically immediately after the WebSocket handshake. Supply `PairingConnectionOptions.DeviceAppProfile` only when you want to add or override fields, or configure `UseDeviceAppProfileProvider(...)` on the builder to replace the automatic collector.
 
-Apps that initialize the runtime should generally prefer `Runtime.HostPairing` and `Runtime.HostConnection` over creating their own long-lived `PairingSessionClient` instances, because the runtime-owned surfaces coordinate stored profiles, auto-probe, metrics streaming, and disconnect state in one place.
+Apps that initialize the runtime should generally prefer `Runtime.StudioConnection` over creating their own long-lived `PairingSessionClient` instances, because the runtime-owned surface coordinates stored tickets, auto-probe, metrics streaming, and disconnect state in one place.
 
-Create or parse a QR/bootstrap payload:
+Create or parse a pairing ticket:
 
 ```csharp
 using Ansight.Pairing;
 using Ansight.Pairing.Models;
 
-var payload = QrDiscoveryPayload.Serialize(config, discoveryHint, indented: true);
-
-if (QrDiscoveryPayload.TryParseConnectionPayload(payload, out var document))
+var ticket = new PairingTicket
 {
-    var connectionHint = document!.Connection;
+    Config = config,
+    Discovery = discoveryHint
+};
+
+var payload = PairingTicketJson.Serialize(ticket, indented: true);
+var compactCode = PairingTicketCodeGenerator.Serialize(ticket);
+
+if (PairingTicketCodeGenerator.TryParse(compactCode, out var parsedTicket))
+{
+    var resolvedConfigId = parsedTicket!.Config.ConfigId;
 }
 ```
 
@@ -155,7 +163,7 @@ For local temp-file workflows, `Ansight.Tools.FileSystem` exposes `files.begin_b
 
 ## Embedded developer pairing target
 
-The base package ships an optional MSBuild target that can prebundle a developer pairing bootstrap file during build.
+The base package ships an optional MSBuild target that can prebundle a developer pairing ticket during build.
 
 Enable it in your app project:
 
@@ -174,7 +182,7 @@ Optional properties:
 </PropertyGroup>
 ```
 
-Embed both pairing files as exact-name resources so the runtime can resolve them from `BundledProfileAssembly`:
+Embed both pairing files as exact-name resources so the runtime can resolve them from `BundledTicketAssembly`:
 
 ```xml
 <ItemGroup>
@@ -185,10 +193,10 @@ Embed both pairing files as exact-name resources so the runtime can resolve them
 </ItemGroup>
 ```
 
-When enabled, the target reads your source pairing config, captures local machine metadata when available, and writes a bootstrap document containing:
+When enabled, the target reads your source pairing config, captures local machine metadata when available, and writes a pairing ticket containing:
 
 - the original `PairingConfig`
-- a `PairingDiscoveryHint` with network address, machine name, and Wi-Fi name when available
+- a `PairingDiscoveryHint` with host addresses, machine name, and Wi-Fi name when available
 
 On Unix it uses `generate-ansight-developer-pairing.sh`. On Windows it uses `generate-ansight-developer-pairing.ps1`.
 
@@ -221,4 +229,4 @@ Only use `AnsightAllowRemoteTools=true` for local Debug builds. Do not enable re
 
 - Ansight is best-effort telemetry and has observer overhead.
 - Use platform profilers for authoritative measurements.
-- Pairing requires a reachable address supplied manually or via a saved discovery hint.
+- Pairing requires a ticket with a current discovery hint or an explicit `HostAddressOverride`.

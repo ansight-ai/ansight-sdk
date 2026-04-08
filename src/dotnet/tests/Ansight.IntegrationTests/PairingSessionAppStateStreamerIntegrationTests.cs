@@ -2,6 +2,7 @@ using System.Net.WebSockets;
 using System.Text.Json;
 using Ansight.IntegrationTests.Support;
 using Ansight.Pairing;
+using Ansight.Pairing.Models;
 
 namespace Ansight.IntegrationTests;
 
@@ -16,7 +17,23 @@ public sealed class PairingSessionAppStateStreamerIntegrationTests
 
         await using var server = await LoopbackWebSocketServer.StartAsync(message =>
         {
-            return GetMessageType(message) == "CLIENT_APP_STATE" ? "ACK" : null;
+            var request = TryParseEnvelope(message);
+            if (request is null || !string.Equals(request.Type, PairingControlEnvelope.RequestType, StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            return JsonSerializer.Serialize(
+                new PairingControlEnvelope
+                {
+                    Type = PairingControlEnvelope.ResponseType,
+                    Id = "host.response",
+                    ReplyTo = request.Id,
+                    Action = request.Action,
+                    Success = true,
+                    Message = "ok"
+                },
+                PairingJson.Compact);
         });
 
         using var webSocket = await ConnectAsync(server.WebSocketUri);
@@ -35,7 +52,7 @@ public sealed class PairingSessionAppStateStreamerIntegrationTests
         Runtime.SetAppLifecycleState(AppLifecycleState.Background, DateTimeOffset.Parse("2026-03-22T01:02:00Z"));
         await Task.Delay(250);
 
-        Assert.Equal(2, server.TextMessages.Count(message => GetMessageType(message) == "CLIENT_APP_STATE"));
+        Assert.Equal(2, server.TextMessages.Count(message => GetMessageAction(message) == PairingControlActions.AppState));
         Assert.Equal("background", GetState(server.TextMessages[1]));
 
         await streamer.StopAsync(CancellationToken.None);
@@ -50,19 +67,19 @@ public sealed class PairingSessionAppStateStreamerIntegrationTests
         return webSocket;
     }
 
-    private static string? GetMessageType(string json)
+    private static PairingControlEnvelope? TryParseEnvelope(string json)
     {
-        using var document = JsonDocument.Parse(json);
-        return document.RootElement.TryGetProperty("type", out var typeElement)
-            ? typeElement.GetString()
-            : null;
+        return JsonSerializer.Deserialize<PairingControlEnvelope>(json, PairingJson.Compact);
+    }
+
+    private static string? GetMessageAction(string json)
+    {
+        return TryParseEnvelope(json)?.Action;
     }
 
     private static string? GetState(string json)
     {
-        using var document = JsonDocument.Parse(json);
-        return document.RootElement.TryGetProperty("state", out var stateElement)
-            ? stateElement.GetString()
-            : null;
+        var payload = TryParseEnvelope(json)?.Payload;
+        return payload?["state"]?.GetValue<string>();
     }
 }

@@ -5,7 +5,7 @@ namespace Ansight;
 /// <summary>
 /// Controls the runtime-owned Ansight host connection.
 /// </summary>
-public interface IHostConnection
+internal interface IHostConnection
 {
     HostConnectionState State { get; }
 
@@ -23,12 +23,12 @@ public interface IHostConnection
         ParsedPairingDocument document,
         string? clientName = null,
         PairingConnectionOptions? connectionOptions = null,
-        IProgress<HostPairingProgressUpdate>? progress = null,
+        IProgress<StudioConnectionProgressUpdate>? progress = null,
         CancellationToken cancellationToken = default);
 
     Task<HostConnectionActionResult> ConnectUsingCachedProfileAsync(
         string? clientName = null,
-        IProgress<HostPairingProgressUpdate>? progress = null,
+        IProgress<StudioConnectionProgressUpdate>? progress = null,
         CancellationToken cancellationToken = default);
 
     Task<HostConnectionActionResult> DisconnectAsync(CancellationToken cancellationToken = default);

@@ -55,23 +55,17 @@ public enum AnsightEventType: String, Sendable, Codable, CaseIterable {
 
 public struct PairingOpenOptions: Sendable {
     public var clientName: String
-    public var manualHostAddress: String
     public var expectedAppId: String?
     public var profileOverride: [String: String]
-    public var allowDiscoveryHintHostFallback: Bool
 
     public init(
         clientName: String,
-        manualHostAddress: String,
         expectedAppId: String? = nil,
-        profileOverride: [String: String] = [:],
-        allowDiscoveryHintHostFallback: Bool = true
+        profileOverride: [String: String] = [:]
     ) {
         self.clientName = clientName
-        self.manualHostAddress = manualHostAddress
         self.expectedAppId = expectedAppId
         self.profileOverride = profileOverride
-        self.allowDiscoveryHintHostFallback = allowDiscoveryHintHostFallback
     }
 }
 
@@ -138,6 +132,10 @@ public struct AnsightToolDescriptor: Sendable, Codable, Equatable {
 
     public var scopeValue: AnsightToolScope? {
         AnsightToolScope(rawValue: scope)
+    }
+
+    public var capability: AnsightToolCapability {
+        AnsightToolCapability.fromCategory(category)
     }
 }
 

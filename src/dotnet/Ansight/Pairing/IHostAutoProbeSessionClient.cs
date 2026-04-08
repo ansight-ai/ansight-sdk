@@ -10,7 +10,7 @@ internal interface IHostAutoProbeSessionClient
 
     Task<HostConnectionActionResult> ConnectUsingCachedProfileAsync(
         string? clientName,
-        IProgress<HostPairingProgressUpdate>? progress,
+        IProgress<StudioConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken);
 
     Task<HostConnectionActionResult> DisconnectAsync(CancellationToken cancellationToken);

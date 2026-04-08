@@ -16,17 +16,17 @@ internal interface IHostConnectionSessionClient : IDisposable
         ParsedPairingDocument document,
         string clientName,
         PairingConnectionOptions? options,
-        IProgress<HostPairingProgressUpdate>? progress,
+        IProgress<StudioConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken);
 
     Task<OpenSessionResult> OpenCachedSessionAsync(
         string? clientName,
-        IProgress<HostPairingProgressUpdate>? progress,
+        IProgress<StudioConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken);
 
     Task<OperationResult> StartMetricsStreamingAsync(
         IDataSink dataSink,
-        IProgress<HostPairingProgressUpdate>? progress,
+        IProgress<StudioConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken);
 
     Task<OperationResult> CloseSessionAsync(CancellationToken cancellationToken);

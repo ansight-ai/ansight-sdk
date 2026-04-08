@@ -103,10 +103,8 @@ final class AnsightBridgeModule: NSObject {
                 pairingJson: pairingJson,
                 options: PairingOpenOptions(
                     clientName: options["clientName"] as? String ?? "",
-                    manualHostAddress: options["manualHostAddress"] as? String ?? "",
                     expectedAppId: options["expectedAppId"] as? String,
-                    profileOverride: options["profileOverride"] as? [String: String] ?? [:],
-                    allowDiscoveryHintHostFallback: (options["allowDiscoveryHintHostFallback"] as? NSNumber)?.boolValue ?? true
+                    profileOverride: options["profileOverride"] as? [String: String] ?? [:]
                 )
             )
 

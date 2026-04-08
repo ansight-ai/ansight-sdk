@@ -3,27 +3,25 @@ import XCTest
 @testable import AnsightKit
 
 final class PairingAndRuntimeTests: XCTestCase {
-    func testParseDocumentAppliesConnectionHintFromBootstrapDocument() throws {
-        let config = TestPairingFactory.signedConfig(configId: "cfg-trust", oneTimeToken: "token-trust")
-        let hint = TestPairingFactory.connectionHint(
-            configId: "cfg-effective",
-            oneTimeToken: "token-effective",
-            challengePubKey: "challenge-effective"
+    func testParseDocumentParsesPairingTicket() throws {
+        let config = TestPairingFactory.signedConfig(
+            configId: "cfg-ticket",
+            oneTimeToken: "token-ticket",
+            challengePubKey: "challenge-ticket"
         )
-        let documentJson = try TestPairingFactory.bootstrapJSON(config: config, connectionHint: hint)
+        let documentJson = try TestPairingFactory.ticketJSON(config: config)
 
         let document = try PairingConfigDocumentService().parseDocument(documentJson)
 
-        XCTAssertEqual(document.config.configId, "cfg-effective")
-        XCTAssertEqual(document.config.oneTimeToken, "token-effective")
-        XCTAssertEqual(document.config.challenge.challengePubKey, "challenge-effective")
-        XCTAssertEqual(document.trustAnchorConfig?.configId, "cfg-trust")
+        XCTAssertEqual(document.config.configId, "cfg-ticket")
+        XCTAssertEqual(document.config.oneTimeToken, "token-ticket")
+        XCTAssertEqual(document.config.challenge.challengePubKey, "challenge-ticket")
         XCTAssertEqual(document.discoveryHint?.hostAddress, "127.0.0.1")
     }
 
-    func testOpenSessionUsesDiscoveryHintHostFallback() throws {
+    func testOpenSessionUsesTicketDiscoveryHint() throws {
         let config = TestPairingFactory.signedConfig()
-        let documentJson = try TestPairingFactory.bootstrapJSON(config: config, connectionHint: nil)
+        let documentJson = try TestPairingFactory.ticketJSON(config: config)
         XCTAssertNoThrow(
             try PairingConfigDocumentService().validateDocument(
                 ParsedPairingDocument(config: config),
@@ -32,17 +30,13 @@ final class PairingAndRuntimeTests: XCTestCase {
         )
 
         let parsedDocument = try PairingConfigDocumentService().parseDocument(documentJson)
-        XCTAssertEqual(
-            PairingCanonicalJSON.signables(for: config),
-            PairingCanonicalJSON.signables(for: parsedDocument.config)
-        )
+        XCTAssertEqual(parsedDocument.config.configId, config.configId)
         try AnsightRuntime.shared.initialize()
 
         let result = try AnsightRuntime.shared.openSession(
             pairingJson: documentJson,
             options: PairingOpenOptions(
                 clientName: "Unit Test",
-                manualHostAddress: "",
                 expectedAppId: config.appId
             )
         )
@@ -51,6 +45,28 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertEqual(result.configId, config.configId)
         XCTAssertEqual(result.resolvedHostAddress, "127.0.0.1")
         XCTAssertFalse(result.usedEmbeddedDeveloperPairing)
+    }
+
+    func testParseDocumentRejectsLegacyBootstrapPayload() {
+        let bootstrapJson = """
+        {
+          "schema": "ansight.pairing-bootstrap.v1",
+          "pairingConfig": {}
+        }
+        """
+
+        XCTAssertThrowsError(try PairingConfigDocumentService().parseDocument(bootstrapJson)) { error in
+            XCTAssertTrue((error as NSError).localizedDescription.contains("no longer supported"))
+        }
+    }
+
+    func testParseDocumentRejectsBarePairingConfigPayload() throws {
+        let config = TestPairingFactory.signedConfig()
+        let configJson = String(decoding: try JSONEncoder().encode(config), as: UTF8.self)
+
+        XCTAssertThrowsError(try PairingConfigDocumentService().parseDocument(configJson)) { error in
+            XCTAssertTrue((error as NSError).localizedDescription.contains("pairing ticket"))
+        }
     }
 
     func testBundledToolScanReportDefaultsToNoDetectedTools() {
@@ -112,47 +128,27 @@ private enum TestPairingFactory {
             signature: ""
         )
 
-        let signable = PairingCanonicalJSON.signables(for: config).first ?? ""
+        let signable = PairingCanonicalJSON.serializePairingConfigForSignature(config)
         let signature = try! privateKey.signature(for: Data(signable.utf8))
         config.signature = signature.derRepresentation.base64EncodedString()
         return config
     }
 
-    static func connectionHint(
-        configId: String = "cfg-override",
-        oneTimeToken: String = "token-override",
-        challengePubKey: String = "challenge-override"
-    ) -> PairingConnectionHint {
-        PairingConnectionHint(
-            configId: configId,
-            issuedAt: timestamp(Date().addingTimeInterval(-60)),
-            expiresAt: timestamp(Date().addingTimeInterval(600)),
-            oneTimeToken: oneTimeToken,
-            challenge: PairingChallenge(
-                alg: "ECDH-P256",
-                challengePubKey: challengePubKey,
-                requireProofOnFirstPair: false
-            )
-        )
-    }
-
-    static func bootstrapJSON(
-        config: PairingConfig,
-        connectionHint: PairingConnectionHint?
+    static func ticketJSON(
+        config: PairingConfig
     ) throws -> String {
-        let bootstrap = PairingBootstrapDocument(
-            pairingConfig: config,
+        let ticket = PairingTicket(
+            config: config,
             discovery: PairingDiscoveryHint(
                 source: "unit-test",
                 hostAddress: "127.0.0.1",
                 hostName: "test-host",
                 wifiName: nil,
                 capturedAt: timestamp(Date())
-            ),
-            connectionHint: connectionHint
+            )
         )
 
-        let data = try JSONEncoder().encode(bootstrap)
+        let data = try JSONEncoder().encode(ticket)
         return String(decoding: data, as: UTF8.self)
     }
 

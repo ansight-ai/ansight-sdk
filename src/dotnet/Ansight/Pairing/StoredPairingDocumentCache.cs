@@ -34,7 +34,7 @@ internal sealed class StoredPairingDocumentCache
 
         if (!File.Exists(cacheFilePath))
         {
-            error = "No cached pairing profile is available.";
+            error = "No cached Ansight Studio session is available.";
             return false;
         }
 
@@ -45,7 +45,7 @@ internal sealed class StoredPairingDocumentCache
         }
         catch (Exception ex)
         {
-            error = $"Failed to read cached pairing profile: {ex.Message}";
+            error = $"Failed to read cached Ansight Studio session: {ex.Message}";
             return false;
         }
 
@@ -54,8 +54,8 @@ internal sealed class StoredPairingDocumentCache
             document = null;
             Clear();
             error = string.IsNullOrWhiteSpace(error)
-                ? "Cached pairing profile is invalid and was cleared."
-                : $"{error} Cached pairing profile was cleared.";
+                ? "Cached Ansight Studio session is invalid and was cleared."
+                : $"{error} Cached Ansight Studio session was cleared.";
             return false;
         }
 
@@ -72,7 +72,8 @@ internal sealed class StoredPairingDocumentCache
             Directory.CreateDirectory(directoryPath);
         }
 
-        var json = PairingDocumentJson.Serialize(document, indented: true);
+        var ticket = PairingConfigDocumentService.CreateTicket(document);
+        var json = PairingTicketJson.Serialize(ticket, indented: true);
         File.WriteAllText(cacheFilePath, json);
     }
 

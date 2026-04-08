@@ -51,10 +51,9 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.openSessionButton).setOnClickListener {
             runCatching {
                 AnsightRuntime.openSession(
-                    pairingJson = """{"schema":"ansight.pairing-config.v1"}""",
+                    pairingJson = """{"schema":"ansight.pairing-ticket.v1"}""",
                     options = PairingOpenOptions(
                         clientName = "Android Harness",
-                        manualHostAddress = "127.0.0.1",
                     ),
                 )
             }

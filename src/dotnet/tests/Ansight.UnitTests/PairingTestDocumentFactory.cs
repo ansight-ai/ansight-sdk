@@ -1,6 +1,5 @@
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json;
 using Ansight.Pairing;
 
 namespace Ansight.UnitTests;
@@ -62,26 +61,21 @@ internal static class PairingTestDocumentFactory
         return config;
     }
 
-    public static PairingConnectionHint CreateConnectionHint(
-        string configId = "cfg-override",
-        string oneTimeToken = "token-override",
-        string challengePubKey = "challenge-override",
-        DateTimeOffset? issuedAt = null,
-        DateTimeOffset? expiresAt = null)
+    public static PairingTicket CreateTicket(
+        PairingConfig? config = null,
+        PairingDiscoveryHint? discoveryHint = null)
     {
-        return new PairingConnectionHint
+        if (config is null)
         {
-            Schema = PairingConnectionHint.SchemaName,
-            ConfigId = configId,
-            IssuedAt = issuedAt ?? DateTimeOffset.UtcNow.AddMinutes(-1),
-            ExpiresAt = expiresAt ?? DateTimeOffset.UtcNow.AddMinutes(10),
-            OneTimeToken = oneTimeToken,
-            Challenge = new PairingChallenge
-            {
-                Alg = "ECDH-P256",
-                ChallengePubKey = challengePubKey,
-                RequireProofOnFirstPair = false
-            }
+            using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+            config = CreateSignedConfig(signingKey);
+        }
+
+        return new PairingTicket
+        {
+            Schema = PairingTicket.SchemaName,
+            Config = config,
+            Discovery = discoveryHint ?? CreateDiscoveryHint()
         };
     }
 
@@ -107,30 +101,17 @@ internal static class PairingTestDocumentFactory
         };
     }
 
-    public static PairingQrConnectionPayload CreateQrConnectionPayload(
-        PairingConnectionHint? connectionHint = null,
+    public static string CreateTicketJson(
+        PairingConfig? config = null,
         PairingDiscoveryHint? discoveryHint = null)
     {
-        return new PairingQrConnectionPayload
-        {
-            Schema = PairingQrConnectionPayload.SchemaName,
-            Connection = connectionHint ?? CreateConnectionHint(),
-            Discovery = discoveryHint ?? CreateDiscoveryHint()
-        };
+        return PairingTicketJson.Serialize(CreateTicket(config, discoveryHint));
     }
 
-    public static string CreateBootstrapJson(
-        PairingConfig pairingConfig,
-        PairingConnectionHint? connectionHint = null)
+    public static string CreateCompactTicket(
+        PairingConfig? config = null,
+        PairingDiscoveryHint? discoveryHint = null)
     {
-        var bootstrap = new PairingBootstrapDocument
-        {
-            Schema = PairingBootstrapDocument.SchemaName,
-            PairingConfig = pairingConfig,
-            ConnectionHint = connectionHint,
-            Discovery = CreateDiscoveryHint(hostName: null, wifiName: null, capturedAt: null)
-        };
-
-        return JsonSerializer.Serialize(bootstrap, PairingJson.Compact);
+        return PairingTicketCodeGenerator.Serialize(CreateTicket(config, discoveryHint));
     }
 }
