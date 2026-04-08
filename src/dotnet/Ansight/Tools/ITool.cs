@@ -16,11 +16,6 @@ public interface ITool
     ToolScope Scope { get; }
 
     /// <summary>
-    /// Capability token used to authorize this tool as part of a broader feature area.
-    /// </summary>
-    ToolCapability Capability => ToolCapability.FromCategory(Category);
-
-    /// <summary>
     /// Stable unique identifier used to invoke the tool over the protocol.
     /// </summary>
     string Id { get; }

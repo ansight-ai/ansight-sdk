@@ -89,8 +89,7 @@ Response payload shape:
   "guard": {
     "discoveryEnabled": true,
     "executionEnabled": true,
-    "allowedScopes": ["Read"],
-    "allowedToolIds": []
+    "allowedScopes": ["Read"]
   },
   "tools": [
     {

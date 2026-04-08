@@ -144,7 +144,7 @@ var options = Options.CreateBuilder()
     .Build();
 ```
 
-The feature packages currently group tools by capability area:
+The feature packages currently group tools by functional area:
 
 Reflection roots support path-based write/invoke allow-lists plus type-wide helpers like `AllowAllWritableMembersOn<T>()` and `AllowAllInvokableMethodsOn<T>()` when an entire reachable type should be enabled.
 

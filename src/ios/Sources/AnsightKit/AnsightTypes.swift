@@ -134,9 +134,6 @@ public struct AnsightToolDescriptor: Sendable, Codable, Equatable {
         AnsightToolScope(rawValue: scope)
     }
 
-    public var capability: AnsightToolCapability {
-        AnsightToolCapability.fromCategory(category)
-    }
 }
 
 public struct RecordedMetric: Sendable, Codable {
