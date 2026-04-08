@@ -14,6 +14,9 @@ internal static class PairingTestDocumentFactory
         string appName = "Ansight Test",
         string oneTimeToken = "token-1",
         string challengePubKey = "challenge-key",
+        string? hostId = "host-1",
+        string? hostName = "test-host",
+        int discoveryPort = 41000,
         DateTimeOffset? issuedAt = null,
         DateTimeOffset? expiresAt = null)
     {
@@ -32,9 +35,9 @@ internal static class PairingTestDocumentFactory
             OneTimeToken = oneTimeToken,
             Host = new PairingHost
             {
-                HostId = "host-1",
-                HostName = "test-host",
-                DiscoveryPort = 41000,
+                HostId = hostId,
+                HostName = hostName,
+                DiscoveryPort = discoveryPort,
                 HostPubKey = publicKey,
                 HostPubKeyFingerprint = "fingerprint-1"
             },
@@ -85,6 +88,7 @@ internal static class PairingTestDocumentFactory
     public static PairingDiscoveryHint CreateDiscoveryHint(
         string hostAddress = "127.0.0.1",
         string[]? hostAddresses = null,
+        int? discoveryPort = null,
         string? hostName = "test-host",
         string? wifiName = null,
         string? source = "unit-test",
@@ -96,6 +100,7 @@ internal static class PairingTestDocumentFactory
             Schema = PairingDiscoveryHint.SchemaName,
             Source = source,
             HostAddresses = resolvedHostAddresses,
+            DiscoveryPort = discoveryPort,
             HostName = hostName,
             WifiName = wifiName,
             CapturedAt = capturedAt ?? DateTimeOffset.UtcNow

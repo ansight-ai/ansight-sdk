@@ -86,6 +86,26 @@ Runtime.Deactivate();
 Runtime.Clear();
 ```
 
+## Bundled pairing
+
+For embedded resources, configure the runtime-owned pairing flow with the app assembly:
+
+```csharp
+var options = Options.CreateBuilder()
+    .WithBundledHostPairing(typeof(App).Assembly)
+    .Build();
+```
+
+For packaged text assets such as MAUI app assets, provide a shared loader for the standard asset names:
+
+```csharp
+var options = Options.CreateBuilder()
+    .WithBundledHostPairing(
+        (assetName, cancellationToken) => TryLoadBundledTextAssetAsync(assetName, cancellationToken),
+        payloadReader: new MyHostPairingPayloadReader())
+    .Build();
+```
+
 ## Remote tool registration
 
 The core `Ansight` package contains `ITool`, `ToolScope`, `ToolSchema`, `ToolDefinition`, `ToolRegistry`, `ToolResult`, and the `OptionsBuilder` registration methods. Each tool declares whether it is `Read`, `Write`, or `Delete`, plus explicit argument/result schemas for bridges such as MCP. A bridge can read `tool.Definition` or `options.Tools.GetDefinitions()` to discover how to call the tool. Concrete tool groups are delivered as separate packages and register through fluent extensions:

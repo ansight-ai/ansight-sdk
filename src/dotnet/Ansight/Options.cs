@@ -4,6 +4,7 @@ using Ansight.Tools;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 
 /// <summary>
 /// Configures how Ansight samples, retains, and logs runtime data.
@@ -473,6 +474,50 @@ public class Options
         }
 
         /// <summary>
+        /// Configures runtime-owned host pairing to resolve the standard bundled pairing asset names from the provided assembly.
+        /// </summary>
+        /// <param name="bundledProfileAssembly">Assembly containing resources named <c>ansight.developer-pairing.json</c> and/or <c>ansight.json</c>.</param>
+        /// <param name="payloadReader">Optional platform-owned pairing payload reader.</param>
+        /// <returns>The current builder.</returns>
+        public OptionsBuilder WithBundledHostPairing(
+            Assembly bundledProfileAssembly,
+            IHostPairingPayloadReader? payloadReader = null)
+        {
+            ArgumentNullException.ThrowIfNull(bundledProfileAssembly);
+
+            return ConfigureHostPairing(hostPairing =>
+            {
+                hostPairing.UseBundledProfileAssembly(bundledProfileAssembly);
+                if (payloadReader is not null)
+                {
+                    hostPairing.UsePayloadReader(payloadReader);
+                }
+            });
+        }
+
+        /// <summary>
+        /// Configures runtime-owned host pairing to resolve the standard bundled pairing asset names from a shared text asset loader.
+        /// </summary>
+        /// <param name="bundledAssetLoader">Loader that resolves bundled text assets by logical asset name.</param>
+        /// <param name="payloadReader">Optional platform-owned pairing payload reader.</param>
+        /// <returns>The current builder.</returns>
+        public OptionsBuilder WithBundledHostPairing(
+            HostPairingBundledAssetLoader bundledAssetLoader,
+            IHostPairingPayloadReader? payloadReader = null)
+        {
+            ArgumentNullException.ThrowIfNull(bundledAssetLoader);
+
+            return ConfigureHostPairing(hostPairing =>
+            {
+                hostPairing.UseBundledTextAssets(bundledAssetLoader);
+                if (payloadReader is not null)
+                {
+                    hostPairing.UsePayloadReader(payloadReader);
+                }
+            });
+        }
+
+        /// <summary>
         /// Mutates the runtime-owned host pairing configuration in-place.
         /// </summary>
         public OptionsBuilder ConfigureHostPairing(Action<HostPairingOptions> configure)
@@ -482,6 +527,16 @@ public class Options
             options.HostPairing ??= HostPairingOptions.Default.Clone();
             configure(options.HostPairing);
             return this;
+        }
+
+        /// <summary>
+        /// Configures the UDP discovery port used for runtime-owned host pairing connections.
+        /// </summary>
+        /// <param name="discoveryPort">UDP discovery port to use for the initial pairing bootstrap.</param>
+        /// <returns>The current builder.</returns>
+        public OptionsBuilder WithHostPairingDiscoveryPort(int discoveryPort)
+        {
+            return ConfigureHostPairing(hostPairing => hostPairing.UseDiscoveryPort(discoveryPort));
         }
 
         /// <summary>

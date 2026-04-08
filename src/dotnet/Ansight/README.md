@@ -34,16 +34,23 @@ public static class AppBootstrap
     public static async Task ConfigureAnsightAsync(string payload)
     {
         var options = Options.CreateBuilder()
-            .WithHostPairing(new HostPairingOptions
-            {
-                BundledProfileAssembly = typeof(AppBootstrap).Assembly
-            })
+            .WithBundledHostPairing(typeof(AppBootstrap).Assembly)
             .Build();
 
         Runtime.InitializeAndActivate(options);
         var qrConnectResult = await Runtime.HostPairing.ConnectFromPayloadAsync(payload, "QR pairing code");
     }
 }
+```
+
+When the pairing documents live in packaged text assets instead of embedded resources, use the bundled asset loader overload and keep the standard asset names:
+
+```csharp
+var options = Options.CreateBuilder()
+    .WithBundledHostPairing(
+        (assetName, cancellationToken) => TryLoadBundledTextAssetAsync(assetName, cancellationToken),
+        payloadReader: new MyHostPairingPayloadReader())
+    .Build();
 ```
 
 ## Data access

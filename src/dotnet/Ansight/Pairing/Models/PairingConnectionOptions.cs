@@ -16,6 +16,12 @@ public sealed class PairingConnectionOptions
     public string? ManualHostAddress { get; set; }
 
     /// <summary>
+    /// Optional UDP discovery port to use for the initial pairing bootstrap.
+    /// When omitted, Ansight prefers a discovery hint port, then any legacy config port, then the default protocol port.
+    /// </summary>
+    public int? DiscoveryPort { get; set; }
+
+    /// <summary>
     /// Optional app profile values to add to or override the automatically collected baseline profile.
     /// </summary>
     public DeviceAppProfile? DeviceAppProfile { get; set; }

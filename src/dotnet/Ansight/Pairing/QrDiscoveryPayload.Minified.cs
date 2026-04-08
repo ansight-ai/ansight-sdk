@@ -16,11 +16,12 @@ public static partial class QrDiscoveryPayload
     private static readonly string[] challengePubKeyPropertyNames = ["challengePubKey", "cpk", "pk", "pubKey"];
     private static readonly string[] requireProofPropertyNames = ["requireProofOnFirstPair", "requireProof", "proof", "rp"];
     private static readonly string[] hostAddressesPropertyNames = ["hostAddresses", "has", "ips", "addresses"];
+    private static readonly string[] discoveryPortPropertyNames = ["discoveryPort", "dp", "port"];
     private static readonly string[] hostNamePropertyNames = ["hostName", "hn", "name"];
     private static readonly string[] wifiNamePropertyNames = ["wifiName", "wn", "wifi", "ssid"];
     private static readonly string[] capturedAtPropertyNames = ["capturedAt", "ca", "captured", "ts"];
     private static readonly string[] minifiedConnectionSignalPropertyNames = ["ci", "ia", "iat", "ea", "exp", "ot", "ch", "cpk", "pk", "rp"];
-    private static readonly string[] minifiedDiscoverySignalPropertyNames = ["has", "ips", "hn", "wn", "ca", "ts"];
+    private static readonly string[] minifiedDiscoverySignalPropertyNames = ["has", "ips", "dp", "port", "hn", "wn", "ca", "ts"];
 
     private static bool TryParseMinifiedConnectionPayload(string payload, out PairingQrConnectionPayload? connectionPayload)
     {
@@ -183,6 +184,7 @@ public static partial class QrDiscoveryPayload
         }
 
         if (!candidate.TryReadOptionalStringArrayValue(hostAddressesPropertyNames, out var hostAddresses) ||
+            !candidate.TryReadOptionalInt32Value(discoveryPortPropertyNames, out var discoveryPort) ||
             !candidate.TryReadOptionalStringValue(hostNamePropertyNames, out var hostName) ||
             !candidate.TryReadOptionalStringValue(wifiNamePropertyNames, out var wifiName) ||
             !candidate.TryReadOptionalDateTimeOffsetValue(capturedAtPropertyNames, out var capturedAt) ||
@@ -208,6 +210,7 @@ public static partial class QrDiscoveryPayload
             Schema = PairingDiscoveryHint.SchemaName,
             Source = source,
             HostAddresses = normalizedHostAddresses.Length == 0 ? null : normalizedHostAddresses,
+            DiscoveryPort = discoveryPort,
             HostName = hostName,
             WifiName = wifiName,
             CapturedAt = capturedAt

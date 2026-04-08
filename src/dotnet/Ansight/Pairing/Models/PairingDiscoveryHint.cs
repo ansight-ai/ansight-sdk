@@ -26,6 +26,11 @@ public sealed class PairingDiscoveryHint
     public string[]? HostAddresses { get; set; }
 
     /// <summary>
+    /// Optional UDP discovery port advertised for the connection bootstrap.
+    /// </summary>
+    public int? DiscoveryPort { get; set; }
+
+    /// <summary>
     /// Human-readable host name captured when the hint was created.
     /// </summary>
     public string? HostName { get; set; }

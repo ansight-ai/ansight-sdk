@@ -274,4 +274,50 @@ internal static class QrDiscoveryPayloadJsonElementExtensions
                 return false;
         }
     }
+
+    public static bool TryReadOptionalInt32Value(
+        this JsonElement element,
+        IReadOnlyList<string> propertyNames,
+        out int? value)
+    {
+        value = null;
+        if (!element.TryGetPropertyValue(propertyNames, out var propertyValue))
+        {
+            return true;
+        }
+
+        switch (propertyValue.ValueKind)
+        {
+            case JsonValueKind.Null:
+            case JsonValueKind.Undefined:
+                return true;
+
+            case JsonValueKind.Number:
+                if (propertyValue.TryGetInt32(out var numericValue))
+                {
+                    value = numericValue;
+                    return true;
+                }
+
+                return false;
+
+            case JsonValueKind.String:
+                var raw = propertyValue.GetString();
+                if (string.IsNullOrWhiteSpace(raw))
+                {
+                    return true;
+                }
+
+                if (int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out numericValue))
+                {
+                    value = numericValue;
+                    return true;
+                }
+
+                return false;
+
+            default:
+                return false;
+        }
+    }
 }

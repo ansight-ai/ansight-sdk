@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Ansight.Pairing.Models;
 
 namespace Ansight.Pairing;
@@ -13,17 +14,30 @@ internal static class PairingDocumentJson
             document.ConnectionHint is null &&
             document.TrustAnchorConfig is null)
         {
-            return JsonSerializer.Serialize(document.Config, indented ? PairingJson.Pretty : PairingJson.Compact);
+            return PairingConfigJson.Serialize(document.Config, indented);
         }
 
-        var bootstrap = new PairingBootstrapDocument
+        var bootstrap = new PairingBootstrapDocumentJsonModel
         {
             Schema = PairingBootstrapDocument.SchemaName,
-            PairingConfig = document.TrustAnchorConfig ?? document.Config,
+            PairingConfig = PairingConfigJson.CreateJsonModel(document.TrustAnchorConfig ?? document.Config),
             Discovery = document.DiscoveryHint,
             ConnectionHint = document.ConnectionHint
         };
 
         return JsonSerializer.Serialize(bootstrap, indented ? PairingJson.Pretty : PairingJson.Compact);
+    }
+
+    private sealed class PairingBootstrapDocumentJsonModel
+    {
+        public required string Schema { get; init; }
+
+        public required object PairingConfig { get; init; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public PairingDiscoveryHint? Discovery { get; init; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public PairingConnectionHint? ConnectionHint { get; init; }
     }
 }

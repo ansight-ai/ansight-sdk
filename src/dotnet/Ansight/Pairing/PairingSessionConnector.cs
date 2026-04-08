@@ -49,6 +49,7 @@ internal sealed class PairingSessionConnector
                 PairingFailureCodes.WifiRequired);
         }
 
+        var discoveryPort = ResolveDiscoveryPort(options);
         var discoveryMode = options?.DiscoveryMode ?? PairingDiscoveryMode.ConfiguredHint;
         HostPairingProgressReporter.Report(
             progress,
@@ -60,7 +61,7 @@ internal sealed class PairingSessionConnector
         HostPairingProgressReporter.Report(
             progress,
             HostPairingProgressKind.Connection,
-            $"Connecting to host at {hostAddress}:{config.Host.DiscoveryPort}",
+            $"Connecting to host at {hostAddress}:{discoveryPort}",
             source: HostPairingSource.HostConnection);
 
         using var connectTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -69,7 +70,12 @@ internal sealed class PairingSessionConnector
         ConnectResponse? connectResponse;
         try
         {
-            connectResponse = await SendConnectRequestAsync(config, clientName, hostAddress!, connectTimeout.Token);
+            connectResponse = await SendConnectRequestAsync(
+                config,
+                clientName,
+                hostAddress!,
+                discoveryPort,
+                connectTimeout.Token);
         }
         catch (SocketException ex)
         {
@@ -215,6 +221,7 @@ internal sealed class PairingSessionConnector
         PairingConfig config,
         string clientName,
         IPAddress hostAddress,
+        int discoveryPort,
         CancellationToken cancellationToken)
     {
         using var udpClient = new UdpClient(hostAddress.AddressFamily);
@@ -231,7 +238,7 @@ internal sealed class PairingSessionConnector
         };
 
         var bytes = JsonSerializer.SerializeToUtf8Bytes(request, PairingJson.Compact);
-        await udpClient.SendAsync(bytes, bytes.Length, new IPEndPoint(hostAddress, config.Host.DiscoveryPort));
+        await udpClient.SendAsync(bytes, bytes.Length, new IPEndPoint(hostAddress, discoveryPort));
 
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -275,6 +282,13 @@ internal sealed class PairingSessionConnector
             Query = $"token={Uri.EscapeDataString(token)}"
         };
         return builder.Uri;
+    }
+
+    private static int ResolveDiscoveryPort(PairingConnectionOptions? options)
+    {
+        return options?.DiscoveryPort is > 0 and <= ushort.MaxValue
+            ? options.DiscoveryPort.Value
+            : PairingProtocolDefaults.DiscoveryPort;
     }
 
     private static bool TryResolveManualHostAddress(string? manualHostAddress, out IPAddress? hostAddress)

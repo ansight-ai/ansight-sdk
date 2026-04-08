@@ -509,14 +509,14 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
                     "QR pairing code requires a saved or bundled pairing profile before it can be used.");
             }
 
-            var bootstrap = new PairingBootstrapDocument
+            var bootstrap = new ParsedPairingDocument
             {
-                Schema = PairingBootstrapDocument.SchemaName,
-                PairingConfig = baseDocument.Document.TrustAnchorConfig ?? baseDocument.Document.Config,
-                Discovery = connectionPayload!.Discovery ?? baseDocument.Document.DiscoveryHint,
+                Config = baseDocument.Document.Config,
+                TrustAnchorConfig = baseDocument.Document.TrustAnchorConfig ?? baseDocument.Document.Config,
+                DiscoveryHint = connectionPayload!.Discovery ?? baseDocument.Document.DiscoveryHint,
                 ConnectionHint = connectionPayload.Connection
             };
-            var bootstrapJson = JsonSerializer.Serialize(bootstrap, PairingJson.Compact);
+            var bootstrapJson = PairingDocumentJson.Serialize(bootstrap);
             if (!hostConnection.TryParseAndValidateDocument(bootstrapJson, out var bootstrapDocument, out var bootstrapError) ||
                 bootstrapDocument is null)
             {
@@ -706,7 +706,8 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
             Logger.Warning($"Failed to save the preferred Ansight pairing profile: {ex.Message}");
         }
 
-        LogPairingExpectation(resolvedDocument.Document);
+        var discoveryPort = ResolveDiscoveryPort(resolvedDocument.Document);
+        LogPairingExpectation(resolvedDocument.Document, discoveryPort);
 
         var manualHostAddress = PairingDiscoveryHintHostAddresses.ResolvePrimary(resolvedDocument.Document.DiscoveryHint);
         if (string.IsNullOrWhiteSpace(manualHostAddress))
@@ -724,7 +725,8 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
             new PairingConnectionOptions
             {
                 DiscoveryMode = PairingDiscoveryMode.BasicManual,
-                ManualHostAddress = manualHostAddress
+                ManualHostAddress = manualHostAddress,
+                DiscoveryPort = discoveryPort
             },
             progress,
             cancellationToken);
@@ -870,12 +872,30 @@ internal sealed class HostPairingManager : IHostPairing, IDisposable
         return text;
     }
 
-    private static void LogPairingExpectation(ParsedPairingDocument document)
+    private int ResolveDiscoveryPort(ParsedPairingDocument document)
+    {
+        var candidates = new[]
+        {
+            options.DiscoveryPort,
+            document.DiscoveryHint?.DiscoveryPort
+        };
+
+        foreach (var candidate in candidates)
+        {
+            if (candidate is > 0 and <= ushort.MaxValue)
+            {
+                return candidate.Value;
+            }
+        }
+
+        return PairingProtocolDefaults.DiscoveryPort;
+    }
+
+    private static void LogPairingExpectation(ParsedPairingDocument document, int discoveryPort)
     {
         var expectedHostAddress = PairingDiscoveryHintHostAddresses.ResolvePrimary(document.DiscoveryHint);
         var expectedWifiName = FirstNonEmpty(document.DiscoveryHint?.WifiName);
         var expectedHostName = FirstNonEmpty(document.DiscoveryHint?.HostName, document.Config.Host.HostName);
-        var discoveryPort = document.Config.Host.DiscoveryPort;
 
         Logger.Info(
             $"Ansight pairing expectation: wifi={expectedWifiName ?? "Unknown"} " +

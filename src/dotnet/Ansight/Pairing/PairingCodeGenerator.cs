@@ -63,7 +63,10 @@ public static class PairingCodeGenerator
             discovery?.CapturedAt is DateTimeOffset capturedAt
                 ? capturedAt.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture)
                 : string.Empty,
-            Escape(source)
+            Escape(source),
+            discovery?.DiscoveryPort is > 0 and <= ushort.MaxValue and not PairingProtocolDefaults.DiscoveryPort
+                ? discovery.DiscoveryPort.Value.ToString(CultureInfo.InvariantCulture)
+                : string.Empty
         };
 
         TrimTrailingEmptyLines(lines);
@@ -108,7 +111,8 @@ public static class PairingCodeGenerator
         if (!TryUnescapeOptional(fields, 9, out var hostName)
             || !TryUnescapeOptional(fields, 10, out var wifiName)
             || !TryParseOptionalUnixTimeSeconds(fields, 11, out var capturedAt)
-            || !TryUnescapeOptional(fields, 12, out var source))
+            || !TryUnescapeOptional(fields, 12, out var source)
+            || !TryParseOptionalPort(fields, 13, out var discoveryPort))
         {
             return false;
         }
@@ -138,6 +142,7 @@ public static class PairingCodeGenerator
                 Schema = PairingDiscoveryHint.SchemaName,
                 Source = source,
                 HostAddresses = hostAddresses.Length == 0 ? null : hostAddresses,
+                DiscoveryPort = discoveryPort,
                 HostName = hostName,
                 WifiName = wifiName,
                 CapturedAt = capturedAt
@@ -202,6 +207,33 @@ public static class PairingCodeGenerator
         }
 
         return TryUnescape(raw, out value);
+    }
+
+    private static bool TryParseOptionalPort(IReadOnlyList<string> fields, int index, out int? value)
+    {
+        value = null;
+        if (!TryUnescapeOptional(fields, index, out var raw))
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return true;
+        }
+
+        if (!int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedPort))
+        {
+            return false;
+        }
+
+        if (parsedPort is <= 0 or > ushort.MaxValue)
+        {
+            return false;
+        }
+
+        value = parsedPort;
+        return true;
     }
 
     private static bool TryUnescape(string raw, out string? value)

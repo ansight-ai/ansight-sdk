@@ -238,6 +238,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         }
 
         var config = document.Config;
+        var discoveryPort = ResolveDiscoveryPort(document, options);
         HostPairingProgressReporter.Report(
             progress,
             HostPairingProgressKind.Validation,
@@ -282,7 +283,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
             await jpegStreamer.StartAsync(progress);
             try
             {
-                storedPairingDocumentCache.Save(CreateCachedDocument(document, connectionAttempt.HostAddress));
+                storedPairingDocumentCache.Save(CreateCachedDocument(document, connectionAttempt.HostAddress, discoveryPort));
             }
             catch (Exception ex)
             {
@@ -475,7 +476,8 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
             new PairingConnectionOptions
             {
                 DiscoveryMode = PairingDiscoveryMode.ConfiguredHint,
-                ManualHostAddress = hostAddress
+                ManualHostAddress = hostAddress,
+                DiscoveryPort = document.DiscoveryHint?.DiscoveryPort
             },
             progress,
             cancellationToken);
@@ -544,6 +546,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
     internal static ParsedPairingDocument CreateCachedDocument(
         ParsedPairingDocument document,
         IPAddress? connectedHostAddress,
+        int? discoveryPort = null,
         DateTimeOffset? capturedAt = null)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -563,6 +566,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
                     : existingDiscoveryHint.Schema,
                 Source = existingDiscoveryHint?.Source ?? "live-session",
                 HostAddresses = cachedHostAddresses.Length == 0 ? null : cachedHostAddresses,
+                DiscoveryPort = discoveryPort ?? existingDiscoveryHint?.DiscoveryPort,
                 HostName = existingDiscoveryHint?.HostName,
                 WifiName = existingDiscoveryHint?.WifiName,
                 CapturedAt = string.IsNullOrWhiteSpace(hostAddress)
@@ -595,6 +599,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
                     : existingDiscoveryHint.Schema,
                 Source = existingDiscoveryHint.Source,
                 HostAddresses = null,
+                DiscoveryPort = existingDiscoveryHint.DiscoveryPort,
                 HostName = existingDiscoveryHint.HostName,
                 WifiName = existingDiscoveryHint.WifiName,
                 CapturedAt = existingDiscoveryHint.CapturedAt
@@ -617,6 +622,25 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
             : result.RejectionCode;
         return !string.IsNullOrWhiteSpace(resetCode) &&
                CachedProfileResetCodes.Contains(resetCode);
+    }
+
+    private static int ResolveDiscoveryPort(ParsedPairingDocument document, PairingConnectionOptions? options)
+    {
+        var candidates = new[]
+        {
+            options?.DiscoveryPort,
+            document.DiscoveryHint?.DiscoveryPort
+        };
+
+        foreach (var candidate in candidates)
+        {
+            if (candidate is > 0 and <= ushort.MaxValue)
+            {
+                return candidate.Value;
+            }
+        }
+
+        return PairingProtocolDefaults.DiscoveryPort;
     }
 
     private static string ResolveClientName(string? overrideClientName, DeviceAppProfile? deviceAppProfile)

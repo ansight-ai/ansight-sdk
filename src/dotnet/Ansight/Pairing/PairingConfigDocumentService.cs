@@ -181,25 +181,8 @@ internal sealed class PairingConfigDocumentService
             using var hostKey = ECDsa.Create();
             hostKey.ImportSubjectPublicKeyInfo(publicKey, out _);
 
-            var signables = new[]
-            {
-                PairingCanonicalJson.SerializePairingConfigForSignature(config),
-                PairingCanonicalJson.SerializePairingConfigForSignatureWithoutHostIdentity(config),
-                PairingCanonicalJson.SerializeTransportPairingConfigForSignature(config),
-                PairingCanonicalJson.SerializeTransportPairingConfigForSignatureWithoutHostIdentity(config),
-                PairingCanonicalJson.SerializeLegacyPairingConfigForSignature(config),
-                PairingCanonicalJson.SerializeLegacyPairingConfigForSignatureWithoutHostIdentity(config)
-            };
-
-            foreach (var signable in signables)
-            {
-                if (hostKey.VerifyData(Encoding.UTF8.GetBytes(signable), signature, HashAlgorithmName.SHA256))
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            var signable = PairingCanonicalJson.SerializePairingConfigForSignature(config);
+            return hostKey.VerifyData(Encoding.UTF8.GetBytes(signable), signature, HashAlgorithmName.SHA256);
         }
         catch
         {

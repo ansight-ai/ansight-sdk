@@ -45,15 +45,22 @@ public static class AppBootstrap
     public static void ConfigureAnsight()
     {
         var options = Options.CreateBuilder()
-            .WithHostPairing(new HostPairingOptions
-            {
-                BundledProfileAssembly = typeof(AppBootstrap).Assembly
-            })
+            .WithBundledHostPairing(typeof(AppBootstrap).Assembly)
             .Build();
 
         Runtime.InitializeAndActivate(options);
     }
 }
+```
+
+For app-package assets such as MAUI `MauiAsset`s, use the bundled host pairing loader overload:
+
+```csharp
+var options = Options.CreateBuilder()
+    .WithBundledHostPairing(
+        (assetName, cancellationToken) => TryLoadBundledTextAssetAsync(assetName, cancellationToken),
+        payloadReader: new MyHostPairingPayloadReader())
+    .Build();
 ```
 
 ## Accessing sampled data

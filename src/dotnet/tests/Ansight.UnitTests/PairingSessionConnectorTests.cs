@@ -45,7 +45,6 @@ public sealed class PairingSessionConnectorTests
         var listenerEndPoint = (IPEndPoint)listener.Client.LocalEndPoint!;
 
         var config = PairingTestDocumentFactory.CreateSignedConfig(signingKey);
-        config.Host.DiscoveryPort = listenerEndPoint.Port;
 
         var method = typeof(PairingSessionConnector).GetMethod(
             "SendConnectRequestAsync",
@@ -59,6 +58,7 @@ public sealed class PairingSessionConnectorTests
                 config,
                 "Unit Test App",
                 IPAddress.Loopback,
+                listenerEndPoint.Port,
                 CancellationToken.None
             ])!;
 
@@ -86,5 +86,53 @@ public sealed class PairingSessionConnectorTests
         var response = await responseTask;
         Assert.NotNull(response);
         Assert.True(response!.Accepted);
+    }
+
+    [Fact]
+    public async Task ConnectAsync_WhenDiscoveryPortOverrideIsProvided_UsesItForUdpBootstrap()
+    {
+        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        using var listener = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        var listenerEndPoint = (IPEndPoint)listener.Client.LocalEndPoint!;
+        var connector = new PairingSessionConnector(() => PairingWifiPreflightStatus.Connected);
+        var config = PairingTestDocumentFactory.CreateSignedConfig(signingKey, discoveryPort: 41000);
+
+        var connectTask = connector.ConnectAsync(
+            config,
+            "Unit Test App",
+            new PairingConnectionOptions
+            {
+                DiscoveryMode = PairingDiscoveryMode.BasicManual,
+                ManualHostAddress = IPAddress.Loopback.ToString(),
+                DiscoveryPort = listenerEndPoint.Port
+            },
+            progress: null,
+            CancellationToken.None);
+
+        var request = await listener.ReceiveAsync();
+        var parsedRequest = JsonSerializer.Deserialize<ConnectRequest>(request.Buffer, PairingJson.Compact);
+
+        Assert.NotNull(parsedRequest);
+        Assert.Equal(config.ConfigId, parsedRequest!.ConfigId);
+
+        var payload = JsonSerializer.SerializeToUtf8Bytes(
+            new ConnectResponse
+            {
+                Type = "CONNECT_RESP",
+                Ver = 1,
+                Accepted = false,
+                Reason = "pairing-required",
+                ReasonMessage = "Need WebSocket handoff",
+                HostId = "host-1",
+                HostName = "Studio",
+                Message = "Rejected"
+            },
+            PairingJson.Compact);
+        await listener.SendAsync(payload, payload.Length, request.RemoteEndPoint);
+
+        var result = await connectTask;
+        Assert.False(result.Success);
+        Assert.False(result.Accepted);
+        Assert.Equal(IPAddress.Loopback, result.HostAddress);
     }
 }

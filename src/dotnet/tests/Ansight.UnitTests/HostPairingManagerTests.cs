@@ -53,7 +53,9 @@ public sealed class HostPairingManagerTests
                     configId: "cfg-override",
                     oneTimeToken: "token-override",
                     challengePubKey: "challenge-override"),
-                discoveryHint: PairingTestDocumentFactory.CreateDiscoveryHint(hostAddress: "10.0.0.25")),
+                discoveryHint: PairingTestDocumentFactory.CreateDiscoveryHint(
+                    hostAddress: "10.0.0.25",
+                    discoveryPort: 45200)),
             PairingJson.Compact);
 
         var result = await manager.ConnectFromPayloadAsync(payload, "QR pairing code");
@@ -65,6 +67,31 @@ public sealed class HostPairingManagerTests
         Assert.Equal("challenge-override", connectedDocument.Config.Challenge.ChallengePubKey);
         Assert.Equal("cfg-base", connectedDocument.TrustAnchorConfig?.ConfigId);
         Assert.Equal(new[] { "10.0.0.25" }, connectedDocument.DiscoveryHint?.HostAddresses);
+        Assert.Equal(45200, hostConnection.LastConnectionOptions?.DiscoveryPort);
+    }
+
+    [Fact]
+    public async Task ConnectUsingBundledProfileAsync_WhenDiscoveryPortOverrideIsConfigured_PassesItToTheConnection()
+    {
+        var preferredProfilePath = CreateTempFilePath();
+        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var bundledDocument = CreateDocument(signingKey, configId: "cfg-bundled", hostAddress: "192.168.1.20");
+
+        using var hostConnection = new FakeHostConnection();
+        hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using bundled profile."));
+        using var manager = CreateManager(
+            hostConnection,
+            preferredProfilePath,
+            new HostPairingOptions
+            {
+                DiscoveryPort = 45200,
+                BundledProfileLoader = _ => Task.FromResult<string?>(PairingDocumentJson.Serialize(bundledDocument))
+            });
+
+        var result = await manager.ConnectUsingBundledProfileAsync();
+
+        Assert.True(result.Success);
+        Assert.Equal(45200, hostConnection.LastConnectionOptions?.DiscoveryPort);
     }
 
     [Fact]
@@ -412,6 +439,8 @@ public sealed class HostPairingManagerTests
 
         public int ClearCachedProfileCallCount { get; private set; }
 
+        public PairingConnectionOptions? LastConnectionOptions { get; private set; }
+
         public Func<string, ParsedPairingDocument?>? ParseDocumentOverride { get; set; }
 
         public event EventHandler<HostConnectionStatusChangedEventArgs>? StatusChanged;
@@ -436,6 +465,7 @@ public sealed class HostPairingManagerTests
             CancellationToken cancellationToken = default)
         {
             ConnectDocuments.Add(document);
+            LastConnectionOptions = connectionOptions;
             var result = ConnectResults.Count > 0
                 ? ConnectResults.Dequeue()
                 : CreateSuccessConnectionResult();

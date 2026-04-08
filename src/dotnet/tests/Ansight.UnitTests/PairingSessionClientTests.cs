@@ -20,12 +20,14 @@ public sealed class PairingSessionClientTests
         var cachedDocument = PairingSessionClient.CreateCachedDocument(
             document,
             IPAddress.Parse("10.0.0.8"),
+            discoveryPort: 45200,
             capturedAt);
 
         Assert.NotNull(cachedDocument.DiscoveryHint);
         Assert.Equal(PairingDiscoveryHint.SchemaName, cachedDocument.DiscoveryHint!.Schema);
         Assert.Equal("live-session", cachedDocument.DiscoveryHint.Source);
         Assert.Equal(new[] { "10.0.0.8" }, cachedDocument.DiscoveryHint.HostAddresses);
+        Assert.Equal(45200, cachedDocument.DiscoveryHint.DiscoveryPort);
         Assert.Equal(capturedAt, cachedDocument.DiscoveryHint.CapturedAt);
         Assert.Same(document.Config, cachedDocument.Config);
         Assert.Same(document.ConnectionHint, cachedDocument.ConnectionHint);
@@ -42,6 +44,7 @@ public sealed class PairingSessionClientTests
             DiscoveryHint = PairingTestDocumentFactory.CreateDiscoveryHint(
                 hostAddress: "10.0.0.8",
                 hostAddresses: new[] { "10.0.0.8", "fd00::8" },
+                discoveryPort: 45200,
                 hostName: "Studio",
                 wifiName: "Office Wifi",
                 capturedAt: capturedAt),
@@ -53,6 +56,7 @@ public sealed class PairingSessionClientTests
         Assert.NotNull(preferredDocument.DiscoveryHint);
         Assert.NotNull(preferredDocument.DiscoveryHint!);
         Assert.Null(preferredDocument.DiscoveryHint.HostAddresses);
+        Assert.Equal(45200, preferredDocument.DiscoveryHint.DiscoveryPort);
         Assert.Equal("Studio", preferredDocument.DiscoveryHint.HostName);
         Assert.Equal("Office Wifi", preferredDocument.DiscoveryHint.WifiName);
         Assert.Equal(capturedAt, preferredDocument.DiscoveryHint.CapturedAt);

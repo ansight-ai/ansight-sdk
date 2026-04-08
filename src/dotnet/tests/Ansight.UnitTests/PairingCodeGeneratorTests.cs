@@ -21,6 +21,7 @@ public sealed class PairingCodeGeneratorTests
             PairingTestDocumentFactory.CreateDiscoveryHint(
                 hostAddress: "192.168.1.24",
                 hostAddresses: new[] { "192.168.1.24", "fd00::24" },
+                discoveryPort: 45200,
                 hostName: "Studio Host",
                 wifiName: "Office Wifi",
                 source: "studio-qr",
@@ -38,6 +39,7 @@ public sealed class PairingCodeGeneratorTests
         Assert.Equal("studio-qr", parsedPayload.Connection.Source);
         Assert.NotNull(parsedPayload.Discovery);
         Assert.Equal(new[] { "192.168.1.24", "fd00::24" }, parsedPayload.Discovery.HostAddresses);
+        Assert.Equal(45200, parsedPayload.Discovery.DiscoveryPort);
         Assert.Equal("Studio Host", parsedPayload.Discovery.HostName);
         Assert.Equal("Office Wifi", parsedPayload.Discovery.WifiName);
         Assert.Equal(capturedAt, parsedPayload.Discovery.CapturedAt);
@@ -74,6 +76,7 @@ public sealed class PairingCodeGeneratorTests
         var discoveryHint = PairingTestDocumentFactory.CreateDiscoveryHint(
             hostAddress: "172.16.0.4",
             hostAddresses: new[] { "172.16.0.4", "fd00::4" },
+            discoveryPort: 45200,
             hostName: "CLI Host",
             source: "daemon-cli");
         var compactCode = QrDiscoveryPayload.SerializeCompactCode(config, discoveryHint);
@@ -89,6 +92,7 @@ public sealed class PairingCodeGeneratorTests
         Assert.NotNull(parsedDiscoveryHint);
         Assert.NotNull(parsedDiscoveryHint!.HostAddresses);
         Assert.Equal(new[] { "172.16.0.4", "fd00::4" }, parsedDiscoveryHint.HostAddresses);
+        Assert.Equal(45200, parsedDiscoveryHint.DiscoveryPort);
         Assert.Equal("CLI Host", parsedDiscoveryHint.HostName);
     }
 
@@ -110,7 +114,7 @@ public sealed class PairingCodeGeneratorTests
     public void QrDiscoveryPayload_ParsesMinifiedConnectionPayload()
     {
         const string payload = """
-                               {"s":"aqpc1","ci":"cfg-mini","ia":1763456789,"ea":"1763460389","ot":"token-mini","ch":{"a":"ECDH-P256","pk":"challenge-mini","rp":1},"has":["10.0.0.42","fd00::42"],"hn":"Studio Mini","wn":"Office Wifi","ca":1763457100,"src":"studio-mini"}
+                               {"s":"aqpc1","ci":"cfg-mini","ia":1763456789,"ea":"1763460389","ot":"token-mini","ch":{"a":"ECDH-P256","pk":"challenge-mini","rp":1},"has":["10.0.0.42","fd00::42"],"dp":45200,"hn":"Studio Mini","wn":"Office Wifi","ca":1763457100,"src":"studio-mini"}
                                """;
 
         var connectionSuccess = QrDiscoveryPayload.TryParseConnectionPayload(payload, out var connectionPayload);
@@ -126,6 +130,7 @@ public sealed class PairingCodeGeneratorTests
         Assert.NotNull(connectionPayload.Discovery);
         Assert.NotNull(connectionPayload.Discovery!.HostAddresses);
         Assert.Equal(new[] { "10.0.0.42", "fd00::42" }, connectionPayload.Discovery.HostAddresses);
+        Assert.Equal(45200, connectionPayload.Discovery.DiscoveryPort);
         Assert.Equal("Studio Mini", connectionPayload.Discovery.HostName);
         Assert.Equal("Office Wifi", connectionPayload.Discovery.WifiName);
         Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1_763_457_100), connectionPayload.Discovery.CapturedAt);
@@ -133,13 +138,14 @@ public sealed class PairingCodeGeneratorTests
         Assert.NotNull(discoveryHint);
         Assert.NotNull(discoveryHint!.HostAddresses);
         Assert.Equal(new[] { "10.0.0.42", "fd00::42" }, discoveryHint.HostAddresses);
+        Assert.Equal(45200, discoveryHint.DiscoveryPort);
     }
 
     [Fact]
     public void QrDiscoveryPayload_ParsesMinifiedDiscoveryPayload()
     {
         const string payload = """
-                               {"s":"adh1","has":["172.16.0.15","fd00::15"],"hn":"Discovery Mini","wn":"Cafe Wifi","ca":"1763457200","src":"studio-mini"}
+                               {"s":"adh1","has":["172.16.0.15","fd00::15"],"dp":"45200","hn":"Discovery Mini","wn":"Cafe Wifi","ca":"1763457200","src":"studio-mini"}
                                """;
 
         var success = QrDiscoveryPayload.TryParse(payload, out var discoveryHint);
@@ -147,6 +153,7 @@ public sealed class PairingCodeGeneratorTests
         Assert.True(success);
         Assert.NotNull(discoveryHint);
         Assert.Equal(new[] { "172.16.0.15", "fd00::15" }, discoveryHint!.HostAddresses);
+        Assert.Equal(45200, discoveryHint.DiscoveryPort);
         Assert.Equal("Discovery Mini", discoveryHint.HostName);
         Assert.Equal("Cafe Wifi", discoveryHint.WifiName);
         Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1_763_457_200), discoveryHint.CapturedAt);
