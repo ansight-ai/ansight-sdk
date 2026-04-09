@@ -28,14 +28,23 @@ Host auto-probe is enabled by default. While `Runtime` is active, Ansight will p
 
 Runtime-owned host connection now also owns saved and bundled config resolution. If you enable `AnsightDeveloperPairingEnabled` and initialize with `WithBundledHostConnection(typeof(AppBootstrap).Assembly)`, the generated `ansight.developer-pairing.json` is embedded into the app assembly automatically. Auto-connect prefers that developer pairing when available, then falls back to cached-session, saved-config, and other bundled-config behavior.
 
+Install `Ansight.Pairing` when you want Ansight to own native QR pairing acquisition.
+
 ```csharp
 public static class AppBootstrap
 {
     public static async Task ConfigureAnsightAsync(string payload)
     {
-        var options = Options.CreateBuilder()
-            .WithBundledHostConnection(typeof(AppBootstrap).Assembly)
-            .Build();
+        var optionsBuilder = Options.CreateBuilder()
+            .WithBundledHostConnection(typeof(AppBootstrap).Assembly);
+
+#if ANDROID
+        optionsBuilder = optionsBuilder.WithPlatformPairing(() => Microsoft.Maui.ApplicationModel.Platform.CurrentActivity);
+#else
+        optionsBuilder = optionsBuilder.WithPlatformPairing();
+#endif
+
+        var options = optionsBuilder.Build();
 
         Runtime.InitializeAndActivate(options);
         var connectResult = await Runtime.HostConnection.ConnectAsync(
@@ -44,17 +53,25 @@ public static class AppBootstrap
 }
 ```
 
+On Android, `Ansight.Pairing` only needs the current `Activity` so it can launch the scanner UI for `HostConnectionRequest.QrCode(...)`.
+
 When the pairing documents live in packaged text assets instead of embedded resources, use the bundled asset loader overload and keep the standard asset names:
 
 ```csharp
-var options = Options.CreateBuilder()
+var optionsBuilder = Options.CreateBuilder()
     .WithBundledHostConnection(
-        (assetName, cancellationToken) => TryLoadBundledTextAssetAsync(assetName, cancellationToken),
-        configReader: new MyHostConnectionConfigReader())
-    .Build();
+        (assetName, cancellationToken) => TryLoadBundledTextAssetAsync(assetName, cancellationToken));
+
+#if ANDROID
+optionsBuilder = optionsBuilder.WithPlatformPairing(() => Microsoft.Maui.ApplicationModel.Platform.CurrentActivity);
+#else
+optionsBuilder = optionsBuilder.WithPlatformPairing();
+#endif
+
+var options = optionsBuilder.Build();
 ```
 
-Explicit requests such as `HostConnectionRequest.PayloadText(...)`, `HostConnectionRequest.File(...)`, and `HostConnectionRequest.QrCode(...)` always use the supplied pairing payload and replace the current host session. That gives QR/file/paste flows an explicit override path even when developer pairing is configured by default.
+Explicit requests such as `HostConnectionRequest.PayloadText(...)` and `HostConnectionRequest.QrCode(...)` always use the supplied pairing payload and replace the current host session. That gives QR/paste flows an explicit override path even when developer pairing is configured by default.
 
 ## Data access
 
@@ -197,7 +214,7 @@ If you also want a plain bundled fallback config, keep embedding `ansight.json` 
 With `WithBundledHostConnection(typeof(AppBootstrap).Assembly)` configured:
 
 - auto-connect prefers the embedded developer pairing when available, then falls back to cached sessions, saved configs, and any plain bundled config
-- explicit `HostConnectionRequest.PayloadText(...)`, `HostConnectionRequest.File(...)`, and `HostConnectionRequest.QrCode(...)` requests always use the supplied pairing payload and replace the current host session
+- explicit `HostConnectionRequest.PayloadText(...)` and `HostConnectionRequest.QrCode(...)` requests always use the supplied pairing payload and replace the current host session
 
 When enabled, the target reads your source pairing config, captures local machine metadata when available, and writes a pairing config document containing:
 
@@ -230,6 +247,7 @@ Only use `AnsightAllowRemoteTools=true` for local Debug builds. Do not enable re
 
 ## Related packages
 
+- `Ansight.Pairing`: native QR pairing acquisition for runtime-owned host connections
 - `Ansight.Tools.VisualTree`: UI hierarchy and screenshot tools
 - `Ansight.Tools.Reflection`: live object reflection and guarded runtime mutation tools
 - `Ansight.Tools.Database`: database inspection tools

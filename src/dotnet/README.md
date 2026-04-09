@@ -39,30 +39,47 @@ Host auto-probe is enabled by default. While `Runtime` is active, Ansight will p
 
 Runtime-owned host connection also manages saved and bundled pairing configs. If you enable `AnsightDeveloperPairingEnabled` and initialize with `WithBundledHostConnection(typeof(AppBootstrap).Assembly)`, the generated `ansight.developer-pairing.json` is embedded into the app assembly automatically. Auto-connect prefers that developer pairing when available, then falls back to cached-session, saved-config, and other bundled-config behavior.
 
+Install `Ansight.Pairing` when you want the SDK to own native QR acquisition for explicit pairing overrides.
+
 ```csharp
 public static class AppBootstrap
 {
     public static void ConfigureAnsight()
     {
-        var options = Options.CreateBuilder()
-            .WithBundledHostConnection(typeof(AppBootstrap).Assembly)
-            .Build();
+        var optionsBuilder = Options.CreateBuilder()
+            .WithBundledHostConnection(typeof(AppBootstrap).Assembly);
+
+#if ANDROID
+        optionsBuilder = optionsBuilder.WithPlatformPairing(() => Microsoft.Maui.ApplicationModel.Platform.CurrentActivity);
+#else
+        optionsBuilder = optionsBuilder.WithPlatformPairing();
+#endif
+
+        var options = optionsBuilder.Build();
 
         Runtime.InitializeAndActivate(options);
     }
 }
 ```
 
-Explicit requests such as `HostConnectionRequest.PayloadText(...)`, `HostConnectionRequest.File(...)`, and `HostConnectionRequest.QrCode(...)` always use the supplied pairing payload and replace the current host session. That gives QR/file/paste flows an explicit override path even when developer pairing is configured by default.
+On Android, `Ansight.Pairing` only needs the current `Activity` so it can launch the scanner UI for `HostConnectionRequest.QrCode(...)`.
+
+Explicit requests such as `HostConnectionRequest.PayloadText(...)` and `HostConnectionRequest.QrCode(...)` always use the supplied pairing payload and replace the current host session. That gives QR/paste flows an explicit override path even when developer pairing is configured by default.
 
 For app-package assets such as MAUI `MauiAsset`s, use the bundled config loader overload:
 
 ```csharp
-var options = Options.CreateBuilder()
+var optionsBuilder = Options.CreateBuilder()
     .WithBundledHostConnection(
-        (assetName, cancellationToken) => TryLoadBundledTextAssetAsync(assetName, cancellationToken),
-        configReader: new MyHostConnectionConfigReader())
-    .Build();
+        (assetName, cancellationToken) => TryLoadBundledTextAssetAsync(assetName, cancellationToken));
+
+#if ANDROID
+optionsBuilder = optionsBuilder.WithPlatformPairing(() => Microsoft.Maui.ApplicationModel.Platform.CurrentActivity);
+#else
+optionsBuilder = optionsBuilder.WithPlatformPairing();
+#endif
+
+var options = optionsBuilder.Build();
 ```
 
 ## Accessing sampled data
@@ -99,6 +116,7 @@ var options = Options.CreateBuilder()
 
 Available grouped packages:
 
+- `Ansight.Pairing`
 - `Ansight.Tools.VisualTree`
 - `Ansight.Tools.Reflection`
 - `Ansight.Tools.Database`

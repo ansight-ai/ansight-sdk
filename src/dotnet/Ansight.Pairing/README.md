@@ -1,0 +1,43 @@
+# Ansight.Pairing
+
+`Ansight.Pairing` adds package-owned native pairing acquisition to `Ansight`.
+
+It provides:
+
+- native QR scanning for `HostConnectionRequest.QrCode(...)`
+- Android scanner acquisition via the current `Activity` and native Apple modal presentation
+- a default `IHostConnectionConfigReader` wired into the existing runtime-owned host connection flow
+
+## Usage
+
+```csharp
+using Ansight;
+#if ANDROID
+using Microsoft.Maui.ApplicationModel;
+#endif
+
+var optionsBuilder = Options.CreateBuilder()
+    .WithBundledHostConnection(typeof(AppBootstrap).Assembly);
+
+#if ANDROID
+optionsBuilder = optionsBuilder.WithPlatformPairing(() => Platform.CurrentActivity);
+#else
+optionsBuilder = optionsBuilder.WithPlatformPairing();
+#endif
+
+var options = optionsBuilder.Build();
+
+Runtime.InitializeAndActivate(options);
+```
+
+On Android, `Ansight.Pairing` requires the app to provide the current `Activity` so the package can launch the native scanner UI.
+
+Once enabled, the app can keep using the existing host connection requests:
+
+```csharp
+await Runtime.HostConnection.ConnectAsync(HostConnectionRequest.Auto());
+await Runtime.HostConnection.ConnectAsync(HostConnectionRequest.QrCode());
+await Runtime.HostConnection.ConnectAsync(HostConnectionRequest.PayloadText(payload));
+```
+
+`Auto()` still follows the normal Ansight default order. Explicit QR and payload requests always override the current connection attempt.
