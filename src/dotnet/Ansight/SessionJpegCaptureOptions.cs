@@ -14,7 +14,7 @@ public sealed class SessionJpegCaptureOptions
     /// <summary>
     /// JPEG encoding quality from 1 to 100. Higher quality generally increases encoding cost and transport size.
     /// </summary>
-    public int Quality { get; set; } = 70;
+    public int Quality { get; set; } = 60;
 
     /// <summary>
     /// Optional maximum output width in pixels. When null, the full window width is used. Larger widths generally increase capture cost.
