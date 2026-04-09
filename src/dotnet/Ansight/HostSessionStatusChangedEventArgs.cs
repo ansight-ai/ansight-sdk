@@ -3,9 +3,9 @@ namespace Ansight;
 /// <summary>
 /// Raised when the runtime-owned Ansight host connection state changes.
 /// </summary>
-public sealed class HostConnectionStatusChangedEventArgs : EventArgs
+public sealed class HostSessionStatusChangedEventArgs : EventArgs
 {
-    public HostConnectionStatusChangedEventArgs(
+    public HostSessionStatusChangedEventArgs(
         HostConnectionState state,
         bool isConnected,
         bool hasCachedProfile,

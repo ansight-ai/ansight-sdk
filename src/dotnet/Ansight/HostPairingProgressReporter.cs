@@ -3,11 +3,11 @@ namespace Ansight;
 internal static class HostPairingProgressReporter
 {
     public static void Report(
-        IProgress<StudioConnectionProgressUpdate>? progress,
-        StudioConnectionProgressKind kind,
+        IProgress<HostConnectionProgressUpdate>? progress,
+        HostConnectionProgressKind kind,
         string message,
         bool isVerbose = false,
-        StudioConnectionSource source = StudioConnectionSource.None,
+        HostConnectionSource source = HostConnectionSource.None,
         string? reasonCode = null)
     {
         if (progress is null || string.IsNullOrWhiteSpace(message))
@@ -15,7 +15,7 @@ internal static class HostPairingProgressReporter
             return;
         }
 
-        progress.Report(new StudioConnectionProgressUpdate(
+        progress.Report(new HostConnectionProgressUpdate(
             kind,
             message.Trim(),
             isVerbose,

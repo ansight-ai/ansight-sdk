@@ -23,12 +23,12 @@ public static class Runtime
     public static IRuntime Instance => MutableInstance;
 
     /// <summary>
-    /// Controls the unified runtime-owned Studio connection surface.
+    /// Controls the unified runtime-owned host connection surface.
     /// Returns a no-op controller until the runtime is initialized.
     /// </summary>
-    public static IStudioConnection StudioConnection => IsInitialized
-        ? MutableInstance.StudioConnection
-        : NullStudioConnection.Instance;
+    public static IHostConnection HostConnection => IsInitialized
+        ? MutableInstance.HostConnection
+        : NullHostConnection.Instance;
 
     /// <summary>
     /// Indicates whether the runtime has been initialised via <see cref="Initialize(Options)"/> or <see cref="InitializeAndActivate(Options)"/>.

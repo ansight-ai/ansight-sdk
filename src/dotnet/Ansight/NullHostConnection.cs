@@ -6,64 +6,63 @@ internal sealed class NullHostConnection : IHostConnection
 {
     internal static NullHostConnection Instance { get; } = new();
 
-    public HostConnectionState State => HostConnectionState.Disconnected;
+    private static readonly HostConnectionStatus status = new(
+        IsRuntimeActive: false,
+        IsConnected: false,
+        ConnectionState: HostConnectionState.Disconnected,
+        HasCachedSession: false,
+        HasSavedConfig: false,
+        HasBundledConfig: false,
+        SummaryKind: HostConnectionSummaryKind.RuntimeUnavailable,
+        SummaryMessage: "Ansight runtime is not initialized.");
+
+    private static readonly HostConnectionCapabilities capabilities = new(
+        CanConnectUsingSavedConfig: false,
+        CanConnectUsingBundledConfig: false,
+        CanChooseConfigFile: false,
+        CanScanConfigQrCode: false,
+        CanClearSavedConfigs: false);
+
+    public bool HasSavedConfig => false;
 
     public bool IsConnected => false;
 
-    public bool HasCachedProfile => false;
+    public HostConnectionStatus Status => status;
 
-    public string StatusSummary => "Ansight runtime is not initialized.";
+    public HostConnectionCapabilities Capabilities => capabilities;
 
-    public event EventHandler<HostConnectionStatusChangedEventArgs>? StatusChanged
+    public event EventHandler<HostConnectionChangedEventArgs>? StatusChanged
     {
         add { }
         remove { }
     }
 
-    public bool TryParseAndValidateDocument(string configJson, out ParsedPairingDocument? document, out string error)
+    private static string StatusSummary => status.SummaryMessage;
+
+    public Task<HostConnectionCapabilities> RefreshCapabilitiesAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult(capabilities);
+
+    public bool TryParseConfigDocument(string payload, out PairingConfigDocument? config, out string error)
     {
-        document = null;
-        error = "Ansight runtime is not initialized.";
+        config = null;
+        error = StatusSummary;
         return false;
     }
 
-    public Task<HostConnectionActionResult> ConnectAsync(
-        ParsedPairingDocument document,
+    public Task<HostConnectionResult> ConnectAsync(
+        HostConnectionRequest? request = null,
         string? clientName = null,
-        PairingConnectionOptions? connectionOptions = null,
-        IProgress<StudioConnectionProgressUpdate>? progress = null,
+        IProgress<HostConnectionProgressUpdate>? progress = null,
         CancellationToken cancellationToken = default)
-    {
-        return Task.FromResult(HostConnectionActionResult.FromFailure(
+        => Task.FromResult(HostConnectionResult.FromFailure(
             StatusSummary,
-            kind: StudioConnectionActionKind.ConnectFromPayload,
-            source: StudioConnectionSource.HostConnection));
-    }
+            request?.Kind is HostConnectionRequestKind.Auto or null
+                ? HostConnectionActionKind.AutoConnect
+                : HostConnectionActionKind.Connect));
 
-    public Task<HostConnectionActionResult> ConnectUsingCachedProfileAsync(
-        string? clientName = null,
-        IProgress<StudioConnectionProgressUpdate>? progress = null,
-        CancellationToken cancellationToken = default)
-    {
-        return Task.FromResult(HostConnectionActionResult.FromFailure(
-            StatusSummary,
-            kind: StudioConnectionActionKind.ConnectUsingCachedSession,
-            source: StudioConnectionSource.CachedSession));
-    }
+    public Task<HostConnectionResult> DisconnectAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult(HostConnectionResult.FromFailure(StatusSummary, HostConnectionActionKind.Disconnect));
 
-    public Task<HostConnectionActionResult> DisconnectAsync(CancellationToken cancellationToken = default)
-    {
-        return Task.FromResult(HostConnectionActionResult.FromFailure(
-            StatusSummary,
-            kind: StudioConnectionActionKind.Disconnect,
-            source: StudioConnectionSource.HostConnection));
-    }
-
-    public HostConnectionActionResult ClearCachedProfile()
-    {
-        return HostConnectionActionResult.FromFailure(
-            StatusSummary,
-            kind: StudioConnectionActionKind.ClearSavedTickets,
-            source: StudioConnectionSource.CachedSession);
-    }
+    public HostConnectionResult ClearSavedConfigs()
+        => HostConnectionResult.FromFailure(StatusSummary, HostConnectionActionKind.ClearSavedConfigs);
 }

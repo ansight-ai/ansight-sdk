@@ -6,52 +6,52 @@ namespace Ansight.Pairing;
 
 internal sealed class PairingConfigDocumentService
 {
-    public bool TryParseAndValidateTicket(string payload, string? expectedAppId, out PairingTicket? ticket, out string error)
+    public bool TryParseAndValidateConfigDocument(string payload, string? expectedAppId, out PairingConfigDocument? configDocument, out string error)
     {
-        ticket = null;
+        configDocument = null;
 
-        if (!TryParseTicket(payload, out ticket, out error) || ticket is null)
+        if (!TryParseConfigDocument(payload, out configDocument, out error) || configDocument is null)
         {
             return false;
         }
 
-        if (!TryValidateTicket(ticket, expectedAppId, out error))
+        if (!TryValidateConfigDocument(configDocument, expectedAppId, out error))
         {
-            ticket = null;
+            configDocument = null;
             return false;
         }
 
         return true;
     }
 
-    public bool TryValidateTicket(PairingTicket ticket, string? expectedAppId, out string error)
+    public bool TryValidateConfigDocument(PairingConfigDocument configDocument, string? expectedAppId, out string error)
     {
-        ArgumentNullException.ThrowIfNull(ticket);
+        ArgumentNullException.ThrowIfNull(configDocument);
 
-        if (!string.Equals(ticket.Schema, PairingTicket.SchemaName, StringComparison.Ordinal))
+        if (!IsSupportedConfigDocumentSchema(configDocument.Schema))
         {
-            error = $"Unsupported pairing ticket schema '{ticket.Schema}'.";
+            error = $"Unsupported pairing config schema '{configDocument.Schema}'.";
             return false;
         }
 
-        return TryValidateConfig(ticket.Config, expectedAppId, out error);
+        return TryValidateConfig(configDocument.Config, expectedAppId, out error);
     }
 
-    public bool TryParseTicket(string payload, out PairingTicket? ticket, out string error)
+    public bool TryParseConfigDocument(string payload, out PairingConfigDocument? configDocument, out string error)
     {
-        ticket = null;
+        configDocument = null;
 
         if (string.IsNullOrWhiteSpace(payload))
         {
-            error = "Paste or load a pairing ticket.";
+            error = "Paste or load a pairing config.";
             return false;
         }
 
-        if (PairingTicketCodeGenerator.TryParse(payload, out ticket) && ticket is not null)
+        if (PairingConfigCodeGenerator.TryParse(payload, out configDocument) && configDocument is not null)
         {
-            if (ticket.Discovery is not null)
+            if (configDocument.Discovery is not null)
             {
-                PairingDiscoveryHintHostAddresses.NormalizeInPlace(ticket.Discovery);
+                PairingDiscoveryHintHostAddresses.NormalizeInPlace(configDocument.Discovery);
             }
 
             error = string.Empty;
@@ -60,31 +60,31 @@ internal sealed class PairingConfigDocumentService
 
         try
         {
-            var parsedTicket = JsonSerializer.Deserialize<PairingTicket>(payload, PairingJson.Compact);
-            if (parsedTicket?.Config is null)
+            var parsedConfigDocument = JsonSerializer.Deserialize<PairingConfigDocument>(payload, PairingJson.Compact);
+            if (parsedConfigDocument?.Config is null)
             {
-                error = "Pairing ticket did not contain a pairing config.";
+                error = "Pairing config document did not contain a pairing config.";
                 return false;
             }
 
-            if (!string.Equals(parsedTicket.Schema, PairingTicket.SchemaName, StringComparison.Ordinal))
+            if (!IsSupportedConfigDocumentSchema(parsedConfigDocument.Schema))
             {
-                error = $"Unsupported pairing ticket schema '{parsedTicket.Schema}'.";
+                error = $"Unsupported pairing config schema '{parsedConfigDocument.Schema}'.";
                 return false;
             }
 
-            if (parsedTicket.Discovery is not null)
+            if (parsedConfigDocument.Discovery is not null)
             {
-                PairingDiscoveryHintHostAddresses.NormalizeInPlace(parsedTicket.Discovery);
+                PairingDiscoveryHintHostAddresses.NormalizeInPlace(parsedConfigDocument.Discovery);
             }
 
-            ticket = parsedTicket;
+            configDocument = parsedConfigDocument;
             error = string.Empty;
             return true;
         }
         catch (Exception ex)
         {
-            error = $"Failed to parse pairing ticket: {ex.Message}";
+            error = $"Failed to parse pairing config: {ex.Message}";
             return false;
         }
     }
@@ -95,7 +95,7 @@ internal sealed class PairingConfigDocumentService
 
         if (string.IsNullOrWhiteSpace(configJson))
         {
-            error = "Paste or load a pairing ticket.";
+            error = "Paste or load a pairing config.";
             return false;
         }
 
@@ -165,14 +165,14 @@ internal sealed class PairingConfigDocumentService
     {
         document = null;
 
-        if (PairingTicketCodeGenerator.TryParse(configJson, out var compactTicket) && compactTicket is not null)
+        if (PairingConfigCodeGenerator.TryParse(configJson, out var compactConfigDocument) && compactConfigDocument is not null)
         {
-            if (compactTicket.Discovery is not null)
+            if (compactConfigDocument.Discovery is not null)
             {
-                PairingDiscoveryHintHostAddresses.NormalizeInPlace(compactTicket.Discovery);
+                PairingDiscoveryHintHostAddresses.NormalizeInPlace(compactConfigDocument.Discovery);
             }
 
-            document = CreateDocument(compactTicket);
+            document = CreateDocument(compactConfigDocument);
             error = string.Empty;
             return true;
         }
@@ -194,40 +194,46 @@ internal sealed class PairingConfigDocumentService
 
             if (string.Equals(schema, "ansight.pairing-bootstrap.v1", StringComparison.Ordinal))
             {
-                error = "Legacy bootstrap pairing payloads are no longer supported. Export a fresh pairing ticket from Ansight Studio.";
+                error = "Legacy bootstrap pairing payloads are no longer supported. Export a fresh pairing config from Ansight host.";
                 return false;
             }
 
-            if (!string.Equals(schema, PairingTicket.SchemaName, StringComparison.Ordinal))
+            if (!IsSupportedConfigDocumentSchema(schema))
             {
                 error = string.IsNullOrWhiteSpace(schema)
-                    ? "Pairing payloads must be pairing tickets."
-                    : $"Unsupported pairing payload schema '{schema}'. Export a fresh pairing ticket from Ansight Studio.";
+                    ? "Pairing payloads must be pairing configs."
+                    : $"Unsupported pairing payload schema '{schema}'. Export a fresh pairing config from Ansight host.";
                 return false;
             }
 
-            var ticket = JsonSerializer.Deserialize<PairingTicket>(configJson, PairingJson.Compact);
-            if (ticket?.Config is null)
+            var configDocument = JsonSerializer.Deserialize<PairingConfigDocument>(configJson, PairingJson.Compact);
+            if (configDocument?.Config is null)
             {
-                error = "Pairing ticket did not contain a pairing config.";
+                error = "Pairing config document did not contain a pairing config.";
                 return false;
             }
 
-            if (ticket.Discovery is not null)
+            if (configDocument.Discovery is not null)
             {
-                PairingDiscoveryHintHostAddresses.NormalizeInPlace(ticket.Discovery);
+                PairingDiscoveryHintHostAddresses.NormalizeInPlace(configDocument.Discovery);
             }
 
-            document = CreateDocument(ticket);
+            document = CreateDocument(configDocument);
 
             error = string.Empty;
             return true;
         }
         catch (Exception ex)
         {
-            error = $"Failed to parse pairing ticket: {ex.Message}";
+            error = $"Failed to parse pairing config: {ex.Message}";
             return false;
         }
+    }
+
+    private static bool IsSupportedConfigDocumentSchema(string? schema)
+    {
+        return string.Equals(schema, PairingConfigDocument.SchemaName, StringComparison.Ordinal) ||
+               string.Equals(schema, PairingConfigDocument.LegacySchemaName, StringComparison.Ordinal);
     }
 
     private static bool VerifyPairingConfigSignature(PairingConfig config)
@@ -262,7 +268,7 @@ internal sealed class PairingConfigDocumentService
 
         if (!string.Equals(configuredAppId, normalizedExpected, StringComparison.Ordinal))
         {
-            error = $"Pairing ticket appId '{configuredAppId}' does not match expected app id '{normalizedExpected}'.";
+            error = $"Pairing config appId '{configuredAppId}' does not match expected app id '{normalizedExpected}'.";
             return false;
         }
 
@@ -270,24 +276,24 @@ internal sealed class PairingConfigDocumentService
         return true;
     }
 
-    internal static ParsedPairingDocument CreateDocument(PairingTicket ticket)
+    internal static ParsedPairingDocument CreateDocument(PairingConfigDocument configDocument)
     {
-        ArgumentNullException.ThrowIfNull(ticket);
+        ArgumentNullException.ThrowIfNull(configDocument);
 
         return new ParsedPairingDocument
         {
-            Config = ticket.Config,
-            DiscoveryHint = ticket.Discovery is null ? null : CloneDiscovery(ticket.Discovery)
+            Config = configDocument.Config,
+            DiscoveryHint = configDocument.Discovery is null ? null : CloneDiscovery(configDocument.Discovery)
         };
     }
 
-    internal static PairingTicket CreateTicket(ParsedPairingDocument document)
+    internal static PairingConfigDocument CreateConfigDocument(ParsedPairingDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);
 
-        return new PairingTicket
+        return new PairingConfigDocument
         {
-            Schema = PairingTicket.SchemaName,
+            Schema = PairingConfigDocument.SchemaName,
             Config = document.Config,
             Discovery = document.DiscoveryHint is null ? null : CloneDiscovery(document.DiscoveryHint)
         };

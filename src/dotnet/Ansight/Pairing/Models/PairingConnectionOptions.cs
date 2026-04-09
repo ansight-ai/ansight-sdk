@@ -7,7 +7,7 @@ public sealed class PairingConnectionOptions
 {
     /// <summary>
     /// Optional manual host-address override for advanced recovery scenarios.
-    /// When omitted, Ansight uses the address embedded in the pairing ticket.
+    /// When omitted, Ansight uses the address embedded in the pairing config.
     /// </summary>
     public string? HostAddressOverride { get; set; }
 

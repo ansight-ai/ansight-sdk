@@ -6,16 +6,16 @@ namespace Ansight.UnitTests;
 public sealed class StoredPairingDocumentCacheTests
 {
     [Fact]
-    public void Save_AndLoadValidated_RoundTripsPairingTicket()
+    public void Save_AndLoadValidated_RoundTripsPairingConfig()
     {
         using var signingKey = ECDsa.Create();
         var pairingConfig = PairingTestDocumentFactory.CreateSignedConfig(signingKey, appId: "com.ansight.cache-test");
-        var ticketJson = PairingTestDocumentFactory.CreateTicketJson(
+        var configJson = PairingTestDocumentFactory.CreateConfigDocumentJson(
             pairingConfig,
             PairingTestDocumentFactory.CreateDiscoveryHint(hostAddress: "127.0.0.1"));
         var service = new PairingConfigDocumentService();
         Assert.True(service.TryParseAndValidateDocument(
-            ticketJson,
+            configJson,
             "com.ansight.cache-test",
             out var document,
             out var parseError), parseError);
@@ -52,7 +52,7 @@ public sealed class StoredPairingDocumentCacheTests
             signingKey,
             appId: "com.ansight.cache-test",
             expiresAt: DateTimeOffset.UtcNow.AddMinutes(-5));
-        var expiredJson = PairingTestDocumentFactory.CreateTicketJson(expiredConfig);
+        var expiredJson = PairingTestDocumentFactory.CreateConfigDocumentJson(expiredConfig);
 
         var cacheFilePath = Path.Combine(Path.GetTempPath(), $"ansight-cache-{Guid.NewGuid():N}.json");
         try

@@ -19,7 +19,7 @@ internal sealed class PairingSessionAppStateStreamer : IDisposable
     }
 
     public async Task<OperationResult> StartAsync(
-        IProgress<StudioConnectionProgressUpdate>? progress,
+        IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         if (!transport.IsOpen)
@@ -89,7 +89,7 @@ internal sealed class PairingSessionAppStateStreamer : IDisposable
         _ = SendAppStateIfNeededAsync(args.State, args.ChangedAtUtc, progress: null, CancellationToken.None);
     }
 
-    private Task<OperationResult> SendCurrentStateAsync(IProgress<StudioConnectionProgressUpdate>? progress, CancellationToken cancellationToken)
+    private Task<OperationResult> SendCurrentStateAsync(IProgress<HostConnectionProgressUpdate>? progress, CancellationToken cancellationToken)
     {
         return SendAppStateIfNeededAsync(
             Runtime.CurrentAppLifecycleState,
@@ -101,7 +101,7 @@ internal sealed class PairingSessionAppStateStreamer : IDisposable
     private async Task<OperationResult> SendAppStateIfNeededAsync(
         AppLifecycleState state,
         DateTimeOffset? changedAtUtc,
-        IProgress<StudioConnectionProgressUpdate>? progress,
+        IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         bool isStarted;
@@ -149,8 +149,8 @@ internal sealed class PairingSessionAppStateStreamer : IDisposable
                 progress,
                 TimeSpan.FromSeconds(15),
                 cancellationToken,
-                StudioConnectionSource.AppState,
-                StudioConnectionProgressKind.AppState);
+                HostConnectionSource.AppState,
+                HostConnectionProgressKind.AppState);
             if (result.Success)
             {
                 lock (stateLock)

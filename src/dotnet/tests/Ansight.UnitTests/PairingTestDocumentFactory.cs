@@ -61,7 +61,7 @@ internal static class PairingTestDocumentFactory
         return config;
     }
 
-    public static PairingTicket CreateTicket(
+    public static PairingConfigDocument CreateConfigDocument(
         PairingConfig? config = null,
         PairingDiscoveryHint? discoveryHint = null)
     {
@@ -71,9 +71,9 @@ internal static class PairingTestDocumentFactory
             config = CreateSignedConfig(signingKey);
         }
 
-        return new PairingTicket
+        return new PairingConfigDocument
         {
-            Schema = PairingTicket.SchemaName,
+            Schema = PairingConfigDocument.SchemaName,
             Config = config,
             Discovery = discoveryHint ?? CreateDiscoveryHint()
         };
@@ -101,17 +101,17 @@ internal static class PairingTestDocumentFactory
         };
     }
 
-    public static string CreateTicketJson(
+    public static string CreateConfigDocumentJson(
         PairingConfig? config = null,
         PairingDiscoveryHint? discoveryHint = null)
     {
-        return PairingTicketJson.Serialize(CreateTicket(config, discoveryHint));
+        return PairingConfigDocumentJson.Serialize(CreateConfigDocument(config, discoveryHint));
     }
 
-    public static string CreateCompactTicket(
+    public static string CreateCompactConfigDocument(
         PairingConfig? config = null,
         PairingDiscoveryHint? discoveryHint = null)
     {
-        return PairingTicketCodeGenerator.Serialize(CreateTicket(config, discoveryHint));
+        return PairingConfigCodeGenerator.Serialize(CreateConfigDocument(config, discoveryHint));
     }
 }

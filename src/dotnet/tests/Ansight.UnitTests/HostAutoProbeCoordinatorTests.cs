@@ -8,7 +8,7 @@ public sealed class HostAutoProbeCoordinatorTests
     public async Task OnActivated_UsesCachedProfileUntilConnected()
     {
         var client = new FakeHostAutoProbeSessionClient();
-        client.EnqueueConnectResult(HostConnectionActionResult.FromSuccess("connected"));
+        client.EnqueueConnectResult(HostSessionActionResult.FromSuccess("connected"));
 
         using var coordinator = new HostAutoProbeCoordinator(
             CreateAutoProbeOptions(),
@@ -25,7 +25,7 @@ public sealed class HostAutoProbeCoordinatorTests
     public async Task DoesNotProbeUntilActivated()
     {
         var client = new FakeHostAutoProbeSessionClient();
-        client.EnqueueConnectResult(HostConnectionActionResult.FromSuccess("connected"));
+        client.EnqueueConnectResult(HostSessionActionResult.FromSuccess("connected"));
 
         using var coordinator = new HostAutoProbeCoordinator(
             CreateAutoProbeOptions(),
@@ -40,8 +40,8 @@ public sealed class HostAutoProbeCoordinatorTests
     public async Task ConnectionLost_RestartsProbeAfterReconnectDelay()
     {
         var client = new FakeHostAutoProbeSessionClient();
-        client.EnqueueConnectResult(HostConnectionActionResult.FromSuccess("connected"));
-        client.EnqueueConnectResult(HostConnectionActionResult.FromSuccess("reconnected"));
+        client.EnqueueConnectResult(HostSessionActionResult.FromSuccess("connected"));
+        client.EnqueueConnectResult(HostSessionActionResult.FromSuccess("reconnected"));
 
         using var coordinator = new HostAutoProbeCoordinator(
             CreateAutoProbeOptions(reconnectDelayMs: 30),
@@ -60,8 +60,8 @@ public sealed class HostAutoProbeCoordinatorTests
     public async Task OnDeactivated_DisconnectsAndStopsFurtherReconnects()
     {
         var client = new FakeHostAutoProbeSessionClient();
-        client.EnqueueConnectResult(HostConnectionActionResult.FromSuccess("connected"));
-        client.EnqueueConnectResult(HostConnectionActionResult.FromSuccess("reconnected"));
+        client.EnqueueConnectResult(HostSessionActionResult.FromSuccess("connected"));
+        client.EnqueueConnectResult(HostSessionActionResult.FromSuccess("reconnected"));
 
         using var coordinator = new HostAutoProbeCoordinator(
             CreateAutoProbeOptions(reconnectDelayMs: 30),
@@ -117,7 +117,7 @@ public sealed class HostAutoProbeCoordinatorTests
 
     private sealed class FakeHostAutoProbeSessionClient : IHostAutoProbeSessionClient
     {
-        private readonly Queue<HostConnectionActionResult> connectResults = new();
+        private readonly Queue<HostSessionActionResult> connectResults = new();
 
         public int ConnectUsingCachedProfileCallCount { get; private set; }
 
@@ -129,20 +129,20 @@ public sealed class HostAutoProbeCoordinatorTests
 
         public DateTimeOffset? LastDisconnectedAtUtc { get; private set; }
 
-        public void EnqueueConnectResult(HostConnectionActionResult result)
+        public void EnqueueConnectResult(HostSessionActionResult result)
         {
             connectResults.Enqueue(result);
         }
 
-        public Task<HostConnectionActionResult> ConnectUsingCachedProfileAsync(
+        public Task<HostSessionActionResult> ConnectUsingCachedProfileAsync(
             string? clientName,
-            IProgress<StudioConnectionProgressUpdate>? progress,
+            IProgress<HostConnectionProgressUpdate>? progress,
             CancellationToken cancellationToken)
         {
             ConnectUsingCachedProfileCallCount++;
             var result = connectResults.Count > 0
                 ? connectResults.Dequeue()
-                : HostConnectionActionResult.FromFailure("no queued result");
+                : HostSessionActionResult.FromFailure("no queued result");
             IsConnected = result.Success;
             if (result.Success)
             {
@@ -152,12 +152,12 @@ public sealed class HostAutoProbeCoordinatorTests
             return Task.FromResult(result);
         }
 
-        public Task<HostConnectionActionResult> DisconnectAsync(CancellationToken cancellationToken)
+        public Task<HostSessionActionResult> DisconnectAsync(CancellationToken cancellationToken)
         {
             DisconnectCallCount++;
             IsConnected = false;
             LastDisconnectedAtUtc = DateTimeOffset.UtcNow;
-            return Task.FromResult(HostConnectionActionResult.FromSuccess("disconnected"));
+            return Task.FromResult(HostSessionActionResult.FromSuccess("disconnected"));
         }
 
         public void MarkDisconnected()

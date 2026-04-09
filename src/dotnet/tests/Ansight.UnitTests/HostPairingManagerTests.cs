@@ -1,6 +1,5 @@
 using System.Net;
 using System.Security.Cryptography;
-using System.Text.Json;
 using Ansight.Pairing;
 
 namespace Ansight.UnitTests;
@@ -8,26 +7,26 @@ namespace Ansight.UnitTests;
 public sealed class HostPairingManagerTests
 {
     [Fact]
-    public async Task AutoConnectAsync_WhenCachedProfileConnects_DoesNotTouchStoredOrBundledProfiles()
+    public async Task AutoConnectAsync_WhenCachedProfileConnects_DoesNotTouchSavedOrBundledConfigs()
     {
-        var preferredProfilePath = CreateTempFilePath();
+        var savedConfigPath = CreateTempFilePath();
         var bundledLoaderCallCount = 0;
         using var hostConnection = new FakeHostConnection();
         hostConnection.HasCachedProfile = true;
         hostConnection.CachedConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using cached profile."));
         using var manager = CreateManager(
             hostConnection,
-            preferredProfilePath,
-            new StudioConnectionOptions
+            savedConfigPath,
+            new HostConnectionOptions
             {
-                BundledTicketLoader = _ =>
+                BundledConfigLoader = _ =>
                 {
                     bundledLoaderCallCount++;
                     return Task.FromResult<string?>(null);
                 }
             });
 
-        var result = await manager.ConnectAsync(StudioConnectionRequest.Auto());
+        var result = await manager.ConnectAsync(HostConnectionRequest.Auto());
 
         Assert.True(result.Success);
         Assert.Equal(1, hostConnection.CachedConnectCallCount);
@@ -36,31 +35,29 @@ public sealed class HostPairingManagerTests
     }
 
     [Fact]
-    public async Task ConnectFromPayloadAsync_WhenPairingTicketIsProvided_ConnectsThatTicket()
+    public async Task ConnectFromPayloadAsync_WhenPairingConfigIsProvided_ConnectsThatConfig()
     {
-        var preferredProfilePath = CreateTempFilePath();
+        var savedConfigPath = CreateTempFilePath();
         using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var preferredDocument = CreateDocument(signingKey, configId: "cfg-base", hostAddress: "192.168.1.50");
+        var savedDocument = CreateDocument(signingKey, configId: "cfg-base", hostAddress: "192.168.1.50");
 
         using var hostConnection = new FakeHostConnection();
         hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult());
-        using var manager = CreateManager(hostConnection, preferredProfilePath);
-        SavePreferredProfile(preferredProfilePath, preferredDocument);
+        using var manager = CreateManager(hostConnection, savedConfigPath);
+        SaveSavedConfig(savedConfigPath, savedDocument);
 
-        var payload = PairingTicketJson.Serialize(
-            new Ansight.Pairing.Models.PairingTicket
-            {
-                Config = PairingTestDocumentFactory.CreateSignedConfig(
+        var payload = PairingConfigDocumentJson.Serialize(
+            PairingTestDocumentFactory.CreateConfigDocument(
+                PairingTestDocumentFactory.CreateSignedConfig(
                     signingKey,
                     configId: "cfg-override",
                     oneTimeToken: "token-override",
                     challengePubKey: "challenge-override"),
-                Discovery = PairingTestDocumentFactory.CreateDiscoveryHint(
+                PairingTestDocumentFactory.CreateDiscoveryHint(
                     hostAddress: "10.0.0.25",
-                    discoveryPort: 45200)
-            });
+                    discoveryPort: 45200)));
 
-        var result = await manager.ConnectAsync(StudioConnectionRequest.PayloadText(payload, "pairing ticket"));
+        var result = await manager.ConnectAsync(HostConnectionRequest.PayloadText(payload, "pairing config"));
 
         Assert.True(result.Success);
         var connectedDocument = Assert.Single(hostConnection.ConnectDocuments);
@@ -72,126 +69,171 @@ public sealed class HostPairingManagerTests
     }
 
     [Fact]
-    public async Task ConnectUsingBundledProfileAsync_WhenDiscoveryPortOverrideIsConfigured_PassesItToTheConnection()
+    public async Task ConnectUsingBundledConfigAsync_WhenDiscoveryPortOverrideIsConfigured_PassesItToTheConnection()
     {
-        var preferredProfilePath = CreateTempFilePath();
+        var savedConfigPath = CreateTempFilePath();
         using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var bundledDocument = CreateDocument(signingKey, configId: "cfg-bundled", hostAddress: "192.168.1.20");
 
         using var hostConnection = new FakeHostConnection();
-        hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using bundled profile."));
+        hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using bundled config."));
         using var manager = CreateManager(
             hostConnection,
-            preferredProfilePath,
-            new StudioConnectionOptions
+            savedConfigPath,
+            new HostConnectionOptions
             {
                 DiscoveryPort = 45200,
-                BundledTicketLoader = _ => Task.FromResult<string?>(CreateTicketJson(bundledDocument))
+                BundledConfigLoader = _ => Task.FromResult<string?>(CreateConfigDocumentJson(bundledDocument))
             });
 
-        var result = await manager.ConnectAsync(StudioConnectionRequest.BundledTicket());
+        var result = await manager.ConnectAsync(HostConnectionRequest.BundledConfig());
 
         Assert.True(result.Success);
         Assert.Equal(45200, hostConnection.LastConnectionOptions?.DiscoveryPort);
     }
 
     [Fact]
-    public async Task ConnectUsingStoredProfileAsync_WhenStoredProfileNeedsAFreshHostAddress_FallsBackToBundledProfile()
+    public async Task ConnectUsingSavedConfigAsync_WhenSavedConfigContainsHostAddress_ConnectsUsingSavedConfig()
     {
-        var preferredProfilePath = CreateTempFilePath();
+        var savedConfigPath = CreateTempFilePath();
         using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var preferredDocument = CreateDocument(signingKey, configId: "cfg-preferred", hostAddress: "192.168.1.10");
+        var savedDocument = CreateDocument(signingKey, configId: "cfg-saved", hostAddress: "192.168.1.10");
+
+        using var hostConnection = new FakeHostConnection();
+        hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using saved config."));
+        using var manager = CreateManager(hostConnection, savedConfigPath);
+        SaveSavedConfig(savedConfigPath, savedDocument);
+
+        var result = await manager.ConnectAsync(HostConnectionRequest.SavedConfig());
+
+        Assert.True(result.Success);
+        var connectedDocument = Assert.Single(hostConnection.ConnectDocuments);
+        Assert.Equal("cfg-saved", connectedDocument.Config.ConfigId);
+        Assert.Equal(0, hostConnection.CachedConnectCallCount);
+        Assert.True(manager.HasSavedConfig);
+    }
+
+    [Fact]
+    public async Task ConnectUsingSavedConfigAsync_WhenCachedProfileExists_StillUsesSavedConfig()
+    {
+        var savedConfigPath = CreateTempFilePath();
+        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var savedDocument = CreateDocument(signingKey, configId: "cfg-saved", hostAddress: "192.168.1.10");
+
+        using var hostConnection = new FakeHostConnection();
+        hostConnection.HasCachedProfile = true;
+        hostConnection.CachedConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using cached profile."));
+        hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using saved config."));
+        using var manager = CreateManager(hostConnection, savedConfigPath);
+        SaveSavedConfig(savedConfigPath, savedDocument);
+
+        var result = await manager.ConnectAsync(HostConnectionRequest.SavedConfig());
+
+        Assert.True(result.Success);
+        Assert.Equal(0, hostConnection.CachedConnectCallCount);
+        var connectedDocument = Assert.Single(hostConnection.ConnectDocuments);
+        Assert.Equal("cfg-saved", connectedDocument.Config.ConfigId);
+    }
+
+    [Fact]
+    public async Task AutoConnectAsync_WhenSavedConfigNeedsFreshHostAddress_FallsBackToBundledConfig()
+    {
+        var savedConfigPath = CreateTempFilePath();
+        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var savedDocument = CreateDocumentWithoutHostAddress(signingKey, configId: "cfg-saved");
         var bundledDocument = CreateDocument(signingKey, configId: "cfg-bundled", hostAddress: "192.168.1.20");
 
         using var hostConnection = new FakeHostConnection();
-        hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using bundled profile."));
+        hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using bundled config."));
         using var manager = CreateManager(
             hostConnection,
-            preferredProfilePath,
-            new StudioConnectionOptions
+            savedConfigPath,
+            new HostConnectionOptions
             {
-                BundledTicketLoader = _ => Task.FromResult<string?>(CreateTicketJson(bundledDocument))
+                BundledConfigLoader = _ => Task.FromResult<string?>(CreateConfigDocumentJson(bundledDocument))
             });
-        SavePreferredProfile(preferredProfilePath, preferredDocument);
+        SaveSavedConfig(savedConfigPath, savedDocument);
 
-        var result = await manager.ConnectAsync(StudioConnectionRequest.SavedTicket());
+        var result = await manager.ConnectAsync(HostConnectionRequest.Auto());
 
         Assert.True(result.Success);
         var connectedDocument = Assert.Single(hostConnection.ConnectDocuments);
         Assert.Equal("cfg-bundled", connectedDocument.Config.ConfigId);
-        Assert.True(manager.HasSavedTicket);
+        Assert.True(manager.HasSavedConfig);
     }
 
     [Fact]
-    public async Task ConnectUsingStoredProfileAsync_WhenStoredProfileContainsRememberedHostAddress_RewritesItWithoutTheAddress()
+    public async Task ConnectFromPayloadAsync_WhenPayloadIsInvalid_DoesNotOverwriteSavedConfig()
     {
-        var preferredProfilePath = CreateTempFilePath();
+        var savedConfigPath = CreateTempFilePath();
         using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var preferredDocument = CreateDocument(signingKey, configId: "cfg-preferred", hostAddress: "192.168.1.10");
+        var savedDocument = CreateDocument(signingKey, configId: "cfg-saved", hostAddress: "192.168.1.10");
+        var invalidPayloadDocument = CreateDocumentWithoutHostAddress(signingKey, configId: "cfg-invalid");
 
         using var hostConnection = new FakeHostConnection();
-        using var manager = CreateManager(hostConnection, preferredProfilePath);
-        SavePreferredProfile(preferredProfilePath, preferredDocument);
+        using var manager = CreateManager(hostConnection, savedConfigPath);
+        SaveSavedConfig(savedConfigPath, savedDocument);
 
-        var result = await manager.ConnectAsync(StudioConnectionRequest.SavedTicket());
+        var result = await manager.ConnectAsync(
+            HostConnectionRequest.PayloadText(CreateConfigDocumentJson(invalidPayloadDocument), "pairing config"));
 
         Assert.False(result.Success);
         Assert.Equal(PairingFailureCodes.HostAddressRequired, result.ReasonCode);
         Assert.Empty(hostConnection.ConnectDocuments);
 
-        var store = new StoredHostPairingProfileStore("unit-test", preferredProfilePath);
+        var store = new StoredHostPairingConfigStore("unit-test", savedConfigPath);
         Assert.True(store.TryLoad(out var storedJson, out var error), error);
 
         var documentService = new PairingConfigDocumentService();
         Assert.True(documentService.TryParseAndValidateDocument(storedJson!, "com.ansight.test", out var storedDocument, out error), error);
         Assert.NotNull(storedDocument);
-        Assert.NotNull(storedDocument!.DiscoveryHint);
-        Assert.Null(storedDocument.DiscoveryHint.HostAddresses);
+        Assert.Equal("cfg-saved", storedDocument!.Config.ConfigId);
+        Assert.Equal(new[] { "192.168.1.10" }, storedDocument.DiscoveryHint?.HostAddresses);
     }
 
     [Fact]
-    public async Task ConnectUsingStoredProfileAsync_WhenNoStoredProfileExists_DoesNotFallbackToBundledProfile()
+    public async Task ConnectUsingSavedConfigAsync_WhenNoSavedConfigExists_DoesNotFallbackToBundledConfig()
     {
-        var preferredProfilePath = CreateTempFilePath();
+        var savedConfigPath = CreateTempFilePath();
         var bundledLoaderCallCount = 0;
         using var hostConnection = new FakeHostConnection();
         using var manager = CreateManager(
             hostConnection,
-            preferredProfilePath,
-            new StudioConnectionOptions
+            savedConfigPath,
+            new HostConnectionOptions
             {
-                BundledTicketLoader = _ =>
+                BundledConfigLoader = _ =>
                 {
                     bundledLoaderCallCount++;
                     return Task.FromResult<string?>(null);
                 }
             });
 
-        var result = await manager.ConnectAsync(StudioConnectionRequest.SavedTicket());
+        var result = await manager.ConnectAsync(HostConnectionRequest.SavedConfig());
 
         Assert.False(result.Success);
-        Assert.Contains("No saved Ansight pairing ticket is available.", result.Message, StringComparison.Ordinal);
+        Assert.Contains("No saved Ansight pairing config is available.", result.Message, StringComparison.Ordinal);
         Assert.Equal(0, bundledLoaderCallCount);
     }
 
     [Fact]
-    public async Task AutoConnectAsync_WhenStoredProfileIsMissing_FallsBackToBundledProfile()
+    public async Task AutoConnectAsync_WhenSavedConfigIsMissing_FallsBackToBundledConfig()
     {
-        var preferredProfilePath = CreateTempFilePath();
+        var savedConfigPath = CreateTempFilePath();
         using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var bundledDocument = CreateDocument(signingKey, configId: "cfg-bundled", hostAddress: "192.168.1.20");
 
         using var hostConnection = new FakeHostConnection();
-        hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using bundled profile."));
+        hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using bundled config."));
         using var manager = CreateManager(
             hostConnection,
-            preferredProfilePath,
-            new StudioConnectionOptions
+            savedConfigPath,
+            new HostConnectionOptions
             {
-                BundledTicketLoader = _ => Task.FromResult<string?>(CreateTicketJson(bundledDocument))
+                BundledConfigLoader = _ => Task.FromResult<string?>(CreateConfigDocumentJson(bundledDocument))
             });
 
-        var result = await manager.ConnectAsync(StudioConnectionRequest.Auto());
+        var result = await manager.ConnectAsync(HostConnectionRequest.Auto());
 
         Assert.True(result.Success);
         var connectedDocument = Assert.Single(hostConnection.ConnectDocuments);
@@ -199,9 +241,9 @@ public sealed class HostPairingManagerTests
     }
 
     [Fact]
-    public async Task AutoConnectAsync_WhenBundledTicketAssemblyContainsEmbeddedResources_PrefersDeveloperResourceLogicalName()
+    public async Task AutoConnectAsync_WhenBundledConfigAssemblyContainsEmbeddedResources_PrefersDeveloperResourceLogicalName()
     {
-        var preferredProfilePath = CreateTempFilePath();
+        var savedConfigPath = CreateTempFilePath();
         using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var bundledDeveloperDocument = CreateDocument(signingKey, configId: "cfg-developer", hostAddress: "192.168.1.30");
         var bundledDocument = CreateDocument(signingKey, configId: "cfg-bundled", hostAddress: "192.168.1.20");
@@ -215,16 +257,16 @@ public sealed class HostPairingManagerTests
                 _ => null
             }
         };
-        hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using bundled profile."));
+        hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using bundled config."));
         using var manager = CreateManager(
             hostConnection,
-            preferredProfilePath,
-            new StudioConnectionOptions
+            savedConfigPath,
+            new HostConnectionOptions
             {
-                BundledTicketAssembly = typeof(HostPairingManagerTests).Assembly
+                BundledConfigAssembly = typeof(HostPairingManagerTests).Assembly
             });
 
-        var result = await manager.ConnectAsync(StudioConnectionRequest.Auto());
+        var result = await manager.ConnectAsync(HostConnectionRequest.Auto());
 
         Assert.True(result.Success);
         var connectedDocument = Assert.Single(hostConnection.ConnectDocuments);
@@ -232,44 +274,44 @@ public sealed class HostPairingManagerTests
     }
 
     [Fact]
-    public async Task HandleRuntimeActivatedAsync_WhenBundledDeveloperProfileExists_AttemptsAutoConnect()
+    public async Task HandleRuntimeActivatedAsync_WhenBundledDeveloperConfigExists_AttemptsAutoConnect()
     {
-        var preferredProfilePath = CreateTempFilePath();
+        var savedConfigPath = CreateTempFilePath();
         using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var bundledDeveloperDocument = CreateDocument(signingKey, configId: "cfg-developer", hostAddress: "192.168.1.30");
 
         using var hostConnection = new FakeHostConnection();
-        hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using bundled developer profile."));
+        hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using bundled developer config."));
         using var manager = CreateManager(
             hostConnection,
-            preferredProfilePath,
-            new StudioConnectionOptions
+            savedConfigPath,
+            new HostConnectionOptions
             {
-                BundledDeveloperTicketLoader = _ => Task.FromResult<string?>(CreateTicketJson(bundledDeveloperDocument))
+                BundledDeveloperConfigLoader = _ => Task.FromResult<string?>(CreateConfigDocumentJson(bundledDeveloperDocument))
             });
 
         await manager.HandleRuntimeActivatedAsync();
 
         var connectedDocument = Assert.Single(hostConnection.ConnectDocuments);
         Assert.Equal("cfg-developer", connectedDocument.Config.ConfigId);
-        Assert.True(manager.Status.HasBundledTicket);
+        Assert.True(manager.Status.HasBundledConfig);
     }
 
     [Fact]
-    public async Task HandleRuntimeActivatedAsync_WhenOnlyBundledProfileExists_DoesNotAttemptAutoConnect()
+    public async Task HandleRuntimeActivatedAsync_WhenOnlyBundledConfigExists_DoesNotAttemptAutoConnect()
     {
-        var preferredProfilePath = CreateTempFilePath();
+        var savedConfigPath = CreateTempFilePath();
         using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var bundledDocument = CreateDocument(signingKey, configId: "cfg-bundled", hostAddress: "192.168.1.20");
 
         using var hostConnection = new FakeHostConnection();
-        hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using bundled profile."));
+        hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using bundled config."));
         using var manager = CreateManager(
             hostConnection,
-            preferredProfilePath,
-            new StudioConnectionOptions
+            savedConfigPath,
+            new HostConnectionOptions
             {
-                BundledTicketLoader = _ => Task.FromResult<string?>(CreateTicketJson(bundledDocument))
+                BundledConfigLoader = _ => Task.FromResult<string?>(CreateConfigDocumentJson(bundledDocument))
             });
 
         await manager.HandleRuntimeActivatedAsync();
@@ -279,75 +321,75 @@ public sealed class HostPairingManagerTests
     }
 
     [Fact]
-    public void ClearStoredProfiles_ClearsPreferredStoreAndCachedHostProfile()
+    public void ClearSavedConfigs_ClearsSavedStoreAndCachedHostProfile()
     {
-        var preferredProfilePath = CreateTempFilePath();
+        var savedConfigPath = CreateTempFilePath();
         using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var preferredDocument = CreateDocument(signingKey, configId: "cfg-preferred", hostAddress: "192.168.1.10");
+        var savedDocument = CreateDocument(signingKey, configId: "cfg-saved", hostAddress: "192.168.1.10");
 
         using var hostConnection = new FakeHostConnection();
         hostConnection.HasCachedProfile = true;
-        using var manager = CreateManager(hostConnection, preferredProfilePath);
-        SavePreferredProfile(preferredProfilePath, preferredDocument);
+        using var manager = CreateManager(hostConnection, savedConfigPath);
+        SaveSavedConfig(savedConfigPath, savedDocument);
 
-        var result = manager.ClearSavedTickets();
+        var result = manager.ClearSavedConfigs();
 
         Assert.True(result.Success);
-        Assert.False(manager.HasSavedTicket);
+        Assert.False(manager.HasSavedConfig);
         Assert.Equal(1, hostConnection.ClearCachedProfileCallCount);
         Assert.False(hostConnection.HasCachedProfile);
     }
 
     [Fact]
-    public async Task RefreshCapabilitiesAsync_WhenBundledProfileProbeSucceeds_UpdatesStatusSnapshot()
+    public async Task RefreshCapabilitiesAsync_WhenBundledConfigProbeSucceeds_UpdatesStatusSnapshot()
     {
-        var preferredProfilePath = CreateTempFilePath();
+        var savedConfigPath = CreateTempFilePath();
         using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var bundledDocument = CreateDocument(signingKey, configId: "cfg-bundled", hostAddress: "192.168.1.20");
         using var hostConnection = new FakeHostConnection();
         using var manager = CreateManager(
             hostConnection,
-            preferredProfilePath,
-            new StudioConnectionOptions
+            savedConfigPath,
+            new HostConnectionOptions
             {
-                BundledTicketLoader = _ => Task.FromResult<string?>(CreateTicketJson(bundledDocument))
+                BundledConfigLoader = _ => Task.FromResult<string?>(CreateConfigDocumentJson(bundledDocument))
             });
 
         var capabilities = await manager.RefreshCapabilitiesAsync();
 
-        Assert.True(capabilities.CanConnectUsingBundledTicket);
-        Assert.True(manager.Status.HasBundledTicket);
-        Assert.Equal(StudioConnectionSummaryKind.DisconnectedBundledTicketAvailable, manager.Status.SummaryKind);
+        Assert.True(capabilities.CanConnectUsingBundledConfig);
+        Assert.True(manager.Status.HasBundledConfig);
+        Assert.Equal(HostConnectionSummaryKind.DisconnectedBundledConfigAvailable, manager.Status.SummaryKind);
     }
 
     [Fact]
-    public void Status_WhenStoredAndCachedProfilesExist_ReportsMultipleProfilesAvailable()
+    public void Status_WhenSavedAndCachedProfilesExist_ReportsMultipleConfigsAvailable()
     {
-        var preferredProfilePath = CreateTempFilePath();
+        var savedConfigPath = CreateTempFilePath();
         using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var preferredDocument = CreateDocument(signingKey, configId: "cfg-preferred", hostAddress: "192.168.1.10");
+        var savedDocument = CreateDocument(signingKey, configId: "cfg-saved", hostAddress: "192.168.1.10");
 
         using var hostConnection = new FakeHostConnection();
         hostConnection.HasCachedProfile = true;
-        SavePreferredProfile(preferredProfilePath, preferredDocument);
-        using var manager = CreateManager(hostConnection, preferredProfilePath);
+        SaveSavedConfig(savedConfigPath, savedDocument);
+        using var manager = CreateManager(hostConnection, savedConfigPath);
 
-        Assert.Equal(StudioConnectionSummaryKind.DisconnectedMultipleTicketsAvailable, manager.Status.SummaryKind);
-        Assert.True(manager.Capabilities.CanConnectUsingSavedTicket);
+        Assert.Equal(HostConnectionSummaryKind.DisconnectedMultipleConfigsAvailable, manager.Status.SummaryKind);
+        Assert.True(manager.Capabilities.CanConnectUsingSavedConfig);
     }
 
     private static HostPairingManager CreateManager(
         FakeHostConnection hostConnection,
-        string preferredProfilePath,
-        StudioConnectionOptions? options = null)
+        string savedConfigPath,
+        HostConnectionOptions? options = null)
     {
-        var configuredOptions = options ?? new StudioConnectionOptions();
-        configuredOptions.SavedTicketPath = preferredProfilePath;
+        var configuredOptions = options ?? new HostConnectionOptions();
+        configuredOptions.SavedConfigPath = savedConfigPath;
 
         return new HostPairingManager(
             hostConnection,
             configuredOptions,
-            new StoredHostPairingProfileStore("unit-test", preferredProfilePath),
+            new StoredHostPairingConfigStore("unit-test", savedConfigPath),
             isRuntimeActive: () => true);
     }
 
@@ -363,16 +405,29 @@ public sealed class HostPairingManagerTests
         };
     }
 
-    private static void SavePreferredProfile(string preferredProfilePath, ParsedPairingDocument document)
+    private static ParsedPairingDocument CreateDocumentWithoutHostAddress(ECDsa signingKey, string configId)
     {
-        var store = new StoredHostPairingProfileStore("unit-test", preferredProfilePath);
+        return new ParsedPairingDocument
+        {
+            Config = PairingTestDocumentFactory.CreateSignedConfig(signingKey, configId: configId),
+            DiscoveryHint = new PairingDiscoveryHint
+            {
+                Schema = PairingDiscoveryHint.SchemaName,
+                Source = "unit-test"
+            }
+        };
+    }
+
+    private static void SaveSavedConfig(string savedConfigPath, ParsedPairingDocument document)
+    {
+        var store = new StoredHostPairingConfigStore("unit-test", savedConfigPath);
         store.Save(document);
     }
 
-    private static string CreateTicketJson(ParsedPairingDocument document)
+    private static string CreateConfigDocumentJson(ParsedPairingDocument document)
     {
-        return PairingTicketJson.Serialize(
-            new Ansight.Pairing.Models.PairingTicket
+        return PairingConfigDocumentJson.Serialize(
+            new Ansight.Pairing.Models.PairingConfigDocument
             {
                 Config = document.Config,
                 Discovery = document.DiscoveryHint
@@ -383,12 +438,12 @@ public sealed class HostPairingManagerTests
     {
         var directoryPath = Path.Combine(Path.GetTempPath(), "Ansight.UnitTests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directoryPath);
-        return Path.Combine(directoryPath, "preferred-profile.json");
+        return Path.Combine(directoryPath, "saved-config.json");
     }
 
-    private static HostConnectionActionResult CreateSuccessConnectionResult(string message = "Connected to the Ansight host.")
+    private static HostSessionActionResult CreateSuccessConnectionResult(string message = "Connected to the Ansight host.")
     {
-        return HostConnectionActionResult.FromSuccess(
+        return HostSessionActionResult.FromSuccess(
             message,
             OpenSessionResult.FromSuccess(
                 "connected",
@@ -400,7 +455,7 @@ public sealed class HostPairingManagerTests
                     Accepted = true,
                     Reason = "ok",
                     HostId = "host-1",
-                    HostName = "Studio",
+                    HostName = "Host",
                     Message = "ready",
                     WebSocketPort = 45124,
                     WebSocketPath = "/ws",
@@ -408,9 +463,9 @@ public sealed class HostPairingManagerTests
                 }));
     }
 
-    private static HostConnectionActionResult CreateRejectedConnectionResult(string rejectionCode, string rejectionMessage)
+    private static HostSessionActionResult CreateRejectedConnectionResult(string rejectionCode, string rejectionMessage)
     {
-        return HostConnectionActionResult.FromFailure(
+        return HostSessionActionResult.FromFailure(
             rejectionMessage,
             OpenSessionResult.FromRejected(
                 IPAddress.Loopback,
@@ -422,12 +477,12 @@ public sealed class HostPairingManagerTests
                     Reason = rejectionCode,
                     ReasonMessage = rejectionMessage,
                     HostId = "host-1",
-                    HostName = "Studio",
+                    HostName = "Host",
                     Message = rejectionMessage
                 }));
     }
 
-    private sealed class FakeHostConnection : IHostConnection, IDisposable
+    private sealed class FakeHostConnection : IHostSessionConnection, IDisposable
     {
         private readonly PairingConfigDocumentService documentService = new();
 
@@ -441,9 +496,9 @@ public sealed class HostPairingManagerTests
 
         public List<ParsedPairingDocument> ConnectDocuments { get; } = new();
 
-        public Queue<HostConnectionActionResult> ConnectResults { get; } = new();
+        public Queue<HostSessionActionResult> ConnectResults { get; } = new();
 
-        public Queue<HostConnectionActionResult> CachedConnectResults { get; } = new();
+        public Queue<HostSessionActionResult> CachedConnectResults { get; } = new();
 
         public int CachedConnectCallCount { get; private set; }
 
@@ -453,7 +508,7 @@ public sealed class HostPairingManagerTests
 
         public Func<string, ParsedPairingDocument?>? ParseDocumentOverride { get; set; }
 
-        public event EventHandler<HostConnectionStatusChangedEventArgs>? StatusChanged;
+        public event EventHandler<HostSessionStatusChangedEventArgs>? StatusChanged;
 
         public bool TryParseAndValidateDocument(string configJson, out ParsedPairingDocument? document, out string error)
         {
@@ -467,11 +522,11 @@ public sealed class HostPairingManagerTests
             return documentService.TryParseAndValidateDocument(configJson, "com.ansight.test", out document, out error);
         }
 
-        public Task<HostConnectionActionResult> ConnectAsync(
+        public Task<HostSessionActionResult> ConnectAsync(
             ParsedPairingDocument document,
             string? clientName = null,
             PairingConnectionOptions? connectionOptions = null,
-            IProgress<StudioConnectionProgressUpdate>? progress = null,
+            IProgress<HostConnectionProgressUpdate>? progress = null,
             CancellationToken cancellationToken = default)
         {
             ConnectDocuments.Add(document);
@@ -483,41 +538,41 @@ public sealed class HostPairingManagerTests
             return Task.FromResult(result);
         }
 
-        public Task<HostConnectionActionResult> ConnectUsingCachedProfileAsync(
+        public Task<HostSessionActionResult> ConnectUsingCachedProfileAsync(
             string? clientName = null,
-            IProgress<StudioConnectionProgressUpdate>? progress = null,
+            IProgress<HostConnectionProgressUpdate>? progress = null,
             CancellationToken cancellationToken = default)
         {
             CachedConnectCallCount++;
             var result = CachedConnectResults.Count > 0
                 ? CachedConnectResults.Dequeue()
-                : HostConnectionActionResult.FromFailure("No cached profile.");
+                : HostSessionActionResult.FromFailure("No cached profile.");
             ApplyState(result);
             return Task.FromResult(result);
         }
 
-        public Task<HostConnectionActionResult> DisconnectAsync(CancellationToken cancellationToken = default)
+        public Task<HostSessionActionResult> DisconnectAsync(CancellationToken cancellationToken = default)
         {
             IsConnected = false;
             State = HostConnectionState.Disconnected;
             StatusSummary = "No Ansight host session is connected.";
             RaiseStatusChanged();
-            return Task.FromResult(HostConnectionActionResult.FromSuccess("Disconnected."));
+            return Task.FromResult(HostSessionActionResult.FromSuccess("Disconnected."));
         }
 
-        public HostConnectionActionResult ClearCachedProfile()
+        public HostSessionActionResult ClearCachedProfile()
         {
             ClearCachedProfileCallCount++;
             HasCachedProfile = false;
             RaiseStatusChanged();
-            return HostConnectionActionResult.FromSuccess("Cleared the cached Ansight Studio session.");
+            return HostSessionActionResult.FromSuccess("Cleared the cached Ansight host session.");
         }
 
         public void Dispose()
         {
         }
 
-        private void ApplyState(HostConnectionActionResult result)
+        private void ApplyState(HostSessionActionResult result)
         {
             IsConnected = result.Success;
             State = result.Success ? HostConnectionState.Connected : HostConnectionState.Disconnected;
@@ -527,7 +582,7 @@ public sealed class HostPairingManagerTests
 
         private void RaiseStatusChanged()
         {
-            StatusChanged?.Invoke(this, new HostConnectionStatusChangedEventArgs(
+            StatusChanged?.Invoke(this, new HostSessionStatusChangedEventArgs(
                 State,
                 IsConnected,
                 HasCachedProfile,

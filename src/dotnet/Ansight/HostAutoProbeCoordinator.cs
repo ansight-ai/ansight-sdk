@@ -7,7 +7,7 @@ internal sealed class HostAutoProbeCoordinator : IDisposable
     private readonly HostAutoProbeOptions options;
     private readonly IHostAutoProbeSessionClient autoProbeSessionClient;
     private readonly Lock gate = new();
-    private readonly IProgress<StudioConnectionProgressUpdate> progress;
+    private readonly IProgress<HostConnectionProgressUpdate> progress;
     private CancellationTokenSource? loopCts;
     private Task? loopTask;
     private bool disposed;
@@ -18,7 +18,7 @@ internal sealed class HostAutoProbeCoordinator : IDisposable
     {
         this.options = options?.Clone() ?? throw new ArgumentNullException(nameof(options));
         this.autoProbeSessionClient = autoProbeSessionClient ?? throw new ArgumentNullException(nameof(autoProbeSessionClient));
-        progress = new Progress<StudioConnectionProgressUpdate>(HandleProgressUpdate);
+        progress = new Progress<HostConnectionProgressUpdate>(HandleProgressUpdate);
     }
 
     public void OnActivated()
@@ -120,7 +120,7 @@ internal sealed class HostAutoProbeCoordinator : IDisposable
         }
     }
 
-    private void HandleProgressUpdate(StudioConnectionProgressUpdate? update)
+    private void HandleProgressUpdate(HostConnectionProgressUpdate? update)
     {
         if (update is null || string.IsNullOrWhiteSpace(update.Message))
         {

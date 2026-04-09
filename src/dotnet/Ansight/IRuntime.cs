@@ -18,9 +18,9 @@ public interface IRuntime
     ToolProtocolBridge ToolBridge { get; }
 
     /// <summary>
-    /// Controls the unified runtime-owned Studio connection surface.
+    /// Controls the unified runtime-owned host connection surface.
     /// </summary>
-    IStudioConnection StudioConnection { get; }
+    IHostConnection HostConnection { get; }
 
     /// <summary>
     /// True when periodic sampling is active.

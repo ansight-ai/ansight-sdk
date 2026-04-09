@@ -16,7 +16,7 @@ internal class RuntimeImpl : IRuntime
 
     private readonly MutableDataSink mutableDataSink;
     private readonly IFrameRateMonitor frameRateMonitor;
-    private readonly HostConnectionManager hostConnection;
+    private readonly HostSessionManager hostConnection;
     private readonly HostPairingManager hostPairing;
     private bool fpsTrackingEnabled;
 
@@ -28,7 +28,7 @@ internal class RuntimeImpl : IRuntime
 
     public ToolProtocolBridge ToolBridge { get; }
 
-    public IStudioConnection StudioConnection => hostPairing;
+    public IHostConnection HostConnection => hostPairing;
 
     public RuntimeImpl(Options options)
     {
@@ -39,8 +39,8 @@ internal class RuntimeImpl : IRuntime
         frameRateMonitor = FrameRateMonitorFactory.Create();
         fpsTrackingEnabled = options.EnableFramesPerSecond;
         ToolBridge = options.Tools.CreateBridge(options.ToolGuard);
-        hostConnection = new HostConnectionManager(this, options.HostAutoProbe);
-        hostPairing = new HostPairingManager(hostConnection, options.StudioConnection);
+        hostConnection = new HostSessionManager(this, options.HostAutoProbe);
+        hostPairing = new HostPairingManager(hostConnection, options.HostConnection);
     }
 
     public bool IsActive { get; private set; }

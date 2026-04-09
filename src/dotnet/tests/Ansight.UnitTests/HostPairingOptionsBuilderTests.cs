@@ -1,14 +1,14 @@
 namespace Ansight.UnitTests;
 
-public sealed class StudioConnectionOptionsBuilderTests
+public sealed class HostConnectionOptionsBuilderTests
 {
     [Fact]
-    public async Task WithBundledStudioConnection_WhenUsingBundledAssetLoader_ConfiguresStandardAssetLoaders()
+    public async Task WithBundledHostConnection_WhenUsingBundledAssetLoader_ConfiguresStandardAssetLoaders()
     {
         var requestedAssetNames = new List<string>();
-        var payloadReader = new FakeHostPairingTicketReader();
+        var payloadReader = new FakeHostPairingConfigReader();
         var options = Options.CreateBuilder()
-            .WithBundledStudioConnection(
+            .WithBundledHostConnection(
                 (assetName, cancellationToken) =>
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -18,52 +18,52 @@ public sealed class StudioConnectionOptionsBuilderTests
                 payloadReader)
             .Build();
 
-        Assert.NotNull(options.StudioConnection.BundledDeveloperTicketLoader);
-        Assert.NotNull(options.StudioConnection.BundledTicketLoader);
-        Assert.Same(payloadReader, options.StudioConnection.TicketReader);
+        Assert.NotNull(options.HostConnection.BundledDeveloperConfigLoader);
+        Assert.NotNull(options.HostConnection.BundledConfigLoader);
+        Assert.Same(payloadReader, options.HostConnection.ConfigReader);
 
-        var bundledDeveloperText = await options.StudioConnection.BundledDeveloperTicketLoader!(CancellationToken.None);
-        var bundledProfileText = await options.StudioConnection.BundledTicketLoader!(CancellationToken.None);
+        var bundledDeveloperText = await options.HostConnection.BundledDeveloperConfigLoader!(CancellationToken.None);
+        var bundledProfileText = await options.HostConnection.BundledConfigLoader!(CancellationToken.None);
 
         Assert.Equal(
-            [StudioConnectionOptions.BundledDeveloperTicketAssetName, StudioConnectionOptions.BundledTicketAssetName],
+            [HostConnectionOptions.BundledDeveloperConfigAssetName, HostConnectionOptions.BundledConfigAssetName],
             requestedAssetNames);
-        Assert.Equal(StudioConnectionOptions.BundledDeveloperTicketAssetName, bundledDeveloperText);
-        Assert.Equal(StudioConnectionOptions.BundledTicketAssetName, bundledProfileText);
+        Assert.Equal(HostConnectionOptions.BundledDeveloperConfigAssetName, bundledDeveloperText);
+        Assert.Equal(HostConnectionOptions.BundledConfigAssetName, bundledProfileText);
     }
 
     [Fact]
-    public void WithBundledStudioConnection_WhenUsingAssembly_ConfiguresBundledTicketAssemblyAndTicketReader()
+    public void WithBundledHostConnection_WhenUsingAssembly_ConfiguresBundledConfigAssemblyAndConfigReader()
     {
-        var payloadReader = new FakeHostPairingTicketReader();
-        var bundledProfileAssembly = typeof(StudioConnectionOptionsBuilderTests).Assembly;
+        var payloadReader = new FakeHostPairingConfigReader();
+        var bundledProfileAssembly = typeof(HostConnectionOptionsBuilderTests).Assembly;
         var options = Options.CreateBuilder()
-            .WithBundledStudioConnection(bundledProfileAssembly, payloadReader)
+            .WithBundledHostConnection(bundledProfileAssembly, payloadReader)
             .Build();
 
-        Assert.Same(bundledProfileAssembly, options.StudioConnection.BundledTicketAssembly);
-        Assert.Same(payloadReader, options.StudioConnection.TicketReader);
+        Assert.Same(bundledProfileAssembly, options.HostConnection.BundledConfigAssembly);
+        Assert.Same(payloadReader, options.HostConnection.ConfigReader);
     }
 
     [Fact]
-    public void WithStudioConnectionDiscoveryPort_ConfiguresTheBootstrapPortOverride()
+    public void WithHostConnectionDiscoveryPort_ConfiguresTheBootstrapPortOverride()
     {
         var options = Options.CreateBuilder()
-            .WithStudioConnectionDiscoveryPort(45200)
+            .WithHostConnectionDiscoveryPort(45200)
             .Build();
 
-        Assert.Equal(45200, options.StudioConnection.DiscoveryPort);
+        Assert.Equal(45200, options.HostConnection.DiscoveryPort);
     }
 
-    private sealed class FakeHostPairingTicketReader : IStudioConnectionTicketReader
+    private sealed class FakeHostPairingConfigReader : IHostConnectionConfigReader
     {
-        public bool CanRead(StudioConnectionRequestKind kind)
+        public bool CanRead(HostConnectionRequestKind kind)
         {
-            return kind == StudioConnectionRequestKind.File;
+            return kind == HostConnectionRequestKind.File;
         }
 
-        public Task<string?> ReadTicketPayloadAsync(
-            StudioConnectionRequest request,
+        public Task<string?> ReadConfigPayloadAsync(
+            HostConnectionRequest request,
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();

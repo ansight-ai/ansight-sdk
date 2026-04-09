@@ -94,7 +94,7 @@ if (-not $hostAddress) {
 
 $pairingConfig = Get-Content -LiteralPath $SourceFile -Raw | ConvertFrom-Json
 $document = [ordered]@{
-    schema = 'ansight.pairing-ticket.v1'
+    schema = 'ansight.pairing-config-document.v1'
     config = $pairingConfig
     discovery = [ordered]@{
         schema = 'ansight.discovery-hint.v1'

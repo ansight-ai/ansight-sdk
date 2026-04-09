@@ -7,15 +7,15 @@ namespace Ansight.UnitTests;
 public sealed class PairingConfigDocumentServiceTests
 {
     [Fact]
-    public void TryParseDocument_ParsesPairingTicket()
+    public void TryParseDocument_ParsesPairingConfig()
     {
         using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var config = PairingTestDocumentFactory.CreateSignedConfig(
             signingKey,
-            configId: "cfg-ticket",
-            oneTimeToken: "token-ticket",
-            challengePubKey: "challenge-ticket");
-        var json = PairingTestDocumentFactory.CreateTicketJson(
+            configId: "cfg-config",
+            oneTimeToken: "token-config",
+            challengePubKey: "challenge-config");
+        var json = PairingTestDocumentFactory.CreateConfigDocumentJson(
             config,
             PairingTestDocumentFactory.CreateDiscoveryHint(
                 hostAddress: "127.0.0.1",
@@ -27,11 +27,32 @@ public sealed class PairingConfigDocumentServiceTests
 
         Assert.True(success, error);
         Assert.NotNull(document);
-        Assert.Equal("cfg-ticket", document!.Config.ConfigId);
-        Assert.Equal("token-ticket", document.Config.OneTimeToken);
-        Assert.Equal("challenge-ticket", document.Config.Challenge.ChallengePubKey);
+        Assert.Equal("cfg-config", document!.Config.ConfigId);
+        Assert.Equal("token-config", document.Config.OneTimeToken);
+        Assert.Equal("challenge-config", document.Config.Challenge.ChallengePubKey);
         Assert.Equal(config.Host.HostPubKey, document.Config.Host.HostPubKey);
         Assert.Equal(new[] { "127.0.0.1" }, document.DiscoveryHint!.HostAddresses);
+    }
+
+    [Fact]
+    public void TryParseDocument_AcceptsLegacyConfigDocumentSchema()
+    {
+        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var configDocument = PairingTestDocumentFactory.CreateConfigDocument(
+            PairingTestDocumentFactory.CreateSignedConfig(signingKey),
+            PairingTestDocumentFactory.CreateDiscoveryHint());
+        var json = PairingConfigDocumentJson.Serialize(configDocument)
+            .Replace(
+                Ansight.Pairing.Models.PairingConfigDocument.SchemaName,
+                Ansight.Pairing.Models.PairingConfigDocument.LegacySchemaName,
+                StringComparison.Ordinal);
+
+        var sut = new PairingConfigDocumentService();
+
+        var success = sut.TryParseDocument(json, out var document, out var error);
+
+        Assert.True(success, error);
+        Assert.NotNull(document);
     }
 
     [Fact]
@@ -67,14 +88,14 @@ public sealed class PairingConfigDocumentServiceTests
     }
 
     [Fact]
-    public void TryParseAndValidateDocument_WhenTicketIsExpired_ReturnsFalseAndNullDocument()
+    public void TryParseAndValidateDocument_WhenConfigIsExpired_ReturnsFalseAndNullDocument()
     {
         using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var expiredConfig = PairingTestDocumentFactory.CreateSignedConfig(
             signingKey,
             appId: "com.ansight.test",
             expiresAt: DateTimeOffset.UtcNow.AddMinutes(-5));
-        var expiredJson = PairingTestDocumentFactory.CreateTicketJson(expiredConfig);
+        var expiredJson = PairingTestDocumentFactory.CreateConfigDocumentJson(expiredConfig);
 
         var sut = new PairingConfigDocumentService();
 
@@ -120,6 +141,6 @@ public sealed class PairingConfigDocumentServiceTests
 
         Assert.False(success);
         Assert.Null(document);
-        Assert.Contains("pairing ticket", error, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("pairing config", error, StringComparison.OrdinalIgnoreCase);
     }
 }

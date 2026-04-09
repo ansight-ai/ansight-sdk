@@ -1,18 +1,18 @@
 namespace Ansight;
 
 /// <summary>
-/// Identifies the source associated with a Studio connection status, result, or progress update.
+/// Identifies the source associated with a host connection status, result, or progress update.
 /// </summary>
-public enum StudioConnectionSource
+public enum HostConnectionSource
 {
     None = 0,
     AutoProbe = 1,
     CachedSession = 2,
-    SavedTicket = 3,
-    BundledDeveloperTicket = 4,
-    BundledTicket = 5,
+    SavedConfig = 3,
+    BundledDeveloperConfig = 4,
+    BundledConfig = 5,
     Payload = 6,
-    TicketReader = 7,
+    ConfigReader = 7,
     HostConnection = 8,
     Transport = 9,
     Telemetry = 10,

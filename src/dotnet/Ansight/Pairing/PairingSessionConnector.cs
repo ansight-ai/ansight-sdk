@@ -23,7 +23,7 @@ internal sealed class PairingSessionConnector
         ParsedPairingDocument document,
         string clientName,
         PairingConnectionOptions? options,
-        IProgress<StudioConnectionProgressUpdate>? progress,
+        IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -38,7 +38,7 @@ internal sealed class PairingSessionConnector
         if (!TryResolveHostAddress(configuredHostAddress, out var hostAddress))
         {
             return PairingConnectionAttempt.FromFailure(
-                "A current host address is required. Import a fresh pairing ticket or compact pairing code.",
+                "A current host address is required. Import a fresh pairing config or compact pairing config code.",
                 PairingFailureCodes.HostAddressRequired);
         }
 
@@ -48,9 +48,9 @@ internal sealed class PairingSessionConnector
 
             HostPairingProgressReporter.Report(
                 progress,
-                StudioConnectionProgressKind.Connection,
+                HostConnectionProgressKind.Connection,
                 wifiRequiredMessage,
-                source: StudioConnectionSource.HostConnection,
+                source: HostConnectionSource.HostConnection,
                 reasonCode: PairingFailureCodes.WifiRequired);
 
             return PairingConnectionAttempt.FromFailure(
@@ -58,19 +58,19 @@ internal sealed class PairingSessionConnector
                 PairingFailureCodes.WifiRequired);
         }
 
-        var discoveryPort = ResolveDiscoveryPort(document, options);
+        var discoveryPort = PairingDiscoveryPortResolver.Resolve(document, options?.DiscoveryPort);
         HostPairingProgressReporter.Report(
             progress,
-            StudioConnectionProgressKind.Connection,
+            HostConnectionProgressKind.Connection,
             string.IsNullOrWhiteSpace(options?.HostAddressOverride)
-                ? $"Using pairing ticket host address: {hostAddress}"
+                ? $"Using pairing config host address: {hostAddress}"
                 : $"Using host override address: {hostAddress}",
-            source: StudioConnectionSource.HostConnection);
+            source: HostConnectionSource.HostConnection);
         HostPairingProgressReporter.Report(
             progress,
-            StudioConnectionProgressKind.Connection,
+            HostConnectionProgressKind.Connection,
             $"Connecting to host at {hostAddress}:{discoveryPort}",
-            source: StudioConnectionSource.HostConnection);
+            source: HostConnectionSource.HostConnection);
 
         using var connectTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         connectTimeout.CancelAfter(TimeSpan.FromSeconds(5));
@@ -95,37 +95,37 @@ internal sealed class PairingSessionConnector
         if (connectResponse is null)
         {
             return PairingConnectionAttempt.FromFailure(
-                "No connect response from host. The remembered host address may be stale. Import a fresh Studio QR code or enter the host IP manually.",
+                "No connect response from host. The remembered host address may be stale. Import a fresh pairing QR code or enter the host IP manually.",
                 PairingFailureCodes.UdpBootstrapTimeout);
         }
 
         HostPairingProgressReporter.Report(
             progress,
-            StudioConnectionProgressKind.Connection,
+            HostConnectionProgressKind.Connection,
             $"Host response: {connectResponse.Message}",
-            source: StudioConnectionSource.HostConnection,
+            source: HostConnectionSource.HostConnection,
             reasonCode: connectResponse.Reason);
         if (!string.IsNullOrWhiteSpace(connectResponse.ReasonMessage))
         {
             HostPairingProgressReporter.Report(
                 progress,
-                StudioConnectionProgressKind.Connection,
+                HostConnectionProgressKind.Connection,
                 $"Reason: {connectResponse.ReasonMessage}",
-                source: StudioConnectionSource.HostConnection,
+                source: HostConnectionSource.HostConnection,
                 reasonCode: connectResponse.Reason);
         }
 
         HostPairingProgressReporter.Report(
             progress,
-            StudioConnectionProgressKind.Connection,
+            HostConnectionProgressKind.Connection,
             $"Reason code: {connectResponse.Reason}",
-            source: StudioConnectionSource.HostConnection,
+            source: HostConnectionSource.HostConnection,
             reasonCode: connectResponse.Reason);
         HostPairingProgressReporter.Report(
             progress,
-            StudioConnectionProgressKind.Connection,
+            HostConnectionProgressKind.Connection,
             $"Accepted: {connectResponse.Accepted}",
-            source: StudioConnectionSource.HostConnection,
+            source: HostConnectionSource.HostConnection,
             reasonCode: connectResponse.Reason);
 
         if (!connectResponse.Accepted)
@@ -149,9 +149,9 @@ internal sealed class PairingSessionConnector
             connectResponse.WebSocketToken);
         HostPairingProgressReporter.Report(
             progress,
-            StudioConnectionProgressKind.Connection,
+            HostConnectionProgressKind.Connection,
             $"Opening WebSocket: {wsUri}",
-            source: StudioConnectionSource.Transport);
+            source: HostConnectionSource.Transport);
 
         var connectedSocket = await ConnectWebSocketWithRetryAsync(wsUri, cancellationToken);
         if (connectedSocket is null)
@@ -269,25 +269,6 @@ internal sealed class PairingSessionConnector
             Query = $"token={Uri.EscapeDataString(token)}"
         };
         return builder.Uri;
-    }
-
-    private static int ResolveDiscoveryPort(ParsedPairingDocument document, PairingConnectionOptions? options)
-    {
-        var candidates = new[]
-        {
-            options?.DiscoveryPort,
-            document.DiscoveryHint?.DiscoveryPort
-        };
-
-        foreach (var candidate in candidates)
-        {
-            if (candidate is > 0 and <= ushort.MaxValue)
-            {
-                return candidate.Value;
-            }
-        }
-
-        return PairingProtocolDefaults.DiscoveryPort;
     }
 
     private static bool TryResolveHostAddress(string? hostAddressText, out IPAddress? hostAddress)

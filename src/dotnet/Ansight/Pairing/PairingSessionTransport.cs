@@ -41,11 +41,11 @@ internal sealed class PairingSessionTransport : IDisposable
         string? outboundProgressMessage,
         string successMessage,
         string failurePrefix,
-        IProgress<StudioConnectionProgressUpdate>? progress,
+        IProgress<HostConnectionProgressUpdate>? progress,
         TimeSpan acknowledgementTimeout,
         CancellationToken cancellationToken,
-        StudioConnectionSource source = StudioConnectionSource.Transport,
-        StudioConnectionProgressKind kind = StudioConnectionProgressKind.Transport)
+        HostConnectionSource source = HostConnectionSource.Transport,
+        HostConnectionProgressKind kind = HostConnectionProgressKind.Transport)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(action);
 

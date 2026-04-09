@@ -1,7 +1,6 @@
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json;
 using Ansight.Pairing;
 
 namespace Ansight.IntegrationTests;
@@ -9,9 +8,9 @@ namespace Ansight.IntegrationTests;
 public sealed class HostPairingManagerIntegrationTests
 {
     [Fact]
-    public async Task AutoConnectAsync_WhenBundledProfileExists_ConnectsThroughHostConnectionManager()
+    public async Task AutoConnectAsync_WhenBundledConfigExists_ConnectsThroughHostConnectionManager()
     {
-        var preferredProfilePath = CreateTempFilePath();
+        var savedConfigPath = CreateTempFilePath();
         using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var bundledDocument = CreateDocument(signingKey, configId: "cfg-bundled", hostAddress: "127.0.0.1");
 
@@ -19,17 +18,17 @@ public sealed class HostPairingManagerIntegrationTests
         runtime.Activate();
         using var sessionClient = new FakeHostConnectionSessionClient();
         sessionClient.OpenSessionResult = CreateOpenSuccess();
-        using var hostConnection = new HostConnectionManager(runtime, HostAutoProbeOptions.DisabledDefault, sessionClient);
+        using var hostConnection = new HostSessionManager(runtime, HostAutoProbeOptions.DisabledDefault, sessionClient);
         using var hostPairing = new HostPairingManager(
             hostConnection,
-            new StudioConnectionOptions
+            new HostConnectionOptions
             {
-                SavedTicketPath = preferredProfilePath,
-                BundledTicketLoader = _ => Task.FromResult<string?>(CreateTicketJson(bundledDocument))
+                SavedConfigPath = savedConfigPath,
+                BundledConfigLoader = _ => Task.FromResult<string?>(CreateConfigDocumentJson(bundledDocument))
             },
-            new StoredHostPairingProfileStore("integration-test", preferredProfilePath));
+            new StoredHostPairingConfigStore("integration-test", savedConfigPath));
 
-        var result = await hostPairing.ConnectAsync(StudioConnectionRequest.Auto());
+        var result = await hostPairing.ConnectAsync(HostConnectionRequest.Auto());
 
         Assert.True(result.Success);
         Assert.True(hostConnection.IsConnected);
@@ -41,40 +40,40 @@ public sealed class HostPairingManagerIntegrationTests
     }
 
     [Fact]
-    public async Task ConnectFromPayloadAsync_WhenPairingTicketIsProvided_ConnectsThatTicket()
+    public async Task ConnectFromPayloadAsync_WhenPairingConfigIsProvided_ConnectsThatConfig()
     {
-        var preferredProfilePath = CreateTempFilePath();
+        var savedConfigPath = CreateTempFilePath();
         using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var preferredDocument = CreateDocument(signingKey, configId: "cfg-base", hostAddress: "127.0.0.1");
+        var savedDocument = CreateDocument(signingKey, configId: "cfg-base", hostAddress: "127.0.0.1");
 
         var runtime = CreateRuntime();
         runtime.Activate();
         using var sessionClient = new FakeHostConnectionSessionClient();
         sessionClient.OpenSessionResult = CreateOpenSuccess();
-        using var hostConnection = new HostConnectionManager(runtime, HostAutoProbeOptions.DisabledDefault, sessionClient);
+        using var hostConnection = new HostSessionManager(runtime, HostAutoProbeOptions.DisabledDefault, sessionClient);
         using var hostPairing = new HostPairingManager(
             hostConnection,
-            new StudioConnectionOptions
+            new HostConnectionOptions
             {
-                SavedTicketPath = preferredProfilePath
+                SavedConfigPath = savedConfigPath
             },
-            new StoredHostPairingProfileStore("integration-test", preferredProfilePath));
-        SavePreferredProfile(preferredProfilePath, preferredDocument);
+            new StoredHostPairingConfigStore("integration-test", savedConfigPath));
+        SaveSavedConfig(savedConfigPath, savedDocument);
 
-        var payload = PairingTicketJson.Serialize(
-            new Ansight.Pairing.Models.PairingTicket
+        var payload = PairingConfigDocumentJson.Serialize(
+            new Ansight.Pairing.Models.PairingConfigDocument
             {
                 Config = CreateSignedConfig(signingKey, configId: "cfg-override"),
                 Discovery = CreateDiscoveryHint(hostAddress: "127.0.0.1")
             });
 
-        var result = await hostPairing.ConnectAsync(StudioConnectionRequest.PayloadText(payload, "pairing ticket"));
+        var result = await hostPairing.ConnectAsync(HostConnectionRequest.PayloadText(payload, "pairing config"));
 
         Assert.True(result.Success);
         Assert.Equal(1, sessionClient.OpenSessionCallCount);
         Assert.Equal(1, sessionClient.StartMetricsStreamingCallCount);
         Assert.Equal("cfg-override", sessionClient.LastOpenedDocument?.Config.ConfigId);
-        Assert.Contains("Streaming live metrics to Studio", hostConnection.StatusSummary, StringComparison.Ordinal);
+        Assert.Contains("Streaming live metrics to host", hostConnection.StatusSummary, StringComparison.Ordinal);
 
         runtime.Deactivate();
     }
@@ -155,19 +154,19 @@ public sealed class HostPairingManagerIntegrationTests
         };
     }
 
-    private static string CreateTicketJson(ParsedPairingDocument document)
+    private static string CreateConfigDocumentJson(ParsedPairingDocument document)
     {
-        return PairingTicketJson.Serialize(
-            new Ansight.Pairing.Models.PairingTicket
+        return PairingConfigDocumentJson.Serialize(
+            new Ansight.Pairing.Models.PairingConfigDocument
             {
                 Config = document.Config,
                 Discovery = document.DiscoveryHint
             });
     }
 
-    private static void SavePreferredProfile(string preferredProfilePath, ParsedPairingDocument document)
+    private static void SaveSavedConfig(string savedConfigPath, ParsedPairingDocument document)
     {
-        var store = new StoredHostPairingProfileStore("integration-test", preferredProfilePath);
+        var store = new StoredHostPairingConfigStore("integration-test", savedConfigPath);
         store.Save(document);
     }
 
@@ -175,7 +174,7 @@ public sealed class HostPairingManagerIntegrationTests
     {
         var directoryPath = Path.Combine(Path.GetTempPath(), "Ansight.IntegrationTests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directoryPath);
-        return Path.Combine(directoryPath, "preferred-profile.json");
+        return Path.Combine(directoryPath, "saved-config.json");
     }
 
     private static OpenSessionResult CreateOpenSuccess()
@@ -190,7 +189,7 @@ public sealed class HostPairingManagerIntegrationTests
                 Accepted = true,
                 Reason = "ok",
                 HostId = "host-1",
-                HostName = "Studio",
+                HostName = "Host",
                 Message = "ready",
                 WebSocketPort = 45124,
                 WebSocketPath = "/ws",
@@ -229,7 +228,7 @@ public sealed class HostPairingManagerIntegrationTests
             ParsedPairingDocument document,
             string clientName,
             PairingConnectionOptions? options,
-            IProgress<StudioConnectionProgressUpdate>? progress,
+            IProgress<HostConnectionProgressUpdate>? progress,
             CancellationToken cancellationToken)
         {
             OpenSessionCallCount++;
@@ -240,7 +239,7 @@ public sealed class HostPairingManagerIntegrationTests
 
         public Task<OpenSessionResult> OpenCachedSessionAsync(
             string? clientName,
-            IProgress<StudioConnectionProgressUpdate>? progress,
+            IProgress<HostConnectionProgressUpdate>? progress,
             CancellationToken cancellationToken)
         {
             OpenCachedSessionCallCount++;
@@ -250,7 +249,7 @@ public sealed class HostPairingManagerIntegrationTests
 
         public Task<OperationResult> StartMetricsStreamingAsync(
             IDataSink dataSink,
-            IProgress<StudioConnectionProgressUpdate>? progress,
+            IProgress<HostConnectionProgressUpdate>? progress,
             CancellationToken cancellationToken)
         {
             StartMetricsStreamingCallCount++;
@@ -277,7 +276,7 @@ public sealed class HostPairingManagerIntegrationTests
         public string ResolveClientName(string? overrideClientName)
         {
             return string.IsNullOrWhiteSpace(overrideClientName)
-                ? "Integration Test App"
+                ? "Unit Test App"
                 : overrideClientName.Trim();
         }
 

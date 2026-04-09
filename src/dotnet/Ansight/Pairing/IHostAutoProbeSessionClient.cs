@@ -8,10 +8,10 @@ internal interface IHostAutoProbeSessionClient
 
     DateTimeOffset? LastDisconnectedAtUtc { get; }
 
-    Task<HostConnectionActionResult> ConnectUsingCachedProfileAsync(
+    Task<HostSessionActionResult> ConnectUsingCachedProfileAsync(
         string? clientName,
-        IProgress<StudioConnectionProgressUpdate>? progress,
+        IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken);
 
-    Task<HostConnectionActionResult> DisconnectAsync(CancellationToken cancellationToken);
+    Task<HostSessionActionResult> DisconnectAsync(CancellationToken cancellationToken);
 }

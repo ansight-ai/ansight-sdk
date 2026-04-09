@@ -34,7 +34,7 @@ internal sealed class StoredPairingDocumentCache
 
         if (!File.Exists(cacheFilePath))
         {
-            error = "No cached Ansight Studio session is available.";
+            error = "No cached Ansight host session is available.";
             return false;
         }
 
@@ -45,7 +45,7 @@ internal sealed class StoredPairingDocumentCache
         }
         catch (Exception ex)
         {
-            error = $"Failed to read cached Ansight Studio session: {ex.Message}";
+            error = $"Failed to read cached Ansight host session: {ex.Message}";
             return false;
         }
 
@@ -54,8 +54,8 @@ internal sealed class StoredPairingDocumentCache
             document = null;
             Clear();
             error = string.IsNullOrWhiteSpace(error)
-                ? "Cached Ansight Studio session is invalid and was cleared."
-                : $"{error} Cached Ansight Studio session was cleared.";
+                ? "Cached Ansight host session is invalid and was cleared."
+                : $"{error} Cached Ansight host session was cleared.";
             return false;
         }
 
@@ -72,8 +72,8 @@ internal sealed class StoredPairingDocumentCache
             Directory.CreateDirectory(directoryPath);
         }
 
-        var ticket = PairingConfigDocumentService.CreateTicket(document);
-        var json = PairingTicketJson.Serialize(ticket, indented: true);
+        var configDocument = PairingConfigDocumentService.CreateConfigDocument(document);
+        var json = PairingConfigDocumentJson.Serialize(configDocument, indented: true);
         File.WriteAllText(cacheFilePath, json);
     }
 

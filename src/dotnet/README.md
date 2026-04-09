@@ -35,9 +35,9 @@ Runtime.ScreenViewed("HomePage");
 
 When `WithSessionJpegCapture(...)` is enabled, the pairing client will capture the app's own root window/view as a JPEG and stream it over live Ansight pairing sessions. Capture remains client-driven, but the next interval is delayed until the previous frame has finished encoding and sending so the stream self-throttles under load. Connected tooling can inspect the latest live frame or correlate historical frames with the telemetry timeline. This feature adds extra rendering, encoding, and transport work and can negatively affect runtime performance while it is active.
 
-Host auto-probe is enabled by default. While `Runtime` is active, Ansight will periodically try to reconnect to the most recent successful Studio session if one is cached, pause probing while that session stays open, and resume after a reconnect delay if the session closes. Disable it with `WithoutHostAutoProbe()` or customize it with `WithHostAutoProbe(new HostAutoProbeOptions { ... })`.
+Host auto-probe is enabled by default. While `Runtime` is active, Ansight will periodically try to reconnect to the most recent successful host session if one is cached, pause probing while that session stays open, and resume after a reconnect delay if the session closes. Disable it with `WithoutHostAutoProbe()` or customize it with `WithHostAutoProbe(new HostAutoProbeOptions { ... })`.
 
-Runtime-owned Studio connection also manages saved and bundled pairing tickets. If your app bundles `ansight.developer-pairing.json`, Ansight now attempts startup auto-connect automatically when the runtime becomes active. Configure bundled ticket resolution once at initialization, then use `Runtime.StudioConnection` when you need to retry auto-connect explicitly, recover from saved-ticket expiry, or handle pairing tickets without app-specific pairing orchestration.
+Runtime-owned host connection also manages saved and bundled pairing configs. If your app bundles `ansight.developer-pairing.json`, Ansight now attempts startup auto-connect automatically when the runtime becomes active. Configure bundled config resolution once at initialization, then use `Runtime.HostConnection` when you need to retry auto-connect explicitly, recover from saved-config expiry, or handle pairing configs without app-specific pairing orchestration.
 
 ```csharp
 public static class AppBootstrap
@@ -45,7 +45,7 @@ public static class AppBootstrap
     public static void ConfigureAnsight()
     {
         var options = Options.CreateBuilder()
-            .WithBundledStudioConnection(typeof(AppBootstrap).Assembly)
+            .WithBundledHostConnection(typeof(AppBootstrap).Assembly)
             .Build();
 
         Runtime.InitializeAndActivate(options);
@@ -53,13 +53,13 @@ public static class AppBootstrap
 }
 ```
 
-For app-package assets such as MAUI `MauiAsset`s, use the bundled ticket loader overload:
+For app-package assets such as MAUI `MauiAsset`s, use the bundled config loader overload:
 
 ```csharp
 var options = Options.CreateBuilder()
-    .WithBundledStudioConnection(
+    .WithBundledHostConnection(
         (assetName, cancellationToken) => TryLoadBundledTextAssetAsync(assetName, cancellationToken),
-        ticketReader: new MyStudioConnectionTicketReader())
+        configReader: new MyHostConnectionConfigReader())
     .Build();
 ```
 

@@ -4,27 +4,27 @@ using Ansight.Pairing.Models;
 
 namespace Ansight.Pairing;
 
-public static class PairingTicketJson
+public static class PairingConfigDocumentJson
 {
-    public static string Serialize(PairingTicket ticket, bool indented = false)
+    public static string Serialize(PairingConfigDocument document, bool indented = false)
     {
-        ArgumentNullException.ThrowIfNull(ticket);
+        ArgumentNullException.ThrowIfNull(document);
 
-        var normalizedDiscovery = ticket.Discovery is null
+        var normalizedDiscovery = document.Discovery is null
             ? null
-            : PairingDiscoveryHintHostAddresses.NormalizeInPlace(ticket.Discovery);
+            : PairingDiscoveryHintHostAddresses.NormalizeInPlace(document.Discovery);
 
-        var model = new PairingTicketJsonModel
+        var model = new PairingConfigDocumentJsonModel
         {
-            Schema = PairingTicket.SchemaName,
-            Config = PairingConfigJson.CreateJsonModel(ticket.Config),
+            Schema = PairingConfigDocument.SchemaName,
+            Config = PairingConfigJson.CreateJsonModel(document.Config),
             Discovery = normalizedDiscovery
         };
 
         return JsonSerializer.Serialize(model, indented ? PairingJson.Pretty : PairingJson.Compact);
     }
 
-    private sealed class PairingTicketJsonModel
+    private sealed class PairingConfigDocumentJsonModel
     {
         public required string Schema { get; init; }
 

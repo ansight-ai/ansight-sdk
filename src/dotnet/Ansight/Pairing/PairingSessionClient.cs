@@ -99,7 +99,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
     /// <summary>
     /// Parses a pairing document and validates its signature, expiry, and expected app id.
     /// </summary>
-    /// <param name="configJson">JSON payload containing either a pairing ticket or a pairing config.</param>
+    /// <param name="configJson">JSON payload containing either a pairing config document or a pairing config.</param>
     /// <param name="expectedAppId">Optional app id that the payload must target.</param>
     /// <param name="document">Parsed pairing document when validation succeeds.</param>
     /// <param name="error">Validation or parsing error message when the operation fails.</param>
@@ -110,7 +110,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
     /// <summary>
     /// Parses and validates a pairing document, returning the effective pairing config when successful.
     /// </summary>
-    /// <param name="configJson">JSON payload containing either a pairing ticket or a pairing config.</param>
+    /// <param name="configJson">JSON payload containing either a pairing config document or a pairing config.</param>
     /// <param name="expectedAppId">Optional app id that the payload must target.</param>
     /// <param name="config">Effective pairing config when parsing and validation succeed.</param>
     /// <param name="error">Validation or parsing error message when the operation fails.</param>
@@ -139,9 +139,9 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         => configDocumentService.TryValidateDocument(document, expectedAppId, out error);
 
     /// <summary>
-    /// Parses a pairing ticket without validating it.
+    /// Parses a pairing config document without validating it.
     /// </summary>
-    /// <param name="configJson">JSON payload containing a pairing ticket.</param>
+    /// <param name="configJson">JSON payload containing a pairing config document.</param>
     /// <param name="document">Parsed pairing document when parsing succeeds.</param>
     /// <param name="error">Parsing error message when the operation fails.</param>
     /// <returns><see langword="true"/> when parsing succeeds; otherwise, <see langword="false"/>.</returns>
@@ -159,7 +159,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
     public Task<OpenSessionResult> OpenSessionAsync(
         PairingConfig config,
         string clientName,
-        IProgress<StudioConnectionProgressUpdate>? progress,
+        IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         return OpenSessionAsync(config, clientName, options: null, progress, cancellationToken);
@@ -178,7 +178,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         PairingConfig config,
         string clientName,
         PairingConnectionOptions? options,
-        IProgress<StudioConnectionProgressUpdate>? progress,
+        IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(config);
@@ -205,7 +205,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
     public Task<OpenSessionResult> OpenSessionAsync(
         ParsedPairingDocument document,
         string clientName,
-        IProgress<StudioConnectionProgressUpdate>? progress,
+        IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         return OpenSessionAsync(document, clientName, options: null, progress, cancellationToken);
@@ -224,7 +224,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         ParsedPairingDocument document,
         string clientName,
         PairingConnectionOptions? options,
-        IProgress<StudioConnectionProgressUpdate>? progress,
+        IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -239,12 +239,12 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         }
 
         var config = document.Config;
-        var discoveryPort = ResolveDiscoveryPort(document, options);
+        var discoveryPort = PairingDiscoveryPortResolver.Resolve(document, options?.DiscoveryPort);
         HostPairingProgressReporter.Report(
             progress,
-            StudioConnectionProgressKind.Validation,
+            HostConnectionProgressKind.Validation,
             $"Config validated. ConfigId: {config.ConfigId}",
-            source: StudioConnectionSource.Payload);
+            source: HostConnectionSource.Payload);
 
         var connectionAttempt = await connector.ConnectAsync(document, clientName, options, progress, cancellationToken);
         if (!connectionAttempt.Success)
@@ -295,7 +295,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
             }
             catch (Exception ex)
             {
-                Logger.Warning($"Failed to cache the Studio session for auto-probe: {ex.Message}");
+                Logger.Warning($"Failed to cache the host session for auto-probe: {ex.Message}");
             }
 
             return OpenSessionResult.FromSuccess(
@@ -317,7 +317,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
     /// <param name="progress">Optional progress sink for structured transport updates.</param>
     /// <param name="cancellationToken">Cancellation token for the operation.</param>
     /// <returns>The result of sending the log line.</returns>
-    public Task<OperationResult> SendClientLogAsync(string logLine, IProgress<StudioConnectionProgressUpdate>? progress, CancellationToken cancellationToken)
+    public Task<OperationResult> SendClientLogAsync(string logLine, IProgress<HostConnectionProgressUpdate>? progress, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(logLine))
         {
@@ -338,8 +338,8 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
             progress,
             TimeSpan.FromSeconds(15),
             cancellationToken,
-            StudioConnectionSource.Transport,
-            StudioConnectionProgressKind.Transport);
+            HostConnectionSource.Transport,
+            HostConnectionProgressKind.Transport);
     }
 
     /// <summary>
@@ -351,7 +351,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
     /// <returns>The result of sending the profile.</returns>
     public Task<OperationResult> SendDeviceAppProfileAsync(
         DeviceAppProfile profile,
-        IProgress<StudioConnectionProgressUpdate>? progress,
+        IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(profile);
@@ -368,8 +368,8 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
             progress,
             TimeSpan.FromSeconds(15),
             cancellationToken,
-            StudioConnectionSource.HostConnection,
-            StudioConnectionProgressKind.Connection);
+            HostConnectionSource.HostConnection,
+            HostConnectionProgressKind.Connection);
     }
 
     /// <summary>
@@ -378,7 +378,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
     /// <param name="progress">Optional progress sink for structured transport updates.</param>
     /// <param name="cancellationToken">Cancellation token for the operation.</param>
     /// <returns>The result of sending the completion message.</returns>
-    public async Task<OperationResult> CompleteSessionAsync(IProgress<StudioConnectionProgressUpdate>? progress, CancellationToken cancellationToken)
+    public async Task<OperationResult> CompleteSessionAsync(IProgress<HostConnectionProgressUpdate>? progress, CancellationToken cancellationToken)
     {
         var payload = new JsonObject
         {
@@ -394,8 +394,8 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
             progress,
             TimeSpan.FromSeconds(10),
             cancellationToken,
-            StudioConnectionSource.Transport,
-            StudioConnectionProgressKind.Transport);
+            HostConnectionSource.Transport,
+            HostConnectionProgressKind.Transport);
 
         await CloseSessionAsync(CancellationToken.None);
         return result;
@@ -419,7 +419,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
     /// <returns>The result of starting metrics streaming.</returns>
     public Task<OperationResult> StartMetricsStreamingAsync(
         IDataSink dataSink,
-        IProgress<StudioConnectionProgressUpdate>? progress,
+        IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         return telemetryStreamer.StartAsync(dataSink, progress, cancellationToken);
@@ -431,7 +431,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
     /// <param name="progress">Optional progress sink for structured streaming updates.</param>
     /// <param name="cancellationToken">Cancellation token for the operation.</param>
     /// <returns>The result of stopping metrics streaming.</returns>
-    public Task<OperationResult> StopMetricsStreamingAsync(IProgress<StudioConnectionProgressUpdate>? progress, CancellationToken cancellationToken)
+    public Task<OperationResult> StopMetricsStreamingAsync(IProgress<HostConnectionProgressUpdate>? progress, CancellationToken cancellationToken)
     {
         return telemetryStreamer.StopAsync(progress, cancellationToken);
     }
@@ -457,7 +457,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
 
     internal async Task<OpenSessionResult> OpenCachedSessionAsync(
         string? clientName,
-        IProgress<StudioConnectionProgressUpdate>? progress,
+        IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         var baselineProfile = deviceAppProfileResolver.Resolve(callerProfile: null);
@@ -470,7 +470,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         if (string.IsNullOrWhiteSpace(PairingDiscoveryHintHostAddresses.ResolvePrimary(document.DiscoveryHint)))
         {
             storedPairingDocumentCache.Clear();
-            return OpenSessionResult.FromFailure("Cached Studio session does not include a discovery host address and was cleared.");
+            return OpenSessionResult.FromFailure("Cached host session does not include a discovery host address and was cleared.");
         }
 
         var result = await OpenSessionAsync(
@@ -478,7 +478,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
             ResolveClientName(clientName, baselineProfile),
             new PairingConnectionOptions
             {
-                DiscoveryPort = document.DiscoveryHint?.DiscoveryPort
+                DiscoveryPort = PairingDiscoveryPortResolver.Resolve(document)
             },
             progress,
             cancellationToken);
@@ -500,13 +500,13 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         ParsedPairingDocument document,
         string clientName,
         PairingConnectionOptions? options,
-        IProgress<StudioConnectionProgressUpdate>? progress,
+        IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
         => OpenSessionAsync(document, clientName, options, progress, cancellationToken);
 
     Task<OpenSessionResult> IHostConnectionSessionClient.OpenCachedSessionAsync(
         string? clientName,
-        IProgress<StudioConnectionProgressUpdate>? progress,
+        IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
         => OpenCachedSessionAsync(clientName, progress, cancellationToken);
 
@@ -547,7 +547,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
     private Task<OperationResult> SendSessionOpenAsync(
         PairingConfig config,
         string clientName,
-        IProgress<StudioConnectionProgressUpdate>? progress,
+        IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         var payload = new JsonObject
@@ -567,8 +567,8 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
             progress,
             TimeSpan.FromSeconds(15),
             cancellationToken,
-            StudioConnectionSource.Transport,
-            StudioConnectionProgressKind.Transport);
+            HostConnectionSource.Transport,
+            HostConnectionProgressKind.Transport);
     }
 
     internal static ParsedPairingDocument CreateCachedDocument(
@@ -610,35 +610,6 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         };
     }
 
-    internal static ParsedPairingDocument CreatePreferredDocument(ParsedPairingDocument document)
-    {
-        ArgumentNullException.ThrowIfNull(document);
-
-        var existingDiscoveryHint = document.DiscoveryHint;
-        PairingDiscoveryHint? preferredDiscoveryHint = null;
-        if (existingDiscoveryHint is not null)
-        {
-            preferredDiscoveryHint = new PairingDiscoveryHint
-            {
-                Schema = string.IsNullOrWhiteSpace(existingDiscoveryHint.Schema)
-                    ? PairingDiscoveryHint.SchemaName
-                    : existingDiscoveryHint.Schema,
-                Source = existingDiscoveryHint.Source,
-                HostAddresses = null,
-                DiscoveryPort = existingDiscoveryHint.DiscoveryPort,
-                HostName = existingDiscoveryHint.HostName,
-                WifiName = existingDiscoveryHint.WifiName,
-                CapturedAt = existingDiscoveryHint.CapturedAt
-            };
-        }
-
-        return new ParsedPairingDocument
-        {
-            Config = document.Config,
-            DiscoveryHint = preferredDiscoveryHint
-        };
-    }
-
     private static bool ShouldClearCachedPairingProfile(OpenSessionResult result)
     {
         var resetCode = string.IsNullOrWhiteSpace(result.RejectionCode)
@@ -646,25 +617,6 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
             : result.RejectionCode;
         return !string.IsNullOrWhiteSpace(resetCode) &&
                CachedProfileResetCodes.Contains(resetCode);
-    }
-
-    private static int ResolveDiscoveryPort(ParsedPairingDocument document, PairingConnectionOptions? options)
-    {
-        var candidates = new[]
-        {
-            options?.DiscoveryPort,
-            document.DiscoveryHint?.DiscoveryPort
-        };
-
-        foreach (var candidate in candidates)
-        {
-            if (candidate is > 0 and <= ushort.MaxValue)
-            {
-                return candidate.Value;
-            }
-        }
-
-        return PairingProtocolDefaults.DiscoveryPort;
     }
 
     private static string ResolveClientName(string? overrideClientName, DeviceAppProfile? deviceAppProfile)

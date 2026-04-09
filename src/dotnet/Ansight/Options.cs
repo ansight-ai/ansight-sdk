@@ -25,7 +25,7 @@ public class Options
         Tools = ToolRegistry.Empty,
         ToolGuard = ToolGuard.Disabled,
         HostAutoProbe = HostAutoProbeOptions.EnabledDefault.Clone(),
-        StudioConnection = StudioConnectionOptions.Default.Clone()
+        HostConnection = HostConnectionOptions.Default.Clone()
     };
 
     /// <summary>
@@ -85,9 +85,9 @@ public class Options
     public HostAutoProbeOptions HostAutoProbe { get; private set; } = HostAutoProbeOptions.EnabledDefault.Clone();
 
     /// <summary>
-    /// Runtime-owned Studio connection configuration used to resolve saved and bundled tickets.
+    /// Runtime-owned host connection configuration used to resolve saved and bundled configs.
     /// </summary>
-    public StudioConnectionOptions StudioConnection { get; private set; } = StudioConnectionOptions.Default.Clone();
+    public HostConnectionOptions HostConnection { get; private set; } = HostConnectionOptions.Default.Clone();
 
     public void Validate()
     {
@@ -129,7 +129,7 @@ public class Options
         ToolGuard = ToolGuard ?? ToolGuard.Disabled;
         ToolGuard.Validate();
         HostAutoProbe ??= HostAutoProbeOptions.EnabledDefault.Clone();
-        StudioConnection ??= StudioConnectionOptions.Default.Clone();
+        HostConnection ??= HostConnectionOptions.Default.Clone();
 
         if (HostAutoProbe.InitialDelay < TimeSpan.Zero)
         {
@@ -218,7 +218,7 @@ public class Options
                     },
                 ToolGuard = initialOptions.ToolGuard ?? ToolGuard.Disabled,
                 HostAutoProbe = initialOptions.HostAutoProbe?.Clone() ?? HostAutoProbeOptions.EnabledDefault.Clone(),
-                StudioConnection = initialOptions.StudioConnection?.Clone() ?? StudioConnectionOptions.Default.Clone()
+                HostConnection = initialOptions.HostConnection?.Clone() ?? HostConnectionOptions.Default.Clone()
             };
         }
 
@@ -465,78 +465,78 @@ public class Options
         }
 
         /// <summary>
-        /// Replaces the runtime-owned Studio connection configuration.
+        /// Replaces the runtime-owned host connection configuration.
         /// </summary>
-        public OptionsBuilder WithStudioConnection(StudioConnectionOptions? studioConnection = null)
+        public OptionsBuilder WithHostConnection(HostConnectionOptions? hostConnection = null)
         {
-            options.StudioConnection = (studioConnection ?? StudioConnectionOptions.Default).Clone();
+            options.HostConnection = (hostConnection ?? HostConnectionOptions.Default).Clone();
             return this;
         }
 
         /// <summary>
-        /// Configures runtime-owned Studio connection ticket loading from the provided assembly.
+        /// Configures runtime-owned host connection config loading from the provided assembly.
         /// </summary>
-        /// <param name="bundledTicketAssembly">Assembly containing resources named <c>ansight.developer-pairing.json</c> and/or <c>ansight.json</c>.</param>
-        /// <param name="ticketReader">Optional platform-owned ticket reader.</param>
+        /// <param name="bundledConfigAssembly">Assembly containing resources named <c>ansight.developer-pairing.json</c> and/or <c>ansight.json</c>.</param>
+        /// <param name="configReader">Optional platform-owned config reader.</param>
         /// <returns>The current builder.</returns>
-        public OptionsBuilder WithBundledStudioConnection(
-            Assembly bundledTicketAssembly,
-            IStudioConnectionTicketReader? ticketReader = null)
+        public OptionsBuilder WithBundledHostConnection(
+            Assembly bundledConfigAssembly,
+            IHostConnectionConfigReader? configReader = null)
         {
-            ArgumentNullException.ThrowIfNull(bundledTicketAssembly);
+            ArgumentNullException.ThrowIfNull(bundledConfigAssembly);
 
-            return ConfigureStudioConnection(studioConnection =>
+            return ConfigureHostConnection(hostConnection =>
             {
-                studioConnection.UseBundledTicketAssembly(bundledTicketAssembly);
-                if (ticketReader is not null)
+                hostConnection.UseBundledConfigAssembly(bundledConfigAssembly);
+                if (configReader is not null)
                 {
-                    studioConnection.UseTicketReader(ticketReader);
+                    hostConnection.UseConfigReader(configReader);
                 }
             });
         }
 
         /// <summary>
-        /// Configures runtime-owned Studio connection ticket loading from a shared text asset loader.
+        /// Configures runtime-owned host connection config loading from a shared text asset loader.
         /// </summary>
         /// <param name="bundledAssetLoader">Loader that resolves bundled text assets by logical asset name.</param>
-        /// <param name="ticketReader">Optional platform-owned ticket reader.</param>
+        /// <param name="configReader">Optional platform-owned config reader.</param>
         /// <returns>The current builder.</returns>
-        public OptionsBuilder WithBundledStudioConnection(
-            StudioConnectionBundledAssetLoader bundledAssetLoader,
-            IStudioConnectionTicketReader? ticketReader = null)
+        public OptionsBuilder WithBundledHostConnection(
+            HostConnectionBundledAssetLoader bundledAssetLoader,
+            IHostConnectionConfigReader? configReader = null)
         {
             ArgumentNullException.ThrowIfNull(bundledAssetLoader);
 
-            return ConfigureStudioConnection(studioConnection =>
+            return ConfigureHostConnection(hostConnection =>
             {
-                studioConnection.UseBundledTextAssets(bundledAssetLoader);
-                if (ticketReader is not null)
+                hostConnection.UseBundledTextAssets(bundledAssetLoader);
+                if (configReader is not null)
                 {
-                    studioConnection.UseTicketReader(ticketReader);
+                    hostConnection.UseConfigReader(configReader);
                 }
             });
         }
 
         /// <summary>
-        /// Mutates the runtime-owned Studio connection configuration in-place.
+        /// Mutates the runtime-owned host connection configuration in-place.
         /// </summary>
-        public OptionsBuilder ConfigureStudioConnection(Action<StudioConnectionOptions> configure)
+        public OptionsBuilder ConfigureHostConnection(Action<HostConnectionOptions> configure)
         {
             ArgumentNullException.ThrowIfNull(configure);
 
-            options.StudioConnection ??= StudioConnectionOptions.Default.Clone();
-            configure(options.StudioConnection);
+            options.HostConnection ??= HostConnectionOptions.Default.Clone();
+            configure(options.HostConnection);
             return this;
         }
 
         /// <summary>
-        /// Configures the UDP discovery port used for runtime-owned Studio connections.
+        /// Configures the UDP discovery port used for runtime-owned host connections.
         /// </summary>
         /// <param name="discoveryPort">UDP discovery port to use for initial host discovery.</param>
         /// <returns>The current builder.</returns>
-        public OptionsBuilder WithStudioConnectionDiscoveryPort(int discoveryPort)
+        public OptionsBuilder WithHostConnectionDiscoveryPort(int discoveryPort)
         {
-            return ConfigureStudioConnection(studioConnection => studioConnection.UseDiscoveryPort(discoveryPort));
+            return ConfigureHostConnection(hostConnection => hostConnection.UseDiscoveryPort(discoveryPort));
         }
 
         /// <summary>

@@ -37,9 +37,9 @@
           IgnoreExitCode="true" />
     <Message Condition="Exists('$(AnsightDeveloperPairingOutputFile)')"
              Importance="High"
-             Text="Ansight developer pairing ticket generated at $(AnsightDeveloperPairingOutputFile)." />
+             Text="Ansight developer pairing config generated at $(AnsightDeveloperPairingOutputFile)." />
     <Warning Condition="!Exists('$(AnsightDeveloperPairingOutputFile)')"
-             Text="Ansight developer pairing ticket was not generated at $(AnsightDeveloperPairingOutputFile). Check the generator script output above." />
+             Text="Ansight developer pairing config was not generated at $(AnsightDeveloperPairingOutputFile). Check the generator script output above." />
   </Target>
 
   <Target Name="GenerateAnsightDeveloperPairingWindows"
@@ -51,9 +51,9 @@
           IgnoreExitCode="true" />
     <Message Condition="Exists('$(AnsightDeveloperPairingOutputFile)')"
              Importance="High"
-             Text="Ansight developer pairing ticket generated at $(AnsightDeveloperPairingOutputFile)." />
+             Text="Ansight developer pairing config generated at $(AnsightDeveloperPairingOutputFile)." />
     <Warning Condition="!Exists('$(AnsightDeveloperPairingOutputFile)')"
-             Text="Ansight developer pairing ticket was not generated at $(AnsightDeveloperPairingOutputFile). Check the generator script output above." />
+             Text="Ansight developer pairing config was not generated at $(AnsightDeveloperPairingOutputFile). Check the generator script output above." />
   </Target>
 
   <Target Name="CheckAnsightToolImplementations"

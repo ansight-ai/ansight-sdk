@@ -1,10 +1,10 @@
 namespace Ansight.Pairing;
 
-internal sealed class StoredHostPairingProfileStore
+internal sealed class StoredHostPairingConfigStore
 {
     private readonly string filePath;
 
-    public StoredHostPairingProfileStore(string cacheKey, string? filePath = null)
+    public StoredHostPairingConfigStore(string cacheKey, string? filePath = null)
     {
         if (string.IsNullOrWhiteSpace(cacheKey))
         {
@@ -16,7 +16,7 @@ internal sealed class StoredHostPairingProfileStore
             : Path.GetFullPath(filePath.Trim());
     }
 
-    public bool HasStoredDocument => File.Exists(filePath);
+    public bool HasStoredConfig => File.Exists(filePath);
 
     public bool TryLoad(out string? json, out string error)
     {
@@ -25,7 +25,7 @@ internal sealed class StoredHostPairingProfileStore
 
         if (!File.Exists(filePath))
         {
-            error = "No saved Ansight Studio ticket is available.";
+            error = "No saved Ansight host config is available.";
             return false;
         }
 
@@ -36,7 +36,7 @@ internal sealed class StoredHostPairingProfileStore
         }
         catch (Exception ex)
         {
-            error = $"Failed to read saved Ansight Studio ticket: {ex.Message}";
+            error = $"Failed to read saved Ansight host config: {ex.Message}";
             return false;
         }
     }
@@ -51,8 +51,8 @@ internal sealed class StoredHostPairingProfileStore
             Directory.CreateDirectory(directoryPath);
         }
 
-        var ticket = PairingConfigDocumentService.CreateTicket(document);
-        var json = PairingTicketJson.Serialize(ticket, indented: true);
+        var configDocument = PairingConfigDocumentService.CreateConfigDocument(document);
+        var json = PairingConfigDocumentJson.Serialize(configDocument, indented: true);
         File.WriteAllText(filePath, json);
     }
 

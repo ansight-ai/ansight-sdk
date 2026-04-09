@@ -11,7 +11,7 @@ public sealed class HostConnectionManagerTests
     {
         var runtime = CreateRuntime();
         using var client = new FakeHostConnectionSessionClient();
-        using var manager = new HostConnectionManager(runtime, HostAutoProbeOptions.DisabledDefault, client);
+        using var manager = new HostSessionManager(runtime, HostAutoProbeOptions.DisabledDefault, client);
 
         var result = await manager.ConnectAsync(CreateDocument());
 
@@ -28,7 +28,7 @@ public sealed class HostConnectionManagerTests
         runtime.Activate();
         using var client = new FakeHostConnectionSessionClient();
         client.OpenSessionResult = CreateOpenSuccess();
-        using var manager = new HostConnectionManager(runtime, HostAutoProbeOptions.DisabledDefault, client);
+        using var manager = new HostSessionManager(runtime, HostAutoProbeOptions.DisabledDefault, client);
 
         var result = await manager.ConnectAsync(CreateDocument(), clientName: "Unit Test App");
 
@@ -37,7 +37,7 @@ public sealed class HostConnectionManagerTests
         Assert.Equal(1, client.StartMetricsStreamingCallCount);
         Assert.True(manager.IsConnected);
         Assert.Equal(HostConnectionState.Connected, manager.State);
-        Assert.Contains("Streaming live metrics to Studio at 127.0.0.1.", manager.StatusSummary, StringComparison.Ordinal);
+        Assert.Contains("Streaming live metrics to Host at 127.0.0.1.", manager.StatusSummary, StringComparison.Ordinal);
 
         runtime.Deactivate();
     }
@@ -50,7 +50,7 @@ public sealed class HostConnectionManagerTests
         using var client = new FakeHostConnectionSessionClient();
         client.OpenSessionResult = CreateOpenSuccess();
         client.OpenCachedSessionResult = CreateOpenSuccess();
-        using var manager = new HostConnectionManager(runtime, HostAutoProbeOptions.DisabledDefault, client);
+        using var manager = new HostSessionManager(runtime, HostAutoProbeOptions.DisabledDefault, client);
 
         var initialConnectResult = await manager.ConnectAsync(CreateDocument(), clientName: "Unit Test App");
         var cachedConnectResult = await manager.ConnectUsingCachedProfileAsync("Unit Test App");
@@ -70,7 +70,7 @@ public sealed class HostConnectionManagerTests
         runtime.Activate();
         using var client = new FakeHostConnectionSessionClient();
         client.OpenSessionResult = CreateOpenSuccess();
-        using var manager = new HostConnectionManager(runtime, HostAutoProbeOptions.EnabledDefault, client);
+        using var manager = new HostSessionManager(runtime, HostAutoProbeOptions.EnabledDefault, client);
 
         await manager.ConnectAsync(CreateDocument(), clientName: "Unit Test App");
         client.RaiseSessionClosed();
@@ -88,7 +88,7 @@ public sealed class HostConnectionManagerTests
     {
         var runtime = CreateRuntime();
         using var client = new FakeHostConnectionSessionClient();
-        using var manager = new HostConnectionManager(runtime, HostAutoProbeOptions.DisabledDefault, client);
+        using var manager = new HostSessionManager(runtime, HostAutoProbeOptions.DisabledDefault, client);
 
         var result = manager.ClearCachedProfile();
 
@@ -122,7 +122,7 @@ public sealed class HostConnectionManagerTests
                 Host = new PairingHost
                 {
                     HostId = "host-1",
-                    HostName = "Studio",
+                    HostName = "Host",
                     DiscoveryPort = 45123,
                     HostPubKey = "host-pub",
                     HostPubKeyFingerprint = "fingerprint"
@@ -162,7 +162,7 @@ public sealed class HostConnectionManagerTests
                 Accepted = true,
                 Reason = "ok",
                 HostId = "host-1",
-                HostName = "Studio",
+                HostName = "Host",
                 Message = "ready",
                 WebSocketPort = 45124,
                 WebSocketPath = "/ws",
@@ -201,7 +201,7 @@ public sealed class HostConnectionManagerTests
             ParsedPairingDocument document,
             string clientName,
             PairingConnectionOptions? options,
-            IProgress<StudioConnectionProgressUpdate>? progress,
+            IProgress<HostConnectionProgressUpdate>? progress,
             CancellationToken cancellationToken)
         {
             OpenSessionCallCount++;
@@ -211,7 +211,7 @@ public sealed class HostConnectionManagerTests
 
         public Task<OpenSessionResult> OpenCachedSessionAsync(
             string? clientName,
-            IProgress<StudioConnectionProgressUpdate>? progress,
+            IProgress<HostConnectionProgressUpdate>? progress,
             CancellationToken cancellationToken)
         {
             OpenCachedSessionCallCount++;
@@ -221,7 +221,7 @@ public sealed class HostConnectionManagerTests
 
         public Task<OperationResult> StartMetricsStreamingAsync(
             IDataSink dataSink,
-            IProgress<StudioConnectionProgressUpdate>? progress,
+            IProgress<HostConnectionProgressUpdate>? progress,
             CancellationToken cancellationToken)
         {
             StartMetricsStreamingCallCount++;

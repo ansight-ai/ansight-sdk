@@ -127,7 +127,7 @@ fi
 
 cat > "$output_path" <<EOF
 {
-  "schema": "ansight.pairing-ticket.v1",
+  "schema": "ansight.pairing-config-document.v1",
   "config": $pairing_config_json,
   "discovery": {
     "schema": "ansight.discovery-hint.v1",

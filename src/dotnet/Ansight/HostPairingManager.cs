@@ -5,7 +5,7 @@ using Ansight.Pairing.Models;
 
 namespace Ansight;
 
-internal sealed class HostPairingManager : IStudioConnection, IDisposable
+internal sealed class HostPairingManager : IHostConnection, IDisposable
 {
     private static readonly HashSet<string> StoredProfileResetReasonCodes = new(StringComparer.Ordinal)
     {
@@ -15,43 +15,43 @@ internal sealed class HostPairingManager : IStudioConnection, IDisposable
         PairingFailureCodes.PairingProofInvalid
     };
 
-    private readonly IHostConnection hostConnection;
-    private readonly StudioConnectionOptions options;
-    private readonly StoredHostPairingProfileStore preferredProfileStore;
+    private readonly IHostSessionConnection hostConnection;
+    private readonly HostConnectionOptions options;
+    private readonly StoredHostPairingConfigStore savedConfigStore;
     private readonly PairingConfigDocumentService pairingDocumentService = new();
     private readonly Func<bool> isRuntimeActive;
     private readonly SemaphoreSlim operationGate = new(1, 1);
     private readonly Lock statusGate = new();
-    private StudioConnectionStatus status;
-    private StudioConnectionCapabilities capabilities;
-    private bool hasBundledProfile;
+    private HostConnectionStatus status;
+    private HostConnectionCapabilities capabilities;
+    private bool hasBundledConfig;
     private bool disposed;
 
     internal HostPairingManager(
-        IHostConnection hostConnection,
-        StudioConnectionOptions options,
-        StoredHostPairingProfileStore? preferredProfileStore = null,
+        IHostSessionConnection hostConnection,
+        HostConnectionOptions options,
+        StoredHostPairingConfigStore? savedConfigStore = null,
         Func<bool>? isRuntimeActive = null)
     {
         this.hostConnection = hostConnection ?? throw new ArgumentNullException(nameof(hostConnection));
         this.options = options?.Clone() ?? throw new ArgumentNullException(nameof(options));
-        this.preferredProfileStore = preferredProfileStore
-                                     ?? new StoredHostPairingProfileStore(
+        this.savedConfigStore = savedConfigStore
+                                ?? new StoredHostPairingConfigStore(
                                          StoredPairingDocumentCache.ResolveCacheKey(AutomaticDeviceAppProfileProvider.Instance),
-                                         this.options.SavedTicketPath);
+                                         this.options.SavedConfigPath);
         this.isRuntimeActive = isRuntimeActive ?? (() => Runtime.IsActive);
-        hasBundledProfile = false;
-        status = BuildStatusSnapshot(hasBundledProfile);
-        capabilities = BuildCapabilities(hasBundledProfile);
+        hasBundledConfig = false;
+        status = BuildStatusSnapshot(hasBundledConfig);
+        capabilities = BuildCapabilities(hasBundledConfig);
         this.hostConnection.StatusChanged += HandleHostConnectionStatusChanged;
-        UpdateStatusAndCapabilities(hasBundledProfile);
+        UpdateStatusAndCapabilities(hasBundledConfig);
     }
 
-    public bool HasSavedTicket => preferredProfileStore.HasStoredDocument;
+    public bool HasSavedConfig => savedConfigStore.HasStoredConfig;
 
     public bool IsConnected => hostConnection.IsConnected;
 
-    public StudioConnectionStatus Status
+    public HostConnectionStatus Status
     {
         get
         {
@@ -62,7 +62,7 @@ internal sealed class HostPairingManager : IStudioConnection, IDisposable
         }
     }
 
-    public StudioConnectionCapabilities Capabilities
+    public HostConnectionCapabilities Capabilities
     {
         get
         {
@@ -73,87 +73,87 @@ internal sealed class HostPairingManager : IStudioConnection, IDisposable
         }
     }
 
-    public event EventHandler<StudioConnectionChangedEventArgs>? StatusChanged;
+    public event EventHandler<HostConnectionChangedEventArgs>? StatusChanged;
 
-    public async Task<StudioConnectionCapabilities> RefreshCapabilitiesAsync(CancellationToken cancellationToken = default)
+    public async Task<HostConnectionCapabilities> RefreshCapabilitiesAsync(CancellationToken cancellationToken = default)
     {
-        var resolvedHasBundledTicket = await ResolveBundledProfileAvailabilityAsync(cancellationToken);
-        return UpdateStatusAndCapabilities(resolvedHasBundledTicket);
+        var resolvedHasBundledConfig = await ResolveBundledConfigAvailabilityAsync(cancellationToken);
+        return UpdateStatusAndCapabilities(resolvedHasBundledConfig);
     }
 
-    private bool CanReadRequest(StudioConnectionRequestKind kind)
+    private bool CanReadRequest(HostConnectionRequestKind kind)
     {
-        if (options.TicketReader is null)
+        if (options.ConfigReader is null)
         {
             return false;
         }
 
         try
         {
-            return options.TicketReader.CanRead(kind);
+            return options.ConfigReader.CanRead(kind);
         }
         catch (Exception ex)
         {
-            Logger.Warning($"Failed to resolve ticket reader support for {kind}: {ex.Message}");
+            Logger.Warning($"Failed to resolve config reader support for {kind}: {ex.Message}");
             return false;
         }
     }
 
-    public bool TryParseTicket(string payload, out PairingTicket? ticket, out string error)
+    public bool TryParseConfigDocument(string payload, out PairingConfigDocument? config, out string error)
     {
-        if (!pairingDocumentService.TryParseTicket(payload, out var parsedTicket, out error) || parsedTicket is null)
+        if (!pairingDocumentService.TryParseConfigDocument(payload, out var parsedConfig, out error) || parsedConfig is null)
         {
-            ticket = null;
+            config = null;
             return false;
         }
 
-        var resolvedTicket = ResolveTicket(parsedTicket, StudioConnectionSource.Payload, "Using supplied pairing ticket.");
-        if (!resolvedTicket.Success || resolvedTicket.Document is null)
+        var resolvedConfig = ResolveConfigDocument(parsedConfig, HostConnectionSource.Payload, "Using supplied pairing config.");
+        if (!resolvedConfig.Success || resolvedConfig.Document is null)
         {
-            ticket = null;
-            error = resolvedTicket.Message;
+            config = null;
+            error = resolvedConfig.Message;
             return false;
         }
 
-        ticket = PairingConfigDocumentService.CreateTicket(resolvedTicket.Document);
+        config = PairingConfigDocumentService.CreateConfigDocument(resolvedConfig.Document);
         error = string.Empty;
         return true;
     }
 
-    public async Task<StudioConnectionResult> ConnectAsync(
-        StudioConnectionRequest? request = null,
+    public async Task<HostConnectionResult> ConnectAsync(
+        HostConnectionRequest? request = null,
         string? clientName = null,
-        IProgress<StudioConnectionProgressUpdate>? progress = null,
+        IProgress<HostConnectionProgressUpdate>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        request ??= StudioConnectionRequest.Auto();
+        request ??= HostConnectionRequest.Auto();
 
         return request.Kind switch
         {
-            StudioConnectionRequestKind.Auto => await ConnectAutoAsync(clientName, progress, cancellationToken),
-            StudioConnectionRequestKind.SavedTicket => await ConnectUsingSavedTicketAsync(clientName, progress, cancellationToken),
-            StudioConnectionRequestKind.BundledTicket => await ConnectUsingBundledTicketAsync(clientName, progress, cancellationToken),
-            StudioConnectionRequestKind.Ticket => await ConnectTicketAsync(request.Ticket, clientName, progress, cancellationToken),
-            StudioConnectionRequestKind.Payload => await ConnectFromPayloadAsync(
+            HostConnectionRequestKind.Auto => await ConnectAutoAsync(clientName, progress, cancellationToken),
+            HostConnectionRequestKind.SavedConfig => await ConnectUsingSavedConfigAsync(clientName, progress, cancellationToken),
+            HostConnectionRequestKind.BundledConfig => await ConnectUsingBundledConfigAsync(clientName, progress, cancellationToken),
+            HostConnectionRequestKind.Config => await ConnectConfigAsync(request.Config, clientName, progress, cancellationToken),
+            HostConnectionRequestKind.Payload => await ConnectFromPayloadAsync(
                 request.Payload,
                 request.SourceDescription,
                 clientName,
                 progress,
                 cancellationToken),
-            StudioConnectionRequestKind.File or StudioConnectionRequestKind.QrCode => await ConnectFromReaderAsync(
+            HostConnectionRequestKind.File or HostConnectionRequestKind.QrCode => await ConnectFromReaderAsync(
                 request,
                 clientName,
                 progress,
                 cancellationToken),
-            _ => StudioConnectionResult.FromFailure(
-                $"Unsupported Studio connection request kind '{request.Kind}'.",
-                StudioConnectionActionKind.Connect)
+            _ => HostConnectionResult.FromFailure(
+                $"Unsupported host connection request kind '{request.Kind}'.",
+                HostConnectionActionKind.Connect)
         };
     }
 
-    private async Task<StudioConnectionResult> ConnectAutoAsync(
+    private async Task<HostConnectionResult> ConnectAutoAsync(
         string? clientName,
-        IProgress<StudioConnectionProgressUpdate>? progress,
+        IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         await operationGate.WaitAsync(cancellationToken);
@@ -161,10 +161,10 @@ internal sealed class HostPairingManager : IStudioConnection, IDisposable
         {
             if (hostConnection.IsConnected)
             {
-                return StudioConnectionResult.FromSuccess(
+                return HostConnectionResult.FromSuccess(
                     hostConnection.StatusSummary,
-                    StudioConnectionActionKind.AutoConnect,
-                    StudioConnectionSource.HostConnection);
+                    HostConnectionActionKind.AutoConnect,
+                    HostConnectionSource.HostConnection);
             }
 
             if (hostConnection.HasCachedProfile)
@@ -172,50 +172,53 @@ internal sealed class HostPairingManager : IStudioConnection, IDisposable
                 var cachedProfileResult = await hostConnection.ConnectUsingCachedProfileAsync(clientName, progress, cancellationToken);
                 if (cachedProfileResult.Success)
                 {
-                    return ToPairingResult(cachedProfileResult, StudioConnectionActionKind.AutoConnect);
+                    return ToPairingResult(cachedProfileResult, HostConnectionActionKind.AutoConnect);
                 }
             }
 
-            if (HasSavedTicket)
+            if (HasSavedConfig)
             {
-                return await ConnectUsingPreferredProfileCoreAsync(
+                var savedConfigResult = await ConnectUsingSavedConfigCoreAsync(
                     clientName,
                     progress,
                     cancellationToken,
-                    StudioConnectionActionKind.AutoConnect,
-                    allowBundledRetry: true);
+                    HostConnectionActionKind.AutoConnect);
+                if (savedConfigResult.Success || !ShouldRetryWithBundledConfig(savedConfigResult.Source, savedConfigResult.ReasonCode))
+                {
+                    return savedConfigResult;
+                }
             }
 
-            return await ConnectUsingBundledProfileCoreAsync(
+            return await ConnectUsingBundledConfigCoreAsync(
                 clientName,
                 progress,
                 cancellationToken,
-                StudioConnectionActionKind.AutoConnect);
+                HostConnectionActionKind.AutoConnect);
         }
         finally
         {
-            UpdateStatusAndCapabilities(hasBundledProfile);
+            UpdateStatusAndCapabilities(hasBundledConfig);
             operationGate.Release();
         }
     }
 
-    private async Task<StudioConnectionResult> ConnectTicketAsync(
-        PairingTicket? ticket,
+    private async Task<HostConnectionResult> ConnectConfigAsync(
+        PairingConfigDocument? config,
         string? clientName,
-        IProgress<StudioConnectionProgressUpdate>? progress,
+        IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(ticket);
+        ArgumentNullException.ThrowIfNull(config);
 
         await operationGate.WaitAsync(cancellationToken);
         try
         {
-            var resolvedDocument = ResolveTicket(ticket, StudioConnectionSource.Payload, "Using supplied pairing ticket.");
+            var resolvedDocument = ResolveConfigDocument(config, HostConnectionSource.Payload, "Using supplied pairing config.");
             if (!resolvedDocument.Success || resolvedDocument.Document is null)
             {
-                return StudioConnectionResult.FromFailure(
+                return HostConnectionResult.FromFailure(
                     resolvedDocument.Message,
-                    StudioConnectionActionKind.Connect,
+                    HostConnectionActionKind.Connect,
                     resolvedDocument.Source);
             }
 
@@ -224,19 +227,19 @@ internal sealed class HostPairingManager : IStudioConnection, IDisposable
                 clientName,
                 progress,
                 cancellationToken,
-                StudioConnectionActionKind.Connect);
-            return ToPairingResult(connectResult, StudioConnectionActionKind.Connect);
+                HostConnectionActionKind.Connect);
+            return ToPairingResult(connectResult, HostConnectionActionKind.Connect);
         }
         finally
         {
-            UpdateStatusAndCapabilities(hasBundledProfile);
+            UpdateStatusAndCapabilities(hasBundledConfig);
             operationGate.Release();
         }
     }
 
-    private async Task<StudioConnectionResult> ConnectUsingSavedTicketAsync(
+    private async Task<HostConnectionResult> ConnectUsingSavedConfigAsync(
         string? clientName,
-        IProgress<StudioConnectionProgressUpdate>? progress,
+        IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         await operationGate.WaitAsync(cancellationToken);
@@ -244,77 +247,67 @@ internal sealed class HostPairingManager : IStudioConnection, IDisposable
         {
             if (hostConnection.IsConnected)
             {
-                return StudioConnectionResult.FromSuccess(
+                return HostConnectionResult.FromSuccess(
                     hostConnection.StatusSummary,
-                    StudioConnectionActionKind.ConnectUsingSavedTicket,
-                    StudioConnectionSource.HostConnection);
+                    HostConnectionActionKind.ConnectUsingSavedConfig,
+                    HostConnectionSource.HostConnection);
             }
 
-            if (hostConnection.HasCachedProfile)
+            if (!HasSavedConfig)
             {
-                var cachedProfileResult = await hostConnection.ConnectUsingCachedProfileAsync(clientName, progress, cancellationToken);
-                if (cachedProfileResult.Success)
-                {
-                    return ToPairingResult(cachedProfileResult, StudioConnectionActionKind.ConnectUsingSavedTicket);
-                }
+                return HostConnectionResult.FromFailure(
+                    "No saved Ansight pairing config is available.",
+                    HostConnectionActionKind.ConnectUsingSavedConfig,
+                    HostConnectionSource.SavedConfig);
             }
 
-            if (!HasSavedTicket)
-            {
-                return StudioConnectionResult.FromFailure(
-                    "No saved Ansight pairing ticket is available.",
-                    StudioConnectionActionKind.ConnectUsingSavedTicket,
-                    StudioConnectionSource.SavedTicket);
-            }
-
-            return await ConnectUsingPreferredProfileCoreAsync(
+            return await ConnectUsingSavedConfigCoreAsync(
                 clientName,
                 progress,
                 cancellationToken,
-                StudioConnectionActionKind.ConnectUsingSavedTicket,
-                allowBundledRetry: true);
+                HostConnectionActionKind.ConnectUsingSavedConfig);
         }
         finally
         {
-            UpdateStatusAndCapabilities(hasBundledProfile);
+            UpdateStatusAndCapabilities(hasBundledConfig);
             operationGate.Release();
         }
     }
 
-    private async Task<StudioConnectionResult> ConnectUsingBundledTicketAsync(
+    private async Task<HostConnectionResult> ConnectUsingBundledConfigAsync(
         string? clientName,
-        IProgress<StudioConnectionProgressUpdate>? progress,
+        IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         await operationGate.WaitAsync(cancellationToken);
         try
         {
-            return await ConnectUsingBundledProfileCoreAsync(
+            return await ConnectUsingBundledConfigCoreAsync(
                 clientName,
                 progress,
                 cancellationToken,
-                StudioConnectionActionKind.ConnectUsingBundledTicket);
+                HostConnectionActionKind.ConnectUsingBundledConfig);
         }
         finally
         {
-            UpdateStatusAndCapabilities(hasBundledProfile);
+            UpdateStatusAndCapabilities(hasBundledConfig);
             operationGate.Release();
         }
     }
 
-    private async Task<StudioConnectionResult> ConnectFromPayloadAsync(
+    private async Task<HostConnectionResult> ConnectFromPayloadAsync(
         string? payload,
         string? sourceDescription,
         string? clientName,
-        IProgress<StudioConnectionProgressUpdate>? progress,
+        IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(payload))
         {
-            return StudioConnectionResult.FromFailure(
-                "Paste or load a pairing ticket.",
-                StudioConnectionActionKind.ConnectFromPayload,
-                StudioConnectionSource.Payload);
+            return HostConnectionResult.FromFailure(
+                "Paste or load a pairing config.",
+                HostConnectionActionKind.ConnectFromPayload,
+                HostConnectionSource.Payload);
         }
 
         await operationGate.WaitAsync(cancellationToken);
@@ -325,36 +318,35 @@ internal sealed class HostPairingManager : IStudioConnection, IDisposable
                 sourceDescription,
                 clientName,
                 progress,
-                cancellationToken,
-                preferPreferredProfiles: true);
+                cancellationToken);
         }
         finally
         {
-            UpdateStatusAndCapabilities(hasBundledProfile);
+            UpdateStatusAndCapabilities(hasBundledConfig);
             operationGate.Release();
         }
     }
 
-    private async Task<StudioConnectionResult> ConnectFromReaderAsync(
-        StudioConnectionRequest request,
+    private async Task<HostConnectionResult> ConnectFromReaderAsync(
+        HostConnectionRequest request,
         string? clientName,
-        IProgress<StudioConnectionProgressUpdate>? progress,
+        IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        if (options.TicketReader is null || !CanReadRequest(request.Kind))
+        if (options.ConfigReader is null || !CanReadRequest(request.Kind))
         {
-            return StudioConnectionResult.FromFailure(
-                $"No Studio ticket reader is registered for {request.Kind}.",
-                StudioConnectionActionKind.ConnectFromPayload,
-                StudioConnectionSource.TicketReader);
+            return HostConnectionResult.FromFailure(
+                $"No host config reader is registered for {request.Kind}.",
+                HostConnectionActionKind.ConnectFromPayload,
+                HostConnectionSource.ConfigReader);
         }
 
         string? payload;
         try
         {
-            payload = await options.TicketReader.ReadTicketPayloadAsync(request, cancellationToken);
+            payload = await options.ConfigReader.ReadConfigPayloadAsync(request, cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -362,18 +354,18 @@ internal sealed class HostPairingManager : IStudioConnection, IDisposable
         }
         catch (Exception ex)
         {
-            return StudioConnectionResult.FromFailure(
-                $"Failed to read a pairing ticket: {ex.Message}",
-                StudioConnectionActionKind.ConnectFromPayload,
-                StudioConnectionSource.TicketReader);
+            return HostConnectionResult.FromFailure(
+                $"Failed to read a pairing config: {ex.Message}",
+                HostConnectionActionKind.ConnectFromPayload,
+                HostConnectionSource.ConfigReader);
         }
 
         if (string.IsNullOrWhiteSpace(payload))
         {
-            return StudioConnectionResult.FromFailure(
-                "No pairing ticket was provided.",
-                StudioConnectionActionKind.ConnectFromPayload,
-                StudioConnectionSource.TicketReader);
+            return HostConnectionResult.FromFailure(
+                "No pairing config was provided.",
+                HostConnectionActionKind.ConnectFromPayload,
+                HostConnectionSource.ConfigReader);
         }
 
         return await ConnectFromPayloadAsync(
@@ -384,61 +376,61 @@ internal sealed class HostPairingManager : IStudioConnection, IDisposable
             cancellationToken);
     }
 
-    public async Task<StudioConnectionResult> DisconnectAsync(CancellationToken cancellationToken = default)
+    public async Task<HostConnectionResult> DisconnectAsync(CancellationToken cancellationToken = default)
     {
         await operationGate.WaitAsync(cancellationToken);
         try
         {
             var result = await hostConnection.DisconnectAsync(cancellationToken);
-            return ToPairingResult(result, StudioConnectionActionKind.Disconnect);
+            return ToPairingResult(result, HostConnectionActionKind.Disconnect);
         }
         finally
         {
-            UpdateStatusAndCapabilities(hasBundledProfile);
+            UpdateStatusAndCapabilities(hasBundledConfig);
             operationGate.Release();
         }
     }
 
-    public StudioConnectionResult ClearSavedTickets()
+    public HostConnectionResult ClearSavedConfigs()
     {
         operationGate.Wait();
         try
         {
             if (hostConnection.IsConnected)
             {
-                return StudioConnectionResult.FromFailure(
-                    "Disconnect from Ansight Studio before clearing saved tickets.",
-                    StudioConnectionActionKind.ClearSavedTickets,
-                    StudioConnectionSource.SavedTicket);
+                return HostConnectionResult.FromFailure(
+                    "Disconnect from Ansight host before clearing saved configs.",
+                    HostConnectionActionKind.ClearSavedConfigs,
+                    HostConnectionSource.SavedConfig);
             }
 
-            preferredProfileStore.Clear();
+            savedConfigStore.Clear();
             var cachedProfileResult = hostConnection.ClearCachedProfile();
             if (!cachedProfileResult.Success)
             {
-                return StudioConnectionResult.FromFailure(
+                return HostConnectionResult.FromFailure(
                     cachedProfileResult.Message,
-                    StudioConnectionActionKind.ClearSavedTickets,
+                    HostConnectionActionKind.ClearSavedConfigs,
                     cachedProfileResult.Source,
                     cachedProfileResult.ReasonCode);
             }
 
-            return StudioConnectionResult.FromSuccess(
-                "Cleared saved Ansight Studio tickets.",
-                StudioConnectionActionKind.ClearSavedTickets,
-                StudioConnectionSource.SavedTicket);
+            return HostConnectionResult.FromSuccess(
+                "Cleared saved Ansight host configs.",
+                HostConnectionActionKind.ClearSavedConfigs,
+                HostConnectionSource.SavedConfig);
         }
         catch (Exception ex)
         {
             Logger.Exception(ex);
-            return StudioConnectionResult.FromFailure(
-                $"Failed to clear saved Ansight Studio tickets: {ex.Message}",
-                StudioConnectionActionKind.ClearSavedTickets,
-                StudioConnectionSource.SavedTicket);
+            return HostConnectionResult.FromFailure(
+                $"Failed to clear saved Ansight host configs: {ex.Message}",
+                HostConnectionActionKind.ClearSavedConfigs,
+                HostConnectionSource.SavedConfig);
         }
         finally
         {
-            UpdateStatusAndCapabilities(hasBundledProfile);
+            UpdateStatusAndCapabilities(hasBundledConfig);
             operationGate.Release();
         }
     }
@@ -462,17 +454,17 @@ internal sealed class HostPairingManager : IStudioConnection, IDisposable
             return;
         }
 
-        var hasBundledDeveloperTicket = await TryResolveBundledProfileAvailabilityAsync(
-            ResolveBundledDocumentLoader(StudioConnectionSource.BundledDeveloperTicket),
-            StudioConnectionSource.BundledDeveloperTicket,
+        var hasBundledDeveloperConfig = await TryResolveBundledConfigAvailabilityAsync(
+            ResolveBundledDocumentLoader(HostConnectionSource.BundledDeveloperConfig),
+            HostConnectionSource.BundledDeveloperConfig,
             cancellationToken);
-        if (!hasBundledDeveloperTicket || disposed || !isRuntimeActive())
+        if (!hasBundledDeveloperConfig || disposed || !isRuntimeActive())
         {
             return;
         }
 
-        UpdateStatusAndCapabilities(hasBundledProfile || hasBundledDeveloperTicket);
-        Logger.Info("Bundled developer pairing ticket detected. Attempting Ansight startup auto-connect.");
+        UpdateStatusAndCapabilities(hasBundledConfig || hasBundledDeveloperConfig);
+        Logger.Info("Bundled developer pairing config detected. Attempting Ansight startup auto-connect.");
 
         var result = await ConnectAutoAsync(clientName: null, progress: null, cancellationToken: cancellationToken);
         if (result.Success)
@@ -484,24 +476,22 @@ internal sealed class HostPairingManager : IStudioConnection, IDisposable
         Logger.Warning($"Ansight startup auto-connect failed. {result.Message}");
     }
 
-    private async Task<StudioConnectionResult> ConnectFromPayloadCoreAsync(
+    private async Task<HostConnectionResult> ConnectFromPayloadCoreAsync(
         string payload,
         string? sourceDescription,
         string? clientName,
-        IProgress<StudioConnectionProgressUpdate>? progress,
-        CancellationToken cancellationToken,
-        bool preferPreferredProfiles)
+        IProgress<HostConnectionProgressUpdate>? progress,
+        CancellationToken cancellationToken)
     {
         var resolvedDocument = await ResolvePairingDocumentAsync(
             payload,
             sourceDescription,
-            preferPreferredProfiles,
             cancellationToken);
         if (!resolvedDocument.Success || resolvedDocument.Document is null)
         {
-            return StudioConnectionResult.FromFailure(
+            return HostConnectionResult.FromFailure(
                 resolvedDocument.Message,
-                StudioConnectionActionKind.ConnectFromPayload,
+                HostConnectionActionKind.ConnectFromPayload,
                 resolvedDocument.Source);
         }
 
@@ -510,64 +500,45 @@ internal sealed class HostPairingManager : IStudioConnection, IDisposable
             clientName,
             progress,
             cancellationToken,
-            StudioConnectionActionKind.ConnectFromPayload);
-        if (ShouldRetryWithBundledProfile(connectResult, resolvedDocument.Source) && preferPreferredProfiles)
-        {
-            return await ConnectFromPayloadCoreAsync(
-                payload,
-                sourceDescription,
-                clientName,
-                progress,
-                cancellationToken,
-                preferPreferredProfiles: false);
-        }
+            HostConnectionActionKind.ConnectFromPayload);
 
-        return ToPairingResult(connectResult, StudioConnectionActionKind.ConnectFromPayload);
+        return ToPairingResult(connectResult, HostConnectionActionKind.ConnectFromPayload);
     }
 
-    private async Task<StudioConnectionResult> ConnectUsingPreferredProfileCoreAsync(
+    private async Task<HostConnectionResult> ConnectUsingSavedConfigCoreAsync(
         string? clientName,
-        IProgress<StudioConnectionProgressUpdate>? progress,
+        IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken,
-        StudioConnectionActionKind actionKind,
-        bool allowBundledRetry)
+        HostConnectionActionKind actionKind)
     {
-        var preferredDocument = await TryResolvePreferredPairingDocumentAsync();
-        if (!preferredDocument.Success || preferredDocument.Document is null)
+        var savedConfig = await TryResolveSavedPairingDocumentAsync();
+        if (!savedConfig.Success || savedConfig.Document is null)
         {
-            return StudioConnectionResult.FromFailure(
-                preferredDocument.Message,
+            return HostConnectionResult.FromFailure(
+                savedConfig.Message,
                 actionKind,
-                preferredDocument.Source);
+                savedConfig.Source);
         }
 
         var connectResult = await ConnectResolvedDocumentAsync(
-            preferredDocument,
+            savedConfig,
             clientName,
             progress,
             cancellationToken,
             actionKind);
-        if (allowBundledRetry && ShouldRetryWithBundledProfile(connectResult, preferredDocument.Source))
-        {
-            var bundledResult = await ConnectUsingBundledProfileCoreAsync(clientName, progress, cancellationToken, actionKind);
-            return bundledResult.Success || bundledResult.Source != StudioConnectionSource.None
-                ? bundledResult
-                : ToPairingResult(connectResult, actionKind);
-        }
-
         return ToPairingResult(connectResult, actionKind);
     }
 
-    private async Task<StudioConnectionResult> ConnectUsingBundledProfileCoreAsync(
+    private async Task<HostConnectionResult> ConnectUsingBundledConfigCoreAsync(
         string? clientName,
-        IProgress<StudioConnectionProgressUpdate>? progress,
+        IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken,
-        StudioConnectionActionKind actionKind)
+        HostConnectionActionKind actionKind)
     {
         var bundledDocument = await TryResolveBundledPairingDocumentAsync(cancellationToken);
         if (!bundledDocument.Success || bundledDocument.Document is null)
         {
-            return StudioConnectionResult.FromFailure(
+            return HostConnectionResult.FromFailure(
                 bundledDocument.Message,
                 actionKind,
                 bundledDocument.Source);
@@ -585,75 +556,60 @@ internal sealed class HostPairingManager : IStudioConnection, IDisposable
     private Task<ResolvedPairingDocument> ResolvePairingDocumentAsync(
         string payload,
         string? sourceDescription,
-        bool preferPreferredProfiles,
         CancellationToken cancellationToken)
     {
-        _ = preferPreferredProfiles;
         _ = cancellationToken;
 
-        if (PairingTicketCodeGenerator.TryParse(payload, out var compactTicket) && compactTicket is not null)
+        if (PairingConfigCodeGenerator.TryParse(payload, out var compactConfigDocument) && compactConfigDocument is not null)
         {
-            return Task.FromResult(ResolveTicket(
-                compactTicket,
-                StudioConnectionSource.Payload,
-                $"Loaded {sourceDescription ?? "pairing ticket code"}."));
+            return Task.FromResult(ResolveConfigDocument(
+                compactConfigDocument,
+                HostConnectionSource.Payload,
+                $"Loaded {sourceDescription ?? "pairing config code"}."));
         }
 
-        if (!pairingDocumentService.TryParseTicket(payload, out var ticket, out var error) || ticket is null)
+        if (!pairingDocumentService.TryParseConfigDocument(payload, out var configDocument, out var error) || configDocument is null)
         {
             return Task.FromResult(ResolvedPairingDocument.FromFailure(
                 string.IsNullOrWhiteSpace(error)
-                    ? "Pairing payloads must be pairing tickets or compact pairing ticket codes."
+                    ? "Pairing payloads must be pairing configs or compact pairing config codes."
                     : error));
         }
 
-        return Task.FromResult(ResolveTicket(
-            ticket,
-            StudioConnectionSource.Payload,
-            $"Loaded {sourceDescription ?? "pairing ticket"}."));
+        return Task.FromResult(ResolveConfigDocument(
+            configDocument,
+            HostConnectionSource.Payload,
+            $"Loaded {sourceDescription ?? "pairing config"}."));
     }
 
-    private Task<ResolvedPairingDocument> TryResolvePreferredPairingDocumentAsync()
+    private Task<ResolvedPairingDocument> TryResolveSavedPairingDocumentAsync()
     {
-        if (!preferredProfileStore.TryLoad(out var json, out var error) || string.IsNullOrWhiteSpace(json))
+        if (!savedConfigStore.TryLoad(out var json, out var error) || string.IsNullOrWhiteSpace(json))
         {
             return Task.FromResult(ResolvedPairingDocument.FromFailure(error));
         }
 
         if (!hostConnection.TryParseAndValidateDocument(json, out var document, out error) || document is null)
         {
-            preferredProfileStore.Clear();
+            savedConfigStore.Clear();
             var clearedError = string.IsNullOrWhiteSpace(error)
-                ? "Saved pairing ticket is invalid and was cleared."
-                : $"{error} Saved pairing ticket was cleared.";
+                ? "Saved pairing config is invalid and was cleared."
+                : $"{error} Saved pairing config was cleared.";
             return Task.FromResult(ResolvedPairingDocument.FromFailure(clearedError));
         }
 
-        var preferredDocument = PairingSessionClient.CreatePreferredDocument(document);
-        if (HasStoredHostAddress(document))
-        {
-            try
-            {
-                preferredProfileStore.Save(preferredDocument);
-            }
-            catch (Exception ex)
-            {
-                Logger.Warning($"Failed to rewrite the saved Ansight pairing ticket without a remembered host address: {ex.Message}");
-            }
-        }
-
         return Task.FromResult(ResolvedPairingDocument.FromSuccess(
-            preferredDocument,
-            "Using saved pairing ticket.",
-            StudioConnectionSource.SavedTicket));
+            document,
+            "Using saved pairing config.",
+            HostConnectionSource.SavedConfig));
     }
 
     private async Task<ResolvedPairingDocument> TryResolveBundledPairingDocumentAsync(CancellationToken cancellationToken)
     {
         var bundledDeveloperDocument = await TryLoadBundledDocumentAsync(
-            ResolveBundledDocumentLoader(StudioConnectionSource.BundledDeveloperTicket),
-            "Using bundled developer pairing ticket.",
-            StudioConnectionSource.BundledDeveloperTicket,
+            ResolveBundledDocumentLoader(HostConnectionSource.BundledDeveloperConfig),
+            "Using bundled developer pairing config.",
+            HostConnectionSource.BundledDeveloperConfig,
             cancellationToken);
         if (bundledDeveloperDocument.Success)
         {
@@ -661,27 +617,27 @@ internal sealed class HostPairingManager : IStudioConnection, IDisposable
         }
 
         var bundledDocument = await TryLoadBundledDocumentAsync(
-            ResolveBundledDocumentLoader(StudioConnectionSource.BundledTicket),
-            "Using bundled pairing ticket.",
-            StudioConnectionSource.BundledTicket,
+            ResolveBundledDocumentLoader(HostConnectionSource.BundledConfig),
+            "Using bundled pairing config.",
+            HostConnectionSource.BundledConfig,
             cancellationToken);
         if (bundledDocument.Success)
         {
             return bundledDocument;
         }
 
-        return ResolvedPairingDocument.FromFailure("No bundled pairing ticket is available.");
+        return ResolvedPairingDocument.FromFailure("No bundled pairing config is available.");
     }
 
     private async Task<ResolvedPairingDocument> TryLoadBundledDocumentAsync(
         Func<CancellationToken, Task<string?>>? loader,
         string successMessage,
-        StudioConnectionSource source,
+        HostConnectionSource source,
         CancellationToken cancellationToken)
     {
         if (loader is null)
         {
-            return ResolvedPairingDocument.FromFailure("No bundled pairing ticket is available.");
+            return ResolvedPairingDocument.FromFailure("No bundled pairing config is available.");
         }
 
         string? json;
@@ -696,17 +652,17 @@ internal sealed class HostPairingManager : IStudioConnection, IDisposable
         catch (Exception ex)
         {
             Logger.Exception(ex);
-            return ResolvedPairingDocument.FromFailure($"Failed to load a bundled pairing ticket: {ex.Message}");
+            return ResolvedPairingDocument.FromFailure($"Failed to load a bundled pairing config: {ex.Message}");
         }
 
         if (string.IsNullOrWhiteSpace(json))
         {
-            return ResolvedPairingDocument.FromFailure("No bundled pairing ticket is available.");
+            return ResolvedPairingDocument.FromFailure("No bundled pairing config is available.");
         }
 
         if (!hostConnection.TryParseAndValidateDocument(json, out var document, out var error) || document is null)
         {
-            Logger.Warning($"Ignoring invalid bundled pairing ticket. {error}");
+            Logger.Warning($"Ignoring invalid bundled pairing config. {error}");
             return ResolvedPairingDocument.FromFailure(error);
         }
 
@@ -716,31 +672,22 @@ internal sealed class HostPairingManager : IStudioConnection, IDisposable
             source);
     }
 
-    private async Task<HostConnectionActionResult> ConnectResolvedDocumentAsync(
+    private async Task<HostSessionActionResult> ConnectResolvedDocumentAsync(
         ResolvedPairingDocument resolvedDocument,
         string? clientName,
-        IProgress<StudioConnectionProgressUpdate>? progress,
+        IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken,
-        StudioConnectionActionKind actionKind)
+        HostConnectionActionKind actionKind)
     {
         ArgumentNullException.ThrowIfNull(resolvedDocument.Document);
 
-        try
-        {
-            preferredProfileStore.Save(PairingSessionClient.CreatePreferredDocument(resolvedDocument.Document));
-        }
-        catch (Exception ex)
-        {
-            Logger.Warning($"Failed to save the preferred Ansight pairing ticket: {ex.Message}");
-        }
-
-        var discoveryPort = ResolveDiscoveryPort(resolvedDocument.Document);
+        var discoveryPort = PairingDiscoveryPortResolver.Resolve(resolvedDocument.Document, options.DiscoveryPort);
         LogPairingExpectation(resolvedDocument.Document, discoveryPort);
 
         if (string.IsNullOrWhiteSpace(PairingDiscoveryHintHostAddresses.ResolvePrimary(resolvedDocument.Document.DiscoveryHint)))
         {
-            return HostConnectionActionResult.FromFailure(
-                "A current Ansight host address is required. Import a fresh pairing ticket or compact pairing code.",
+            return HostSessionActionResult.FromFailure(
+                "A current Ansight host address is required. Import a fresh pairing config or compact pairing config code.",
                 kind: actionKind,
                 source: resolvedDocument.Source,
                 reasonCode: PairingFailureCodes.HostAddressRequired);
@@ -761,63 +708,72 @@ internal sealed class HostPairingManager : IStudioConnection, IDisposable
             Source = resolvedDocument.Source,
             ReasonCode = connectResult.ReasonCode ?? connectResult.SessionResult?.RejectionCode
         };
-        if (!connectResult.Success && resolvedDocument.Source == StudioConnectionSource.SavedTicket)
+        if (connectResult.Success)
+        {
+            try
+            {
+                savedConfigStore.Save(resolvedDocument.Document);
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning($"Failed to save the Ansight pairing config: {ex.Message}");
+            }
+        }
+        else if (resolvedDocument.Source == HostConnectionSource.SavedConfig)
         {
             var rejectionCode = connectResult.ReasonCode;
             if (!string.IsNullOrWhiteSpace(rejectionCode) &&
                 StoredProfileResetReasonCodes.Contains(rejectionCode))
             {
-                preferredProfileStore.Clear();
+                savedConfigStore.Clear();
             }
         }
 
         return connectResult;
     }
 
-    private static StudioConnectionResult ToPairingResult(
-        HostConnectionActionResult connectResult,
-        StudioConnectionActionKind fallbackKind)
+    private static HostConnectionResult ToPairingResult(
+        HostSessionActionResult connectResult,
+        HostConnectionActionKind fallbackKind)
     {
-        var actionKind = connectResult.Kind == StudioConnectionActionKind.None ? fallbackKind : connectResult.Kind;
+        var actionKind = connectResult.Kind == HostConnectionActionKind.None ? fallbackKind : connectResult.Kind;
         return connectResult.Success
-            ? StudioConnectionResult.FromSuccess(connectResult.Message, actionKind, connectResult.Source, connectResult.ReasonCode)
-            : StudioConnectionResult.FromFailure(connectResult.Message, actionKind, connectResult.Source, connectResult.ReasonCode);
+            ? HostConnectionResult.FromSuccess(connectResult.Message, actionKind, connectResult.Source, connectResult.ReasonCode)
+            : HostConnectionResult.FromFailure(connectResult.Message, actionKind, connectResult.Source, connectResult.ReasonCode);
     }
 
-    private static bool ShouldRetryWithBundledProfile(
-        HostConnectionActionResult connectResult,
-        StudioConnectionSource source)
+    private static bool ShouldRetryWithBundledConfig(
+        HostConnectionSource source,
+        string? reasonCode)
     {
-        var rejectionCode = connectResult.ReasonCode;
-        return !connectResult.Success &&
-               source == StudioConnectionSource.SavedTicket &&
-               !string.IsNullOrWhiteSpace(rejectionCode) &&
-               (StoredProfileResetReasonCodes.Contains(rejectionCode) ||
-                string.Equals(rejectionCode, PairingFailureCodes.HostAddressRequired, StringComparison.Ordinal));
+        return source == HostConnectionSource.SavedConfig &&
+               !string.IsNullOrWhiteSpace(reasonCode) &&
+               (StoredProfileResetReasonCodes.Contains(reasonCode) ||
+                string.Equals(reasonCode, PairingFailureCodes.HostAddressRequired, StringComparison.Ordinal));
     }
 
-    private async Task<bool> ResolveBundledProfileAvailabilityAsync(CancellationToken cancellationToken)
+    private async Task<bool> ResolveBundledConfigAvailabilityAsync(CancellationToken cancellationToken)
     {
-        if (await TryResolveBundledProfileAvailabilityAsync(
-                ResolveBundledDocumentLoader(StudioConnectionSource.BundledDeveloperTicket),
-                StudioConnectionSource.BundledDeveloperTicket,
+        if (await TryResolveBundledConfigAvailabilityAsync(
+                ResolveBundledDocumentLoader(HostConnectionSource.BundledDeveloperConfig),
+                HostConnectionSource.BundledDeveloperConfig,
                 cancellationToken))
         {
-            hasBundledProfile = true;
+            hasBundledConfig = true;
             return true;
         }
 
-        var hasBundled = await TryResolveBundledProfileAvailabilityAsync(
-            ResolveBundledDocumentLoader(StudioConnectionSource.BundledTicket),
-            StudioConnectionSource.BundledTicket,
+        var hasBundled = await TryResolveBundledConfigAvailabilityAsync(
+            ResolveBundledDocumentLoader(HostConnectionSource.BundledConfig),
+            HostConnectionSource.BundledConfig,
             cancellationToken);
-        hasBundledProfile = hasBundled;
+        hasBundledConfig = hasBundled;
         return hasBundled;
     }
 
-    private async Task<bool> TryResolveBundledProfileAvailabilityAsync(
+    private async Task<bool> TryResolveBundledConfigAvailabilityAsync(
         Func<CancellationToken, Task<string?>>? loader,
-        StudioConnectionSource source,
+        HostConnectionSource source,
         CancellationToken cancellationToken)
     {
         if (loader is null)
@@ -846,16 +802,16 @@ internal sealed class HostPairingManager : IStudioConnection, IDisposable
         }
     }
 
-    private Func<CancellationToken, Task<string?>>? ResolveBundledDocumentLoader(StudioConnectionSource source)
+    private Func<CancellationToken, Task<string?>>? ResolveBundledDocumentLoader(HostConnectionSource source)
     {
         return source switch
         {
-            StudioConnectionSource.BundledDeveloperTicket => ResolveBundledDocumentLoader(
-                options.BundledDeveloperTicketLoader,
-                StudioConnectionOptions.BundledDeveloperTicketAssetName),
-            StudioConnectionSource.BundledTicket => ResolveBundledDocumentLoader(
-                options.BundledTicketLoader,
-                StudioConnectionOptions.BundledTicketAssetName),
+            HostConnectionSource.BundledDeveloperConfig => ResolveBundledDocumentLoader(
+                options.BundledDeveloperConfigLoader,
+                HostConnectionOptions.BundledDeveloperConfigAssetName),
+            HostConnectionSource.BundledConfig => ResolveBundledDocumentLoader(
+                options.BundledConfigLoader,
+                HostConnectionOptions.BundledConfigAssetName),
             _ => null
         };
     }
@@ -869,13 +825,13 @@ internal sealed class HostPairingManager : IStudioConnection, IDisposable
             return explicitLoader;
         }
 
-        var bundledTicketAssembly = options.BundledTicketAssembly;
-        if (bundledTicketAssembly is null)
+        var bundledConfigAssembly = options.BundledConfigAssembly;
+        if (bundledConfigAssembly is null)
         {
             return null;
         }
 
-        return cancellationToken => LoadEmbeddedResourceTextAsync(bundledTicketAssembly, logicalName, cancellationToken);
+        return cancellationToken => LoadEmbeddedResourceTextAsync(bundledConfigAssembly, logicalName, cancellationToken);
     }
 
     private static async Task<string?> LoadEmbeddedResourceTextAsync(
@@ -895,25 +851,6 @@ internal sealed class HostPairingManager : IStudioConnection, IDisposable
         var text = await reader.ReadToEndAsync();
         cancellationToken.ThrowIfCancellationRequested();
         return text;
-    }
-
-    private int ResolveDiscoveryPort(ParsedPairingDocument document)
-    {
-        var candidates = new[]
-        {
-            options.DiscoveryPort,
-            document.DiscoveryHint?.DiscoveryPort
-        };
-
-        foreach (var candidate in candidates)
-        {
-            if (candidate is > 0 and <= ushort.MaxValue)
-            {
-                return candidate.Value;
-            }
-        }
-
-        return PairingProtocolDefaults.DiscoveryPort;
     }
 
     private static void LogPairingExpectation(ParsedPairingDocument document, int discoveryPort)
@@ -942,28 +879,23 @@ internal sealed class HostPairingManager : IStudioConnection, IDisposable
         return null;
     }
 
-    private static bool HasStoredHostAddress(ParsedPairingDocument document)
-    {
-        return !string.IsNullOrWhiteSpace(PairingDiscoveryHintHostAddresses.ResolvePrimary(document.DiscoveryHint));
-    }
-
-    private static string DescribeSource(StudioConnectionSource source)
+    private static string DescribeSource(HostConnectionSource source)
     {
         return source switch
         {
-            StudioConnectionSource.BundledDeveloperTicket => "the bundled developer pairing ticket",
-            StudioConnectionSource.BundledTicket => "the bundled pairing ticket",
-            _ => "the bundled ticket source"
+            HostConnectionSource.BundledDeveloperConfig => "the bundled developer pairing config",
+            HostConnectionSource.BundledConfig => "the bundled pairing config",
+            _ => "the bundled config source"
         };
     }
 
-    private ResolvedPairingDocument ResolveTicket(
-        PairingTicket ticket,
-        StudioConnectionSource source,
+    private ResolvedPairingDocument ResolveConfigDocument(
+        PairingConfigDocument configDocument,
+        HostConnectionSource source,
         string successMessage)
     {
         if (!hostConnection.TryParseAndValidateDocument(
-                PairingTicketJson.Serialize(ticket, indented: false),
+                PairingConfigDocumentJson.Serialize(configDocument, indented: false),
                 out var document,
                 out var error) || document is null)
         {
@@ -973,21 +905,21 @@ internal sealed class HostPairingManager : IStudioConnection, IDisposable
         return ResolvedPairingDocument.FromSuccess(document, successMessage, source);
     }
 
-    private void HandleHostConnectionStatusChanged(object? sender, HostConnectionStatusChangedEventArgs e)
+    private void HandleHostConnectionStatusChanged(object? sender, HostSessionStatusChangedEventArgs e)
     {
-        UpdateStatusAndCapabilities(hasBundledProfile);
+        UpdateStatusAndCapabilities(hasBundledConfig);
     }
 
-    private StudioConnectionCapabilities UpdateStatusAndCapabilities(bool nextHasBundledTicket)
+    private HostConnectionCapabilities UpdateStatusAndCapabilities(bool nextHasBundledConfig)
     {
-        EventHandler<StudioConnectionChangedEventArgs>? statusChanged;
-        StudioConnectionChangedEventArgs? args = null;
+        EventHandler<HostConnectionChangedEventArgs>? statusChanged;
+        HostConnectionChangedEventArgs? args = null;
 
         lock (statusGate)
         {
-            hasBundledProfile = nextHasBundledTicket;
-            var nextStatus = BuildStatusSnapshot(nextHasBundledTicket);
-            var nextCapabilities = BuildCapabilities(nextHasBundledTicket);
+            hasBundledConfig = nextHasBundledConfig;
+            var nextStatus = BuildStatusSnapshot(nextHasBundledConfig);
+            var nextCapabilities = BuildCapabilities(nextHasBundledConfig);
             if (Equals(status, nextStatus) && Equals(capabilities, nextCapabilities))
             {
                 return capabilities;
@@ -996,51 +928,51 @@ internal sealed class HostPairingManager : IStudioConnection, IDisposable
             status = nextStatus;
             capabilities = nextCapabilities;
             statusChanged = StatusChanged;
-            args = new StudioConnectionChangedEventArgs(status, capabilities);
+            args = new HostConnectionChangedEventArgs(status, capabilities);
         }
 
         statusChanged?.Invoke(this, args);
         return Capabilities;
     }
 
-    private StudioConnectionStatus BuildStatusSnapshot(bool nextHasBundledTicket)
+    private HostConnectionStatus BuildStatusSnapshot(bool nextHasBundledConfig)
     {
         if (!isRuntimeActive())
         {
-            return new StudioConnectionStatus(
+            return new HostConnectionStatus(
                 IsRuntimeActive: false,
                 IsConnected: hostConnection.IsConnected,
                 ConnectionState: hostConnection.State,
                 HasCachedSession: hostConnection.HasCachedProfile,
-                HasSavedTicket: HasSavedTicket,
-                HasBundledTicket: nextHasBundledTicket,
-                SummaryKind: StudioConnectionSummaryKind.RuntimeInactive,
-                SummaryMessage: "Activate Ansight before connecting to Ansight Studio.");
+                HasSavedConfig: HasSavedConfig,
+                HasBundledConfig: nextHasBundledConfig,
+                SummaryKind: HostConnectionSummaryKind.RuntimeInactive,
+                SummaryMessage: "Activate Ansight before connecting to Ansight host.");
         }
 
         if (hostConnection.State == HostConnectionState.Connecting)
         {
-            return new StudioConnectionStatus(
+            return new HostConnectionStatus(
                 true,
                 hostConnection.IsConnected,
                 hostConnection.State,
                 hostConnection.HasCachedProfile,
-                HasSavedTicket,
-                nextHasBundledTicket,
-                StudioConnectionSummaryKind.Connecting,
+                HasSavedConfig,
+                nextHasBundledConfig,
+                HostConnectionSummaryKind.Connecting,
                 hostConnection.StatusSummary);
         }
 
         if (hostConnection.State == HostConnectionState.Connected)
         {
-            return new StudioConnectionStatus(
+            return new HostConnectionStatus(
                 true,
                 hostConnection.IsConnected,
                 hostConnection.State,
                 hostConnection.HasCachedProfile,
-                HasSavedTicket,
-                nextHasBundledTicket,
-                StudioConnectionSummaryKind.Connected,
+                HasSavedConfig,
+                nextHasBundledConfig,
+                HostConnectionSummaryKind.Connected,
                 hostConnection.StatusSummary);
         }
 
@@ -1050,60 +982,60 @@ internal sealed class HostPairingManager : IStudioConnection, IDisposable
             availableSources++;
         }
 
-        if (HasSavedTicket)
+        if (HasSavedConfig)
         {
             availableSources++;
         }
 
-        if (nextHasBundledTicket)
+        if (nextHasBundledConfig)
         {
             availableSources++;
         }
 
         var (summaryKind, summaryMessage) = availableSources switch
         {
-            0 => (StudioConnectionSummaryKind.DisconnectedNoTickets, "No Ansight Studio tickets are available."),
-            > 1 => (StudioConnectionSummaryKind.DisconnectedMultipleTicketsAvailable, "Multiple Ansight Studio tickets are available."),
-            _ when hostConnection.HasCachedProfile => (StudioConnectionSummaryKind.DisconnectedCachedSessionAvailable, "A cached Ansight Studio session is available."),
-            _ when HasSavedTicket => (StudioConnectionSummaryKind.DisconnectedSavedTicketAvailable, "A saved Ansight Studio ticket is available."),
-            _ => (StudioConnectionSummaryKind.DisconnectedBundledTicketAvailable, "A bundled Ansight Studio ticket is available.")
+            0 => (HostConnectionSummaryKind.DisconnectedNoConfigs, "No Ansight host configs are available."),
+            > 1 => (HostConnectionSummaryKind.DisconnectedMultipleConfigsAvailable, "Multiple Ansight host configs are available."),
+            _ when hostConnection.HasCachedProfile => (HostConnectionSummaryKind.DisconnectedCachedSessionAvailable, "A cached Ansight host session is available."),
+            _ when HasSavedConfig => (HostConnectionSummaryKind.DisconnectedSavedConfigAvailable, "A saved Ansight host config is available."),
+            _ => (HostConnectionSummaryKind.DisconnectedBundledConfigAvailable, "A bundled Ansight host config is available.")
         };
 
-        return new StudioConnectionStatus(
+        return new HostConnectionStatus(
             true,
             hostConnection.IsConnected,
             hostConnection.State,
             hostConnection.HasCachedProfile,
-            HasSavedTicket,
-            nextHasBundledTicket,
+            HasSavedConfig,
+            nextHasBundledConfig,
             summaryKind,
             summaryMessage);
     }
 
-    private StudioConnectionCapabilities BuildCapabilities(bool nextHasBundledTicket)
+    private HostConnectionCapabilities BuildCapabilities(bool nextHasBundledConfig)
     {
         var runtimeIsActive = isRuntimeActive();
-        return new StudioConnectionCapabilities(
-            CanConnectUsingSavedTicket: runtimeIsActive && (hostConnection.HasCachedProfile || HasSavedTicket),
-            CanConnectUsingBundledTicket: runtimeIsActive && nextHasBundledTicket,
-            CanChooseTicketFile: runtimeIsActive && CanReadRequest(StudioConnectionRequestKind.File),
-            CanScanTicketQrCode: runtimeIsActive && CanReadRequest(StudioConnectionRequestKind.QrCode),
-            CanClearSavedTickets: !hostConnection.IsConnected && (hostConnection.HasCachedProfile || HasSavedTicket));
+        return new HostConnectionCapabilities(
+            CanConnectUsingSavedConfig: runtimeIsActive && HasSavedConfig,
+            CanConnectUsingBundledConfig: runtimeIsActive && nextHasBundledConfig,
+            CanChooseConfigFile: runtimeIsActive && CanReadRequest(HostConnectionRequestKind.File),
+            CanScanConfigQrCode: runtimeIsActive && CanReadRequest(HostConnectionRequestKind.QrCode),
+            CanClearSavedConfigs: !hostConnection.IsConnected && (hostConnection.HasCachedProfile || HasSavedConfig));
     }
 
     private sealed record ResolvedPairingDocument(
         bool Success,
         ParsedPairingDocument? Document,
         string Message,
-        StudioConnectionSource Source)
+        HostConnectionSource Source)
     {
         public static ResolvedPairingDocument FromFailure(string message)
-            => new(false, null, message, StudioConnectionSource.None);
+            => new(false, null, message, HostConnectionSource.None);
 
         public static ResolvedPairingDocument FromSuccess(
             ParsedPairingDocument document,
             string message,
-            StudioConnectionSource source)
+            HostConnectionSource source)
             => new(true, document, message, source);
     }
 }
