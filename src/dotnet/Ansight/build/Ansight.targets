@@ -56,6 +56,31 @@
              Text="Ansight developer pairing config was not generated at $(AnsightDeveloperPairingOutputFile). Check the generator script output above." />
   </Target>
 
+  <Target Name="EmbedAnsightDeveloperPairingResource"
+          BeforeTargets="PrepareResourceNames;CreateManifestResourceNames"
+          DependsOnTargets="GenerateAnsightDeveloperPairing;GenerateAnsightDeveloperPairingWindows"
+          Condition="'$(AnsightDeveloperPairingEnabled)' == 'true' and Exists('$(AnsightDeveloperPairingOutputFile)') and '$(DesignTimeBuild)' != 'true' and '$(IsCrossTargetingBuild)' != 'true'">
+    <ItemGroup>
+      <_AnsightExistingDeveloperPairingResource Include="@(EmbeddedResource)"
+                                                Condition="'%(EmbeddedResource.LogicalName)' == 'ansight.developer-pairing.json'" />
+      <_AnsightExistingDeveloperPairingResource Include="@(EmbeddedResource)"
+                                                Condition="'%(EmbeddedResource.Identity)' == '$(AnsightDeveloperPairingOutputFile)'" />
+    </ItemGroup>
+
+    <ItemGroup Condition="'@(_AnsightExistingDeveloperPairingResource)' == ''">
+      <EmbeddedResource Include="$(AnsightDeveloperPairingOutputFile)"
+                        LogicalName="ansight.developer-pairing.json"
+                        Visible="false" />
+    </ItemGroup>
+
+    <Message Condition="'@(_AnsightExistingDeveloperPairingResource)' == ''"
+             Importance="High"
+             Text="Ansight developer pairing config will be embedded as ansight.developer-pairing.json." />
+    <Message Condition="'@(_AnsightExistingDeveloperPairingResource)' != ''"
+             Importance="Low"
+             Text="Ansight developer pairing config is already embedded by the project. Skipping automatic embedded-resource inclusion." />
+  </Target>
+
   <Target Name="CheckAnsightToolImplementations"
           AfterTargets="Build"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(IsCrossTargetingBuild)' != 'true' and '$(_AnsightAllowRemoteToolsNormalized)' != 'true' and Exists('$(TargetDir)')">

@@ -37,7 +37,7 @@ When `WithSessionJpegCapture(...)` is enabled, the pairing client will capture t
 
 Host auto-probe is enabled by default. While `Runtime` is active, Ansight will periodically try to reconnect to the most recent successful host session if one is cached, pause probing while that session stays open, and resume after a reconnect delay if the session closes. Disable it with `WithoutHostAutoProbe()` or customize it with `WithHostAutoProbe(new HostAutoProbeOptions { ... })`.
 
-Runtime-owned host connection also manages saved and bundled pairing configs. If your app bundles `ansight.developer-pairing.json`, Ansight now attempts startup auto-connect automatically when the runtime becomes active. Configure bundled config resolution once at initialization, then use `Runtime.HostConnection` when you need to retry auto-connect explicitly, recover from saved-config expiry, or handle pairing configs without app-specific pairing orchestration.
+Runtime-owned host connection also manages saved and bundled pairing configs. If you enable `AnsightDeveloperPairingEnabled` and initialize with `WithBundledHostConnection(typeof(AppBootstrap).Assembly)`, the generated `ansight.developer-pairing.json` is embedded into the app assembly automatically. Auto-connect prefers that developer pairing when available, then falls back to cached-session, saved-config, and other bundled-config behavior.
 
 ```csharp
 public static class AppBootstrap
@@ -52,6 +52,8 @@ public static class AppBootstrap
     }
 }
 ```
+
+Explicit requests such as `HostConnectionRequest.PayloadText(...)`, `HostConnectionRequest.File(...)`, and `HostConnectionRequest.QrCode(...)` always use the supplied pairing payload and replace the current host session. That gives QR/file/paste flows an explicit override path even when developer pairing is configured by default.
 
 For app-package assets such as MAUI `MauiAsset`s, use the bundled config loader overload:
 

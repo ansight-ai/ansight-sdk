@@ -43,6 +43,26 @@ public sealed class HostConnectionManagerTests
     }
 
     [Fact]
+    public async Task ConnectAsync_WhenAlreadyConnected_OpensANewSession()
+    {
+        var runtime = CreateRuntime();
+        runtime.Activate();
+        using var client = new FakeHostConnectionSessionClient();
+        client.OpenSessionResult = CreateOpenSuccess();
+        using var manager = new HostSessionManager(runtime, HostAutoProbeOptions.DisabledDefault, client);
+
+        var initialConnectResult = await manager.ConnectAsync(CreateDocument(), clientName: "Unit Test App");
+        var overrideConnectResult = await manager.ConnectAsync(CreateDocument(), clientName: "Unit Test App");
+
+        Assert.True(initialConnectResult.Success);
+        Assert.True(overrideConnectResult.Success);
+        Assert.Equal(2, client.OpenSessionCallCount);
+        Assert.Equal(2, client.StartMetricsStreamingCallCount);
+
+        runtime.Deactivate();
+    }
+
+    [Fact]
     public async Task ConnectUsingCachedProfileAsync_WhenAlreadyConnected_ReusesCurrentSession()
     {
         var runtime = CreateRuntime();

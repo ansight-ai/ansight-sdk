@@ -35,6 +35,59 @@ public sealed class HostPairingManagerTests
     }
 
     [Fact]
+    public async Task AutoConnectAsync_WhenBundledDeveloperConfigExists_PrefersItOverCachedProfile()
+    {
+        var savedConfigPath = CreateTempFilePath();
+        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var bundledDeveloperDocument = CreateDocument(signingKey, configId: "cfg-developer", hostAddress: "192.168.1.30");
+
+        using var hostConnection = new FakeHostConnection();
+        hostConnection.HasCachedProfile = true;
+        hostConnection.CachedConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using cached profile."));
+        hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using bundled developer config."));
+        using var manager = CreateManager(
+            hostConnection,
+            savedConfigPath,
+            new HostConnectionOptions
+            {
+                BundledDeveloperConfigLoader = _ => Task.FromResult<string?>(CreateConfigDocumentJson(bundledDeveloperDocument))
+            });
+
+        var result = await manager.ConnectAsync(HostConnectionRequest.Auto());
+
+        Assert.True(result.Success);
+        Assert.Equal(0, hostConnection.CachedConnectCallCount);
+        var connectedDocument = Assert.Single(hostConnection.ConnectDocuments);
+        Assert.Equal("cfg-developer", connectedDocument.Config.ConfigId);
+    }
+
+    [Fact]
+    public async Task AutoConnectAsync_WhenBundledDeveloperConfigExists_PrefersItOverSavedConfig()
+    {
+        var savedConfigPath = CreateTempFilePath();
+        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var savedDocument = CreateDocument(signingKey, configId: "cfg-saved", hostAddress: "192.168.1.10");
+        var bundledDeveloperDocument = CreateDocument(signingKey, configId: "cfg-developer", hostAddress: "192.168.1.30");
+
+        using var hostConnection = new FakeHostConnection();
+        hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using bundled developer config."));
+        using var manager = CreateManager(
+            hostConnection,
+            savedConfigPath,
+            new HostConnectionOptions
+            {
+                BundledDeveloperConfigLoader = _ => Task.FromResult<string?>(CreateConfigDocumentJson(bundledDeveloperDocument))
+            });
+        SaveSavedConfig(savedConfigPath, savedDocument);
+
+        var result = await manager.ConnectAsync(HostConnectionRequest.Auto());
+
+        Assert.True(result.Success);
+        var connectedDocument = Assert.Single(hostConnection.ConnectDocuments);
+        Assert.Equal("cfg-developer", connectedDocument.Config.ConfigId);
+    }
+
+    [Fact]
     public async Task ConnectFromPayloadAsync_WhenPairingConfigIsProvided_ConnectsThatConfig()
     {
         var savedConfigPath = CreateTempFilePath();
@@ -66,6 +119,38 @@ public sealed class HostPairingManagerTests
         Assert.Equal("challenge-override", connectedDocument.Config.Challenge.ChallengePubKey);
         Assert.Equal(new[] { "10.0.0.25" }, connectedDocument.DiscoveryHint?.HostAddresses);
         Assert.Equal(45200, hostConnection.LastConnectionOptions?.DiscoveryPort);
+    }
+
+    [Fact]
+    public async Task ConnectFromPayloadAsync_WhenAlreadyConnected_UsesSuppliedPayloadAsOverride()
+    {
+        var savedConfigPath = CreateTempFilePath();
+        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var savedDocument = CreateDocument(signingKey, configId: "cfg-saved", hostAddress: "192.168.1.10");
+
+        using var hostConnection = new FakeHostConnection();
+        hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using saved config."));
+        hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using supplied pairing config."));
+        using var manager = CreateManager(hostConnection, savedConfigPath);
+        SaveSavedConfig(savedConfigPath, savedDocument);
+
+        var payload = PairingConfigDocumentJson.Serialize(
+            PairingTestDocumentFactory.CreateConfigDocument(
+                PairingTestDocumentFactory.CreateSignedConfig(
+                    signingKey,
+                    configId: "cfg-override",
+                    oneTimeToken: "token-override",
+                    challengePubKey: "challenge-override"),
+                PairingTestDocumentFactory.CreateDiscoveryHint(hostAddress: "10.0.0.25")));
+
+        var initialResult = await manager.ConnectAsync(HostConnectionRequest.SavedConfig());
+        var overrideResult = await manager.ConnectAsync(HostConnectionRequest.PayloadText(payload, "pairing config"));
+
+        Assert.True(initialResult.Success);
+        Assert.True(overrideResult.Success);
+        Assert.Equal(2, hostConnection.ConnectDocuments.Count);
+        Assert.Equal("cfg-saved", hostConnection.ConnectDocuments[0].Config.ConfigId);
+        Assert.Equal("cfg-override", hostConnection.ConnectDocuments[1].Config.ConfigId);
     }
 
     [Fact]

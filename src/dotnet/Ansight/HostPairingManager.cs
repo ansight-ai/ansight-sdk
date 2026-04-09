@@ -167,6 +167,16 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
                     HostConnectionSource.HostConnection);
             }
 
+            var bundledDeveloperConfigResult = await TryConnectUsingBundledDeveloperConfigAsync(
+                clientName,
+                progress,
+                cancellationToken,
+                HostConnectionActionKind.AutoConnect);
+            if (bundledDeveloperConfigResult?.Success == true)
+            {
+                return bundledDeveloperConfigResult;
+            }
+
             if (hostConnection.HasCachedProfile)
             {
                 var cachedProfileResult = await hostConnection.ConnectUsingCachedProfileAsync(clientName, progress, cancellationToken);
@@ -189,7 +199,7 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
                 }
             }
 
-            return await ConnectUsingBundledConfigCoreAsync(
+            return await ConnectUsingStandardBundledConfigCoreAsync(
                 clientName,
                 progress,
                 cancellationToken,
@@ -553,6 +563,51 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
         return ToPairingResult(connectResult, actionKind);
     }
 
+    private async Task<HostConnectionResult?> TryConnectUsingBundledDeveloperConfigAsync(
+        string? clientName,
+        IProgress<HostConnectionProgressUpdate>? progress,
+        CancellationToken cancellationToken,
+        HostConnectionActionKind actionKind)
+    {
+        var bundledDeveloperDocument = await TryResolveBundledDeveloperPairingDocumentAsync(cancellationToken);
+        if (!bundledDeveloperDocument.Success || bundledDeveloperDocument.Document is null)
+        {
+            return null;
+        }
+
+        var connectResult = await ConnectResolvedDocumentAsync(
+            bundledDeveloperDocument,
+            clientName,
+            progress,
+            cancellationToken,
+            actionKind);
+        return ToPairingResult(connectResult, actionKind);
+    }
+
+    private async Task<HostConnectionResult> ConnectUsingStandardBundledConfigCoreAsync(
+        string? clientName,
+        IProgress<HostConnectionProgressUpdate>? progress,
+        CancellationToken cancellationToken,
+        HostConnectionActionKind actionKind)
+    {
+        var bundledDocument = await TryResolveBundledConfigDocumentAsync(cancellationToken);
+        if (!bundledDocument.Success || bundledDocument.Document is null)
+        {
+            return HostConnectionResult.FromFailure(
+                bundledDocument.Message,
+                actionKind,
+                bundledDocument.Source);
+        }
+
+        var connectResult = await ConnectResolvedDocumentAsync(
+            bundledDocument,
+            clientName,
+            progress,
+            cancellationToken,
+            actionKind);
+        return ToPairingResult(connectResult, actionKind);
+    }
+
     private Task<ResolvedPairingDocument> ResolvePairingDocumentAsync(
         string payload,
         string? sourceDescription,
@@ -606,27 +661,37 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
 
     private async Task<ResolvedPairingDocument> TryResolveBundledPairingDocumentAsync(CancellationToken cancellationToken)
     {
-        var bundledDeveloperDocument = await TryLoadBundledDocumentAsync(
-            ResolveBundledDocumentLoader(HostConnectionSource.BundledDeveloperConfig),
-            "Using bundled developer pairing config.",
-            HostConnectionSource.BundledDeveloperConfig,
-            cancellationToken);
+        var bundledDeveloperDocument = await TryResolveBundledDeveloperPairingDocumentAsync(cancellationToken);
         if (bundledDeveloperDocument.Success)
         {
             return bundledDeveloperDocument;
         }
 
-        var bundledDocument = await TryLoadBundledDocumentAsync(
-            ResolveBundledDocumentLoader(HostConnectionSource.BundledConfig),
-            "Using bundled pairing config.",
-            HostConnectionSource.BundledConfig,
-            cancellationToken);
+        var bundledDocument = await TryResolveBundledConfigDocumentAsync(cancellationToken);
         if (bundledDocument.Success)
         {
             return bundledDocument;
         }
 
         return ResolvedPairingDocument.FromFailure("No bundled pairing config is available.");
+    }
+
+    private Task<ResolvedPairingDocument> TryResolveBundledDeveloperPairingDocumentAsync(CancellationToken cancellationToken)
+    {
+        return TryLoadBundledDocumentAsync(
+            ResolveBundledDocumentLoader(HostConnectionSource.BundledDeveloperConfig),
+            "Using bundled developer pairing config.",
+            HostConnectionSource.BundledDeveloperConfig,
+            cancellationToken);
+    }
+
+    private Task<ResolvedPairingDocument> TryResolveBundledConfigDocumentAsync(CancellationToken cancellationToken)
+    {
+        return TryLoadBundledDocumentAsync(
+            ResolveBundledDocumentLoader(HostConnectionSource.BundledConfig),
+            "Using bundled pairing config.",
+            HostConnectionSource.BundledConfig,
+            cancellationToken);
     }
 
     private async Task<ResolvedPairingDocument> TryLoadBundledDocumentAsync(

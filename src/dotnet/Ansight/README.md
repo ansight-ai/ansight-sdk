@@ -26,7 +26,7 @@ When `WithSessionJpegCapture(...)` is enabled, the pairing client will capture t
 
 Host auto-probe is enabled by default. While `Runtime` is active, Ansight will periodically try to reconnect to the most recent successful host session if one is cached, pause probing while that session stays open, and resume after a reconnect delay if the session closes. Disable it with `WithoutHostAutoProbe()` or customize it with `WithHostAutoProbe(new HostAutoProbeOptions { ... })`.
 
-Runtime-owned host connection now also owns saved and bundled config resolution. If your app bundles `ansight.developer-pairing.json`, Ansight now attempts startup auto-connect automatically when the runtime becomes active. Configure bundled config resolution once during runtime initialization, then use `Runtime.HostConnection` when you need to retry auto-connect explicitly, handle pairing configs, or recover from saved-config expiry.
+Runtime-owned host connection now also owns saved and bundled config resolution. If you enable `AnsightDeveloperPairingEnabled` and initialize with `WithBundledHostConnection(typeof(AppBootstrap).Assembly)`, the generated `ansight.developer-pairing.json` is embedded into the app assembly automatically. Auto-connect prefers that developer pairing when available, then falls back to cached-session, saved-config, and other bundled-config behavior.
 
 ```csharp
 public static class AppBootstrap
@@ -53,6 +53,8 @@ var options = Options.CreateBuilder()
         configReader: new MyHostConnectionConfigReader())
     .Build();
 ```
+
+Explicit requests such as `HostConnectionRequest.PayloadText(...)`, `HostConnectionRequest.File(...)`, and `HostConnectionRequest.QrCode(...)` always use the supplied pairing payload and replace the current host session. That gives QR/file/paste flows an explicit override path even when developer pairing is configured by default.
 
 ## Data access
 
@@ -163,7 +165,7 @@ For local temp-file workflows, `Ansight.Tools.FileSystem` exposes `files.begin_b
 
 ## Embedded developer pairing target
 
-The base package ships an optional MSBuild target that can prebundle a developer pairing config during build.
+The base package ships an optional MSBuild target that can prebundle and automatically embed a developer pairing config during build.
 
 Enable it in your app project:
 
@@ -182,16 +184,20 @@ Optional properties:
 </PropertyGroup>
 ```
 
-Embed both pairing files as exact-name resources so the runtime can resolve them from `BundledConfigAssembly`:
+When enabled, the target writes `$(AnsightDeveloperPairingOutputFile)` and embeds it into the consuming assembly automatically as `ansight.developer-pairing.json`. No extra `EmbeddedResource` item is required for the generated developer pairing file.
+
+If you also want a plain bundled fallback config, keep embedding `ansight.json` manually:
 
 ```xml
 <ItemGroup>
   <EmbeddedResource Include="ansight.json" LogicalName="ansight.json" />
-  <EmbeddedResource Include="$(BaseIntermediateOutputPath)ansight.developer-pairing.json"
-                    LogicalName="ansight.developer-pairing.json"
-                    Condition="'$(AnsightDeveloperPairingEnabled)' == 'true' and Exists('$(BaseIntermediateOutputPath)ansight.developer-pairing.json')" />
 </ItemGroup>
 ```
+
+With `WithBundledHostConnection(typeof(AppBootstrap).Assembly)` configured:
+
+- auto-connect prefers the embedded developer pairing when available, then falls back to cached sessions, saved configs, and any plain bundled config
+- explicit `HostConnectionRequest.PayloadText(...)`, `HostConnectionRequest.File(...)`, and `HostConnectionRequest.QrCode(...)` requests always use the supplied pairing payload and replace the current host session
 
 When enabled, the target reads your source pairing config, captures local machine metadata when available, and writes a pairing config document containing:
 
@@ -199,6 +205,12 @@ When enabled, the target reads your source pairing config, captures local machin
 - a `PairingDiscoveryHint` with host addresses, machine name, and Wi-Fi name when available
 
 On Unix it uses `generate-ansight-developer-pairing.sh`. On Windows it uses `generate-ansight-developer-pairing.ps1`.
+
+Security and integration considerations:
+
+- the generated embedded resource includes host addresses, host name, Wi-Fi name, and a capture timestamp from the build machine
+- keep `AnsightDeveloperPairingEnabled=true` limited to local development and Debug builds
+- do not ship developer pairing resources in CI, Release, TestFlight, App Store, Play Store, or other distributable builds
 
 ## Build-time Remote Tool Enforcement
 
