@@ -73,7 +73,7 @@ public sealed class HostPairingManagerIntegrationTests
         Assert.Equal(1, sessionClient.OpenSessionCallCount);
         Assert.Equal(1, sessionClient.StartMetricsStreamingCallCount);
         Assert.Equal("cfg-override", sessionClient.LastOpenedDocument?.Config.ConfigId);
-        Assert.Contains("Streaming live metrics to host", hostConnection.StatusSummary, StringComparison.Ordinal);
+        Assert.Contains("Streaming live metrics to Host", hostConnection.StatusSummary, StringComparison.Ordinal);
 
         runtime.Deactivate();
     }

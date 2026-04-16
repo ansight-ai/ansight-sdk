@@ -6,10 +6,6 @@ param(
     [string]$OutputFile
 )
 
-if (-not (Test-Path -LiteralPath $SourceFile)) {
-    exit 0
-}
-
 function Add-UniqueHostAddress {
     param(
         [System.Collections.Generic.List[string]]$HostAddresses,
@@ -92,17 +88,27 @@ if (-not $hostAddress) {
     $hostAddress = $hostAddresses | Select-Object -First 1
 }
 
-$pairingConfig = Get-Content -LiteralPath $SourceFile -Raw | ConvertFrom-Json
-$document = [ordered]@{
-    schema = 'ansight.pairing-config-document.v1'
-    config = $pairingConfig
-    discovery = [ordered]@{
-        schema = 'ansight.discovery-hint.v1'
-        source = 'developer-pairing-msbuild'
-        hostAddresses = @($hostAddresses)
-        hostName = $hostName
-        wifiName = $wifiName
-        capturedAt = [DateTimeOffset]::UtcNow.ToString('o')
+$discovery = [ordered]@{
+    schema = 'ansight.discovery-hint.v1'
+    source = 'developer-pairing-msbuild'
+    hostAddresses = @($hostAddresses)
+    hostName = $hostName
+    wifiName = $wifiName
+    capturedAt = [DateTimeOffset]::UtcNow.ToString('o')
+}
+
+if (Test-Path -LiteralPath $SourceFile) {
+    $pairingConfig = Get-Content -LiteralPath $SourceFile -Raw | ConvertFrom-Json
+    $document = [ordered]@{
+        schema = 'ansight.pairing-config-document.v1'
+        config = $pairingConfig
+        discovery = $discovery
+    }
+}
+else {
+    $document = [ordered]@{
+        schema = 'ansight.developer-pairing.v1'
+        discovery = $discovery
     }
 }
 

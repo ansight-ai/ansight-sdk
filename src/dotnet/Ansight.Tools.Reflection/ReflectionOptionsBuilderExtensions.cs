@@ -14,7 +14,15 @@ public static class ReflectionOptionsBuilderExtensions
 
         var optionsBuilder = ReflectionToolsOptions.CreateBuilder();
         configure(optionsBuilder);
-        var options = optionsBuilder.Build();
+        return builder.WithReflectionTools(optionsBuilder.Build());
+    }
+
+    public static Options.OptionsBuilder WithReflectionTools(
+        this Options.OptionsBuilder builder,
+        ReflectionToolsOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(options);
 
         return builder.AddTools(new ITool[]
         {

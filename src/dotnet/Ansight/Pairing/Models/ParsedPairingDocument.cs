@@ -14,4 +14,11 @@ public sealed class ParsedPairingDocument
     /// Optional discovery metadata captured from the payload.
     /// </summary>
     public PairingDiscoveryHint? DiscoveryHint { get; init; }
+
+    /// <summary>
+    /// Indicates that this document came from the build-time developer pairing marker.
+    /// Developer pairing intentionally skips signed pairing config validation and is only
+    /// intended for local development builds.
+    /// </summary>
+    public bool IsDevelopmentPairing { get; init; }
 }

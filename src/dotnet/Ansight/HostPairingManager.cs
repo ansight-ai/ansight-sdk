@@ -725,6 +725,16 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
             return ResolvedPairingDocument.FromFailure("No bundled pairing config is available.");
         }
 
+        if (source == HostConnectionSource.BundledDeveloperConfig &&
+            pairingDocumentService.TryParseDevelopmentPairingDocument(json, out var developmentDocument, out _) &&
+            developmentDocument is not null)
+        {
+            return ResolvedPairingDocument.FromSuccess(
+                developmentDocument,
+                "Using bundled developer pairing marker.",
+                source);
+        }
+
         if (!hostConnection.TryParseAndValidateDocument(json, out var document, out var error) || document is null)
         {
             Logger.Warning($"Ignoring invalid bundled pairing config. {error}");
@@ -773,7 +783,7 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
             Source = resolvedDocument.Source,
             ReasonCode = connectResult.ReasonCode ?? connectResult.SessionResult?.RejectionCode
         };
-        if (connectResult.Success)
+        if (connectResult.Success && !resolvedDocument.Document.IsDevelopmentPairing)
         {
             try
             {
@@ -854,6 +864,13 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
                 return false;
             }
 
+            if (source == HostConnectionSource.BundledDeveloperConfig &&
+                pairingDocumentService.TryParseDevelopmentPairingDocument(json, out var developmentDocument, out _) &&
+                developmentDocument is not null)
+            {
+                return true;
+            }
+
             return hostConnection.TryParseAndValidateDocument(json, out var _, out var _);
         }
         catch (OperationCanceledException)
@@ -873,7 +890,8 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
         {
             HostConnectionSource.BundledDeveloperConfig => ResolveBundledDocumentLoader(
                 options.BundledDeveloperConfigLoader,
-                HostConnectionOptions.BundledDeveloperConfigAssetName),
+                HostConnectionOptions.BundledDeveloperConfigAssetName,
+                useDefaultAssemblyFallback: true),
             HostConnectionSource.BundledConfig => ResolveBundledDocumentLoader(
                 options.BundledConfigLoader,
                 HostConnectionOptions.BundledConfigAssetName),
@@ -883,7 +901,8 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
 
     private Func<CancellationToken, Task<string?>>? ResolveBundledDocumentLoader(
         Func<CancellationToken, Task<string?>>? explicitLoader,
-        string logicalName)
+        string logicalName,
+        bool useDefaultAssemblyFallback = false)
     {
         if (explicitLoader is not null)
         {
@@ -893,10 +912,59 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
         var bundledConfigAssembly = options.BundledConfigAssembly;
         if (bundledConfigAssembly is null)
         {
-            return null;
+            return useDefaultAssemblyFallback
+                ? cancellationToken => LoadDefaultEmbeddedResourceTextAsync(logicalName, cancellationToken)
+                : null;
         }
 
         return cancellationToken => LoadEmbeddedResourceTextAsync(bundledConfigAssembly, logicalName, cancellationToken);
+    }
+
+    private static async Task<string?> LoadDefaultEmbeddedResourceTextAsync(
+        string logicalName,
+        CancellationToken cancellationToken)
+    {
+        var entryAssembly = Assembly.GetEntryAssembly();
+        if (entryAssembly is not null)
+        {
+            var text = await LoadEmbeddedResourceTextAsync(entryAssembly, logicalName, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                return text;
+            }
+        }
+
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (assembly.IsDynamic || ReferenceEquals(assembly, entryAssembly))
+            {
+                continue;
+            }
+
+            string[] resourceNames;
+            try
+            {
+                resourceNames = assembly.GetManifestResourceNames();
+            }
+            catch
+            {
+                continue;
+            }
+
+            if (!resourceNames.Contains(logicalName, StringComparer.Ordinal))
+            {
+                continue;
+            }
+
+            var text = await LoadEmbeddedResourceTextAsync(assembly, logicalName, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                return text;
+            }
+        }
+
+        return null;
     }
 
     private static async Task<string?> LoadEmbeddedResourceTextAsync(

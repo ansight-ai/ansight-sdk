@@ -16,6 +16,11 @@ public sealed class DeviceApplicationProfile
     public string? AppName { get; set; }
 
     /// <summary>
+    /// Application icon captured from the installed package or bundle.
+    /// </summary>
+    public DeviceApplicationIconProfile? Icon { get; set; }
+
+    /// <summary>
     /// Operating-system process identifier for the running app, when available.
     /// </summary>
     public int? ProcessId { get; set; }

@@ -3,6 +3,8 @@ using System.Globalization;
 using Android.App;
 using Android.Content;
 using Android.Content.PM;
+using Android.Graphics;
+using Android.Graphics.Drawables;
 using Android.OS;
 
 namespace Ansight.DeviceProfiles;
@@ -52,6 +54,7 @@ internal static partial class DeviceAppProfileCollector
         }
 
         profile.AppName = ResolveAndroidApplicationLabel();
+        profile.Icon = ResolveAndroidApplicationIcon(packageManager, packageName);
     }
 
     private static partial int ResolvePlatformRuntimeCode() => 1;
@@ -173,6 +176,60 @@ internal static partial class DeviceAppProfileCollector
         return packageInfo.VersionCode.ToString(CultureInfo.InvariantCulture);
 #pragma warning restore CA1422
 #pragma warning restore CS0618
+    }
+
+    private static DeviceApplicationIconProfile? ResolveAndroidApplicationIcon(PackageManager? packageManager, string? packageName)
+    {
+        if (packageManager is null || string.IsNullOrWhiteSpace(packageName))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var drawable = packageManager.GetApplicationIcon(packageName);
+            return drawable is null ? null : CreateAndroidApplicationIconProfile(drawable);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static DeviceApplicationIconProfile? CreateAndroidApplicationIconProfile(Drawable drawable)
+    {
+        var sourceWidth = drawable.IntrinsicWidth > 0 ? drawable.IntrinsicWidth : MaxApplicationIconPixelLength;
+        var sourceHeight = drawable.IntrinsicHeight > 0 ? drawable.IntrinsicHeight : MaxApplicationIconPixelLength;
+        var dimensions = ResolveApplicationIconDimensions(sourceWidth, sourceHeight);
+        var bitmapConfig = Bitmap.Config.Argb8888;
+        if (bitmapConfig is null)
+        {
+            return null;
+        }
+
+        using var bitmap = Bitmap.CreateBitmap(dimensions.Width, dimensions.Height, bitmapConfig);
+        if (bitmap is null)
+        {
+            return null;
+        }
+
+        using var canvas = new Canvas(bitmap);
+        drawable.SetBounds(0, 0, dimensions.Width, dimensions.Height);
+        drawable.Draw(canvas);
+
+        using var stream = new MemoryStream();
+        var pngFormat = Bitmap.CompressFormat.Png;
+        if (pngFormat is null || !bitmap.Compress(pngFormat, 100, stream))
+        {
+            return null;
+        }
+
+        return CreateApplicationIconProfile(
+            stream.ToArray(),
+            "png",
+            "image/png",
+            dimensions.Width,
+            dimensions.Height);
     }
 }
 #endif

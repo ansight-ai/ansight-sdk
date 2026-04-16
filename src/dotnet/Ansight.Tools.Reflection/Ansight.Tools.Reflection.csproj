@@ -10,7 +10,7 @@
     <IsPackable>true</IsPackable>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageId>Ansight.Tools.Reflection</PackageId>
-    <Description>Live object reflection, metadata inspection, and guarded mutation tools for the Ansight .NET SDK.</Description>
+    <Description>Live object reflection, metadata inspection, and root-scoped mutation tools for the Ansight .NET SDK.</Description>
     <PackageTags>ansight;tools;reflection;inspection;runtime;debugging</PackageTags>
   </PropertyGroup>
 

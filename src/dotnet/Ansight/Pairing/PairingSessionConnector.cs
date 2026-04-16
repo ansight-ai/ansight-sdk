@@ -83,6 +83,7 @@ internal sealed class PairingSessionConnector
                 clientName,
                 hostAddress!,
                 discoveryPort,
+                document.IsDevelopmentPairing,
                 connectTimeout.Token);
         }
         catch (SocketException ex)
@@ -209,6 +210,7 @@ internal sealed class PairingSessionConnector
         string clientName,
         IPAddress hostAddress,
         int discoveryPort,
+        bool developmentPairing,
         CancellationToken cancellationToken)
     {
         using var udpClient = new UdpClient(hostAddress.AddressFamily);
@@ -221,7 +223,8 @@ internal sealed class PairingSessionConnector
             OneTimeToken = config.OneTimeToken,
             AppId = config.AppId,
             ClientName = clientName,
-            ProcessSessionId = ProcessSessionIdentity.Current
+            ProcessSessionId = ProcessSessionIdentity.Current,
+            DevelopmentPairing = developmentPairing
         };
 
         var bytes = JsonSerializer.SerializeToUtf8Bytes(request, PairingJson.Compact);

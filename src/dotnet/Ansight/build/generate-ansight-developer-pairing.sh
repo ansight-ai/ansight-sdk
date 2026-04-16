@@ -5,7 +5,7 @@ set -u
 source_file="${1:-}"
 output_path="${2:-}"
 
-if [ -z "$source_file" ] || [ -z "$output_path" ] || [ ! -f "$source_file" ]; then
+if [ -z "$output_path" ]; then
   exit 0
 fi
 
@@ -118,14 +118,16 @@ json_array() {
 }
 
 mkdir -p "$(dirname "$output_path")"
-pairing_config_json="$(cat "$source_file")"
 if [ "${#host_addresses[@]}" -gt 0 ]; then
   host_addresses_json="$(json_array "${host_addresses[@]}")"
 else
   host_addresses_json="[]"
 fi
 
-cat > "$output_path" <<EOF
+if [ -n "$source_file" ] && [ -f "$source_file" ]; then
+  pairing_config_json="$(cat "$source_file")"
+
+  cat > "$output_path" <<EOF
 {
   "schema": "ansight.pairing-config-document.v1",
   "config": $pairing_config_json,
@@ -139,5 +141,20 @@ cat > "$output_path" <<EOF
   }
 }
 EOF
+else
+  cat > "$output_path" <<EOF
+{
+  "schema": "ansight.developer-pairing.v1",
+  "discovery": {
+    "schema": "ansight.discovery-hint.v1",
+    "source": "developer-pairing-msbuild",
+    "hostAddresses": $host_addresses_json,
+    "hostName": "$(json_escape "$host_name")",
+    "wifiName": "$(json_escape "$wifi_name")",
+    "capturedAt": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+  }
+}
+EOF
+fi
 
 echo "Ansight developer pairing discovery: source=$source_file output=$output_path wifi=${wifi_name:-<unknown>} hostName=${host_name:-<unknown>} hostAddress=${host_address:-<unknown>} hostAddresses=${host_addresses[*]:-<unknown>}"

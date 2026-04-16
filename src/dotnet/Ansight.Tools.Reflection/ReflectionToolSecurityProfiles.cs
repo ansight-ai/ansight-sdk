@@ -21,13 +21,13 @@ public static class ReflectionToolSecurityProfiles
 
     public static ToolSecurity SetMemberValue { get; } = new(
         ToolSecurityLevel.Critical,
-        "Mutates live runtime object state through explicitly allow-listed fields and properties.",
+        "Mutates live runtime object state through fields and properties reachable from registered roots.",
         ToolSecurityImplications.WritesAppData,
         ToolSecurityImplications.MutatesRuntimeState);
 
     public static ToolSecurity InvokeMethod { get; } = new(
         ToolSecurityLevel.Critical,
-        "Invokes explicitly allow-listed application methods on live runtime objects.",
+        "Invokes application methods reachable from registered roots.",
         ToolSecurityImplications.WritesAppData,
         ToolSecurityImplications.InvokesAppCode,
         ToolSecurityImplications.MutatesRuntimeState);

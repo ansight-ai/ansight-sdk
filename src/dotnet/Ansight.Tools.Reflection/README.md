@@ -18,40 +18,38 @@ using Ansight.Tools.Reflection;
 
 var session = new DebugSessionViewModel();
 
+var reflectionOptions = ReflectionToolsOptions.CreateBuilder()
+    .WithDefaultMemberVisibility(ReflectionMemberVisibility.PublicOnly)
+    .Build();
+
 var options = Options.CreateBuilder()
-    .WithReflectionTools(reflection =>
-    {
-        reflection.WithDefaultMemberVisibility(ReflectionMemberVisibility.PublicOnly);
-        reflection.WithAssemblyTraversalMode(ReflectionAssemblyTraversalMode.AllowAll);
-        reflection.WithNamespaceTraversalMode(ReflectionNamespaceTraversalMode.AllowAll);
-        reflection.AddRoot(
-            "session",
-            session,
-            new ReflectionRootMetadata("Current Session")
-            {
-                Description = "Active session view model",
-                Hints = ["debug", "session"],
-                ContainsSensitiveData = true
-            },
-            root => root
-                .AllowWritableMembers("SelectedTab")
-                .AllowAllWritableMembersOn<DebugSessionViewModel>()
-                .AllowInvokableMethods("Refresh()")
-                .AllowAllInvokableMethodsOn<DebugSessionViewModel>());
-    })
+    .WithReflectionTools(reflectionOptions)
     .WithReadWriteToolAccess()
     .Build();
+
+using var sessionRoot = ReflectionRootRegistry.Register(
+    "session",
+    session,
+    new ReflectionRootMetadata("Current Session")
+    {
+        Description = "Active session view model",
+        Hints = ["debug", "session"],
+        ContainsSensitiveData = true
+    });
+
+using var detailRoot = ReflectionRootRegistry.Register(
+    "details",
+    session.CurrentDetails,
+    new ReflectionRootMetadata("Current Details"),
+    ReferenceType.Strong);
+
+detailRoot.Deregister();
 ```
 
-Direct object roots use weak references by default. Use `AddStrongRoot(...)` when the root should be retained for the lifetime of the toolsuite.
+Registering a root grants access to visible members and instance methods reachable from that root. Writes still require the target field or property to be writable, and non-public members are only visible when configured with `WithDefaultMemberVisibility(...)`.
 
-Recursive traversal is allow-listed by default. Use `WithAssemblyTraversalMode(...)` and `WithNamespaceTraversalMode(...)` to switch either boundary to `AllowAll`, or keep the default `AllowListedOnly` mode and add entries with `AllowAssembly(...)` / `AllowNamespacePrefix(...)`.
+Direct object roots use weak references by default when registered with `Register(...)`. Pass `ReferenceType.Strong` when the root should be retained for the lifetime of the toolsuite. Runtime registration returns a `ReflectionRootRegistrationHandle`; dispose it or call `Deregister()` to remove that specific registration, or call `ReflectionRootRegistry.Deregister(id)` to remove the current root by identifier. Metadata, including `Hints`, is supplied through the `ReflectionRootMetadata` argument.
 
-Write and invoke operations are explicitly allow-listed per root:
-
-- writable members are matched by relative member path such as `Child.Name`
-- invokable methods are matched by `Method(Type)` for root methods or `Path#Method(Type)` for nested targets
-- `AllowAllWritableMembersOn<T>()` / `AllowAllInvokableMethodsOn<T>()` enable all writable members or invokable methods for reachable objects assignable to a given type
-- `AllowAllWritableMembers()` / `AllowAllInvokableMethods()` enable those capabilities for all reachable objects under the root
+Recursive traversal is open by default. Use `WithAssemblyTraversalMode(ReflectionAssemblyTraversalMode.AllowListedOnly)` and `WithNamespaceTraversalMode(ReflectionNamespaceTraversalMode.AllowListedOnly)` with `AllowAssembly(...)` / `AllowNamespacePrefix(...)` only when you need to restrict expansion to selected assemblies or namespaces.
 
 These tools are intended for local debugging only and may expose or mutate sensitive runtime state.

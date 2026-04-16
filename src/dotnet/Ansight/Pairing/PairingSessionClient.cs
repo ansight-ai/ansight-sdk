@@ -233,20 +233,25 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
 
         var deviceAppProfile = deviceAppProfileResolver.Resolve(options?.DeviceAppProfile);
         var expectedAppId = deviceAppProfileResolver.ResolveExpectedAppId(deviceAppProfile);
-        if (!TryValidateDocument(document, expectedAppId, out var validationError))
+        var sessionDocument = document.IsDevelopmentPairing
+            ? CreateDevelopmentSessionDocument(document, deviceAppProfile)
+            : document;
+        if (!sessionDocument.IsDevelopmentPairing && !TryValidateDocument(sessionDocument, expectedAppId, out var validationError))
         {
             return OpenSessionResult.FromFailure(validationError);
         }
 
-        var config = document.Config;
-        var discoveryPort = PairingDiscoveryPortResolver.Resolve(document, options?.DiscoveryPort);
+        var config = sessionDocument.Config;
+        var discoveryPort = PairingDiscoveryPortResolver.Resolve(sessionDocument, options?.DiscoveryPort);
         HostPairingProgressReporter.Report(
             progress,
             HostConnectionProgressKind.Validation,
-            $"Config validated. ConfigId: {config.ConfigId}",
+            sessionDocument.IsDevelopmentPairing
+                ? $"Development pairing enabled. ConfigId: {config.ConfigId}"
+                : $"Config validated. ConfigId: {config.ConfigId}",
             source: HostConnectionSource.Payload);
 
-        var connectionAttempt = await connector.ConnectAsync(document, clientName, options, progress, cancellationToken);
+        var connectionAttempt = await connector.ConnectAsync(sessionDocument, clientName, options, progress, cancellationToken);
         if (!connectionAttempt.Success)
         {
             return connectionAttempt.Accepted
@@ -289,13 +294,16 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
             }
 
             await jpegStreamer.StartAsync(progress);
-            try
+            if (!sessionDocument.IsDevelopmentPairing)
             {
-                storedPairingDocumentCache.Save(CreateCachedDocument(document, connectionAttempt.HostAddress, discoveryPort));
-            }
-            catch (Exception ex)
-            {
-                Logger.Warning($"Failed to cache the host session for auto-probe: {ex.Message}");
+                try
+                {
+                    storedPairingDocumentCache.Save(CreateCachedDocument(sessionDocument, connectionAttempt.HostAddress, discoveryPort));
+                }
+                catch (Exception ex)
+                {
+                    Logger.Warning($"Failed to cache the host session for auto-probe: {ex.Message}");
+                }
             }
 
             return OpenSessionResult.FromSuccess(
@@ -571,6 +579,68 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
             HostConnectionProgressKind.Transport);
     }
 
+    private static ParsedPairingDocument CreateDevelopmentSessionDocument(
+        ParsedPairingDocument document,
+        DeviceAppProfile? deviceAppProfile)
+    {
+        var appId = FirstNonEmpty(deviceAppProfile?.App?.AppId, document.Config.AppId, "development");
+        var appName = FirstNonEmpty(deviceAppProfile?.App?.AppName, document.Config.AppName, appId);
+        var config = CloneConfig(document.Config);
+        config.ConfigId = FirstNonEmpty(document.Config.ConfigId, $"development-{ProcessSessionIdentity.Current}");
+        config.AppId = appId;
+        config.AppName = appName;
+        config.OneTimeToken = string.Empty;
+        config.Signature = string.Empty;
+        config.Trust.Mode = "development-auto";
+        config.Trust.RequireTokenOnFirstPair = false;
+        config.Trust.AllowLanDiscovery = true;
+        config.Challenge.Alg = "none";
+        config.Challenge.ChallengePubKey = string.Empty;
+        config.Challenge.RequireProofOnFirstPair = false;
+
+        return new ParsedPairingDocument
+        {
+            Config = config,
+            DiscoveryHint = document.DiscoveryHint,
+            IsDevelopmentPairing = true
+        };
+    }
+
+    private static PairingConfig CloneConfig(PairingConfig source)
+    {
+        return new PairingConfig
+        {
+            Schema = source.Schema,
+            ConfigId = source.ConfigId,
+            AppId = source.AppId,
+            AppName = source.AppName,
+            IssuedAt = source.IssuedAt,
+            ExpiresAt = source.ExpiresAt,
+            OneTimeToken = source.OneTimeToken,
+            Host = new PairingHost
+            {
+                HostId = source.Host.HostId,
+                HostName = source.Host.HostName,
+                DiscoveryPort = source.Host.DiscoveryPort,
+                HostPubKey = source.Host.HostPubKey,
+                HostPubKeyFingerprint = source.Host.HostPubKeyFingerprint
+            },
+            Challenge = new PairingChallenge
+            {
+                Alg = source.Challenge.Alg,
+                ChallengePubKey = source.Challenge.ChallengePubKey,
+                RequireProofOnFirstPair = source.Challenge.RequireProofOnFirstPair
+            },
+            Trust = new PairingTrust
+            {
+                Mode = source.Trust.Mode,
+                RequireTokenOnFirstPair = source.Trust.RequireTokenOnFirstPair,
+                AllowLanDiscovery = source.Trust.AllowLanDiscovery
+            },
+            Signature = source.Signature
+        };
+    }
+
     internal static ParsedPairingDocument CreateCachedDocument(
         ParsedPairingDocument document,
         IPAddress? connectedHostAddress,
@@ -606,7 +676,8 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         return new ParsedPairingDocument
         {
             Config = document.Config,
-            DiscoveryHint = cachedDiscoveryHint
+            DiscoveryHint = cachedDiscoveryHint,
+            IsDevelopmentPairing = document.IsDevelopmentPairing
         };
     }
 
@@ -617,6 +688,19 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
             : result.RejectionCode;
         return !string.IsNullOrWhiteSpace(resetCode) &&
                CachedProfileResetCodes.Contains(resetCode);
+    }
+
+    private static string FirstNonEmpty(params string?[] values)
+    {
+        foreach (var value in values)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return value.Trim();
+            }
+        }
+
+        return string.Empty;
     }
 
     private static string ResolveClientName(string? overrideClientName, DeviceAppProfile? deviceAppProfile)

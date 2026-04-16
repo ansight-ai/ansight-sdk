@@ -27,6 +27,7 @@ internal static partial class DeviceAppProfileCollector
         profile.VersionName = ReadBundleString("CFBundleShortVersionString") ?? profile.VersionName;
         profile.VersionCode = ReadBundleString("CFBundleVersion") ?? profile.VersionCode;
         profile.BuildNumber = profile.VersionCode;
+        profile.Icon = ResolveAppleApplicationIcon();
     }
 
     private static DeviceDisplayProfile? CreateAppleDisplayProfile()
@@ -65,6 +66,105 @@ internal static partial class DeviceAppProfileCollector
         {
             return null;
         }
+    }
+
+    private static DeviceApplicationIconProfile? ResolveAppleApplicationIcon()
+    {
+        foreach (var iconName in EnumerateAppleApplicationIconNames())
+        {
+            try
+            {
+                using var image = UIImage.FromBundle(iconName);
+                if (image is null)
+                {
+                    continue;
+                }
+
+                var icon = CreateAppleApplicationIconProfile(image);
+                if (icon is not null)
+                {
+                    return icon;
+                }
+            }
+            catch
+            {
+                // Continue through the available bundle icon names.
+            }
+        }
+
+        return null;
+    }
+
+    private static DeviceApplicationIconProfile? CreateAppleApplicationIconProfile(UIImage image)
+    {
+        var sourceWidth = image.CGImage is null
+            ? (int)Math.Round((double)image.Size.Width)
+            : (int)image.CGImage.Width;
+        var sourceHeight = image.CGImage is null
+            ? (int)Math.Round((double)image.Size.Height)
+            : (int)image.CGImage.Height;
+        using (var data = image.AsPNG())
+        {
+            if (data is null)
+            {
+                return null;
+            }
+
+            return CreateApplicationIconProfile(
+                data.ToArray(),
+                "png",
+                "image/png",
+                sourceWidth,
+                sourceHeight);
+        }
+    }
+
+    private static IEnumerable<string> EnumerateAppleApplicationIconNames()
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var iconName in EnumerateAppleApplicationIconNamesCore())
+        {
+            if (!string.IsNullOrWhiteSpace(iconName) && seen.Add(iconName.Trim()))
+            {
+                yield return iconName.Trim();
+            }
+        }
+    }
+
+    private static IEnumerable<string?> EnumerateAppleApplicationIconNamesCore()
+    {
+        var bundle = NSBundle.MainBundle;
+        yield return ReadBundleString("CFBundleIconName");
+        yield return ReadBundleString("CFBundleIconFile");
+
+        if (bundle.InfoDictionary?["XSAppIconAssets"] is NSString appIconAssets)
+        {
+            var appIconName = Path.GetFileNameWithoutExtension(appIconAssets.ToString());
+            yield return appIconName;
+        }
+
+        if (bundle.InfoDictionary?["CFBundleIcons"] is NSDictionary bundleIcons
+            && bundleIcons["CFBundlePrimaryIcon"] is NSDictionary primaryIcon)
+        {
+            if (primaryIcon["CFBundleIconName"] is NSString primaryIconName)
+            {
+                yield return primaryIconName.ToString();
+            }
+
+            if (primaryIcon["CFBundleIconFiles"] is NSArray iconFiles)
+            {
+                for (nuint index = 0; index < iconFiles.Count; index++)
+                {
+                    if (iconFiles.GetItem<NSString>(index) is { } iconFile)
+                    {
+                        yield return iconFile.ToString();
+                    }
+                }
+            }
+        }
+
+        yield return "appicon";
+        yield return "AppIcon";
     }
 }
 #endif

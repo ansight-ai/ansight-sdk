@@ -16,25 +16,22 @@ internal static class ReflectionSupport
     internal static JsonObject ListRoots(ReflectionToolsOptions options)
     {
         var roots = new JsonArray();
-        foreach (var root in options.Roots)
+        foreach (var root in ReflectionRootRegistry.Roots)
         {
             var resolution = root.Resolve();
             roots.Add(new JsonObject
             {
                 ["id"] = root.Id,
                 ["metadata"] = ToJson(root.Metadata),
-                ["registrationKind"] = root.RegistrationKind == ReflectionRootRegistrationKind.Reference ? "reference" : "delegate",
-                ["referenceStrength"] = root.ReferenceStrength switch
+                ["referenceType"] = root.ReferenceType switch
                 {
-                    ReflectionReferenceStrength.Weak => "weak",
-                    ReflectionReferenceStrength.Strong => "strong",
-                    _ => null
+                    ReferenceType.Weak => "weak",
+                    ReferenceType.Strong => "strong",
+                    _ => throw new ArgumentOutOfRangeException(nameof(root.ReferenceType), root.ReferenceType, "Unsupported reflection root reference type.")
                 },
                 ["available"] = resolution.Available,
                 ["runtimeType"] = resolution.Value?.GetType().FullName,
-                ["memberVisibility"] = GetEffectiveVisibility(options, root).ToString(),
-                ["canWriteMembers"] = root.CanWriteMembers,
-                ["canInvokeMethods"] = root.CanInvokeMethods,
+                ["memberVisibility"] = GetEffectiveVisibility(options).ToString(),
                 ["resolutionError"] = resolution.Available
                     ? null
                     : string.IsNullOrWhiteSpace(resolution.Error) ? null : resolution.Error
@@ -55,7 +52,7 @@ internal static class ReflectionSupport
         var path = GetString(arguments, "path");
         var maxDepth = GetInt(arguments, "maxDepth", DefaultMaxDepth, minimum: 0, maximum: MaximumMaxDepth);
         var maxItemsPerCollection = GetInt(arguments, "maxItemsPerCollection", DefaultMaxItemsPerCollection, minimum: 1, maximum: MaximumItemsPerCollection);
-        var registration = GetRoot(options, rootId);
+        var registration = GetRoot(rootId);
         var resolution = registration.Resolve();
         if (!resolution.Available || resolution.Value == null)
         {
@@ -63,7 +60,7 @@ internal static class ReflectionSupport
         }
 
         var segments = ParsePath(path);
-        var memberVisibility = GetEffectiveVisibility(options, registration);
+        var memberVisibility = GetEffectiveVisibility(options);
         var current = ResolveTarget(resolution.Value, segments, memberVisibility);
         var state = new ReflectionSnapshotState(options, registration, maxItemsPerCollection);
         var snapshot = CreateSnapshot(
@@ -113,7 +110,7 @@ internal static class ReflectionSupport
         var rootId = GetRequiredString(arguments, "root");
         var path = GetRequiredString(arguments, "path");
         var valueJson = GetRequiredString(arguments, "valueJson");
-        var registration = GetRoot(options, rootId);
+        var registration = GetRoot(rootId);
         var resolution = registration.Resolve();
         if (!resolution.Available || resolution.Value == null)
         {
@@ -126,7 +123,7 @@ internal static class ReflectionSupport
             throw new InvalidOperationException("Write paths must end on a field or property.");
         }
 
-        var memberVisibility = GetEffectiveVisibility(options, registration);
+        var memberVisibility = GetEffectiveVisibility(options);
         var parentSegments = segments.Take(segments.Count - 1).ToList();
         var parent = ResolveTarget(resolution.Value, parentSegments, memberVisibility);
         if (parent.Value == null)
@@ -137,11 +134,6 @@ internal static class ReflectionSupport
         var memberName = segments[^1].Value!;
         var member = FindMember(parent.Value.GetType(), memberName, memberVisibility)
                      ?? throw new InvalidOperationException($"Member '{memberName}' was not found.");
-
-        if (!registration.IsWriteAllowed(path, parent.Value.GetType()))
-        {
-            throw new InvalidOperationException($"Member path '{path}' is not allowed for writes on root '{rootId}'.");
-        }
 
         if (member is PropertyInfo property)
         {
@@ -179,14 +171,14 @@ internal static class ReflectionSupport
         var methodName = GetRequiredString(arguments, "method");
         var parameterTypeNames = ParseStringArrayArgument(GetString(arguments, "parameterTypesJson"));
         var argumentValues = ParseJsonArrayArgument(GetString(arguments, "argumentsJson"));
-        var registration = GetRoot(options, rootId);
+        var registration = GetRoot(rootId);
         var resolution = registration.Resolve();
         if (!resolution.Available || resolution.Value == null)
         {
             throw new InvalidOperationException(resolution.Error ?? $"The root '{rootId}' is not currently available.");
         }
 
-        var memberVisibility = GetEffectiveVisibility(options, registration);
+        var memberVisibility = GetEffectiveVisibility(options);
         var target = string.IsNullOrWhiteSpace(targetPath)
             ? new ReflectionResolvedValue(resolution.Value, resolution.Value.GetType())
             : ResolveTarget(resolution.Value, ParsePath(targetPath), memberVisibility);
@@ -203,12 +195,6 @@ internal static class ReflectionSupport
         }
 
         var methodSignature = CreateMethodSignature(method);
-        if (!registration.IsInvocationAllowed(targetPath, methodSignature, target.Value.GetType()))
-        {
-            var invocationKey = CreateInvocationKey(targetPath, methodSignature);
-            throw new InvalidOperationException($"Method '{invocationKey}' is not allowed for invocation on root '{rootId}'.");
-        }
-
         var parameters = method.GetParameters();
         if (parameters.Length != argumentValues.Count)
         {
@@ -278,14 +264,15 @@ internal static class ReflectionSupport
         };
     }
 
-    private static ReflectionRootRegistration GetRoot(ReflectionToolsOptions options, string rootId)
+    private static ReflectionRootRegistration GetRoot(string rootId)
     {
-        var root = options.Roots.SingleOrDefault(candidate => string.Equals(candidate.Id, rootId, StringComparison.OrdinalIgnoreCase));
-        return root ?? throw new InvalidOperationException($"Reflection root '{rootId}' is not registered.");
+        return ReflectionRootRegistry.TryGetRoot(rootId, out var root)
+            ? root!
+            : throw new InvalidOperationException($"Reflection root '{rootId}' is not registered.");
     }
 
-    private static ReflectionMemberVisibility GetEffectiveVisibility(ReflectionToolsOptions options, ReflectionRootRegistration registration)
-        => registration.MemberVisibility ?? options.DefaultMemberVisibility;
+    private static ReflectionMemberVisibility GetEffectiveVisibility(ReflectionToolsOptions options)
+        => options.DefaultMemberVisibility;
 
     private static JsonObject ToJson(ReflectionRootMetadata metadata)
     {
@@ -356,7 +343,7 @@ internal static class ReflectionSupport
 
             if (registration != null)
             {
-                descriptor["invokable"] = registration.IsInvocationAllowed(targetPath, signature, type);
+                descriptor["invokable"] = true;
             }
 
             results.Add(descriptor);
@@ -501,7 +488,7 @@ internal static class ReflectionSupport
             ["readable"] = readable,
             ["writable"] = writable,
             ["visibility"] = IsPublic(member) ? "public" : "non_public",
-            ["allowedWrite"] = state.Root.IsWriteAllowed(childPath, instance.GetType()),
+            ["allowedWrite"] = writable,
             ["error"] = error
         };
 
@@ -939,11 +926,6 @@ internal static class ReflectionSupport
 
         return $"{method.Name}({string.Join(",", parameterTypes)})";
     }
-
-    private static string CreateInvocationKey(string? targetPath, string signature)
-        => string.IsNullOrWhiteSpace(targetPath)
-            ? signature
-            : $"{targetPath}#{signature}";
 
     private static Type? ResolveType(string typeName, string? assemblyName)
     {
@@ -1452,7 +1434,7 @@ internal static class ReflectionSupport
 
         public int MaxItemsPerCollection { get; }
 
-        public ReflectionMemberVisibility MemberVisibility => Root.MemberVisibility ?? options.DefaultMemberVisibility;
+        public ReflectionMemberVisibility MemberVisibility => options.DefaultMemberVisibility;
 
         public bool TryEnter(object value, string? path)
         {

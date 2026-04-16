@@ -99,17 +99,17 @@ using Ansight;
 using Ansight.Tools.VisualTree;
 using Ansight.Tools.Reflection;
 
+ReflectionRootRegistry.Register(
+    "session",
+    new DebugSessionViewModel(),
+    new ReflectionRootMetadata("Current Session")
+    {
+        Hints = ["debug", "session"]
+    });
+
 var options = Options.CreateBuilder()
     .WithVisualTreeTools()
-    .WithReflectionTools(reflection =>
-    {
-        reflection.WithAssemblyTraversalMode(ReflectionAssemblyTraversalMode.AllowAll);
-        reflection.WithNamespaceTraversalMode(ReflectionNamespaceTraversalMode.AllowAll);
-        reflection.AddRoot(
-            "session",
-            new DebugSessionViewModel(),
-            new ReflectionRootMetadata("Current Session"));
-    })
+    .WithReflectionTools()
     .WithReadOnlyToolAccess()
     .Build();
 ```
@@ -126,7 +126,7 @@ Available grouped packages:
 
 `WithReadWriteToolAccess()` enables read and write tools while keeping delete-scoped tools disabled. The storage packages register remove operations as `Delete`, so use `WithAllToolAccess()` or a custom `ToolGuard` when you want key removal enabled.
 
-The reflection suite supports both path-based and type-wide mutation/invocation rules. Use `AllowWritableMembers(...)` / `AllowInvokableMethods(...)` for narrow paths and signatures, or `AllowAllWritableMembersOn<T>()` / `AllowAllInvokableMethodsOn<T>()` when a whole reachable type should be writable or invocable.
+The reflection suite uses `ReflectionRootRegistry` as the singleton access boundary. Once a root is registered, reachable visible members can be inspected, writable members can be updated, and instance methods can be invoked. Use `ReflectionRootRegistry.Register(...)` and `Deregister(...)` at any point in the app lifecycle. Registrations are weak by default; pass `ReferenceType.Strong` when the registry should retain the root.
 
 At runtime, transport layers can query or execute tools through `Runtime.ToolBridge`. When a `PairingSessionClient` session is open, inbound `tool.query` and `tool.call` envelopes are handled automatically on the live WebSocket and answered according to the configured `ToolGuard`.
 

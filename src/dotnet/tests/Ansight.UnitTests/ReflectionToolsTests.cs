@@ -1,19 +1,22 @@
 using Ansight.Tools;
 using Ansight.Tools.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text.Json.Nodes;
 
 namespace Ansight.UnitTests;
 
 public sealed class ReflectionToolsTests
 {
+    public ReflectionToolsTests()
+    {
+        ReflectionRootRegistry.Clear();
+    }
+
     [Fact]
     public void WithReflectionTools_RegistersExpectedTools()
     {
         var options = Options.CreateBuilder()
-            .WithReflectionTools(reflection =>
-            {
-                reflection.AddRoot("root", new ReflectionRootModel(), new ReflectionRootMetadata("Root"));
-            })
+            .WithReflectionTools()
             .Build();
 
         Assert.Equal(
@@ -28,24 +31,41 @@ public sealed class ReflectionToolsTests
     }
 
     [Fact]
-    public async Task ListReflectionRootsTool_Execute_ReturnsMetadataAndCapabilities()
+    public async Task WithReflectionTools_UsesSingletonRegistryForRuntimeRootRegistration()
+    {
+        var reflectionOptions = ReflectionToolsOptions.CreateBuilder().Build();
+        var options = Options.CreateBuilder()
+            .WithReflectionTools(reflectionOptions)
+            .Build();
+
+        ReflectionRootRegistry.Register(
+            "runtime",
+            new ReflectionRootModel(),
+            new ReflectionRootMetadata("Runtime Root"),
+            ReferenceType.Strong);
+        var listTool = options.Tools.Single(tool => tool.Id == ReflectionToolIds.ListRoots);
+        var result = await listTool.Execute(new Dictionary<string, string>());
+
+        Assert.True(result.IsSuccess);
+        var roots = Assert.IsType<JsonArray>(Assert.IsType<JsonObject>(result.Payload)["roots"]);
+        var root = Assert.IsType<JsonObject>(Assert.Single(roots));
+        Assert.Equal("runtime", root["id"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task ListReflectionRootsTool_Execute_ReturnsMetadata()
     {
         var model = new ReflectionRootModel();
-        var tool = new ListReflectionRootsTool(
-            ReflectionToolsOptions.CreateBuilder()
-                .AddRoot(
-                    "session",
-                    model,
-                    new ReflectionRootMetadata("Current Session")
-                    {
-                        Description = "Session VM",
-                        Hints = ["debug", "session"],
-                        ContainsSensitiveData = true
-                    },
-                    root => root
-                        .AllowWritableMembers("SelectedTab")
-                        .AllowInvokableMethods("Rename(System.String)"))
-                .Build());
+        ReflectionRootRegistry.Register(
+            "session",
+            model,
+            new ReflectionRootMetadata("Current Session")
+            {
+                Description = "Session VM",
+                Hints = ["debug", "session"],
+                ContainsSensitiveData = true
+            });
+        var tool = new ListReflectionRootsTool();
 
         var result = await tool.Execute(new Dictionary<string, string>());
 
@@ -57,16 +77,11 @@ public sealed class ReflectionToolsTests
         var hints = Assert.IsType<JsonArray>(metadata["hints"]);
 
         Assert.Equal("session", root["id"]?.GetValue<string>());
-        Assert.Equal("reference", root["registrationKind"]?.GetValue<string>());
-        Assert.Equal("weak", root["referenceStrength"]?.GetValue<string>());
+        Assert.Equal("weak", root["referenceType"]?.GetValue<string>());
         Assert.True(root["available"]!.GetValue<bool>());
-        Assert.True(root["canWriteMembers"]!.GetValue<bool>());
-        Assert.True(root["canInvokeMethods"]!.GetValue<bool>());
         Assert.Equal("Current Session", metadata["displayName"]?.GetValue<string>());
         Assert.Contains(hints.Select(node => node!.GetValue<string>()), value => value == "debug");
         Assert.True(metadata["containsSensitiveData"]!.GetValue<bool>());
-        Assert.Null(metadata["category"]);
-        Assert.Null(metadata["attributes"]);
     }
 
     [Fact]
@@ -95,27 +110,6 @@ public sealed class ReflectionToolsTests
         var root = Assert.IsType<JsonObject>(Assert.Single(roots));
         Assert.False(root["available"]!.GetValue<bool>());
         Assert.NotNull(root["resolutionError"]?.GetValue<string>());
-    }
-
-    [Fact]
-    public async Task ListReflectionRootsTool_Execute_ShowsDelegateResolutionErrors()
-    {
-        var tool = new ListReflectionRootsTool(
-            ReflectionToolsOptions.CreateBuilder()
-                .AddRoot(
-                    "failing",
-                    () => throw new InvalidOperationException("resolver failed"),
-                    new ReflectionRootMetadata("Failing Root"))
-                .Build());
-
-        var result = await tool.Execute(new Dictionary<string, string>());
-
-        Assert.True(result.IsSuccess);
-        var payload = Assert.IsType<JsonObject>(result.Payload);
-        var roots = Assert.IsType<JsonArray>(payload["roots"]);
-        var root = Assert.IsType<JsonObject>(Assert.Single(roots));
-        Assert.False(root["available"]!.GetValue<bool>());
-        Assert.Contains("resolver failed", root["resolutionError"]?.GetValue<string>(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -156,12 +150,7 @@ public sealed class ReflectionToolsTests
     public async Task InspectObjectTool_Execute_StopsExpansionWhenMaxDepthIsExhausted()
     {
         var model = new ReflectionRootModel();
-        var tool = new InspectObjectTool(
-            ReflectionToolsOptions.CreateBuilder()
-                .WithAssemblyTraversalMode(ReflectionAssemblyTraversalMode.AllowAll)
-                .WithNamespaceTraversalMode(ReflectionNamespaceTraversalMode.AllowAll)
-                .AddRoot("session", model, new ReflectionRootMetadata("Session"))
-                .Build());
+        var tool = new InspectObjectTool(CreateOptions(model));
 
         var result = await tool.Execute(new Dictionary<string, string>
         {
@@ -191,10 +180,12 @@ public sealed class ReflectionToolsTests
     public async Task InspectObjectTool_Execute_UsesOpaqueSnapshotsForDisallowedTypes()
     {
         var model = new ReflectionRootModel();
+        ReflectionRootRegistry.Register("session", model, new ReflectionRootMetadata("Session"));
         var tool = new InspectObjectTool(
             ReflectionToolsOptions.CreateBuilder()
+                .WithAssemblyTraversalMode(ReflectionAssemblyTraversalMode.AllowListedOnly)
+                .WithNamespaceTraversalMode(ReflectionNamespaceTraversalMode.AllowListedOnly)
                 .AllowNamespacePrefix("Ansight.UnitTests")
-                .AddRoot("session", model, new ReflectionRootMetadata("Session"))
                 .Build());
 
         var result = await tool.Execute(new Dictionary<string, string>
@@ -214,13 +205,10 @@ public sealed class ReflectionToolsTests
     }
 
     [Fact]
-    public async Task InspectObjectTool_Execute_UsesOpaqueSnapshotsByDefaultUntilTraversalIsExplicitlyAllowed()
+    public async Task InspectObjectTool_Execute_ExpandsReachableObjectsByDefault()
     {
         var model = new ReflectionRootModel();
-        var tool = new InspectObjectTool(
-            ReflectionToolsOptions.CreateBuilder()
-                .AddRoot("session", model, new ReflectionRootMetadata("Session"))
-                .Build());
+        var tool = new InspectObjectTool(CreateOptions(model));
 
         var result = await tool.Execute(new Dictionary<string, string>
         {
@@ -235,20 +223,18 @@ public sealed class ReflectionToolsTests
             .Single(node => node["name"]?.GetValue<string>() == "Child");
         var childSnapshot = Assert.IsType<JsonObject>(childMember["value"]);
 
-        Assert.True(childSnapshot["opaque"]!.GetValue<bool>());
+        Assert.False(childSnapshot["opaque"]?.GetValue<bool>() ?? false);
+        Assert.NotNull(childSnapshot["members"]);
     }
 
     [Fact]
     public async Task InspectObjectTool_Execute_HonorsNonPublicVisibility()
     {
         var model = new ReflectionRootModel();
+        ReflectionRootRegistry.Register("session", model, new ReflectionRootMetadata("Session"));
         var tool = new InspectObjectTool(
             ReflectionToolsOptions.CreateBuilder()
-                .AddRoot(
-                    "session",
-                    model,
-                    new ReflectionRootMetadata("Session"),
-                    root => root.WithMemberVisibility(ReflectionMemberVisibility.PublicAndNonPublic))
+                .WithDefaultMemberVisibility(ReflectionMemberVisibility.PublicAndNonPublic)
                 .Build());
 
         var result = await tool.Execute(new Dictionary<string, string>
@@ -265,21 +251,10 @@ public sealed class ReflectionToolsTests
     }
 
     [Fact]
-    public async Task InspectObjectTool_Execute_MarksTypeWideWriteAndInvokePermissions()
+    public async Task InspectObjectTool_Execute_MarksReachableMembersWritableAndMethodsInvokable()
     {
         var model = new ReflectionRootModel();
-        var tool = new InspectObjectTool(
-            ReflectionToolsOptions.CreateBuilder()
-                .WithAssemblyTraversalMode(ReflectionAssemblyTraversalMode.AllowAll)
-                .WithNamespaceTraversalMode(ReflectionNamespaceTraversalMode.AllowAll)
-                .AddRoot(
-                    "session",
-                    model,
-                    new ReflectionRootMetadata("Session"),
-                    root => root
-                        .AllowAllWritableMembersOn<ReflectionChildModel>()
-                        .AllowAllInvokableMethodsOn<ReflectionChildModel>())
-                .Build());
+        var tool = new InspectObjectTool(CreateOptions(model));
 
         var result = await tool.Execute(new Dictionary<string, string>
         {
@@ -329,17 +304,10 @@ public sealed class ReflectionToolsTests
     }
 
     [Fact]
-    public async Task SetMemberValueTool_Execute_WritesAllowListedMembers()
+    public async Task SetMemberValueTool_Execute_WritesNestedMembersWithoutOptIn()
     {
         var model = new ReflectionRootModel();
-        var tool = new SetMemberValueTool(
-            ReflectionToolsOptions.CreateBuilder()
-                .AddRoot(
-                    "session",
-                    model,
-                    new ReflectionRootMetadata("Session"),
-                    root => root.AllowWritableMembers("SelectedTab", "Child.Name"))
-                .Build());
+        var tool = new SetMemberValueTool(CreateOptions(model));
 
         var result = await tool.Execute(new Dictionary<string, string>
         {
@@ -357,31 +325,7 @@ public sealed class ReflectionToolsTests
     }
 
     [Fact]
-    public async Task SetMemberValueTool_Execute_WritesMembersWhenTypeWideWritesAreEnabled()
-    {
-        var model = new ReflectionRootModel();
-        var tool = new SetMemberValueTool(
-            ReflectionToolsOptions.CreateBuilder()
-                .AddRoot(
-                    "session",
-                    model,
-                    new ReflectionRootMetadata("Session"),
-                    root => root.AllowAllWritableMembersOn<ReflectionChildModel>())
-                .Build());
-
-        var result = await tool.Execute(new Dictionary<string, string>
-        {
-            ["root"] = "session",
-            ["path"] = "Child.Name",
-            ["valueJson"] = "\"Type Enabled\""
-        });
-
-        Assert.True(result.IsSuccess);
-        Assert.Equal("Type Enabled", model.Child.Name);
-    }
-
-    [Fact]
-    public async Task SetMemberValueTool_Execute_RejectsDisallowedMembers()
+    public async Task SetMemberValueTool_Execute_WritesRootMembersWithoutOptIn()
     {
         var model = new ReflectionRootModel();
         var tool = new SetMemberValueTool(CreateOptions(model));
@@ -393,22 +337,32 @@ public sealed class ReflectionToolsTests
             ["valueJson"] = "\"details\""
         });
 
+        Assert.True(result.IsSuccess);
+        Assert.Equal("details", model.SelectedTab);
+    }
+
+    [Fact]
+    public async Task SetMemberValueTool_Execute_RejectsReadOnlyMembers()
+    {
+        var model = new ReflectionRootModel();
+        var tool = new SetMemberValueTool(CreateOptions(model));
+
+        var result = await tool.Execute(new Dictionary<string, string>
+        {
+            ["root"] = "session",
+            ["path"] = "Child",
+            ["valueJson"] = "{}"
+        });
+
         Assert.False(result.IsSuccess);
-        Assert.Contains("not allowed", result.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("not writable", result.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
     public async Task SetMemberValueTool_Execute_RejectsCollectionElementWrites()
     {
         var model = new ReflectionRootModel();
-        var tool = new SetMemberValueTool(
-            ReflectionToolsOptions.CreateBuilder()
-                .AddRoot(
-                    "session",
-                    model,
-                    new ReflectionRootMetadata("Session"),
-                    root => root.AllowWritableMembers("Items[0]"))
-                .Build());
+        var tool = new SetMemberValueTool(CreateOptions(model));
 
         var result = await tool.Execute(new Dictionary<string, string>
         {
@@ -422,17 +376,10 @@ public sealed class ReflectionToolsTests
     }
 
     [Fact]
-    public async Task InvokeMethodTool_Execute_InvokesAllowListedNestedMethods()
+    public async Task InvokeMethodTool_Execute_InvokesNestedMethodsWithoutOptIn()
     {
         var model = new ReflectionRootModel();
-        var tool = new InvokeMethodTool(
-            ReflectionToolsOptions.CreateBuilder()
-                .AddRoot(
-                    "session",
-                    model,
-                    new ReflectionRootMetadata("Session"),
-                    root => root.AllowInvokableMethods("Child#Rename(System.String)"))
-                .Build());
+        var tool = new InvokeMethodTool(CreateOptions(model));
 
         var result = await tool.Execute(new Dictionary<string, string>
         {
@@ -450,33 +397,7 @@ public sealed class ReflectionToolsTests
     }
 
     [Fact]
-    public async Task InvokeMethodTool_Execute_InvokesMethodsWhenTypeWideInvocationsAreEnabled()
-    {
-        var model = new ReflectionRootModel();
-        var tool = new InvokeMethodTool(
-            ReflectionToolsOptions.CreateBuilder()
-                .AddRoot(
-                    "session",
-                    model,
-                    new ReflectionRootMetadata("Session"),
-                    root => root.AllowAllInvokableMethodsOn<ReflectionChildModel>())
-                .Build());
-
-        var result = await tool.Execute(new Dictionary<string, string>
-        {
-            ["root"] = "session",
-            ["targetPath"] = "Child",
-            ["method"] = "Rename",
-            ["parameterTypesJson"] = "[\"System.String\"]",
-            ["argumentsJson"] = "[\"Type Enabled Child\"]"
-        });
-
-        Assert.True(result.IsSuccess);
-        Assert.Equal("Type Enabled Child", model.Child.Name);
-    }
-
-    [Fact]
-    public async Task InvokeMethodTool_Execute_RejectsDisallowedMethods()
+    public async Task InvokeMethodTool_Execute_InvokesRootMethodsWithoutOptIn()
     {
         var model = new ReflectionRootModel();
         var tool = new InvokeMethodTool(CreateOptions(model));
@@ -489,22 +410,35 @@ public sealed class ReflectionToolsTests
             ["argumentsJson"] = "[\"details\"]"
         });
 
-        Assert.False(result.IsSuccess);
-        Assert.Contains("not allowed", result.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.True(result.IsSuccess);
+        Assert.Equal("details", model.SelectedTab);
+    }
+
+    [Fact]
+    public async Task InvokeMethodTool_Execute_ReturnsInvokedMethodValue()
+    {
+        var model = new ReflectionRootModel();
+        var tool = new InvokeMethodTool(CreateOptions(model));
+
+        var result = await tool.Execute(new Dictionary<string, string>
+        {
+            ["root"] = "session",
+            ["method"] = "Overload",
+            ["parameterTypesJson"] = "[\"System.String\"]",
+            ["argumentsJson"] = "[\"details\"]"
+        });
+
+        Assert.True(result.IsSuccess);
+        var payload = Assert.IsType<JsonObject>(result.Payload);
+        var returnSnapshot = Assert.IsType<JsonObject>(payload["returnSnapshot"]);
+        Assert.Equal("string:details", returnSnapshot["preview"]?.GetValue<string>());
     }
 
     [Fact]
     public async Task InvokeMethodTool_Execute_RequiresOverloadDisambiguation()
     {
         var model = new ReflectionRootModel();
-        var tool = new InvokeMethodTool(
-            ReflectionToolsOptions.CreateBuilder()
-                .AddRoot(
-                    "session",
-                    model,
-                    new ReflectionRootMetadata("Session"),
-                    root => root.AllowInvokableMethods("Overload(System.String)", "Overload(System.Int32)"))
-                .Build());
+        var tool = new InvokeMethodTool(CreateOptions(model));
 
         var result = await tool.Execute(new Dictionary<string, string>
         {
@@ -519,18 +453,16 @@ public sealed class ReflectionToolsTests
     [Fact]
     public async Task ToolBridge_Query_And_ListRoots_SerializeReflectionSchemasAndMetadata()
     {
-        var options = Options.CreateBuilder()
-            .WithReflectionTools(reflection =>
+        ReflectionRootRegistry.Register(
+            "session",
+            new ReflectionRootModel(),
+            new ReflectionRootMetadata("Current Session")
             {
-                reflection.AddRoot(
-                    "session",
-                    new ReflectionRootModel(),
-                    new ReflectionRootMetadata("Current Session")
-                    {
-                        Hints = ["debug", "session"],
-                        ContainsSensitiveData = true
-                    });
-            })
+                Hints = ["debug", "session"],
+                ContainsSensitiveData = true
+            });
+        var options = Options.CreateBuilder()
+            .WithReflectionTools()
             .WithReadWriteToolAccess()
             .Build();
 
@@ -571,8 +503,6 @@ public sealed class ReflectionToolsTests
         Assert.Equal("Current Session", metadata["displayName"]?.GetValue<string>());
         Assert.Contains(hints.Select(node => node!.GetValue<string>()), value => value == "session");
         Assert.True(metadata["containsSensitiveData"]!.GetValue<bool>());
-        Assert.Null(metadata["category"]);
-        Assert.Null(metadata["attributes"]);
     }
 
     [Fact]
@@ -587,25 +517,100 @@ public sealed class ReflectionToolsTests
         Assert.Equal(ReflectionNamespaceTraversalMode.AllowAll, options.NamespaceTraversalMode);
     }
 
+    [Fact]
+    public async Task ReflectionRootRegistry_RegisterStrongReference_AddsWritableRuntimeRootAndDeregistersByHandle()
+    {
+        var options = ReflectionToolsOptions.CreateBuilder().Build();
+        var model = new ReflectionRootModel();
+        var handle = ReflectionRootRegistry.Register(
+            "runtime",
+            model,
+            new ReflectionRootMetadata("Runtime Root"),
+            ReferenceType.Strong);
+
+        var listResult = await new ListReflectionRootsTool(options).Execute(new Dictionary<string, string>());
+
+        Assert.True(listResult.IsSuccess);
+        var roots = Assert.IsType<JsonArray>(Assert.IsType<JsonObject>(listResult.Payload)["roots"]);
+        var root = Assert.IsType<JsonObject>(Assert.Single(roots));
+        Assert.Equal("runtime", root["id"]?.GetValue<string>());
+        Assert.Equal("strong", root["referenceType"]?.GetValue<string>());
+        Assert.True(root["available"]!.GetValue<bool>());
+
+        var writeResult = await new SetMemberValueTool(options).Execute(new Dictionary<string, string>
+        {
+            ["root"] = "runtime",
+            ["path"] = "SelectedTab",
+            ["valueJson"] = "\"runtime\""
+        });
+
+        Assert.True(writeResult.IsSuccess);
+        Assert.Equal("runtime", model.SelectedTab);
+        Assert.True(handle.Deregister());
+        Assert.False(handle.Deregister());
+
+        var inspectResult = await new InspectObjectTool(options).Execute(new Dictionary<string, string>
+        {
+            ["root"] = "runtime"
+        });
+
+        Assert.False(inspectResult.IsSuccess);
+        Assert.Contains("not registered", inspectResult.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ReflectionRootRegistry_RegisterDefaultsToWeakReferenceAndDoesNotRetainRuntimeRoot()
+    {
+        var options = ReflectionToolsOptions.CreateBuilder().Build();
+        var weakReference = RegisterRuntimeWeakRoot();
+
+        for (var attempt = 0; attempt < 8; attempt++)
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+            if (!weakReference.TryGetTarget(out _))
+            {
+                break;
+            }
+        }
+
+        Assert.False(weakReference.TryGetTarget(out _));
+
+        var listResult = await new ListReflectionRootsTool(options).Execute(new Dictionary<string, string>());
+
+        Assert.True(listResult.IsSuccess);
+        var roots = Assert.IsType<JsonArray>(Assert.IsType<JsonObject>(listResult.Payload)["roots"]);
+        var root = Assert.IsType<JsonObject>(Assert.Single(roots));
+        Assert.Equal("runtime-weak", root["id"]?.GetValue<string>());
+        Assert.Equal("weak", root["referenceType"]?.GetValue<string>());
+        Assert.False(root["available"]!.GetValue<bool>());
+        Assert.True(ReflectionRootRegistry.Deregister("runtime-weak"));
+    }
+
     private static ReflectionToolsOptions CreateOptions(ReflectionRootModel model)
     {
-        return ReflectionToolsOptions.CreateBuilder()
-            .WithAssemblyTraversalMode(ReflectionAssemblyTraversalMode.AllowAll)
-            .WithNamespaceTraversalMode(ReflectionNamespaceTraversalMode.AllowAll)
-            .AddRoot("session", model, new ReflectionRootMetadata("Session"))
-            .Build();
+        ReflectionRootRegistry.Register("session", model, new ReflectionRootMetadata("Session"));
+        return ReflectionToolsOptions.CreateBuilder().Build();
     }
 
     private static (ListReflectionRootsTool Tool, WeakReference<object> Reference) CreateWeakRootTool()
     {
         var target = new object();
         var reference = new WeakReference<object>(target);
-        var tool = new ListReflectionRootsTool(
-            ReflectionToolsOptions.CreateBuilder()
-                .AddRoot("weak", target, new ReflectionRootMetadata("Weak Root"))
-                .Build());
+        ReflectionRootRegistry.Register("weak", target, new ReflectionRootMetadata("Weak Root"));
+        var tool = new ListReflectionRootsTool();
 
         return (tool, reference);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static WeakReference<object> RegisterRuntimeWeakRoot()
+    {
+        var target = new object();
+        var reference = new WeakReference<object>(target);
+        ReflectionRootRegistry.Register("runtime-weak", target, new ReflectionRootMetadata("Runtime Weak Root"));
+        return reference;
     }
 
     public sealed class ReflectionRootModel

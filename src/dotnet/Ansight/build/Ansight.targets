@@ -29,7 +29,7 @@
 
   <Target Name="GenerateAnsightDeveloperPairing"
           BeforeTargets="PrepareForBuild"
-          Condition="'$(AnsightDeveloperPairingEnabled)' == 'true' and Exists('$(AnsightDeveloperPairingSourceFile)') and '$(OS)' == 'Unix'">
+          Condition="'$(AnsightDeveloperPairingEnabled)' == 'true' and '$(OS)' == 'Unix'">
     <Message Importance="High"
              Text="Ansight developer pairing capture configuration: enabled=$(AnsightDeveloperPairingEnabled), source=$(AnsightDeveloperPairingSourceFile), output=$(AnsightDeveloperPairingOutputFile), os=$(OS)." />
     <Exec Command="chmod +x &quot;$(MSBuildThisFileDirectory)generate-ansight-developer-pairing.sh&quot;" IgnoreExitCode="true" />
@@ -37,23 +37,23 @@
           IgnoreExitCode="true" />
     <Message Condition="Exists('$(AnsightDeveloperPairingOutputFile)')"
              Importance="High"
-             Text="Ansight developer pairing config generated at $(AnsightDeveloperPairingOutputFile)." />
+             Text="Ansight developer pairing resource generated at $(AnsightDeveloperPairingOutputFile)." />
     <Warning Condition="!Exists('$(AnsightDeveloperPairingOutputFile)')"
-             Text="Ansight developer pairing config was not generated at $(AnsightDeveloperPairingOutputFile). Check the generator script output above." />
+             Text="Ansight developer pairing resource was not generated at $(AnsightDeveloperPairingOutputFile). Check the generator script output above." />
   </Target>
 
   <Target Name="GenerateAnsightDeveloperPairingWindows"
           BeforeTargets="PrepareForBuild"
-          Condition="'$(AnsightDeveloperPairingEnabled)' == 'true' and Exists('$(AnsightDeveloperPairingSourceFile)') and '$(OS)' == 'Windows_NT'">
+          Condition="'$(AnsightDeveloperPairingEnabled)' == 'true' and '$(OS)' == 'Windows_NT'">
     <Message Importance="High"
              Text="Ansight developer pairing capture configuration: enabled=$(AnsightDeveloperPairingEnabled), source=$(AnsightDeveloperPairingSourceFile), output=$(AnsightDeveloperPairingOutputFile), os=$(OS)." />
     <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)generate-ansight-developer-pairing.ps1&quot; -SourceFile &quot;$(AnsightDeveloperPairingSourceFile)&quot; -OutputFile &quot;$(AnsightDeveloperPairingOutputFile)&quot;"
           IgnoreExitCode="true" />
     <Message Condition="Exists('$(AnsightDeveloperPairingOutputFile)')"
              Importance="High"
-             Text="Ansight developer pairing config generated at $(AnsightDeveloperPairingOutputFile)." />
+             Text="Ansight developer pairing resource generated at $(AnsightDeveloperPairingOutputFile)." />
     <Warning Condition="!Exists('$(AnsightDeveloperPairingOutputFile)')"
-             Text="Ansight developer pairing config was not generated at $(AnsightDeveloperPairingOutputFile). Check the generator script output above." />
+             Text="Ansight developer pairing resource was not generated at $(AnsightDeveloperPairingOutputFile). Check the generator script output above." />
   </Target>
 
   <Target Name="EmbedAnsightDeveloperPairingResource"
@@ -75,10 +75,10 @@
 
     <Message Condition="'@(_AnsightExistingDeveloperPairingResource)' == ''"
              Importance="High"
-             Text="Ansight developer pairing config will be embedded as ansight.developer-pairing.json." />
+             Text="Ansight developer pairing resource will be embedded as ansight.developer-pairing.json." />
     <Message Condition="'@(_AnsightExistingDeveloperPairingResource)' != ''"
              Importance="Low"
-             Text="Ansight developer pairing config is already embedded by the project. Skipping automatic embedded-resource inclusion." />
+             Text="Ansight developer pairing resource is already embedded by the project. Skipping automatic embedded-resource inclusion." />
   </Target>
 
   <Target Name="CheckAnsightToolImplementations"

@@ -119,6 +119,14 @@ using Ansight.Tools.Reflection;
 using Ansight.Tools.SecureStorage;
 using Ansight.Tools.VisualTree;
 
+ReflectionRootRegistry.Register(
+    "session",
+    new DebugSessionViewModel(),
+    new ReflectionRootMetadata("Current Session")
+    {
+        Hints = ["debug", "session"]
+    });
+
 var options = Options.CreateBuilder()
     .WithVisualTreeTools()
     .WithDatabaseTools()
@@ -127,15 +135,7 @@ var options = Options.CreateBuilder()
     {
         preferences.AllowKeyPrefix("com.example.");
     })
-    .WithReflectionTools(reflection =>
-    {
-        reflection.WithAssemblyTraversalMode(ReflectionAssemblyTraversalMode.AllowAll);
-        reflection.WithNamespaceTraversalMode(ReflectionNamespaceTraversalMode.AllowAll);
-        reflection.AddRoot(
-            "session",
-            new DebugSessionViewModel(),
-            new ReflectionRootMetadata("Current Session"));
-    })
+    .WithReflectionTools()
     .WithSecureStorageTools(secure =>
     {
         secure.WithStorageIdentifier("MyApp");

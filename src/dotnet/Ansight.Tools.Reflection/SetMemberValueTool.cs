@@ -17,7 +17,7 @@ public sealed class SetMemberValueTool : ITool
 
     public string Name => "Set Member Value";
 
-    public string Description => "Writes an explicitly allow-listed field or property on a live object.";
+    public string Description => "Writes a writable field or property reachable from a registered live object root.";
 
     public string Keywords => "reflection set write property field runtime";
 

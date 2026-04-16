@@ -39,4 +39,9 @@ public sealed class ConnectRequest
     /// Process-lifetime identifier for the SDK runtime instance.
     /// </summary>
     public string? ProcessSessionId { get; set; }
+
+    /// <summary>
+    /// Indicates that the request came from a build-time developer pairing marker rather than a signed pairing config.
+    /// </summary>
+    public bool DevelopmentPairing { get; set; }
 }

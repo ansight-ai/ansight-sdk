@@ -7,6 +7,9 @@ namespace Ansight.DeviceProfiles;
 
 internal static partial class DeviceAppProfileCollector
 {
+    private const int MaxApplicationIconPixelLength = 256;
+    private const int MaxApplicationIconByteCount = 2 * 1024 * 1024;
+
     public static DeviceAppProfile Create()
     {
         return new DeviceAppProfile
@@ -135,6 +138,48 @@ internal static partial class DeviceAppProfileCollector
         return isDesktop ? 3 : 1;
     }
 
+    private static DeviceApplicationIconProfile? CreateApplicationIconProfile(
+        byte[]? bytes,
+        string format,
+        string mimeType,
+        int? width = null,
+        int? height = null)
+    {
+        if (bytes is null || bytes.Length == 0 || bytes.Length > MaxApplicationIconByteCount)
+        {
+            return null;
+        }
+
+        return new DeviceApplicationIconProfile
+        {
+            Format = NullIfWhiteSpace(format) ?? "png",
+            MimeType = NullIfWhiteSpace(mimeType) ?? "image/png",
+            Width = width.GetValueOrDefault() > 0 ? width : null,
+            Height = height.GetValueOrDefault() > 0 ? height : null,
+            ByteCount = bytes.LongLength,
+            DataBase64 = Convert.ToBase64String(bytes)
+        };
+    }
+
+    private static ApplicationIconDimensions ResolveApplicationIconDimensions(int width, int height)
+    {
+        if (width <= 0 || height <= 0)
+        {
+            return new ApplicationIconDimensions(MaxApplicationIconPixelLength, MaxApplicationIconPixelLength);
+        }
+
+        var longestSide = Math.Max(width, height);
+        if (longestSide <= MaxApplicationIconPixelLength)
+        {
+            return new ApplicationIconDimensions(width, height);
+        }
+
+        var scale = MaxApplicationIconPixelLength / (double)longestSide;
+        return new ApplicationIconDimensions(
+            Math.Max(1, (int)Math.Round(width * scale)),
+            Math.Max(1, (int)Math.Round(height * scale)));
+    }
+
     private static string? NullIfWhiteSpace(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
@@ -149,4 +194,6 @@ internal static partial class DeviceAppProfileCollector
     private static partial string ResolveRuntimePlatformName();
 
     private static partial string? ResolvePlatformVersion();
+
+    private readonly record struct ApplicationIconDimensions(int Width, int Height);
 }

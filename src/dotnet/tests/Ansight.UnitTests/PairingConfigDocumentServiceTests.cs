@@ -56,6 +56,58 @@ public sealed class PairingConfigDocumentServiceTests
     }
 
     [Fact]
+    public void TryParseDocument_WhenDeveloperPairingMarkerIsProvided_ReturnsFailure()
+    {
+        var json = """
+                   {
+                     "schema": "ansight.developer-pairing.v1",
+                     "discovery": {
+                       "schema": "ansight.discovery-hint.v1",
+                       "source": "developer-pairing-msbuild",
+                       "hostAddresses": [ "127.0.0.1" ]
+                     }
+                   }
+                   """;
+
+        var sut = new PairingConfigDocumentService();
+
+        var success = sut.TryParseDocument(json, out var document, out var error);
+
+        Assert.False(success);
+        Assert.Null(document);
+        Assert.Contains("Unsupported pairing payload schema", error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TryParseDevelopmentPairingDocument_ParsesMarkerWithoutRequiringConfig()
+    {
+        var json = """
+                   {
+                     "schema": "ansight.developer-pairing.v1",
+                     "discovery": {
+                       "schema": "ansight.discovery-hint.v1",
+                       "source": "developer-pairing-msbuild",
+                       "hostAddresses": [ "127.0.0.1" ],
+                       "discoveryPort": 45200,
+                       "hostName": "dev-host"
+                     }
+                   }
+                   """;
+
+        var sut = new PairingConfigDocumentService();
+
+        var success = sut.TryParseDevelopmentPairingDocument(json, out var document, out var error);
+
+        Assert.True(success, error);
+        Assert.NotNull(document);
+        Assert.True(document!.IsDevelopmentPairing);
+        Assert.Equal("ansight-development-pairing", document.Config.ConfigId);
+        Assert.Equal("development-auto", document.Config.Trust.Mode);
+        Assert.Equal(new[] { "127.0.0.1" }, document.DiscoveryHint?.HostAddresses);
+        Assert.Equal(45200, document.Config.Host.DiscoveryPort);
+    }
+
+    [Fact]
     public void TryValidateDocument_ReturnsFalseWhenExpectedAppIdDoesNotMatch()
     {
         using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);

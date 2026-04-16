@@ -17,7 +17,7 @@ public sealed class InvokeMethodTool : ITool
 
     public string Name => "Invoke Method";
 
-    public string Description => "Invokes an explicitly allow-listed instance method on a live object.";
+    public string Description => "Invokes an instance method reachable from a registered live object root.";
 
     public string Keywords => "reflection invoke method runtime";
 

@@ -25,16 +25,13 @@ internal static class ReflectionToolSchemas
         {
             ["id"] = ToolSchema.String("Stable root identifier."),
             ["metadata"] = MetadataSchema,
-            ["registrationKind"] = ToolSchema.String("Root registration kind.", enumValues: new[] { "reference", "delegate" }),
-            ["referenceStrength"] = ToolSchema.String("Reference strength for direct roots.", enumValues: new[] { "weak", "strong" }, nullable: true),
+            ["referenceType"] = ToolSchema.String("Reference type for the root.", enumValues: new[] { "weak", "strong" }),
             ["available"] = ToolSchema.Boolean("Whether the root currently resolves to a live object."),
             ["runtimeType"] = ToolSchema.String("Resolved runtime type name when available.", nullable: true),
             ["memberVisibility"] = ToolSchema.String("Effective member visibility.", enumValues: new[] { "PublicOnly", "PublicAndNonPublic" }),
-            ["canWriteMembers"] = ToolSchema.Boolean("Whether any member writes are enabled by path, type, or wildcard rules."),
-            ["canInvokeMethods"] = ToolSchema.Boolean("Whether any method invocations are enabled by signature, type, or wildcard rules."),
             ["resolutionError"] = ToolSchema.String("Safe error summary when resolution failed.", nullable: true)
         },
-        required: new[] { "id", "metadata", "registrationKind", "available", "memberVisibility", "canWriteMembers", "canInvokeMethods" });
+        required: new[] { "id", "metadata", "referenceType", "available", "memberVisibility" });
 
     private static readonly ToolSchema TypeMemberSchema = ToolSchema.Object(
         description: "Field or property descriptor.",
@@ -60,7 +57,7 @@ internal static class ReflectionToolSchemas
             ["returnType"] = ToolSchema.String("Method return type."),
             ["parameterTypes"] = ToolSchema.Array(ToolSchema.String("Parameter type name."), "Method parameter types."),
             ["visibility"] = ToolSchema.String("Method visibility.", enumValues: new[] { "public", "non_public" }),
-            ["invokable"] = ToolSchema.Boolean("Whether the method is currently enabled for invocation by signature, type, or wildcard rules.", nullable: true)
+            ["invokable"] = ToolSchema.Boolean("Whether the method is currently invokable through the registered root.", nullable: true)
         },
         required: new[] { "name", "signature", "declaringType", "returnType", "parameterTypes", "visibility" });
 
@@ -149,7 +146,7 @@ internal static class ReflectionToolSchemas
         required: new[] { "root", "path", "updated", "snapshot", "capturedAtUtc" });
 
     internal static ToolSchema InvokeMethodArguments { get; } = ToolSchema.Object(
-        description: "Arguments for invoking an allow-listed instance method.",
+        description: "Arguments for invoking an instance method reachable from a registered root.",
         properties: new Dictionary<string, ToolSchema>
         {
             ["root"] = ToolSchema.String("Registered root identifier."),

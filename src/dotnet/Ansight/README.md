@@ -26,7 +26,7 @@ When `WithSessionJpegCapture(...)` is enabled, the pairing client will capture t
 
 Host auto-probe is enabled by default. While `Runtime` is active, Ansight will periodically try to reconnect to the most recent successful host session if one is cached, pause probing while that session stays open, and resume after a reconnect delay if the session closes. Disable it with `WithoutHostAutoProbe()` or customize it with `WithHostAutoProbe(new HostAutoProbeOptions { ... })`.
 
-Runtime-owned host connection now also owns saved and bundled config resolution. If you enable `AnsightDeveloperPairingEnabled` and initialize with `WithBundledHostConnection(typeof(AppBootstrap).Assembly)`, the generated `ansight.developer-pairing.json` is embedded into the app assembly automatically. Auto-connect prefers that developer pairing when available, then falls back to cached-session, saved-config, and other bundled-config behavior.
+Runtime-owned host connection now also owns saved and bundled config resolution. If you enable `AnsightDeveloperPairingEnabled`, the generated `ansight.developer-pairing.json` is embedded into the app assembly automatically and startup auto-connect can discover it without a pairing JSON. Auto-connect prefers that developer pairing when available, then falls back to cached-session, saved-config, and other bundled-config behavior.
 
 Install `Ansight.Pairing` when you want Ansight to own native QR pairing acquisition.
 
@@ -137,6 +137,14 @@ using Ansight.Tools.Reflection;
 using Ansight.Tools.SecureStorage;
 using Ansight.Tools.VisualTree;
 
+ReflectionRootRegistry.Register(
+    "session",
+    new DebugSessionViewModel(),
+    new ReflectionRootMetadata("Current Session")
+    {
+        Hints = ["debug", "session"]
+    });
+
 var options = Options.CreateBuilder()
     .WithVisualTreeTools()
     .WithDatabaseTools()
@@ -145,15 +153,7 @@ var options = Options.CreateBuilder()
     {
         preferences.AllowKeyPrefix("com.example.");
     })
-    .WithReflectionTools(reflection =>
-    {
-        reflection.WithAssemblyTraversalMode(ReflectionAssemblyTraversalMode.AllowAll);
-        reflection.WithNamespaceTraversalMode(ReflectionNamespaceTraversalMode.AllowAll);
-        reflection.AddRoot(
-            "session",
-            new DebugSessionViewModel(),
-            new ReflectionRootMetadata("Current Session"));
-    })
+    .WithReflectionTools()
     .WithSecureStorageTools(secure =>
     {
         secure.WithStorageIdentifier("MyApp");
@@ -182,7 +182,7 @@ For local temp-file workflows, `Ansight.Tools.FileSystem` exposes `files.begin_b
 
 ## Embedded developer pairing target
 
-The base package ships an optional MSBuild target that can prebundle and automatically embed a developer pairing config during build.
+The base package ships an optional MSBuild target that can embed a local-development pairing marker during build.
 
 Enable it in your app project:
 
@@ -201,9 +201,9 @@ Optional properties:
 </PropertyGroup>
 ```
 
-When enabled, the target writes `$(AnsightDeveloperPairingOutputFile)` and embeds it into the consuming assembly automatically as `ansight.developer-pairing.json`. No extra `EmbeddedResource` item is required for the generated developer pairing file.
+When enabled, the target writes `$(AnsightDeveloperPairingOutputFile)` and embeds it into the consuming assembly automatically as `ansight.developer-pairing.json`. No pairing JSON is required for development pairing, and no extra `EmbeddedResource` item is required for the generated developer pairing file.
 
-If you also want a plain bundled fallback config, keep embedding `ansight.json` manually:
+If you also want a plain bundled fallback config, keep embedding `ansight.json` manually and configure `WithBundledHostConnection(...)`:
 
 ```xml
 <ItemGroup>
@@ -211,12 +211,14 @@ If you also want a plain bundled fallback config, keep embedding `ansight.json` 
 </ItemGroup>
 ```
 
-With `WithBundledHostConnection(typeof(AppBootstrap).Assembly)` configured:
+With the generated developer resource available, or with `WithBundledHostConnection(typeof(AppBootstrap).Assembly)` configured for explicit bundled config loading:
 
 - auto-connect prefers the embedded developer pairing when available, then falls back to cached sessions, saved configs, and any plain bundled config
 - explicit `HostConnectionRequest.PayloadText(...)` and `HostConnectionRequest.QrCode(...)` requests always use the supplied pairing payload and replace the current host session
 
-When enabled, the target reads your source pairing config, captures local machine metadata when available, and writes a pairing config document containing:
+When enabled without `AnsightDeveloperPairingSourceFile`, the target captures local machine metadata when available and writes an `ansight.developer-pairing.v1` marker. That marker tells the SDK to use the development-only connection path, and Studio accepts the request without a pre-issued signed pairing config.
+
+When `AnsightDeveloperPairingSourceFile` exists, the target keeps the existing signed config behavior: it reads the source pairing config, captures local machine metadata when available, and writes a pairing config document containing:
 
 - the original `PairingConfig`
 - a `PairingDiscoveryHint` with host addresses, machine name, and Wi-Fi name when available
@@ -226,6 +228,7 @@ On Unix it uses `generate-ansight-developer-pairing.sh`. On Windows it uses `gen
 Security and integration considerations:
 
 - the generated embedded resource includes host addresses, host name, Wi-Fi name, and a capture timestamp from the build machine
+- normal saved, pasted, QR, compact-code, and bundled pairing config flows still require signed pairing configs and keep signature, expiry, token, and app-id validation
 - keep `AnsightDeveloperPairingEnabled=true` limited to local development and Debug builds
 - do not ship developer pairing resources in CI, Release, TestFlight, App Store, Play Store, or other distributable builds
 
