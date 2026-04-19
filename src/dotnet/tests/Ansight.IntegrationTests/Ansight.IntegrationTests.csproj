@@ -26,8 +26,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Ansight\Ansight.csproj" AdditionalProperties="AnsightIncludeHostTarget=true" />
-    <ProjectReference Include="..\..\Ansight.Tools.FileSystem\Ansight.Tools.FileSystem.csproj" AdditionalProperties="AnsightIncludeHostTarget=true" />
+    <ProjectReference Include="..\..\Ansight\Ansight.csproj" />
+    <ProjectReference Include="..\..\Ansight.Tools.FileSystem\Ansight.Tools.FileSystem.csproj" />
   </ItemGroup>
 
 </Project>

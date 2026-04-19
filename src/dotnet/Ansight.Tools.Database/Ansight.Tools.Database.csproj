@@ -8,7 +8,6 @@
     <RootNamespace>Ansight.Tools.Database</RootNamespace>
 
     <IsPackable>true</IsPackable>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageId>Ansight.Tools.Database</PackageId>
     <Description>Database discovery, schema inspection, and read-only query tools for the Ansight .NET SDK.</Description>
     <PackageTags>ansight;tools;database;sqlite;sql;inspection</PackageTags>

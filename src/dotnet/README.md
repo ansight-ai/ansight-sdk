@@ -37,7 +37,15 @@ When `WithSessionJpegCapture(...)` is enabled, the pairing client will capture t
 
 Host auto-probe is enabled by default. While `Runtime` is active, Ansight will periodically try to reconnect to the most recent successful host session if one is cached, pause probing while that session stays open, and resume after a reconnect delay if the session closes. Disable it with `WithoutHostAutoProbe()` or customize it with `WithHostAutoProbe(new HostAutoProbeOptions { ... })`.
 
-Runtime-owned host connection also manages saved and bundled pairing configs. If you enable `AnsightDeveloperPairingEnabled` and initialize with `WithBundledHostConnection(typeof(AppBootstrap).Assembly)`, the generated `ansight.developer-pairing.json` is embedded into the app assembly automatically. Auto-connect prefers that developer pairing when available, then falls back to cached-session, saved-config, and other bundled-config behavior.
+Runtime-owned host connection also manages saved, bundled, and developer pairing configs. Enable developer pairing in local Debug builds:
+
+```xml
+<PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+  <AnsightDeveloperPairingEnabled>true</AnsightDeveloperPairingEnabled>
+</PropertyGroup>
+```
+
+The build embeds `ansight.developer-pairing.json` automatically. If `ansight.json` exists in the project, the generated resource wraps that signed config with local discovery metadata. If it does not exist, the generated resource is a development-only marker accepted by Studio, so no pairing JSON is required for the default local pairing path. Initialize with `WithBundledHostConnection(typeof(AppBootstrap).Assembly)` so runtime auto-connect can discover the generated resource. Auto-connect prefers developer pairing when available, then falls back to cached-session, saved-config, and plain bundled-config behavior.
 
 Install `Ansight.Pairing` when you want the SDK to own native QR acquisition for explicit pairing overrides.
 
@@ -99,17 +107,24 @@ using Ansight;
 using Ansight.Tools.VisualTree;
 using Ansight.Tools.Reflection;
 
-ReflectionRootRegistry.Register(
+var session = new DebugSessionViewModel();
+
+var sessionRoot = ReflectionRootRegistry.Register(
     "session",
-    new DebugSessionViewModel(),
+    session,
     new ReflectionRootMetadata("Current Session")
     {
+        Description = "Debug session view model",
         Hints = ["debug", "session"]
-    });
+    },
+    ReferenceType.Strong);
 
 var options = Options.CreateBuilder()
     .WithVisualTreeTools()
-    .WithReflectionTools()
+    .WithReflectionTools(reflection =>
+    {
+        reflection.WithDefaultMemberVisibility(ReflectionMemberVisibility.PublicOnly);
+    })
     .WithReadOnlyToolAccess()
     .Build();
 ```
@@ -126,7 +141,9 @@ Available grouped packages:
 
 `WithReadWriteToolAccess()` enables read and write tools while keeping delete-scoped tools disabled. The storage packages register remove operations as `Delete`, so use `WithAllToolAccess()` or a custom `ToolGuard` when you want key removal enabled.
 
-The reflection suite uses `ReflectionRootRegistry` as the singleton access boundary. Once a root is registered, reachable visible members can be inspected, writable members can be updated, and instance methods can be invoked. Use `ReflectionRootRegistry.Register(...)` and `Deregister(...)` at any point in the app lifecycle. Registrations are weak by default; pass `ReferenceType.Strong` when the registry should retain the root.
+The reflection suite uses `ReflectionRootRegistry` as the access boundary. Once a root is registered, reachable visible members can be inspected, writable members can be updated, and instance methods can be invoked through stateless paths from that root. `WithReflectionTools(...)` accepts either no arguments, an options object, or a configuration lambda for the simplified `ReflectionToolsOptionsBuilder`. Registrations are weak by default; pass `ReferenceType.Strong` when the registry should retain the root. Keep and dispose the returned `ReflectionRootRegistrationHandle`, or call `ReflectionRootRegistry.Deregister(id)`, when a root should no longer be exposed.
+
+`WithReadOnlyToolAccess()` exposes `reflect.list_roots`, `reflect.inspect_object`, and `reflect.describe_type`. `reflect.set_member_value` and `reflect.invoke_method` are write-scoped and require `WithReadWriteToolAccess()` or a custom guard.
 
 At runtime, transport layers can query or execute tools through `Runtime.ToolBridge`. When a `PairingSessionClient` session is open, inbound `tool.query` and `tool.call` envelopes are handled automatically on the live WebSocket and answered according to the configured `ToolGuard`.
 

@@ -86,15 +86,55 @@ Runtime.Deactivate();
 Runtime.Clear();
 ```
 
-## Bundled pairing
+## Developer pairing and host connection
 
-For embedded resources, configure the runtime-owned pairing flow with the app assembly:
+For local development, enable the base package's developer-pairing MSBuild target in Debug builds:
+
+```xml
+<PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+  <AnsightDeveloperPairingEnabled>true</AnsightDeveloperPairingEnabled>
+</PropertyGroup>
+```
+
+When enabled, the build writes and embeds `ansight.developer-pairing.json` automatically. If `ansight.json` exists in the project directory, the generated resource wraps that signed config with current local discovery metadata. If no source file exists, the generated resource is an `ansight.developer-pairing.v1` marker for Studio's development-only pairing path, so no checked-in pairing JSON is required.
+
+Configure the runtime-owned host connection to read bundled resources from the app assembly:
 
 ```csharp
 var options = Options.CreateBuilder()
     .WithBundledHostConnection(typeof(App).Assembly)
     .Build();
 ```
+
+While `Runtime` is active, host auto-probe is enabled by default. It periodically tries the embedded developer pairing resource first, then falls back to cached sessions, saved configs, and plain bundled `ansight.json` configs. You can also request the same flow explicitly:
+
+```csharp
+await Runtime.HostConnection.ConnectAsync(HostConnectionRequest.Auto());
+```
+
+Install `Ansight.Pairing` when the app should own native QR acquisition for explicit pairing overrides:
+
+```csharp
+using Ansight;
+#if ANDROID
+using Microsoft.Maui.ApplicationModel;
+#endif
+
+var optionsBuilder = Options.CreateBuilder()
+    .WithBundledHostConnection(typeof(App).Assembly);
+
+#if ANDROID
+optionsBuilder = optionsBuilder.WithPlatformPairing(() => Platform.CurrentActivity);
+#else
+optionsBuilder = optionsBuilder.WithPlatformPairing();
+#endif
+
+Runtime.InitializeAndActivate(optionsBuilder.Build());
+
+await Runtime.HostConnection.ConnectAsync(HostConnectionRequest.QrCode());
+```
+
+Explicit requests such as `HostConnectionRequest.PayloadText(...)` and `HostConnectionRequest.QrCode(...)` replace the current host session even when developer pairing is configured.
 
 For packaged text assets such as MAUI app assets, provide a shared loader for the standard asset names:
 
@@ -119,13 +159,17 @@ using Ansight.Tools.Reflection;
 using Ansight.Tools.SecureStorage;
 using Ansight.Tools.VisualTree;
 
-ReflectionRootRegistry.Register(
+var session = new DebugSessionViewModel();
+
+var sessionRoot = ReflectionRootRegistry.Register(
     "session",
-    new DebugSessionViewModel(),
+    session,
     new ReflectionRootMetadata("Current Session")
     {
+        Description = "Debug session view model",
         Hints = ["debug", "session"]
-    });
+    },
+    ReferenceType.Strong);
 
 var options = Options.CreateBuilder()
     .WithVisualTreeTools()
@@ -135,7 +179,10 @@ var options = Options.CreateBuilder()
     {
         preferences.AllowKeyPrefix("com.example.");
     })
-    .WithReflectionTools()
+    .WithReflectionTools(reflection =>
+    {
+        reflection.WithDefaultMemberVisibility(ReflectionMemberVisibility.PublicOnly);
+    })
     .WithSecureStorageTools(secure =>
     {
         secure.WithStorageIdentifier("MyApp");
@@ -155,7 +202,13 @@ Registered tools are guarded explicitly. Use:
 
 The storage packages register `remove` operations as `Delete`, so `WithReadWriteToolAccess()` intentionally keeps those hidden and non-executable.
 
-Reflection roots support path-based write/invoke allow-lists plus type-wide helpers like `AllowAllWritableMembersOn<T>()` and `AllowAllInvokableMethodsOn<T>()` when an entire reachable type should be enabled.
+Reflection roots are the access boundary for `Ansight.Tools.Reflection`. Register a root with `ReflectionRootRegistry.Register(...)`, then the tools inspect reachable objects through stateless paths from that root. The simplified options surface controls traversal and visibility only:
+
+- `WithDefaultMemberVisibility(ReflectionMemberVisibility.PublicOnly)` keeps reflection to public members
+- `WithDefaultMemberVisibility(ReflectionMemberVisibility.PublicAndNonPublic)` also exposes non-public members
+- `AllowAssembly(...)`, `AllowAssemblies(...)`, `AllowNamespacePrefix(...)`, and `AllowNamespacePrefixes(...)` restrict expansion when paired with the `AllowListedOnly` traversal modes
+
+Reflection read tools (`reflect.list_roots`, `reflect.inspect_object`, and `reflect.describe_type`) are available with `WithReadOnlyToolAccess()`. `reflect.set_member_value` and `reflect.invoke_method` are write-scoped and require `WithReadWriteToolAccess()` or a custom guard. Dispose the returned `ReflectionRootRegistrationHandle`, or call `ReflectionRootRegistry.Deregister(id)`, when a root should no longer be exposed.
 
 The runtime exposes a protocol bridge for transport layers:
 

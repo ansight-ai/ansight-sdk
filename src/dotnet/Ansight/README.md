@@ -26,14 +26,14 @@ When `WithSessionJpegCapture(...)` is enabled, the pairing client will capture t
 
 Host auto-probe is enabled by default. While `Runtime` is active, Ansight will periodically try to reconnect to the most recent successful host session if one is cached, pause probing while that session stays open, and resume after a reconnect delay if the session closes. Disable it with `WithoutHostAutoProbe()` or customize it with `WithHostAutoProbe(new HostAutoProbeOptions { ... })`.
 
-Runtime-owned host connection now also owns saved and bundled config resolution. If you enable `AnsightDeveloperPairingEnabled`, the generated `ansight.developer-pairing.json` is embedded into the app assembly automatically and startup auto-connect can discover it without a pairing JSON. Auto-connect prefers that developer pairing when available, then falls back to cached-session, saved-config, and other bundled-config behavior.
+Runtime-owned host connection now also owns saved, bundled, and developer pairing config resolution. If you enable `AnsightDeveloperPairingEnabled`, the generated `ansight.developer-pairing.json` is embedded into the app assembly automatically and startup auto-connect can discover it without a checked-in pairing JSON. Auto-connect prefers that developer pairing when available, then falls back to cached-session, saved-config, and other bundled-config behavior.
 
 Install `Ansight.Pairing` when you want Ansight to own native QR pairing acquisition.
 
 ```csharp
 public static class AppBootstrap
 {
-    public static async Task ConfigureAnsightAsync(string payload)
+    public static async Task ConfigureAnsightAsync()
     {
         var optionsBuilder = Options.CreateBuilder()
             .WithBundledHostConnection(typeof(AppBootstrap).Assembly);
@@ -47,8 +47,7 @@ public static class AppBootstrap
         var options = optionsBuilder.Build();
 
         Runtime.InitializeAndActivate(options);
-        var connectResult = await Runtime.HostConnection.ConnectAsync(
-            HostConnectionRequest.PayloadText(payload, "pairing config"));
+        var connectResult = await Runtime.HostConnection.ConnectAsync(HostConnectionRequest.Auto());
     }
 }
 ```
@@ -137,13 +136,17 @@ using Ansight.Tools.Reflection;
 using Ansight.Tools.SecureStorage;
 using Ansight.Tools.VisualTree;
 
-ReflectionRootRegistry.Register(
+var session = new DebugSessionViewModel();
+
+var sessionRoot = ReflectionRootRegistry.Register(
     "session",
-    new DebugSessionViewModel(),
+    session,
     new ReflectionRootMetadata("Current Session")
     {
+        Description = "Debug session view model",
         Hints = ["debug", "session"]
-    });
+    },
+    ReferenceType.Strong);
 
 var options = Options.CreateBuilder()
     .WithVisualTreeTools()
@@ -153,7 +156,10 @@ var options = Options.CreateBuilder()
     {
         preferences.AllowKeyPrefix("com.example.");
     })
-    .WithReflectionTools()
+    .WithReflectionTools(reflection =>
+    {
+        reflection.WithDefaultMemberVisibility(ReflectionMemberVisibility.PublicOnly);
+    })
     .WithSecureStorageTools(secure =>
     {
         secure.WithStorageIdentifier("MyApp");
@@ -165,14 +171,14 @@ var options = Options.CreateBuilder()
 
 The feature packages currently group tools by functional area:
 
-Reflection roots support path-based write/invoke allow-lists plus type-wide helpers like `AllowAllWritableMembersOn<T>()` and `AllowAllInvokableMethodsOn<T>()` when an entire reachable type should be enabled.
-
 - `Ansight.Tools.VisualTree`
 - `Ansight.Tools.Reflection`
 - `Ansight.Tools.Database`
 - `Ansight.Tools.FileSystem`
 - `Ansight.Tools.Preferences`
 - `Ansight.Tools.SecureStorage`
+
+Reflection roots are the access boundary for `Ansight.Tools.Reflection`. Register a root with `ReflectionRootRegistry.Register(...)`, then the reflection tools inspect reachable objects through stateless paths from that root. The simplified reflection options builder controls traversal and member visibility only. Use `WithReadOnlyToolAccess()` for list, inspect, and describe-type tools; use `WithReadWriteToolAccess()` or a custom guard when `reflect.set_member_value` or `reflect.invoke_method` should be available. Dispose the returned `ReflectionRootRegistrationHandle`, or call `ReflectionRootRegistry.Deregister(id)`, when a root should no longer be exposed.
 
 Registered tools remain disabled until the app opts into a guard policy such as `WithReadOnlyToolAccess()`, `WithReadWriteToolAccess()`, or `WithAllToolAccess()`.
 The storage packages mark `remove` operations as `Delete`, so those stay disabled unless the app chooses `WithAllToolAccess()` or a custom `ToolGuard`.
@@ -187,7 +193,7 @@ The base package ships an optional MSBuild target that can embed a local-develop
 Enable it in your app project:
 
 ```xml
-<PropertyGroup>
+<PropertyGroup Condition="'$(Configuration)' == 'Debug'">
   <AnsightDeveloperPairingEnabled>true</AnsightDeveloperPairingEnabled>
 </PropertyGroup>
 ```
@@ -216,7 +222,7 @@ With the generated developer resource available, or with `WithBundledHostConnect
 - auto-connect prefers the embedded developer pairing when available, then falls back to cached sessions, saved configs, and any plain bundled config
 - explicit `HostConnectionRequest.PayloadText(...)` and `HostConnectionRequest.QrCode(...)` requests always use the supplied pairing payload and replace the current host session
 
-When enabled without `AnsightDeveloperPairingSourceFile`, the target captures local machine metadata when available and writes an `ansight.developer-pairing.v1` marker. That marker tells the SDK to use the development-only connection path, and Studio accepts the request without a pre-issued signed pairing config.
+When enabled and the source file is absent, the target captures local machine metadata when available and writes an `ansight.developer-pairing.v1` marker. That marker tells the SDK to use the development-only connection path, and Studio accepts the request without a pre-issued signed pairing config.
 
 When `AnsightDeveloperPairingSourceFile` exists, the target keeps the existing signed config behavior: it reads the source pairing config, captures local machine metadata when available, and writes a pairing config document containing:
 

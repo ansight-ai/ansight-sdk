@@ -18,12 +18,11 @@ using Ansight.Tools.Reflection;
 
 var session = new DebugSessionViewModel();
 
-var reflectionOptions = ReflectionToolsOptions.CreateBuilder()
-    .WithDefaultMemberVisibility(ReflectionMemberVisibility.PublicOnly)
-    .Build();
-
 var options = Options.CreateBuilder()
-    .WithReflectionTools(reflectionOptions)
+    .WithReflectionTools(reflection =>
+    {
+        reflection.WithDefaultMemberVisibility(ReflectionMemberVisibility.PublicOnly);
+    })
     .WithReadWriteToolAccess()
     .Build();
 
@@ -46,10 +45,12 @@ using var detailRoot = ReflectionRootRegistry.Register(
 detailRoot.Deregister();
 ```
 
-Registering a root grants access to visible members and instance methods reachable from that root. Writes still require the target field or property to be writable, and non-public members are only visible when configured with `WithDefaultMemberVisibility(...)`.
+Registering a root grants access to visible members and instance methods reachable from that root. The tools use stateless paths from registered roots; there are no per-member allow-list APIs in the current simplified surface. Choose the roots you expose carefully, and choose an appropriate tool guard.
 
-Direct object roots use weak references by default when registered with `Register(...)`. Pass `ReferenceType.Strong` when the root should be retained for the lifetime of the toolsuite. Runtime registration returns a `ReflectionRootRegistrationHandle`; dispose it or call `Deregister()` to remove that specific registration, or call `ReflectionRootRegistry.Deregister(id)` to remove the current root by identifier. Metadata, including `Hints`, is supplied through the `ReflectionRootMetadata` argument.
+Direct object roots use weak references by default when registered with `Register(...)`. Pass `ReferenceType.Strong` when the root should be retained for the lifetime of the toolsuite. Runtime registration returns a `ReflectionRootRegistrationHandle`; dispose it or call `Deregister()` to remove that specific registration, or call `ReflectionRootRegistry.Deregister(id)` to remove the current root by identifier. Metadata, including `Description`, `Hints`, and `ContainsSensitiveData`, is supplied through the `ReflectionRootMetadata` argument.
 
 Recursive traversal is open by default. Use `WithAssemblyTraversalMode(ReflectionAssemblyTraversalMode.AllowListedOnly)` and `WithNamespaceTraversalMode(ReflectionNamespaceTraversalMode.AllowListedOnly)` with `AllowAssembly(...)` / `AllowNamespacePrefix(...)` only when you need to restrict expansion to selected assemblies or namespaces.
+
+`WithReadOnlyToolAccess()` exposes `reflect.list_roots`, `reflect.inspect_object`, and `reflect.describe_type`. `reflect.set_member_value` and `reflect.invoke_method` are write-scoped and require `WithReadWriteToolAccess()` or a custom `ToolGuard`.
 
 These tools are intended for local debugging only and may expose or mutate sensitive runtime state.

@@ -8,7 +8,6 @@
     <RootNamespace>Ansight.Tools.FileSystem</RootNamespace>
 
     <IsPackable>true</IsPackable>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageId>Ansight.Tools.FileSystem</PackageId>
     <Description>Sandboxed file browsing and download remote tools for the Ansight .NET SDK.</Description>
     <PackageTags>ansight;tools;filesystem;files;inspection;sandbox</PackageTags>

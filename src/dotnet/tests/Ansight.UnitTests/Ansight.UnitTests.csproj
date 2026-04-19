@@ -23,13 +23,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Ansight\Ansight.csproj" AdditionalProperties="AnsightIncludeHostTarget=true" />
-    <ProjectReference Include="..\..\Ansight.Tools.Database\Ansight.Tools.Database.csproj" AdditionalProperties="AnsightIncludeHostTarget=true" />
-    <ProjectReference Include="..\..\Ansight.Tools.FileSystem\Ansight.Tools.FileSystem.csproj" AdditionalProperties="AnsightIncludeHostTarget=true" />
-    <ProjectReference Include="..\..\Ansight.Tools.Preferences\Ansight.Tools.Preferences.csproj" AdditionalProperties="AnsightIncludeHostTarget=true" />
-    <ProjectReference Include="..\..\Ansight.Tools.Reflection\Ansight.Tools.Reflection.csproj" AdditionalProperties="AnsightIncludeHostTarget=true" />
-    <ProjectReference Include="..\..\Ansight.Tools.SecureStorage\Ansight.Tools.SecureStorage.csproj" AdditionalProperties="AnsightIncludeHostTarget=true" />
-    <ProjectReference Include="..\..\Ansight.Tools.VisualTree\Ansight.Tools.VisualTree.csproj" AdditionalProperties="AnsightIncludeHostTarget=true" />
+    <ProjectReference Include="..\..\Ansight\Ansight.csproj" />
+    <ProjectReference Include="..\..\Ansight.Tools.Database\Ansight.Tools.Database.csproj" />
+    <ProjectReference Include="..\..\Ansight.Tools.FileSystem\Ansight.Tools.FileSystem.csproj" />
+    <ProjectReference Include="..\..\Ansight.Tools.Preferences\Ansight.Tools.Preferences.csproj" />
+    <ProjectReference Include="..\..\Ansight.Tools.Reflection\Ansight.Tools.Reflection.csproj" />
+    <ProjectReference Include="..\..\Ansight.Tools.SecureStorage\Ansight.Tools.SecureStorage.csproj" />
+    <ProjectReference Include="..\..\Ansight.Tools.VisualTree\Ansight.Tools.VisualTree.csproj" />
   </ItemGroup>
 
   <ItemGroup>

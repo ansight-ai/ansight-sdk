@@ -8,7 +8,6 @@
     <RootNamespace>Ansight.Tools.SecureStorage</RootNamespace>
 
     <IsPackable>true</IsPackable>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageId>Ansight.Tools.SecureStorage</PackageId>
     <Description>Encrypted storage, Keychain, and Keystore remote tools for the Ansight .NET SDK.</Description>
     <PackageTags>ansight;tools;securestorage;keychain;keystore;encryptedstorage</PackageTags>

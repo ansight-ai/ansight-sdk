@@ -6,6 +6,7 @@ cd "$(dirname "$0")"
 configuration="${1:-Release}"
 projects=(
   "Ansight/Ansight.csproj"
+  "Ansight.Pairing/Ansight.Pairing.csproj"
   "Ansight.Tools.Database/Ansight.Tools.Database.csproj"
   "Ansight.Tools.FileSystem/Ansight.Tools.FileSystem.csproj"
   "Ansight.Tools.Preferences/Ansight.Tools.Preferences.csproj"
