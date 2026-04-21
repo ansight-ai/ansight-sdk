@@ -7,7 +7,7 @@ using static MauiToolHelpers;
 using Microsoft.Maui.Controls;
 #endif
 
-public sealed class GetMauiResourceStateTool : ITool
+public sealed class GetResourceStateTool : ITool
 {
     public string Category => "maui";
 
@@ -15,7 +15,7 @@ public sealed class GetMauiResourceStateTool : ITool
 
     public string Id => MauiToolIds.GetResourceState;
 
-    public string Name => "Get MAUI Resource State";
+    public string Name => "Get Resource State";
 
     public string Description => "Inspects MAUI resource dictionaries for the application, active window, pages, and selected elements.";
 

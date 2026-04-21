@@ -9,7 +9,7 @@ using static MauiToolHelpers;
 using Microsoft.Maui.Controls;
 #endif
 
-public sealed class InvokeMauiElementActionTool : ITool
+public sealed class InvokeElementActionTool : ITool
 {
     public string Category => "maui";
 
@@ -17,7 +17,7 @@ public sealed class InvokeMauiElementActionTool : ITool
 
     public string Id => MauiToolIds.InvokeElementAction;
 
-    public string Name => "Invoke MAUI Element Action";
+    public string Name => "Invoke Element Action";
 
     public string Description => "Invokes controlled user-like actions or commands on a node in the current .NET MAUI visual tree.";
 

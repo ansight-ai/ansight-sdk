@@ -15,7 +15,7 @@ public sealed class SetBindablePropertyTool : ITool
 
     public string Id => MauiToolIds.SetBindableProperty;
 
-    public string Name => "Set MAUI Bindable Property";
+    public string Name => "Set Bindable Property";
 
     public string Description => "Writes a bindable property on a node in the current .NET MAUI visual tree.";
 

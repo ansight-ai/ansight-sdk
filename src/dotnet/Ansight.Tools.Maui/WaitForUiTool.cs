@@ -9,7 +9,7 @@ using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls;
 #endif
 
-public sealed class WaitForMauiUiTool : ITool
+public sealed class WaitForUiTool : ITool
 {
     public string Category => "maui";
 
@@ -17,7 +17,7 @@ public sealed class WaitForMauiUiTool : ITool
 
     public string Id => MauiToolIds.WaitForUi;
 
-    public string Name => "Wait For MAUI UI";
+    public string Name => "Wait For UI";
 
     public string Description => "Polls the MAUI main thread until an element, page, property, or binding-context condition is met.";
 

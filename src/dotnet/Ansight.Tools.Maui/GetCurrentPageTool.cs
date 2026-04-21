@@ -15,7 +15,7 @@ public sealed class GetCurrentPageTool : ITool
 
     public string Id => MauiToolIds.GetCurrentPage;
 
-    public string Name => "Get Current MAUI Page";
+    public string Name => "Get Current Page";
 
     public string Description => "Returns the currently displayed .NET MAUI page and navigation metadata.";
 

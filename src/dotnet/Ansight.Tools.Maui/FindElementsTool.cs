@@ -7,7 +7,7 @@ using static MauiToolHelpers;
 using Microsoft.Maui.Controls;
 #endif
 
-public sealed class FindMauiElementsTool : ITool
+public sealed class FindElementsTool : ITool
 {
     public string Category => "maui";
 
@@ -15,7 +15,7 @@ public sealed class FindMauiElementsTool : ITool
 
     public string Id => MauiToolIds.FindElements;
 
-    public string Name => "Find MAUI Elements";
+    public string Name => "Find Elements";
 
     public string Description => "Searches the live .NET MAUI visual tree using common element, binding-context, and bindable-property filters.";
 

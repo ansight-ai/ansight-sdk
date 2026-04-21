@@ -7,7 +7,7 @@ using static MauiToolHelpers;
 using Microsoft.Maui.Controls;
 #endif
 
-public sealed class GetMauiNavigationStateTool : ITool
+public sealed class GetNavigationStateTool : ITool
 {
     public string Category => "maui";
 
@@ -15,7 +15,7 @@ public sealed class GetMauiNavigationStateTool : ITool
 
     public string Id => MauiToolIds.GetNavigationState;
 
-    public string Name => "Get MAUI Navigation State";
+    public string Name => "Get Navigation State";
 
     public string Description => "Returns active window, page, navigation stack, modal stack, and Shell navigation metadata.";
 

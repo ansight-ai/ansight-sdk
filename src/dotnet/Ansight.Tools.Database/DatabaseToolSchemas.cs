@@ -33,6 +33,33 @@ internal static class DatabaseToolSchemas
         },
         required: new[] { "name", "columns", "indexes" });
 
+    private static readonly ToolSchema ColumnMetadataSchema = ToolSchema.Object(
+        description: "Query result column metadata.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["index"] = ToolSchema.Integer("Zero-based result column index."),
+            ["name"] = ToolSchema.String("SQLite result column name."),
+            ["key"] = ToolSchema.String("Stable unique key used for row objects."),
+            ["declaredType"] = ToolSchema.String("Declared SQLite column type when available.", nullable: true),
+            ["sourceDatabase"] = ToolSchema.String("Source database name when SQLite exposes it.", nullable: true),
+            ["sourceTable"] = ToolSchema.String("Source table name when SQLite exposes it.", nullable: true),
+            ["sourceColumn"] = ToolSchema.String("Source column name when SQLite exposes it.", nullable: true)
+        },
+        required: new[] { "index", "name", "key" });
+
+    private static readonly ToolSchema RowCellSchema = ToolSchema.Object(
+        description: "Ordered query cell with runtime SQLite storage type and value.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["columnKey"] = ToolSchema.String("Stable column key matching columnMetadata.key."),
+            ["columnName"] = ToolSchema.String("SQLite result column name."),
+            ["storageType"] = ToolSchema.String(
+                "Runtime SQLite storage type.",
+                enumValues: new[] { "integer", "real", "text", "blob", "null", "unknown" })
+        },
+        required: new[] { "columnKey", "columnName", "storageType" },
+        additionalProperties: true);
+
     internal static ToolSchema ListDatabasesArguments { get; } = ToolSchema.Object(
         description: "Arguments for discovering SQLite databases in the app sandbox.",
         properties: new Dictionary<string, ToolSchema>
@@ -89,9 +116,15 @@ internal static class DatabaseToolSchemas
             ["databasePath"] = ToolSchema.String("Resolved database path."),
             ["sql"] = ToolSchema.String("Executed SQL."),
             ["columns"] = ToolSchema.Array(ToolSchema.String("Column name."), "Column names in result order."),
-            ["rows"] = ToolSchema.Array(GenericObjectSchema, "Row values keyed by column name."),
+            ["columnMetadata"] = ToolSchema.Array(ColumnMetadataSchema, "Column metadata in result order."),
+            ["rows"] = ToolSchema.Array(
+                GenericObjectSchema,
+                "Row values keyed by stable columnMetadata.key values. Blob values are descriptor objects with type, base64, and byteLength fields."),
+            ["rowValues"] = ToolSchema.Array(
+                ToolSchema.Array(RowCellSchema, "Ordered row cells."),
+                "Rows represented as ordered cells with runtime storage type metadata."),
             ["truncated"] = ToolSchema.Boolean("Whether additional rows were omitted."),
             ["capturedAtUtc"] = ToolSchema.String("UTC timestamp for capture.", format: "date-time")
         },
-        required: new[] { "databasePath", "sql", "columns", "rows", "truncated", "capturedAtUtc" });
+        required: new[] { "databasePath", "sql", "columns", "columnMetadata", "rows", "rowValues", "truncated", "capturedAtUtc" });
 }

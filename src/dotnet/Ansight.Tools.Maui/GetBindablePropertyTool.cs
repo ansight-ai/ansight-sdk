@@ -15,7 +15,7 @@ public sealed class GetBindablePropertyTool : ITool
 
     public string Id => MauiToolIds.GetBindableProperty;
 
-    public string Name => "Get MAUI Bindable Property";
+    public string Name => "Get Bindable Property";
 
     public string Description => "Reads a bindable property from a node in the current .NET MAUI visual tree.";
 

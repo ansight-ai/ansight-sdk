@@ -7,7 +7,7 @@ using static MauiToolHelpers;
 using Microsoft.Maui.Controls;
 #endif
 
-public sealed class GetMauiLayoutDiagnosticsTool : ITool
+public sealed class GetLayoutDiagnosticsTool : ITool
 {
     public string Category => "maui";
 
@@ -15,7 +15,7 @@ public sealed class GetMauiLayoutDiagnosticsTool : ITool
 
     public string Id => MauiToolIds.GetLayoutDiagnostics;
 
-    public string Name => "Get MAUI Layout Diagnostics";
+    public string Name => "Get Layout Diagnostics";
 
     public string Description => "Returns layout measurements, attached layout values, visibility, and input-related diagnostics for one MAUI element.";
 

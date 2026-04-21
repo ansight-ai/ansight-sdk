@@ -7,7 +7,7 @@ using static MauiToolHelpers;
 using Microsoft.Maui.Controls;
 #endif
 
-public sealed class GetMauiElementTool : ITool
+public sealed class GetElementTool : ITool
 {
     public string Category => "maui";
 
@@ -15,7 +15,7 @@ public sealed class GetMauiElementTool : ITool
 
     public string Id => MauiToolIds.GetElement;
 
-    public string Name => "Get MAUI Element";
+    public string Name => "Get Element";
 
     public string Description => "Returns a focused diagnostic snapshot for one node in the current .NET MAUI visual tree.";
 

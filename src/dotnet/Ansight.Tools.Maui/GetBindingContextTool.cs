@@ -11,7 +11,7 @@ public sealed class GetBindingContextTool : ITool
 
     public string Id => MauiToolIds.GetBindingContext;
 
-    public string Name => "Get MAUI Binding Context";
+    public string Name => "Get Binding Context";
 
     public string Description => "Returns binding-context metadata for a node in the current .NET MAUI visual tree.";
 

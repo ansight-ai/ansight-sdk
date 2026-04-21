@@ -46,6 +46,25 @@ public static class MauiToolSecurityProfiles
         ToolSecurityImplications.InspectsUi,
         ToolSecurityImplications.MutatesRuntimeState);
 
+    public static ToolSecurity InflateXaml { get; } = new(
+        ToolSecurityLevel.Critical,
+        "Inflates arbitrary MAUI XAML into live runtime controls.",
+        ToolSecurityImplications.InspectsUi,
+        ToolSecurityImplications.MutatesRuntimeState,
+        ToolSecurityImplications.InvokesAppCode);
+
+    public static ToolSecurity AddElement { get; } = new(
+        ToolSecurityLevel.Critical,
+        "Adds live MAUI elements to the visual tree.",
+        ToolSecurityImplications.InspectsUi,
+        ToolSecurityImplications.MutatesRuntimeState);
+
+    public static ToolSecurity RemoveElement { get; } = new(
+        ToolSecurityLevel.Critical,
+        "Removes live MAUI elements from the visual tree.",
+        ToolSecurityImplications.InspectsUi,
+        ToolSecurityImplications.MutatesRuntimeState);
+
     public static ToolSecurity GetBindingContext { get; } = new(
         ToolSecurityLevel.Critical,
         "Reveals live MAUI binding-context objects and selected runtime state.",

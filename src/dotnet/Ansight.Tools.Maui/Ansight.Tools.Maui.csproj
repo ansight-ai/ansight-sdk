@@ -9,8 +9,8 @@
 
     <IsPackable>true</IsPackable>
     <PackageId>Ansight.Tools.Maui</PackageId>
-    <Description>.NET MAUI page, visual tree, binding, resource, navigation, layout, handler, and interaction tools for the Ansight .NET SDK.</Description>
-    <PackageTags>ansight;tools;maui;visual-tree;binding;resources;navigation;ui;inspection</PackageTags>
+    <Description>.NET MAUI page, visual tree, XAML, binding, resource, navigation, layout, handler, and interaction tools for the Ansight .NET SDK.</Description>
+    <PackageTags>ansight;tools;maui;visual-tree;xaml;binding;resources;navigation;ui;inspection</PackageTags>
   </PropertyGroup>
 
   <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' Or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' Or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">

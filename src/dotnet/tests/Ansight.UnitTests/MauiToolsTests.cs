@@ -69,6 +69,9 @@ public sealed class MauiToolsTests
                 MauiToolIds.GetBindableProperty,
                 MauiToolIds.SetBindableProperty,
                 MauiToolIds.ClearBindableProperty,
+                MauiToolIds.InflateXaml,
+                MauiToolIds.AddElement,
+                MauiToolIds.RemoveElement,
                 MauiToolIds.GetBindingContext,
                 MauiToolIds.GetBindings,
                 MauiToolIds.GetResourceState,
@@ -96,10 +99,10 @@ public sealed class MauiToolsTests
     public static TheoryData<ITool, IReadOnlyDictionary<string, string>> HostUnsupportedTools => new()
     {
         { new GetCurrentPageTool(), new Dictionary<string, string>() },
-        { new GetMauiVisualTreeTool(), new Dictionary<string, string>() },
-        { new FindMauiElementsTool(), new Dictionary<string, string>() },
+        { new GetVisualTreeTool(), new Dictionary<string, string>() },
+        { new FindElementsTool(), new Dictionary<string, string>() },
         {
-            new GetMauiElementTool(),
+            new GetElementTool(),
             new Dictionary<string, string>
             {
                 ["nodeId"] = "root"
@@ -131,6 +134,28 @@ public sealed class MauiToolsTests
             }
         },
         {
+            new InflateXamlTool(),
+            new Dictionary<string, string>
+            {
+                ["xaml"] = "<Label xmlns=\"http://schemas.microsoft.com/dotnet/2021/maui\" Text=\"Experiment\" />"
+            }
+        },
+        {
+            new AddElementTool(),
+            new Dictionary<string, string>
+            {
+                ["parentNodeId"] = "root",
+                ["elementNodeId"] = "child"
+            }
+        },
+        {
+            new RemoveElementTool(),
+            new Dictionary<string, string>
+            {
+                ["nodeId"] = "child"
+            }
+        },
+        {
             new GetBindingContextTool(),
             new Dictionary<string, string>
             {
@@ -138,16 +163,16 @@ public sealed class MauiToolsTests
             }
         },
         {
-            new GetMauiBindingsTool(),
+            new GetBindingsTool(),
             new Dictionary<string, string>
             {
                 ["nodeId"] = "root"
             }
         },
-        { new GetMauiResourceStateTool(), new Dictionary<string, string>() },
-        { new GetMauiNavigationStateTool(), new Dictionary<string, string>() },
+        { new GetResourceStateTool(), new Dictionary<string, string>() },
+        { new GetNavigationStateTool(), new Dictionary<string, string>() },
         {
-            new InvokeMauiElementActionTool(),
+            new InvokeElementActionTool(),
             new Dictionary<string, string>
             {
                 ["nodeId"] = "root",
@@ -155,7 +180,7 @@ public sealed class MauiToolsTests
             }
         },
         {
-            new WaitForMauiUiTool(),
+            new WaitForUiTool(),
             new Dictionary<string, string>
             {
                 ["condition"] = "elementExists",
@@ -163,14 +188,14 @@ public sealed class MauiToolsTests
             }
         },
         {
-            new GetMauiLayoutDiagnosticsTool(),
+            new GetLayoutDiagnosticsTool(),
             new Dictionary<string, string>
             {
                 ["nodeId"] = "root"
             }
         },
         {
-            new GetMauiHandlerDiagnosticsTool(),
+            new GetHandlerDiagnosticsTool(),
             new Dictionary<string, string>
             {
                 ["nodeId"] = "root"

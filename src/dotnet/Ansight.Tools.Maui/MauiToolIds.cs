@@ -9,6 +9,9 @@ public static class MauiToolIds
     public const string GetBindableProperty = "maui.get_bindable_property";
     public const string SetBindableProperty = "maui.set_bindable_property";
     public const string ClearBindableProperty = "maui.clear_bindable_property";
+    public const string InflateXaml = "maui.inflate_xaml";
+    public const string AddElement = "maui.add_element";
+    public const string RemoveElement = "maui.remove_element";
     public const string GetBindingContext = "maui.get_binding_context";
     public const string GetBindings = "maui.get_bindings";
     public const string GetResourceState = "maui.get_resource_state";

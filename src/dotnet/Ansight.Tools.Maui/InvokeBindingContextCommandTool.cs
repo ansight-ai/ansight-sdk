@@ -11,7 +11,7 @@ public sealed class InvokeBindingContextCommandTool : ITool
 
     public string Id => MauiToolIds.InvokeBindingContextCommand;
 
-    public string Name => "Invoke MAUI Binding Context Command";
+    public string Name => "Invoke Binding Context Command";
 
     public string Description => "Invokes a public ICommand property on a MAUI element binding-context object.";
 

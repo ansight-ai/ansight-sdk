@@ -144,7 +144,9 @@ internal static class DatabaseSupport
             ["databasePath"] = databasePath,
             ["sql"] = sql,
             ["columns"] = result.Columns,
+            ["columnMetadata"] = result.ColumnMetadata,
             ["rows"] = result.Rows,
+            ["rowValues"] = result.RowValues,
             ["truncated"] = result.Truncated,
             ["capturedAtUtc"] = DateTime.UtcNow.ToString("O")
         };
@@ -376,17 +378,9 @@ internal static class DatabaseSupport
 
     private static bool LooksLikeSqliteDatabase(string filePath)
     {
-        var extension = Path.GetExtension(filePath);
-        if (extension.Equals(".db", StringComparison.OrdinalIgnoreCase) ||
-            extension.Equals(".sqlite", StringComparison.OrdinalIgnoreCase) ||
-            extension.Equals(".sqlite3", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
         try
         {
-            using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             var header = new byte[16];
             if (stream.Read(header, 0, header.Length) != header.Length)
             {
@@ -440,13 +434,17 @@ internal static class DatabaseSupport
             }
 
             var columnCount = sqlite3_column_count(statement);
+            var columnMetadata = ReadColumnMetadata(statement, columnCount);
             var columns = new JsonArray();
-            for (var columnIndex = 0; columnIndex < columnCount; columnIndex++)
+            var columnMetadataJson = new JsonArray();
+            foreach (var column in columnMetadata)
             {
-                columns.Add(Marshal.PtrToStringUTF8(sqlite3_column_name(statement, columnIndex)));
+                columns.Add(column.Name);
+                columnMetadataJson.Add(column.ToJson());
             }
 
             var rows = new JsonArray();
+            var rowValues = new JsonArray();
             var truncated = false;
             while (true)
             {
@@ -468,16 +466,19 @@ internal static class DatabaseSupport
                 }
 
                 var rowObject = new JsonObject();
-                for (var columnIndex = 0; columnIndex < columnCount; columnIndex++)
+                var rowValueArray = new JsonArray();
+                foreach (var column in columnMetadata)
                 {
-                    var name = Marshal.PtrToStringUTF8(sqlite3_column_name(statement, columnIndex)) ?? $"column_{columnIndex}";
-                    rowObject[name] = ReadColumnValue(statement, columnIndex);
+                    var cell = ReadColumnValue(statement, column.Index);
+                    rowObject[column.Key] = CloneJsonNode(cell.Value);
+                    rowValueArray.Add(CreateCellJson(column, cell));
                 }
 
                 rows.Add(rowObject);
+                rowValues.Add(rowValueArray);
             }
 
-            return new QueryResult(columns, rows, truncated);
+            return new QueryResult(columns, columnMetadataJson, rows, rowValues, truncated);
         }
         finally
         {
@@ -535,22 +536,85 @@ internal static class DatabaseSupport
         return !string.IsNullOrWhiteSpace(remainingSql);
     }
 
-    private static JsonNode? ReadColumnValue(IntPtr statement, int columnIndex)
+    private static IReadOnlyList<ColumnMetadata> ReadColumnMetadata(IntPtr statement, int columnCount)
+    {
+        var columns = new List<ColumnMetadata>(columnCount);
+        var usedKeys = new HashSet<string>(StringComparer.Ordinal);
+
+        for (var columnIndex = 0; columnIndex < columnCount; columnIndex++)
+        {
+            var name = ReadColumnName(statement, columnIndex);
+            columns.Add(new ColumnMetadata(
+                columnIndex,
+                name,
+                CreateUniqueColumnKey(name, columnIndex, usedKeys),
+                ReadColumnString(sqlite3_column_decltype, statement, columnIndex),
+                TryReadOptionalColumnString(sqlite3_column_database_name, statement, columnIndex),
+                TryReadOptionalColumnString(sqlite3_column_table_name, statement, columnIndex),
+                TryReadOptionalColumnString(sqlite3_column_origin_name, statement, columnIndex)));
+        }
+
+        return columns;
+    }
+
+    private static string ReadColumnName(IntPtr statement, int columnIndex)
+    {
+        var name = Marshal.PtrToStringUTF8(sqlite3_column_name(statement, columnIndex));
+        return string.IsNullOrEmpty(name) ? $"column_{columnIndex}" : name;
+    }
+
+    private static string CreateUniqueColumnKey(string columnName, int columnIndex, ISet<string> usedKeys)
+    {
+        var baseKey = string.IsNullOrWhiteSpace(columnName) ? $"column_{columnIndex}" : columnName;
+        if (usedKeys.Add(baseKey))
+        {
+            return baseKey;
+        }
+
+        for (var suffix = 2; ; suffix++)
+        {
+            var candidate = $"{baseKey}_{suffix}";
+            if (usedKeys.Add(candidate))
+            {
+                return candidate;
+            }
+        }
+    }
+
+    private static string? ReadColumnString(Func<IntPtr, int, IntPtr> reader, IntPtr statement, int columnIndex)
+    {
+        var pointer = reader(statement, columnIndex);
+        return pointer == IntPtr.Zero ? null : Marshal.PtrToStringUTF8(pointer);
+    }
+
+    private static string? TryReadOptionalColumnString(Func<IntPtr, int, IntPtr> reader, IntPtr statement, int columnIndex)
+    {
+        try
+        {
+            return ReadColumnString(reader, statement, columnIndex);
+        }
+        catch (EntryPointNotFoundException)
+        {
+            return null;
+        }
+    }
+
+    private static CellValue ReadColumnValue(IntPtr statement, int columnIndex)
     {
         return sqlite3_column_type(statement, columnIndex) switch
         {
-            1 => JsonValue.Create(sqlite3_column_int64(statement, columnIndex)),
-            2 => JsonValue.Create(sqlite3_column_double(statement, columnIndex)),
-            3 => JsonValue.Create(Marshal.PtrToStringUTF8(sqlite3_column_text(statement, columnIndex))),
-            4 => ReadBlob(statement, columnIndex),
-            5 => null,
-            _ => null
+            1 => new CellValue("integer", JsonValue.Create(sqlite3_column_int64(statement, columnIndex))),
+            2 => new CellValue("real", JsonValue.Create(sqlite3_column_double(statement, columnIndex))),
+            3 => new CellValue("text", ReadText(statement, columnIndex)),
+            4 => new CellValue("blob", ReadBlob(statement, columnIndex)),
+            5 => new CellValue("null", null),
+            _ => new CellValue("unknown", null)
         };
     }
 
-    private static JsonNode ReadBlob(IntPtr statement, int columnIndex)
+    private static JsonNode ReadText(IntPtr statement, int columnIndex)
     {
-        var pointer = sqlite3_column_blob(statement, columnIndex);
+        var pointer = sqlite3_column_text(statement, columnIndex);
         var length = sqlite3_column_bytes(statement, columnIndex);
         if (pointer == IntPtr.Zero || length <= 0)
         {
@@ -559,7 +623,47 @@ internal static class DatabaseSupport
 
         var bytes = new byte[length];
         Marshal.Copy(pointer, bytes, 0, length);
-        return JsonValue.Create(Convert.ToBase64String(bytes));
+        return JsonValue.Create(Encoding.UTF8.GetString(bytes));
+    }
+
+    private static JsonNode ReadBlob(IntPtr statement, int columnIndex)
+    {
+        var pointer = sqlite3_column_blob(statement, columnIndex);
+        var length = sqlite3_column_bytes(statement, columnIndex);
+        if (pointer == IntPtr.Zero || length <= 0)
+        {
+            return new JsonObject
+            {
+                ["type"] = "blob",
+                ["base64"] = string.Empty,
+                ["byteLength"] = 0
+            };
+        }
+
+        var bytes = new byte[length];
+        Marshal.Copy(pointer, bytes, 0, length);
+        return new JsonObject
+        {
+            ["type"] = "blob",
+            ["base64"] = Convert.ToBase64String(bytes),
+            ["byteLength"] = length
+        };
+    }
+
+    private static JsonNode? CloneJsonNode(JsonNode? node)
+    {
+        return node?.DeepClone();
+    }
+
+    private static JsonObject CreateCellJson(ColumnMetadata column, CellValue cell)
+    {
+        return new JsonObject
+        {
+            ["columnKey"] = column.Key,
+            ["columnName"] = column.Name,
+            ["storageType"] = cell.StorageType,
+            ["value"] = CloneJsonNode(cell.Value)
+        };
     }
 
     private static string EscapeSqlLiteral(string value) => value.Replace("'", "''", StringComparison.Ordinal);
@@ -619,7 +723,50 @@ internal static class DatabaseSupport
     [DllImport("sqlite3", EntryPoint = "sqlite3_column_bytes")]
     private static extern int sqlite3_column_bytes(IntPtr statement, int index);
 
-    private sealed record QueryResult(JsonArray Columns, JsonArray Rows, bool Truncated);
+    [DllImport("sqlite3", EntryPoint = "sqlite3_column_decltype")]
+    private static extern IntPtr sqlite3_column_decltype(IntPtr statement, int index);
+
+    [DllImport("sqlite3", EntryPoint = "sqlite3_column_database_name")]
+    private static extern IntPtr sqlite3_column_database_name(IntPtr statement, int index);
+
+    [DllImport("sqlite3", EntryPoint = "sqlite3_column_table_name")]
+    private static extern IntPtr sqlite3_column_table_name(IntPtr statement, int index);
+
+    [DllImport("sqlite3", EntryPoint = "sqlite3_column_origin_name")]
+    private static extern IntPtr sqlite3_column_origin_name(IntPtr statement, int index);
+
+    private sealed record QueryResult(
+        JsonArray Columns,
+        JsonArray ColumnMetadata,
+        JsonArray Rows,
+        JsonArray RowValues,
+        bool Truncated);
+
+    private sealed record CellValue(string StorageType, JsonNode? Value);
+
+    private sealed record ColumnMetadata(
+        int Index,
+        string Name,
+        string Key,
+        string? DeclaredType,
+        string? SourceDatabase,
+        string? SourceTable,
+        string? SourceColumn)
+    {
+        internal JsonObject ToJson()
+        {
+            return new JsonObject
+            {
+                ["index"] = Index,
+                ["name"] = Name,
+                ["key"] = Key,
+                ["declaredType"] = DeclaredType,
+                ["sourceDatabase"] = SourceDatabase,
+                ["sourceTable"] = SourceTable,
+                ["sourceColumn"] = SourceColumn
+            };
+        }
+    }
 
     private sealed class SqliteDatabase : IDisposable
     {

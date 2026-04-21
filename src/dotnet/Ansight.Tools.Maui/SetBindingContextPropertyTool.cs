@@ -11,7 +11,7 @@ public sealed class SetBindingContextPropertyTool : ITool
 
     public string Id => MauiToolIds.SetBindingContextProperty;
 
-    public string Name => "Set MAUI Binding Context Property";
+    public string Name => "Set Binding Context Property";
 
     public string Description => "Writes a public property on a MAUI element binding-context object.";
 

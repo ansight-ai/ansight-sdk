@@ -4,7 +4,7 @@ using System.Reflection;
 using System.Text.Json.Nodes;
 using static MauiToolHelpers;
 
-public sealed class GetMauiHandlerDiagnosticsTool : ITool
+public sealed class GetHandlerDiagnosticsTool : ITool
 {
     public string Category => "maui";
 
@@ -12,7 +12,7 @@ public sealed class GetMauiHandlerDiagnosticsTool : ITool
 
     public string Id => MauiToolIds.GetHandlerDiagnostics;
 
-    public string Name => "Get MAUI Handler Diagnostics";
+    public string Name => "Get Handler Diagnostics";
 
     public string Description => "Returns MAUI handler and platform-view metadata for a node in the current visual tree.";
 

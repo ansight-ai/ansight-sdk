@@ -7,7 +7,7 @@ using static MauiToolHelpers;
 using Microsoft.Maui.Controls;
 #endif
 
-public sealed class GetMauiBindingsTool : ITool
+public sealed class GetBindingsTool : ITool
 {
     public string Category => "maui";
 
@@ -15,7 +15,7 @@ public sealed class GetMauiBindingsTool : ITool
 
     public string Id => MauiToolIds.GetBindings;
 
-    public string Name => "Get MAUI Bindings";
+    public string Name => "Get Bindings";
 
     public string Description => "Enumerates active MAUI binding expressions for a node in the current visual tree.";
 

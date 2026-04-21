@@ -3,7 +3,7 @@ namespace Ansight.Tools.Maui;
 using System.Text.Json.Nodes;
 using static MauiToolHelpers;
 
-public sealed class GetMauiVisualTreeTool : ITool
+public sealed class GetVisualTreeTool : ITool
 {
     public string Category => "maui";
 
@@ -11,7 +11,7 @@ public sealed class GetMauiVisualTreeTool : ITool
 
     public string Id => MauiToolIds.GetVisualTree;
 
-    public string Name => "Get MAUI Visual Tree";
+    public string Name => "Get Visual Tree";
 
     public string Description => "Returns the live .NET MAUI visual tree for the active window or page.";
 

@@ -2,6 +2,7 @@
   <PropertyGroup>
     <AnsightDeveloperPairingEnabled Condition="'$(AnsightDeveloperPairingEnabled)' == ''">false</AnsightDeveloperPairingEnabled>
     <AnsightDeveloperPairingSourceFile Condition="'$(AnsightDeveloperPairingSourceFile)' == ''">$(MSBuildProjectDirectory)/ansight.json</AnsightDeveloperPairingSourceFile>
+    <_AnsightDeveloperPairingOutputFileDefaulted Condition="'$(AnsightDeveloperPairingOutputFile)' == ''">true</_AnsightDeveloperPairingOutputFileDefaulted>
     <AnsightDeveloperPairingOutputFile Condition="'$(AnsightDeveloperPairingOutputFile)' == ''">$(BaseIntermediateOutputPath)ansight.developer-pairing.json</AnsightDeveloperPairingOutputFile>
     <AnsightAllowRemoteTools Condition="'$(AnsightAllowRemoteTools)' == ''">false</AnsightAllowRemoteTools>
     <_AnsightAllowRemoteToolsNormalized>$([System.String]::Copy('$(AnsightAllowRemoteTools)').ToLowerInvariant())</_AnsightAllowRemoteToolsNormalized>
@@ -16,6 +17,13 @@
              AssemblyFile="$(_AnsightBuildTaskAssemblyPath)"
              Runtime="NET" />
 
+  <Target Name="ResolveAnsightDeveloperPairingOutputFile"
+          Condition="'$(AnsightDeveloperPairingEnabled)' == 'true' and '$(_AnsightDeveloperPairingOutputFileDefaulted)' == 'true' and '$(IntermediateOutputPath)' != ''">
+    <PropertyGroup>
+      <AnsightDeveloperPairingOutputFile>$(IntermediateOutputPath)ansight.developer-pairing.json</AnsightDeveloperPairingOutputFile>
+    </PropertyGroup>
+  </Target>
+
   <Target Name="ValidateAnsightRemoteToolPolicy"
           BeforeTargets="Build"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(IsCrossTargetingBuild)' != 'true'">
@@ -29,6 +37,7 @@
 
   <Target Name="GenerateAnsightDeveloperPairing"
           BeforeTargets="PrepareForBuild"
+          DependsOnTargets="ResolveAnsightDeveloperPairingOutputFile"
           Condition="'$(AnsightDeveloperPairingEnabled)' == 'true' and '$(OS)' == 'Unix'">
     <Error Condition="!Exists('$(AnsightDeveloperPairingSourceFile)')"
            Text="AnsightDeveloperPairingEnabled requires a signed pairing JSON at $(AnsightDeveloperPairingSourceFile)." />
@@ -46,6 +55,7 @@
 
   <Target Name="GenerateAnsightDeveloperPairingWindows"
           BeforeTargets="PrepareForBuild"
+          DependsOnTargets="ResolveAnsightDeveloperPairingOutputFile"
           Condition="'$(AnsightDeveloperPairingEnabled)' == 'true' and '$(OS)' == 'Windows_NT'">
     <Error Condition="!Exists('$(AnsightDeveloperPairingSourceFile)')"
            Text="AnsightDeveloperPairingEnabled requires a signed pairing JSON at $(AnsightDeveloperPairingSourceFile)." />
@@ -61,26 +71,27 @@
   </Target>
 
   <Target Name="EmbedAnsightDeveloperPairingResource"
-          BeforeTargets="PrepareResourceNames;CreateManifestResourceNames"
-          DependsOnTargets="GenerateAnsightDeveloperPairing;GenerateAnsightDeveloperPairingWindows"
-          Condition="'$(AnsightDeveloperPairingEnabled)' == 'true' and Exists('$(AnsightDeveloperPairingOutputFile)') and '$(DesignTimeBuild)' != 'true' and '$(IsCrossTargetingBuild)' != 'true'">
-    <ItemGroup>
+          BeforeTargets="AssignTargetPaths"
+          DependsOnTargets="ResolveAnsightDeveloperPairingOutputFile;GenerateAnsightDeveloperPairing;GenerateAnsightDeveloperPairingWindows"
+          Condition="'$(AnsightDeveloperPairingEnabled)' == 'true' and '$(DesignTimeBuild)' != 'true' and '$(IsCrossTargetingBuild)' != 'true'">
+    <ItemGroup Condition="Exists('$(AnsightDeveloperPairingOutputFile)')">
       <_AnsightExistingDeveloperPairingResource Include="@(EmbeddedResource)"
                                                 Condition="'%(EmbeddedResource.LogicalName)' == 'ansight.developer-pairing.json'" />
       <_AnsightExistingDeveloperPairingResource Include="@(EmbeddedResource)"
                                                 Condition="'%(EmbeddedResource.Identity)' == '$(AnsightDeveloperPairingOutputFile)'" />
     </ItemGroup>
 
-    <ItemGroup Condition="'@(_AnsightExistingDeveloperPairingResource)' == ''">
+    <ItemGroup Condition="Exists('$(AnsightDeveloperPairingOutputFile)') and '@(_AnsightExistingDeveloperPairingResource)' == ''">
       <EmbeddedResource Include="$(AnsightDeveloperPairingOutputFile)"
                         LogicalName="ansight.developer-pairing.json"
+                        TargetPath="ansight.developer-pairing.json"
                         Visible="false" />
     </ItemGroup>
 
-    <Message Condition="'@(_AnsightExistingDeveloperPairingResource)' == ''"
+    <Message Condition="Exists('$(AnsightDeveloperPairingOutputFile)') and '@(_AnsightExistingDeveloperPairingResource)' == ''"
              Importance="High"
              Text="Ansight developer pairing resource will be embedded as ansight.developer-pairing.json." />
-    <Message Condition="'@(_AnsightExistingDeveloperPairingResource)' != ''"
+    <Message Condition="Exists('$(AnsightDeveloperPairingOutputFile)') and '@(_AnsightExistingDeveloperPairingResource)' != ''"
              Importance="Low"
              Text="Ansight developer pairing resource is already embedded by the project. Skipping automatic embedded-resource inclusion." />
   </Target>

@@ -15,7 +15,7 @@ public sealed class ClearBindablePropertyTool : ITool
 
     public string Id => MauiToolIds.ClearBindableProperty;
 
-    public string Name => "Clear MAUI Bindable Property";
+    public string Name => "Clear Bindable Property";
 
     public string Description => "Clears a local value or binding from a bindable property on a node in the current .NET MAUI visual tree.";
 

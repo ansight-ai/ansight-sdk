@@ -243,6 +243,53 @@ internal static class MauiToolSchemas
         },
         required: new[] { "platform", "capturedAtUtc", "node", "property", "updated", "value" });
 
+    internal static ToolSchema InflateXamlArguments { get; } = ToolSchema.Object(
+        description: "Arguments for inflating a MAUI control from XAML.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["xaml"] = ToolSchema.String("XAML markup to inflate with LoadFromXaml."),
+            ["rootTypeName"] = ToolSchema.String("Optional CLR type name to instantiate before LoadFromXaml. When omitted, the root XML element is resolved from MAUI or clr-namespace XML namespaces.", nullable: true)
+        },
+        required: new[] { "xaml" });
+
+    internal static ToolSchema InflateXamlResult { get; } = ToolSchema.Object(
+        description: "Inflated MAUI XAML element payload.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["platform"] = ToolSchema.String("Current runtime platform."),
+            ["capturedAtUtc"] = ToolSchema.String("UTC timestamp for capture.", format: "date-time"),
+            ["node"] = MauiElementReferenceSchema,
+            ["rootType"] = TypeMetadataSchema,
+            ["registered"] = ToolSchema.Boolean("Whether the element was retained for later add/remove calls."),
+            ["childCount"] = ToolSchema.Integer("Number of direct visual children.")
+        },
+        required: new[] { "platform", "capturedAtUtc", "node", "rootType", "registered", "childCount" });
+
+    internal static ToolSchema AddElementArguments { get; } = ToolSchema.Object(
+        description: "Arguments for adding a MAUI element to the live visual tree.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["parentNodeId"] = ToolSchema.String("Node id or AutomationId for the parent already in the live MAUI visual tree."),
+            ["elementNodeId"] = ToolSchema.String("Node id returned by maui.inflate_xaml, a live visual-tree node id, or an AutomationId."),
+            ["index"] = ToolSchema.Integer("Optional insertion index for layout children.", nullable: true),
+            ["replaceContent"] = ToolSchema.Boolean("Replace an existing Content property value when adding to a content control."),
+            ["detachFromCurrentParent"] = ToolSchema.Boolean("Detach the element from its current parent before adding it to the requested parent.")
+        },
+        required: new[] { "parentNodeId", "elementNodeId" });
+
+    internal static ToolSchema RemoveElementArguments { get; } = ToolSchema.Object(
+        description: "Arguments for removing a MAUI element from the live visual tree.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["nodeId"] = ToolSchema.String("Node id returned by the MAUI visual tree, maui.inflate_xaml, or an AutomationId."),
+            ["forget"] = ToolSchema.Boolean("Forget a retained inflated element after detaching it.")
+        },
+        required: new[] { "nodeId" });
+
+    internal static ToolSchema ElementTreeMutationResult { get; } = ToolSchema.Object(
+        description: "MAUI visual-tree mutation payload.",
+        additionalProperties: true);
+
     internal static ToolSchema GetBindingContextArguments { get; } = ToolSchema.Object(
         description: "Arguments for reading a MAUI element binding context.",
         properties: new Dictionary<string, ToolSchema>
