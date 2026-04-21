@@ -6,6 +6,11 @@ param(
     [string]$OutputFile
 )
 
+if (-not (Test-Path -LiteralPath $SourceFile)) {
+    Write-Error "Ansight developer pairing requires a signed pairing JSON source file. Missing: $SourceFile"
+    exit 1
+}
+
 function Add-UniqueHostAddress {
     param(
         [System.Collections.Generic.List[string]]$HostAddresses,
@@ -97,19 +102,11 @@ $discovery = [ordered]@{
     capturedAt = [DateTimeOffset]::UtcNow.ToString('o')
 }
 
-if (Test-Path -LiteralPath $SourceFile) {
-    $pairingConfig = Get-Content -LiteralPath $SourceFile -Raw | ConvertFrom-Json
-    $document = [ordered]@{
-        schema = 'ansight.pairing-config-document.v1'
-        config = $pairingConfig
-        discovery = $discovery
-    }
-}
-else {
-    $document = [ordered]@{
-        schema = 'ansight.developer-pairing.v1'
-        discovery = $discovery
-    }
+$pairingConfig = Get-Content -LiteralPath $SourceFile -Raw | ConvertFrom-Json
+$document = [ordered]@{
+    schema = 'ansight.pairing-config-document.v1'
+    config = $pairingConfig
+    discovery = $discovery
 }
 
 $directory = Split-Path -Parent $OutputFile

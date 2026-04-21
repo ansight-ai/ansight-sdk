@@ -24,6 +24,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ansight.Tools.Reflection", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ansight.Pairing", "Ansight.Pairing\Ansight.Pairing.csproj", "{B26FC768-5D16-460F-9A51-24F554C2753D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ansight.Tools.Maui", "Ansight.Tools.Maui\Ansight.Tools.Maui.csproj", "{BD4455AA-5E2B-4257-BCD6-B8AA4CAF2781}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -166,6 +168,18 @@ Global
 		{B26FC768-5D16-460F-9A51-24F554C2753D}.Release|x64.Build.0 = Release|Any CPU
 		{B26FC768-5D16-460F-9A51-24F554C2753D}.Release|x86.ActiveCfg = Release|Any CPU
 		{B26FC768-5D16-460F-9A51-24F554C2753D}.Release|x86.Build.0 = Release|Any CPU
+		{BD4455AA-5E2B-4257-BCD6-B8AA4CAF2781}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BD4455AA-5E2B-4257-BCD6-B8AA4CAF2781}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BD4455AA-5E2B-4257-BCD6-B8AA4CAF2781}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{BD4455AA-5E2B-4257-BCD6-B8AA4CAF2781}.Debug|x64.Build.0 = Debug|Any CPU
+		{BD4455AA-5E2B-4257-BCD6-B8AA4CAF2781}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{BD4455AA-5E2B-4257-BCD6-B8AA4CAF2781}.Debug|x86.Build.0 = Debug|Any CPU
+		{BD4455AA-5E2B-4257-BCD6-B8AA4CAF2781}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BD4455AA-5E2B-4257-BCD6-B8AA4CAF2781}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BD4455AA-5E2B-4257-BCD6-B8AA4CAF2781}.Release|x64.ActiveCfg = Release|Any CPU
+		{BD4455AA-5E2B-4257-BCD6-B8AA4CAF2781}.Release|x64.Build.0 = Release|Any CPU
+		{BD4455AA-5E2B-4257-BCD6-B8AA4CAF2781}.Release|x86.ActiveCfg = Release|Any CPU
+		{BD4455AA-5E2B-4257-BCD6-B8AA4CAF2781}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -104,6 +104,7 @@ Tool abstractions stay in the `Ansight` package. Each tool exposes a `ToolDefini
 
 ```csharp
 using Ansight;
+using Ansight.Tools.Maui;
 using Ansight.Tools.VisualTree;
 using Ansight.Tools.Reflection;
 
@@ -120,6 +121,7 @@ var sessionRoot = ReflectionRootRegistry.Register(
     ReferenceType.Strong);
 
 var options = Options.CreateBuilder()
+    .WithMauiTools()
     .WithVisualTreeTools()
     .WithReflectionTools(reflection =>
     {
@@ -132,6 +134,7 @@ var options = Options.CreateBuilder()
 Available grouped packages:
 
 - `Ansight.Pairing`
+- `Ansight.Tools.Maui`
 - `Ansight.Tools.VisualTree`
 - `Ansight.Tools.Reflection`
 - `Ansight.Tools.Database`

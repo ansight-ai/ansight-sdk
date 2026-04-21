@@ -59,6 +59,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\..\Ansight\Ansight.csproj" />
+      <ProjectReference Include="..\..\Ansight.Tools.Maui\Ansight.Tools.Maui.csproj" />
       <ProjectReference Include="..\..\Ansight.Tools.Preferences\Ansight.Tools.Preferences.csproj" />
       <ProjectReference Include="..\..\Ansight.Tools.SecureStorage\Ansight.Tools.SecureStorage.csproj" />
     </ItemGroup>

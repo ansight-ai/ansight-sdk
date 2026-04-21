@@ -88,33 +88,6 @@ public sealed class HostPairingManagerTests
     }
 
     [Fact]
-    public async Task AutoConnectAsync_WhenBundledDeveloperMarkerExists_ConnectsWithoutSignedConfig()
-    {
-        var savedConfigPath = CreateTempFilePath();
-
-        using var hostConnection = new FakeHostConnection();
-        hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using bundled developer marker."));
-        using var manager = CreateManager(
-            hostConnection,
-            savedConfigPath,
-            new HostConnectionOptions
-            {
-                BundledDeveloperConfigLoader = _ => Task.FromResult<string?>(CreateDevelopmentPairingMarkerJson("192.168.1.30", 45200))
-            });
-
-        var result = await manager.ConnectAsync(HostConnectionRequest.Auto());
-
-        Assert.True(result.Success);
-        var connectedDocument = Assert.Single(hostConnection.ConnectDocuments);
-        Assert.True(connectedDocument.IsDevelopmentPairing);
-        Assert.Equal("ansight-development-pairing", connectedDocument.Config.ConfigId);
-        Assert.Equal("development-auto", connectedDocument.Config.Trust.Mode);
-        Assert.Equal(new[] { "192.168.1.30" }, connectedDocument.DiscoveryHint?.HostAddresses);
-        Assert.Equal(45200, hostConnection.LastConnectionOptions?.DiscoveryPort);
-        Assert.False(manager.HasSavedConfig);
-    }
-
-    [Fact]
     public async Task ConnectFromPayloadAsync_WhenPairingConfigIsProvided_ConnectsThatConfig()
     {
         var savedConfigPath = CreateTempFilePath();
@@ -544,22 +517,6 @@ public sealed class HostPairingManagerTests
                 Config = document.Config,
                 Discovery = document.DiscoveryHint
             });
-    }
-
-    private static string CreateDevelopmentPairingMarkerJson(string hostAddress, int discoveryPort)
-    {
-        return $$"""
-                 {
-                   "schema": "ansight.developer-pairing.v1",
-                   "discovery": {
-                     "schema": "ansight.discovery-hint.v1",
-                     "source": "developer-pairing-msbuild",
-                     "hostAddresses": [ "{{hostAddress}}" ],
-                     "discoveryPort": {{discoveryPort}},
-                     "hostName": "dev-host"
-                   }
-                 }
-                 """;
     }
 
     private static string CreateTempFilePath()

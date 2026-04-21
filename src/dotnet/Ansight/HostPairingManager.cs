@@ -725,16 +725,6 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
             return ResolvedPairingDocument.FromFailure("No bundled pairing config is available.");
         }
 
-        if (source == HostConnectionSource.BundledDeveloperConfig &&
-            pairingDocumentService.TryParseDevelopmentPairingDocument(json, out var developmentDocument, out _) &&
-            developmentDocument is not null)
-        {
-            return ResolvedPairingDocument.FromSuccess(
-                developmentDocument,
-                "Using bundled developer pairing marker.",
-                source);
-        }
-
         if (!hostConnection.TryParseAndValidateDocument(json, out var document, out var error) || document is null)
         {
             Logger.Warning($"Ignoring invalid bundled pairing config. {error}");
@@ -783,7 +773,7 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
             Source = resolvedDocument.Source,
             ReasonCode = connectResult.ReasonCode ?? connectResult.SessionResult?.RejectionCode
         };
-        if (connectResult.Success && !resolvedDocument.Document.IsDevelopmentPairing)
+        if (connectResult.Success)
         {
             try
             {
@@ -862,13 +852,6 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
             if (string.IsNullOrWhiteSpace(json))
             {
                 return false;
-            }
-
-            if (source == HostConnectionSource.BundledDeveloperConfig &&
-                pairingDocumentService.TryParseDevelopmentPairingDocument(json, out var developmentDocument, out _) &&
-                developmentDocument is not null)
-            {
-                return true;
             }
 
             return hostConnection.TryParseAndValidateDocument(json, out var _, out var _);

@@ -26,6 +26,7 @@
     <ProjectReference Include="..\..\Ansight\Ansight.csproj" />
     <ProjectReference Include="..\..\Ansight.Tools.Database\Ansight.Tools.Database.csproj" />
     <ProjectReference Include="..\..\Ansight.Tools.FileSystem\Ansight.Tools.FileSystem.csproj" />
+    <ProjectReference Include="..\..\Ansight.Tools.Maui\Ansight.Tools.Maui.csproj" />
     <ProjectReference Include="..\..\Ansight.Tools.Preferences\Ansight.Tools.Preferences.csproj" />
     <ProjectReference Include="..\..\Ansight.Tools.Reflection\Ansight.Tools.Reflection.csproj" />
     <ProjectReference Include="..\..\Ansight.Tools.SecureStorage\Ansight.Tools.SecureStorage.csproj" />

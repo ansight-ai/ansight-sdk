@@ -2,6 +2,7 @@ using System.Text.Json.Nodes;
 using Ansight.Tools;
 using Ansight.Tools.Database;
 using Ansight.Tools.FileSystem;
+using Ansight.Tools.Maui;
 using Ansight.Tools.Preferences;
 using Ansight.Tools.Reflection;
 using Ansight.Tools.SecureStorage;
@@ -30,6 +31,23 @@ public sealed class ToolSecurityTests
         { new GetVisualTreeTool(), ToolSecurityLevel.High, ToolSecurityImplications.InspectsUi },
         { new GetScreenshotTool(), ToolSecurityLevel.High, ToolSecurityImplications.CapturesScreenshots },
         { new InspectNodeTool(), ToolSecurityLevel.High, ToolSecurityImplications.InspectsUi },
+        { new GetCurrentPageTool(), ToolSecurityLevel.High, ToolSecurityImplications.InspectsUi },
+        { new GetMauiVisualTreeTool(), ToolSecurityLevel.High, ToolSecurityImplications.InspectsUi },
+        { new FindMauiElementsTool(), ToolSecurityLevel.High, ToolSecurityImplications.InspectsUi },
+        { new GetMauiElementTool(), ToolSecurityLevel.High, ToolSecurityImplications.InspectsRuntimeState },
+        { new GetBindablePropertyTool(), ToolSecurityLevel.High, ToolSecurityImplications.InspectsRuntimeState },
+        { new SetBindablePropertyTool(), ToolSecurityLevel.Critical, ToolSecurityImplications.MutatesRuntimeState },
+        { new ClearBindablePropertyTool(), ToolSecurityLevel.Critical, ToolSecurityImplications.MutatesRuntimeState },
+        { new GetBindingContextTool(), ToolSecurityLevel.Critical, ToolSecurityImplications.InspectsRuntimeState },
+        { new GetMauiBindingsTool(), ToolSecurityLevel.Critical, ToolSecurityImplications.ReadsAppData },
+        { new GetMauiResourceStateTool(), ToolSecurityLevel.High, ToolSecurityImplications.InspectsRuntimeState },
+        { new GetMauiNavigationStateTool(), ToolSecurityLevel.High, ToolSecurityImplications.InspectsUi },
+        { new InvokeMauiElementActionTool(), ToolSecurityLevel.Critical, ToolSecurityImplications.InvokesAppCode },
+        { new WaitForMauiUiTool(), ToolSecurityLevel.High, ToolSecurityImplications.InspectsRuntimeState },
+        { new GetMauiLayoutDiagnosticsTool(), ToolSecurityLevel.High, ToolSecurityImplications.InspectsUi },
+        { new GetMauiHandlerDiagnosticsTool(), ToolSecurityLevel.High, ToolSecurityImplications.InspectsRuntimeState },
+        { new InvokeBindingContextCommandTool(), ToolSecurityLevel.Critical, ToolSecurityImplications.InvokesAppCode },
+        { new SetBindingContextPropertyTool(), ToolSecurityLevel.Critical, ToolSecurityImplications.MutatesRuntimeState },
         { new ListReflectionRootsTool(), ToolSecurityLevel.High, ToolSecurityImplications.InspectsRuntimeState },
         { new InspectObjectTool(), ToolSecurityLevel.Critical, ToolSecurityImplications.InspectsRuntimeState },
         { new DescribeTypeTool(), ToolSecurityLevel.Moderate, ToolSecurityImplications.MetadataDisclosure },

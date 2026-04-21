@@ -1,4 +1,5 @@
-﻿using Ansight.Tools.Preferences;
+﻿using Ansight.Tools.Maui;
+using Ansight.Tools.Preferences;
 using Ansight.Tools.SecureStorage;
 using Microsoft.Extensions.Logging;
 using SkiaSharp.Views.Maui.Controls.Hosting;
@@ -17,6 +18,7 @@ public static class MauiProgram
             .WithSampleFrequencyMilliseconds(400)
             .WithRetentionPeriodSeconds(120)
             .WithAdditionalChannels(CustomAnsightConfiguration.AdditionalChannels)
+            .WithMauiTools()
             .WithPreferencesTools(preferences =>
             {
                 preferences.WithDefaultStore(preferencesStore);

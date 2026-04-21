@@ -89,42 +89,6 @@ internal sealed class PairingConfigDocumentService
         }
     }
 
-    public bool TryParseDevelopmentPairingDocument(string payload, out ParsedPairingDocument? document, out string error)
-    {
-        document = null;
-
-        if (string.IsNullOrWhiteSpace(payload))
-        {
-            error = "Developer pairing marker is empty.";
-            return false;
-        }
-
-        try
-        {
-            var marker = JsonSerializer.Deserialize<DevelopmentPairingDocument>(payload, PairingJson.Compact);
-            if (marker is null ||
-                !string.Equals(marker.Schema, DevelopmentPairingDocument.SchemaName, StringComparison.Ordinal))
-            {
-                error = "Payload is not an Ansight developer pairing marker.";
-                return false;
-            }
-
-            if (marker.Discovery is not null)
-            {
-                PairingDiscoveryHintHostAddresses.NormalizeInPlace(marker.Discovery);
-            }
-
-            document = CreateDevelopmentPairingDocument(marker);
-            error = string.Empty;
-            return true;
-        }
-        catch (Exception ex)
-        {
-            error = $"Failed to parse developer pairing marker: {ex.Message}";
-            return false;
-        }
-    }
-
     public bool TryParseAndValidateDocument(string configJson, string? expectedAppId, out ParsedPairingDocument? document, out string error)
     {
         document = null;
@@ -332,48 +296,6 @@ internal sealed class PairingConfigDocumentService
             Schema = PairingConfigDocument.SchemaName,
             Config = document.Config,
             Discovery = document.DiscoveryHint is null ? null : CloneDiscovery(document.DiscoveryHint)
-        };
-    }
-
-    private static ParsedPairingDocument CreateDevelopmentPairingDocument(DevelopmentPairingDocument marker)
-    {
-        var discovery = marker.Discovery is null ? null : CloneDiscovery(marker.Discovery);
-
-        return new ParsedPairingDocument
-        {
-            Config = new PairingConfig
-            {
-                Schema = "ansight.development-pairing-config.v1",
-                ConfigId = "ansight-development-pairing",
-                AppId = "development",
-                AppName = "Ansight Development App",
-                IssuedAt = DateTimeOffset.UtcNow,
-                ExpiresAt = DateTimeOffset.MaxValue,
-                OneTimeToken = string.Empty,
-                Host = new PairingHost
-                {
-                    HostId = null,
-                    HostName = discovery?.HostName,
-                    DiscoveryPort = discovery?.DiscoveryPort ?? PairingProtocolDefaults.DiscoveryPort,
-                    HostPubKey = string.Empty,
-                    HostPubKeyFingerprint = string.Empty
-                },
-                Challenge = new PairingChallenge
-                {
-                    Alg = "none",
-                    ChallengePubKey = string.Empty,
-                    RequireProofOnFirstPair = false
-                },
-                Trust = new PairingTrust
-                {
-                    Mode = "development-auto",
-                    RequireTokenOnFirstPair = false,
-                    AllowLanDiscovery = true
-                },
-                Signature = string.Empty
-            },
-            DiscoveryHint = discovery,
-            IsDevelopmentPairing = true
         };
     }
 

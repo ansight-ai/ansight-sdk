@@ -9,6 +9,11 @@ if [ -z "$output_path" ]; then
   exit 0
 fi
 
+if [ -z "$source_file" ] || [ ! -f "$source_file" ]; then
+  echo "Ansight developer pairing requires a signed pairing JSON source file. Missing: $source_file" >&2
+  exit 1
+fi
+
 wifi_device="$(networksetup -listallhardwareports 2>/dev/null | awk '/Wi-Fi|AirPort/{getline; print $2; exit}')"
 wifi_name=""
 host_address=""
@@ -124,10 +129,9 @@ else
   host_addresses_json="[]"
 fi
 
-if [ -n "$source_file" ] && [ -f "$source_file" ]; then
-  pairing_config_json="$(cat "$source_file")"
+pairing_config_json="$(cat "$source_file")"
 
-  cat > "$output_path" <<EOF
+cat > "$output_path" <<EOF
 {
   "schema": "ansight.pairing-config-document.v1",
   "config": $pairing_config_json,
@@ -141,20 +145,5 @@ if [ -n "$source_file" ] && [ -f "$source_file" ]; then
   }
 }
 EOF
-else
-  cat > "$output_path" <<EOF
-{
-  "schema": "ansight.developer-pairing.v1",
-  "discovery": {
-    "schema": "ansight.discovery-hint.v1",
-    "source": "developer-pairing-msbuild",
-    "hostAddresses": $host_addresses_json,
-    "hostName": "$(json_escape "$host_name")",
-    "wifiName": "$(json_escape "$wifi_name")",
-    "capturedAt": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-  }
-}
-EOF
-fi
 
 echo "Ansight developer pairing discovery: source=$source_file output=$output_path wifi=${wifi_name:-<unknown>} hostName=${host_name:-<unknown>} hostAddress=${host_address:-<unknown>} hostAddresses=${host_addresses[*]:-<unknown>}"

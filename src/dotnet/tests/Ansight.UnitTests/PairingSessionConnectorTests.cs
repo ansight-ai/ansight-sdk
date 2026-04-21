@@ -59,7 +59,6 @@ public sealed class PairingSessionConnectorTests
                 "Unit Test App",
                 IPAddress.Loopback,
                 listenerEndPoint.Port,
-                false,
                 CancellationToken.None
             ])!;
 
@@ -69,7 +68,6 @@ public sealed class PairingSessionConnectorTests
         Assert.NotNull(parsedRequest);
         Assert.False(string.IsNullOrWhiteSpace(parsedRequest!.ProcessSessionId));
         Assert.Equal(ProcessSessionIdentity.Current, parsedRequest.ProcessSessionId);
-        Assert.False(parsedRequest.DevelopmentPairing);
 
         var payload = JsonSerializer.SerializeToUtf8Bytes(
             new ConnectResponse
@@ -88,86 +86,6 @@ public sealed class PairingSessionConnectorTests
         var response = await responseTask;
         Assert.NotNull(response);
         Assert.True(response!.Accepted);
-    }
-
-    [Fact]
-    public async Task ConnectAsync_WhenDevelopmentPairingIsEnabled_SendsDevelopmentPairingFlag()
-    {
-        using var listener = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
-        var listenerEndPoint = (IPEndPoint)listener.Client.LocalEndPoint!;
-        var connector = new PairingSessionConnector(() => PairingWifiPreflightStatus.Connected);
-        var document = new ParsedPairingDocument
-        {
-            Config = new PairingConfig
-            {
-                Schema = "ansight.development-pairing-config.v1",
-                ConfigId = "ansight-development-pairing",
-                AppId = "com.ansight.dev",
-                AppName = "Ansight Dev",
-                IssuedAt = DateTimeOffset.UtcNow,
-                ExpiresAt = DateTimeOffset.MaxValue,
-                OneTimeToken = string.Empty,
-                Host = new PairingHost
-                {
-                    DiscoveryPort = listenerEndPoint.Port,
-                    HostPubKey = string.Empty,
-                    HostPubKeyFingerprint = string.Empty
-                },
-                Challenge = new PairingChallenge
-                {
-                    Alg = "none",
-                    ChallengePubKey = string.Empty,
-                    RequireProofOnFirstPair = false
-                },
-                Trust = new PairingTrust
-                {
-                    Mode = "development-auto",
-                    RequireTokenOnFirstPair = false,
-                    AllowLanDiscovery = true
-                },
-                Signature = string.Empty
-            },
-            DiscoveryHint = PairingTestDocumentFactory.CreateDiscoveryHint(
-                hostAddress: IPAddress.Loopback.ToString(),
-                discoveryPort: listenerEndPoint.Port),
-            IsDevelopmentPairing = true
-        };
-
-        var connectTask = connector.ConnectAsync(
-            document,
-            "Unit Test App",
-            options: null,
-            progress: null,
-            CancellationToken.None);
-
-        var request = await listener.ReceiveAsync();
-        var parsedRequest = JsonSerializer.Deserialize<ConnectRequest>(request.Buffer, PairingJson.Compact);
-
-        Assert.NotNull(parsedRequest);
-        Assert.True(parsedRequest!.DevelopmentPairing);
-        Assert.Equal("ansight-development-pairing", parsedRequest.ConfigId);
-        Assert.Equal(string.Empty, parsedRequest.OneTimeToken);
-        Assert.Equal("com.ansight.dev", parsedRequest.AppId);
-
-        var payload = JsonSerializer.SerializeToUtf8Bytes(
-            new ConnectResponse
-            {
-                Type = "CONNECT_RESP",
-                Ver = 1,
-                Accepted = false,
-                Reason = "development-test",
-                ReasonMessage = "Need WebSocket handoff",
-                HostId = "host-1",
-                HostName = "Host",
-                Message = "Rejected"
-            },
-            PairingJson.Compact);
-        await listener.SendAsync(payload, payload.Length, request.RemoteEndPoint);
-
-        var result = await connectTask;
-        Assert.False(result.Success);
-        Assert.False(result.Accepted);
-        Assert.Equal(IPAddress.Loopback, result.HostAddress);
     }
 
     [Fact]
