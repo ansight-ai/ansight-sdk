@@ -41,6 +41,7 @@ public sealed class ToolSecurityTests
         { new InflateXamlTool(), ToolSecurityLevel.Critical, ToolSecurityImplications.InvokesAppCode },
         { new AddElementTool(), ToolSecurityLevel.Critical, ToolSecurityImplications.MutatesRuntimeState },
         { new RemoveElementTool(), ToolSecurityLevel.Critical, ToolSecurityImplications.MutatesRuntimeState },
+        { new SetAppThemeTool(), ToolSecurityLevel.Critical, ToolSecurityImplications.MutatesRuntimeState },
         { new GetBindingContextTool(), ToolSecurityLevel.Critical, ToolSecurityImplications.InspectsRuntimeState },
         { new GetBindingsTool(), ToolSecurityLevel.Critical, ToolSecurityImplications.ReadsAppData },
         { new GetResourceStateTool(), ToolSecurityLevel.High, ToolSecurityImplications.InspectsRuntimeState },

@@ -20,6 +20,7 @@ public static class MauiOptionsBuilderExtensions
             new InflateXamlTool(),
             new AddElementTool(),
             new RemoveElementTool(),
+            new SetAppThemeTool(),
             new GetBindingContextTool(),
             new GetBindingsTool(),
             new GetResourceStateTool(),

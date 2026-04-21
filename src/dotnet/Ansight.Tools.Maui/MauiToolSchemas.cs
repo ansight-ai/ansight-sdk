@@ -290,6 +290,31 @@ internal static class MauiToolSchemas
         description: "MAUI visual-tree mutation payload.",
         additionalProperties: true);
 
+    internal static ToolSchema SetAppThemeArguments { get; } = ToolSchema.Object(
+        description: "Arguments for changing the live MAUI application theme override.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["theme"] = ToolSchema.String(
+                "Theme override to apply. Use system to clear the override and follow the device/app default.",
+                enumValues: new[] { "system", "light", "dark" })
+        },
+        required: new[] { "theme" });
+
+    internal static ToolSchema AppThemeResult { get; } = ToolSchema.Object(
+        description: "MAUI app theme mutation payload.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["platform"] = ToolSchema.String("Current runtime platform."),
+            ["capturedAtUtc"] = ToolSchema.String("UTC timestamp for capture.", format: "date-time"),
+            ["updated"] = ToolSchema.Boolean("Whether the theme override was applied."),
+            ["theme"] = ToolSchema.String("Normalized requested theme."),
+            ["previousUserAppTheme"] = ToolSchema.String("Previous UserAppTheme value."),
+            ["previousRequestedTheme"] = ToolSchema.String("Previous effective RequestedTheme value."),
+            ["userAppTheme"] = ToolSchema.String("Current UserAppTheme value."),
+            ["requestedTheme"] = ToolSchema.String("Current effective RequestedTheme value.")
+        },
+        required: new[] { "platform", "capturedAtUtc", "updated", "theme", "previousUserAppTheme", "previousRequestedTheme", "userAppTheme", "requestedTheme" });
+
     internal static ToolSchema GetBindingContextArguments { get; } = ToolSchema.Object(
         description: "Arguments for reading a MAUI element binding context.",
         properties: new Dictionary<string, ToolSchema>

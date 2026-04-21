@@ -375,17 +375,31 @@ public sealed class DatabaseToolsTests
 
     private sealed class DatabaseRootsOverrideScope : IDisposable
     {
-        private readonly Func<IEnumerable<(string Alias, string? Path)>>? previousRootsOverride;
+        private readonly Func<IEnumerable<(string Alias, string? Path)>>? previousListRootsOverride;
+        private readonly Func<IEnumerable<(string Alias, string? Path)>>? previousDescribeRootsOverride;
+        private readonly Func<IEnumerable<(string Alias, string? Path)>>? previousQueryRootsOverride;
 
         public DatabaseRootsOverrideScope(params (string Alias, string Path)[] roots)
         {
-            previousRootsOverride = DatabaseSupport.PlatformRootsOverride;
-            DatabaseSupport.PlatformRootsOverride = () => roots.Select(root => (root.Alias, Path: (string?)root.Path));
+            previousListRootsOverride = ListDatabasesTool.PlatformRootsOverride;
+            previousDescribeRootsOverride = DescribeSchemaTool.PlatformRootsOverride;
+            previousQueryRootsOverride = QueryDatabaseTool.PlatformRootsOverride;
+
+            IEnumerable<(string Alias, string? Path)> GetRoots()
+            {
+                return roots.Select(root => (root.Alias, Path: (string?)root.Path));
+            }
+
+            ListDatabasesTool.PlatformRootsOverride = GetRoots;
+            DescribeSchemaTool.PlatformRootsOverride = GetRoots;
+            QueryDatabaseTool.PlatformRootsOverride = GetRoots;
         }
 
         public void Dispose()
         {
-            DatabaseSupport.PlatformRootsOverride = previousRootsOverride;
+            ListDatabasesTool.PlatformRootsOverride = previousListRootsOverride;
+            DescribeSchemaTool.PlatformRootsOverride = previousDescribeRootsOverride;
+            QueryDatabaseTool.PlatformRootsOverride = previousQueryRootsOverride;
         }
     }
 }

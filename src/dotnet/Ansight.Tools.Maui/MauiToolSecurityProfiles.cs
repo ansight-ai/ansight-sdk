@@ -65,6 +65,12 @@ public static class MauiToolSecurityProfiles
         ToolSecurityImplications.InspectsUi,
         ToolSecurityImplications.MutatesRuntimeState);
 
+    public static ToolSecurity SetAppTheme { get; } = new(
+        ToolSecurityLevel.Critical,
+        "Changes the live MAUI application theme override.",
+        ToolSecurityImplications.InspectsUi,
+        ToolSecurityImplications.MutatesRuntimeState);
+
     public static ToolSecurity GetBindingContext { get; } = new(
         ToolSecurityLevel.Critical,
         "Reveals live MAUI binding-context objects and selected runtime state.",

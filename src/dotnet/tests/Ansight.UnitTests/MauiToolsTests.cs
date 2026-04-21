@@ -72,6 +72,7 @@ public sealed class MauiToolsTests
                 MauiToolIds.InflateXaml,
                 MauiToolIds.AddElement,
                 MauiToolIds.RemoveElement,
+                MauiToolIds.SetAppTheme,
                 MauiToolIds.GetBindingContext,
                 MauiToolIds.GetBindings,
                 MauiToolIds.GetResourceState,
@@ -153,6 +154,13 @@ public sealed class MauiToolsTests
             new Dictionary<string, string>
             {
                 ["nodeId"] = "child"
+            }
+        },
+        {
+            new SetAppThemeTool(),
+            new Dictionary<string, string>
+            {
+                ["theme"] = "dark"
             }
         },
         {
