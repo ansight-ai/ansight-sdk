@@ -62,8 +62,7 @@ public sealed class ReflectionToolsTests
             new ReflectionRootMetadata("Current Session")
             {
                 Description = "Session VM",
-                Hints = ["debug", "session"],
-                ContainsSensitiveData = true
+                Hints = ["debug", "session"]
             });
         var tool = new ListReflectionRootsTool();
 
@@ -81,7 +80,9 @@ public sealed class ReflectionToolsTests
         Assert.True(root["available"]!.GetValue<bool>());
         Assert.Equal("Current Session", metadata["displayName"]?.GetValue<string>());
         Assert.Contains(hints.Select(node => node!.GetValue<string>()), value => value == "debug");
-        Assert.True(metadata["containsSensitiveData"]!.GetValue<bool>());
+        Assert.Equal(
+            ["description", "displayName", "hints"],
+            metadata.Select(property => property.Key).OrderBy(key => key, StringComparer.Ordinal));
     }
 
     [Fact]
@@ -458,8 +459,7 @@ public sealed class ReflectionToolsTests
             new ReflectionRootModel(),
             new ReflectionRootMetadata("Current Session")
             {
-                Hints = ["debug", "session"],
-                ContainsSensitiveData = true
+                Hints = ["debug", "session"]
             });
         var options = Options.CreateBuilder()
             .WithReflectionTools()
@@ -502,7 +502,9 @@ public sealed class ReflectionToolsTests
 
         Assert.Equal("Current Session", metadata["displayName"]?.GetValue<string>());
         Assert.Contains(hints.Select(node => node!.GetValue<string>()), value => value == "session");
-        Assert.True(metadata["containsSensitiveData"]!.GetValue<bool>());
+        Assert.Equal(
+            ["description", "displayName", "hints"],
+            metadata.Select(property => property.Key).OrderBy(key => key, StringComparer.Ordinal));
     }
 
     [Fact]
@@ -586,6 +588,90 @@ public sealed class ReflectionToolsTests
         Assert.Equal("weak", root["referenceType"]?.GetValue<string>());
         Assert.False(root["available"]!.GetValue<bool>());
         Assert.True(ReflectionRootRegistry.Deregister("runtime-weak"));
+    }
+
+    [Fact]
+    public async Task ReflectionRootRegistry_RegisterGetter_ResolvesLatestRuntimeRoot()
+    {
+        var options = ReflectionToolsOptions.CreateBuilder().Build();
+        var first = new ReflectionRootModel { SelectedTab = "first" };
+        var second = new ReflectionRootModel { SelectedTab = "second" };
+        ReflectionRootModel? current = first;
+        using var handle = ReflectionRootRegistry.Register(
+            "current",
+            () => current,
+            new ReflectionRootMetadata("Current Root"));
+
+        var listResult = await new ListReflectionRootsTool(options).Execute(new Dictionary<string, string>());
+
+        Assert.True(listResult.IsSuccess);
+        var roots = Assert.IsType<JsonArray>(Assert.IsType<JsonObject>(listResult.Payload)["roots"]);
+        var root = Assert.IsType<JsonObject>(Assert.Single(roots));
+        Assert.Equal("getter", root["referenceType"]?.GetValue<string>());
+        Assert.True(root["available"]!.GetValue<bool>());
+        Assert.Equal(typeof(ReflectionRootModel).FullName, root["runtimeType"]?.GetValue<string>());
+
+        current = second;
+        var writeResult = await new SetMemberValueTool(options).Execute(new Dictionary<string, string>
+        {
+            ["root"] = "current",
+            ["path"] = "SelectedTab",
+            ["valueJson"] = "\"updated\""
+        });
+
+        Assert.True(writeResult.IsSuccess);
+        Assert.Equal("first", first.SelectedTab);
+        Assert.Equal("updated", second.SelectedTab);
+    }
+
+    [Fact]
+    public async Task ReflectionRootRegistry_RegisterGetter_ReportsUnavailableUntilGetterReturnsRoot()
+    {
+        var options = ReflectionToolsOptions.CreateBuilder().Build();
+        ReflectionRootModel? current = null;
+        using var handle = ReflectionRootRegistry.Register(
+            "current",
+            () => current,
+            new ReflectionRootMetadata("Current Root"));
+
+        var unavailableResult = await new ListReflectionRootsTool(options).Execute(new Dictionary<string, string>());
+
+        Assert.True(unavailableResult.IsSuccess);
+        var roots = Assert.IsType<JsonArray>(Assert.IsType<JsonObject>(unavailableResult.Payload)["roots"]);
+        var unavailableRoot = Assert.IsType<JsonObject>(Assert.Single(roots));
+        Assert.False(unavailableRoot["available"]!.GetValue<bool>());
+        var resolutionError = unavailableRoot["resolutionError"]?.GetValue<string>();
+        Assert.NotNull(resolutionError);
+        Assert.Contains("not currently available", resolutionError, StringComparison.OrdinalIgnoreCase);
+
+        current = new ReflectionRootModel { SelectedTab = "ready" };
+        var inspectResult = await new InspectObjectTool(options).Execute(new Dictionary<string, string>
+        {
+            ["root"] = "current",
+            ["path"] = "SelectedTab"
+        });
+
+        Assert.True(inspectResult.IsSuccess);
+        var snapshot = Assert.IsType<JsonObject>(Assert.IsType<JsonObject>(inspectResult.Payload)["snapshot"]);
+        Assert.Equal("ready", snapshot["preview"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task ReflectionRootRegistry_RegisterGetter_RejectsValueTypeRoots()
+    {
+        var options = ReflectionToolsOptions.CreateBuilder().Build();
+        using var handle = ReflectionRootRegistry.Register(
+            "value",
+            () => 42,
+            new ReflectionRootMetadata("Value Root"));
+
+        var result = await new InspectObjectTool(options).Execute(new Dictionary<string, string>
+        {
+            ["root"] = "value"
+        });
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("reference type", result.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     private static ReflectionToolsOptions CreateOptions(ReflectionRootModel model)

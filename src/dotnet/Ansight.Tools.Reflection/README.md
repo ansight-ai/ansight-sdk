@@ -32,22 +32,20 @@ using var sessionRoot = ReflectionRootRegistry.Register(
     new ReflectionRootMetadata("Current Session")
     {
         Description = "Active session view model",
-        Hints = ["debug", "session"],
-        ContainsSensitiveData = true
+        Hints = ["debug", "session"]
     });
 
 using var detailRoot = ReflectionRootRegistry.Register(
     "details",
-    session.CurrentDetails,
-    new ReflectionRootMetadata("Current Details"),
-    ReferenceType.Strong);
+    () => session.CurrentDetails,
+    new ReflectionRootMetadata("Current Details"));
 
 detailRoot.Deregister();
 ```
 
 Registering a root grants access to visible members and instance methods reachable from that root. The tools use stateless paths from registered roots; there are no per-member allow-list APIs in the current simplified surface. Choose the roots you expose carefully, and choose an appropriate tool guard.
 
-Direct object roots use weak references by default when registered with `Register(...)`. Pass `ReferenceType.Strong` when the root should be retained for the lifetime of the toolsuite. Runtime registration returns a `ReflectionRootRegistrationHandle`; dispose it or call `Deregister()` to remove that specific registration, or call `ReflectionRootRegistry.Deregister(id)` to remove the current root by identifier. Metadata, including `Description`, `Hints`, and `ContainsSensitiveData`, is supplied through the `ReflectionRootMetadata` argument.
+Direct object roots use weak references by default when registered with `Register(...)`. Pass `ReferenceType.Strong` when the registry should retain the root for the lifetime of the toolsuite. Register a `Func<object?>` getter when the exposed root can change over time, such as the current view model or selected document; the root is reported as unavailable while the getter returns `null`. Runtime registration returns a `ReflectionRootRegistrationHandle`; dispose it or call `Deregister()` to remove that specific registration, or call `ReflectionRootRegistry.Deregister(id)` to remove the current root by identifier. Metadata, including `Description` and `Hints`, is supplied through the `ReflectionRootMetadata` argument.
 
 Recursive traversal is open by default. Use `WithAssemblyTraversalMode(ReflectionAssemblyTraversalMode.AllowListedOnly)` and `WithNamespaceTraversalMode(ReflectionNamespaceTraversalMode.AllowListedOnly)` with `AllowAssembly(...)` / `AllowNamespacePrefix(...)` only when you need to restrict expansion to selected assemblies or namespaces.
 

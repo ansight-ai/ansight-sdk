@@ -202,7 +202,7 @@ Registered tools are guarded explicitly. Use:
 
 The storage packages register `remove` operations as `Delete`, so `WithReadWriteToolAccess()` intentionally keeps those hidden and non-executable.
 
-Reflection roots are the access boundary for `Ansight.Tools.Reflection`. Register a root with `ReflectionRootRegistry.Register(...)`, then the tools inspect reachable objects through stateless paths from that root. The simplified options surface controls traversal and visibility only:
+Reflection roots are the access boundary for `Ansight.Tools.Reflection`. Register a root with `ReflectionRootRegistry.Register(...)`, then the tools inspect reachable objects through stateless paths from that root. Direct object registrations are weak by default unless `ReferenceType.Strong` is passed; getter registrations use a `Func<object?>` when the exposed root can change over time and are unavailable while the getter returns `null`. The simplified options surface controls traversal and visibility only:
 
 - `WithDefaultMemberVisibility(ReflectionMemberVisibility.PublicOnly)` keeps reflection to public members
 - `WithDefaultMemberVisibility(ReflectionMemberVisibility.PublicAndNonPublic)` also exposes non-public members

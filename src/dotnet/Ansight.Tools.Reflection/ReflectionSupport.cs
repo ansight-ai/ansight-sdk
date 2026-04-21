@@ -23,11 +23,12 @@ internal static class ReflectionSupport
             {
                 ["id"] = root.Id,
                 ["metadata"] = ToJson(root.Metadata),
-                ["referenceType"] = root.ReferenceType switch
+                ["referenceType"] = root.Kind switch
                 {
-                    ReferenceType.Weak => "weak",
-                    ReferenceType.Strong => "strong",
-                    _ => throw new ArgumentOutOfRangeException(nameof(root.ReferenceType), root.ReferenceType, "Unsupported reflection root reference type.")
+                    ReflectionRootRegistrationKind.WeakReference => "weak",
+                    ReflectionRootRegistrationKind.StrongReference => "strong",
+                    ReflectionRootRegistrationKind.Getter => "getter",
+                    _ => throw new ArgumentOutOfRangeException(nameof(root.Kind), root.Kind, "Unsupported reflection root registration kind.")
                 },
                 ["available"] = resolution.Available,
                 ["runtimeType"] = resolution.Value?.GetType().FullName,
@@ -286,8 +287,7 @@ internal static class ReflectionSupport
         {
             ["displayName"] = metadata.DisplayName,
             ["description"] = metadata.Description,
-            ["hints"] = hints,
-            ["containsSensitiveData"] = metadata.ContainsSensitiveData
+            ["hints"] = hints
         };
     }
 

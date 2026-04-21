@@ -14,8 +14,7 @@ internal static class ReflectionToolSchemas
         {
             ["displayName"] = ToolSchema.String("Human-readable root name."),
             ["description"] = ToolSchema.String("Optional root description.", nullable: true),
-            ["hints"] = ToolSchema.Array(ToolSchema.String("Root hint."), "Optional metadata hints.", nullable: true),
-            ["containsSensitiveData"] = ToolSchema.Boolean("Whether the root may contain sensitive runtime state.", nullable: true)
+            ["hints"] = ToolSchema.Array(ToolSchema.String("Root hint."), "Optional metadata hints.", nullable: true)
         },
         required: new[] { "displayName" });
 
@@ -25,7 +24,7 @@ internal static class ReflectionToolSchemas
         {
             ["id"] = ToolSchema.String("Stable root identifier."),
             ["metadata"] = MetadataSchema,
-            ["referenceType"] = ToolSchema.String("Reference type for the root.", enumValues: new[] { "weak", "strong" }),
+            ["referenceType"] = ToolSchema.String("Reference type for the root.", enumValues: new[] { "weak", "strong", "getter" }),
             ["available"] = ToolSchema.Boolean("Whether the root currently resolves to a live object."),
             ["runtimeType"] = ToolSchema.String("Resolved runtime type name when available.", nullable: true),
             ["memberVisibility"] = ToolSchema.String("Effective member visibility.", enumValues: new[] { "PublicOnly", "PublicAndNonPublic" }),

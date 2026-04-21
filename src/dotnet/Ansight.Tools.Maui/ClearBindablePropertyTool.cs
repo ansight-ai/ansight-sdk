@@ -93,6 +93,11 @@ public sealed class ClearBindablePropertyTool : ITool
 
             var updatedValue = bindable.GetValue(descriptor.BindableProperty);
             var hasBinding = GetBinding(bindable, descriptor.BindableProperty) != null;
+            if (shouldClearBinding && hadBinding && hasBinding)
+            {
+                return ToolResult.Failure("The binding was still present after the clear operation.", errorCode: "maui_bindable_property_binding_remove_failed");
+            }
+
             var updated = (shouldClearBinding && hadBinding && !hasBinding) ||
                           (shouldClearValue && hadLocalValue);
             var payload = new JsonObject

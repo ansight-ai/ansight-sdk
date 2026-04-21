@@ -72,9 +72,21 @@ public static class ReflectionRootRegistry
         return referenceType switch
         {
             ReferenceType.Weak => RegisterWeakReference(id, target, metadata),
-            ReferenceType.Strong => RegisterCore(id, metadata, ReferenceType.Strong, () => target),
+            ReferenceType.Strong => RegisterCore(id, metadata, ReflectionRootRegistrationKind.StrongReference, () => target),
             _ => throw new ArgumentOutOfRangeException(nameof(referenceType), referenceType, "Unsupported reflection root reference type.")
         };
+    }
+
+    public static ReflectionRootRegistrationHandle Register(
+        string id,
+        Func<object?> targetGetter,
+        ReflectionRootMetadata metadata)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+        ArgumentNullException.ThrowIfNull(targetGetter);
+        ArgumentNullException.ThrowIfNull(metadata);
+
+        return RegisterCore(id, metadata, ReflectionRootRegistrationKind.Getter, targetGetter);
     }
 
     public static bool Deregister(string id)
@@ -121,13 +133,13 @@ public static class ReflectionRootRegistry
     private static ReflectionRootRegistrationHandle RegisterCore(
         string id,
         ReflectionRootMetadata metadata,
-        ReferenceType referenceType,
+        ReflectionRootRegistrationKind kind,
         Func<object?> resolver)
     {
         var registration = CreateRootRegistration(
             id,
             metadata,
-            referenceType,
+            kind,
             resolver);
 
         lock (rootsLock)
@@ -141,7 +153,7 @@ public static class ReflectionRootRegistry
     private static ReflectionRootRegistration CreateRootRegistration(
         string id,
         ReflectionRootMetadata metadata,
-        ReferenceType referenceType,
+        ReflectionRootRegistrationKind kind,
         Func<object?> resolver)
     {
         ValidateMetadata(metadata);
@@ -150,7 +162,7 @@ public static class ReflectionRootRegistry
             id.Trim(),
             Guid.NewGuid(),
             NormalizeMetadata(metadata),
-            referenceType,
+            kind,
             resolver);
     }
 
@@ -163,7 +175,7 @@ public static class ReflectionRootRegistry
         return RegisterCore(
             id,
             metadata,
-            ReferenceType.Weak,
+            ReflectionRootRegistrationKind.WeakReference,
             () =>
             {
                 return reference.TryGetTarget(out var resolved)
@@ -326,13 +338,13 @@ internal sealed class ReflectionRootRegistration
         string id,
         Guid registrationId,
         ReflectionRootMetadata metadata,
-        ReferenceType referenceType,
+        ReflectionRootRegistrationKind kind,
         Func<object?> resolver)
     {
         Id = id;
         RegistrationId = registrationId;
         Metadata = metadata;
-        ReferenceType = referenceType;
+        Kind = kind;
         this.resolver = resolver;
     }
 
@@ -342,15 +354,20 @@ internal sealed class ReflectionRootRegistration
 
     public ReflectionRootMetadata Metadata { get; }
 
-    public ReferenceType ReferenceType { get; }
+    public ReflectionRootRegistrationKind Kind { get; }
 
     public ReflectionRootResolution Resolve()
     {
         try
         {
             var value = resolver();
-            return value is null
-                ? new ReflectionRootResolution(false, null, "The registered root is not currently available.")
+            if (value is null)
+            {
+                return new ReflectionRootResolution(false, null, "The registered root is not currently available.");
+            }
+
+            return value.GetType().IsValueType
+                ? new ReflectionRootResolution(false, null, "The registered root must resolve to a reference type.")
                 : new ReflectionRootResolution(true, value, null);
         }
         catch (Exception exception)
@@ -358,6 +375,13 @@ internal sealed class ReflectionRootRegistration
             return new ReflectionRootResolution(false, null, exception.Message);
         }
     }
+}
+
+internal enum ReflectionRootRegistrationKind
+{
+    WeakReference = 0,
+    StrongReference = 1,
+    Getter = 2
 }
 
 internal sealed record ReflectionRootResolution(bool Available, object? Value, string? Error);
