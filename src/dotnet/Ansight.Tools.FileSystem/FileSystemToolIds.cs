@@ -7,4 +7,8 @@ public static class FileSystemToolIds
     public const string GetFileChecksum = "files.get_file_checksum";
     public const string DownloadFile = "files.download_file";
     public const string BeginBinaryDownload = "files.begin_binary_download";
+    public const string PushFile = "files.push_file";
+    public const string CopyFile = "files.copy_file";
+    public const string MoveFile = "files.move_file";
+    public const string DeleteFile = "files.delete_file";
 }

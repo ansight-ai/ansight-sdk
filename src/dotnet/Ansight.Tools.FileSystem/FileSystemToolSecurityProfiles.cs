@@ -36,4 +36,30 @@ public static class FileSystemToolSecurityProfiles
         ToolSecurityImplications.ExportsData,
         ToolSecurityImplications.AccessesFileSystem,
         ToolSecurityImplications.UsesBinaryTransfer);
+
+    public static ToolSecurity PushFile { get; } = new(
+        ToolSecurityLevel.High,
+        "Writes caller-provided content into configured sandbox roots.",
+        ToolSecurityImplications.WritesAppData,
+        ToolSecurityImplications.AccessesFileSystem);
+
+    public static ToolSecurity CopyFile { get; } = new(
+        ToolSecurityLevel.High,
+        "Copies sandboxed files and can create or replace app-owned data.",
+        ToolSecurityImplications.ReadsAppData,
+        ToolSecurityImplications.WritesAppData,
+        ToolSecurityImplications.AccessesFileSystem);
+
+    public static ToolSecurity MoveFile { get; } = new(
+        ToolSecurityLevel.High,
+        "Moves sandboxed files and can rename, replace, or remove app-owned file paths.",
+        ToolSecurityImplications.WritesAppData,
+        ToolSecurityImplications.DeletesAppData,
+        ToolSecurityImplications.AccessesFileSystem);
+
+    public static ToolSecurity DeleteFile { get; } = new(
+        ToolSecurityLevel.Critical,
+        "Deletes files from configured sandbox roots and can remove app data.",
+        ToolSecurityImplications.DeletesAppData,
+        ToolSecurityImplications.AccessesFileSystem);
 }

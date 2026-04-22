@@ -200,7 +200,7 @@ Registered tools are guarded explicitly. Use:
 - `WithAllToolAccess()` to enable all registered scopes
 - `WithToolGuard(...)` for a custom policy
 
-The storage packages register `remove` operations as `Delete`, so `WithReadWriteToolAccess()` intentionally keeps those hidden and non-executable.
+The storage packages register `remove` operations as `Delete`, and `files.delete_file` uses the same delete scope, so `WithReadWriteToolAccess()` intentionally keeps those hidden and non-executable.
 
 Reflection roots are the access boundary for `Ansight.Tools.Reflection`. Register a root with `ReflectionRootRegistry.Register(...)`, then the tools inspect reachable objects through stateless paths from that root. Direct object registrations are weak by default unless `ReferenceType.Strong` is passed; getter registrations use a `Func<object?>` when the exposed root can change over time and are unavailable while the getter returns `null`. The simplified options surface controls traversal and visibility only:
 
@@ -228,6 +228,8 @@ When a `PairingSessionClient` WebSocket session is open, inbound `tool.query` an
 For file inspection, `Ansight.Tools.FileSystem` exposes `files.get_file_checksum` for sandboxed file fingerprints across `md5`, `sha1`, `sha256`, `sha384`, `sha512`, and `crc32`.
 
 For MCP-style file extraction, `Ansight.Tools.FileSystem` exposes `files.begin_binary_download` for bridge implementations that want a real local temp file. The tool returns `downloadId`, `transferId`, `fileName`, `fileExtension`, `mimeType`, and a stable `version` token, then streams `ASFT` binary frames over the pairing WebSocket so the bridge can write them into a caller-chosen temp directory. `files.download_file` remains available as a JSON/base64 fallback.
+
+For MCP-style file injection and sandbox management, `files.push_file` writes base64 or UTF-8 content into a chosen sandbox folder, `files.copy_file` copies a sandboxed file, `files.move_file` moves or renames a sandboxed file, and `files.delete_file` removes one. Push, copy, and move are write-scoped; delete remains delete-scoped.
 
 ## Build-time Remote Tool Enforcement
 

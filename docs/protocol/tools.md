@@ -178,6 +178,15 @@ After that `tool.result` is sent, the SDK starts emitting binary WebSocket frame
 
 The host-side reference implementation for that flow lives in `Ansight.Host` as `BinaryFileDownloadManager`.
 
+File management tools are also surfaced through ordinary `tool.call` / `tool.result` payloads:
+
+- `files.push_file` writes `contentBase64` or UTF-8 `text` into `directoryPath` plus `fileName` under an approved sandbox root
+- `files.copy_file` copies `sourcePath` to `destinationPath`
+- `files.move_file` moves or renames `sourcePath` to `destinationPath`
+- `files.delete_file` deletes `path`
+
+All file management paths are resolved against approved sandbox roots. Push, copy, and move are write-scoped; delete is delete-scoped.
+
 ## Response types
 
 ### `tool.catalog`

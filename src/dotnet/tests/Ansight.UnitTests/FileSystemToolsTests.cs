@@ -14,7 +14,17 @@ public sealed class FileSystemToolsTests
             .Build();
 
         Assert.Equal(
-            [FileSystemToolIds.ListDirectory, FileSystemToolIds.ReadFile, FileSystemToolIds.GetFileChecksum, FileSystemToolIds.DownloadFile, FileSystemToolIds.BeginBinaryDownload],
+            [
+                FileSystemToolIds.ListDirectory,
+                FileSystemToolIds.ReadFile,
+                FileSystemToolIds.GetFileChecksum,
+                FileSystemToolIds.DownloadFile,
+                FileSystemToolIds.BeginBinaryDownload,
+                FileSystemToolIds.PushFile,
+                FileSystemToolIds.CopyFile,
+                FileSystemToolIds.MoveFile,
+                FileSystemToolIds.DeleteFile
+            ],
             options.Tools.Select(tool => tool.Id));
     }
 
@@ -329,6 +339,146 @@ public sealed class FileSystemToolsTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal("filesystem_binary_download_unavailable", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task PushFileTool_Execute_WritesBase64ContentIntoSandboxFolder()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        var bytes = new byte[] { 0x01, 0x02, 0xFF };
+
+        var tool = new PushFileTool(CreateOptions(tempDirectory.RootPath));
+        var result = await tool.Execute(new Dictionary<string, string>
+        {
+            ["root"] = "workspace",
+            ["directoryPath"] = Path.Combine("content", "incoming"),
+            ["fileName"] = "payload.bin",
+            ["contentBase64"] = Convert.ToBase64String(bytes)
+        });
+
+        Assert.True(result.IsSuccess);
+
+        var payload = Assert.IsType<JsonObject>(result.Payload);
+        var expectedPath = Path.Combine(tempDirectory.RootPath, "content", "incoming", "payload.bin");
+
+        Assert.Equal(expectedPath, payload["filePath"]?.GetValue<string>());
+        Assert.Equal(Path.Combine("content", "incoming", "payload.bin"), payload["relativePath"]?.GetValue<string>());
+        Assert.Equal("created", payload["operation"]?.GetValue<string>());
+        Assert.False(payload["overwritten"]!.GetValue<bool>());
+        Assert.True(payload["createdDirectory"]!.GetValue<bool>());
+        Assert.Equal(bytes, File.ReadAllBytes(expectedPath));
+    }
+
+    [Fact]
+    public async Task PushFileTool_Execute_RejectsFileNamePaths()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+
+        var tool = new PushFileTool(CreateOptions(tempDirectory.RootPath));
+        var result = await tool.Execute(new Dictionary<string, string>
+        {
+            ["root"] = "workspace",
+            ["directoryPath"] = "content",
+            ["fileName"] = "../payload.txt",
+            ["text"] = "hello"
+        });
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("filesystem_push_failed", result.ErrorCode);
+        Assert.Contains("file name, not a path", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task CopyFileTool_Execute_CopiesFileIntoDestinationPath()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        _ = tempDirectory.WriteTextFile("source.txt", "hello");
+
+        var tool = new CopyFileTool(CreateOptions(tempDirectory.RootPath));
+        var result = await tool.Execute(new Dictionary<string, string>
+        {
+            ["root"] = "workspace",
+            ["sourcePath"] = "source.txt",
+            ["destinationPath"] = Path.Combine("copies", "source-copy.txt")
+        });
+
+        Assert.True(result.IsSuccess);
+
+        var payload = Assert.IsType<JsonObject>(result.Payload);
+        var expectedPath = Path.Combine(tempDirectory.RootPath, "copies", "source-copy.txt");
+
+        Assert.Equal("copied", payload["operation"]?.GetValue<string>());
+        Assert.Equal("source.txt", payload["sourceRelativePath"]?.GetValue<string>());
+        Assert.Equal(Path.Combine("copies", "source-copy.txt"), payload["destinationRelativePath"]?.GetValue<string>());
+        Assert.Equal(expectedPath, payload["destinationFilePath"]?.GetValue<string>());
+        Assert.Equal("hello", File.ReadAllText(expectedPath));
+        Assert.True(File.Exists(Path.Combine(tempDirectory.RootPath, "source.txt")));
+    }
+
+    [Fact]
+    public async Task MoveFileTool_Execute_MovesFileAndReportsSourceAndDestination()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        var sourcePath = tempDirectory.WriteTextFile("source.txt", "hello");
+
+        var tool = new MoveFileTool(CreateOptions(tempDirectory.RootPath));
+        var result = await tool.Execute(new Dictionary<string, string>
+        {
+            ["root"] = "workspace",
+            ["sourcePath"] = "source.txt",
+            ["destinationPath"] = Path.Combine("moved", "renamed.txt")
+        });
+
+        Assert.True(result.IsSuccess);
+
+        var payload = Assert.IsType<JsonObject>(result.Payload);
+        var expectedPath = Path.Combine(tempDirectory.RootPath, "moved", "renamed.txt");
+
+        Assert.Equal("moved", payload["operation"]?.GetValue<string>());
+        Assert.Equal(sourcePath, payload["sourceFilePath"]?.GetValue<string>());
+        Assert.Equal(expectedPath, payload["destinationFilePath"]?.GetValue<string>());
+        Assert.False(File.Exists(sourcePath));
+        Assert.Equal("hello", File.ReadAllText(expectedPath));
+    }
+
+    [Fact]
+    public async Task DeleteFileTool_Execute_DeletesSandboxedFile()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        var filePath = tempDirectory.WriteTextFile("delete-me.txt", "hello");
+
+        var tool = new DeleteFileTool(CreateOptions(tempDirectory.RootPath));
+        var result = await tool.Execute(new Dictionary<string, string>
+        {
+            ["root"] = "workspace",
+            ["path"] = "delete-me.txt"
+        });
+
+        Assert.True(result.IsSuccess);
+
+        var payload = Assert.IsType<JsonObject>(result.Payload);
+        Assert.Equal(filePath, payload["filePath"]?.GetValue<string>());
+        Assert.True(payload["deleted"]!.GetValue<bool>());
+        Assert.False(File.Exists(filePath));
+    }
+
+    [Fact]
+    public async Task MoveFileTool_Execute_RejectsDestinationTraversalOutsideRoot()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        _ = tempDirectory.WriteTextFile("source.txt", "hello");
+
+        var tool = new MoveFileTool(CreateOptions(tempDirectory.RootPath));
+        var result = await tool.Execute(new Dictionary<string, string>
+        {
+            ["root"] = "workspace",
+            ["sourcePath"] = "source.txt",
+            ["destinationPath"] = ".."
+        });
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("filesystem_move_failed", result.ErrorCode);
+        Assert.Contains("outside the approved app sandbox root", result.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     private static FileSystemToolsOptions CreateOptions(string rootPath)

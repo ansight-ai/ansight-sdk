@@ -235,4 +235,160 @@ internal static class FileSystemToolSchemas
             ["capturedAtUtc"] = ToolSchema.String("UTC timestamp for capture.", format: "date-time")
         },
         required: new[] { "rootAlias", "rootPath", "filePath", "relativePath", "availableRoots", "fileName", "fileExtension", "mimeType", "sizeBytes", "lastModifiedUtc", "version", "downloadId", "transferId", "deliveryMode", "wireProtocol", "status", "chunkBytes", "capturedAtUtc" });
+
+    internal static ToolSchema PushFileArguments { get; } = ToolSchema.Object(
+        description: "Arguments for writing caller-provided content into a sandboxed folder.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["root"] = ToolSchema.String("Optional sandbox root alias.", nullable: true),
+            ["directoryPath"] = ToolSchema.String("Destination folder path relative to the root."),
+            ["fileName"] = ToolSchema.String("Destination file name. This must be a file name, not a path."),
+            ["contentBase64"] = ToolSchema.String("Base64-encoded file content. Provide exactly one of contentBase64 or text.", nullable: true),
+            ["text"] = ToolSchema.String("UTF-8 text content. Provide exactly one of contentBase64 or text.", nullable: true),
+            ["overwrite"] = ToolSchema.Boolean("Replace an existing file with the same name."),
+            ["createDirectory"] = ToolSchema.Boolean("Create the destination folder if it does not exist.")
+        },
+        required: new[] { "directoryPath", "fileName" });
+
+    internal static ToolSchema PushFileResult { get; } = ToolSchema.Object(
+        description: "Sandboxed file write payload.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["rootAlias"] = ToolSchema.String("Sandbox root alias."),
+            ["rootPath"] = ToolSchema.String("Resolved sandbox root path."),
+            ["filePath"] = ToolSchema.String("Resolved destination file path."),
+            ["relativePath"] = ToolSchema.String("Path relative to the sandbox root."),
+            ["availableRoots"] = ToolSchema.Array(SandboxRootSchema, "Approved sandbox roots visible to the tool."),
+            ["fileName"] = ToolSchema.String("File name."),
+            ["fileExtension"] = ToolSchema.String("File extension.", nullable: true),
+            ["mimeType"] = ToolSchema.String("Best-effort MIME type."),
+            ["sizeBytes"] = ToolSchema.Integer("File size in bytes."),
+            ["lastModifiedUtc"] = ToolSchema.String("Last modification time.", format: "date-time"),
+            ["version"] = ToolSchema.String("Stable version token derived from file size and last modification time."),
+            ["operation"] = ToolSchema.String("Write outcome.", enumValues: new[] { "created", "overwritten" }),
+            ["overwritten"] = ToolSchema.Boolean("Whether an existing file was replaced."),
+            ["createdDirectory"] = ToolSchema.Boolean("Whether the destination folder was created."),
+            ["capturedAtUtc"] = ToolSchema.String("UTC timestamp for capture.", format: "date-time")
+        },
+        required: new[] { "rootAlias", "rootPath", "filePath", "relativePath", "availableRoots", "fileName", "fileExtension", "mimeType", "sizeBytes", "lastModifiedUtc", "version", "operation", "overwritten", "createdDirectory", "capturedAtUtc" });
+
+    internal static ToolSchema CopyFileArguments { get; } = ToolSchema.Object(
+        description: "Arguments for copying a sandboxed file.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["root"] = ToolSchema.String("Optional source sandbox root alias.", nullable: true),
+            ["sourcePath"] = ToolSchema.String("Source file path relative to the source root."),
+            ["destinationRoot"] = ToolSchema.String("Optional destination sandbox root alias. Defaults to the resolved source root for relative destination paths.", nullable: true),
+            ["destinationPath"] = ToolSchema.String("Destination file path relative to the destination root."),
+            ["overwrite"] = ToolSchema.Boolean("Replace an existing destination file."),
+            ["createDirectory"] = ToolSchema.Boolean("Create the destination folder if it does not exist.")
+        },
+        required: new[] { "sourcePath", "destinationPath" });
+
+    internal static ToolSchema CopyFileResult { get; } = ToolSchema.Object(
+        description: "Sandboxed file copy payload.",
+        properties: CreateTransferResultProperties("copied"),
+        required: TransferResultRequiredProperties);
+
+    internal static ToolSchema MoveFileArguments { get; } = ToolSchema.Object(
+        description: "Arguments for moving or renaming a sandboxed file.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["root"] = ToolSchema.String("Optional source sandbox root alias.", nullable: true),
+            ["sourcePath"] = ToolSchema.String("Source file path relative to the source root."),
+            ["destinationRoot"] = ToolSchema.String("Optional destination sandbox root alias. Defaults to the resolved source root for relative destination paths.", nullable: true),
+            ["destinationPath"] = ToolSchema.String("Destination file path relative to the destination root."),
+            ["overwrite"] = ToolSchema.Boolean("Replace an existing destination file."),
+            ["createDirectory"] = ToolSchema.Boolean("Create the destination folder if it does not exist.")
+        },
+        required: new[] { "sourcePath", "destinationPath" });
+
+    internal static ToolSchema MoveFileResult { get; } = ToolSchema.Object(
+        description: "Sandboxed file move payload.",
+        properties: CreateTransferResultProperties("moved"),
+        required: TransferResultRequiredProperties);
+
+    internal static ToolSchema DeleteFileArguments { get; } = ToolSchema.Object(
+        description: "Arguments for deleting a sandboxed file.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["root"] = ToolSchema.String("Optional sandbox root alias.", nullable: true),
+            ["path"] = ToolSchema.String("File path relative to the root.")
+        },
+        required: new[] { "path" });
+
+    internal static ToolSchema DeleteFileResult { get; } = ToolSchema.Object(
+        description: "Sandboxed file delete payload.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["rootAlias"] = ToolSchema.String("Sandbox root alias."),
+            ["rootPath"] = ToolSchema.String("Resolved sandbox root path."),
+            ["filePath"] = ToolSchema.String("Resolved deleted file path."),
+            ["relativePath"] = ToolSchema.String("Path relative to the sandbox root."),
+            ["availableRoots"] = ToolSchema.Array(SandboxRootSchema, "Approved sandbox roots visible to the tool."),
+            ["fileName"] = ToolSchema.String("File name."),
+            ["fileExtension"] = ToolSchema.String("File extension.", nullable: true),
+            ["mimeType"] = ToolSchema.String("Best-effort MIME type."),
+            ["sizeBytes"] = ToolSchema.Integer("File size in bytes before deletion."),
+            ["lastModifiedUtc"] = ToolSchema.String("Last modification time before deletion.", format: "date-time"),
+            ["version"] = ToolSchema.String("Stable version token derived from pre-delete file size and last modification time."),
+            ["deleted"] = ToolSchema.Boolean("Whether the file was deleted."),
+            ["capturedAtUtc"] = ToolSchema.String("UTC timestamp for capture.", format: "date-time")
+        },
+        required: new[] { "rootAlias", "rootPath", "filePath", "relativePath", "availableRoots", "fileName", "fileExtension", "mimeType", "sizeBytes", "lastModifiedUtc", "version", "deleted", "capturedAtUtc" });
+
+    private static IReadOnlyList<string> TransferResultRequiredProperties => new[]
+    {
+        "rootAlias",
+        "rootPath",
+        "filePath",
+        "relativePath",
+        "availableRoots",
+        "fileName",
+        "fileExtension",
+        "mimeType",
+        "sizeBytes",
+        "lastModifiedUtc",
+        "version",
+        "operation",
+        "sourceRootAlias",
+        "sourceRootPath",
+        "sourceFilePath",
+        "sourceRelativePath",
+        "destinationRootAlias",
+        "destinationRootPath",
+        "destinationFilePath",
+        "destinationRelativePath",
+        "overwritten",
+        "createdDirectory",
+        "capturedAtUtc"
+    };
+
+    private static Dictionary<string, ToolSchema> CreateTransferResultProperties(string operation)
+        => new()
+        {
+            ["rootAlias"] = ToolSchema.String("Destination sandbox root alias."),
+            ["rootPath"] = ToolSchema.String("Resolved destination sandbox root path."),
+            ["filePath"] = ToolSchema.String("Resolved destination file path."),
+            ["relativePath"] = ToolSchema.String("Destination path relative to the sandbox root."),
+            ["availableRoots"] = ToolSchema.Array(SandboxRootSchema, "Approved sandbox roots visible to the tool."),
+            ["fileName"] = ToolSchema.String("Destination file name."),
+            ["fileExtension"] = ToolSchema.String("Destination file extension.", nullable: true),
+            ["mimeType"] = ToolSchema.String("Best-effort MIME type for the destination file."),
+            ["sizeBytes"] = ToolSchema.Integer("Destination file size in bytes."),
+            ["lastModifiedUtc"] = ToolSchema.String("Destination last modification time.", format: "date-time"),
+            ["version"] = ToolSchema.String("Stable destination version token derived from file size and last modification time."),
+            ["operation"] = ToolSchema.String("Operation outcome.", enumValues: new[] { operation }),
+            ["sourceRootAlias"] = ToolSchema.String("Source sandbox root alias."),
+            ["sourceRootPath"] = ToolSchema.String("Resolved source sandbox root path."),
+            ["sourceFilePath"] = ToolSchema.String("Resolved source file path."),
+            ["sourceRelativePath"] = ToolSchema.String("Source path relative to the source sandbox root."),
+            ["destinationRootAlias"] = ToolSchema.String("Destination sandbox root alias."),
+            ["destinationRootPath"] = ToolSchema.String("Resolved destination sandbox root path."),
+            ["destinationFilePath"] = ToolSchema.String("Resolved destination file path."),
+            ["destinationRelativePath"] = ToolSchema.String("Destination path relative to the destination sandbox root."),
+            ["overwritten"] = ToolSchema.Boolean("Whether an existing destination file was replaced."),
+            ["createdDirectory"] = ToolSchema.Boolean("Whether the destination folder was created."),
+            ["capturedAtUtc"] = ToolSchema.String("UTC timestamp for capture.", format: "date-time")
+        };
 }

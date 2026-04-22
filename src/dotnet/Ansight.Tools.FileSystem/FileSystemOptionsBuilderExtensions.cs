@@ -24,7 +24,11 @@ public static class FileSystemOptionsBuilderExtensions
             new ReadFileTool(options),
             new GetFileChecksumTool(options),
             new DownloadFileTool(options),
-            new BeginBinaryDownloadTool(options)
+            new BeginBinaryDownloadTool(options),
+            new PushFileTool(options),
+            new CopyFileTool(options),
+            new MoveFileTool(options),
+            new DeleteFileTool(options)
         });
     }
 }

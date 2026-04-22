@@ -9,6 +9,10 @@ Registered tools:
 - `files.get_file_checksum`
 - `files.download_file`
 - `files.begin_binary_download`
+- `files.push_file`
+- `files.copy_file`
+- `files.move_file`
+- `files.delete_file`
 
 ## Usage
 
@@ -82,6 +86,30 @@ JSON fallback response highlights:
 - `offsetBytes`, `bytesRead`, `hasMore`, `nextOffsetBytes`
 - `contentType`, `encoding`, and either `text` or `base64`
 - `nextRequest`, which contains the next `tool.call` payload to continue the download safely
+
+## File writes and file management
+
+`files.push_file` writes caller-provided content into a folder under an approved sandbox root. MCP bridges should pass arbitrary files as `contentBase64`; `text` is available for UTF-8 text payloads.
+
+Push request arguments:
+
+- `root`: optional sandbox root alias
+- `directoryPath`: destination folder path relative to the root
+- `fileName`: destination file name, not a path
+- `contentBase64` or `text`: provide exactly one
+- `overwrite`: replace an existing file
+- `createDirectory`: create the destination folder when missing
+
+`files.copy_file` and `files.move_file` accept:
+
+- `root`: optional source sandbox root alias
+- `sourcePath`: source file path relative to the source root
+- `destinationRoot`: optional destination sandbox root alias
+- `destinationPath`: destination file path relative to the destination root
+- `overwrite`: replace an existing destination file
+- `createDirectory`: create the destination folder when missing
+
+`files.delete_file` accepts `root` and `path` and is delete-scoped. Use `WithAllToolAccess()` or a custom `ToolGuard` if you want delete operations to execute. `files.push_file`, `files.copy_file`, and `files.move_file` are write-scoped and require `WithReadWriteToolAccess()`, `WithAllToolAccess()`, or a custom write-enabled guard.
 
 Configure additional tagged roots:
 
