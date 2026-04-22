@@ -22,6 +22,7 @@ public static class FileSystemOptionsBuilderExtensions
         {
             new ListDirectoryTool(options),
             new ReadFileTool(options),
+            new GetFileChecksumTool(options),
             new DownloadFileTool(options),
             new BeginBinaryDownloadTool(options)
         });

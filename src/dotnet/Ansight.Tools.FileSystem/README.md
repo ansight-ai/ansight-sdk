@@ -6,6 +6,7 @@ Registered tools:
 
 - `files.list_directory`
 - `files.read_file`
+- `files.get_file_checksum`
 - `files.download_file`
 - `files.begin_binary_download`
 
@@ -20,6 +21,22 @@ var options = Options.CreateBuilder()
     .WithReadOnlyToolAccess()
     .Build();
 ```
+
+## File checksums
+
+`files.get_file_checksum` computes one or more hexadecimal checksums for a sandboxed file without returning file contents.
+
+Checksum request arguments:
+
+- `root`: optional sandbox root alias
+- `path`: file path relative to the root
+- `algorithms`: optional comma-separated list of `md5`, `sha1`, `sha256`, `sha384`, `sha512`, `crc32`, or `all`; defaults to `sha256`
+
+Checksum response highlights:
+
+- `fileName`, `fileExtension`, `mimeType`
+- `sizeBytes`, `lastModifiedUtc`, `version`
+- `checksums`: array of `{ algorithm, checksum, encoding }`
 
 ## MCP-facing file transfer
 

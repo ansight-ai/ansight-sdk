@@ -14,7 +14,7 @@ public sealed class FileSystemToolsTests
             .Build();
 
         Assert.Equal(
-            [FileSystemToolIds.ListDirectory, FileSystemToolIds.ReadFile, FileSystemToolIds.DownloadFile, FileSystemToolIds.BeginBinaryDownload],
+            [FileSystemToolIds.ListDirectory, FileSystemToolIds.ReadFile, FileSystemToolIds.GetFileChecksum, FileSystemToolIds.DownloadFile, FileSystemToolIds.BeginBinaryDownload],
             options.Tools.Select(tool => tool.Id));
     }
 
@@ -128,6 +128,85 @@ public sealed class FileSystemToolsTests
         Assert.Equal(".bin", payload["fileExtension"]?.GetValue<string>());
         Assert.Equal("application/octet-stream", payload["mimeType"]?.GetValue<string>());
         Assert.Equal(Convert.ToBase64String(bytes), payload["base64"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task GetFileChecksumTool_Execute_ReturnsRequestedChecksumAlgorithms()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        _ = tempDirectory.WriteTextFile("notes.txt", "hello world");
+
+        var tool = new GetFileChecksumTool(CreateOptions(tempDirectory.RootPath));
+        var result = await tool.Execute(new Dictionary<string, string>
+        {
+            ["root"] = "workspace",
+            ["path"] = "notes.txt",
+            ["algorithms"] = "md5, sha1, sha-256, sha384, sha512, crc32"
+        });
+
+        Assert.True(result.IsSuccess);
+
+        var payload = Assert.IsType<JsonObject>(result.Payload);
+        Assert.Equal("notes.txt", payload["fileName"]?.GetValue<string>());
+        Assert.Equal(".txt", payload["fileExtension"]?.GetValue<string>());
+        Assert.Equal("text/plain", payload["mimeType"]?.GetValue<string>());
+        Assert.Equal(11L, payload["sizeBytes"]?.GetValue<long>());
+
+        var checksums = Assert.IsType<JsonArray>(payload["checksums"])
+            .Select(node => Assert.IsType<JsonObject>(node))
+            .ToDictionary(
+                checksum => checksum["algorithm"]!.GetValue<string>(),
+                checksum => checksum["checksum"]!.GetValue<string>());
+
+        Assert.Equal("5eb63bbbe01eeed093cb22bb8f5acdc3", checksums["md5"]);
+        Assert.Equal("2aae6c35c94fcfb415dbe95f408b9ce91ee846ed", checksums["sha1"]);
+        Assert.Equal("b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9", checksums["sha256"]);
+        Assert.Equal("fdbd8e75a67f29f701a4e040385e2e23986303ea10239211af907fcbb83578b3e417cb71ce646efd0819dd8c088de1bd", checksums["sha384"]);
+        Assert.Equal("309ecc489c12d6eb4cc40f50c902f2b4d0ed77ee511a7c7a9bcd3ca86d4cd86f989dd35bc5ff499670da34255b45b0cfd830e81f605dcf7dc5542e93ae9cd76f", checksums["sha512"]);
+        Assert.Equal("0d4a1185", checksums["crc32"]);
+    }
+
+    [Fact]
+    public async Task GetFileChecksumTool_Execute_DefaultsToSha256()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        _ = tempDirectory.WriteTextFile("notes.txt", "hello world");
+
+        var tool = new GetFileChecksumTool(CreateOptions(tempDirectory.RootPath));
+        var result = await tool.Execute(new Dictionary<string, string>
+        {
+            ["root"] = "workspace",
+            ["path"] = "notes.txt"
+        });
+
+        Assert.True(result.IsSuccess);
+
+        var payload = Assert.IsType<JsonObject>(result.Payload);
+        var checksum = Assert.Single(Assert.IsType<JsonArray>(payload["checksums"]));
+        var checksumObject = Assert.IsType<JsonObject>(checksum);
+
+        Assert.Equal("sha256", checksumObject["algorithm"]?.GetValue<string>());
+        Assert.Equal("b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9", checksumObject["checksum"]?.GetValue<string>());
+        Assert.Equal("hex", checksumObject["encoding"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task GetFileChecksumTool_Execute_RejectsUnsupportedAlgorithms()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        _ = tempDirectory.WriteTextFile("notes.txt", "hello world");
+
+        var tool = new GetFileChecksumTool(CreateOptions(tempDirectory.RootPath));
+        var result = await tool.Execute(new Dictionary<string, string>
+        {
+            ["root"] = "workspace",
+            ["path"] = "notes.txt",
+            ["algorithms"] = "sha999"
+        });
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("filesystem_checksum_failed", result.ErrorCode);
+        Assert.Contains("Unsupported checksum algorithm", result.Message);
     }
 
     [Fact]

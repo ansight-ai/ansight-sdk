@@ -30,6 +30,18 @@ internal static class FileSystemToolSchemas
         },
         required: new[] { "name", "path", "relativePath", "rootAlias", "kind", "sizeBytes", "fileExtension", "mimeType", "lastModifiedUtc", "isHidden" });
 
+    private static readonly ToolSchema checksumEntrySchema = ToolSchema.Object(
+        description: "Computed checksum for a file.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["algorithm"] = ToolSchema.String(
+                "Checksum algorithm used.",
+                enumValues: new[] { "md5", "sha1", "sha256", "sha384", "sha512", "crc32" }),
+            ["checksum"] = ToolSchema.String("Lowercase hexadecimal checksum value."),
+            ["encoding"] = ToolSchema.String("Checksum value encoding.", enumValues: new[] { "hex" })
+        },
+        required: new[] { "algorithm", "checksum", "encoding" });
+
     private static readonly ToolSchema DownloadFileNextArgumentsSchema = ToolSchema.Object(
         description: "Arguments for the next chunk request.",
         properties: new Dictionary<string, ToolSchema>
@@ -115,6 +127,36 @@ internal static class FileSystemToolSchemas
             ["base64"] = ToolSchema.String("Base64 content for binary payloads.", nullable: true)
         },
         required: new[] { "rootAlias", "rootPath", "filePath", "relativePath", "availableRoots", "fileName", "fileExtension", "mimeType", "sizeBytes", "lastModifiedUtc", "version", "bytesRead", "truncated", "capturedAtUtc", "contentType", "encoding", "text", "base64" });
+
+    internal static ToolSchema GetFileChecksumArguments { get; } = ToolSchema.Object(
+        description: "Arguments for computing checksums for a sandboxed file.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["root"] = ToolSchema.String("Optional sandbox root alias.", nullable: true),
+            ["path"] = ToolSchema.String("File path relative to the root."),
+            ["algorithms"] = ToolSchema.String("Optional comma-separated checksum algorithms: md5, sha1, sha256, sha384, sha512, crc32, or all. Defaults to sha256.", nullable: true)
+        },
+        required: new[] { "path" });
+
+    internal static ToolSchema GetFileChecksumResult { get; } = ToolSchema.Object(
+        description: "File checksum payload.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["rootAlias"] = ToolSchema.String("Sandbox root alias."),
+            ["rootPath"] = ToolSchema.String("Resolved sandbox root path."),
+            ["filePath"] = ToolSchema.String("Resolved file path."),
+            ["relativePath"] = ToolSchema.String("Path relative to the sandbox root."),
+            ["availableRoots"] = ToolSchema.Array(SandboxRootSchema, "Approved sandbox roots visible to the tool."),
+            ["fileName"] = ToolSchema.String("File name."),
+            ["fileExtension"] = ToolSchema.String("File extension.", nullable: true),
+            ["mimeType"] = ToolSchema.String("Best-effort MIME type."),
+            ["sizeBytes"] = ToolSchema.Integer("File size in bytes."),
+            ["lastModifiedUtc"] = ToolSchema.String("Last modification time.", format: "date-time"),
+            ["version"] = ToolSchema.String("Stable version token derived from file size and last modification time."),
+            ["checksums"] = ToolSchema.Array(checksumEntrySchema, "Computed checksum values."),
+            ["capturedAtUtc"] = ToolSchema.String("UTC timestamp for capture.", format: "date-time")
+        },
+        required: new[] { "rootAlias", "rootPath", "filePath", "relativePath", "availableRoots", "fileName", "fileExtension", "mimeType", "sizeBytes", "lastModifiedUtc", "version", "checksums", "capturedAtUtc" });
 
     internal static ToolSchema DownloadFileArguments { get; } = ToolSchema.Object(
         description: "Arguments for downloading a sandboxed file in resumable chunks.",

@@ -155,7 +155,9 @@ Response payload shape:
 }
 ```
 
-Tool results remain ordinary JSON payloads. A tool can either keep the entire transfer inside `tool.result` payloads, or it can return JSON metadata first and then use an out-of-band binary stream on the same WebSocket. The `.NET` file-system package now does both.
+Tool results remain ordinary JSON payloads. A tool can either keep the entire transfer inside `tool.result` payloads, or it can return JSON metadata first and then use an out-of-band binary stream on the same WebSocket. The `.NET` file-system package supports JSON metadata, JSON file transfer, and binary file transfer paths.
+
+`files.get_file_checksum` returns sandboxed file metadata plus a `checksums` array. The `algorithms` argument accepts `md5`, `sha1`, `sha256`, `sha384`, `sha512`, `crc32`, or `all`, and defaults to `sha256`.
 
 `files.download_file` keeps the transfer in JSON and returns:
 

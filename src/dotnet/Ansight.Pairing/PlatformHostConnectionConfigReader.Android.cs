@@ -1,5 +1,6 @@
 #if ANDROID
 using Android.App;
+using Android.Gms.Common.ModuleInstall;
 using Android.Gms.Tasks;
 using Xamarin.Google.MLKit.Vision.Barcode.Common;
 using Xamarin.Google.MLKit.Vision.CodeScanner;
@@ -38,6 +39,8 @@ internal static class AndroidPlatformHostConnectionConfigReader
     {
         using var scanner = CreateScanner(activity);
 
+        await EnsureScannerModuleAvailableAsync(activity, scanner, cancellationToken);
+
         var barcode = await StartScanAsync(scanner, activity, cancellationToken);
         if (barcode is null)
         {
@@ -72,6 +75,32 @@ internal static class AndroidPlatformHostConnectionConfigReader
             .Build();
 
         return GmsBarcodeScanning.GetClient(activity, options);
+    }
+
+    private static async System.Threading.Tasks.Task EnsureScannerModuleAvailableAsync(
+        Activity activity,
+        IGmsBarcodeScanner scanner,
+        CancellationToken cancellationToken)
+    {
+        using var moduleInstallClient = ModuleInstall.GetClient(activity);
+        using var listener = new ScannerModuleInstallListener();
+        using var request = ModuleInstallRequest.NewBuilder()
+            .AddApi(scanner)
+            .SetListener(listener)
+            .Build();
+
+        var response = await AwaitJavaTaskAsync<ModuleInstallResponse>(
+            moduleInstallClient.InstallModules(request),
+            activity,
+            cancellationToken,
+            "QR scanner module installation failed");
+
+        if (response?.AreModulesAlreadyInstalled() == true)
+        {
+            return;
+        }
+
+        await listener.WaitForCompletionAsync(cancellationToken);
     }
 
     private static Task<Barcode?> StartScanAsync(
@@ -115,12 +144,73 @@ internal static class AndroidPlatformHostConnectionConfigReader
         return completionSource.Task;
     }
 
+    private static Task<T?> AwaitJavaTaskAsync<T>(
+        Android.Gms.Tasks.Task task,
+        Activity activity,
+        CancellationToken cancellationToken,
+        string failurePrefix)
+        where T : class
+    {
+        var completionSource = new TaskCompletionSource<T?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cancellationRegistration = cancellationToken.Register(static state =>
+        {
+            var source = (TaskCompletionSource<T?>)state!;
+            source.TrySetCanceled();
+        }, completionSource);
+        _ = completionSource.Task.ContinueWith(
+            _ => cancellationRegistration.Dispose(),
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+
+        task.AddOnSuccessListener(activity, new JavaTaskSuccessListener<T>(completionSource));
+        task.AddOnFailureListener(activity, new JavaTaskFailureListener<T>(completionSource, failurePrefix));
+        task.AddOnCanceledListener(activity, new JavaTaskCanceledListener<T>(completionSource));
+
+        return completionSource.Task;
+    }
+
     private sealed class BarcodeSuccessListener(TaskCompletionSource<Barcode?> completionSource)
         : Java.Lang.Object, IOnSuccessListener
     {
         public void OnSuccess(Java.Lang.Object? result)
         {
             completionSource.TrySetResult(result as Barcode);
+        }
+    }
+
+    private sealed class JavaTaskSuccessListener<T>(TaskCompletionSource<T?> completionSource)
+        : Java.Lang.Object, IOnSuccessListener
+        where T : class
+    {
+        public void OnSuccess(Java.Lang.Object? result)
+        {
+            completionSource.TrySetResult(result as T);
+        }
+    }
+
+    private sealed class JavaTaskFailureListener<T>(
+        TaskCompletionSource<T?> completionSource,
+        string failurePrefix)
+        : Java.Lang.Object, IOnFailureListener
+        where T : class
+    {
+        public void OnFailure(Java.Lang.Exception ex)
+        {
+            var message = ex.Message;
+            completionSource.TrySetException(new InvalidOperationException(
+                string.IsNullOrWhiteSpace(message) ? $"{failurePrefix}." : $"{failurePrefix}: {message}",
+                ex));
+        }
+    }
+
+    private sealed class JavaTaskCanceledListener<T>(TaskCompletionSource<T?> completionSource)
+        : Java.Lang.Object, IOnCanceledListener
+        where T : class
+    {
+        public void OnCanceled()
+        {
+            completionSource.TrySetCanceled();
         }
     }
 
@@ -157,6 +247,34 @@ internal static class AndroidPlatformHostConnectionConfigReader
         public void OnCanceled()
         {
             completionSource.TrySetResult(null);
+        }
+    }
+
+    private sealed class ScannerModuleInstallListener : Java.Lang.Object, IInstallStatusListener
+    {
+        private readonly TaskCompletionSource<bool> completionSource =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public void OnInstallStatusUpdated(ModuleInstallStatusUpdate update)
+        {
+            switch (update.InstallStateCode())
+            {
+                case ModuleInstallStatusUpdate.InstallState.StateCompleted:
+                    completionSource.TrySetResult(true);
+                    break;
+                case ModuleInstallStatusUpdate.InstallState.StateCanceled:
+                    completionSource.TrySetCanceled();
+                    break;
+                case ModuleInstallStatusUpdate.InstallState.StateFailed:
+                    completionSource.TrySetException(new InvalidOperationException(
+                        $"QR scanner module installation failed with status code {update.ErrorCode}."));
+                    break;
+            }
+        }
+
+        public System.Threading.Tasks.Task WaitForCompletionAsync(CancellationToken cancellationToken)
+        {
+            return completionSource.Task.WaitAsync(cancellationToken);
         }
     }
 }

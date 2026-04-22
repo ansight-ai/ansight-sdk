@@ -15,6 +15,13 @@ public static class FileSystemToolSecurityProfiles
         ToolSecurityImplications.ExportsData,
         ToolSecurityImplications.AccessesFileSystem);
 
+    public static ToolSecurity GetFileChecksum { get; } = new(
+        ToolSecurityLevel.Moderate,
+        "Reads sandboxed file contents and returns content fingerprints.",
+        ToolSecurityImplications.MetadataDisclosure,
+        ToolSecurityImplications.ReadsAppData,
+        ToolSecurityImplications.AccessesFileSystem);
+
     public static ToolSecurity DownloadFile { get; } = new(
         ToolSecurityLevel.High,
         "Streams file contents out of the app sandbox in resumable chunks.",

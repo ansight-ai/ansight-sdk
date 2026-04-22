@@ -152,7 +152,7 @@ At runtime, transport layers can query or execute tools through `Runtime.ToolBri
 
 Pairing sessions also send a baseline `DeviceAppProfile` automatically after the WebSocket handshake so connected tooling can capture app/device details without per-app setup.
 
-`Ansight.Tools.FileSystem` includes `files.begin_binary_download` for bridge-oriented sandbox file transfer. The tool reports `transferId`, `fileExtension`, `mimeType`, and a stable `version` token, then streams `ASFT` binary frames over the pairing WebSocket so a bridge can materialize the file in a caller-chosen local temp directory and return that path to the caller. `files.download_file` remains as a JSON/base64 fallback.
+`Ansight.Tools.FileSystem` includes `files.get_file_checksum` for sandboxed file fingerprints across common checksum/hash algorithms. It also includes `files.begin_binary_download` for bridge-oriented sandbox file transfer. The tool reports `transferId`, `fileExtension`, `mimeType`, and a stable `version` token, then streams `ASFT` binary frames over the pairing WebSocket so a bridge can materialize the file in a caller-chosen local temp directory and return that path to the caller. `files.download_file` remains as a JSON/base64 fallback.
 
 ## Build-time Remote Tool Enforcement
 
