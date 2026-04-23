@@ -129,7 +129,6 @@ internal static class AndroidPlatformHostConnectionConfigReader
 
             var response = await AwaitJavaTaskAsync<ModuleInstallResponse>(
                 moduleInstallClient.InstallModules(request),
-                activity,
                 cancellationToken,
                 "QR scanner module installation failed",
                 "QR scanner module install request");
@@ -194,11 +193,21 @@ internal static class AndroidPlatformHostConnectionConfigReader
 
                 LogInfo("Calling Google ML Kit scanner.StartScan().");
                 var scanTask = scanner.StartScan();
-                LogInfo("Google ML Kit scanner.StartScan() returned a task. Attaching listeners.");
+                LogInfo("Google ML Kit scanner.StartScan() returned a task. Attaching lifecycle-independent listeners.");
 
-                scanTask.AddOnSuccessListener(activity, new BarcodeSuccessListener(completionSource));
-                scanTask.AddOnFailureListener(activity, new BarcodeFailureListener(completionSource));
-                scanTask.AddOnCanceledListener(activity, new BarcodeCanceledListener(completionSource));
+                var successListener = new BarcodeSuccessListener(completionSource);
+                var failureListener = new BarcodeFailureListener(completionSource);
+                var canceledListener = new BarcodeCanceledListener(completionSource);
+
+                scanTask.AddOnSuccessListener(successListener);
+                scanTask.AddOnFailureListener(failureListener);
+                scanTask.AddOnCanceledListener(canceledListener);
+                KeepJavaTaskListenersAlive(
+                    completionSource.Task,
+                    scanTask,
+                    successListener,
+                    failureListener,
+                    canceledListener);
                 LogInfo("QR scanner task listeners attached.");
             }
             catch (Exception ex)
@@ -213,7 +222,6 @@ internal static class AndroidPlatformHostConnectionConfigReader
 
     private static Task<T?> AwaitJavaTaskAsync<T>(
         Android.Gms.Tasks.Task task,
-        Activity activity,
         CancellationToken cancellationToken,
         string failurePrefix,
         string operationName)
@@ -231,13 +239,40 @@ internal static class AndroidPlatformHostConnectionConfigReader
             TaskContinuationOptions.ExecuteSynchronously,
             TaskScheduler.Default);
 
-        LogInfo($"Attaching Google Play Services task listeners. operation={operationName}.");
+        LogInfo($"Attaching lifecycle-independent Google Play Services task listeners. operation={operationName}.");
 
-        task.AddOnSuccessListener(activity, new JavaTaskSuccessListener<T>(completionSource, operationName));
-        task.AddOnFailureListener(activity, new JavaTaskFailureListener<T>(completionSource, failurePrefix, operationName));
-        task.AddOnCanceledListener(activity, new JavaTaskCanceledListener<T>(completionSource, operationName));
+        var successListener = new JavaTaskSuccessListener<T>(completionSource, operationName);
+        var failureListener = new JavaTaskFailureListener<T>(completionSource, failurePrefix, operationName);
+        var canceledListener = new JavaTaskCanceledListener<T>(completionSource, operationName);
+
+        task.AddOnSuccessListener(successListener);
+        task.AddOnFailureListener(failureListener);
+        task.AddOnCanceledListener(canceledListener);
+        KeepJavaTaskListenersAlive(
+            completionSource.Task,
+            task,
+            successListener,
+            failureListener,
+            canceledListener);
 
         return completionSource.Task;
+    }
+
+    private static void KeepJavaTaskListenersAlive(
+        System.Threading.Tasks.Task completionTask,
+        params Java.Lang.Object[] javaObjects)
+    {
+        _ = completionTask.ContinueWith(
+            _ =>
+            {
+                foreach (var javaObject in javaObjects)
+                {
+                    GC.KeepAlive(javaObject);
+                }
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
     }
 
     private static void LogInfo(string message)

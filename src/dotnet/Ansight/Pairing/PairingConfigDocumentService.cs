@@ -60,6 +60,30 @@ internal sealed class PairingConfigDocumentService
 
         try
         {
+            using var json = JsonDocument.Parse(payload);
+            var root = json.RootElement;
+
+            if (root.ValueKind != JsonValueKind.Object)
+            {
+                error = "Config JSON root must be an object.";
+                return false;
+            }
+
+            var schema = GetSchema(root);
+            if (IsSupportedConfigSchema(schema))
+            {
+                var parsedConfig = JsonSerializer.Deserialize<PairingConfig>(payload, PairingJson.Compact);
+                if (parsedConfig is null)
+                {
+                    error = "Pairing config payload could not be parsed.";
+                    return false;
+                }
+
+                configDocument = CreateConfigDocument(parsedConfig);
+                error = string.Empty;
+                return true;
+            }
+
             var parsedConfigDocument = JsonSerializer.Deserialize<PairingConfigDocument>(payload, PairingJson.Compact);
             if (parsedConfigDocument?.Config is null)
             {
@@ -188,14 +212,26 @@ internal sealed class PairingConfigDocumentService
                 return false;
             }
 
-            var schema = root.TryGetProperty("schema", out var schemaElement)
-                ? schemaElement.GetString()
-                : null;
+            var schema = GetSchema(root);
 
             if (string.Equals(schema, "ansight.pairing-bootstrap.v1", StringComparison.Ordinal))
             {
                 error = "Legacy bootstrap pairing payloads are no longer supported. Export a fresh pairing config from Ansight host.";
                 return false;
+            }
+
+            if (IsSupportedConfigSchema(schema))
+            {
+                var parsedConfig = JsonSerializer.Deserialize<PairingConfig>(configJson, PairingJson.Compact);
+                if (parsedConfig is null)
+                {
+                    error = "Pairing config payload could not be parsed.";
+                    return false;
+                }
+
+                document = CreateDocument(parsedConfig);
+                error = string.Empty;
+                return true;
             }
 
             if (!IsSupportedConfigDocumentSchema(schema))
@@ -228,6 +264,18 @@ internal sealed class PairingConfigDocumentService
             error = $"Failed to parse pairing config: {ex.Message}";
             return false;
         }
+    }
+
+    private static string? GetSchema(JsonElement root)
+    {
+        return root.TryGetProperty("schema", out var schemaElement)
+            ? schemaElement.GetString()
+            : null;
+    }
+
+    private static bool IsSupportedConfigSchema(string? schema)
+    {
+        return string.Equals(schema, PairingConfig.SchemaName, StringComparison.Ordinal);
     }
 
     private static bool IsSupportedConfigDocumentSchema(string? schema)
@@ -284,6 +332,27 @@ internal sealed class PairingConfigDocumentService
         {
             Config = configDocument.Config,
             DiscoveryHint = configDocument.Discovery is null ? null : CloneDiscovery(configDocument.Discovery)
+        };
+    }
+
+    internal static ParsedPairingDocument CreateDocument(PairingConfig config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+
+        return new ParsedPairingDocument
+        {
+            Config = config
+        };
+    }
+
+    internal static PairingConfigDocument CreateConfigDocument(PairingConfig config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+
+        return new PairingConfigDocument
+        {
+            Schema = PairingConfigDocument.SchemaName,
+            Config = config
         };
     }
 

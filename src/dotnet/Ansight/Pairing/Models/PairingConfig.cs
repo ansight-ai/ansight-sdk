@@ -6,6 +6,11 @@ namespace Ansight.Pairing.Models;
 public sealed class PairingConfig
 {
     /// <summary>
+    /// Current schema identifier for signed pairing config payloads.
+    /// </summary>
+    public const string SchemaName = "ansight.pairing-config.v1";
+
+    /// <summary>
     /// Schema identifier for the config payload.
     /// </summary>
     public required string Schema { get; set; }

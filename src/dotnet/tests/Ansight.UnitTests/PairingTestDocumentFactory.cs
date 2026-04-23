@@ -25,7 +25,7 @@ internal static class PairingTestDocumentFactory
 
         var config = new PairingConfig
         {
-            Schema = "ansight.pairing-config.v1",
+            Schema = PairingConfig.SchemaName,
             ConfigId = configId,
             AppId = appId,
             AppName = appName,

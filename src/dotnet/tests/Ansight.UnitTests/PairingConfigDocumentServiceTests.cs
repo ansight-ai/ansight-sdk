@@ -153,17 +153,37 @@ public sealed class PairingConfigDocumentServiceTests
     }
 
     [Fact]
-    public void TryParseDocument_WhenConfigPayloadIsProvided_ReturnsFailure()
+    public void TryParseDocument_WhenConfigPayloadIsProvided_ReturnsConfig()
     {
         using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var configJson = JsonSerializer.Serialize(PairingTestDocumentFactory.CreateSignedConfig(signingKey));
+        var config = PairingTestDocumentFactory.CreateSignedConfig(signingKey, configId: "cfg-direct");
+        var configJson = PairingConfigJson.Serialize(config);
 
         var sut = new PairingConfigDocumentService();
 
         var success = sut.TryParseDocument(configJson, out var document, out var error);
 
-        Assert.False(success);
-        Assert.Null(document);
-        Assert.Contains("pairing config", error, StringComparison.OrdinalIgnoreCase);
+        Assert.True(success, error);
+        Assert.NotNull(document);
+        Assert.Equal("cfg-direct", document!.Config.ConfigId);
+        Assert.Null(document.DiscoveryHint);
+    }
+
+    [Fact]
+    public void TryParseConfigDocument_WhenConfigPayloadIsProvided_WrapsConfig()
+    {
+        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var config = PairingTestDocumentFactory.CreateSignedConfig(signingKey, configId: "cfg-direct-document");
+        var configJson = PairingConfigJson.Serialize(config);
+
+        var sut = new PairingConfigDocumentService();
+
+        var success = sut.TryParseConfigDocument(configJson, out var document, out var error);
+
+        Assert.True(success, error);
+        Assert.NotNull(document);
+        Assert.Equal(Ansight.Pairing.Models.PairingConfigDocument.SchemaName, document!.Schema);
+        Assert.Equal("cfg-direct-document", document.Config.ConfigId);
+        Assert.Null(document.Discovery);
     }
 }
