@@ -42,9 +42,11 @@ internal sealed class PairingSessionConnector
                 PairingFailureCodes.HostAddressRequired);
         }
 
+        var hostNetworkCheckMessage = BuildHostNetworkCheckMessage(document.DiscoveryHint);
         if (wifiStatusProvider() == PairingWifiPreflightStatus.NotConnected)
         {
-            const string wifiRequiredMessage = "Ansight is unavailable because this device is not connected to Wi-Fi.";
+            var wifiRequiredMessage =
+                $"Ansight is unavailable because this device is not connected to Wi-Fi. {hostNetworkCheckMessage}";
 
             HostPairingProgressReporter.Report(
                 progress,
@@ -95,7 +97,7 @@ internal sealed class PairingSessionConnector
         if (connectResponse is null)
         {
             return PairingConnectionAttempt.FromFailure(
-                "No connect response from host. The remembered host address may be stale. Import a fresh pairing QR code or enter the host IP manually.",
+                $"No connect response from host. {hostNetworkCheckMessage} The remembered host address may be stale. Import a fresh pairing QR code or enter the host IP manually.",
                 PairingFailureCodes.UdpBootstrapTimeout);
         }
 
@@ -280,6 +282,17 @@ internal sealed class PairingSessionConnector
         }
 
         return IPAddress.TryParse(hostAddressText.Trim(), out hostAddress);
+    }
+
+    internal static string BuildHostNetworkCheckMessage(PairingDiscoveryHint? discoveryHint)
+    {
+        var wifiName = discoveryHint?.WifiName?.Trim();
+        if (!string.IsNullOrWhiteSpace(wifiName))
+        {
+            return $"Check that this device is on the same Wi-Fi network as the Ansight host. Last known host Wi-Fi: {wifiName}.";
+        }
+
+        return "Check that this device is on the same Wi-Fi network as the Ansight host.";
     }
 }
 

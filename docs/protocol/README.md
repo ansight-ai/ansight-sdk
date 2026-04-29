@@ -138,6 +138,7 @@ JSON shape:
   "reasonMessage": null,
   "hostId": "host_123",
   "hostName": "dev-machine",
+  "hostWifiName": "Office Wifi",
   "message": "ready",
   "webSocketPort": 45124,
   "webSocketPath": "/ws",

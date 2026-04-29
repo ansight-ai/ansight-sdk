@@ -18,7 +18,9 @@ public sealed class PairingSessionConnectorTests
         var document = new ParsedPairingDocument
         {
             Config = PairingTestDocumentFactory.CreateSignedConfig(signingKey),
-            DiscoveryHint = PairingTestDocumentFactory.CreateDiscoveryHint(hostAddress: IPAddress.Loopback.ToString())
+            DiscoveryHint = PairingTestDocumentFactory.CreateDiscoveryHint(
+                hostAddress: IPAddress.Loopback.ToString(),
+                wifiName: "Office Wifi")
         };
 
         var result = await connector.ConnectAsync(
@@ -30,11 +32,26 @@ public sealed class PairingSessionConnectorTests
 
         Assert.False(result.Success);
         Assert.False(result.Accepted);
-        Assert.Equal("Ansight is unavailable because this device is not connected to Wi-Fi.", result.Message);
+        Assert.Equal(
+            "Ansight is unavailable because this device is not connected to Wi-Fi. Check that this device is on the same Wi-Fi network as the Ansight host. Last known host Wi-Fi: Office Wifi.",
+            result.Message);
         Assert.Equal(PairingFailureCodes.WifiRequired, result.FailureCode);
         Assert.Null(result.HostAddress);
         Assert.Null(result.ConnectResponse);
         Assert.Null(result.WebSocket);
+    }
+
+    [Fact]
+    public void BuildHostNetworkCheckMessage_WhenWifiNameIsUnavailable_UsesGenericSameWifiMessage()
+    {
+        var message = PairingSessionConnector.BuildHostNetworkCheckMessage(
+            PairingTestDocumentFactory.CreateDiscoveryHint(
+                hostAddress: IPAddress.Loopback.ToString(),
+                wifiName: " "));
+
+        Assert.Equal(
+            "Check that this device is on the same Wi-Fi network as the Ansight host.",
+            message);
     }
 
     [Fact]
@@ -78,6 +95,7 @@ public sealed class PairingSessionConnectorTests
                 Reason = "Ok",
                 HostId = "host-1",
                 HostName = "Host",
+                HostWifiName = "Office Wifi",
                 Message = "Accepted"
             },
             PairingJson.Compact);
@@ -86,6 +104,7 @@ public sealed class PairingSessionConnectorTests
         var response = await responseTask;
         Assert.NotNull(response);
         Assert.True(response!.Accepted);
+        Assert.Equal("Office Wifi", response.HostWifiName);
     }
 
     [Fact]

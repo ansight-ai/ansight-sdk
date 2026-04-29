@@ -41,6 +41,11 @@ public sealed class ConnectResponse
     public required string HostName { get; set; }
 
     /// <summary>
+    /// Wi-Fi network name reported by the responding host, when available.
+    /// </summary>
+    public string? HostWifiName { get; set; }
+
+    /// <summary>
     /// Human-readable handshake status message.
     /// </summary>
     public required string Message { get; set; }
