@@ -4,6 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 configuration="${1:-Release}"
+products_dir="$(pwd)/products"
 projects=(
   "Ansight/Ansight.csproj"
   "Ansight.Pairing/Ansight.Pairing.csproj"
@@ -15,6 +16,10 @@ projects=(
   "Ansight.Tools.SecureStorage/Ansight.Tools.SecureStorage.csproj"
   "Ansight.Tools.VisualTree/Ansight.Tools.VisualTree.csproj"
 )
+
+echo "Cleaning ${products_dir}..."
+rm -rf "${products_dir}"
+mkdir -p "${products_dir}"
 
 for project in "${projects[@]}"; do
   echo "Packing ${project} (${configuration})..."
