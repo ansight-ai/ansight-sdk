@@ -28,7 +28,12 @@ internal static class MauiToolSchemas
             ["x"] = ToolSchema.Number("Horizontal origin relative to the parent."),
             ["y"] = ToolSchema.Number("Vertical origin relative to the parent."),
             ["width"] = ToolSchema.Number("Element width."),
-            ["height"] = ToolSchema.Number("Element height.")
+            ["height"] = ToolSchema.Number("Element height."),
+            ["source"] = ToolSchema.String("Coordinate source, either MAUI layout data or native platform layout data."),
+            ["layoutX"] = ToolSchema.Number("Raw MAUI layout horizontal origin."),
+            ["layoutY"] = ToolSchema.Number("Raw MAUI layout vertical origin."),
+            ["layoutWidth"] = ToolSchema.Number("Raw MAUI layout width."),
+            ["layoutHeight"] = ToolSchema.Number("Raw MAUI layout height.")
         },
         required: new[] { "x", "y", "width", "height" },
         nullable: true);

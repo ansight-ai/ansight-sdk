@@ -15,6 +15,14 @@ using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 #endif
 
+#if ANDROID
+using AndroidX.RecyclerView.Widget;
+using AView = Android.Views.View;
+#elif IOS || MACCATALYST
+using CoreGraphics;
+using UIKit;
+#endif
+
 internal static class MauiToolHelpers
 {
     internal const int DefaultTreeDepth = 8;
@@ -383,13 +391,7 @@ internal static class MauiToolHelpers
 
             if (options.IncludeBounds)
             {
-                json["bounds"] = new JsonObject
-                {
-                    ["x"] = visualElement.X,
-                    ["y"] = visualElement.Y,
-                    ["width"] = visualElement.Width,
-                    ["height"] = visualElement.Height
-                };
+                json["bounds"] = CreateBoundsSnapshot(visualElement);
             }
         }
 
@@ -467,7 +469,151 @@ internal static class MauiToolHelpers
             AddElementValue(children, value);
         }
 
+        AddRealizedItemsViewElements(children, element);
+
         return children.Where(child => !ReferenceEquals(child, element)).ToArray();
+    }
+
+    internal static void AddRealizedItemsViewElements(List<Element> children, Element element)
+    {
+        if (element is not ItemsView itemsView)
+        {
+            return;
+        }
+
+        if (TryReadPublicProperty(itemsView, "VisibleViews", out var visibleViews, out _) &&
+            visibleViews is IEnumerable visibleViewEnumerable)
+        {
+            AddElementValue(children, visibleViewEnumerable);
+        }
+
+        AddPlatformRealizedItemsViewElements(children, itemsView);
+    }
+
+    private static void AddPlatformRealizedItemsViewElements(List<Element> children, ItemsView itemsView)
+    {
+#if ANDROID
+        if (itemsView.Handler?.PlatformView is not RecyclerView recyclerView)
+        {
+            return;
+        }
+
+        for (var index = 0; index < recyclerView.ChildCount; index++)
+        {
+            var child = recyclerView.GetChildAt(index);
+            if (child == null)
+            {
+                continue;
+            }
+
+            var viewHolder = recyclerView.GetChildViewHolder(child);
+            if (TryGetHostedMauiElement(viewHolder, out var hostedElement) && hostedElement != null)
+            {
+                AddDistinctElement(children, hostedElement);
+                continue;
+            }
+
+            if (TryGetHostedMauiElement(child, out hostedElement) && hostedElement != null)
+            {
+                AddDistinctElement(children, hostedElement);
+            }
+        }
+#elif IOS || MACCATALYST
+        if (itemsView.Handler?.PlatformView is not UICollectionView collectionView)
+        {
+            return;
+        }
+
+        foreach (var cell in collectionView.VisibleCells)
+        {
+            if (TryGetHostedMauiElement(cell, out var hostedElement) && hostedElement != null)
+            {
+                AddDistinctElement(children, hostedElement);
+            }
+        }
+#endif
+    }
+
+    private static bool TryGetHostedMauiElement(object? nativeObject, out Element? element)
+    {
+        element = null;
+
+        if (nativeObject == null)
+        {
+            return false;
+        }
+
+        if (TryReadInstanceProperty(nativeObject, "View", includeNonPublic: true, out var view) &&
+            view is Element viewElement)
+        {
+            element = viewElement;
+            return true;
+        }
+
+        if (TryReadInstanceProperty(nativeObject, "PlatformHandler", includeNonPublic: true, out var platformHandler) &&
+            TryGetHandlerVirtualElement(platformHandler, out element))
+        {
+            return true;
+        }
+
+        if (TryReadInstanceProperty(nativeObject, "Content", includeNonPublic: true, out var contentHandler) &&
+            TryGetHandlerVirtualElement(contentHandler, out element))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryGetHandlerVirtualElement(object? handler, out Element? element)
+    {
+        element = null;
+
+        if (handler == null)
+        {
+            return false;
+        }
+
+        if (TryReadInstanceProperty(handler, "VirtualView", includeNonPublic: false, out var virtualView) &&
+            virtualView is Element virtualElement)
+        {
+            element = virtualElement;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryReadInstanceProperty(object target, string propertyName, bool includeNonPublic, out object? value)
+    {
+        value = null;
+
+        var flags = BindingFlags.Instance | BindingFlags.Public;
+        if (includeNonPublic)
+        {
+            flags |= BindingFlags.NonPublic;
+        }
+
+        for (var type = target.GetType(); type != null; type = type.BaseType)
+        {
+            var property = type.GetProperty(propertyName, flags | BindingFlags.DeclaredOnly);
+            if (property == null || property.GetIndexParameters().Length > 0)
+            {
+                continue;
+            }
+
+            try
+            {
+                value = property.GetValue(target);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        return false;
     }
 
     internal static void AddElementValue(List<Element> children, object? value)
@@ -973,13 +1119,102 @@ internal static class MauiToolHelpers
 
     internal static JsonObject CreateBoundsSnapshot(VisualElement visualElement)
     {
+        var x = visualElement.X;
+        var y = visualElement.Y;
+        var width = visualElement.Width;
+        var height = visualElement.Height;
+        var source = "layout";
+
+        if (IsRealizedItemsViewChild(visualElement) &&
+            TryCreateParentRelativePlatformBounds(visualElement, out var platformBounds))
+        {
+            x = platformBounds.X;
+            y = platformBounds.Y;
+            width = platformBounds.Width;
+            height = platformBounds.Height;
+            source = "platform";
+        }
+
         return new JsonObject
         {
-            ["x"] = visualElement.X,
-            ["y"] = visualElement.Y,
-            ["width"] = visualElement.Width,
-            ["height"] = visualElement.Height
+            ["x"] = x,
+            ["y"] = y,
+            ["width"] = width,
+            ["height"] = height,
+            ["source"] = source,
+            ["layoutX"] = visualElement.X,
+            ["layoutY"] = visualElement.Y,
+            ["layoutWidth"] = visualElement.Width,
+            ["layoutHeight"] = visualElement.Height
         };
+    }
+
+    private static bool IsRealizedItemsViewChild(VisualElement visualElement)
+        => visualElement.Parent is ItemsView;
+
+    private static bool TryCreateParentRelativePlatformBounds(VisualElement visualElement, out MauiPlatformBounds bounds)
+    {
+        bounds = default;
+
+        if (visualElement.Parent is not VisualElement parent)
+        {
+            return false;
+        }
+
+#if ANDROID
+        if (visualElement.Handler?.PlatformView is not AView platformView ||
+            parent.Handler?.PlatformView is not AView parentPlatformView ||
+            platformView.Width <= 0 ||
+            platformView.Height <= 0)
+        {
+            return false;
+        }
+
+        var childLocation = new int[2];
+        var parentLocation = new int[2];
+        platformView.GetLocationOnScreen(childLocation);
+        parentPlatformView.GetLocationOnScreen(parentLocation);
+
+        var density = platformView.Context?.Resources?.DisplayMetrics?.Density ?? 1f;
+        if (density <= 0)
+        {
+            density = 1f;
+        }
+
+        bounds = new MauiPlatformBounds(
+            (childLocation[0] - parentLocation[0]) / density,
+            (childLocation[1] - parentLocation[1]) / density,
+            platformView.Width / density,
+            platformView.Height / density);
+        return true;
+#elif IOS || MACCATALYST
+        if (visualElement.Handler?.PlatformView is not UIView platformView ||
+            parent.Handler?.PlatformView is not UIView parentPlatformView ||
+            platformView.Bounds.Width <= 0 ||
+            platformView.Bounds.Height <= 0)
+        {
+            return false;
+        }
+
+        CGRect frame;
+        try
+        {
+            frame = platformView.ConvertRectToView(platformView.Bounds, parentPlatformView);
+        }
+        catch
+        {
+            return false;
+        }
+
+        bounds = new MauiPlatformBounds(
+            (double)frame.X,
+            (double)frame.Y,
+            (double)frame.Width,
+            (double)frame.Height);
+        return true;
+#else
+        return false;
+#endif
     }
 
     internal static JsonObject CreateElementProperties(Element element)
@@ -1707,6 +1942,56 @@ internal static class MauiToolHelpers
     internal static JsonNode? CreateSimpleJsonValue(object value)
     {
         var type = Nullable.GetUnderlyingType(value.GetType()) ?? value.GetType();
+        if (value is Color color)
+        {
+            return JsonValue.Create(color.ToArgbHex());
+        }
+
+        if (value is Thickness thickness)
+        {
+            return new JsonObject
+            {
+                ["left"] = thickness.Left,
+                ["top"] = thickness.Top,
+                ["right"] = thickness.Right,
+                ["bottom"] = thickness.Bottom
+            };
+        }
+
+        if (value is GridLength gridLength)
+        {
+            return JsonValue.Create(FormatGridLength(gridLength));
+        }
+
+        if (value is Point point)
+        {
+            return new JsonObject
+            {
+                ["x"] = point.X,
+                ["y"] = point.Y
+            };
+        }
+
+        if (value is Size size)
+        {
+            return new JsonObject
+            {
+                ["width"] = size.Width,
+                ["height"] = size.Height
+            };
+        }
+
+        if (value is Rect rect)
+        {
+            return new JsonObject
+            {
+                ["x"] = rect.X,
+                ["y"] = rect.Y,
+                ["width"] = rect.Width,
+                ["height"] = rect.Height
+            };
+        }
+
         if (type.IsEnum)
         {
             return JsonValue.Create(value.ToString());
@@ -1745,6 +2030,23 @@ internal static class MauiToolHelpers
         }
 
         return null;
+    }
+
+    internal static string FormatGridLength(GridLength gridLength)
+    {
+        if (gridLength.IsAuto)
+        {
+            return "auto";
+        }
+
+        if (!gridLength.IsStar)
+        {
+            return gridLength.Value.ToString("G", CultureInfo.InvariantCulture);
+        }
+
+        return Math.Abs(gridLength.Value - 1d) < double.Epsilon
+            ? "*"
+            : $"{gridLength.Value.ToString("G", CultureInfo.InvariantCulture)}*";
     }
 
     internal static object? ConvertJsonArgument(string rawValue, Type targetType)
@@ -2163,6 +2465,12 @@ internal static class MauiToolHelpers
         Element Element,
         IReadOnlyList<Element> Ancestors,
         int Depth);
+
+    internal readonly record struct MauiPlatformBounds(
+        double X,
+        double Y,
+        double Width,
+        double Height);
 
     internal sealed record BindablePropertyDescriptor(
         BindableProperty BindableProperty,
