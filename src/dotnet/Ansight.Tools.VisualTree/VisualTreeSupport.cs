@@ -678,15 +678,14 @@ internal static class VisualTreeSupport
     private static bool TryCaptureTree(bool includeProperties, out VisualNode? rootNode, out string? error)
     {
         var window = GetActiveWindow();
-        var rootView = window?.RootViewController?.View ?? window;
-        if (rootView == null || window == null)
+        if (window == null)
         {
             rootNode = null;
             error = "No active UIWindow is available.";
             return false;
         }
 
-        rootNode = BuildAppleNode(rootView, window, includeProperties);
+        rootNode = BuildAppleNode(window, window, includeProperties);
         error = null;
         return true;
     }
