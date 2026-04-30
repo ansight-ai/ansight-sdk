@@ -36,14 +36,15 @@ public sealed class GetVisualTreeTool : ITool
             var includeBindableProperties = GetBoolean(arguments, "includeBindableProperties", defaultValue: false);
             var includeBindingContexts = GetBoolean(arguments, "includeBindingContexts", defaultValue: false);
             var maxDepth = GetInt(arguments, "maxDepth", DefaultTreeDepth, minimum: 0, maximum: MaximumTreeDepth);
+            var maxNodes = GetInt(arguments, "maxNodes", DefaultTreeMaxNodes, minimum: 1, maximum: MaximumTreeMaxNodes);
             var rootNodeId = GetString(arguments, "rootNodeId");
 
-            if (!TryGetActiveRoot(rootScope, out var rootElement, out var error, out var normalizedRootScope))
+            if (!TryGetActiveRootContext(rootScope, out var rootContext, out var error))
             {
                 return ToolResult.Failure(error ?? "No active MAUI visual tree root is available.", errorCode: "maui_visual_tree_unavailable");
             }
 
-            var selectedRoot = rootElement;
+            var selectedRoot = rootContext.Root;
             if (!string.IsNullOrWhiteSpace(rootNodeId))
             {
                 var resolution = ResolveElement(rootNodeId);
@@ -59,14 +60,29 @@ public sealed class GetVisualTreeTool : ITool
                 includeBounds,
                 includeProperties,
                 includeBindableProperties,
-                includeBindingContexts);
+                includeBindingContexts,
+                maxNodes,
+                rootContext.CurrentPage == null ? null : GetElementId(rootContext.CurrentPage));
+            var state = new MauiTreeBuildState(maxNodes);
+            var selectedRootIsInCurrentPage = rootContext.CurrentPage != null && IsElementDescendantOrSelf(rootContext.CurrentPage, selectedRoot);
 
             var payload = new JsonObject
             {
                 ["platform"] = CurrentPlatform,
                 ["capturedAtUtc"] = DateTime.UtcNow.ToString("O"),
-                ["rootScope"] = normalizedRootScope,
-                ["root"] = BuildElementNode(selectedRoot, options, maxDepth, new HashSet<string>(StringComparer.OrdinalIgnoreCase))
+                ["rootScope"] = rootContext.NormalizedRootScope,
+                ["rootPage"] = rootContext.RootPage == null ? null : CreateElementReference(rootContext.RootPage),
+                ["currentPage"] = rootContext.CurrentPage == null ? null : CreateElementReference(rootContext.CurrentPage),
+                ["coordinateSpace"] = CreateCoordinateSpaceSnapshot(rootContext.RootPage),
+                ["root"] = BuildElementNode(
+                    selectedRoot,
+                    options,
+                    maxDepth,
+                    new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+                    state,
+                    selectedRootIsInCurrentPage),
+                ["nodeCount"] = state.NodeCount,
+                ["truncated"] = state.Truncated
             };
 
             return ToolResult.Success(payload);

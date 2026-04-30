@@ -33,7 +33,19 @@ internal static class MauiToolSchemas
             ["layoutX"] = ToolSchema.Number("Raw MAUI layout horizontal origin."),
             ["layoutY"] = ToolSchema.Number("Raw MAUI layout vertical origin."),
             ["layoutWidth"] = ToolSchema.Number("Raw MAUI layout width."),
-            ["layoutHeight"] = ToolSchema.Number("Raw MAUI layout height.")
+            ["layoutHeight"] = ToolSchema.Number("Raw MAUI layout height."),
+            ["absoluteX"] = ToolSchema.Number("Horizontal origin relative to the active native window.", nullable: true),
+            ["absoluteY"] = ToolSchema.Number("Vertical origin relative to the active native window.", nullable: true),
+            ["absoluteWidth"] = ToolSchema.Number("Window-relative width.", nullable: true),
+            ["absoluteHeight"] = ToolSchema.Number("Window-relative height.", nullable: true),
+            ["visibleX"] = ToolSchema.Number("Visible horizontal origin relative to the active native window after viewport clipping.", nullable: true),
+            ["visibleY"] = ToolSchema.Number("Visible vertical origin relative to the active native window after viewport clipping.", nullable: true),
+            ["visibleWidth"] = ToolSchema.Number("Visible width after clipping by the native window and ancestor scroll views.", nullable: true),
+            ["visibleHeight"] = ToolSchema.Number("Visible height after clipping by the native window and ancestor scroll views.", nullable: true),
+            ["isOnScreen"] = ToolSchema.Boolean("Whether any visible portion of the element is currently on screen.", nullable: true),
+            ["isClipped"] = ToolSchema.Boolean("Whether the element bounds were clipped by the native window or an ancestor scroll view.", nullable: true),
+            ["clipSource"] = ToolSchema.String("The first clipping source, such as window or scrollView.", nullable: true),
+            ["clipNodeId"] = ToolSchema.String("Node id of the scroll view that first clipped the element, when applicable.", nullable: true)
         },
         required: new[] { "x", "y", "width", "height" },
         nullable: true);
@@ -67,11 +79,15 @@ internal static class MauiToolSchemas
             ["title"] = ToolSchema.String("PII-safe page title, when present.", nullable: true),
             ["visible"] = ToolSchema.Boolean("Whether the element is visible.", nullable: true),
             ["enabled"] = ToolSchema.Boolean("Whether the element is enabled.", nullable: true),
+            ["isCurrentPage"] = ToolSchema.Boolean("Whether the element is the currently displayed page.", nullable: true),
+            ["isInActivePage"] = ToolSchema.Boolean("Whether the element is inside the currently displayed page subtree.", nullable: true),
+            ["scroll"] = GenericObjectSchema,
             ["childCount"] = ToolSchema.Integer("Number of direct visual children."),
             ["bounds"] = BoundsSchema,
             ["bindingContextType"] = TypeMetadataSchema,
             ["properties"] = GenericObjectSchema,
             ["bindableProperties"] = ToolSchema.Array(GenericObjectSchema, "Bindable property metadata for this element.", nullable: true),
+            ["childrenTruncated"] = ToolSchema.Boolean("Whether direct children were truncated by maxNodes.", nullable: true),
             ["children"] = ToolSchema.Array(GenericObjectSchema, "Nested child nodes.", nullable: true)
         },
         required: new[] { "id", "type", "kind", "childCount" });
@@ -124,7 +140,8 @@ internal static class MauiToolSchemas
             ["includeProperties"] = ToolSchema.Boolean("Include common MAUI element properties."),
             ["includeBindableProperties"] = ToolSchema.Boolean("Include bindable property metadata for each node."),
             ["includeBindingContexts"] = ToolSchema.Boolean("Include binding-context type metadata for each node."),
-            ["maxDepth"] = ToolSchema.Integer("Maximum child depth to include.")
+            ["maxDepth"] = ToolSchema.Integer("Maximum child depth to include."),
+            ["maxNodes"] = ToolSchema.Integer("Maximum nodes to include before truncating the tree.")
         });
 
     internal static ToolSchema FindElementsArguments { get; } = ToolSchema.Object(
@@ -179,6 +196,11 @@ internal static class MauiToolSchemas
             ["platform"] = ToolSchema.String("Current runtime platform."),
             ["capturedAtUtc"] = ToolSchema.String("UTC timestamp for capture.", format: "date-time"),
             ["rootScope"] = ToolSchema.String("Requested capture root."),
+            ["rootPage"] = MauiElementReferenceSchema,
+            ["currentPage"] = MauiElementReferenceSchema,
+            ["coordinateSpace"] = GenericObjectSchema,
+            ["nodeCount"] = ToolSchema.Integer("Number of nodes included in the payload."),
+            ["truncated"] = ToolSchema.Boolean("Whether the payload was truncated by maxNodes."),
             ["root"] = MauiElementNodeSchema
         },
         required: new[] { "platform", "capturedAtUtc", "rootScope", "root" });

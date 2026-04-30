@@ -13,6 +13,7 @@ public static class VisualTreeToolSecurityProfiles
         "Captures and exports the current app UI as an image.",
         ToolSecurityImplications.ExportsData,
         ToolSecurityImplications.CapturesScreenshots,
+        ToolSecurityImplications.UsesBinaryTransfer,
         ToolSecurityImplications.InspectsUi);
 
     public static ToolSecurity InspectNode { get; } = new(

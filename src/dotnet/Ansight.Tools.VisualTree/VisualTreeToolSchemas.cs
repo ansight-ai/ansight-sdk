@@ -89,7 +89,8 @@ internal static class VisualTreeToolSchemas
             ["format"] = ToolSchema.String("Image format.", enumValues: new[] { "png", "jpeg" }),
             ["quality"] = ToolSchema.Integer("Compression quality for JPEG output."),
             ["maxWidth"] = ToolSchema.Integer("Optional maximum output width.", nullable: true),
-            ["annotateNodeIds"] = ToolSchema.Boolean("Whether node ids should be drawn over the screenshot.")
+            ["annotateNodeIds"] = ToolSchema.Boolean("Whether node ids should be drawn over the screenshot."),
+            ["afterScreenUpdates"] = ToolSchema.Boolean("Whether Apple platforms should wait for pending screen updates before rendering.")
         });
 
     internal static ToolSchema ScreenshotResult { get; } = ToolSchema.Object(
@@ -101,8 +102,18 @@ internal static class VisualTreeToolSchemas
             ["format"] = ToolSchema.String("Encoded image format.", enumValues: new[] { "png", "jpeg" }),
             ["width"] = ToolSchema.Integer("Rendered image width in pixels."),
             ["height"] = ToolSchema.Integer("Rendered image height in pixels."),
-            ["base64"] = ToolSchema.String("Base64-encoded image content."),
+            ["deliveryMode"] = ToolSchema.String("Transport used for the image bytes.", enumValues: new[] { "websocket_binary" }, nullable: true),
+            ["wireProtocol"] = ToolSchema.String("Binary transfer wire protocol name.", nullable: true),
+            ["transferId"] = ToolSchema.String("Binary transfer identifier.", nullable: true),
+            ["downloadId"] = ToolSchema.String("Tool request id that owns the queued binary transfer.", nullable: true),
+            ["sizeBytes"] = ToolSchema.Integer("Expected binary image byte count.", nullable: true),
+            ["fileName"] = ToolSchema.String("Suggested screenshot artifact file name.", nullable: true),
+            ["mimeType"] = ToolSchema.String("Screenshot MIME type.", nullable: true),
+            ["artifactPath"] = ToolSchema.String("Host-side artifact path once the binary transfer completes.", nullable: true),
+            ["artifactKind"] = ToolSchema.String("Host-side artifact kind.", enumValues: new[] { "screenshot" }, nullable: true),
+            ["status"] = ToolSchema.String("Binary transfer status.", enumValues: new[] { "queued", "receiving", "complete", "failed" }, nullable: true),
+            ["receivedBytes"] = ToolSchema.Integer("Binary image bytes received by the host.", nullable: true),
             ["annotationApplied"] = ToolSchema.Boolean("Whether node id annotations were applied.")
         },
-        required: new[] { "platform", "capturedAtUtc", "format", "width", "height", "base64", "annotationApplied" });
+        required: new[] { "platform", "capturedAtUtc", "format", "width", "height", "annotationApplied" });
 }

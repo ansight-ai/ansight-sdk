@@ -9,6 +9,8 @@ internal static partial class MauiToolHelpers
 {
     internal const int DefaultTreeDepth = 8;
     internal const int MaximumTreeDepth = 64;
+    internal const int DefaultTreeMaxNodes = 600;
+    internal const int MaximumTreeMaxNodes = 5000;
     internal const int DefaultObjectDepth = 1;
     internal const int MaximumObjectDepth = 4;
     internal const int DefaultMaxItems = 16;

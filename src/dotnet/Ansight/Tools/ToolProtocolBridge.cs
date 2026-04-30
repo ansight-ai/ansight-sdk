@@ -220,6 +220,14 @@ public sealed class ToolProtocolBridge
                     details: result.Payload);
             }
 
+            var resultPayload = new JsonObject
+            {
+                ["toolId"] = toolId,
+                ["success"] = true,
+                ["message"] = result.Message,
+                ["result"] = result.Payload
+            };
+
             return new ToolProtocolEnvelope
             {
                 Type = ResultType,
@@ -228,13 +236,7 @@ public sealed class ToolProtocolBridge
                 SessionId = request.SessionId,
                 Capability = Capability,
                 SentAt = DateTimeOffset.UtcNow,
-                Payload = new JsonObject
-                {
-                    ["toolId"] = toolId,
-                    ["success"] = true,
-                    ["message"] = result.Message,
-                    ["result"] = result.Payload
-                }
+                Payload = ToolProtocolPayloadEncoding.EncodeIfBeneficial(resultPayload, Pairing.PairingJson.Compact)
             };
         }
         catch (Exception exception)

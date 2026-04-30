@@ -4,8 +4,10 @@ namespace Ansight.Tools.Maui;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Primitives;
 
 internal static partial class MauiToolHelpers
 {
@@ -26,6 +28,46 @@ internal static partial class MauiToolHelpers
                 ["right"] = thickness.Right,
                 ["bottom"] = thickness.Bottom
             };
+        }
+
+        if (value is CornerRadius cornerRadius)
+        {
+            return new JsonObject
+            {
+                ["topLeft"] = cornerRadius.TopLeft,
+                ["topRight"] = cornerRadius.TopRight,
+                ["bottomLeft"] = cornerRadius.BottomLeft,
+                ["bottomRight"] = cornerRadius.BottomRight
+            };
+        }
+
+        if (value is LayoutOptions layoutOptions)
+        {
+            return new JsonObject
+            {
+                ["alignment"] = layoutOptions.Alignment.ToString(),
+                ["expands"] = layoutOptions.Expands
+            };
+        }
+
+        if (value is SolidColorBrush solidColorBrush)
+        {
+            return JsonValue.Create(solidColorBrush.Color.ToArgbHex());
+        }
+
+        if (value is Keyboard keyboard)
+        {
+            return JsonValue.Create(GetKeyboardName(keyboard));
+        }
+
+        if (value is FileImageSource fileImageSource)
+        {
+            return JsonValue.Create(fileImageSource.File);
+        }
+
+        if (value is UriImageSource uriImageSource)
+        {
+            return JsonValue.Create(uriImageSource.Uri?.ToString());
         }
 
         if (value is GridLength gridLength)
@@ -274,6 +316,11 @@ internal static partial class MauiToolHelpers
             return TimeSpan.Parse(GetScalarString(node), CultureInfo.InvariantCulture);
         }
 
+        if (effectiveType == typeof(Keyboard))
+        {
+            return ConvertKeyboardValue(node);
+        }
+
         if (effectiveType == typeof(Color))
         {
             return ConvertColorValue(node);
@@ -282,6 +329,26 @@ internal static partial class MauiToolHelpers
         if (effectiveType == typeof(Thickness))
         {
             return ConvertThicknessValue(node);
+        }
+
+        if (effectiveType == typeof(CornerRadius))
+        {
+            return ConvertCornerRadiusValue(node);
+        }
+
+        if (effectiveType == typeof(LayoutOptions))
+        {
+            return ConvertLayoutOptionsValue(node);
+        }
+
+        if (typeof(Brush).IsAssignableFrom(effectiveType))
+        {
+            return ConvertBrushValue(node);
+        }
+
+        if (typeof(ImageSource).IsAssignableFrom(effectiveType))
+        {
+            return ConvertImageSourceValue(node, effectiveType);
         }
 
         if (effectiveType == typeof(GridLength))
@@ -324,6 +391,22 @@ internal static partial class MauiToolHelpers
         return Enum.Parse(enumType, GetScalarString(node), ignoreCase: true);
     }
 
+    internal static object ConvertKeyboardValue(JsonNode node)
+    {
+        var value = GetScalarString(node).Trim();
+        return value switch
+        {
+            _ when string.Equals(value, "Text", StringComparison.OrdinalIgnoreCase) => Keyboard.Text,
+            _ when string.Equals(value, "Chat", StringComparison.OrdinalIgnoreCase) => Keyboard.Chat,
+            _ when string.Equals(value, "Email", StringComparison.OrdinalIgnoreCase) => Keyboard.Email,
+            _ when string.Equals(value, "Numeric", StringComparison.OrdinalIgnoreCase) => Keyboard.Numeric,
+            _ when string.Equals(value, "Telephone", StringComparison.OrdinalIgnoreCase) => Keyboard.Telephone,
+            _ when string.Equals(value, "Url", StringComparison.OrdinalIgnoreCase) => Keyboard.Url,
+            _ when string.Equals(value, "Password", StringComparison.OrdinalIgnoreCase) => Keyboard.Password,
+            _ => Keyboard.Default
+        };
+    }
+
     internal static object ConvertColorValue(JsonNode node)
     {
         if (node is JsonObject jsonObject)
@@ -362,6 +445,103 @@ internal static partial class MauiToolHelpers
             4 => new Thickness(parts[0], parts[1], parts[2], parts[3]),
             _ => throw new InvalidOperationException("Thickness values must be a number, two numbers, four numbers, or an object with left/top/right/bottom.")
         };
+    }
+
+    internal static object ConvertCornerRadiusValue(JsonNode node)
+    {
+        if (node is JsonObject jsonObject)
+        {
+            return new CornerRadius(
+                GetObjectDouble(jsonObject, "topLeft", "TopLeft"),
+                GetObjectDouble(jsonObject, "topRight", "TopRight"),
+                GetObjectDouble(jsonObject, "bottomLeft", "BottomLeft"),
+                GetObjectDouble(jsonObject, "bottomRight", "BottomRight"));
+        }
+
+        if (TryGetDouble(node, out var uniformValue))
+        {
+            return new CornerRadius(uniformValue);
+        }
+
+        var parts = SplitNumbers(GetScalarString(node));
+        return parts.Length switch
+        {
+            1 => new CornerRadius(parts[0]),
+            4 => new CornerRadius(parts[0], parts[1], parts[2], parts[3]),
+            _ => throw new InvalidOperationException("CornerRadius values must be a number, four numbers, or an object with topLeft/topRight/bottomLeft/bottomRight.")
+        };
+    }
+
+    internal static object ConvertLayoutOptionsValue(JsonNode node)
+    {
+        if (node is JsonObject jsonObject)
+        {
+            var alignment = ConvertLayoutAlignmentValue(GetObjectScalarString(jsonObject, "alignment", "Alignment", "Fill"));
+            var expandsValue = GetObjectBoolean(jsonObject, "expands", "Expands", defaultValue: false);
+            return new LayoutOptions(alignment, expandsValue);
+        }
+
+        var text = GetScalarString(node).Trim();
+        var expandsFromName = text.EndsWith("AndExpand", StringComparison.OrdinalIgnoreCase);
+        if (expandsFromName)
+        {
+            text = text[..^"AndExpand".Length];
+        }
+
+        var parts = text
+            .Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var alignmentText = parts.Length > 0 ? parts[0] : "Fill";
+        var expands = expandsFromName
+                      || parts.Skip(1).Any(part => string.Equals(part, "true", StringComparison.OrdinalIgnoreCase)
+                                                   || string.Equals(part, "expand", StringComparison.OrdinalIgnoreCase));
+        return new LayoutOptions(ConvertLayoutAlignmentValue(alignmentText), expands);
+    }
+
+    internal static object ConvertBrushValue(JsonNode node)
+    {
+        if (node is JsonObject jsonObject)
+        {
+            var colorNode = jsonObject["color"] ?? jsonObject["Color"];
+            if (colorNode != null)
+            {
+                return new SolidColorBrush((Color)ConvertColorValue(colorNode));
+            }
+        }
+
+        return new SolidColorBrush((Color)ConvertColorValue(node));
+    }
+
+    internal static object? ConvertImageSourceValue(JsonNode node, Type targetType)
+    {
+        var source = GetScalarString(node).Trim();
+        if (string.IsNullOrWhiteSpace(source))
+        {
+            return null;
+        }
+
+        if (targetType == typeof(FileImageSource))
+        {
+            return new FileImageSource { File = source };
+        }
+
+        if (targetType == typeof(UriImageSource))
+        {
+            return new UriImageSource { Uri = new Uri(source, UriKind.RelativeOrAbsolute) };
+        }
+
+        if (targetType == typeof(FontImageSource))
+        {
+            return new FontImageSource { Glyph = source };
+        }
+
+        if (Uri.TryCreate(source, UriKind.Absolute, out var uri)
+            && (string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)))
+        {
+            return ImageSource.FromUri(uri);
+        }
+
+        return ImageSource.FromFile(source);
     }
 
     internal static object ConvertGridLengthValue(JsonNode node)
@@ -506,6 +686,83 @@ internal static partial class MauiToolHelpers
         }
 
         throw new InvalidOperationException($"The numeric property '{name}' is required.");
+    }
+
+    internal static string GetObjectScalarString(JsonObject jsonObject, string name, string? alternateName = null, string? defaultValue = null)
+    {
+        var node = jsonObject[name] ?? (alternateName == null ? null : jsonObject[alternateName]);
+        if (node != null)
+        {
+            return GetScalarString(node);
+        }
+
+        if (defaultValue != null)
+        {
+            return defaultValue;
+        }
+
+        throw new InvalidOperationException($"The string property '{name}' is required.");
+    }
+
+    internal static bool GetObjectBoolean(JsonObject jsonObject, string name, string? alternateName = null, bool? defaultValue = null)
+    {
+        var node = jsonObject[name] ?? (alternateName == null ? null : jsonObject[alternateName]);
+        if (node != null)
+        {
+            return GetBooleanValue(node);
+        }
+
+        if (defaultValue.HasValue)
+        {
+            return defaultValue.Value;
+        }
+
+        throw new InvalidOperationException($"The boolean property '{name}' is required.");
+    }
+
+    internal static Microsoft.Maui.Controls.LayoutAlignment ConvertLayoutAlignmentValue(string value)
+    {
+        return Enum.Parse<Microsoft.Maui.Controls.LayoutAlignment>(value, ignoreCase: true);
+    }
+
+    internal static string GetKeyboardName(Keyboard keyboard)
+    {
+        if (ReferenceEquals(keyboard, Keyboard.Text))
+        {
+            return "Text";
+        }
+
+        if (ReferenceEquals(keyboard, Keyboard.Chat))
+        {
+            return "Chat";
+        }
+
+        if (ReferenceEquals(keyboard, Keyboard.Email))
+        {
+            return "Email";
+        }
+
+        if (ReferenceEquals(keyboard, Keyboard.Numeric))
+        {
+            return "Numeric";
+        }
+
+        if (ReferenceEquals(keyboard, Keyboard.Telephone))
+        {
+            return "Telephone";
+        }
+
+        if (ReferenceEquals(keyboard, Keyboard.Url))
+        {
+            return "Url";
+        }
+
+        if (ReferenceEquals(keyboard, Keyboard.Password))
+        {
+            return "Password";
+        }
+
+        return "Default";
     }
 
     internal static double[] SplitNumbers(string value)

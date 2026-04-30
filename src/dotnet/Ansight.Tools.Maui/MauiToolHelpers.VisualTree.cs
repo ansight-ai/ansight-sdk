@@ -2,6 +2,7 @@ namespace Ansight.Tools.Maui;
 
 #if ANDROID || IOS || MACCATALYST
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Reflection;
 using System.Text.Json.Nodes;
 using Microsoft.Maui;
@@ -17,6 +18,18 @@ using UIKit;
 
 internal static partial class MauiToolHelpers
 {
+    private static readonly string[] ChildElementPropertyNames =
+    [
+        "Page",
+        "CurrentPage",
+        "Content",
+        "Detail",
+        "Flyout",
+        "Children"
+    ];
+
+    private static readonly ConcurrentDictionary<Type, PropertyInfo[]> ChildElementPropertiesByType = new();
+
     internal static IReadOnlyList<MauiElementTraversalEntry> TraverseElements(Element root, int maxDepth)
     {
         var entries = new List<MauiElementTraversalEntry>();
@@ -86,6 +99,7 @@ internal static partial class MauiToolHelpers
             ancestors.RemoveAt(ancestors.Count - 1);
         }
 
+        visited.Remove(GetElementId(element));
         return false;
     }
 
@@ -97,11 +111,24 @@ internal static partial class MauiToolHelpers
         Element element,
         MauiTreeBuildOptions options,
         int depthRemaining,
-        HashSet<string> visited)
+        HashSet<string> visited,
+        MauiTreeBuildState state,
+        bool parentIsInActivePage)
     {
-        var children = GetChildElements(element);
         var json = CreateElementReference(element);
-        json["childCount"] = children.Count;
+        if (!state.TryIncludeNode())
+        {
+            json["childCount"] = 0;
+            json["truncated"] = true;
+            return json;
+        }
+
+        var elementId = GetElementId(element);
+        var isCurrentPage = !string.IsNullOrWhiteSpace(options.CurrentPageId)
+                            && string.Equals(elementId, options.CurrentPageId, StringComparison.OrdinalIgnoreCase);
+        var isInActivePage = parentIsInActivePage || isCurrentPage;
+        json["isCurrentPage"] = isCurrentPage;
+        json["isInActivePage"] = isInActivePage;
 
         if (element is VisualElement visualElement)
         {
@@ -112,6 +139,11 @@ internal static partial class MauiToolHelpers
             {
                 json["bounds"] = CreateBoundsSnapshot(visualElement);
             }
+        }
+
+        if (element is ScrollView scrollView)
+        {
+            json["scroll"] = CreateScrollViewSnapshot(scrollView);
         }
 
         if (options.IncludeBindingContexts)
@@ -131,25 +163,57 @@ internal static partial class MauiToolHelpers
             json["bindableProperties"] = CreateBindablePropertiesArray(bindable);
         }
 
-        if (!visited.Add(GetElementId(element)))
+        if (!visited.Add(elementId))
         {
             json["cycle"] = true;
+            json["childCount"] = 0;
             return json;
         }
 
-        if (depthRemaining > 0)
+        if (depthRemaining <= 0)
+        {
+            json["childCount"] = 0;
+            visited.Remove(elementId);
+            return json;
+        }
+
+        var children = GetChildElements(element);
+        json["childCount"] = children.Count;
+        if (children.Count > 0)
         {
             var childNodes = new JsonArray();
             foreach (var child in children)
             {
-                childNodes.Add(BuildElementNode(child, options, depthRemaining - 1, visited));
+                if (state.NodeCount >= options.MaxNodes)
+                {
+                    state.MarkTruncated();
+                    json["childrenTruncated"] = true;
+                    break;
+                }
+
+                childNodes.Add(BuildElementNode(child, options, depthRemaining - 1, visited, state, isInActivePage));
             }
 
             json["children"] = childNodes;
         }
 
-        visited.Remove(GetElementId(element));
+        visited.Remove(elementId);
         return json;
+    }
+
+    internal static bool IsElementDescendantOrSelf(Element root, Element candidate)
+    {
+        if (ReferenceEquals(root, candidate))
+        {
+            return true;
+        }
+
+        return TryFindElement(
+            root,
+            GetElementId(candidate),
+            new List<Element>(),
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            out _);
     }
 
     internal static IReadOnlyList<Element> GetChildElements(Element element)
@@ -167,14 +231,8 @@ internal static partial class MauiToolHelpers
             }
         }
 
-        foreach (var propertyName in new[] { "Page", "CurrentPage", "Content", "Detail", "Flyout", "Children" })
+        foreach (var property in GetChildElementProperties(element.GetType()))
         {
-            var property = element.GetType().GetRuntimeProperty(propertyName);
-            if (property == null || property.GetIndexParameters().Length > 0)
-            {
-                continue;
-            }
-
             object? value;
             try
             {
@@ -191,7 +249,26 @@ internal static partial class MauiToolHelpers
         AddModalNavigationElements(children, element);
         AddRealizedItemsViewElements(children, element);
 
-        return children.Where(child => !ReferenceEquals(child, element)).ToArray();
+        children.RemoveAll(child => ReferenceEquals(child, element));
+        return children;
+    }
+
+    private static PropertyInfo[] GetChildElementProperties(Type elementType)
+    {
+        return ChildElementPropertiesByType.GetOrAdd(elementType, static type =>
+        {
+            var properties = new List<PropertyInfo>(ChildElementPropertyNames.Length);
+            foreach (var propertyName in ChildElementPropertyNames)
+            {
+                var property = type.GetRuntimeProperty(propertyName);
+                if (property is not null && property.GetIndexParameters().Length == 0)
+                {
+                    properties.Add(property);
+                }
+            }
+
+            return properties.ToArray();
+        });
     }
 
     internal static void AddModalNavigationElements(List<Element> children, Element element)
@@ -460,7 +537,7 @@ internal static partial class MauiToolHelpers
         var height = visualElement.Height;
         var source = "layout";
 
-        if (IsRealizedItemsViewChild(visualElement) &&
+        if (ShouldUsePlatformParentBounds(visualElement) &&
             TryCreateParentRelativePlatformBounds(visualElement, out var platformBounds))
         {
             x = platformBounds.X;
@@ -470,7 +547,7 @@ internal static partial class MauiToolHelpers
             source = "platform";
         }
 
-        return new JsonObject
+        var json = new JsonObject
         {
             ["x"] = x,
             ["y"] = y,
@@ -482,10 +559,87 @@ internal static partial class MauiToolHelpers
             ["layoutWidth"] = visualElement.Width,
             ["layoutHeight"] = visualElement.Height
         };
+
+        if (TryCreateWindowRelativePlatformBounds(visualElement, out var absoluteBounds))
+        {
+            json["absoluteX"] = absoluteBounds.X;
+            json["absoluteY"] = absoluteBounds.Y;
+            json["absoluteWidth"] = absoluteBounds.Width;
+            json["absoluteHeight"] = absoluteBounds.Height;
+
+            if (TryCreateVisibleWindowBounds(visualElement, absoluteBounds, out var visibleBounds))
+            {
+                json["visibleX"] = visibleBounds.Bounds.X;
+                json["visibleY"] = visibleBounds.Bounds.Y;
+                json["visibleWidth"] = visibleBounds.Bounds.Width;
+                json["visibleHeight"] = visibleBounds.Bounds.Height;
+                json["isOnScreen"] = visibleBounds.IsOnScreen;
+                json["isClipped"] = visibleBounds.IsClipped;
+                json["clipSource"] = visibleBounds.ClipSource;
+                json["clipNodeId"] = visibleBounds.ClipNodeId;
+            }
+        }
+
+        return json;
     }
 
-    private static bool IsRealizedItemsViewChild(VisualElement visualElement)
-        => visualElement.Parent is ItemsView;
+    internal static JsonObject CreateScrollViewSnapshot(ScrollView scrollView)
+    {
+        var json = new JsonObject
+        {
+            ["scrollX"] = scrollView.ScrollX,
+            ["scrollY"] = scrollView.ScrollY,
+            ["viewportWidth"] = scrollView.Width,
+            ["viewportHeight"] = scrollView.Height,
+            ["orientation"] = scrollView.Orientation.ToString(),
+            ["contentId"] = scrollView.Content == null ? null : GetElementId(scrollView.Content)
+        };
+
+        if (scrollView.Content is VisualElement content)
+        {
+            json["contentWidth"] = content.Width;
+            json["contentHeight"] = content.Height;
+        }
+
+        if (TryReadPublicProperty(scrollView, "ContentSize", out var contentSize, out var contentSizeType))
+        {
+            json["contentSize"] = CreateValueSnapshot(contentSize, contentSizeType, depthRemaining: 0, DefaultMaxItems, DefaultMaxProperties);
+        }
+
+        return json;
+    }
+
+    internal static JsonObject? CreateCoordinateSpaceSnapshot(Page? rootPage)
+    {
+        if (rootPage is not VisualElement visualElement)
+        {
+            return null;
+        }
+
+        if (TryCreateWindowRelativePlatformBounds(visualElement, out var bounds))
+        {
+            return new JsonObject
+            {
+                ["x"] = bounds.X,
+                ["y"] = bounds.Y,
+                ["width"] = bounds.Width,
+                ["height"] = bounds.Height,
+                ["source"] = "window"
+            };
+        }
+
+        return new JsonObject
+        {
+            ["x"] = visualElement.X,
+            ["y"] = visualElement.Y,
+            ["width"] = visualElement.Width,
+            ["height"] = visualElement.Height,
+            ["source"] = "layout"
+        };
+    }
+
+    private static bool ShouldUsePlatformParentBounds(VisualElement visualElement)
+        => visualElement.Parent is ItemsView or ScrollView;
 
     private static bool TryCreateParentRelativePlatformBounds(VisualElement visualElement, out MauiPlatformBounds bounds)
     {
@@ -552,6 +706,195 @@ internal static partial class MauiToolHelpers
 #endif
     }
 
+    private static bool TryCreateWindowRelativePlatformBounds(VisualElement visualElement, out MauiPlatformBounds bounds)
+    {
+        bounds = default;
+
+#if ANDROID
+        if (visualElement.Handler?.PlatformView is not AView platformView ||
+            platformView.Width <= 0 ||
+            platformView.Height <= 0)
+        {
+            return false;
+        }
+
+        var location = new int[2];
+        var rootLocation = new int[2];
+        platformView.GetLocationOnScreen(location);
+        platformView.RootView?.GetLocationOnScreen(rootLocation);
+
+        var density = platformView.Context?.Resources?.DisplayMetrics?.Density ?? 1f;
+        if (density <= 0)
+        {
+            density = 1f;
+        }
+
+        bounds = new MauiPlatformBounds(
+            (location[0] - rootLocation[0]) / density,
+            (location[1] - rootLocation[1]) / density,
+            platformView.Width / density,
+            platformView.Height / density);
+        return true;
+#elif IOS || MACCATALYST
+        if (visualElement.Handler?.PlatformView is not UIView platformView ||
+            platformView.Window == null ||
+            platformView.Bounds.Width <= 0 ||
+            platformView.Bounds.Height <= 0)
+        {
+            return false;
+        }
+
+        CGRect frame;
+        try
+        {
+            frame = platformView.ConvertRectToView(platformView.Bounds, platformView.Window);
+        }
+        catch
+        {
+            return false;
+        }
+
+        bounds = new MauiPlatformBounds(
+            (double)frame.X,
+            (double)frame.Y,
+            (double)frame.Width,
+            (double)frame.Height);
+        return true;
+#else
+        return false;
+#endif
+    }
+
+    private static bool TryCreateVisibleWindowBounds(
+        VisualElement visualElement,
+        MauiPlatformBounds absoluteBounds,
+        out MauiVisibleBounds visibleBounds)
+    {
+        var clippedBounds = absoluteBounds;
+        var isClipped = false;
+        string? clipSource = null;
+        string? clipNodeId = null;
+
+        if (TryCreateNativeWindowViewportBounds(visualElement, out var windowBounds))
+        {
+            ApplyClip(windowBounds, "window", null);
+        }
+
+        foreach (var scrollView in GetAncestorScrollViews(visualElement))
+        {
+            if (!TryCreateWindowRelativePlatformBounds(scrollView, out var scrollViewBounds))
+            {
+                continue;
+            }
+
+            ApplyClip(scrollViewBounds, "scrollView", GetElementId(scrollView));
+        }
+
+        var isOnScreen = clippedBounds.Width > 0 &&
+                         clippedBounds.Height > 0 &&
+                         IsVisibleThroughAncestors(visualElement);
+        visibleBounds = new MauiVisibleBounds(clippedBounds, isOnScreen, isClipped, clipSource, clipNodeId);
+        return true;
+
+        void ApplyClip(MauiPlatformBounds clipBounds, string source, string? nodeId)
+        {
+            var intersectedBounds = IntersectBounds(clippedBounds, clipBounds);
+            if (!BoundsAreEqual(intersectedBounds, clippedBounds))
+            {
+                isClipped = true;
+                clipSource ??= source;
+                clipNodeId ??= nodeId;
+                clippedBounds = intersectedBounds;
+            }
+        }
+    }
+
+    private static IEnumerable<ScrollView> GetAncestorScrollViews(VisualElement visualElement)
+    {
+        for (var parent = visualElement.Parent; parent != null; parent = parent.Parent)
+        {
+            if (parent is ScrollView scrollView)
+            {
+                yield return scrollView;
+            }
+        }
+    }
+
+    private static bool IsVisibleThroughAncestors(VisualElement visualElement)
+    {
+        for (Element? element = visualElement; element != null; element = element.Parent)
+        {
+            if (element is VisualElement ancestor && (!ancestor.IsVisible || ancestor.Opacity <= 0))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static MauiPlatformBounds IntersectBounds(MauiPlatformBounds first, MauiPlatformBounds second)
+    {
+        var left = Math.Max(first.X, second.X);
+        var top = Math.Max(first.Y, second.Y);
+        var right = Math.Min(first.X + first.Width, second.X + second.Width);
+        var bottom = Math.Min(first.Y + first.Height, second.Y + second.Height);
+
+        return new MauiPlatformBounds(
+            left,
+            top,
+            Math.Max(0, right - left),
+            Math.Max(0, bottom - top));
+    }
+
+    private static bool BoundsAreEqual(MauiPlatformBounds first, MauiPlatformBounds second)
+        => Math.Abs(first.X - second.X) < double.Epsilon &&
+           Math.Abs(first.Y - second.Y) < double.Epsilon &&
+           Math.Abs(first.Width - second.Width) < double.Epsilon &&
+           Math.Abs(first.Height - second.Height) < double.Epsilon;
+
+    private static bool TryCreateNativeWindowViewportBounds(VisualElement visualElement, out MauiPlatformBounds bounds)
+    {
+        bounds = default;
+
+#if ANDROID
+        if (visualElement.Handler?.PlatformView is not AView platformView ||
+            platformView.RootView is not { } rootView ||
+            rootView.Width <= 0 ||
+            rootView.Height <= 0)
+        {
+            return false;
+        }
+
+        var density = platformView.Context?.Resources?.DisplayMetrics?.Density ?? 1f;
+        if (density <= 0)
+        {
+            density = 1f;
+        }
+
+        bounds = new MauiPlatformBounds(
+            0,
+            0,
+            rootView.Width / density,
+            rootView.Height / density);
+        return true;
+#elif IOS || MACCATALYST
+        if (visualElement.Handler?.PlatformView is not UIView { Window: { } window })
+        {
+            return false;
+        }
+
+        bounds = new MauiPlatformBounds(
+            0,
+            0,
+            (double)window.Bounds.Width,
+            (double)window.Bounds.Height);
+        return true;
+#else
+        return false;
+#endif
+    }
+
     internal static JsonObject CreateElementProperties(Element element)
     {
         var properties = new JsonObject
@@ -597,6 +940,11 @@ internal static partial class MauiToolHelpers
         if (element is IView mauiView)
         {
             properties["flowDirection"] = mauiView.FlowDirection.ToString();
+        }
+
+        if (element is ScrollView scrollView)
+        {
+            properties["scroll"] = CreateScrollViewSnapshot(scrollView);
         }
 
         return properties;

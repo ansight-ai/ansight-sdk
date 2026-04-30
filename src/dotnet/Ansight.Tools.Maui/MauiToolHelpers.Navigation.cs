@@ -28,9 +28,23 @@ internal static partial class MauiToolHelpers
 
     internal static bool TryGetActiveRoot(string rootScope, out Element rootElement, out string? error, out string normalizedRootScope)
     {
+        if (TryGetActiveRootContext(rootScope, out var context, out error))
+        {
+            rootElement = context.Root;
+            normalizedRootScope = context.NormalizedRootScope;
+            return true;
+        }
+
         rootElement = null!;
-        error = null;
         normalizedRootScope = NormalizeRootScope(rootScope);
+        return false;
+    }
+
+    internal static bool TryGetActiveRootContext(string rootScope, out MauiActiveRootContext context, out string? error)
+    {
+        context = null!;
+        error = null;
+        var normalizedRootScope = NormalizeRootScope(rootScope);
 
         var application = Application.Current;
         if (application == null)
@@ -46,28 +60,31 @@ internal static partial class MauiToolHelpers
             return false;
         }
 
+        var rootPage = window.Page;
+        var currentPage = rootPage == null ? null : ResolveDisplayedPage(rootPage) ?? rootPage;
+
         switch (normalizedRootScope)
         {
             case "window":
-                rootElement = window;
+                context = new MauiActiveRootContext(window, rootPage, currentPage, window, normalizedRootScope);
                 return true;
             case "rootPage":
-                if (window.Page == null)
+                if (rootPage == null)
                 {
                     error = "The active MAUI window does not have a root page.";
                     return false;
                 }
 
-                rootElement = window.Page;
+                context = new MauiActiveRootContext(window, rootPage, currentPage, rootPage, normalizedRootScope);
                 return true;
             case "currentPage":
-                if (window.Page == null)
+                if (rootPage == null)
                 {
                     error = "The active MAUI window does not have a root page.";
                     return false;
                 }
 
-                rootElement = ResolveDisplayedPage(window.Page) ?? window.Page;
+                context = new MauiActiveRootContext(window, rootPage, currentPage, currentPage ?? rootPage, normalizedRootScope);
                 return true;
             default:
                 error = "The root argument must be one of: currentPage, rootPage, window.";

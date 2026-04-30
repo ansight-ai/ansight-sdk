@@ -1,6 +1,9 @@
 namespace Ansight.Tools.VisualTree;
 
 using Ansight.Screenshot;
+using Ansight.Pairing;
+using System.Net.WebSockets;
+using System.Text;
 using System.Text.Json.Nodes;
 
 #if ANDROID
@@ -110,6 +113,7 @@ internal static class VisualTreeSupport
         var quality = GetInt(arguments, "quality", defaultValue: 90, minimum: 1, maximum: 100);
         var maxWidth = GetOptionalInt(arguments, "maxWidth", minimum: 1, maximum: 8192);
         var annotateNodeIds = GetBoolean(arguments, "annotateNodeIds", defaultValue: false);
+        var afterScreenUpdates = GetBoolean(arguments, "afterScreenUpdates", defaultValue: true);
 
 #if ANDROID
         return RunOnUiThreadAsync(async () =>
@@ -120,39 +124,17 @@ internal static class VisualTreeSupport
                 return ToolResult.Failure(screenshotResult.Error ?? "Unable to capture a screenshot.", errorCode: "visual_screenshot_failed");
             }
 
-            var payload = new JsonObject
-            {
-                ["platform"] = CurrentPlatform,
-                ["capturedAtUtc"] = DateTime.UtcNow.ToString("O"),
-                ["format"] = screenshotResult.Screenshot.Format,
-                ["width"] = screenshotResult.Screenshot.Width,
-                ["height"] = screenshotResult.Screenshot.Height,
-                ["base64"] = screenshotResult.Screenshot.Base64,
-                ["annotationApplied"] = screenshotResult.Screenshot.AnnotationApplied
-            };
-
-            return ToolResult.Success(payload);
+            return CreateScreenshotResult(arguments, screenshotResult.Screenshot);
         });
 #else
         return RunOnUiThreadAsync(() =>
         {
-            if (!TryCaptureScreenshot(format, quality, maxWidth, annotateNodeIds, out var screenshot, out var error))
+            if (!TryCaptureScreenshot(format, quality, maxWidth, annotateNodeIds, afterScreenUpdates, out var screenshot, out var error))
             {
                 return ToolResult.Failure(error ?? "Unable to capture a screenshot.", errorCode: "visual_screenshot_failed");
             }
 
-            var payload = new JsonObject
-            {
-                ["platform"] = CurrentPlatform,
-                ["capturedAtUtc"] = DateTime.UtcNow.ToString("O"),
-                ["format"] = screenshot!.Format,
-                ["width"] = screenshot.Width,
-                ["height"] = screenshot.Height,
-                ["base64"] = screenshot.Base64,
-                ["annotationApplied"] = screenshot.AnnotationApplied
-            };
-
-            return ToolResult.Success(payload);
+            return CreateScreenshotResult(arguments, screenshot!);
         });
 #endif
     }
@@ -362,7 +344,174 @@ internal static class VisualTreeSupport
         }
     }
 
-    private sealed record ScreenshotCapture(string Format, int Width, int Height, string Base64, bool AnnotationApplied);
+    private static ToolResult CreateScreenshotResult(IReadOnlyDictionary<string, string> arguments, ScreenshotCapture screenshot)
+    {
+        var capturedAtUtc = DateTime.UtcNow;
+        if (TryCreateBinaryScreenshotResult(arguments, screenshot, capturedAtUtc, out var binaryPayload, out var binaryError))
+        {
+            return ToolResult.Success(binaryPayload);
+        }
+
+        return ToolResult.Failure(
+            string.IsNullOrWhiteSpace(binaryError)
+                ? "Screenshot capture requires a live binary transfer channel."
+                : binaryError,
+            errorCode: "visual_screenshot_binary_transfer_unavailable");
+    }
+
+    private static bool TryCreateBinaryScreenshotResult(
+        IReadOnlyDictionary<string, string> arguments,
+        ScreenshotCapture screenshot,
+        DateTime capturedAtUtc,
+        out JsonObject payload,
+        out string error)
+    {
+        payload = new JsonObject();
+        error = string.Empty;
+
+        var requestId = GetString(arguments, ToolExecutionArgumentNames.RequestId);
+        if (string.IsNullOrWhiteSpace(requestId))
+        {
+            error = "Screenshot capture requires a live tool request id for binary transfer.";
+            return false;
+        }
+
+        if (!Runtime.IsInitialized)
+        {
+            error = "Binary screenshot transfer requires an initialized Ansight runtime.";
+            return false;
+        }
+
+        var transferHub = Runtime.MutableInstance.BinaryTransferHub;
+        var transferId = Guid.NewGuid();
+        var bytes = screenshot.Bytes;
+        var pendingTransfer = new PairingBinaryTransferHub.PendingBinaryTransfer(
+            description: $"ui.get_screenshot:{transferId:N}",
+            startAsync: (transport, cancellationToken) => StreamScreenshotBytesAsync(
+                transport,
+                transferId,
+                bytes,
+                cancellationToken));
+
+        if (!transferHub.TryQueueTransfer(requestId, pendingTransfer, out error))
+        {
+            return false;
+        }
+
+        payload = CreateScreenshotMetadataPayload(screenshot, capturedAtUtc);
+        payload["deliveryMode"] = "websocket_binary";
+        payload["wireProtocol"] = PairingFileTransferWireProtocol.ProtocolName;
+        payload["transferId"] = transferId.ToString("N");
+        payload["downloadId"] = requestId;
+        payload["sizeBytes"] = bytes.LongLength;
+        payload["fileName"] = $"screenshot-{capturedAtUtc:yyyyMMdd-HHmmssfff}.{ResolveScreenshotExtension(screenshot.Format)}";
+        payload["mimeType"] = ResolveScreenshotMimeType(screenshot.Format);
+        payload["status"] = "queued";
+        return true;
+    }
+
+    private static JsonObject CreateScreenshotMetadataPayload(ScreenshotCapture screenshot, DateTime capturedAtUtc)
+    {
+        return new JsonObject
+        {
+            ["platform"] = CurrentPlatform,
+            ["capturedAtUtc"] = capturedAtUtc.ToString("O"),
+            ["format"] = screenshot.Format,
+            ["width"] = screenshot.Width,
+            ["height"] = screenshot.Height,
+            ["annotationApplied"] = screenshot.AnnotationApplied
+        };
+    }
+
+    private static async Task StreamScreenshotBytesAsync(
+        PairingSessionTransport transport,
+        Guid transferId,
+        byte[] bytes,
+        CancellationToken cancellationToken)
+    {
+        const int chunkBytes = 64 * 1024;
+        var sequence = 0;
+        var offsetBytes = 0L;
+
+        try
+        {
+            while (offsetBytes < bytes.LongLength)
+            {
+                var bytesToSend = (int)Math.Min(chunkBytes, bytes.LongLength - offsetBytes);
+                var frame = PairingFileTransferWireProtocol.CreateFrame(
+                    transferId,
+                    PairingFileTransferFrameType.Chunk,
+                    sequence,
+                    offsetBytes,
+                    bytes.AsSpan((int)offsetBytes, bytesToSend));
+                await SendScreenshotTransferFrameAsync(transport, frame, cancellationToken);
+                sequence++;
+                offsetBytes += bytesToSend;
+            }
+
+            var completeFrame = PairingFileTransferWireProtocol.CreateFrame(
+                transferId,
+                PairingFileTransferFrameType.Complete,
+                sequence,
+                offsetBytes,
+                ReadOnlySpan<byte>.Empty);
+            await SendScreenshotTransferFrameAsync(transport, completeFrame, cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            await TrySendScreenshotTransferErrorFrameAsync(transport, transferId, sequence, offsetBytes, exception, cancellationToken);
+        }
+    }
+
+    private static async Task SendScreenshotTransferFrameAsync(
+        PairingSessionTransport transport,
+        byte[] frame,
+        CancellationToken cancellationToken)
+    {
+        var result = await transport.SendBinaryAsync(frame, WebSocketMessageType.Binary, cancellationToken);
+        if (!result.Success)
+        {
+            throw new InvalidOperationException(result.Message);
+        }
+    }
+
+    private static async Task TrySendScreenshotTransferErrorFrameAsync(
+        PairingSessionTransport transport,
+        Guid transferId,
+        int sequence,
+        long offsetBytes,
+        Exception exception,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var payload = Encoding.UTF8.GetBytes(exception.Message);
+            var frame = PairingFileTransferWireProtocol.CreateFrame(
+                transferId,
+                PairingFileTransferFrameType.Error,
+                sequence,
+                offsetBytes,
+                payload);
+            _ = await transport.SendBinaryAsync(frame, WebSocketMessageType.Binary, cancellationToken);
+        }
+        catch
+        {
+        }
+    }
+
+    private static string ResolveScreenshotExtension(string format)
+        => string.Equals(format, "jpeg", StringComparison.OrdinalIgnoreCase) ||
+           string.Equals(format, "jpg", StringComparison.OrdinalIgnoreCase)
+            ? "jpg"
+            : "png";
+
+    private static string ResolveScreenshotMimeType(string format)
+        => string.Equals(format, "jpeg", StringComparison.OrdinalIgnoreCase) ||
+           string.Equals(format, "jpg", StringComparison.OrdinalIgnoreCase)
+            ? "image/jpeg"
+            : "image/png";
+
+    private sealed record ScreenshotCapture(string Format, int Width, int Height, byte[] Bytes, bool AnnotationApplied);
 
 #if ANDROID
     private static Task<ToolResult> RunOnUiThreadAsync(Func<ToolResult> action)
@@ -538,7 +687,7 @@ internal static class VisualTreeSupport
                 Format: string.Equals(format, "jpeg", StringComparison.OrdinalIgnoreCase) || string.Equals(format, "jpg", StringComparison.OrdinalIgnoreCase) ? "jpeg" : "png",
                 Width: workingBitmap.Width,
                 Height: workingBitmap.Height,
-                Base64: ToBase64String(stream, encodedLength),
+                Bytes: stream.ToArray(),
                 AnnotationApplied: false && annotateNodeIds),
                 null);
         }
@@ -740,7 +889,14 @@ internal static class VisualTreeSupport
         };
     }
 
-    private static bool TryCaptureScreenshot(string format, int quality, int? maxWidth, bool annotateNodeIds, out ScreenshotCapture? screenshot, out string? error)
+    private static bool TryCaptureScreenshot(
+        string format,
+        int quality,
+        int? maxWidth,
+        bool annotateNodeIds,
+        bool afterScreenUpdates,
+        out ScreenshotCapture? screenshot,
+        out string? error)
     {
         var window = GetActiveWindow();
         if (window == null)
@@ -782,12 +938,12 @@ internal static class VisualTreeSupport
             ? renderer.CreateJpeg((nfloat)(quality / 100d), renderContext =>
             {
                 renderContext.CGContext.ScaleCTM((nfloat)(targetSize.Width / originalBounds.Width), (nfloat)(targetSize.Height / originalBounds.Height));
-                window.DrawViewHierarchy(originalBounds, afterScreenUpdates: true);
+                window.DrawViewHierarchy(originalBounds, afterScreenUpdates);
             })
             : renderer.CreatePng(renderContext =>
             {
                 renderContext.CGContext.ScaleCTM((nfloat)(targetSize.Width / originalBounds.Width), (nfloat)(targetSize.Height / originalBounds.Height));
-                window.DrawViewHierarchy(originalBounds, afterScreenUpdates: true);
+                window.DrawViewHierarchy(originalBounds, afterScreenUpdates);
             });
 
         if (imageData == null)
@@ -802,7 +958,7 @@ internal static class VisualTreeSupport
             Format: string.Equals(format, "jpeg", StringComparison.OrdinalIgnoreCase) || string.Equals(format, "jpg", StringComparison.OrdinalIgnoreCase) ? "jpeg" : "png",
             Width: targetPixelWidth,
             Height: targetPixelHeight,
-            Base64: imageData.GetBase64EncodedString(NSDataBase64EncodingOptions.None) ?? string.Empty,
+            Bytes: imageData.ToArray(),
             AnnotationApplied: false && annotateNodeIds);
         error = null;
         return true;
@@ -844,7 +1000,14 @@ internal static class VisualTreeSupport
         return false;
     }
 
-    private static bool TryCaptureScreenshot(string format, int quality, int? maxWidth, bool annotateNodeIds, out ScreenshotCapture? screenshot, out string? error)
+    private static bool TryCaptureScreenshot(
+        string format,
+        int quality,
+        int? maxWidth,
+        bool annotateNodeIds,
+        bool afterScreenUpdates,
+        out ScreenshotCapture? screenshot,
+        out string? error)
     {
         screenshot = null;
         error = "Screenshot capture is not available on this platform.";
@@ -878,13 +1041,4 @@ internal static class VisualTreeSupport
         Volatile.Write(ref lastEncodedScreenshotBytes, (int)byteCount);
     }
 
-    private static string ToBase64String(MemoryStream stream, int encodedLength)
-    {
-        if (stream.TryGetBuffer(out var encodedBuffer))
-        {
-            return Convert.ToBase64String(encodedBuffer.AsSpan(0, encodedLength));
-        }
-
-        return Convert.ToBase64String(stream.ToArray());
-    }
 }

@@ -11,9 +11,9 @@ public sealed class HostAutoProbeOptions
     public static HostAutoProbeOptions EnabledDefault { get; } = new()
     {
         Enabled = true,
-        InitialDelay = TimeSpan.FromSeconds(2),
-        ProbeInterval = TimeSpan.FromSeconds(10),
-        ReconnectDelay = TimeSpan.FromSeconds(15)
+        InitialDelay = TimeSpan.FromSeconds(1),
+        ProbeInterval = TimeSpan.FromSeconds(5),
+        ReconnectDelay = TimeSpan.FromSeconds(10)
     };
 
     /// <summary>
@@ -23,8 +23,8 @@ public sealed class HostAutoProbeOptions
     {
         Enabled = false,
         InitialDelay = TimeSpan.Zero,
-        ProbeInterval = TimeSpan.FromSeconds(10),
-        ReconnectDelay = TimeSpan.FromSeconds(15)
+        ProbeInterval = TimeSpan.FromSeconds(5),
+        ReconnectDelay = TimeSpan.FromSeconds(10)
     };
 
     /// <summary>
