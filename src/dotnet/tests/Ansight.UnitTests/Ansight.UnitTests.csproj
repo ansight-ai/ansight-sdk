@@ -23,7 +23,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Ansight.Core\Ansight.Core.csproj" />
     <ProjectReference Include="..\..\Ansight\Ansight.csproj" />
+    <ProjectReference Include="..\..\Ansight.Maui\Ansight.Maui.csproj" />
     <ProjectReference Include="..\..\Ansight.Tools.Database\Ansight.Tools.Database.csproj" />
     <ProjectReference Include="..\..\Ansight.Tools.FileSystem\Ansight.Tools.FileSystem.csproj" />
     <ProjectReference Include="..\..\Ansight.Tools.Maui\Ansight.Tools.Maui.csproj" />

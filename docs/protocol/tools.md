@@ -4,10 +4,10 @@ This document describes the remote-tool message flow currently implemented by th
 
 The implementation lives in:
 
-- [PairingToolProtocolProcessor.cs](../../src/dotnet/Ansight/Pairing/PairingToolProtocolProcessor.cs)
-- [ToolProtocolBridge.cs](../../src/dotnet/Ansight/Tools/ToolProtocolBridge.cs)
-- [ToolProtocolEnvelope.cs](../../src/dotnet/Ansight/Tools/ToolProtocolEnvelope.cs)
-- [ToolGuard.cs](../../src/dotnet/Ansight/Tools/ToolGuard.cs)
+- [PairingToolProtocolProcessor.cs](../../src/dotnet/Ansight.Core/Pairing/PairingToolProtocolProcessor.cs)
+- [ToolProtocolBridge.cs](../../src/dotnet/Ansight.Core/Tools/ToolProtocolBridge.cs)
+- [ToolProtocolEnvelope.cs](../../src/dotnet/Ansight.Core/Tools/ToolProtocolEnvelope.cs)
+- [ToolGuard.cs](../../src/dotnet/Ansight.Core/Tools/ToolGuard.cs)
 
 ## Preconditions
 
@@ -256,7 +256,7 @@ The `security` object is informational metadata intended for catalog consumers s
 - `summary`
 - `implications`
 
-`argumentsSchema` and `resultSchema` are emitted from [ToolSchema.cs](../../src/dotnet/Ansight/Tools/ToolSchema.cs) as JSON-schema-like objects.
+`argumentsSchema` and `resultSchema` are emitted from [ToolSchema.cs](../../src/dotnet/Ansight.Core/Tools/ToolSchema.cs) as JSON-schema-like objects.
 
 The actual tool ids available on a given session are implementation-defined and depend on:
 

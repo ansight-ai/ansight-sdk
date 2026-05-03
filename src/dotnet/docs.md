@@ -1,6 +1,66 @@
 # Ansight .NET SDK Guide
 
-Ansight is a telemetry sampler for .NET Android, iOS, and Mac Catalyst apps.
+Ansight is a telemetry sampler, pairing client, and guarded remote-tool SDK for .NET Android, iOS, and Mac Catalyst apps.
+
+Package layout:
+
+- `Ansight.Core`: core runtime package. The namespace remains `Ansight`.
+- `Ansight`: all-in-one package for non-MAUI apps, with core runtime, native pairing where supported, and all non-MAUI remote tools.
+- `Ansight.Maui`: all-in-one package for MAUI apps, with `MauiAppBuilder` helpers and all MAUI tools.
+- `Ansight.Tools.*`: individual tool packages for explicit package-by-package setup.
+
+## All-in-one quickstart
+
+```csharp
+using Ansight;
+
+var options = Options.CreateBuilder()
+    .WithAnsight(ansight =>
+    {
+        ansight.WithBundledHostConnection(typeof(App).Assembly);
+    })
+    .Build();
+
+Runtime.InitializeAndActivate(options);
+```
+
+`WithAnsight(...)` enables FPS sampling, 400ms sampling, 120s retention, live JPEG capture at 2000ms/quality-60/max-width-600, host auto-probe, bundled host connection, all non-MAUI remote tools, and full tool access. Its callback runs after runtime defaults and before default tool-suite registration, so deny-all suites can be configured in the all-in-one builder:
+
+```csharp
+using Ansight;
+using Ansight.Tools.SecureStorage;
+
+var options = Options.CreateBuilder()
+    .WithAnsight(ansight =>
+    {
+        ansight.WithSecureStorageTools(secure =>
+        {
+            secure.WithStorageIdentifier("MyApp");
+            secure.AllowKeyPrefix("ansight.secure.");
+        });
+    })
+    .Build();
+```
+
+When the callback registers a tool suite, the default all-in-one registration for that suite is skipped. Full tool access is applied before the callback, so the callback can also narrow the guard with `WithReadOnlyToolAccess()`, `WithReadWriteToolAccess()`, or `WithToolGuard(...)`.
+
+For MAUI:
+
+```csharp
+using Ansight.Maui;
+using Ansight.Tools.SecureStorage;
+
+builder
+    .UseMauiApp<App>()
+    .UseAnsight<App>(ansight =>
+    {
+        ansight.WithSecureStorageTools(secure =>
+        {
+            secure.WithStorageIdentifier("MyMauiApp");
+            secure.AllowKeyPrefix("ansight.secure.");
+        });
+    });
+```
 
 ## Initialize
 
@@ -88,7 +148,7 @@ Runtime.Clear();
 
 ## Developer pairing and host connection
 
-For local development, enable the base package's developer-pairing MSBuild target in Debug builds:
+For local development, enable the core package's developer-pairing MSBuild target in Debug builds:
 
 ```xml
 <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
@@ -112,7 +172,7 @@ While `Runtime` is active, host auto-probe is enabled by default. It periodicall
 await Runtime.HostConnection.ConnectAsync(HostConnectionRequest.Auto());
 ```
 
-Install `Ansight.Pairing` when the app should own native QR acquisition for explicit pairing overrides:
+Install `Ansight.Pairing` when the app is staying on `Ansight.Core` and should own native QR acquisition for explicit pairing overrides. The `Ansight` and `Ansight.Maui` all-in-one packages include native pairing where supported:
 
 ```csharp
 using Ansight;
@@ -148,7 +208,7 @@ var options = Options.CreateBuilder()
 
 ## Remote tool registration
 
-The core `Ansight` package contains `ITool`, `ToolScope`, `ToolSchema`, `ToolDefinition`, `ToolRegistry`, `ToolResult`, and the `OptionsBuilder` registration methods. Each tool declares whether it is `Read`, `Write`, or `Delete`, plus explicit argument/result schemas for bridges such as MCP. A bridge can read `tool.Definition` or `options.Tools.GetDefinitions()` to discover how to call the tool. Concrete tool groups are delivered as separate packages and register through fluent extensions:
+The `Ansight.Core` package contains `ITool`, `ToolScope`, `ToolSchema`, `ToolDefinition`, `ToolRegistry`, `ToolResult`, and the `OptionsBuilder` registration methods. Each tool declares whether it is `Read`, `Write`, or `Delete`, plus explicit argument/result schemas for bridges such as MCP. A bridge can read `tool.Definition` or `options.Tools.GetDefinitions()` to discover how to call the tool. Builders can use `ContainsTool(string)` to check whether a tool id has already been registered. Concrete tool groups are delivered as separate packages and register through fluent extensions:
 
 ```csharp
 using Ansight;

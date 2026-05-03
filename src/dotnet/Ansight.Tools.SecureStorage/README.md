@@ -26,6 +26,26 @@ var options = Options.CreateBuilder()
 
 `secure.remove_key` is delete-scoped. Use `WithAllToolAccess()` or a custom `ToolGuard` if you want delete operations to execute.
 
+When using the `Ansight` or `Ansight.Maui` all-in-one packages, configure secure-storage access inside the setup callback:
+
+```csharp
+using Ansight;
+using Ansight.Tools.SecureStorage;
+
+var options = Options.CreateBuilder()
+    .WithAnsight(ansight =>
+    {
+        ansight.WithSecureStorageTools(secure =>
+        {
+            secure.WithStorageIdentifier("MyApp");
+            secure.AllowKeyPrefix("ansight.secure.");
+        });
+    })
+    .Build();
+```
+
+Use the same `WithSecureStorageTools(...)` call inside `UseAnsight<App>(...)` for MAUI. The all-in-one setup skips the default secure-storage registration when the callback registers the suite, so the configured storage identifier and key allow-list are used.
+
 ## Restrictions
 
 Secure-storage access is deny-all by default. You must explicitly allow keys with:

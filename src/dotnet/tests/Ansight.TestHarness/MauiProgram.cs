@@ -1,4 +1,4 @@
-﻿using Ansight.Tools.Maui;
+﻿using Ansight.Maui;
 using Ansight.Tools.Preferences;
 using Ansight.Tools.SecureStorage;
 using Microsoft.Extensions.Logging;
@@ -12,30 +12,26 @@ public static class MauiProgram
     {
         var builder = MauiApp.CreateBuilder();
         var preferencesStore = GetPreferencesStoreName();
-        var ansightOptions = Options.CreateBuilder()
-            .WithAdditionalLogger(new CustomAnsightLogCallback())
-            .WithFramesPerSecond()
-            .WithSampleFrequencyMilliseconds(400)
-            .WithRetentionPeriodSeconds(120)
-            .WithAdditionalChannels(CustomAnsightConfiguration.AdditionalChannels)
-            .WithMauiTools()
-            .WithPreferencesTools(preferences =>
-            {
-                preferences.WithDefaultStore(preferencesStore);
-                preferences.AllowStore(preferencesStore);
-                preferences.AllowKeyPrefix("ansight.");
-            })
-            .WithSecureStorageTools(secure =>
-            {
-                secure.WithStorageIdentifier("AnsightHarness");
-                secure.AllowKeyPrefix("ansight.secure.");
-            })
-            .WithAllToolAccess()
-            .Build();
 
         builder
             .UseMauiApp<App>()
             .UseSkiaSharp()
+            .UseAnsight<App>(ansight =>
+            {
+                ansight.WithAdditionalLogger(new CustomAnsightLogCallback());
+                ansight.WithAdditionalChannels(CustomAnsightConfiguration.AdditionalChannels);
+                ansight.WithPreferencesTools(preferences =>
+                {
+                    preferences.WithDefaultStore(preferencesStore);
+                    preferences.AllowStore(preferencesStore);
+                    preferences.AllowKeyPrefix("ansight.");
+                });
+                ansight.WithSecureStorageTools(secure =>
+                {
+                    secure.WithStorageIdentifier("AnsightHarness");
+                    secure.AllowKeyPrefix("ansight.secure.");
+                });
+            })
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
@@ -46,23 +42,7 @@ public static class MauiProgram
         builder.Logging.AddDebug();
 #endif
 
-        var app = builder.Build();
-        EnsureRuntimeStarted(ansightOptions);
-        return app;
-    }
-
-    private static void EnsureRuntimeStarted(Options ansightOptions)
-    {
-        if (!Runtime.IsInitialized)
-        {
-            Runtime.InitializeAndActivate(ansightOptions);
-            return;
-        }
-
-        if (!Runtime.IsActive)
-        {
-            Runtime.Activate();
-        }
+        return builder.Build();
     }
 
     private static string GetPreferencesStoreName()

@@ -7,7 +7,7 @@ namespace Ansight.Build.Tasks;
 
 public sealed class ScanForAnsightToolImplementations : Task
 {
-    private const string AnsightAssemblyName = "Ansight";
+    private const string AnsightAssemblyName = "Ansight.Core";
     private const string ToolInterfaceFullName = "Ansight.Tools.ITool";
 
     [Required]

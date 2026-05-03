@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ansight", "Ansight\Ansight.csproj", "{9A1396F7-6291-414E-A735-0CEBC5BDAEA2}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ansight.Core", "Ansight.Core\Ansight.Core.csproj", "{9A1396F7-6291-414E-A735-0CEBC5BDAEA2}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ansight.Build", "Ansight.Build\Ansight.Build.csproj", "{01335581-CA9F-41CE-B4A4-BF74AA7F66CD}"
 EndProject
@@ -25,6 +25,10 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ansight.Pairing", "Ansight.Pairing\Ansight.Pairing.csproj", "{B26FC768-5D16-460F-9A51-24F554C2753D}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ansight.Tools.Maui", "Ansight.Tools.Maui\Ansight.Tools.Maui.csproj", "{BD4455AA-5E2B-4257-BCD6-B8AA4CAF2781}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ansight", "Ansight\Ansight.csproj", "{FF7785B0-A5B1-4F95-BD07-47A4490CB3A7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ansight.Maui", "Ansight.Maui\Ansight.Maui.csproj", "{DEBAC897-7A47-491E-8E16-C69172678055}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -180,6 +184,30 @@ Global
 		{BD4455AA-5E2B-4257-BCD6-B8AA4CAF2781}.Release|x64.Build.0 = Release|Any CPU
 		{BD4455AA-5E2B-4257-BCD6-B8AA4CAF2781}.Release|x86.ActiveCfg = Release|Any CPU
 		{BD4455AA-5E2B-4257-BCD6-B8AA4CAF2781}.Release|x86.Build.0 = Release|Any CPU
+		{FF7785B0-A5B1-4F95-BD07-47A4490CB3A7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FF7785B0-A5B1-4F95-BD07-47A4490CB3A7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FF7785B0-A5B1-4F95-BD07-47A4490CB3A7}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{FF7785B0-A5B1-4F95-BD07-47A4490CB3A7}.Debug|x64.Build.0 = Debug|Any CPU
+		{FF7785B0-A5B1-4F95-BD07-47A4490CB3A7}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{FF7785B0-A5B1-4F95-BD07-47A4490CB3A7}.Debug|x86.Build.0 = Debug|Any CPU
+		{FF7785B0-A5B1-4F95-BD07-47A4490CB3A7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FF7785B0-A5B1-4F95-BD07-47A4490CB3A7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FF7785B0-A5B1-4F95-BD07-47A4490CB3A7}.Release|x64.ActiveCfg = Release|Any CPU
+		{FF7785B0-A5B1-4F95-BD07-47A4490CB3A7}.Release|x64.Build.0 = Release|Any CPU
+		{FF7785B0-A5B1-4F95-BD07-47A4490CB3A7}.Release|x86.ActiveCfg = Release|Any CPU
+		{FF7785B0-A5B1-4F95-BD07-47A4490CB3A7}.Release|x86.Build.0 = Release|Any CPU
+		{DEBAC897-7A47-491E-8E16-C69172678055}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DEBAC897-7A47-491E-8E16-C69172678055}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DEBAC897-7A47-491E-8E16-C69172678055}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{DEBAC897-7A47-491E-8E16-C69172678055}.Debug|x64.Build.0 = Debug|Any CPU
+		{DEBAC897-7A47-491E-8E16-C69172678055}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{DEBAC897-7A47-491E-8E16-C69172678055}.Debug|x86.Build.0 = Debug|Any CPU
+		{DEBAC897-7A47-491E-8E16-C69172678055}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DEBAC897-7A47-491E-8E16-C69172678055}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DEBAC897-7A47-491E-8E16-C69172678055}.Release|x64.ActiveCfg = Release|Any CPU
+		{DEBAC897-7A47-491E-8E16-C69172678055}.Release|x64.Build.0 = Release|Any CPU
+		{DEBAC897-7A47-491E-8E16-C69172678055}.Release|x86.ActiveCfg = Release|Any CPU
+		{DEBAC897-7A47-491E-8E16-C69172678055}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

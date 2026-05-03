@@ -31,7 +31,7 @@ Responsibilities:
 - register Windows memory and device profile services
 - expose a simple integration call from `App.xaml.cs`
 
-The base `Ansight` package should not try to infer WPF state without explicit integration.
+`Ansight.Core` should not try to infer WPF state without explicit integration.
 
 ### 2. Lifecycle integration
 

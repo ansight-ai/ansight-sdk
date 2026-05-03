@@ -18,7 +18,7 @@ fi
 shopt -s nullglob
 
 if [[ -z "${package_version}" ]]; then
-  package_version="$(dotnet msbuild Ansight/Ansight.csproj -nologo -getProperty:AnsightPackageVersion)"
+  package_version="$(dotnet msbuild Ansight.Core/Ansight.Core.csproj -nologo -getProperty:AnsightPackageVersion)"
 fi
 
 packages=(products/*.${package_version}.nupkg)

@@ -20,7 +20,7 @@ confirm() {
 }
 
 current_version() {
-  dotnet msbuild Ansight/Ansight.csproj -nologo -getProperty:AnsightPackageVersion
+  dotnet msbuild Ansight.Core/Ansight.Core.csproj -nologo -getProperty:AnsightPackageVersion
 }
 
 bump_pre_version() {

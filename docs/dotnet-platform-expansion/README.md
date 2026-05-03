@@ -38,10 +38,10 @@ The current .NET implementation is still mobile-first:
 
 Relevant files:
 
-- `src/dotnet/Ansight/Ansight.csproj`
-- `src/dotnet/Ansight/Platforms/PlatformBootstrapper.cs`
-- `src/dotnet/Ansight/Telemetry/Memory/MemorySampler.cs`
-- `src/dotnet/Ansight/Screenshot/SessionJpegCaptureSupport.*`
+- `src/dotnet/Ansight.Core/Ansight.Core.csproj`
+- `src/dotnet/Ansight.Core/Platforms/PlatformBootstrapper.cs`
+- `src/dotnet/Ansight.Core/Telemetry/Memory/MemorySampler.cs`
+- `src/dotnet/Ansight.Core/Screenshot/SessionJpegCaptureSupport.*`
 - `src/dotnet/Ansight.Tools.VisualTree/VisualTreeSupport.cs`
 - `src/dotnet/Ansight.Tools.Preferences/PreferencesSupport.*`
 - `src/dotnet/Ansight.Tools.SecureStorage/SecureStorageSupport.*`
@@ -74,7 +74,7 @@ Desktop Windows support and framework-specific UI support are not the same thing
 - WinUI 3 and WPF can share the Windows memory, process, and storage layers.
 - Uno and Avalonia need their own UI tree, screenshot, lifecycle, and storage integration packages.
 
-Keep the base `Ansight` package host-agnostic where possible and add framework packages where required:
+Keep `Ansight.Core` host-agnostic where possible and add framework packages where required:
 
 - `Ansight.WinUI`
 - `Ansight.Wpf`

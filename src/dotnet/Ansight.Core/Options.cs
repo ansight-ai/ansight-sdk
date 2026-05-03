@@ -350,6 +350,17 @@ public class Options
         }
 
         /// <summary>
+        /// Determines whether a tool with the supplied id is already registered on this builder.
+        /// </summary>
+        /// <param name="toolId">Tool id to look up.</param>
+        /// <returns><see langword="true"/> when the builder has a registered tool with the supplied id; otherwise, <see langword="false"/>.</returns>
+        public bool ContainsTool(string toolId)
+        {
+            ArgumentException.ThrowIfNullOrEmpty(toolId);
+            return (options.Tools ?? ToolRegistry.Empty).Contains(toolId);
+        }
+
+        /// <summary>
         /// Enables periodic JPEG capture while an Ansight pairing session is open.
         /// This adds extra rendering, encoding, and transport work and can negatively affect runtime performance.
         /// </summary>

@@ -24,14 +24,14 @@ The implemented session flow is:
 
 The relevant code paths are:
 
-- [PairingConfigDocumentService.cs](../../src/dotnet/Ansight/Pairing/PairingConfigDocumentService.cs)
-- [PairingSessionConnector.cs](../../src/dotnet/Ansight/Pairing/PairingSessionConnector.cs)
-- [PairingSessionTransport.cs](../../src/dotnet/Ansight/Pairing/PairingSessionTransport.cs)
-- [PairingSessionClient.cs](../../src/dotnet/Ansight/Pairing/PairingSessionClient.cs)
+- [PairingConfigDocumentService.cs](../../src/dotnet/Ansight.Core/Pairing/PairingConfigDocumentService.cs)
+- [PairingSessionConnector.cs](../../src/dotnet/Ansight.Core/Pairing/PairingSessionConnector.cs)
+- [PairingSessionTransport.cs](../../src/dotnet/Ansight.Core/Pairing/PairingSessionTransport.cs)
+- [PairingSessionClient.cs](../../src/dotnet/Ansight.Core/Pairing/PairingSessionClient.cs)
 
 ## Default constants
 
-The SDK exposes these defaults in [PairingProtocolDefaults.cs](../../src/dotnet/Ansight/Pairing/PairingProtocolDefaults.cs):
+The SDK exposes these defaults in [PairingProtocolDefaults.cs](../../src/dotnet/Ansight.Core/Pairing/PairingProtocolDefaults.cs):
 
 - discovery UDP port: `45123`
 - WebSocket port: `45124`
@@ -47,10 +47,10 @@ The app-facing SDK flow accepts pairing tickets or compact pairing ticket codes.
 
 The base config is defined by:
 
-- [PairingConfig.cs](../../src/dotnet/Ansight/Pairing/Models/PairingConfig.cs)
-- [PairingHost.cs](../../src/dotnet/Ansight/Pairing/Models/PairingHost.cs)
-- [PairingChallenge.cs](../../src/dotnet/Ansight/Pairing/Models/PairingChallenge.cs)
-- [PairingTrust.cs](../../src/dotnet/Ansight/Pairing/Models/PairingTrust.cs)
+- [PairingConfig.cs](../../src/dotnet/Ansight.Core/Pairing/Models/PairingConfig.cs)
+- [PairingHost.cs](../../src/dotnet/Ansight.Core/Pairing/Models/PairingHost.cs)
+- [PairingChallenge.cs](../../src/dotnet/Ansight.Core/Pairing/Models/PairingChallenge.cs)
+- [PairingTrust.cs](../../src/dotnet/Ansight.Core/Pairing/Models/PairingTrust.cs)
 
 Important fields are:
 
@@ -70,10 +70,10 @@ Important fields are:
 
 The ticket wrapper is defined by:
 
-- [PairingTicket.cs](../../src/dotnet/Ansight/Pairing/Models/PairingTicket.cs)
-- [PairingTicketJson.cs](../../src/dotnet/Ansight/Pairing/PairingTicketJson.cs)
-- [PairingTicketCodeGenerator.cs](../../src/dotnet/Ansight/Pairing/PairingTicketCodeGenerator.cs)
-- [PairingDiscoveryHint.cs](../../src/dotnet/Ansight/Pairing/Models/PairingDiscoveryHint.cs)
+- [PairingTicket.cs](../../src/dotnet/Ansight.Core/Pairing/Models/PairingTicket.cs)
+- [PairingTicketJson.cs](../../src/dotnet/Ansight.Core/Pairing/PairingTicketJson.cs)
+- [PairingTicketCodeGenerator.cs](../../src/dotnet/Ansight.Core/Pairing/PairingTicketCodeGenerator.cs)
+- [PairingDiscoveryHint.cs](../../src/dotnet/Ansight.Core/Pairing/Models/PairingDiscoveryHint.cs)
 
 `ansight.pairing-ticket.v1` carries the signed `PairingConfig` plus the discovery metadata needed to reach the host. Legacy bootstrap and QR payload shapes are no longer accepted by the runtime-owned connection surface.
 
@@ -85,7 +85,7 @@ Before opening a session, the client validates:
 - the config expiry time
 - the `appId`, when the caller supplies an expected app id
 
-Signature verification uses the host public key embedded in the config and currently accepts several historical canonical JSON forms for compatibility. That behavior lives in [PairingConfigDocumentService.cs](../../src/dotnet/Ansight/Pairing/PairingConfigDocumentService.cs) and [PairingCanonicalJson.cs](../../src/dotnet/Ansight/Pairing/PairingCanonicalJson.cs).
+Signature verification uses the host public key embedded in the config and currently accepts several historical canonical JSON forms for compatibility. That behavior lives in [PairingConfigDocumentService.cs](../../src/dotnet/Ansight.Core/Pairing/PairingConfigDocumentService.cs) and [PairingCanonicalJson.cs](../../src/dotnet/Ansight.Core/Pairing/PairingCanonicalJson.cs).
 
 Important current limitation: the UDP connect request and UDP connect response are not separately signed beyond normal JSON parsing and source-address checks.
 
@@ -99,7 +99,7 @@ The current `.NET` connector is ticket-driven.
 
 ## UDP connect handoff
 
-The client sends a JSON packet with camel-cased property names using [PairingJson.cs](../../src/dotnet/Ansight/Pairing/PairingJson.cs).
+The client sends a JSON packet with camel-cased property names using [PairingJson.cs](../../src/dotnet/Ansight.Core/Pairing/PairingJson.cs).
 
 ### Connect request
 
@@ -118,7 +118,7 @@ JSON shape:
 }
 ```
 
-Model: [ConnectRequest.cs](../../src/dotnet/Ansight/Pairing/Models/ConnectRequest.cs)
+Model: [ConnectRequest.cs](../../src/dotnet/Ansight.Core/Pairing/Models/ConnectRequest.cs)
 
 ### Connect response
 
@@ -146,7 +146,7 @@ JSON shape:
 }
 ```
 
-Model: [ConnectResponse.cs](../../src/dotnet/Ansight/Pairing/Models/ConnectResponse.cs)
+Model: [ConnectResponse.cs](../../src/dotnet/Ansight.Core/Pairing/Models/ConnectResponse.cs)
 
 If `accepted` is `true` but any of `webSocketPort`, `webSocketPath`, or `webSocketToken` is missing, the client fails the connection attempt.
 
@@ -167,7 +167,7 @@ Current connector behavior:
 
 ## WebSocket receive and control model
 
-The transport implementation is in [PairingSessionTransport.cs](../../src/dotnet/Ansight/Pairing/PairingSessionTransport.cs).
+The transport implementation is in [PairingSessionTransport.cs](../../src/dotnet/Ansight.Core/Pairing/PairingSessionTransport.cs).
 
 Current behavior:
 
@@ -181,11 +181,11 @@ The receive pump is text-oriented. Structured control traffic uses `CONTROL_REQ`
 
 ## Initial profile exchange
 
-After the WebSocket is attached, [PairingSessionClient.cs](../../src/dotnet/Ansight/Pairing/PairingSessionClient.cs) sends a baseline `DeviceAppProfile` if one is available.
+After the WebSocket is attached, [PairingSessionClient.cs](../../src/dotnet/Ansight.Core/Pairing/PairingSessionClient.cs) sends a baseline `DeviceAppProfile` if one is available.
 
 Control action: `device.profile`
 
-Model: [DeviceAppProfile.cs](../../src/dotnet/Ansight/Pairing/Models/DeviceAppProfile.cs)
+Model: [DeviceAppProfile.cs](../../src/dotnet/Ansight.Core/Pairing/Models/DeviceAppProfile.cs)
 
 Important top-level fields:
 
@@ -205,11 +205,11 @@ This payload is sent with request/response semantics, so the client waits for a 
 
 ## Telemetry message families
 
-Telemetry streaming is implemented in [PairingTelemetryStreamer.cs](../../src/dotnet/Ansight/TelemetryStreaming/PairingTelemetryStreamer.cs).
+Telemetry streaming is implemented in [TelemetryStreamer.cs](../../src/dotnet/Ansight.Core/Telemetry/TelemetryStreamer.cs).
 
 ### `CLIENT_LOG`
 
-Sent by [PairingSessionClient.cs](../../src/dotnet/Ansight/Pairing/PairingSessionClient.cs) with request/ack semantics.
+Sent by [PairingSessionClient.cs](../../src/dotnet/Ansight.Core/Pairing/PairingSessionClient.cs) with request/ack semantics.
 
 ```json
 {
@@ -222,7 +222,7 @@ Sent by [PairingSessionClient.cs](../../src/dotnet/Ansight/Pairing/PairingSessio
 
 ### `CLIENT_DONE`
 
-Sent by [PairingSessionClient.cs](../../src/dotnet/Ansight/Pairing/PairingSessionClient.cs) with request/ack semantics. After the send completes, the client closes the session transport.
+Sent by [PairingSessionClient.cs](../../src/dotnet/Ansight.Core/Pairing/PairingSessionClient.cs) with request/ack semantics. After the send completes, the client closes the session transport.
 
 ```json
 {
@@ -323,8 +323,8 @@ Current outbound response types:
 
 The implementation lives in:
 
-- [PairingToolProtocolProcessor.cs](../../src/dotnet/Ansight/Pairing/PairingToolProtocolProcessor.cs)
-- [ToolProtocolBridge.cs](../../src/dotnet/Ansight/Tools/ToolProtocolBridge.cs)
+- [PairingToolProtocolProcessor.cs](../../src/dotnet/Ansight.Core/Pairing/PairingToolProtocolProcessor.cs)
+- [ToolProtocolBridge.cs](../../src/dotnet/Ansight.Core/Tools/ToolProtocolBridge.cs)
 
 The wire format and behavior are documented in [tools.md](tools.md).
 
@@ -347,8 +347,8 @@ The implementation lives in:
 
 - [BeginBinaryDownloadTool.cs](../../src/dotnet/Ansight.Tools.FileSystem/BeginBinaryDownloadTool.cs)
 - [BinaryFileDownloadManager.cs](../../src/dotnet/Ansight.Host/BinaryFileDownloadManager.cs)
-- [PairingBinaryTransferHub.cs](../../src/dotnet/Ansight/Pairing/PairingBinaryTransferHub.cs)
-- [PairingFileTransferWireProtocol.cs](../../src/dotnet/Ansight/Pairing/PairingFileTransferWireProtocol.cs)
+- [PairingBinaryTransferHub.cs](../../src/dotnet/Ansight.Core/Pairing/PairingBinaryTransferHub.cs)
+- [PairingFileTransferWireProtocol.cs](../../src/dotnet/Ansight.Core/Pairing/PairingFileTransferWireProtocol.cs)
 
 ### Binary frame format
 
@@ -380,8 +380,8 @@ If the runtime is initialized and `Options.SessionJpegCapture` is configured, th
 
 The implementation lives in:
 
-- [PairingSessionJpegStreamer.cs](../../src/dotnet/Ansight/Screenshot/PairingSessionJpegStreamer.cs)
-- [SessionJpegWireProtocol.cs](../../src/dotnet/Ansight/Screenshot/SessionJpegWireProtocol.cs)
+- [PairingSessionJpegStreamer.cs](../../src/dotnet/Ansight.Core/Screenshot/PairingSessionJpegStreamer.cs)
+- [SessionJpegWireProtocol.cs](../../src/dotnet/Ansight.Core/Screenshot/SessionJpegWireProtocol.cs)
 
 Current behavior:
 

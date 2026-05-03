@@ -1,137 +1,142 @@
-# Ansight — telemetry sampling for .NET mobile apps
+# Ansight .NET SDK
 
-[![Ansight](https://img.shields.io/nuget/vpre/Ansight.svg?cacheSeconds=3600&label=Ansight%20nuget)](https://www.nuget.org/packages/Ansight)
+Ansight provides in-process telemetry, host pairing, live JPEG capture, and guarded remote tools for .NET Android, iOS, and Mac Catalyst apps.
 
-Ansight provides lightweight in-process telemetry sampling for:
+## Package Model
 
-- .NET Android
-- .NET iOS
-- .NET Mac Catalyst
+- `Ansight.Core`: core runtime, telemetry, host pairing protocol, tool abstractions, and build-time safety targets.
+- `Ansight`: all-in-one package for non-MAUI .NET apps. It depends on `Ansight.Core`, native pairing where supported, and all non-MAUI remote tool packages.
+- `Ansight.Maui`: all-in-one package for .NET MAUI apps. It depends on `Ansight` and adds MAUI inspection/mutation tools plus `MauiAppBuilder` setup helpers.
+- `Ansight.Tools.*`: individual tool packages for apps that want explicit package-by-package control.
 
-## What it captures
+The runtime namespace remains `Ansight` even when the NuGet package is `Ansight.Core`.
 
-- Managed heap usage
-- Platform memory usage (RSS/native heap/physical footprint, per platform)
-- Optional FPS samples
-- Custom metrics and events via channels
+## All-In-One
 
-## Quickstart
+```csharp
+using Ansight;
+
+var options = Options.CreateBuilder()
+    .WithAnsight(ansight =>
+    {
+        ansight.WithBundledHostConnection(typeof(AppBootstrap).Assembly);
+#if ANDROID
+        ansight.WithPlatformPairing(() => CurrentActivityProvider());
+#endif
+    })
+    .Build();
+
+Runtime.InitializeAndActivate(options);
+```
+
+`WithAnsight(...)` applies the same practical defaults that Redpoint has been using:
+
+- FPS sampling enabled
+- 400ms sample frequency
+- 120s retention
+- live JPEG capture every 2000ms at quality 60 and max width 600
+- host auto-probe enabled
+- bundled host connection configured from the entry assembly, or overridden through `WithBundledHostConnection(...)`
+- all non-MAUI remote tools registered
+- full tool access enabled
+
+The callback runs after runtime defaults and before default tool-suite registration. Use it to grant access for suites that are deny-all by default:
+
+```csharp
+using Ansight;
+using Ansight.Tools.SecureStorage;
+
+var options = Options.CreateBuilder()
+    .WithAnsight(ansight =>
+    {
+        ansight.WithSecureStorageTools(secure =>
+        {
+            secure.WithStorageIdentifier("ExampleApp");
+            secure.AllowKeyPrefix("ansight.secure.");
+        });
+    })
+    .Build();
+```
+
+When a callback registers a suite with `WithSecureStorageTools(...)`, `WithPreferencesTools(...)`, or another tool builder, the all-in-one skips its default registration for that suite. The all-in-one applies full tool access before the callback, so the callback can also override the guard with `WithReadOnlyToolAccess()`, `WithReadWriteToolAccess()`, or `WithToolGuard(...)`.
+
+Use `WithAnsightDefaults()` when you want the runtime defaults without remote tools, or `WithAnsightRemoteTools()` when you only want the non-MAUI tool registrations.
+
+## MAUI
+
+```csharp
+using Ansight.Maui;
+
+public static MauiApp CreateMauiApp()
+{
+    var builder = MauiApp.CreateBuilder();
+
+    builder
+        .UseMauiApp<App>()
+        .UseAnsight<App>();
+
+    return builder.Build();
+}
+```
+
+`UseAnsight<App>()` initializes and activates the runtime from the MAUI builder.
+
+For custom tool options:
+
+```csharp
+using Ansight.Maui;
+using Ansight.Tools.Preferences;
+using Ansight.Tools.SecureStorage;
+
+builder.UseAnsight<App>(ansight =>
+{
+    ansight.WithPreferencesTools(preferences =>
+    {
+        preferences.AllowKeyPrefix("com.example.");
+    });
+    ansight.WithSecureStorageTools(secure =>
+    {
+        secure.WithStorageIdentifier("ExampleApp");
+        secure.AllowKey("session_token");
+    });
+});
+```
+
+`UseAnsight(...)` and `WithAnsightMaui(...)` callbacks receive the existing `Options.OptionsBuilder` before the default tool suites are registered, so custom configuration uses the same core model as the lower-level SDK.
+
+## Core Runtime
+
+For apps that only want telemetry and pairing infrastructure:
 
 ```csharp
 using Ansight;
 
 var options = Options.CreateBuilder()
     .WithFramesPerSecond()
-    // JPEG session capture can affect runtime performance. Use conservative settings unless you need richer review snapshots.
     .WithSessionJpegCapture(intervalMilliseconds: 2000, quality: 60, maxWidth: 720)
+    .WithBundledHostConnection(typeof(AppBootstrap).Assembly)
     .Build();
 
 Runtime.InitializeAndActivate(options);
-
-Runtime.Metric(2048, channel: 10);
-Runtime.Event("sync_started");
-Runtime.ScreenViewed("HomePage");
 ```
 
-When `WithSessionJpegCapture(...)` is enabled, the pairing client will capture the app's own root window/view as a JPEG and stream it over live Ansight pairing sessions. Capture remains client-driven, but the next interval is delayed until the previous frame has finished encoding and sending so the stream self-throttles under load. Connected tooling can inspect the latest live frame or correlate historical frames with the telemetry timeline. This feature adds extra rendering, encoding, and transport work and can negatively affect runtime performance while it is active.
+Install `Ansight.Core` for this lower-level surface. Add `Ansight.Pairing` separately if the app should own native QR acquisition while staying on the core package set.
 
-Host auto-probe is enabled by default. While `Runtime` is active, Ansight will periodically try to reconnect to the most recent successful host session if one is cached, pause probing while that session stays open, and resume after a reconnect delay if the session closes. Disable it with `WithoutHostAutoProbe()` or customize it with `WithHostAutoProbe(new HostAutoProbeOptions { ... })`.
+## Build-Time Remote Tool Enforcement
 
-Runtime-owned host connection also manages saved, bundled, and developer pairing configs. Enable developer pairing in local Debug builds:
+Ansight fails builds by default when the output contains concrete `Ansight.Tools.ITool` implementations.
+
+To intentionally allow remote tools in an app build, set:
 
 ```xml
-<PropertyGroup Condition="'$(Configuration)' == 'Debug'">
-  <AnsightDeveloperPairingEnabled>true</AnsightDeveloperPairingEnabled>
+<PropertyGroup>
+  <AnsightAllowRemoteTools>true</AnsightAllowRemoteTools>
 </PropertyGroup>
 ```
 
-The build embeds `ansight.developer-pairing.json` automatically. If `ansight.json` exists in the project, the generated resource wraps that signed config with local discovery metadata. If it does not exist, the generated resource is a development-only marker accepted by Studio, so no pairing JSON is required for the default local pairing path. Initialize with `WithBundledHostConnection(typeof(AppBootstrap).Assembly)` so runtime auto-connect can discover the generated resource. Auto-connect prefers developer pairing when available, then falls back to cached-session, saved-config, and plain bundled-config behavior.
+Keep `AnsightAllowRemoteTools=true` limited to local Debug builds unless the app has an explicit user-authorization model. Remote tools can expose screenshots, UI state, filesystem data, database contents, preferences, secure storage, and live runtime state to a connected host.
 
-Install `Ansight.Pairing` when you want the SDK to own native QR acquisition for explicit pairing overrides.
-
-```csharp
-public static class AppBootstrap
-{
-    public static void ConfigureAnsight()
-    {
-        var optionsBuilder = Options.CreateBuilder()
-            .WithBundledHostConnection(typeof(AppBootstrap).Assembly);
-
-#if ANDROID
-        optionsBuilder = optionsBuilder.WithPlatformPairing(() => Microsoft.Maui.ApplicationModel.Platform.CurrentActivity);
-#else
-        optionsBuilder = optionsBuilder.WithPlatformPairing();
-#endif
-
-        var options = optionsBuilder.Build();
-
-        Runtime.InitializeAndActivate(options);
-    }
-}
-```
-
-On Android, `Ansight.Pairing` only needs the current `Activity` so it can launch the scanner UI for `HostConnectionRequest.QrCode(...)`.
-
-Explicit requests such as `HostConnectionRequest.PayloadText(...)` and `HostConnectionRequest.QrCode(...)` always use the supplied pairing payload and replace the current host session. That gives QR/paste flows an explicit override path even when developer pairing is configured by default.
-
-For app-package assets such as MAUI `MauiAsset`s, use the bundled config loader overload:
-
-```csharp
-var optionsBuilder = Options.CreateBuilder()
-    .WithBundledHostConnection(
-        (assetName, cancellationToken) => TryLoadBundledTextAssetAsync(assetName, cancellationToken));
-
-#if ANDROID
-optionsBuilder = optionsBuilder.WithPlatformPairing(() => Microsoft.Maui.ApplicationModel.Platform.CurrentActivity);
-#else
-optionsBuilder = optionsBuilder.WithPlatformPairing();
-#endif
-
-var options = optionsBuilder.Build();
-```
-
-## Accessing sampled data
-
-```csharp
-var sink = Runtime.Instance.DataSink;
-var metrics = sink.Metrics;
-var events = sink.Events;
-```
-
-## Remote tools
-
-Tool abstractions stay in the `Ansight` package. Each tool exposes a `ToolDefinition` with argument/result schemas so a bridge can discover how to call it. Concrete tool groups are installed separately and attached through the options builder.
-
-```csharp
-using Ansight;
-using Ansight.Tools.Maui;
-using Ansight.Tools.VisualTree;
-using Ansight.Tools.Reflection;
-
-var session = new DebugSessionViewModel();
-
-var sessionRoot = ReflectionRootRegistry.Register(
-    "session",
-    session,
-    new ReflectionRootMetadata("Current Session")
-    {
-        Description = "Debug session view model",
-        Hints = ["debug", "session"]
-    },
-    ReferenceType.Strong);
-
-var options = Options.CreateBuilder()
-    .WithMauiTools()
-    .WithVisualTreeTools()
-    .WithReflectionTools(reflection =>
-    {
-        reflection.WithDefaultMemberVisibility(ReflectionMemberVisibility.PublicOnly);
-    })
-    .WithReadOnlyToolAccess()
-    .Build();
-```
-
-Available grouped packages:
+## Individual Tool Packages
 
 - `Ansight.Pairing`
 - `Ansight.Tools.Maui`
@@ -141,37 +146,3 @@ Available grouped packages:
 - `Ansight.Tools.FileSystem`
 - `Ansight.Tools.Preferences`
 - `Ansight.Tools.SecureStorage`
-
-`WithReadWriteToolAccess()` enables read and write tools while keeping delete-scoped tools disabled. The storage packages register remove operations as `Delete`, and `files.delete_file` is also delete-scoped, so use `WithAllToolAccess()` or a custom `ToolGuard` when you want deletion enabled.
-
-The reflection suite uses `ReflectionRootRegistry` as the access boundary. Once a root is registered, reachable visible members can be inspected, writable members can be updated, and instance methods can be invoked through stateless paths from that root. `WithReflectionTools(...)` accepts either no arguments, an options object, or a configuration lambda for the simplified `ReflectionToolsOptionsBuilder`. Direct object registrations are weak by default; pass `ReferenceType.Strong` when the registry should retain the root. Register a `Func<object?>` getter when the exposed root can change over time; the root is unavailable while the getter returns `null`. Keep and dispose the returned `ReflectionRootRegistrationHandle`, or call `ReflectionRootRegistry.Deregister(id)`, when a root should no longer be exposed.
-
-`WithReadOnlyToolAccess()` exposes `reflect.list_roots`, `reflect.inspect_object`, and `reflect.describe_type`. `reflect.set_member_value` and `reflect.invoke_method` are write-scoped and require `WithReadWriteToolAccess()` or a custom guard.
-
-At runtime, transport layers can query or execute tools through `Runtime.ToolBridge`. When a `PairingSessionClient` session is open, inbound `tool.query` and `tool.call` envelopes are handled automatically on the live WebSocket and answered according to the configured `ToolGuard`.
-
-Pairing sessions also send a baseline `DeviceAppProfile` automatically after the WebSocket handshake so connected tooling can capture app/device details without per-app setup.
-
-`Ansight.Tools.FileSystem` includes `files.get_file_checksum` for sandboxed file fingerprints across common checksum/hash algorithms. It also includes `files.begin_binary_download` for bridge-oriented sandbox file transfer. The tool reports `transferId`, `fileExtension`, `mimeType`, and a stable `version` token, then streams `ASFT` binary frames over the pairing WebSocket so a bridge can materialize the file in a caller-chosen local temp directory and return that path to the caller. `files.download_file` remains as a JSON/base64 fallback. Write-enabled file management is available through `files.push_file`, `files.copy_file`, and `files.move_file`; deletion is exposed separately as `files.delete_file`.
-
-## Build-time Remote Tool Enforcement
-
-`Ansight` fails builds by default when the built output contains concrete `Ansight.Tools.ITool` implementations.
-
-To explicitly allow remote tools in an app build, set:
-
-```xml
-<PropertyGroup>
-  <AnsightAllowRemoteTools>true</AnsightAllowRemoteTools>
-</PropertyGroup>
-```
-
-If `AnsightAllowRemoteTools` is omitted or `false`, the SDK scans the managed assemblies under `$(TargetDir)` after build and errors on bundled tool implementations.
-
-Keep `AnsightAllowRemoteTools=true` limited to local Debug builds. Remote tools should never be enabled in Release or shippable builds because they expose remote inspection and privileged action capabilities over app data and runtime state.
-
-## Notes
-
-- Ansight stores telemetry in-memory with a retention window.
-- Sampling introduces observer overhead.
-- Use platform profilers for authoritative measurements.

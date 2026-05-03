@@ -26,7 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Ansight\Ansight.csproj" />
+    <ProjectReference Include="..\..\Ansight.Core\Ansight.Core.csproj" />
     <ProjectReference Include="..\..\Ansight.Tools.FileSystem\Ansight.Tools.FileSystem.csproj" />
   </ItemGroup>
 

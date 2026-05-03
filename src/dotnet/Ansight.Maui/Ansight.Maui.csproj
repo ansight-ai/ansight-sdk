@@ -5,28 +5,39 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <AssemblyName>Ansight</AssemblyName>
-    <RootNamespace>Ansight</RootNamespace>
+    <AssemblyName>Ansight.Maui</AssemblyName>
+    <RootNamespace>Ansight.Maui</RootNamespace>
 
     <IsPackable>true</IsPackable>
-    <PackageId>Ansight</PackageId>
-    <Description>All-in-one Ansight SDK package for .NET apps, including core runtime, pairing, and remote tools.</Description>
-    <PackageTags>ansight;observability;debugging;telemetry;pairing;remote-tools;android;ios;maccatalyst</PackageTags>
+    <PackageId>Ansight.Maui</PackageId>
+    <Description>All-in-one Ansight SDK package for .NET MAUI apps, including core runtime, pairing, remote tools, and MAUI inspection tools.</Description>
+    <PackageTags>ansight;maui;observability;debugging;telemetry;pairing;remote-tools;android;ios;maccatalyst</PackageTags>
     <NoWarn>$(NoWarn);NU5110;NU5111</NoWarn>
   </PropertyGroup>
 
+  <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' Or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' Or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
+    <UseMaui>true</UseMaui>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">
+    <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+    <SupportedOSPlatformVersion>21.0</SupportedOSPlatformVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
+    <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
+  </PropertyGroup>
+
   <ItemGroup>
-    <ProjectReference Include="..\Ansight.Core\Ansight.Core.csproj" />
-    <ProjectReference Include="..\Ansight.Tools.Database\Ansight.Tools.Database.csproj" />
-    <ProjectReference Include="..\Ansight.Tools.FileSystem\Ansight.Tools.FileSystem.csproj" />
-    <ProjectReference Include="..\Ansight.Tools.Preferences\Ansight.Tools.Preferences.csproj" />
-    <ProjectReference Include="..\Ansight.Tools.Reflection\Ansight.Tools.Reflection.csproj" />
-    <ProjectReference Include="..\Ansight.Tools.SecureStorage\Ansight.Tools.SecureStorage.csproj" />
-    <ProjectReference Include="..\Ansight.Tools.VisualTree\Ansight.Tools.VisualTree.csproj" />
+    <ProjectReference Include="..\Ansight\Ansight.csproj" />
+    <ProjectReference Include="..\Ansight.Tools.Maui\Ansight.Tools.Maui.csproj" />
   </ItemGroup>
 
   <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' Or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' Or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
-    <ProjectReference Include="..\Ansight.Pairing\Ansight.Pairing.csproj" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
   </ItemGroup>
 
   <ItemGroup>
@@ -35,7 +46,7 @@
                       PrivateAssets="all"
                       SetTargetFramework="TargetFramework=netstandard2.0"
                       GlobalPropertiesToRemove="TargetFramework;RuntimeIdentifier;RuntimeIdentifiers" />
-    <None Include="..\Ansight.Core\build\Ansight.targets" Pack="true" PackagePath="buildTransitive\Ansight.targets" />
+    <None Include="..\Ansight.Core\build\Ansight.targets" Pack="true" PackagePath="buildTransitive\Ansight.Maui.targets" />
     <None Include="..\Ansight.Build\bin\$(Configuration)\netstandard2.0\Ansight.Build.dll"
           Pack="true"
           PackagePath="buildTransitive"

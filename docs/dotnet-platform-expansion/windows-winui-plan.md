@@ -25,7 +25,7 @@ This plan targets the existing feature suite, not reduced desktop support.
 
 Update:
 
-- `src/dotnet/Ansight/Ansight.csproj`
+- `src/dotnet/Ansight.Core/Ansight.Core.csproj`
 - `src/dotnet/Ansight.Tools.VisualTree/Ansight.Tools.VisualTree.csproj`
 - `src/dotnet/Ansight.Tools.Preferences/Ansight.Tools.Preferences.csproj`
 - `src/dotnet/Ansight.Tools.SecureStorage/Ansight.Tools.SecureStorage.csproj`
