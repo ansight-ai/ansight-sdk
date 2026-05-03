@@ -24,11 +24,11 @@ public static class AnsightOptionsBuilderExtensions
     /// </summary>
     /// <param name="builder">The Ansight options builder.</param>
     /// <returns>The current options builder.</returns>
-    public static Options.OptionsBuilder WithAnsight(this Options.OptionsBuilder builder)
+    public static Options.OptionsBuilder WithAnsightSdk(this Options.OptionsBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        return builder.WithAnsight(static _ => { });
+        return builder.WithAnsightSdk(static _ => { });
     }
 
     /// <summary>
@@ -42,7 +42,7 @@ public static class AnsightOptionsBuilderExtensions
     /// Registering a tool suite inside this callback replaces the default all-in-one registration for that suite.
     /// </param>
     /// <returns>The current options builder.</returns>
-    public static Options.OptionsBuilder WithAnsight(
+    public static Options.OptionsBuilder WithAnsightSdk(
         this Options.OptionsBuilder builder,
         Action<Options.OptionsBuilder> configure)
     {

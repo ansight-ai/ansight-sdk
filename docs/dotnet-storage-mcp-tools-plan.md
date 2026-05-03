@@ -371,7 +371,7 @@ Result:
 Use the MAUI test harness only as a validation host.
 
 - Add project references to the new packages in Debug only.
-- Set `AnsightAllowRemoteTools=true` in Debug only.
+- Set `AnsightRemoteToolsPolicy=Allowed` in Debug only when build-time remote tool scanning and warnings should be bypassed. Use the default `AllowedWithWarnings` policy when detected remote tool logging is useful.
 - Register the new tool packages in `MauiProgram.cs`.
 - Seed the harness with known test values for preferences and secure storage.
 - Add simple in-app controls or startup seeding to validate native behavior.

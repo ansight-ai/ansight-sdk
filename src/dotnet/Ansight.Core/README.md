@@ -240,19 +240,27 @@ Security and integration considerations:
 
 ## Build-time Remote Tool Enforcement
 
-The core package enforces an explicit opt-in for bundled remote tools. By default, builds fail if the output contains concrete `Ansight.Tools.ITool` implementations.
+The core package can scan build outputs for bundled and custom remote tools. The scanner examines the managed assemblies under `$(TargetDir)` for concrete `Ansight.Tools.ITool` implementations.
 
-To intentionally allow them, declare:
+Control build-time remote tool handling with `AnsightRemoteToolsPolicy`:
+
+- `Allowed`: bypasses remote tool scanning, warnings, and detected-tool logging.
+- `AllowedWithWarnings`: scans for remote tools, logs detected tool type and assembly details, emits a build warning when tools are present, and allows the build to continue. This is the default.
+- `Disallowed`: scans for remote tools, logs detected tool type and assembly details, and fails the build when tools are present.
+
+For strict Release or CI builds, declare:
 
 ```xml
 <PropertyGroup>
-  <AnsightAllowRemoteTools>true</AnsightAllowRemoteTools>
+  <AnsightRemoteToolsPolicy>Disallowed</AnsightRemoteToolsPolicy>
 </PropertyGroup>
 ```
 
-If the property is omitted or set to `false`, Ansight scans the managed assemblies under `$(TargetDir)` after build and fails when it finds packaged tool assemblies such as `Ansight.Tools.VisualTree` or custom in-app `ITool` implementations.
+`Disallowed` will not work with the `Ansight` or `Ansight.Maui` all-in-one packages as-is because those packages intentionally include remote tools. To exercise this policy, use `Ansight.Core` plus the fine-grained `Ansight.Tools.*` packages and condition the tool references out of protected Release or CI builds.
 
-Only use `AnsightAllowRemoteTools=true` for local Debug builds. Do not enable remote tools in Release or distributable builds, because they add remote inspection and action surfaces that can expose user data, screenshots, UI state, filesystem contents, database contents, and other privileged runtime capabilities to a connected client.
+Detected tool logging is enabled by default. To suppress the type and assembly list while keeping the selected policy behavior, set `AnsightLogRemoteTools=false`.
+
+Use `Allowed` only when the build intentionally includes remote tools and you do not want build-time checks or warnings. Do not enable remote tools in Release or distributable builds unless the app has an explicit user-authorization model, because they add remote inspection and action surfaces that can expose user data, screenshots, UI state, filesystem contents, database contents, and other privileged runtime capabilities to a connected client.
 
 ## Related packages
 

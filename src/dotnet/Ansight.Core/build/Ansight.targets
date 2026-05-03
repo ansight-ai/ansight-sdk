@@ -4,9 +4,14 @@
     <AnsightDeveloperPairingSourceFile Condition="'$(AnsightDeveloperPairingSourceFile)' == ''">$(MSBuildProjectDirectory)/ansight.json</AnsightDeveloperPairingSourceFile>
     <_AnsightDeveloperPairingOutputFileDefaulted Condition="'$(AnsightDeveloperPairingOutputFile)' == ''">true</_AnsightDeveloperPairingOutputFileDefaulted>
     <AnsightDeveloperPairingOutputFile Condition="'$(AnsightDeveloperPairingOutputFile)' == ''">$(BaseIntermediateOutputPath)ansight.developer-pairing.json</AnsightDeveloperPairingOutputFile>
-    <AnsightAllowRemoteTools Condition="'$(AnsightAllowRemoteTools)' == ''">false</AnsightAllowRemoteTools>
-    <_AnsightAllowRemoteToolsNormalized>$([System.String]::Copy('$(AnsightAllowRemoteTools)').ToLowerInvariant())</_AnsightAllowRemoteToolsNormalized>
-    <_AnsightConfigurationNormalized>$([System.String]::Copy('$(Configuration)').ToLowerInvariant())</_AnsightConfigurationNormalized>
+    <_AnsightRemoteToolsPolicySpecified Condition="'$(AnsightRemoteToolsPolicy)' != ''">true</_AnsightRemoteToolsPolicySpecified>
+    <_AnsightAllowRemoteToolsNormalized Condition="'$(AnsightAllowRemoteTools)' != ''">$([System.String]::Copy('$(AnsightAllowRemoteTools)').ToLowerInvariant())</_AnsightAllowRemoteToolsNormalized>
+    <AnsightRemoteToolsPolicy Condition="'$(AnsightRemoteToolsPolicy)' == '' and '$(_AnsightAllowRemoteToolsNormalized)' == 'true'">Allowed</AnsightRemoteToolsPolicy>
+    <AnsightRemoteToolsPolicy Condition="'$(AnsightRemoteToolsPolicy)' == '' and '$(_AnsightAllowRemoteToolsNormalized)' == 'false'">Disallowed</AnsightRemoteToolsPolicy>
+    <AnsightRemoteToolsPolicy Condition="'$(AnsightRemoteToolsPolicy)' == ''">AllowedWithWarnings</AnsightRemoteToolsPolicy>
+    <AnsightLogRemoteTools Condition="'$(AnsightLogRemoteTools)' == ''">true</AnsightLogRemoteTools>
+    <_AnsightRemoteToolsPolicyNormalized>$([System.String]::Copy('$(AnsightRemoteToolsPolicy)').ToLowerInvariant())</_AnsightRemoteToolsPolicyNormalized>
+    <_AnsightLogRemoteToolsNormalized>$([System.String]::Copy('$(AnsightLogRemoteTools)').ToLowerInvariant())</_AnsightLogRemoteToolsNormalized>
     <_AnsightBuildTaskAssemblyPackagePath>$(MSBuildThisFileDirectory)Ansight.Build.dll</_AnsightBuildTaskAssemblyPackagePath>
     <_AnsightBuildTaskAssemblySourcePath>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\Ansight.Build\bin\$(Configuration)\netstandard2.0\Ansight.Build.dll'))</_AnsightBuildTaskAssemblySourcePath>
     <_AnsightBuildTaskAssemblyPath>$(_AnsightBuildTaskAssemblyPackagePath)</_AnsightBuildTaskAssemblyPath>
@@ -27,12 +32,12 @@
   <Target Name="ValidateAnsightRemoteToolPolicy"
           BeforeTargets="Build"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(IsCrossTargetingBuild)' != 'true'">
-    <Error Condition="'$(_AnsightAllowRemoteToolsNormalized)' != 'true' and '$(_AnsightAllowRemoteToolsNormalized)' != 'false'"
-           Text="AnsightAllowRemoteTools must be either 'true' or 'false'." />
-    <Warning Condition="'$(_AnsightAllowRemoteToolsNormalized)' == 'true' and ('$(_AnsightConfigurationNormalized)' == '' or '$(_AnsightConfigurationNormalized)' != 'debug')"
-             Text="Ansight remote tools are explicitly enabled for this build via AnsightAllowRemoteTools=true. Keep this limited to local Debug builds and exclude tool packages from Release/distribution builds with MSBuild conditions." />
-    <Warning Condition="'$(_AnsightAllowRemoteToolsNormalized)' == 'true' and '$(_AnsightConfigurationNormalized)' == 'debug'"
-             Text="Ansight remote tools are explicitly enabled for this build via AnsightAllowRemoteTools=true. Keep this limited to local Debug builds and exclude tool packages from Release/distribution builds with MSBuild conditions." />
+    <Error Condition="'$(_AnsightRemoteToolsPolicySpecified)' != 'true' and '$(AnsightAllowRemoteTools)' != '' and '$(_AnsightAllowRemoteToolsNormalized)' != 'true' and '$(_AnsightAllowRemoteToolsNormalized)' != 'false'"
+           Text="AnsightAllowRemoteTools has been replaced by AnsightRemoteToolsPolicy. Legacy compatibility only accepts 'true' or 'false'." />
+    <Error Condition="'$(_AnsightRemoteToolsPolicyNormalized)' != 'allowed' and '$(_AnsightRemoteToolsPolicyNormalized)' != 'allowedwithwarnings' and '$(_AnsightRemoteToolsPolicyNormalized)' != 'disallowed'"
+           Text="AnsightRemoteToolsPolicy must be one of 'Allowed', 'AllowedWithWarnings', or 'Disallowed'." />
+    <Error Condition="'$(_AnsightLogRemoteToolsNormalized)' != 'true' and '$(_AnsightLogRemoteToolsNormalized)' != 'false'"
+           Text="AnsightLogRemoteTools must be either 'true' or 'false'." />
   </Target>
 
   <Target Name="GenerateAnsightDeveloperPairing"
@@ -98,7 +103,7 @@
 
   <Target Name="CheckAnsightToolImplementations"
           AfterTargets="Build"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(IsCrossTargetingBuild)' != 'true' and '$(_AnsightAllowRemoteToolsNormalized)' != 'true' and Exists('$(TargetDir)')">
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(IsCrossTargetingBuild)' != 'true' and '$(_AnsightRemoteToolsPolicyNormalized)' != 'allowed' and Exists('$(TargetDir)')">
     <Error Condition="!Exists('$(_AnsightBuildTaskAssemblyPath)')"
            Text="Ansight remote tool enforcement is enabled, but the Ansight build task assembly was not found. Expected one of: '$(_AnsightBuildTaskAssemblyPackagePath)' or '$(_AnsightBuildTaskAssemblySourcePath)'." />
     <ItemGroup>
@@ -116,10 +121,13 @@
       <_AnsightDetectedToolSummary>@(_AnsightDetectedTool-&gt;'%(Identity) (%(AssemblyName))', '; ')</_AnsightDetectedToolSummary>
     </PropertyGroup>
 
-    <Message Condition="'@(_AnsightDetectedTool)' != ''"
-             Importance="High"
-             Text="Ansight blocked remote tools in this build. Detected tool implementations: $(_AnsightDetectedToolSummary)." />
-    <Error Condition="'@(_AnsightDetectedTool)' != ''"
-           Text="Ansight detected concrete ITool implementations in the build output: $(_AnsightDetectedToolSummary). Fix: remove the tool package/reference from this build, or make it Debug-only with MSBuild conditions. Only if this is an intentional local debugging build, set AnsightAllowRemoteTools=true. Security guidance: never allow remote tools in non-Debug or shippable builds, because they add remote inspection and execution capabilities that can expose user data, filesystem/database contents, screenshots, UI state, and other privileged app behavior to a connected client." />
+    <Warning Condition="'@(_AnsightDetectedTool)' != '' and '$(_AnsightRemoteToolsPolicyNormalized)' == 'allowedwithwarnings' and '$(_AnsightLogRemoteToolsNormalized)' == 'true'"
+             Text="Ansight remote tools are included in this build: $(_AnsightDetectedToolSummary). AnsightRemoteToolsPolicy=AllowedWithWarnings allows the build to continue. Set AnsightRemoteToolsPolicy=Disallowed to fail builds that include remote tools, or Allowed to bypass remote tool scanning and warnings." />
+    <Warning Condition="'@(_AnsightDetectedTool)' != '' and '$(_AnsightRemoteToolsPolicyNormalized)' == 'allowedwithwarnings' and '$(_AnsightLogRemoteToolsNormalized)' == 'false'"
+             Text="Ansight remote tools are included in this build. AnsightRemoteToolsPolicy=AllowedWithWarnings allows the build to continue. Set AnsightLogRemoteTools=true to log detected tool types and assemblies. Set AnsightRemoteToolsPolicy=Disallowed to fail builds that include remote tools, or Allowed to bypass remote tool scanning and warnings." />
+    <Error Condition="'@(_AnsightDetectedTool)' != '' and '$(_AnsightRemoteToolsPolicyNormalized)' == 'disallowed' and '$(_AnsightLogRemoteToolsNormalized)' == 'true'"
+           Text="Ansight blocked remote tools in this build because AnsightRemoteToolsPolicy=Disallowed. Detected tool implementations: $(_AnsightDetectedToolSummary). Fix: remove the tool package/reference from this build, or make it Debug-only with MSBuild conditions. For local debugging builds, set AnsightRemoteToolsPolicy=AllowedWithWarnings to allow with build warnings. Security guidance: never allow remote tools in non-Debug or shippable builds, because they add remote inspection and execution capabilities that can expose user data, filesystem/database contents, screenshots, UI state, and other privileged app behavior to a connected client." />
+    <Error Condition="'@(_AnsightDetectedTool)' != '' and '$(_AnsightRemoteToolsPolicyNormalized)' == 'disallowed' and '$(_AnsightLogRemoteToolsNormalized)' == 'false'"
+           Text="Ansight blocked remote tools in this build because AnsightRemoteToolsPolicy=Disallowed. Set AnsightLogRemoteTools=true to log detected tool types and assemblies. Fix: remove the tool package/reference from this build, or make it Debug-only with MSBuild conditions. For local debugging builds, set AnsightRemoteToolsPolicy=AllowedWithWarnings to allow with build warnings. Security guidance: never allow remote tools in non-Debug or shippable builds, because they add remote inspection and execution capabilities that can expose user data, filesystem/database contents, screenshots, UI state, and other privileged app behavior to a connected client." />
   </Target>
 </Project>

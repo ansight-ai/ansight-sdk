@@ -14,12 +14,12 @@ namespace Ansight.UnitTests;
 public sealed class AnsightAllInOneTests
 {
     [Fact]
-    public void WithAnsight_ConfiguresDefaultsAndRemoteTools()
+    public void WithAnsightSdk_ConfiguresDefaultsAndRemoteTools()
     {
         var bundledConfigAssembly = typeof(AnsightAllInOneTests).Assembly;
 
         var options = Options.CreateBuilder()
-            .WithAnsight(ansight => ansight.WithBundledHostConnection(bundledConfigAssembly))
+            .WithAnsightSdk(ansight => ansight.WithBundledHostConnection(bundledConfigAssembly))
             .Build();
 
         Assert.True(options.EnableFramesPerSecond);
@@ -39,10 +39,10 @@ public sealed class AnsightAllInOneTests
     }
 
     [Fact]
-    public void WithAnsight_AllowsSecureStorageConfigurationBeforeDefaultToolRegistration()
+    public void WithAnsightSdk_AllowsSecureStorageConfigurationBeforeDefaultToolRegistration()
     {
         var options = Options.CreateBuilder()
-            .WithAnsight(ansight => ansight.WithSecureStorageTools(secure =>
+            .WithAnsightSdk(ansight => ansight.WithSecureStorageTools(secure =>
             {
                 secure.WithStorageIdentifier("AnsightHarness");
                 secure.AllowKeyPrefix("ansight.secure.");
@@ -57,10 +57,10 @@ public sealed class AnsightAllInOneTests
     }
 
     [Fact]
-    public void WithAnsight_AllowsToolGuardOverrideBeforeDefaultToolRegistration()
+    public void WithAnsightSdk_AllowsToolGuardOverrideBeforeDefaultToolRegistration()
     {
         var options = Options.CreateBuilder()
-            .WithAnsight(ansight => ansight.WithReadOnlyToolAccess())
+            .WithAnsightSdk(ansight => ansight.WithReadOnlyToolAccess())
             .Build();
 
         Assert.Equal([ToolScope.Read], options.ToolGuard.AllowedScopes.OrderBy(scope => scope));

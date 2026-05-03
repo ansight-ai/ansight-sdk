@@ -17,7 +17,7 @@ The runtime namespace remains `Ansight` even when the NuGet package is `Ansight.
 using Ansight;
 
 var options = Options.CreateBuilder()
-    .WithAnsight(ansight =>
+    .WithAnsightSdk(ansight =>
     {
         ansight.WithBundledHostConnection(typeof(AppBootstrap).Assembly);
 #if ANDROID
@@ -29,7 +29,7 @@ var options = Options.CreateBuilder()
 Runtime.InitializeAndActivate(options);
 ```
 
-`WithAnsight(...)` applies the same practical defaults that Redpoint has been using:
+`WithAnsightSdk(...)` applies the same practical defaults that Redpoint has been using:
 
 - FPS sampling enabled
 - 400ms sample frequency
@@ -47,7 +47,7 @@ using Ansight;
 using Ansight.Tools.SecureStorage;
 
 var options = Options.CreateBuilder()
-    .WithAnsight(ansight =>
+    .WithAnsightSdk(ansight =>
     {
         ansight.WithSecureStorageTools(secure =>
         {
@@ -124,17 +124,27 @@ Install `Ansight.Core` for this lower-level surface. Add `Ansight.Pairing` separ
 
 ## Build-Time Remote Tool Enforcement
 
-Ansight fails builds by default when the output contains concrete `Ansight.Tools.ITool` implementations.
+Ansight scans builds for concrete `Ansight.Tools.ITool` implementations unless remote tool scanning is explicitly bypassed.
 
-To intentionally allow remote tools in an app build, set:
+Control build-time remote tool handling with `AnsightRemoteToolsPolicy`:
+
+- `Allowed`: bypasses remote tool scanning, warnings, and detected-tool logging.
+- `AllowedWithWarnings`: scans for remote tools, logs detected tool type and assembly details, emits a build warning when tools are present, and allows the build to continue. This is the default.
+- `Disallowed`: scans for remote tools, logs detected tool type and assembly details, and fails the build when tools are present.
+
+For strict Release or CI builds, set:
 
 ```xml
 <PropertyGroup>
-  <AnsightAllowRemoteTools>true</AnsightAllowRemoteTools>
+  <AnsightRemoteToolsPolicy>Disallowed</AnsightRemoteToolsPolicy>
 </PropertyGroup>
 ```
 
-Keep `AnsightAllowRemoteTools=true` limited to local Debug builds unless the app has an explicit user-authorization model. Remote tools can expose screenshots, UI state, filesystem data, database contents, preferences, secure storage, and live runtime state to a connected host.
+`Disallowed` will not work with the `Ansight` or `Ansight.Maui` all-in-one packages as-is because those packages intentionally include remote tools. To exercise this policy, use `Ansight.Core` plus the fine-grained `Ansight.Tools.*` packages and condition the tool references out of protected Release or CI builds.
+
+Detected tool logging is enabled by default. To suppress the type and assembly list while keeping the selected policy behavior, set `AnsightLogRemoteTools=false`.
+
+Use `Allowed` only when the build intentionally includes remote tools and you do not want build-time checks or warnings. Remote tools can expose screenshots, UI state, filesystem data, database contents, preferences, secure storage, and live runtime state to a connected host.
 
 ## Individual Tool Packages
 

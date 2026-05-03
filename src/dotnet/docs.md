@@ -15,7 +15,7 @@ Package layout:
 using Ansight;
 
 var options = Options.CreateBuilder()
-    .WithAnsight(ansight =>
+    .WithAnsightSdk(ansight =>
     {
         ansight.WithBundledHostConnection(typeof(App).Assembly);
     })
@@ -24,14 +24,14 @@ var options = Options.CreateBuilder()
 Runtime.InitializeAndActivate(options);
 ```
 
-`WithAnsight(...)` enables FPS sampling, 400ms sampling, 120s retention, live JPEG capture at 2000ms/quality-60/max-width-600, host auto-probe, bundled host connection, all non-MAUI remote tools, and full tool access. Its callback runs after runtime defaults and before default tool-suite registration, so deny-all suites can be configured in the all-in-one builder:
+`WithAnsightSdk(...)` enables FPS sampling, 400ms sampling, 120s retention, live JPEG capture at 2000ms/quality-60/max-width-600, host auto-probe, bundled host connection, all non-MAUI remote tools, and full tool access. Its callback runs after runtime defaults and before default tool-suite registration, so deny-all suites can be configured in the all-in-one builder:
 
 ```csharp
 using Ansight;
 using Ansight.Tools.SecureStorage;
 
 var options = Options.CreateBuilder()
-    .WithAnsight(ansight =>
+    .WithAnsightSdk(ansight =>
     {
         ansight.WithSecureStorageTools(secure =>
         {
@@ -293,19 +293,33 @@ For MCP-style file injection and sandbox management, `files.push_file` writes ba
 
 ## Build-time Remote Tool Enforcement
 
-Ansight enforces an explicit opt-in for bundled remote tools. Builds fail by default when the managed assemblies in `$(TargetDir)` contain concrete `Ansight.Tools.ITool` implementations.
+Ansight scans builds for bundled and custom remote tools when build-time remote tool scanning is enabled. The scanner examines the managed assemblies in `$(TargetDir)` for concrete `Ansight.Tools.ITool` implementations.
 
-Allow them explicitly with:
+Control the scanner with `AnsightRemoteToolsPolicy`:
+
+- `Allowed`: bypasses remote tool scanning, warnings, and detected-tool logging.
+- `AllowedWithWarnings`: scans for remote tools, logs detected tool type and assembly details, emits a build warning when tools are present, and allows the build to continue. This is the default.
+- `Disallowed`: scans for remote tools, logs detected tool type and assembly details, and fails the build when tools are present.
+
+For strict Release or CI builds, set:
 
 ```xml
 <PropertyGroup>
-  <AnsightAllowRemoteTools>true</AnsightAllowRemoteTools>
+  <AnsightRemoteToolsPolicy>Disallowed</AnsightRemoteToolsPolicy>
 </PropertyGroup>
 ```
 
-Leave the property unset, or set it to `false`, to keep the default build failure.
+`Disallowed` will not work with the `Ansight` or `Ansight.Maui` all-in-one packages as-is because those packages intentionally include remote tools. To exercise this policy, use `Ansight.Core` plus the fine-grained `Ansight.Tools.*` packages and condition the tool references out of protected Release or CI builds.
 
-Treat `AnsightAllowRemoteTools=true` as a local-Debug-only override. Do not enable remote tools in Release or distributable builds, because they add remote inspection and execution surfaces that can expose sensitive app data and privileged runtime behavior to a connected client.
+Detected tool logging is enabled by default. To suppress the type and assembly list while keeping the selected policy behavior, set:
+
+```xml
+<PropertyGroup>
+  <AnsightLogRemoteTools>false</AnsightLogRemoteTools>
+</PropertyGroup>
+```
+
+Use `Allowed` only when the build intentionally includes remote tools and you do not want build-time checks or warnings. Do not enable remote tools in distributable builds unless the app has an explicit user-authorization model, because they add remote inspection and execution surfaces that can expose sensitive app data and privileged runtime behavior to a connected client.
 
 ## Supported target frameworks
 

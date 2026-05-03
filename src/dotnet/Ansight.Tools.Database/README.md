@@ -23,3 +23,7 @@ var options = Options.CreateBuilder()
 - `rowValues`: ordered cell arrays with each cell's runtime SQLite storage type.
 
 SQLite `BLOB` values are encoded as descriptor objects with `type = "blob"`, `base64`, and `byteLength` fields. The package inspects ordinary SQLite databases that are readable through the platform SQLite library; encrypted database support is intentionally out of scope.
+
+## Build-time remote tool policy
+
+Projects that reference this package are covered by `AnsightRemoteToolsPolicy`. The default `AllowedWithWarnings` policy logs detected tool type and assembly details and emits a build warning when remote tools are included. Because this package contains remote tools, `Disallowed` only succeeds when the package is omitted from that build, for example with Debug-only package references. Use `Allowed` to bypass remote tool scanning and warnings. Set `AnsightLogRemoteTools=false` to suppress the detected-tool list.

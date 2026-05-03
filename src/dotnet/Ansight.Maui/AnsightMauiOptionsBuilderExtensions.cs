@@ -37,7 +37,7 @@ public static class AnsightMauiOptionsBuilderExtensions
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(configure);
 
-        builder = builder.WithAnsight(configure);
+        builder = builder.WithAnsightSdk(configure);
 
         if (!ContainsAnyTool(builder, mauiSuiteToolIds))
         {

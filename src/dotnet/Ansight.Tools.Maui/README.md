@@ -45,3 +45,7 @@ The visual tree and search tools return MAUI element ids that can be passed to t
 `maui.set_app_theme` changes `Application.Current.UserAppTheme` to `light`, `dark`, or `system` at runtime.
 
 These tools are intended for local debugging only. Broad visual-tree labels are PII-safe by default: typed `Entry`, `Editor`, and `SearchBar` text, picker selections, dates, times, toggle states, slider values, and sensitive-looking text are omitted or redacted. Resource values and binding-context property snapshots are opt-in; by default resource inspection returns keys/types and binding-context inspection returns metadata only. Explicit value-reading tools can still reveal app data, binding expressions, binding-context object state, handler metadata, and mutate live UI, app theme, or view-model state.
+
+## Build-time remote tool policy
+
+Projects that reference this package are covered by `AnsightRemoteToolsPolicy`. The default `AllowedWithWarnings` policy logs detected tool type and assembly details and emits a build warning when remote tools are included. Because this package contains remote tools, `Disallowed` only succeeds when the package is omitted from that build, for example with Debug-only package references. Use `Allowed` to bypass remote tool scanning and warnings. Set `AnsightLogRemoteTools=false` to suppress the detected-tool list.
