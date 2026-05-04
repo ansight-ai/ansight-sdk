@@ -14,12 +14,6 @@ public partial class ImagePage : ContentPage
         UpdateStatus();
     }
 
-    protected override void OnAppearing()
-    {
-        base.OnAppearing();
-        Runtime.ScreenViewed(nameof(ImagePage));
-    }
-
     private void UpdateStatus()
     {
         StatusLabel.Text = $"Leaked images: {leakedImages.Count}";

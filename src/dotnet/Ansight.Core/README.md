@@ -22,6 +22,8 @@ Runtime.Event("network_request_started");
 Runtime.ScreenViewed("CheckoutPage");
 ```
 
+`Runtime.ScreenViewed(...)` is the manual screen-view API for core and non-MAUI integrations. The `Ansight.Maui` all-in-one package records default MAUI page views automatically from `Application.PageAppearing` when the app is configured through `builder.UseAnsight(...)`.
+
 When `WithSessionJpegCapture(...)` is enabled, the pairing client will capture the app's own root window/view as a JPEG and stream it over live Ansight pairing sessions. Capture remains client-driven, but the next interval is delayed until the previous frame has finished encoding and sending so the stream self-throttles under load. Connected tooling can inspect the latest live frame or correlate historical frames with the telemetry timeline. This feature adds extra rendering, encoding, and transport work and can negatively affect runtime performance while it is active.
 
 Host auto-probe is enabled by default. While `Runtime` is active, Ansight will periodically try to reconnect to the most recent successful host session if one is cached, pause probing while that session stays open, and resume after a reconnect delay if the session closes. Disable it with `WithoutHostAutoProbe()` or customize it with `WithHostAutoProbe(new HostAutoProbeOptions { ... })`.

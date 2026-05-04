@@ -9,6 +9,7 @@ public static class AnsightMauiOptionsBuilderExtensions
 {
     /// <summary>
     /// Applies the default Ansight configuration and registers the MAUI remote tools.
+    /// Automatic MAUI lifecycle and page-view telemetry is registered by the MauiAppBuilder UseAnsight overloads.
     /// </summary>
     /// <param name="builder">The Ansight options builder.</param>
     /// <returns>The current options builder.</returns>
@@ -22,6 +23,7 @@ public static class AnsightMauiOptionsBuilderExtensions
     /// <summary>
     /// Applies the default MAUI Ansight configuration, runs a callback against the same <see cref="Options.OptionsBuilder" />
     /// before the default tool suites are registered, and registers MAUI tools when they have not already been registered.
+    /// Automatic MAUI lifecycle and page-view telemetry is registered by the MauiAppBuilder UseAnsight overloads.
     /// </summary>
     /// <param name="builder">The Ansight options builder.</param>
     /// <param name="configure">

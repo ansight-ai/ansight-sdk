@@ -2,7 +2,7 @@
 
 All-in-one Ansight package for .NET MAUI apps.
 
-This package references `Ansight`, adds the MAUI remote tools, and provides `MauiAppBuilder` setup helpers.
+This package references `Ansight`, adds the MAUI remote tools, and provides `MauiAppBuilder` setup helpers with automatic MAUI telemetry wiring.
 
 ```csharp
 using Ansight.Maui;
@@ -19,7 +19,7 @@ public static MauiApp CreateMauiApp()
 }
 ```
 
-Use `UseAnsight<App>()` to initialize and activate the runtime from the MAUI builder. Use `WithAnsightMaui(...)` when manually building `Options`, or the existing `WithMauiTools()` extension when composing tool registration by hand.
+Use `UseAnsight<App>()` to initialize and activate the runtime from the MAUI builder. It also automatically records foreground/background lifecycle transitions and records a screen-view event whenever a MAUI page appears. No `AppDelegate`, Android `Application`, or page `OnAppearing` calls are required for the default telemetry.
 
 ```csharp
 using Ansight.Maui;
@@ -37,5 +37,19 @@ builder.UseAnsight<App>(ansight =>
 ```
 
 The callback runs before default tool-suite registration. If it registers secure storage, preferences, MAUI tools, or another suite, the all-in-one setup skips the default registration for that suite and keeps the configured version. Full tool access is applied before the callback, so the callback can also narrow the guard.
+
+If options are built manually, call the `MauiAppBuilder` overload with those options so the MAUI lifecycle and page-view hooks are registered:
+
+```csharp
+var options = Options.CreateBuilder()
+    .WithAnsightMaui()
+    .Build();
+
+builder
+    .UseMauiApp<App>()
+    .UseAnsight(options);
+```
+
+`WithAnsightMaui(...)` configures runtime defaults and MAUI tools only. `UseAnsight(...)` is the API that registers automatic foreground/background and `Application.PageAppearing` telemetry.
 
 Remote tool scanning is controlled by `AnsightRemoteToolsPolicy`. The default `AllowedWithWarnings` policy logs detected tool type and assembly details and emits a build warning when tool packages are included. Because this all-in-one package intentionally includes remote tools, `Disallowed` will fail builds that reference it. Use `Ansight.Core` plus fine-grained `Ansight.Tools.*` references when you need protected Release or CI builds that exercise `Disallowed`. Set `AnsightLogRemoteTools=false` to suppress the detected-tool list.

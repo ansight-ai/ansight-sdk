@@ -10,7 +10,7 @@
 
     <IsPackable>true</IsPackable>
     <PackageId>Ansight.Maui</PackageId>
-    <Description>All-in-one Ansight SDK package for .NET MAUI apps, including core runtime, pairing, remote tools, and MAUI inspection tools.</Description>
+    <Description>All-in-one Ansight SDK package for .NET MAUI apps, including core runtime, pairing, remote tools, automatic lifecycle and page-view telemetry, and MAUI inspection tools.</Description>
     <PackageTags>ansight;maui;observability;debugging;telemetry;pairing;remote-tools;android;ios;maccatalyst</PackageTags>
     <NoWarn>$(NoWarn);NU5110;NU5111</NoWarn>
   </PropertyGroup>

@@ -6,7 +6,7 @@ Ansight provides in-process telemetry, host pairing, live JPEG capture, and guar
 
 - `Ansight.Core`: core runtime, telemetry, host pairing protocol, tool abstractions, and build-time safety targets.
 - `Ansight`: all-in-one package for non-MAUI .NET apps. It depends on `Ansight.Core`, native pairing where supported, and all non-MAUI remote tool packages.
-- `Ansight.Maui`: all-in-one package for .NET MAUI apps. It depends on `Ansight` and adds MAUI inspection/mutation tools plus `MauiAppBuilder` setup helpers.
+- `Ansight.Maui`: all-in-one package for .NET MAUI apps. It depends on `Ansight` and adds MAUI inspection/mutation tools plus `MauiAppBuilder` setup helpers with automatic lifecycle and page-view telemetry.
 - `Ansight.Tools.*`: individual tool packages for apps that want explicit package-by-package control.
 
 The runtime namespace remains `Ansight` even when the NuGet package is `Ansight.Core`.
@@ -79,7 +79,9 @@ public static MauiApp CreateMauiApp()
 }
 ```
 
-`UseAnsight<App>()` initializes and activates the runtime from the MAUI builder.
+`UseAnsight<App>()` initializes and activates the runtime from the MAUI builder. It also records foreground/background lifecycle transitions on Android, iOS, and Mac Catalyst, and records a screen-view event from `Application.PageAppearing` whenever a MAUI page appears.
+
+You do not need to call `Runtime.SetAppLifecycleState(...)` from platform delegates or `Runtime.ScreenViewed(...)` from each page for the default MAUI telemetry.
 
 For custom tool options:
 
@@ -102,7 +104,7 @@ builder.UseAnsight<App>(ansight =>
 });
 ```
 
-`UseAnsight(...)` and `WithAnsightMaui(...)` callbacks receive the existing `Options.OptionsBuilder` before the default tool suites are registered, so custom configuration uses the same core model as the lower-level SDK.
+`UseAnsight(...)` and `WithAnsightMaui(...)` callbacks receive the existing `Options.OptionsBuilder` before the default tool suites are registered, so custom configuration uses the same core model as the lower-level SDK. When manually building options with `WithAnsightMaui(...)`, still pass them to `builder.UseAnsight(options)` so the MAUI automatic telemetry hooks are registered.
 
 ## Core Runtime
 

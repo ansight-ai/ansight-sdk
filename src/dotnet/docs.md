@@ -62,6 +62,10 @@ builder
     });
 ```
 
+`UseAnsight<App>()` also wires automatic MAUI telemetry for Android, iOS, and Mac Catalyst: foreground/background lifecycle transitions are captured from platform lifecycle callbacks, and screen-view events are recorded from `Application.PageAppearing`.
+
+Apps using `Ansight.Maui` do not need to call `Runtime.SetAppLifecycleState(...)` from platform delegates or `Runtime.ScreenViewed(...)` from each page for the default lifecycle and page-view events. If you manually build options with `WithAnsightMaui(...)`, pass the result to `builder.UseAnsight(options)`; the options builder configures defaults and tools, while the `MauiAppBuilder` extension registers the MAUI hooks.
+
 ## Initialize
 
 ```csharp
