@@ -31,4 +31,4 @@ Detected tool logging is enabled by default. To suppress the type and assembly l
 </PropertyGroup>
 ```
 
-Use `Allowed` only when the build intentionally includes remote tools and you do not want build-time checks or warnings. Remote tools can expose screenshots, UI state, filesystem data, database contents, preferences, secure storage, and live runtime state to a connected host.
+Use `Allowed` only when the build intentionally includes remote tools and you do not want build-time checks or warnings. Remote tools can expose screenshots, UI state, filesystem data, database contents, preferences, secure storage, and live runtime state to a connected host. Write-scoped UI tools can also mutate diagnostic state, such as drawing or clearing input-transparent visual tree overlays in the active app window.

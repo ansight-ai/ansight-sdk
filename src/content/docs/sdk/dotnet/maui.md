@@ -56,3 +56,18 @@ builder
 ```
 
 `WithAnsightMaui(...)` configures runtime defaults and MAUI tools. `UseAnsight(...)` owns the MAUI app-builder integration, including lifecycle and page-view hooks.
+
+## Visual tree overlays
+
+The all-in-one MAUI setup includes the generic visual tree tools from `Ansight.Tools.VisualTree`. Read tools such as `ui.get_visual_tree`, `ui.inspect_node`, `ui.get_screenshot`, `ui.get_overlay`, and `ui.query_overlays` are available when read-scoped tools are enabled.
+
+Write-scoped overlay tools let a connected host draw temporary, input-transparent diagnostic boxes over the active native window:
+
+- `ui.show_overlay` creates one or more highlight rectangles from explicit window coordinates, visual-tree coordinates, or a `nodeId`.
+- `ui.update_overlay` edits an existing overlay by id. Omitted fields keep their current values.
+- `ui.remove_overlay` removes one overlay by id.
+- `ui.clear_overlays` removes all overlays, or only overlays matching a metadata key/value filter.
+
+Overlays default to no fill, a red stroke, and a 5 second lifetime. Pass `durationMs=0` for an overlay that remains until removed. Use `fillColor=none` or `fillColor=transparent` to clear fill while editing. Each overlay can include a small scalar `metadata` dictionary so MCP clients can record why the overlay exists, such as a target node id, assertion name, or investigation step.
+
+Overlay renderers are explicitly input-transparent and should not intercept taps, clicks, focus, or gestures. Enable these tools with `WithReadWriteToolAccess()` or a custom `ToolGuard`; `WithReadOnlyToolAccess()` intentionally does not allow creating, editing, or removing overlays.
