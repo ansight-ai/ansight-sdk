@@ -12,7 +12,13 @@ public static class VisualTreeOptionsBuilderExtensions
         {
             new GetVisualTreeTool(),
             new GetScreenshotTool(),
-            new InspectNodeTool()
+            new InspectNodeTool(),
+            new ShowOverlayTool(),
+            new GetOverlayTool(),
+            new QueryOverlaysTool(),
+            new UpdateOverlayTool(),
+            new RemoveOverlayTool(),
+            new ClearOverlaysTool()
         });
     }
 }

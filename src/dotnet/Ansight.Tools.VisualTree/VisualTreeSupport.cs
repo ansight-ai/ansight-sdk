@@ -18,7 +18,7 @@ using Foundation;
 using UIKit;
 #endif
 
-internal static class VisualTreeSupport
+internal static partial class VisualTreeSupport
 {
     private static int lastEncodedScreenshotBytes = 32 * 1024;
 

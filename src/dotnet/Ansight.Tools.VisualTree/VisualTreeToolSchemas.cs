@@ -19,6 +19,53 @@ internal static class VisualTreeToolSchemas
         description: "Arbitrary object with implementation-specific fields.",
         additionalProperties: true);
 
+    private static readonly ToolSchema OverlayMetadataSchema = ToolSchema.Object(
+        description: "Small caller-provided scalar metadata dictionary that explains why the overlay exists.",
+        additionalProperties: true,
+        nullable: true);
+
+    private static readonly ToolSchema OverlayRectSchema = ToolSchema.Object(
+        description: "Window-relative overlay rectangle.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["x"] = ToolSchema.Number("Horizontal origin."),
+            ["y"] = ToolSchema.Number("Vertical origin."),
+            ["width"] = ToolSchema.Number("Rectangle width."),
+            ["height"] = ToolSchema.Number("Rectangle height."),
+            ["label"] = ToolSchema.String("Optional label stored with the rectangle.", nullable: true)
+        },
+        required: new[] { "x", "y", "width", "height" });
+
+    private static readonly ToolSchema OverlayStyleSchema = ToolSchema.Object(
+        description: "Diagnostic overlay style.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["strokeColor"] = ToolSchema.String("Normalized stroke color as #AARRGGBB."),
+            ["fillColor"] = ToolSchema.String("Normalized fill color as #AARRGGBB, or null when no fill is drawn.", nullable: true),
+            ["strokeWidth"] = ToolSchema.Number("Stroke width."),
+            ["cornerRadius"] = ToolSchema.Number("Rectangle corner radius.")
+        },
+        required: new[] { "strokeColor", "strokeWidth", "cornerRadius" });
+
+    private static readonly ToolSchema OverlaySchema = ToolSchema.Object(
+        description: "Live diagnostic overlay.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["id"] = ToolSchema.String("Overlay identifier."),
+            ["platform"] = ToolSchema.String("Current runtime platform."),
+            ["createdAtUtc"] = ToolSchema.String("UTC timestamp when the overlay was created.", format: "date-time"),
+            ["expiresAtUtc"] = ToolSchema.String("UTC timestamp when the overlay should auto-remove, or null for persistent overlays.", format: "date-time", nullable: true),
+            ["durationMs"] = ToolSchema.Integer("Requested overlay duration in milliseconds. Zero means persistent until removed."),
+            ["remainingMs"] = ToolSchema.Integer("Approximate milliseconds before automatic removal, or null for persistent overlays.", nullable: true),
+            ["transient"] = ToolSchema.Boolean("Whether the overlay automatically removes itself."),
+            ["inputTransparent"] = ToolSchema.Boolean("Always true. The overlay is rendered with native input-transparent primitives."),
+            ["coordinateSpace"] = ToolSchema.String("Coordinate space used by returned rectangles."),
+            ["style"] = OverlayStyleSchema,
+            ["rects"] = ToolSchema.Array(OverlayRectSchema, "Rendered rectangles."),
+            ["metadata"] = OverlayMetadataSchema
+        },
+        required: new[] { "id", "platform", "createdAtUtc", "durationMs", "transient", "inputTransparent", "coordinateSpace", "style", "rects" });
+
     private static readonly ToolSchema VisualNodeSchema = ToolSchema.Object(
         description: "A visual tree node.",
         properties: new Dictionary<string, ToolSchema>
@@ -116,4 +163,133 @@ internal static class VisualTreeToolSchemas
             ["annotationApplied"] = ToolSchema.Boolean("Whether node id annotations were applied.")
         },
         required: new[] { "platform", "capturedAtUtc", "format", "width", "height", "annotationApplied" });
+
+    internal static ToolSchema ShowOverlayArguments { get; } = ToolSchema.Object(
+        description: "Arguments for drawing an input-transparent diagnostic overlay over the active app window.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["overlayId"] = ToolSchema.String("Optional overlay id. When omitted, a generated id is returned.", nullable: true),
+            ["nodeId"] = ToolSchema.String("Optional visual tree node id to highlight. Pass either nodeId or rectangle coordinates.", nullable: true),
+            ["rects"] = ToolSchema.Array(OverlayRectSchema, "Optional rectangles to draw. Pass either rects or top-level x/y/width/height.", nullable: true),
+            ["x"] = ToolSchema.Number("Single rectangle horizontal origin.", nullable: true),
+            ["y"] = ToolSchema.Number("Single rectangle vertical origin.", nullable: true),
+            ["width"] = ToolSchema.Number("Single rectangle width.", nullable: true),
+            ["height"] = ToolSchema.Number("Single rectangle height.", nullable: true),
+            ["label"] = ToolSchema.String("Optional label for a single rectangle.", nullable: true),
+            ["coordinateSpace"] = ToolSchema.String(
+                "Input coordinate space. Defaults to window. visualTree accepts bounds returned by ui.get_visual_tree.",
+                enumValues: new[] { "visualTree", "window" }),
+            ["strokeColor"] = ToolSchema.String("Stroke color. Supports #RGB, #ARGB, #RRGGBB, #AARRGGBB, or common color names."),
+            ["fillColor"] = ToolSchema.String("Fill color. Omit, null, none, or transparent for no fill.", nullable: true),
+            ["strokeWidth"] = ToolSchema.Number("Stroke width."),
+            ["cornerRadius"] = ToolSchema.Number("Rectangle corner radius."),
+            ["durationMs"] = ToolSchema.Integer("Overlay lifetime in milliseconds. Defaults to 5000. Pass 0 to persist until removed."),
+            ["metadata"] = OverlayMetadataSchema
+        });
+
+    internal static ToolSchema OverlayResult { get; } = ToolSchema.Object(
+        description: "Single overlay payload.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["platform"] = ToolSchema.String("Current runtime platform."),
+            ["capturedAtUtc"] = ToolSchema.String("UTC timestamp for capture.", format: "date-time"),
+            ["overlay"] = OverlaySchema
+        },
+        required: new[] { "platform", "capturedAtUtc", "overlay" });
+
+    internal static ToolSchema GetOverlayArguments { get; } = ToolSchema.Object(
+        description: "Arguments for retrieving a diagnostic overlay by id.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["overlayId"] = ToolSchema.String("Overlay id.")
+        },
+        required: new[] { "overlayId" });
+
+    internal static ToolSchema QueryOverlaysArguments { get; } = ToolSchema.Object(
+        description: "Arguments for querying live diagnostic overlays.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["metadataKey"] = ToolSchema.String("Optional metadata key that must be present.", nullable: true),
+            ["metadataValue"] = ToolSchema.String("Optional metadata value that must match the metadataKey value.", nullable: true)
+        });
+
+    internal static ToolSchema QueryOverlaysResult { get; } = ToolSchema.Object(
+        description: "Overlay query payload.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["platform"] = ToolSchema.String("Current runtime platform."),
+            ["capturedAtUtc"] = ToolSchema.String("UTC timestamp for capture.", format: "date-time"),
+            ["count"] = ToolSchema.Integer("Number of matching overlays."),
+            ["overlays"] = ToolSchema.Array(OverlaySchema, "Matching overlays.")
+        },
+        required: new[] { "platform", "capturedAtUtc", "count", "overlays" });
+
+    internal static ToolSchema UpdateOverlayArguments { get; } = ToolSchema.Object(
+        description: "Arguments for editing an existing diagnostic overlay. Omitted fields preserve the current overlay value.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["overlayId"] = ToolSchema.String("Overlay id."),
+            ["nodeId"] = ToolSchema.String("Optional visual tree node id to highlight. Replaces existing rectangles.", nullable: true),
+            ["rects"] = ToolSchema.Array(OverlayRectSchema, "Optional replacement rectangles to draw.", nullable: true),
+            ["x"] = ToolSchema.Number("Single replacement rectangle horizontal origin.", nullable: true),
+            ["y"] = ToolSchema.Number("Single replacement rectangle vertical origin.", nullable: true),
+            ["width"] = ToolSchema.Number("Single replacement rectangle width.", nullable: true),
+            ["height"] = ToolSchema.Number("Single replacement rectangle height.", nullable: true),
+            ["label"] = ToolSchema.String("Optional label for a single replacement rectangle.", nullable: true),
+            ["coordinateSpace"] = ToolSchema.String(
+                "Input coordinate space for replacement geometry. Defaults to window. visualTree accepts bounds returned by ui.get_visual_tree.",
+                enumValues: new[] { "visualTree", "window" }),
+            ["strokeColor"] = ToolSchema.String("Replacement stroke color. Supports #RGB, #ARGB, #RRGGBB, #AARRGGBB, or common color names.", nullable: true),
+            ["fillColor"] = ToolSchema.String("Replacement fill color. Use none or transparent to clear fill.", nullable: true),
+            ["strokeWidth"] = ToolSchema.Number("Replacement stroke width.", nullable: true),
+            ["cornerRadius"] = ToolSchema.Number("Replacement rectangle corner radius.", nullable: true),
+            ["durationMs"] = ToolSchema.Integer("Replacement overlay lifetime from now in milliseconds. Pass 0 to persist until removed.", nullable: true),
+            ["metadata"] = OverlayMetadataSchema,
+            ["metadataMode"] = ToolSchema.String(
+                "How provided metadata should be applied. merge preserves unspecified keys; replace swaps the dictionary; clear removes all metadata.",
+                enumValues: new[] { "merge", "replace", "clear" })
+        },
+        required: new[] { "overlayId" });
+
+    internal static ToolSchema RemoveOverlayArguments { get; } = ToolSchema.Object(
+        description: "Arguments for removing a diagnostic overlay by id.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["overlayId"] = ToolSchema.String("Overlay id.")
+        },
+        required: new[] { "overlayId" });
+
+    internal static ToolSchema RemoveOverlayResult { get; } = ToolSchema.Object(
+        description: "Overlay removal payload.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["platform"] = ToolSchema.String("Current runtime platform."),
+            ["capturedAtUtc"] = ToolSchema.String("UTC timestamp for removal.", format: "date-time"),
+            ["overlayId"] = ToolSchema.String("Overlay id."),
+            ["removed"] = ToolSchema.Boolean("Whether a live overlay was found and removed."),
+            ["overlay"] = ToolSchema.Object(
+                description: "Removed overlay snapshot, or null when no overlay matched.",
+                additionalProperties: true,
+                nullable: true)
+        },
+        required: new[] { "platform", "capturedAtUtc", "overlayId", "removed" });
+
+    internal static ToolSchema ClearOverlaysArguments { get; } = ToolSchema.Object(
+        description: "Arguments for clearing diagnostic overlays.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["metadataKey"] = ToolSchema.String("Optional metadata key that must be present for an overlay to be cleared.", nullable: true),
+            ["metadataValue"] = ToolSchema.String("Optional metadata value that must match the metadataKey value for an overlay to be cleared.", nullable: true)
+        });
+
+    internal static ToolSchema ClearOverlaysResult { get; } = ToolSchema.Object(
+        description: "Overlay clear payload.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["platform"] = ToolSchema.String("Current runtime platform."),
+            ["capturedAtUtc"] = ToolSchema.String("UTC timestamp for removal.", format: "date-time"),
+            ["count"] = ToolSchema.Integer("Number of overlays removed."),
+            ["overlays"] = ToolSchema.Array(OverlaySchema, "Removed overlay snapshots.")
+        },
+        required: new[] { "platform", "capturedAtUtc", "count", "overlays" });
 }

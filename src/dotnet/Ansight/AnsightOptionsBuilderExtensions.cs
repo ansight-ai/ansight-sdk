@@ -150,7 +150,13 @@ public static class AnsightOptionsBuilderExtensions
     [
         VisualTreeToolIds.GetVisualTree,
         VisualTreeToolIds.GetScreenshot,
-        VisualTreeToolIds.InspectNode
+        VisualTreeToolIds.InspectNode,
+        VisualTreeToolIds.ShowOverlay,
+        VisualTreeToolIds.GetOverlay,
+        VisualTreeToolIds.QueryOverlays,
+        VisualTreeToolIds.UpdateOverlay,
+        VisualTreeToolIds.RemoveOverlay,
+        VisualTreeToolIds.ClearOverlays
     ];
 
     private static readonly string[] databaseSuiteToolIds =

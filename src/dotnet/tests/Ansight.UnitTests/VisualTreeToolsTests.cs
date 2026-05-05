@@ -12,7 +12,17 @@ public sealed class VisualTreeToolsTests
             .Build();
 
         Assert.Equal(
-            [VisualTreeToolIds.GetVisualTree, VisualTreeToolIds.GetScreenshot, VisualTreeToolIds.InspectNode],
+            [
+                VisualTreeToolIds.GetVisualTree,
+                VisualTreeToolIds.GetScreenshot,
+                VisualTreeToolIds.InspectNode,
+                VisualTreeToolIds.ShowOverlay,
+                VisualTreeToolIds.GetOverlay,
+                VisualTreeToolIds.QueryOverlays,
+                VisualTreeToolIds.UpdateOverlay,
+                VisualTreeToolIds.RemoveOverlay,
+                VisualTreeToolIds.ClearOverlays
+            ],
             options.Tools.Select(tool => tool.Id));
     }
 
@@ -41,6 +51,76 @@ public sealed class VisualTreeToolsTests
         {
             ["nodeId"] = "root"
         });
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("visual_tree_platform_unsupported", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task ShowOverlayTool_Execute_ReturnsPlatformUnsupportedOnHost()
+    {
+        var result = await new ShowOverlayTool().Execute(new Dictionary<string, string>
+        {
+            ["x"] = "0",
+            ["y"] = "0",
+            ["width"] = "100",
+            ["height"] = "100"
+        });
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("visual_tree_platform_unsupported", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task GetOverlayTool_Execute_ReturnsPlatformUnsupportedOnHost()
+    {
+        var result = await new GetOverlayTool().Execute(new Dictionary<string, string>
+        {
+            ["overlayId"] = "overlay-1"
+        });
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("visual_tree_platform_unsupported", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task QueryOverlaysTool_Execute_ReturnsPlatformUnsupportedOnHost()
+    {
+        var result = await new QueryOverlaysTool().Execute(new Dictionary<string, string>());
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("visual_tree_platform_unsupported", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task RemoveOverlayTool_Execute_ReturnsPlatformUnsupportedOnHost()
+    {
+        var result = await new RemoveOverlayTool().Execute(new Dictionary<string, string>
+        {
+            ["overlayId"] = "overlay-1"
+        });
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("visual_tree_platform_unsupported", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task UpdateOverlayTool_Execute_ReturnsPlatformUnsupportedOnHost()
+    {
+        var result = await new UpdateOverlayTool().Execute(new Dictionary<string, string>
+        {
+            ["overlayId"] = "overlay-1",
+            ["strokeColor"] = "blue"
+        });
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("visual_tree_platform_unsupported", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task ClearOverlaysTool_Execute_ReturnsPlatformUnsupportedOnHost()
+    {
+        var result = await new ClearOverlaysTool().Execute(new Dictionary<string, string>());
 
         Assert.False(result.IsSuccess);
         Assert.Equal("visual_tree_platform_unsupported", result.ErrorCode);
