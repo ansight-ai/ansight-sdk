@@ -1,7 +1,7 @@
 <Project>
 
   <PropertyGroup>
-    <AnsightPackageVersion>0.1.0-pre12</AnsightPackageVersion>
+    <AnsightPackageVersion>0.1.0-preview.13</AnsightPackageVersion>
     <AnsightPackageProjectUrl>https://www.ansight.ai</AnsightPackageProjectUrl>
     <AnsightRepositoryUrl>https://github.com/ansight-ai/ansight-sdk</AnsightRepositoryUrl>
   </PropertyGroup>
