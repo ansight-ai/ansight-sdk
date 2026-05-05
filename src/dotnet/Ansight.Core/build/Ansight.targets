@@ -14,6 +14,9 @@
     <_AnsightLogRemoteToolsNormalized>$([System.String]::Copy('$(AnsightLogRemoteTools)').ToLowerInvariant())</_AnsightLogRemoteToolsNormalized>
     <AnsightRemoteToolsEnabled Condition="'$(_AnsightRemoteToolsPolicyNormalized)' == 'allowed' or '$(_AnsightRemoteToolsPolicyNormalized)' == 'allowedwithwarnings'">true</AnsightRemoteToolsEnabled>
     <AnsightRemoteToolsEnabled Condition="'$(_AnsightRemoteToolsPolicyNormalized)' != 'allowed' and '$(_AnsightRemoteToolsPolicyNormalized)' != 'allowedwithwarnings'">false</AnsightRemoteToolsEnabled>
+    <_AnsightDefineConstantsContainsRemoteTools>$([System.String]::Copy(';$(DefineConstants);').Contains(';ANSIGHT_REMOTE_TOOLS;'))</_AnsightDefineConstantsContainsRemoteTools>
+    <DefineConstants Condition="'$(AnsightRemoteToolsEnabled)' == 'true' and '$(DefineConstants)' == ''">ANSIGHT_REMOTE_TOOLS</DefineConstants>
+    <DefineConstants Condition="'$(AnsightRemoteToolsEnabled)' == 'true' and '$(DefineConstants)' != '' and '$(_AnsightDefineConstantsContainsRemoteTools)' != 'true'">$(DefineConstants);ANSIGHT_REMOTE_TOOLS</DefineConstants>
     <_AnsightBuildTaskAssemblyPackagePath>$(MSBuildThisFileDirectory)Ansight.Build.dll</_AnsightBuildTaskAssemblyPackagePath>
     <_AnsightBuildTaskAssemblySourcePath>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\Ansight.Build\bin\$(Configuration)\netstandard2.0\Ansight.Build.dll'))</_AnsightBuildTaskAssemblySourcePath>
     <_AnsightBuildTaskAssemblyPath>$(_AnsightBuildTaskAssemblyPackagePath)</_AnsightBuildTaskAssemblyPath>

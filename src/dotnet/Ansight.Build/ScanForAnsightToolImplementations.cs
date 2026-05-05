@@ -27,7 +27,7 @@ public sealed class ScanForAnsightToolImplementations : Task
         }
 
         var outputAssemblyPaths = Directory
-            .EnumerateFiles(OutputDirectory, "*.dll", SearchOption.AllDirectories)
+            .EnumerateFiles(OutputDirectory, "*.dll", SearchOption.TopDirectoryOnly)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
