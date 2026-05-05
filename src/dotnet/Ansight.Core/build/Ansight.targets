@@ -12,6 +12,8 @@
     <AnsightLogRemoteTools Condition="'$(AnsightLogRemoteTools)' == ''">true</AnsightLogRemoteTools>
     <_AnsightRemoteToolsPolicyNormalized>$([System.String]::Copy('$(AnsightRemoteToolsPolicy)').ToLowerInvariant())</_AnsightRemoteToolsPolicyNormalized>
     <_AnsightLogRemoteToolsNormalized>$([System.String]::Copy('$(AnsightLogRemoteTools)').ToLowerInvariant())</_AnsightLogRemoteToolsNormalized>
+    <AnsightRemoteToolsEnabled Condition="'$(_AnsightRemoteToolsPolicyNormalized)' == 'allowed' or '$(_AnsightRemoteToolsPolicyNormalized)' == 'allowedwithwarnings'">true</AnsightRemoteToolsEnabled>
+    <AnsightRemoteToolsEnabled Condition="'$(_AnsightRemoteToolsPolicyNormalized)' != 'allowed' and '$(_AnsightRemoteToolsPolicyNormalized)' != 'allowedwithwarnings'">false</AnsightRemoteToolsEnabled>
     <_AnsightBuildTaskAssemblyPackagePath>$(MSBuildThisFileDirectory)Ansight.Build.dll</_AnsightBuildTaskAssemblyPackagePath>
     <_AnsightBuildTaskAssemblySourcePath>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\Ansight.Build\bin\$(Configuration)\netstandard2.0\Ansight.Build.dll'))</_AnsightBuildTaskAssemblySourcePath>
     <_AnsightBuildTaskAssemblyPath>$(_AnsightBuildTaskAssemblyPackagePath)</_AnsightBuildTaskAssemblyPath>
@@ -21,6 +23,25 @@
   <UsingTask TaskName="Ansight.Build.Tasks.ScanForAnsightToolImplementations"
              AssemblyFile="$(_AnsightBuildTaskAssemblyPath)"
              Runtime="NET" />
+
+  <Target Name="AddAnsightRemoteToolsDefineConstant"
+          BeforeTargets="CoreCompile"
+          Condition="'$(AnsightRemoteToolsEnabled)' == 'true'">
+    <PropertyGroup>
+      <_AnsightDefineConstantsWasEmpty Condition="'$(DefineConstants)' == ''">true</_AnsightDefineConstantsWasEmpty>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <_AnsightExistingDefineConstant Include="$(DefineConstants)" />
+      <_AnsightRemoteToolsDefineConstant Include="ANSIGHT_REMOTE_TOOLS"
+                                         Exclude="@(_AnsightExistingDefineConstant)" />
+    </ItemGroup>
+
+    <PropertyGroup Condition="'@(_AnsightRemoteToolsDefineConstant)' != ''">
+      <DefineConstants Condition="'$(_AnsightDefineConstantsWasEmpty)' == 'true'">@(_AnsightRemoteToolsDefineConstant)</DefineConstants>
+      <DefineConstants Condition="'$(_AnsightDefineConstantsWasEmpty)' != 'true'">$(DefineConstants);@(_AnsightRemoteToolsDefineConstant)</DefineConstants>
+    </PropertyGroup>
+  </Target>
 
   <Target Name="ResolveAnsightDeveloperPairingOutputFile"
           Condition="'$(AnsightDeveloperPairingEnabled)' == 'true' and '$(_AnsightDeveloperPairingOutputFileDefaulted)' == 'true' and '$(IntermediateOutputPath)' != ''">

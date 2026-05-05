@@ -134,6 +134,8 @@ Control build-time remote tool handling with `AnsightRemoteToolsPolicy`:
 - `AllowedWithWarnings`: scans for remote tools, logs detected tool type and assembly details, emits a build warning when tools are present, and allows the build to continue. This is the default.
 - `Disallowed`: scans for remote tools, logs detected tool type and assembly details, and fails the build when tools are present.
 
+When the resolved policy is `Allowed` or `AllowedWithWarnings`, Ansight sets `AnsightRemoteToolsEnabled=true` and adds the `ANSIGHT_REMOTE_TOOLS` compile-time symbol. `Disallowed` sets `AnsightRemoteToolsEnabled=false` and omits that symbol.
+
 For strict Release or CI builds, set:
 
 ```xml
