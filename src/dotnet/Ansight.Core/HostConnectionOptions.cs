@@ -23,10 +23,21 @@ public sealed class HostConnectionOptions
     public static HostConnectionOptions Default { get; } = new();
 
     /// <summary>
+    /// Default retention window for remembered host connection profiles.
+    /// </summary>
+    public static TimeSpan DefaultConnectionProfileRetention { get; } = TimeSpan.FromDays(14);
+
+    /// <summary>
     /// Optional absolute path for the saved config store.
     /// When omitted, Ansight stores the saved config under local application data for the current app.
     /// </summary>
     public string? SavedConfigPath { get; set; }
+
+    /// <summary>
+    /// How long remembered host connection profiles are retained after a successful connection.
+    /// Successful reconnects refresh this timer for the associated Wi-Fi profile.
+    /// </summary>
+    public TimeSpan ConnectionProfileRetention { get; set; } = DefaultConnectionProfileRetention;
 
     /// <summary>
     /// Optional UDP discovery port override for runtime-owned host connections.
@@ -95,6 +106,22 @@ public sealed class HostConnectionOptions
     }
 
     /// <summary>
+    /// Configures how long remembered host connection profiles are retained.
+    /// </summary>
+    /// <param name="retention">Positive retention window for remembered host connection profiles.</param>
+    /// <returns>The current options instance.</returns>
+    public HostConnectionOptions UseConnectionProfileRetention(TimeSpan retention)
+    {
+        if (retention <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(retention), "Connection profile retention must be positive.");
+        }
+
+        ConnectionProfileRetention = retention;
+        return this;
+    }
+
+    /// <summary>
     /// Configures the UDP discovery port override used for runtime-owned host connections.
     /// </summary>
     /// <param name="discoveryPort">UDP discovery port to use for initial host discovery.</param>
@@ -115,6 +142,7 @@ public sealed class HostConnectionOptions
         return new HostConnectionOptions
         {
             SavedConfigPath = SavedConfigPath,
+            ConnectionProfileRetention = ConnectionProfileRetention,
             DiscoveryPort = DiscoveryPort,
             BundledConfigAssembly = BundledConfigAssembly,
             BundledDeveloperConfigLoader = BundledDeveloperConfigLoader,

@@ -124,6 +124,20 @@ Runtime.InitializeAndActivate(options);
 
 Install `Ansight.Core` for this lower-level surface. Add `Ansight.Pairing` separately if the app should own native QR acquisition while staying on the core package set.
 
+## Host Pairing Memory
+
+The runtime-owned host connection remembers successful host sessions by the Wi-Fi network name reported by the connected host. Each remembered profile stores the latest host/LAN address, host name, discovery metadata, and signed pairing config for that network.
+
+Profiles expire after 14 days by default. A successful reconnect on the same reported Wi-Fi network refreshes the expiry timer and replaces the stored address/host metadata. Configure the retention window from the same options builder:
+
+```csharp
+var options = Options.CreateBuilder()
+    .WithHostConnectionProfileRetention(TimeSpan.FromDays(30))
+    .Build();
+```
+
+On startup and during host auto-probe, `HostConnectionRequest.Auto()` prefers embedded developer pairing when present, then cycles through each remembered connection profile newest-first, then tries saved config and bundled `ansight.json` fallback configs. Explicit `QrCode`, `PayloadText`, and `ConfigValue` requests still override the current host session and update the remembered profile after a successful connection.
+
 ## Build-Time Remote Tool Enforcement
 
 Ansight scans builds for concrete `Ansight.Tools.ITool` implementations unless remote tool scanning is explicitly bypassed.

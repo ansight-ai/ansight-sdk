@@ -6,6 +6,7 @@ namespace Ansight.Pairing;
 public sealed class PairingSessionClientBuilder
 {
     private IDeviceAppProfileProvider? deviceAppProfileProvider;
+    private TimeSpan? cachedProfileRetention;
 
     /// <summary>
     /// Replaces the automatic baseline device/app profile collector used when opening a session.
@@ -19,11 +20,29 @@ public sealed class PairingSessionClientBuilder
     }
 
     /// <summary>
+    /// Configures how long successful cached host connection profiles are retained.
+    /// </summary>
+    /// <param name="retention">Positive retention window for cached host profiles.</param>
+    /// <returns>The current builder.</returns>
+    public PairingSessionClientBuilder UseCachedProfileRetention(TimeSpan retention)
+    {
+        if (retention <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(retention), "Cached profile retention must be positive.");
+        }
+
+        cachedProfileRetention = retention;
+        return this;
+    }
+
+    /// <summary>
     /// Builds a new <see cref="PairingSessionClient"/> instance.
     /// </summary>
     /// <returns>A configured pairing session client.</returns>
     public PairingSessionClient Build()
     {
-        return new PairingSessionClient(deviceAppProfileProvider);
+        return cachedProfileRetention is null
+            ? new PairingSessionClient(deviceAppProfileProvider)
+            : new PairingSessionClient(deviceAppProfileProvider, cachedProfileRetention.Value);
     }
 }

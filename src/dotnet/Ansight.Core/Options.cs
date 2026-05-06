@@ -131,6 +131,12 @@ public class Options
         HostAutoProbe ??= HostAutoProbeOptions.EnabledDefault.Clone();
         HostConnection ??= HostConnectionOptions.Default.Clone();
 
+        if (HostConnection.ConnectionProfileRetention <= TimeSpan.Zero)
+        {
+            Logger.Warning("The 'HostConnection.ConnectionProfileRetention' was not positive. It has been reset to the default retention window.");
+            HostConnection.ConnectionProfileRetention = HostConnectionOptions.DefaultConnectionProfileRetention;
+        }
+
         if (HostAutoProbe.InitialDelay < TimeSpan.Zero)
         {
             Logger.Warning("The 'HostAutoProbe.InitialDelay' was negative. It has been coerced to zero.");
@@ -548,6 +554,16 @@ public class Options
         public OptionsBuilder WithHostConnectionDiscoveryPort(int discoveryPort)
         {
             return ConfigureHostConnection(hostConnection => hostConnection.UseDiscoveryPort(discoveryPort));
+        }
+
+        /// <summary>
+        /// Configures how long remembered host connection profiles are retained.
+        /// </summary>
+        /// <param name="retention">Positive retention window for remembered host connection profiles.</param>
+        /// <returns>The current builder.</returns>
+        public OptionsBuilder WithHostConnectionProfileRetention(TimeSpan retention)
+        {
+            return ConfigureHostConnection(hostConnection => hostConnection.UseConnectionProfileRetention(retention));
         }
 
         /// <summary>

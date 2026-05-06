@@ -29,6 +29,12 @@ The relevant code paths are:
 - [PairingSessionTransport.cs](../../src/dotnet/Ansight.Core/Pairing/PairingSessionTransport.cs)
 - [PairingSessionClient.cs](../../src/dotnet/Ansight.Core/Pairing/PairingSessionClient.cs)
 
+## Remembered connection profiles
+
+Remembered host connection profiles are SDK cache behavior, not an additional wire-protocol message. After a successful session, the `.NET` SDK stores a cached pairing document keyed by the Wi-Fi network name reported in `CONNECT_RESP.hostWifiName`. The cached profile stores the latest connected host address, host name, discovery port, discovery capture time, and signed pairing config for that network.
+
+Profiles expire after 14 days by default, configurable through `WithHostConnectionProfileRetention(...)`. A successful reconnect to a host on the same reported Wi-Fi network refreshes the expiry timer and replaces the stored host/LAN metadata. During remembered-profile auto-connect, the SDK loads all valid remembered profiles and attempts them newest-first.
+
 ## Default constants
 
 The SDK exposes these defaults in [PairingProtocolDefaults.cs](../../src/dotnet/Ansight.Core/Pairing/PairingProtocolDefaults.cs):
@@ -427,7 +433,7 @@ The current codebase does not implement these features, even if older docs or pr
 The implemented protocol today is:
 
 - signed pairing document validation
-- manual host IP selection
+- manual host IP selection from pairing documents, overrides, or remembered Wi-Fi profiles
 - UDP `CONNECT_REQ` / `CONNECT_RESP` handoff
 - WebSocket upgrade with an opaque host hello
 - request/ack text messages for profile, logs, done, and event batches

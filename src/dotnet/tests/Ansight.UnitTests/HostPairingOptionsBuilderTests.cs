@@ -55,6 +55,17 @@ public sealed class HostConnectionOptionsBuilderTests
         Assert.Equal(45200, options.HostConnection.DiscoveryPort);
     }
 
+    [Fact]
+    public void WithHostConnectionProfileRetention_ConfiguresCachedProfileRetention()
+    {
+        var retention = TimeSpan.FromDays(30);
+        var options = Options.CreateBuilder()
+            .WithHostConnectionProfileRetention(retention)
+            .Build();
+
+        Assert.Equal(retention, options.HostConnection.ConnectionProfileRetention);
+    }
+
     private sealed class FakeHostPairingConfigReader : IHostConnectionConfigReader
     {
         public bool CanRead(HostConnectionRequestKind kind)

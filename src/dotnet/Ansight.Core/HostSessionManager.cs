@@ -19,11 +19,13 @@ internal sealed class HostSessionManager : IHostSessionConnection, IHostAutoProb
     internal HostSessionManager(
         RuntimeImpl runtime,
         HostAutoProbeOptions autoProbeOptions,
-        IHostConnectionSessionClient? sessionClient = null)
+        IHostConnectionSessionClient? sessionClient = null,
+        TimeSpan? cachedProfileRetention = null)
     {
         this.runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
         this.autoProbeOptions = autoProbeOptions?.Clone() ?? throw new ArgumentNullException(nameof(autoProbeOptions));
-        this.sessionClient = sessionClient ?? new PairingSessionClient();
+        this.sessionClient = sessionClient ?? new PairingSessionClient(
+            cachedProfileRetention ?? StoredPairingDocumentCache.DefaultProfileRetention);
         statusSummary = BuildDisconnectedSummary();
         this.sessionClient.SessionClosed += HandleSessionClosed;
 

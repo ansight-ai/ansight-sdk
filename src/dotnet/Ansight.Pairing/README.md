@@ -44,4 +44,12 @@ await Runtime.HostConnection.ConnectAsync(HostConnectionRequest.QrCode());
 await Runtime.HostConnection.ConnectAsync(HostConnectionRequest.PayloadText(payload));
 ```
 
-`Auto()` still follows the normal Ansight default order: embedded developer pairing, cached session, saved config, then plain bundled config. Explicit QR and payload requests always override the current connection attempt.
+`Auto()` still follows the normal Ansight default order: embedded developer pairing, remembered connection profiles, saved config, then plain bundled config. Remembered profiles are created after successful host sessions, keyed by the Wi-Fi network name reported by the host, and store the latest host/LAN address and discovery metadata for that network. The SDK cycles each valid profile newest-first during automatic reconnect attempts. Profiles expire after 14 days by default, and a successful reconnect refreshes the matching Wi-Fi profile. Explicit QR and payload requests always override the current connection attempt and update the remembered profile after a successful connection.
+
+Configure profile retention through the core options builder:
+
+```csharp
+var options = Options.CreateBuilder()
+    .WithHostConnectionProfileRetention(TimeSpan.FromDays(30))
+    .Build();
+```

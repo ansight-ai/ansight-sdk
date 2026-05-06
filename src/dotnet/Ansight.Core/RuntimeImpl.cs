@@ -39,7 +39,10 @@ internal class RuntimeImpl : IRuntime
         frameRateMonitor = FrameRateMonitorFactory.Create();
         fpsTrackingEnabled = options.EnableFramesPerSecond;
         ToolBridge = options.Tools.CreateBridge(options.ToolGuard);
-        hostConnection = new HostSessionManager(this, options.HostAutoProbe);
+        hostConnection = new HostSessionManager(
+            this,
+            options.HostAutoProbe,
+            cachedProfileRetention: options.HostConnection.ConnectionProfileRetention);
         hostPairing = new HostPairingManager(hostConnection, options.HostConnection);
     }
 

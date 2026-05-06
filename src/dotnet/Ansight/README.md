@@ -20,7 +20,7 @@ var options = Options.CreateBuilder()
 Runtime.InitializeAndActivate(options);
 ```
 
-`WithAnsightSdk(...)` configures FPS sampling, 400ms sampling, 120s retention, 2000ms/quality-60/max-width-600 JPEG capture, host auto-probe, bundled host connection, all non-MAUI tools, and full tool access. Its callback receives the existing `Options.OptionsBuilder` after runtime defaults and before default tool-suite registration:
+`WithAnsightSdk(...)` configures FPS sampling, 400ms sampling, 120s retention, 2000ms/quality-60/max-width-600 JPEG capture, host auto-probe, bundled host connection, all non-MAUI tools, and full tool access. Host auto-probe remembers successful host sessions per host-reported Wi-Fi network, refreshes each profile after successful reconnects, and expires profiles after 14 days by default. Its callback receives the existing `Options.OptionsBuilder` after runtime defaults and before default tool-suite registration:
 
 ```csharp
 using Ansight;
@@ -39,5 +39,16 @@ var options = Options.CreateBuilder()
 ```
 
 When the callback registers a tool suite, the all-in-one skips its default registration for that suite, so secure-storage and preferences access can be granted in the same builder call. Full tool access is applied before the callback, which lets the callback override the guard with `WithReadOnlyToolAccess()`, `WithReadWriteToolAccess()`, or `WithToolGuard(...)`.
+
+Configure remembered host profile expiry in the same callback when the default 14 day retention is not appropriate:
+
+```csharp
+var options = Options.CreateBuilder()
+    .WithAnsightSdk(ansight =>
+    {
+        ansight.WithHostConnectionProfileRetention(TimeSpan.FromDays(30));
+    })
+    .Build();
+```
 
 Remote tool scanning is controlled by `AnsightRemoteToolsPolicy`. The default `AllowedWithWarnings` policy logs detected tool type and assembly details and emits a build warning when tool packages are included. Because this all-in-one package intentionally includes remote tools, `Disallowed` will fail builds that reference it. Use `Ansight.Core` plus fine-grained `Ansight.Tools.*` references when you need protected Release or CI builds that exercise `Disallowed`. Set `AnsightLogRemoteTools=false` to suppress the detected-tool list.

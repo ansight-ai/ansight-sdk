@@ -26,9 +26,9 @@ Runtime.ScreenViewed("CheckoutPage");
 
 When `WithSessionJpegCapture(...)` is enabled, the pairing client will capture the app's own root window/view as a JPEG and stream it over live Ansight pairing sessions. Capture remains client-driven, but the next interval is delayed until the previous frame has finished encoding and sending so the stream self-throttles under load. Connected tooling can inspect the latest live frame or correlate historical frames with the telemetry timeline. This feature adds extra rendering, encoding, and transport work and can negatively affect runtime performance while it is active.
 
-Host auto-probe is enabled by default. While `Runtime` is active, Ansight will periodically try to reconnect to the most recent successful host session if one is cached, pause probing while that session stays open, and resume after a reconnect delay if the session closes. Disable it with `WithoutHostAutoProbe()` or customize it with `WithHostAutoProbe(new HostAutoProbeOptions { ... })`.
+Host auto-probe is enabled by default. While `Runtime` is active, Ansight will periodically try to reconnect to remembered host connection profiles, pause probing while a session stays open, and resume after a reconnect delay if the session closes. Remembered profiles are keyed by the Wi-Fi network reported by the host, store the latest host/LAN address, host name, discovery metadata, and signed pairing config for that network, and expire after 14 days by default. Disable auto-probe with `WithoutHostAutoProbe()`, customize the probing loop with `WithHostAutoProbe(new HostAutoProbeOptions { ... })`, or change profile expiry with `WithHostConnectionProfileRetention(...)`.
 
-Runtime-owned host connection now also owns saved, bundled, and developer pairing config resolution. If you enable `AnsightDeveloperPairingEnabled`, the build must be given a signed pairing JSON through `AnsightDeveloperPairingSourceFile`; the generated `ansight.developer-pairing.json` is embedded into the app assembly automatically and startup auto-connect can discover it. Auto-connect prefers that developer pairing config when available, then falls back to cached-session, saved-config, and other bundled-config behavior.
+Runtime-owned host connection now also owns remembered, saved, bundled, and developer pairing config resolution. If you enable `AnsightDeveloperPairingEnabled`, the build must be given a signed pairing JSON through `AnsightDeveloperPairingSourceFile`; the generated `ansight.developer-pairing.json` is embedded into the app assembly automatically and startup auto-connect can discover it. Auto-connect prefers that developer pairing config when available, then cycles remembered Wi-Fi connection profiles, saved configs, and bundled-config fallbacks.
 
 Install `Ansight.Pairing` when you are staying on `Ansight.Core` but still want Ansight to own native QR pairing acquisition. The `Ansight` and `Ansight.Maui` all-in-one packages already include it where supported.
 
@@ -55,6 +55,14 @@ public static class AppBootstrap
 ```
 
 On Android, `Ansight.Pairing` only needs the current `Activity` so it can launch the scanner UI for `HostConnectionRequest.QrCode(...)`.
+
+Remembered host connection profile retention can be configured independently of telemetry retention:
+
+```csharp
+var options = Options.CreateBuilder()
+    .WithHostConnectionProfileRetention(TimeSpan.FromDays(30))
+    .Build();
+```
 
 When the pairing documents live in packaged text assets instead of embedded resources, use the bundled asset loader overload and keep the standard asset names:
 
@@ -223,7 +231,7 @@ If you also want a plain bundled fallback config, keep embedding `ansight.json` 
 
 With the generated developer resource available, or with `WithBundledHostConnection(typeof(AppBootstrap).Assembly)` configured for explicit bundled config loading:
 
-- auto-connect prefers the embedded developer pairing config when available, then falls back to cached sessions, saved configs, and any plain bundled config
+- auto-connect prefers the embedded developer pairing config when available, then cycles valid remembered Wi-Fi connection profiles newest-first, then falls back to saved configs and any plain bundled config
 - explicit `HostConnectionRequest.PayloadText(...)` and `HostConnectionRequest.QrCode(...)` requests always use the supplied pairing payload and replace the current host session
 
 The target reads the source pairing config, captures local machine metadata when available, and writes a pairing config document containing:

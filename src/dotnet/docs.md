@@ -24,7 +24,7 @@ var options = Options.CreateBuilder()
 Runtime.InitializeAndActivate(options);
 ```
 
-`WithAnsightSdk(...)` enables FPS sampling, 400ms sampling, 120s retention, live JPEG capture at 2000ms/quality-60/max-width-600, host auto-probe, bundled host connection, all non-MAUI remote tools, and full tool access. Its callback runs after runtime defaults and before default tool-suite registration, so deny-all suites can be configured in the all-in-one builder:
+`WithAnsightSdk(...)` enables FPS sampling, 400ms sampling, 120s retention, live JPEG capture at 2000ms/quality-60/max-width-600, host auto-probe, bundled host connection, all non-MAUI remote tools, and full tool access. Host auto-probe uses remembered Wi-Fi connection profiles by default. The callback runs after runtime defaults and before default tool-suite registration, so deny-all suites can be configured in the all-in-one builder:
 
 ```csharp
 using Ansight;
@@ -170,10 +170,18 @@ var options = Options.CreateBuilder()
     .Build();
 ```
 
-While `Runtime` is active, host auto-probe is enabled by default. It periodically tries the embedded developer pairing resource first, then falls back to cached sessions, saved configs, and plain bundled `ansight.json` configs. You can also request the same flow explicitly:
+While `Runtime` is active, host auto-probe is enabled by default. It periodically tries the embedded developer pairing resource first, then cycles through remembered connection profiles for previously successful host sessions, then falls back to saved configs and plain bundled `ansight.json` configs. Remembered profiles are keyed by the Wi-Fi network name reported by the host and store the latest host/LAN address, host name, discovery metadata, and signed pairing config for that network. You can also request the same flow explicitly:
 
 ```csharp
 await Runtime.HostConnection.ConnectAsync(HostConnectionRequest.Auto());
+```
+
+Remembered connection profiles expire after 14 days by default. A successful reconnect on the same reported Wi-Fi network refreshes the expiry timer and replaces the stored host metadata. Configure the retention window with the host connection options:
+
+```csharp
+var options = Options.CreateBuilder()
+    .WithHostConnectionProfileRetention(TimeSpan.FromDays(30))
+    .Build();
 ```
 
 Install `Ansight.Pairing` when the app is staying on `Ansight.Core` and should own native QR acquisition for explicit pairing overrides. The `Ansight` and `Ansight.Maui` all-in-one packages include native pairing where supported:

@@ -38,6 +38,15 @@ builder.UseAnsight<App>(ansight =>
 
 The callback runs before default tool-suite registration. If it registers secure storage, preferences, MAUI tools, or another suite, the all-in-one setup skips the default registration for that suite and keeps the configured version. Full tool access is applied before the callback, so the callback can also narrow the guard.
 
+Host auto-probe is enabled by the all-in-one defaults. Ansight remembers successful host sessions per Wi-Fi network reported by the connected host, stores the latest host/LAN address for that network, and cycles those remembered profiles during automatic reconnect attempts. Profiles expire after 14 days by default, and a successful reconnect refreshes the matching Wi-Fi profile. Configure retention in the same callback:
+
+```csharp
+builder.UseAnsight<App>(ansight =>
+{
+    ansight.WithHostConnectionProfileRetention(TimeSpan.FromDays(30));
+});
+```
+
 If options are built manually, call the `MauiAppBuilder` overload with those options so the MAUI lifecycle and page-view hooks are registered:
 
 ```csharp
