@@ -2,6 +2,13 @@
 
 Grouped secure-storage tool registrations for the Ansight .NET SDK.
 
+## License
+
+The Ansight SDK is source-available software under the
+[Ansight SDK Source-Available License](https://github.com/ansight-ai/ansight-sdk/blob/main/LICENSE).
+It is not open-source software. Production use is licensed only for use with
+Ansight Services.
+
 Registered tools:
 
 - `secure.get_value`

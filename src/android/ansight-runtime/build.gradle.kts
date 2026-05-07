@@ -52,6 +52,14 @@ afterEvaluate {
                 pom {
                     name.set("Ansight Android Runtime")
                     description.set("Native Android runtime for the Ansight protocol.")
+                    url.set("https://github.com/ansight-ai/ansight-sdk")
+                    licenses {
+                        license {
+                            name.set("Ansight SDK Source-Available License")
+                            url.set("https://github.com/ansight-ai/ansight-sdk/blob/main/LICENSE")
+                            distribution.set("repo")
+                        }
+                    }
                 }
             }
         }
