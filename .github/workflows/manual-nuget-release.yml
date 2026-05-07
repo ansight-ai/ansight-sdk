@@ -133,6 +133,48 @@ jobs:
 
           printf '%s\n' "${packages[@]}" "${symbols[@]}" | sort
 
+      - name: Verify package license files
+        shell: bash
+        run: |
+          shopt -s nullglob
+          packages=(artifacts/nuget/*.nupkg)
+
+          for package in "${packages[@]}"; do
+            temp_dir="$(mktemp -d)"
+            package_dir="${temp_dir}/package"
+            mkdir -p "$package_dir"
+
+            unzip -q "$package" -d "$package_dir"
+
+            if [[ ! -f "$package_dir/LICENSE" ]]; then
+              echo "Missing LICENSE file in ${package}." >&2
+              exit 1
+            fi
+
+            if ! grep -q "Ansight SDK Source-Available License" "$package_dir/LICENSE"; then
+              echo "Package ${package} does not contain the Ansight SDK Source-Available License." >&2
+              exit 1
+            fi
+
+            nuspecs=("$package_dir"/*.nuspec)
+            if (( ${#nuspecs[@]} != 1 )); then
+              echo "Expected one nuspec in ${package}, found ${#nuspecs[@]}." >&2
+              exit 1
+            fi
+
+            if grep -q '<license type="expression">' "${nuspecs[@]}"; then
+              echo "Package ${package} still declares SPDX expression license metadata." >&2
+              exit 1
+            fi
+
+            if ! grep -q '<license type="file">LICENSE</license>' "${nuspecs[@]}"; then
+              echo "Package ${package} does not declare LICENSE as its package license file." >&2
+              exit 1
+            fi
+
+            rm -rf "$temp_dir"
+          done
+
       - name: Verify Ansight developer pairing script in package
         shell: bash
         run: |

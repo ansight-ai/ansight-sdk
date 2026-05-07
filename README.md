@@ -12,3 +12,10 @@ Ansight SDK provides cross-platform observability tooling for mobile application
 - iOS (`src/ios`)
 - React Native (`src/react-native`)
 - Flutter (`src/flutter`)
+
+## License
+
+The Ansight SDK is source-available software under the
+[Ansight SDK Source-Available License](https://github.com/ansight-ai/ansight-sdk/blob/main/LICENSE).
+It is not open-source software. Production use is licensed only for use with
+Ansight Services.

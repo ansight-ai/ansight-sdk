@@ -4,6 +4,13 @@ The native iOS runtime plan lives in [IMPLEMENTATION_SPEC.md](IMPLEMENTATION_SPE
 
 The native harness app lives in `Examples/NativeHarness/`.
 
+## License
+
+The Ansight SDK is source-available software under the
+[Ansight SDK Source-Available License](https://github.com/ansight-ai/ansight-sdk/blob/main/LICENSE).
+It is not open-source software. Production use is licensed only for use with
+Ansight Services.
+
 ## Current capabilities
 
 - pairing ticket parsing and validation for `ansight.pairing-ticket.v1`

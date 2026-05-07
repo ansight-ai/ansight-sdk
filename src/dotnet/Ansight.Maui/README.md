@@ -4,6 +4,13 @@ All-in-one Ansight package for .NET MAUI apps.
 
 This package references `Ansight`, adds the MAUI remote tools, and provides `MauiAppBuilder` setup helpers with automatic MAUI telemetry wiring.
 
+## License
+
+The Ansight SDK is source-available software under the
+[Ansight SDK Source-Available License](https://github.com/ansight-ai/ansight-sdk/blob/main/LICENSE).
+It is not open-source software. Production use is licensed only for use with
+Ansight Services.
+
 ```csharp
 using Ansight.Maui;
 

@@ -12,6 +12,10 @@
           Link="icon.png"
           Pack="true"
           PackagePath="\" />
+    <None Include="$(MSBuildThisFileDirectory)..\..\LICENSE"
+          Link="LICENSE"
+          Pack="true"
+          PackagePath="\" />
   </ItemGroup>
 
 </Project>

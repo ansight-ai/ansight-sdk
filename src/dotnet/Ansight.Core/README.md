@@ -4,6 +4,13 @@
 
 The runtime namespace remains `Ansight`. This package supports direct/manual pairing, the Ansight UDP pairing handshake, tool abstractions, and the build-time safety targets. Use the `Ansight` package for the all-in-one app setup, or `Ansight.Maui` for the MAUI all-in-one setup.
 
+## License
+
+The Ansight SDK is source-available software under the
+[Ansight SDK Source-Available License](https://github.com/ansight-ai/ansight-sdk/blob/main/LICENSE).
+It is not open-source software. Production use is licensed only for use with
+Ansight Services.
+
 ## Telemetry quickstart
 
 ```csharp
