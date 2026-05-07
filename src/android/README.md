@@ -1,6 +1,6 @@
 # Ansight Android
 
-The native Android runtime plan lives in [IMPLEMENTATION_SPEC.md](IMPLEMENTATION_SPEC.md).
+The native Android SDK plan lives in [../../docs/native-ios-android-sdk-plan.md](../../docs/native-ios-android-sdk-plan.md).
 
 The native harness app lives in `harness/`.
 

@@ -1,6 +1,6 @@
 # Ansight iOS
 
-The native iOS runtime plan lives in [IMPLEMENTATION_SPEC.md](IMPLEMENTATION_SPEC.md).
+The native iOS SDK plan lives in [../../docs/native-ios-android-sdk-plan.md](../../docs/native-ios-android-sdk-plan.md).
 
 The native harness app lives in `Examples/NativeHarness/`.
 

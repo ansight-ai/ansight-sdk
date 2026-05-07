@@ -1,6 +1,6 @@
 # Native iOS and Android SDK Plan
 
-This plan is derived from the existing .NET SDK implementation. Existing Android, iOS, and React Native planning documents are intentionally not used as inputs.
+This plan is derived from the existing .NET SDK implementation. Older platform planning documents are intentionally not used as inputs.
 
 ## Objective
 

@@ -11,7 +11,6 @@ Ansight SDK provides cross-platform observability tooling for mobile application
 - Android (`src/android`)
 - iOS (`src/ios`)
 - React Native (`src/react-native`)
-- Flutter (`src/flutter`)
 
 ## License
 
