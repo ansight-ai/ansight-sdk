@@ -17,7 +17,7 @@ public static class AnsightOptionsBuilderExtensions
     private const ushort DefaultRetentionPeriodSeconds = 120;
     private const ushort DefaultSessionJpegCaptureIntervalMilliseconds = 2000;
     private const int DefaultSessionJpegCaptureQuality = 60;
-    private const int DefaultSessionJpegCaptureMaxWidth = 600;
+    private const int DefaultSessionJpegCaptureMaxWidth = 480;
 
     /// <summary>
     /// Applies the default Ansight runtime configuration, registers the non-MAUI remote tools, and enables all tool scopes.

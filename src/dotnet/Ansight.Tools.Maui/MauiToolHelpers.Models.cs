@@ -1,6 +1,7 @@
 namespace Ansight.Tools.Maui;
 
 #if ANDROID || IOS || MACCATALYST
+using System.Text.Json.Nodes;
 using Microsoft.Maui.Controls;
 
 internal static partial class MauiToolHelpers
@@ -11,7 +12,8 @@ internal static partial class MauiToolHelpers
         bool IncludeBindableProperties,
         bool IncludeBindingContexts,
         int MaxNodes,
-        string? CurrentPageId);
+        string? CurrentPageId,
+        MauiTypeRegistry TypeRegistry);
 
     internal sealed class MauiTreeBuildState(int maxNodes)
     {
@@ -43,6 +45,37 @@ internal static partial class MauiToolHelpers
         Page? CurrentPage,
         Element Root,
         string NormalizedRootScope);
+
+    internal sealed class MauiTypeRegistry
+    {
+        private readonly Dictionary<string, int> idsByTypeName = new(StringComparer.Ordinal);
+        private readonly List<string> typeNames = [];
+
+        public int GetTypeId(Type type)
+        {
+            var typeName = GetTypeDisplayName(type);
+            if (idsByTypeName.TryGetValue(typeName, out var id))
+            {
+                return id;
+            }
+
+            id = typeNames.Count;
+            typeNames.Add(typeName);
+            idsByTypeName[typeName] = id;
+            return id;
+        }
+
+        public JsonArray ToJson()
+        {
+            var types = new JsonArray();
+            foreach (var typeName in typeNames)
+            {
+                types.Add(typeName);
+            }
+
+            return types;
+        }
+    }
 
     internal sealed record MauiElementResolution(
         Element Root,

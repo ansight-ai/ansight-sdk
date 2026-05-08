@@ -30,6 +30,33 @@ internal static partial class MauiToolHelpers
 
     private static readonly ConcurrentDictionary<Type, PropertyInfo[]> ChildElementPropertiesByType = new();
 
+    internal static JsonArray CreateBoundsColumns()
+    {
+        return new JsonArray(
+            "x",
+            "y",
+            "width",
+            "height",
+            "absoluteX",
+            "absoluteY",
+            "absoluteWidth",
+            "absoluteHeight");
+    }
+
+    internal static JsonObject CreateNodeFlagBits()
+    {
+        return new JsonObject
+        {
+            ["visible"] = 1,
+            ["enabled"] = 2,
+            ["currentPage"] = 4,
+            ["activePage"] = 8,
+            ["cycle"] = 16,
+            ["truncated"] = 32,
+            ["childrenTruncated"] = 64
+        };
+    }
+
     internal static IReadOnlyList<MauiElementTraversalEntry> TraverseElements(Element root, int maxDepth)
     {
         var entries = new List<MauiElementTraversalEntry>();
@@ -115,11 +142,11 @@ internal static partial class MauiToolHelpers
         MauiTreeBuildState state,
         bool parentIsInActivePage)
     {
-        var json = CreateElementReference(element);
+        var json = CreateCompactElementReference(element, options.TypeRegistry);
         if (!state.TryIncludeNode())
         {
             json["childCount"] = 0;
-            json["truncated"] = true;
+            json["flags"] = ReadInt(json, "flags") | 32;
             return json;
         }
 
@@ -127,45 +154,61 @@ internal static partial class MauiToolHelpers
         var isCurrentPage = !string.IsNullOrWhiteSpace(options.CurrentPageId)
                             && string.Equals(elementId, options.CurrentPageId, StringComparison.OrdinalIgnoreCase);
         var isInActivePage = parentIsInActivePage || isCurrentPage;
-        json["isCurrentPage"] = isCurrentPage;
-        json["isInActivePage"] = isInActivePage;
+        var flags = 0;
 
         if (element is VisualElement visualElement)
         {
-            json["visible"] = visualElement.IsVisible;
-            json["enabled"] = visualElement.IsEnabled;
+            if (visualElement.IsVisible)
+            {
+                flags |= 1;
+            }
+
+            if (visualElement.IsEnabled)
+            {
+                flags |= 2;
+            }
 
             if (options.IncludeBounds)
             {
-                json["bounds"] = CreateBoundsSnapshot(visualElement);
+                json["bounds"] = CreateCompactBoundsSnapshot(visualElement);
             }
         }
-
-        if (element is ScrollView scrollView)
+        else
         {
-            json["scroll"] = CreateScrollViewSnapshot(scrollView);
+            flags |= 1 | 2;
+        }
+
+        if (isCurrentPage)
+        {
+            flags |= 4;
+        }
+
+        if (isInActivePage)
+        {
+            flags |= 8;
         }
 
         if (options.IncludeBindingContexts)
         {
-            json["bindingContextType"] = element.BindingContext == null
+            json["bindingContextTypeId"] = element.BindingContext == null
                 ? null
-                : CreateTypeMetadata(element.BindingContext.GetType());
+                : options.TypeRegistry.GetTypeId(element.BindingContext.GetType());
         }
 
         if (options.IncludeProperties)
         {
-            json["properties"] = CreateElementProperties(element);
+            json["properties"] = CreateElementProperties(element, options.TypeRegistry);
         }
 
         if (options.IncludeBindableProperties && element is BindableObject bindable)
         {
-            json["bindableProperties"] = CreateBindablePropertiesArray(bindable);
+            json["bindableProperties"] = CreateBindablePropertiesArray(bindable, options.TypeRegistry);
         }
 
         if (!visited.Add(elementId))
         {
-            json["cycle"] = true;
+            flags |= 16;
+            json["flags"] = flags;
             json["childCount"] = 0;
             return json;
         }
@@ -173,6 +216,7 @@ internal static partial class MauiToolHelpers
         if (depthRemaining <= 0)
         {
             json["childCount"] = 0;
+            json["flags"] = flags;
             visited.Remove(elementId);
             return json;
         }
@@ -187,7 +231,7 @@ internal static partial class MauiToolHelpers
                 if (state.NodeCount >= options.MaxNodes)
                 {
                     state.MarkTruncated();
-                    json["childrenTruncated"] = true;
+                    flags |= 64;
                     break;
                 }
 
@@ -197,6 +241,7 @@ internal static partial class MauiToolHelpers
             json["children"] = childNodes;
         }
 
+        json["flags"] = flags;
         visited.Remove(elementId);
         return json;
     }
@@ -480,6 +525,28 @@ internal static partial class MauiToolHelpers
         return json;
     }
 
+    internal static JsonObject CreateCompactElementReference(Element element, MauiTypeRegistry typeRegistry)
+    {
+        var json = new JsonObject
+        {
+            ["id"] = GetElementId(element),
+            ["type"] = GetTypeShortName(element.GetType()),
+            ["typeId"] = typeRegistry.GetTypeId(element.GetType()),
+            ["kind"] = GetElementKind(element),
+            ["automationId"] = NullIfWhiteSpace(element.AutomationId),
+            ["styleId"] = NullIfWhiteSpace(element.StyleId),
+            ["classId"] = NullIfWhiteSpace(element.ClassId),
+            ["label"] = GetElementLabel(element)
+        };
+
+        if (element is Page page)
+        {
+            json["title"] = CreateSafeLabel(page.Title);
+        }
+
+        return json;
+    }
+
     internal static JsonArray CreateElementReferenceArray(IEnumerable<Element> elements)
     {
         var array = new JsonArray();
@@ -581,6 +648,39 @@ internal static partial class MauiToolHelpers
         }
 
         return json;
+    }
+
+    internal static JsonArray CreateCompactBoundsSnapshot(VisualElement visualElement)
+    {
+        var x = visualElement.X;
+        var y = visualElement.Y;
+        var width = visualElement.Width;
+        var height = visualElement.Height;
+
+        if (ShouldUsePlatformParentBounds(visualElement) &&
+            TryCreateParentRelativePlatformBounds(visualElement, out var platformBounds))
+        {
+            x = platformBounds.X;
+            y = platformBounds.Y;
+            width = platformBounds.Width;
+            height = platformBounds.Height;
+        }
+
+        var bounds = new JsonArray(
+            CreateCompactNumber(x),
+            CreateCompactNumber(y),
+            CreateCompactNumber(width),
+            CreateCompactNumber(height));
+
+        if (TryCreateWindowRelativePlatformBounds(visualElement, out var absoluteBounds))
+        {
+            bounds.Add(CreateCompactNumber(absoluteBounds.X));
+            bounds.Add(CreateCompactNumber(absoluteBounds.Y));
+            bounds.Add(CreateCompactNumber(absoluteBounds.Width));
+            bounds.Add(CreateCompactNumber(absoluteBounds.Height));
+        }
+
+        return bounds;
     }
 
     internal static JsonObject CreateScrollViewSnapshot(ScrollView scrollView)
@@ -896,12 +996,26 @@ internal static partial class MauiToolHelpers
     }
 
     internal static JsonObject CreateElementProperties(Element element)
+        => CreateElementProperties(element, typeRegistry: null);
+
+    internal static JsonObject CreateElementProperties(Element element, MauiTypeRegistry? typeRegistry)
     {
         var properties = new JsonObject
         {
-            ["parentId"] = element.Parent == null ? null : GetElementId(element.Parent),
-            ["bindingContextType"] = element.BindingContext == null ? null : CreateTypeMetadata(element.BindingContext.GetType())
+            ["parentId"] = element.Parent == null ? null : GetElementId(element.Parent)
         };
+
+        if (element.BindingContext != null)
+        {
+            if (typeRegistry == null)
+            {
+                properties["bindingContextType"] = CreateTypeMetadata(element.BindingContext.GetType());
+            }
+            else
+            {
+                properties["bindingContextTypeId"] = typeRegistry.GetTypeId(element.BindingContext.GetType());
+            }
+        }
 
         if (element is VisualElement visualElement)
         {
@@ -984,5 +1098,18 @@ internal static partial class MauiToolHelpers
     }
 
     internal static string GetElementId(Element element) => element.Id.ToString("N");
+
+    internal static int ReadInt(JsonObject jsonObject, string propertyName)
+    {
+        if (jsonObject[propertyName] is JsonValue value && value.TryGetValue<int>(out var intValue))
+        {
+            return intValue;
+        }
+
+        return 0;
+    }
+
+    internal static double CreateCompactNumber(double value)
+        => Math.Round(value, 2, MidpointRounding.AwayFromZero);
 }
 #endif

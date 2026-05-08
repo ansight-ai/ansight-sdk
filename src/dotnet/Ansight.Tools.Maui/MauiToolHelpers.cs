@@ -9,7 +9,7 @@ internal static partial class MauiToolHelpers
 {
     internal const int DefaultTreeDepth = 8;
     internal const int MaximumTreeDepth = 64;
-    internal const int DefaultTreeMaxNodes = 600;
+    internal const int DefaultTreeMaxNodes = 350;
     internal const int MaximumTreeMaxNodes = 5000;
     internal const int DefaultObjectDepth = 1;
     internal const int MaximumObjectDepth = 4;
@@ -252,6 +252,23 @@ internal static partial class MauiToolHelpers
         }
 
         return $"{genericTypeName}<{string.Join(", ", type.GetGenericArguments().Select(GetTypeDisplayName))}>";
+    }
+
+    internal static string GetTypeShortName(Type type)
+    {
+        if (!type.IsGenericType)
+        {
+            return type.Name;
+        }
+
+        var genericTypeName = type.Name;
+        var tickIndex = genericTypeName.IndexOf('`', StringComparison.Ordinal);
+        if (tickIndex >= 0)
+        {
+            genericTypeName = genericTypeName[..tickIndex];
+        }
+
+        return $"{genericTypeName}<{string.Join(", ", type.GetGenericArguments().Select(GetTypeShortName))}>";
     }
 
     internal static bool IsNumericType(Type type)

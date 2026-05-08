@@ -33,9 +33,7 @@ internal class RuntimeImpl : IRuntime
     public RuntimeImpl(Options options)
     {
         this.options = options ?? throw new ArgumentNullException(nameof(options));
-        Logger.Info($"Creating runtime with sample frequency {options.SampleFrequencyMilliseconds}ms, retention {options.RetentionPeriodSeconds}s, additional channels: {options.AdditionalChannels?.Count ?? 0}.");
         mutableDataSink = new MutableDataSink(options);
-        Logger.Info("Mutable data sink created.");
         frameRateMonitor = FrameRateMonitorFactory.Create();
         fpsTrackingEnabled = options.EnableFramesPerSecond;
         ToolBridge = options.Tools.CreateBridge(options.ToolGuard);
@@ -60,7 +58,6 @@ internal class RuntimeImpl : IRuntime
         {
             if (IsActive)
             {
-                Logger.Info("Activate requested but runtime is already active.");
                 return;
             }
 
@@ -76,7 +73,6 @@ internal class RuntimeImpl : IRuntime
             });
 
             IsActive = true;
-            Logger.Info($"Memory sampler started with frequency {options.SampleFrequencyMilliseconds}ms.");
         }
 
         hostConnection.OnRuntimeActivated();
@@ -86,9 +82,8 @@ internal class RuntimeImpl : IRuntime
             {
                 await hostPairing.HandleRuntimeActivatedAsync(CancellationToken.None);
             }
-            catch (Exception ex)
+            catch
             {
-                Logger.Exception(ex);
             }
         }, CancellationToken.None);
         OnActivated?.Invoke(this, EventArgs.Empty);
@@ -100,14 +95,12 @@ internal class RuntimeImpl : IRuntime
         {
             if (!IsActive)
             {
-                Logger.Info("Deactivate requested but runtime is already inactive.");
                 return;
             }
 
             samplerThread?.Dispose();
             samplerThread = null;
             IsActive = false;
-            Logger.Info("Memory sampler disposed and activity flag cleared.");
         }
 
         frameRateMonitor.Stop();
@@ -159,7 +152,6 @@ internal class RuntimeImpl : IRuntime
     {
         if (string.IsNullOrWhiteSpace(label)) throw new ArgumentException("Value cannot be null or whitespace.", nameof(label));
 
-        Logger.Info($"Recording event '{label}' on detached channel.");
         mutableDataSink.Event(label);
     }
 
@@ -167,7 +159,6 @@ internal class RuntimeImpl : IRuntime
     {
         if (string.IsNullOrWhiteSpace(label)) throw new ArgumentException("Value cannot be null or whitespace.", nameof(label));
 
-        Logger.Info($"Recording event '{label}' with type '{type}' on detached channel.");
         mutableDataSink.Event(label, type);
     }
 
@@ -175,7 +166,6 @@ internal class RuntimeImpl : IRuntime
     {
         if (string.IsNullOrWhiteSpace(label)) throw new ArgumentException("Value cannot be null or whitespace.", nameof(label));
 
-        Logger.Info($"Recording event '{label}' with type '{type}' and details on detached channel.");
         mutableDataSink.Event(label, type, details);
     }
 
@@ -183,15 +173,12 @@ internal class RuntimeImpl : IRuntime
     {
         if (string.IsNullOrWhiteSpace(label)) throw new ArgumentException("Value cannot be null or whitespace.", nameof(label));
 
-        Logger.Info($"Recording event '{label}' on channel {channel}.");
         mutableDataSink.Event(label, channel);
     }
 
     public void Event(string label, AppEventType type, byte channel)
     {
         if (string.IsNullOrWhiteSpace(label)) throw new ArgumentException("Value cannot be null or whitespace.", nameof(label));
-
-        Logger.Info($"Recording event '{label}' with type '{type}' on channel {channel}.");
 
         mutableDataSink.Event(label, type, channel);
     }
@@ -200,8 +187,6 @@ internal class RuntimeImpl : IRuntime
     {
         if (string.IsNullOrWhiteSpace(label)) throw new ArgumentException("Value cannot be null or whitespace.", nameof(label));
 
-        Logger.Info($"Recording event '{label}' with type '{type}' and details on channel {channel}.");
-
         mutableDataSink.Event(label, type, channel, details);
     }
 
@@ -209,7 +194,6 @@ internal class RuntimeImpl : IRuntime
     {
         if (string.IsNullOrWhiteSpace(screenName)) throw new ArgumentException("Value cannot be null or whitespace.", nameof(screenName));
 
-        Logger.Info($"Recording screen view '{screenName}' on detached channel.");
         mutableDataSink.ScreenViewed(screenName);
     }
 
@@ -217,7 +201,6 @@ internal class RuntimeImpl : IRuntime
     {
         if (string.IsNullOrWhiteSpace(screenName)) throw new ArgumentException("Value cannot be null or whitespace.", nameof(screenName));
 
-        Logger.Info($"Recording screen view '{screenName}' with details on detached channel.");
         mutableDataSink.ScreenViewed(screenName, details);
     }
 
@@ -225,7 +208,6 @@ internal class RuntimeImpl : IRuntime
     {
         if (string.IsNullOrWhiteSpace(screenName)) throw new ArgumentException("Value cannot be null or whitespace.", nameof(screenName));
 
-        Logger.Info($"Recording screen view '{screenName}' on channel {channel}.");
         mutableDataSink.ScreenViewed(screenName, channel);
     }
 
@@ -233,13 +215,11 @@ internal class RuntimeImpl : IRuntime
     {
         if (string.IsNullOrWhiteSpace(screenName)) throw new ArgumentException("Value cannot be null or whitespace.", nameof(screenName));
 
-        Logger.Info($"Recording screen view '{screenName}' with details on channel {channel}.");
         mutableDataSink.ScreenViewed(screenName, channel, details);
     }
 
     public void Clear()
     {
-        Logger.Info("Clearing data sink contents.");
         mutableDataSink.Clear();
     }
 

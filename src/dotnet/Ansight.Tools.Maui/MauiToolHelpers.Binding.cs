@@ -9,14 +9,26 @@ using Microsoft.Maui.Controls;
 internal static partial class MauiToolHelpers
 {
     internal static JsonArray CreateBindablePropertiesArray(BindableObject bindable)
+        => CreateBindablePropertiesArray(bindable, typeRegistry: null);
+
+    internal static JsonArray CreateBindablePropertiesArray(BindableObject bindable, MauiTypeRegistry? typeRegistry)
     {
         var properties = new JsonArray();
         foreach (var descriptor in GetBindablePropertyDescriptors(bindable.GetType()))
         {
-            properties.Add(CreateBindablePropertyMetadata(bindable, descriptor));
+            properties.Add(CreateBindablePropertyMetadata(bindable, descriptor, typeRegistry));
         }
 
         return properties;
+    }
+
+    internal static JsonObject CreateBindablePropertyFlagBits()
+    {
+        return new JsonObject
+        {
+            ["isSet"] = 1,
+            ["hasBinding"] = 2
+        };
     }
 
     internal static BindablePropertyDescriptor? ResolveBindableProperty(
@@ -102,17 +114,49 @@ internal static partial class MauiToolHelpers
     }
 
     internal static JsonObject CreateBindablePropertyMetadata(BindableObject bindable, BindablePropertyDescriptor descriptor)
+        => CreateBindablePropertyMetadata(bindable, descriptor, typeRegistry: null);
+
+    internal static JsonObject CreateBindablePropertyMetadata(
+        BindableObject bindable,
+        BindablePropertyDescriptor descriptor,
+        MauiTypeRegistry? typeRegistry)
     {
-        return new JsonObject
+        var flags = 0;
+        if (IsBindablePropertySet(bindable, descriptor.BindableProperty))
+        {
+            flags |= 1;
+        }
+
+        if (GetBinding(bindable, descriptor.BindableProperty) != null)
+        {
+            flags |= 2;
+        }
+
+        if (typeRegistry == null)
+        {
+            return new JsonObject
+            {
+                ["name"] = descriptor.BindableProperty.PropertyName,
+                ["memberName"] = descriptor.MemberName,
+                ["declaringType"] = CreateTypeMetadata(descriptor.DeclaringType),
+                ["valueType"] = CreateTypeMetadata(descriptor.BindableProperty.ReturnType),
+                ["defaultBindingMode"] = descriptor.BindableProperty.DefaultBindingMode.ToString(),
+                ["isSet"] = (flags & 1) != 0,
+                ["hasBinding"] = (flags & 2) != 0
+            };
+        }
+
+        var json = new JsonObject
         {
             ["name"] = descriptor.BindableProperty.PropertyName,
             ["memberName"] = descriptor.MemberName,
-            ["declaringType"] = CreateTypeMetadata(descriptor.DeclaringType),
-            ["valueType"] = CreateTypeMetadata(descriptor.BindableProperty.ReturnType),
             ["defaultBindingMode"] = descriptor.BindableProperty.DefaultBindingMode.ToString(),
-            ["isSet"] = IsBindablePropertySet(bindable, descriptor.BindableProperty),
-            ["hasBinding"] = GetBinding(bindable, descriptor.BindableProperty) != null
+            ["flags"] = flags
         };
+
+        json["declaringTypeId"] = typeRegistry.GetTypeId(descriptor.DeclaringType);
+        json["valueTypeId"] = typeRegistry.GetTypeId(descriptor.BindableProperty.ReturnType);
+        return json;
     }
 
     internal static bool IsBindablePropertySet(BindableObject bindable, BindableProperty bindableProperty)

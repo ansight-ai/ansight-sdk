@@ -21,33 +21,9 @@ internal static class MauiToolSchemas
         required: new[] { "name", "fullName", "assemblyName" },
         nullable: true);
 
-    private static readonly ToolSchema BoundsSchema = ToolSchema.Object(
-        description: "MAUI layout bounds for an element.",
-        properties: new Dictionary<string, ToolSchema>
-        {
-            ["x"] = ToolSchema.Number("Horizontal origin relative to the parent."),
-            ["y"] = ToolSchema.Number("Vertical origin relative to the parent."),
-            ["width"] = ToolSchema.Number("Element width."),
-            ["height"] = ToolSchema.Number("Element height."),
-            ["source"] = ToolSchema.String("Coordinate source, either MAUI layout data or native platform layout data."),
-            ["layoutX"] = ToolSchema.Number("Raw MAUI layout horizontal origin."),
-            ["layoutY"] = ToolSchema.Number("Raw MAUI layout vertical origin."),
-            ["layoutWidth"] = ToolSchema.Number("Raw MAUI layout width."),
-            ["layoutHeight"] = ToolSchema.Number("Raw MAUI layout height."),
-            ["absoluteX"] = ToolSchema.Number("Horizontal origin relative to the active native window.", nullable: true),
-            ["absoluteY"] = ToolSchema.Number("Vertical origin relative to the active native window.", nullable: true),
-            ["absoluteWidth"] = ToolSchema.Number("Window-relative width.", nullable: true),
-            ["absoluteHeight"] = ToolSchema.Number("Window-relative height.", nullable: true),
-            ["visibleX"] = ToolSchema.Number("Visible horizontal origin relative to the active native window after viewport clipping.", nullable: true),
-            ["visibleY"] = ToolSchema.Number("Visible vertical origin relative to the active native window after viewport clipping.", nullable: true),
-            ["visibleWidth"] = ToolSchema.Number("Visible width after clipping by the native window and ancestor scroll views.", nullable: true),
-            ["visibleHeight"] = ToolSchema.Number("Visible height after clipping by the native window and ancestor scroll views.", nullable: true),
-            ["isOnScreen"] = ToolSchema.Boolean("Whether any visible portion of the element is currently on screen.", nullable: true),
-            ["isClipped"] = ToolSchema.Boolean("Whether the element bounds were clipped by the native window or an ancestor scroll view.", nullable: true),
-            ["clipSource"] = ToolSchema.String("The first clipping source, such as window or scrollView.", nullable: true),
-            ["clipNodeId"] = ToolSchema.String("Node id of the scroll view that first clipped the element, when applicable.", nullable: true)
-        },
-        required: new[] { "x", "y", "width", "height" },
+    private static readonly ToolSchema BoundsSchema = ToolSchema.Array(
+        ToolSchema.Number("Bounds value."),
+        "Compact bounds array. Columns are declared once in the visual-tree payload boundsColumns field.",
         nullable: true);
 
     private static readonly ToolSchema MauiElementReferenceSchema = ToolSchema.Object(
@@ -61,7 +37,8 @@ internal static class MauiToolSchemas
             ["styleId"] = ToolSchema.String("MAUI StyleId, when present.", nullable: true),
             ["classId"] = ToolSchema.String("MAUI ClassId, when present.", nullable: true),
             ["label"] = ToolSchema.String("Best-effort PII-safe visible or semantic label. Typed input values and sensitive-looking text are omitted or redacted.", nullable: true),
-            ["title"] = ToolSchema.String("PII-safe page title, when present.", nullable: true)
+            ["title"] = ToolSchema.String("PII-safe page title, when present.", nullable: true),
+            ["typeId"] = ToolSchema.Integer("Index into the visual tree payload types registry.", nullable: true)
         },
         required: new[] { "id", "type", "kind" });
 
@@ -77,20 +54,16 @@ internal static class MauiToolSchemas
             ["classId"] = ToolSchema.String("MAUI ClassId, when present.", nullable: true),
             ["label"] = ToolSchema.String("Best-effort PII-safe visible or semantic label. Typed input values and sensitive-looking text are omitted or redacted.", nullable: true),
             ["title"] = ToolSchema.String("PII-safe page title, when present.", nullable: true),
-            ["visible"] = ToolSchema.Boolean("Whether the element is visible.", nullable: true),
-            ["enabled"] = ToolSchema.Boolean("Whether the element is enabled.", nullable: true),
-            ["isCurrentPage"] = ToolSchema.Boolean("Whether the element is the currently displayed page.", nullable: true),
-            ["isInActivePage"] = ToolSchema.Boolean("Whether the element is inside the currently displayed page subtree.", nullable: true),
-            ["scroll"] = GenericObjectSchema,
+            ["typeId"] = ToolSchema.Integer("Index into the visual tree payload types registry."),
+            ["flags"] = ToolSchema.Integer("Compact node flags. Bit values are declared once in the visual tree payload flagBits field."),
             ["childCount"] = ToolSchema.Integer("Number of direct visual children."),
             ["bounds"] = BoundsSchema,
-            ["bindingContextType"] = TypeMetadataSchema,
+            ["bindingContextTypeId"] = ToolSchema.Integer("Index into the visual tree payload types registry for the binding context type.", nullable: true),
             ["properties"] = GenericObjectSchema,
             ["bindableProperties"] = ToolSchema.Array(GenericObjectSchema, "Bindable property metadata for this element.", nullable: true),
-            ["childrenTruncated"] = ToolSchema.Boolean("Whether direct children were truncated by maxNodes.", nullable: true),
             ["children"] = ToolSchema.Array(GenericObjectSchema, "Nested child nodes.", nullable: true)
         },
-        required: new[] { "id", "type", "kind", "childCount" });
+        required: new[] { "id", "type", "typeId", "kind", "flags", "childCount" });
 
     private static readonly ToolSchema ValueSnapshotSchema = ToolSchema.Object(
         description: "A bounded runtime value snapshot.",
@@ -103,13 +76,16 @@ internal static class MauiToolSchemas
         {
             ["name"] = ToolSchema.String("Bindable property name."),
             ["memberName"] = ToolSchema.String("Static member name that declares the bindable property."),
+            ["declaringTypeId"] = ToolSchema.Integer("Index into the visual tree payload types registry for visual tree payloads.", nullable: true),
+            ["valueTypeId"] = ToolSchema.Integer("Index into the visual tree payload types registry for visual tree payloads.", nullable: true),
             ["declaringType"] = TypeMetadataSchema,
             ["valueType"] = TypeMetadataSchema,
             ["defaultBindingMode"] = ToolSchema.String("Default binding mode."),
+            ["flags"] = ToolSchema.Integer("Compact bindable property flags. Bit values are declared once in bindablePropertyFlagBits.", nullable: true),
             ["isSet"] = ToolSchema.Boolean("Whether this bindable property has a local value set."),
             ["hasBinding"] = ToolSchema.Boolean("Whether this bindable property has an active binding.")
         },
-        required: new[] { "name", "memberName", "declaringType", "valueType", "defaultBindingMode", "isSet", "hasBinding" });
+        required: new[] { "name", "memberName", "defaultBindingMode" });
 
     internal static ToolSchema GetCurrentPageArguments { get; } = ToolSchema.Object(
         description: "Arguments for querying the current MAUI page.");
@@ -194,8 +170,13 @@ internal static class MauiToolSchemas
         properties: new Dictionary<string, ToolSchema>
         {
             ["platform"] = ToolSchema.String("Current runtime platform."),
+            ["format"] = ToolSchema.String("Visual tree payload format."),
             ["capturedAtUtc"] = ToolSchema.String("UTC timestamp for capture.", format: "date-time"),
             ["rootScope"] = ToolSchema.String("Requested capture root."),
+            ["boundsColumns"] = ToolSchema.Array(ToolSchema.String("Bounds column name."), "Column order for compact bounds arrays."),
+            ["flagBits"] = GenericObjectSchema,
+            ["bindablePropertyFlagBits"] = GenericObjectSchema,
+            ["types"] = ToolSchema.Array(ToolSchema.String("Registered type full name."), "Type registry referenced by typeId fields."),
             ["rootPage"] = MauiElementReferenceSchema,
             ["currentPage"] = MauiElementReferenceSchema,
             ["coordinateSpace"] = GenericObjectSchema,
@@ -203,7 +184,7 @@ internal static class MauiToolSchemas
             ["truncated"] = ToolSchema.Boolean("Whether the payload was truncated by maxNodes."),
             ["root"] = MauiElementNodeSchema
         },
-        required: new[] { "platform", "capturedAtUtc", "rootScope", "root" });
+        required: new[] { "platform", "format", "capturedAtUtc", "rootScope", "boundsColumns", "flagBits", "types", "root" });
 
     internal static ToolSchema GetBindablePropertyArguments { get; } = ToolSchema.Object(
         description: "Arguments for reading a MAUI bindable property.",

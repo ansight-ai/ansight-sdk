@@ -5,6 +5,8 @@ using static MauiToolHelpers;
 
 public sealed class GetVisualTreeTool : ITool
 {
+    private const string VisualTreeFormat = "ansight.maui.visual-tree.compact.v1";
+
     public string Category => "maui";
 
     public ToolScope Scope => ToolScope.Read;
@@ -38,6 +40,7 @@ public sealed class GetVisualTreeTool : ITool
             var maxDepth = GetInt(arguments, "maxDepth", DefaultTreeDepth, minimum: 0, maximum: MaximumTreeDepth);
             var maxNodes = GetInt(arguments, "maxNodes", DefaultTreeMaxNodes, minimum: 1, maximum: MaximumTreeMaxNodes);
             var rootNodeId = GetString(arguments, "rootNodeId");
+            var typeRegistry = new MauiTypeRegistry();
 
             if (!TryGetActiveRootContext(rootScope, out var rootContext, out var error))
             {
@@ -62,25 +65,33 @@ public sealed class GetVisualTreeTool : ITool
                 includeBindableProperties,
                 includeBindingContexts,
                 maxNodes,
-                rootContext.CurrentPage == null ? null : GetElementId(rootContext.CurrentPage));
+                rootContext.CurrentPage == null ? null : GetElementId(rootContext.CurrentPage),
+                typeRegistry);
             var state = new MauiTreeBuildState(maxNodes);
             var selectedRootIsInCurrentPage = rootContext.CurrentPage != null && IsElementDescendantOrSelf(rootContext.CurrentPage, selectedRoot);
 
+            var rootNode = BuildElementNode(
+                selectedRoot,
+                options,
+                maxDepth,
+                new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+                state,
+                selectedRootIsInCurrentPage);
+
             var payload = new JsonObject
             {
+                ["format"] = VisualTreeFormat,
                 ["platform"] = CurrentPlatform,
                 ["capturedAtUtc"] = DateTime.UtcNow.ToString("O"),
                 ["rootScope"] = rootContext.NormalizedRootScope,
-                ["rootPage"] = rootContext.RootPage == null ? null : CreateElementReference(rootContext.RootPage),
-                ["currentPage"] = rootContext.CurrentPage == null ? null : CreateElementReference(rootContext.CurrentPage),
+                ["boundsColumns"] = CreateBoundsColumns(),
+                ["flagBits"] = CreateNodeFlagBits(),
+                ["bindablePropertyFlagBits"] = CreateBindablePropertyFlagBits(),
+                ["rootPage"] = rootContext.RootPage == null ? null : CreateCompactElementReference(rootContext.RootPage, typeRegistry),
+                ["currentPage"] = rootContext.CurrentPage == null ? null : CreateCompactElementReference(rootContext.CurrentPage, typeRegistry),
                 ["coordinateSpace"] = CreateCoordinateSpaceSnapshot(rootContext.RootPage),
-                ["root"] = BuildElementNode(
-                    selectedRoot,
-                    options,
-                    maxDepth,
-                    new HashSet<string>(StringComparer.OrdinalIgnoreCase),
-                    state,
-                    selectedRootIsInCurrentPage),
+                ["types"] = typeRegistry.ToJson(),
+                ["root"] = rootNode,
                 ["nodeCount"] = state.NodeCount,
                 ["truncated"] = state.Truncated
             };

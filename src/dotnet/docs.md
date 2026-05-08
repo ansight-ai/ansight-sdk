@@ -24,7 +24,7 @@ var options = Options.CreateBuilder()
 Runtime.InitializeAndActivate(options);
 ```
 
-`WithAnsightSdk(...)` enables FPS sampling, 400ms sampling, 120s retention, live JPEG capture at 2000ms/quality-60/max-width-600, host auto-probe, bundled host connection, all non-MAUI remote tools, and full tool access. Host auto-probe uses remembered Wi-Fi connection profiles by default. The callback runs after runtime defaults and before default tool-suite registration, so deny-all suites can be configured in the all-in-one builder:
+`WithAnsightSdk(...)` enables FPS sampling, 400ms sampling, 120s retention, live JPEG capture at 2000ms/quality-60/max-width-480, host auto-probe, bundled host connection, all non-MAUI remote tools, and full tool access. Host auto-probe uses remembered Wi-Fi connection profiles by default. The callback runs after runtime defaults and before default tool-suite registration, so deny-all suites can be configured in the all-in-one builder:
 
 ```csharp
 using Ansight;

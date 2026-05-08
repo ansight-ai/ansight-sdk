@@ -41,7 +41,7 @@ Runtime.InitializeAndActivate(options);
 - FPS sampling enabled
 - 400ms sample frequency
 - 120s retention
-- live JPEG capture every 2000ms at quality 60 and max width 600
+- live JPEG capture every 2000ms at quality 60 and max width 480
 - host auto-probe enabled
 - bundled host connection configured from the entry assembly, or overridden through `WithBundledHostConnection(...)`
 - all non-MAUI remote tools registered
