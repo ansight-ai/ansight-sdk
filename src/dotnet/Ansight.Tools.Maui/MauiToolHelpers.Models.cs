@@ -13,7 +13,15 @@ internal static partial class MauiToolHelpers
         bool IncludeBindingContexts,
         int MaxNodes,
         string? CurrentPageId,
+        MauiElementTraversalOptions TraversalOptions,
         MauiTypeRegistry TypeRegistry);
+
+    internal sealed record MauiElementTraversalOptions(bool IncludeInactiveNavigationChildren)
+    {
+        public static MauiElementTraversalOptions Full { get; } = new(true);
+
+        public static MauiElementTraversalOptions ActiveNavigationOnly { get; } = new(false);
+    }
 
     internal sealed class MauiTreeBuildState(int maxNodes)
     {
@@ -43,6 +51,7 @@ internal static partial class MauiToolHelpers
         Window Window,
         Page? RootPage,
         Page? CurrentPage,
+        NavigationPage? ActiveNavigationPage,
         Element Root,
         string NormalizedRootScope);
 
@@ -52,16 +61,21 @@ internal static partial class MauiToolHelpers
         private readonly List<string> typeNames = [];
 
         public int GetTypeId(Type type)
+            => GetTypeId(GetTypeDisplayName(type));
+
+        public int GetTypeId(string typeName)
         {
-            var typeName = GetTypeDisplayName(type);
-            if (idsByTypeName.TryGetValue(typeName, out var id))
+            var normalizedTypeName = string.IsNullOrWhiteSpace(typeName)
+                ? "CustomVisualNode"
+                : typeName.Trim();
+            if (idsByTypeName.TryGetValue(normalizedTypeName, out var id))
             {
                 return id;
             }
 
             id = typeNames.Count;
-            typeNames.Add(typeName);
-            idsByTypeName[typeName] = id;
+            typeNames.Add(normalizedTypeName);
+            idsByTypeName[normalizedTypeName] = id;
             return id;
         }
 

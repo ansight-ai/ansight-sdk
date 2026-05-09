@@ -47,6 +47,32 @@ var options = Options.CreateBuilder()
 
 The visual tree and search tools return MAUI element ids that can be passed to the element, bindable-property, binding, layout, handler, action, wait, XAML experiment, theme, and binding-context tools. Write-scoped tools require `WithReadWriteToolAccess()` or a custom `ToolGuard`.
 
+Custom controls that render their own child model, such as Mapbox, Skia, or native-hosted controls, can register visual-tree extensions. A child walker exposes additional real MAUI `Element` children to search and node resolution. A child builder exposes synthetic visual-tree nodes for drawn/native items that are not MAUI elements:
+
+```csharp
+using System.Text.Json.Nodes;
+using Ansight.Tools.Maui;
+using Microsoft.Maui.Graphics;
+
+var registration = MauiVisualTreeRegistry.RegisterChildBuilder<MyMapView>((mapView, context) =>
+    mapView.VisibleMarkers.Select(marker => new MauiVisualTreeNode(
+        context.CreateChildId(marker.Id),
+        "MyApp.MapMarker",
+        "mapMarker")
+    {
+        Label = marker.Title,
+        Bounds = new Rect(marker.X, marker.Y, marker.Width, marker.Height),
+        Properties = new JsonObject
+        {
+            ["layer"] = marker.LayerName,
+            ["selected"] = marker.IsSelected
+        }
+    }));
+```
+
+Keep the returned `IDisposable` for the lifetime of the registration and dispose it to unregister.
+Synthetic nodes appear in `maui.get_visual_tree`; only real `Element` children returned by a child walker can be resolved later by element mutation or property tools.
+
 `maui.inflate_xaml` creates and retains a detached MAUI element from an arbitrary XAML string using `LoadFromXaml`. The returned node id can be passed to `maui.add_element` to attach it under a live layout or content control, and `maui.remove_element` can detach it again without restarting the app.
 
 `maui.set_app_theme` changes `Application.Current.UserAppTheme` to `light`, `dark`, or `system` at runtime.

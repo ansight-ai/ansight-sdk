@@ -53,14 +53,23 @@ internal static partial class MauiToolHelpers
             ["activePage"] = 8,
             ["cycle"] = 16,
             ["truncated"] = 32,
-            ["childrenTruncated"] = 64
+            ["childrenTruncated"] = 64,
+            ["custom"] = 128
         };
     }
 
     internal static IReadOnlyList<MauiElementTraversalEntry> TraverseElements(Element root, int maxDepth)
     {
+        return TraverseElements(root, maxDepth, MauiElementTraversalOptions.Full);
+    }
+
+    internal static IReadOnlyList<MauiElementTraversalEntry> TraverseElements(
+        Element root,
+        int maxDepth,
+        MauiElementTraversalOptions traversalOptions)
+    {
         var entries = new List<MauiElementTraversalEntry>();
-        TraverseElements(root, maxDepth, depth: 0, new List<Element>(), new HashSet<string>(StringComparer.OrdinalIgnoreCase), entries);
+        TraverseElements(root, maxDepth, depth: 0, new List<Element>(), new HashSet<string>(StringComparer.OrdinalIgnoreCase), entries, traversalOptions);
         return entries;
     }
 
@@ -70,7 +79,8 @@ internal static partial class MauiToolHelpers
         int depth,
         List<Element> ancestors,
         HashSet<string> visited,
-        List<MauiElementTraversalEntry> entries)
+        List<MauiElementTraversalEntry> entries,
+        MauiElementTraversalOptions traversalOptions)
     {
         if (!visited.Add(GetElementId(element)))
         {
@@ -85,10 +95,10 @@ internal static partial class MauiToolHelpers
             return;
         }
 
-        foreach (var child in GetChildElements(element))
+        foreach (var child in GetChildElements(element, traversalOptions))
         {
             ancestors.Add(element);
-            TraverseElements(child, maxDepth, depth + 1, ancestors, visited, entries);
+            TraverseElements(child, maxDepth, depth + 1, ancestors, visited, entries, traversalOptions);
             ancestors.RemoveAt(ancestors.Count - 1);
         }
 
@@ -100,6 +110,17 @@ internal static partial class MauiToolHelpers
         string nodeId,
         List<Element> ancestors,
         HashSet<string> visited,
+        out Element? result)
+    {
+        return TryFindElement(element, nodeId, ancestors, visited, MauiElementTraversalOptions.Full, out result);
+    }
+
+    internal static bool TryFindElement(
+        Element element,
+        string nodeId,
+        List<Element> ancestors,
+        HashSet<string> visited,
+        MauiElementTraversalOptions traversalOptions,
         out Element? result)
     {
         result = null;
@@ -115,10 +136,10 @@ internal static partial class MauiToolHelpers
             return true;
         }
 
-        foreach (var child in GetChildElements(element))
+        foreach (var child in GetChildElements(element, traversalOptions))
         {
             ancestors.Add(element);
-            if (TryFindElement(child, nodeId, ancestors, visited, out result))
+            if (TryFindElement(child, nodeId, ancestors, visited, traversalOptions, out result))
             {
                 return true;
             }
@@ -221,9 +242,16 @@ internal static partial class MauiToolHelpers
             return json;
         }
 
-        var children = GetChildElements(element);
-        json["childCount"] = children.Count;
-        if (children.Count > 0)
+        var customWalkerErrors = new List<string>();
+        var customBuilderErrors = new List<string>();
+        var children = GetChildElements(element, options.TraversalOptions, customWalkerErrors);
+        var customChildren = GetCustomVisualTreeChildNodes(
+            element,
+            options,
+            depthRemaining - 1,
+            customBuilderErrors);
+        json["childCount"] = children.Count + customChildren.Count;
+        if (children.Count > 0 || customChildren.Count > 0)
         {
             var childNodes = new JsonArray();
             foreach (var child in children)
@@ -238,7 +266,49 @@ internal static partial class MauiToolHelpers
                 childNodes.Add(BuildElementNode(child, options, depthRemaining - 1, visited, state, isInActivePage));
             }
 
+            foreach (var customChild in customChildren)
+            {
+                if (state.NodeCount >= options.MaxNodes)
+                {
+                    state.MarkTruncated();
+                    flags |= 64;
+                    break;
+                }
+
+                try
+                {
+                    childNodes.Add(BuildCustomVisualTreeNode(
+                        customChild,
+                        options,
+                        depthRemaining - 1,
+                        state,
+                        isInActivePage,
+                        new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+                        customBuilderErrors));
+                }
+                catch (Exception exception)
+                {
+                    customBuilderErrors.Add(CreateCustomVisualTreeError(element, "builder", exception));
+                }
+            }
+
             json["children"] = childNodes;
+        }
+
+        if (customWalkerErrors.Count > 0 || customBuilderErrors.Count > 0)
+        {
+            var customVisualTreeErrors = new JsonArray();
+            foreach (var customWalkerError in customWalkerErrors)
+            {
+                customVisualTreeErrors.Add(customWalkerError);
+            }
+
+            foreach (var customBuilderError in customBuilderErrors)
+            {
+                customVisualTreeErrors.Add(customBuilderError);
+            }
+
+            json["customVisualTreeErrors"] = customVisualTreeErrors;
         }
 
         json["flags"] = flags;
@@ -262,6 +332,21 @@ internal static partial class MauiToolHelpers
     }
 
     internal static IReadOnlyList<Element> GetChildElements(Element element)
+    {
+        return GetChildElements(element, MauiElementTraversalOptions.Full);
+    }
+
+    internal static IReadOnlyList<Element> GetChildElements(
+        Element element,
+        MauiElementTraversalOptions traversalOptions)
+    {
+        return GetChildElements(element, traversalOptions, customWalkerErrors: null);
+    }
+
+    internal static IReadOnlyList<Element> GetChildElements(
+        Element element,
+        MauiElementTraversalOptions traversalOptions,
+        List<string>? customWalkerErrors)
     {
         var children = new List<Element>();
 
@@ -291,11 +376,34 @@ internal static partial class MauiToolHelpers
             AddElementValue(children, value);
         }
 
+        AddShellNavigationElements(children, element);
         AddModalNavigationElements(children, element);
         AddRealizedItemsViewElements(children, element);
+        AddCustomChildElements(children, element, traversalOptions, customWalkerErrors);
 
         children.RemoveAll(child => ReferenceEquals(child, element));
+        if (!traversalOptions.IncludeInactiveNavigationChildren
+            && TryGetActiveNavigationChild(element, out var activeChild)
+            && activeChild != null)
+        {
+            children.RemoveAll(child => !ReferenceEquals(child, activeChild));
+            AddDistinctElement(children, activeChild);
+        }
+
         return children;
+    }
+
+    private static bool TryGetActiveNavigationChild(Element element, out Element? activeChild)
+    {
+        activeChild = null;
+        if (element is not Page page)
+        {
+            return false;
+        }
+
+        var modalPage = GetModalStack(page).LastOrDefault(modal => !ReferenceEquals(modal, page));
+        activeChild = modalPage ?? GetDisplayedNavigationChildPage(page);
+        return activeChild != null;
     }
 
     private static PropertyInfo[] GetChildElementProperties(Type elementType)
@@ -329,6 +437,25 @@ internal static partial class MauiToolHelpers
         }
     }
 
+    internal static void AddShellNavigationElements(List<Element> children, Element element)
+    {
+        switch (element)
+        {
+            case Shell shell:
+                AddElementValue(children, shell.Items);
+                return;
+            case ShellItem shellItem:
+                AddElementValue(children, shellItem.Items);
+                return;
+            case ShellSection shellSection:
+                AddElementValue(children, shellSection.Items);
+                return;
+            case ShellContent shellContent when shellContent.Content is Element content:
+                AddDistinctElement(children, content);
+                return;
+        }
+    }
+
     internal static void AddRealizedItemsViewElements(List<Element> children, Element element)
     {
         if (element is not ItemsView itemsView)
@@ -343,6 +470,276 @@ internal static partial class MauiToolHelpers
         }
 
         AddPlatformRealizedItemsViewElements(children, itemsView);
+    }
+
+    private static void AddCustomChildElements(
+        List<Element> children,
+        Element element,
+        MauiElementTraversalOptions traversalOptions,
+        List<string>? customWalkerErrors)
+    {
+        var registrations = MauiVisualTreeRegistry.GetRegistrations(element);
+        if (registrations.Count == 0)
+        {
+            return;
+        }
+
+        var context = new MauiVisualTreeWalkContext(element, traversalOptions.IncludeInactiveNavigationChildren);
+        foreach (var registration in registrations)
+        {
+            IEnumerable<Element>? customChildren;
+            try
+            {
+                customChildren = registration.WalkChildren(element, context);
+            }
+            catch (Exception exception)
+            {
+                customWalkerErrors?.Add(CreateCustomVisualTreeError(element, "walker", exception));
+                continue;
+            }
+
+            if (customChildren is null)
+            {
+                continue;
+            }
+
+            try
+            {
+                foreach (var customChild in customChildren)
+                {
+                    if (customChild is not null)
+                    {
+                        AddDistinctElement(children, customChild);
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                customWalkerErrors?.Add(CreateCustomVisualTreeError(element, "walker", exception));
+            }
+        }
+    }
+
+    private static List<MauiVisualTreeNode> GetCustomVisualTreeChildNodes(
+        Element element,
+        MauiTreeBuildOptions options,
+        int depthRemaining,
+        List<string> customBuilderErrors)
+    {
+        var registrations = MauiVisualTreeRegistry.GetRegistrations(element);
+        if (registrations.Count == 0 || depthRemaining < 0)
+        {
+            return [];
+        }
+
+        var context = new MauiVisualTreeBuildContext(
+            element,
+            options.IncludeBounds,
+            options.IncludeProperties,
+            options.IncludeBindableProperties,
+            options.IncludeBindingContexts,
+            options.TraversalOptions.IncludeInactiveNavigationChildren,
+            depthRemaining,
+            options.MaxNodes);
+        var customNodes = new List<MauiVisualTreeNode>();
+        foreach (var registration in registrations)
+        {
+            IEnumerable<MauiVisualTreeNode>? builtNodes;
+            try
+            {
+                builtNodes = registration.BuildChildren(element, context);
+            }
+            catch (Exception exception)
+            {
+                customBuilderErrors.Add(CreateCustomVisualTreeError(element, "builder", exception));
+                continue;
+            }
+
+            if (builtNodes is null)
+            {
+                continue;
+            }
+
+            try
+            {
+                foreach (var builtNode in builtNodes)
+                {
+                    if (builtNode is not null)
+                    {
+                        customNodes.Add(builtNode);
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                customBuilderErrors.Add(CreateCustomVisualTreeError(element, "builder", exception));
+            }
+        }
+
+        return customNodes;
+    }
+
+    private static JsonObject BuildCustomVisualTreeNode(
+        MauiVisualTreeNode node,
+        MauiTreeBuildOptions options,
+        int depthRemaining,
+        MauiTreeBuildState state,
+        bool parentIsInActivePage,
+        HashSet<string> visited,
+        List<string> customBuilderErrors)
+    {
+        var json = CreateCompactCustomVisualTreeNodeReference(node, options.TypeRegistry);
+        var flags = 128;
+
+        if (node.IsVisible ?? true)
+        {
+            flags |= 1;
+        }
+
+        if (node.IsEnabled ?? true)
+        {
+            flags |= 2;
+        }
+
+        if (parentIsInActivePage)
+        {
+            flags |= 8;
+        }
+
+        if (options.IncludeBounds && TryCreateCustomVisualTreeBounds(node, out var bounds))
+        {
+            json["bounds"] = bounds;
+        }
+
+        if (options.IncludeProperties && node.Properties is not null)
+        {
+            json["properties"] = node.Properties.DeepClone();
+        }
+
+        if (!state.TryIncludeNode())
+        {
+            flags |= 32;
+            json["flags"] = flags;
+            json["childCount"] = 0;
+            return json;
+        }
+
+        if (!visited.Add(node.Id))
+        {
+            flags |= 16;
+            json["flags"] = flags;
+            json["childCount"] = 0;
+            return json;
+        }
+
+        if (depthRemaining <= 0)
+        {
+            json["flags"] = flags;
+            json["childCount"] = 0;
+            visited.Remove(node.Id);
+            return json;
+        }
+
+        var customChildren = node.Children.Where(child => child is not null).ToArray();
+        json["childCount"] = customChildren.Length;
+        if (customChildren.Length > 0)
+        {
+            var childNodes = new JsonArray();
+            foreach (var customChild in customChildren)
+            {
+                if (state.NodeCount >= options.MaxNodes)
+                {
+                    state.MarkTruncated();
+                    flags |= 64;
+                    break;
+                }
+
+                try
+                {
+                    childNodes.Add(BuildCustomVisualTreeNode(
+                        customChild,
+                        options,
+                        depthRemaining - 1,
+                        state,
+                        parentIsInActivePage,
+                        visited,
+                        customBuilderErrors));
+                }
+                catch (Exception exception)
+                {
+                    customBuilderErrors.Add($"Custom visual tree node '{node.Id}' child build failed: {exception.Message}");
+                }
+            }
+
+            json["children"] = childNodes;
+        }
+
+        json["flags"] = flags;
+        visited.Remove(node.Id);
+        return json;
+    }
+
+    private static JsonObject CreateCompactCustomVisualTreeNodeReference(MauiVisualTreeNode node, MauiTypeRegistry typeRegistry)
+    {
+        var type = NormalizeCustomVisualTreeText(node.Type, "CustomVisualNode");
+        var kind = NormalizeCustomVisualTreeText(node.Kind, "custom");
+        var json = new JsonObject
+        {
+            ["id"] = node.Id,
+            ["type"] = type,
+            ["typeId"] = typeRegistry.GetTypeId(type),
+            ["kind"] = kind,
+            ["source"] = "custom",
+            ["automationId"] = NullIfWhiteSpace(node.AutomationId),
+            ["styleId"] = NullIfWhiteSpace(node.StyleId),
+            ["classId"] = NullIfWhiteSpace(node.ClassId),
+            ["label"] = CreateSafeLabel(node.Label)
+        };
+
+        if (!string.IsNullOrWhiteSpace(node.Title))
+        {
+            json["title"] = CreateSafeLabel(node.Title);
+        }
+
+        return json;
+    }
+
+    private static bool TryCreateCustomVisualTreeBounds(MauiVisualTreeNode node, out JsonArray bounds)
+    {
+        bounds = new JsonArray();
+
+        var localBounds = node.Bounds ?? node.AbsoluteBounds;
+        if (localBounds is null)
+        {
+            return false;
+        }
+
+        bounds.Add(CreateCompactNumber(localBounds.Value.X));
+        bounds.Add(CreateCompactNumber(localBounds.Value.Y));
+        bounds.Add(CreateCompactNumber(localBounds.Value.Width));
+        bounds.Add(CreateCompactNumber(localBounds.Value.Height));
+
+        if (node.AbsoluteBounds is { } absoluteBounds)
+        {
+            bounds.Add(CreateCompactNumber(absoluteBounds.X));
+            bounds.Add(CreateCompactNumber(absoluteBounds.Y));
+            bounds.Add(CreateCompactNumber(absoluteBounds.Width));
+            bounds.Add(CreateCompactNumber(absoluteBounds.Height));
+        }
+
+        return true;
+    }
+
+    private static string NormalizeCustomVisualTreeText(string? value, string fallback)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? fallback
+            : Truncate(value.Trim()) ?? fallback;
+    }
+
+    private static string CreateCustomVisualTreeError(Element element, string component, Exception exception)
+    {
+        return $"Custom visual tree {component} failed for {GetTypeDisplayName(element.GetType())} ({GetElementId(element)}): {exception.Message}";
     }
 
     private static void AddPlatformRealizedItemsViewElements(List<Element> children, ItemsView itemsView)
@@ -1070,6 +1467,12 @@ internal static partial class MauiToolHelpers
         {
             Window => "window",
             Shell => "shell",
+            FlyoutPage => "flyoutPage",
+            TabbedPage => "tabbedPage",
+            NavigationPage => "navigationPage",
+            ShellItem => "shellItem",
+            ShellSection => "shellSection",
+            ShellContent => "shellContent",
             Page => "page",
             Layout => "layout",
             View => "view",
@@ -1090,6 +1493,7 @@ internal static partial class MauiToolHelpers
             Label labelElement => CreateSafeLabel(labelElement.Text),
             Button button => CreateSafeLabel(button.Text),
             Page page => CreateSafeLabel(page.Title),
+            BaseShellItem shellItem => CreateSafeLabel(shellItem.Title),
             MenuItem menuItem => CreateSafeLabel(menuItem.Text),
             _ => null
         };

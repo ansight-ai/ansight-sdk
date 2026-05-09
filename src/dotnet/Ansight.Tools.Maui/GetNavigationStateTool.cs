@@ -55,6 +55,7 @@ public sealed class GetNavigationStateTool : ITool
             }
 
             var currentPage = ResolveDisplayedPage(window.Page) ?? window.Page;
+            var activeNavigationPage = ResolveActiveNavigationPage(window.Page);
             var payload = new JsonObject
             {
                 ["platform"] = CurrentPlatform,
@@ -63,6 +64,7 @@ public sealed class GetNavigationStateTool : ITool
                 ["activeWindow"] = CreateElementReference(window),
                 ["rootPage"] = CreateElementReference(window.Page),
                 ["currentPage"] = CreateElementReference(currentPage),
+                ["activeNavigationPage"] = activeNavigationPage == null ? null : CreateElementReference(activeNavigationPage),
                 ["navigation"] = CreateNavigationSnapshot(window.Page, currentPage)
             };
 

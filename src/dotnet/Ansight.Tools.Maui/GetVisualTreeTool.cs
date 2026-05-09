@@ -37,6 +37,7 @@ public sealed class GetVisualTreeTool : ITool
             var includeProperties = GetBoolean(arguments, "includeProperties", defaultValue: false);
             var includeBindableProperties = GetBoolean(arguments, "includeBindableProperties", defaultValue: false);
             var includeBindingContexts = GetBoolean(arguments, "includeBindingContexts", defaultValue: false);
+            var includeInactivePages = GetBoolean(arguments, "includeInactivePages", defaultValue: false);
             var maxDepth = GetInt(arguments, "maxDepth", DefaultTreeDepth, minimum: 0, maximum: MaximumTreeDepth);
             var maxNodes = GetInt(arguments, "maxNodes", DefaultTreeMaxNodes, minimum: 1, maximum: MaximumTreeMaxNodes);
             var rootNodeId = GetString(arguments, "rootNodeId");
@@ -66,6 +67,7 @@ public sealed class GetVisualTreeTool : ITool
                 includeBindingContexts,
                 maxNodes,
                 rootContext.CurrentPage == null ? null : GetElementId(rootContext.CurrentPage),
+                includeInactivePages ? MauiElementTraversalOptions.Full : MauiElementTraversalOptions.ActiveNavigationOnly,
                 typeRegistry);
             var state = new MauiTreeBuildState(maxNodes);
             var selectedRootIsInCurrentPage = rootContext.CurrentPage != null && IsElementDescendantOrSelf(rootContext.CurrentPage, selectedRoot);
@@ -89,6 +91,8 @@ public sealed class GetVisualTreeTool : ITool
                 ["bindablePropertyFlagBits"] = CreateBindablePropertyFlagBits(),
                 ["rootPage"] = rootContext.RootPage == null ? null : CreateCompactElementReference(rootContext.RootPage, typeRegistry),
                 ["currentPage"] = rootContext.CurrentPage == null ? null : CreateCompactElementReference(rootContext.CurrentPage, typeRegistry),
+                ["activeNavigationPage"] = rootContext.ActiveNavigationPage == null ? null : CreateCompactElementReference(rootContext.ActiveNavigationPage, typeRegistry),
+                ["includeInactivePages"] = includeInactivePages,
                 ["coordinateSpace"] = CreateCoordinateSpaceSnapshot(rootContext.RootPage),
                 ["types"] = typeRegistry.ToJson(),
                 ["root"] = rootNode,

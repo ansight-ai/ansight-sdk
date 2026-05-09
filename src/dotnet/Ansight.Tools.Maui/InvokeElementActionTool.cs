@@ -223,12 +223,171 @@ public sealed class InvokeElementActionTool : ITool
                     result["selectedItem"] = CreateValueSnapshot(picker.SelectedItem, picker.SelectedItem?.GetType(), depthRemaining: 0, DefaultMaxItems, DefaultMaxProperties);
                     return ToolResult.Success(result);
 
+                case "selecttab":
+                    return SelectTab(nodeId, element, resolution, valueJson, result);
+
                 default:
-                    return ToolResult.Failure("The action argument must be one of: focus, unfocus, executeCommand, invokeTap, toggle, setText, selectPickerItem.", errorCode: "maui_invalid_action");
+                    return ToolResult.Failure("The action argument must be one of: focus, unfocus, executeCommand, invokeTap, toggle, setText, selectPickerItem, selectTab.", errorCode: "maui_invalid_action");
             }
         });
 #else
         return Task.FromResult(CreateUnsupportedResult());
 #endif
     }
+
+#if ANDROID || IOS || MACCATALYST
+    private static ToolResult SelectTab(
+        string nodeId,
+        Element element,
+        MauiElementResolution resolution,
+        string? valueJson,
+        JsonObject result)
+    {
+        if (element is Page tabPage
+            && TryFindAncestor(resolution, out TabbedPage? owningTabbedPage)
+            && owningTabbedPage is not null
+            && owningTabbedPage.Children.Contains(tabPage))
+        {
+            owningTabbedPage.CurrentPage = tabPage;
+            result["invoked"] = true;
+            result["tabbedPage"] = CreateElementReference(owningTabbedPage);
+            result["selectedTab"] = CreateElementReference(tabPage);
+            result["selectedIndex"] = owningTabbedPage.Children.IndexOf(tabPage);
+            return ToolResult.Success(result);
+        }
+
+        if (element is TabbedPage tabbedPage)
+        {
+            if (string.IsNullOrWhiteSpace(valueJson))
+            {
+                return ToolResult.Failure("The valueJson argument is required when selectTab targets a TabbedPage.", errorCode: "maui_action_value_required");
+            }
+
+            if (!TryResolveTabbedPageTab(tabbedPage, valueJson, out var selectedTab, out var tabError) || selectedTab == null)
+            {
+                return ToolResult.Failure(tabError ?? "The requested tab was not found.", errorCode: "maui_tab_not_found");
+            }
+
+            tabbedPage.CurrentPage = selectedTab;
+            result["invoked"] = true;
+            result["tabbedPage"] = CreateElementReference(tabbedPage);
+            result["selectedTab"] = CreateElementReference(selectedTab);
+            result["selectedIndex"] = tabbedPage.Children.IndexOf(selectedTab);
+            return ToolResult.Success(result);
+        }
+
+        if (element is ShellItem shellItem
+            && TryFindAncestor(resolution, out Shell? owningShell)
+            && owningShell is not null)
+        {
+            owningShell.CurrentItem = shellItem;
+            result["invoked"] = true;
+            result["selectedTab"] = CreateElementReference(shellItem);
+            return ToolResult.Success(result);
+        }
+
+        if (element is ShellSection shellSection
+            && TryFindAncestor(resolution, out ShellItem? owningShellItem)
+            && owningShellItem is not null)
+        {
+            owningShellItem.CurrentItem = shellSection;
+            if (TryFindAncestor(resolution, out Shell? shell) && shell is not null)
+            {
+                shell.CurrentItem = owningShellItem;
+            }
+
+            result["invoked"] = true;
+            result["selectedTab"] = CreateElementReference(shellSection);
+            return ToolResult.Success(result);
+        }
+
+        if (element is ShellContent shellContent
+            && TryFindAncestor(resolution, out ShellSection? owningShellSection)
+            && owningShellSection is not null)
+        {
+            owningShellSection.CurrentItem = shellContent;
+            if (TryFindAncestor(resolution, out ShellItem? shellItemParent) && shellItemParent is not null)
+            {
+                shellItemParent.CurrentItem = owningShellSection;
+                if (TryFindAncestor(resolution, out Shell? shellParent) && shellParent is not null)
+                {
+                    shellParent.CurrentItem = shellItemParent;
+                }
+            }
+
+            result["invoked"] = true;
+            result["selectedTab"] = CreateElementReference(shellContent);
+            return ToolResult.Success(result);
+        }
+
+        return ToolResult.Failure($"The MAUI node '{nodeId}' is not a TabbedPage tab, Shell tab, or tab container.", errorCode: "maui_action_not_supported");
+    }
+
+    private static bool TryResolveTabbedPageTab(
+        TabbedPage tabbedPage,
+        string valueJson,
+        out Page? selectedTab,
+        out string? error)
+    {
+        selectedTab = null;
+        error = null;
+        var requestedValue = ConvertJsonArgumentToUntyped(valueJson);
+        if (requestedValue is long requestedIndex)
+        {
+            if (requestedIndex < 0 || requestedIndex >= tabbedPage.Children.Count)
+            {
+                error = $"TabbedPage index {requestedIndex} is out of range.";
+                return false;
+            }
+
+            selectedTab = tabbedPage.Children[(int)requestedIndex];
+            return true;
+        }
+
+        var requestedText = Convert.ToString(requestedValue, System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
+        foreach (var tab in tabbedPage.Children)
+        {
+            if (IsTabMatch(tab, requestedText))
+            {
+                selectedTab = tab;
+                return true;
+            }
+        }
+
+        error = $"TabbedPage tab '{requestedText}' was not found.";
+        return false;
+    }
+
+    private static bool IsTabMatch(Element tab, string requestedText)
+    {
+        return string.Equals(GetElementId(tab), requestedText, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(tab.AutomationId, requestedText, StringComparison.Ordinal)
+               || string.Equals(tab.StyleId, requestedText, StringComparison.Ordinal)
+               || string.Equals(tab.ClassId, requestedText, StringComparison.Ordinal)
+               || string.Equals(GetElementLabel(tab), requestedText, StringComparison.Ordinal)
+               || string.Equals(GetTypeDisplayName(tab.GetType()), requestedText, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool TryFindAncestor<T>(MauiElementResolution resolution, out T? ancestor)
+        where T : Element
+    {
+        for (var index = resolution.Ancestors.Count - 1; index >= 0; index--)
+        {
+            if (resolution.Ancestors[index] is T matchedAncestor)
+            {
+                ancestor = matchedAncestor;
+                return true;
+            }
+        }
+
+        if (resolution.Root is T root)
+        {
+            ancestor = root;
+            return true;
+        }
+
+        ancestor = null;
+        return false;
+    }
+#endif
 }

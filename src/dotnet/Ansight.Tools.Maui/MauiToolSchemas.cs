@@ -100,6 +100,7 @@ internal static class MauiToolSchemas
             ["window"] = MauiElementReferenceSchema,
             ["rootPage"] = MauiElementReferenceSchema,
             ["currentPage"] = MauiElementReferenceSchema,
+            ["activeNavigationPage"] = MauiElementReferenceSchema,
             ["navigation"] = GenericObjectSchema
         },
         required: new[] { "platform", "capturedAtUtc", "windowCount", "window", "rootPage", "currentPage" });
@@ -116,6 +117,7 @@ internal static class MauiToolSchemas
             ["includeProperties"] = ToolSchema.Boolean("Include common MAUI element properties."),
             ["includeBindableProperties"] = ToolSchema.Boolean("Include bindable property metadata for each node."),
             ["includeBindingContexts"] = ToolSchema.Boolean("Include binding-context type metadata for each node."),
+            ["includeInactivePages"] = ToolSchema.Boolean("Include inactive navigation children such as non-selected tabs, hidden flyout/detail pages, and covered pages."),
             ["maxDepth"] = ToolSchema.Integer("Maximum child depth to include."),
             ["maxNodes"] = ToolSchema.Integer("Maximum nodes to include before truncating the tree.")
         });
@@ -140,6 +142,7 @@ internal static class MauiToolSchemas
             ["propertyValueJson"] = ToolSchema.String("Optional JSON value that the bindable property must equal.", nullable: true),
             ["includeBounds"] = ToolSchema.Boolean("Include bounds in each match."),
             ["includeProperties"] = ToolSchema.Boolean("Include common element properties in each match."),
+            ["includeInactivePages"] = ToolSchema.Boolean("Include inactive navigation children such as non-selected tabs, hidden flyout/detail pages, and covered pages."),
             ["maxDepth"] = ToolSchema.Integer("Maximum child depth to search."),
             ["maxResults"] = ToolSchema.Integer("Maximum matches to return.")
         });
@@ -179,6 +182,8 @@ internal static class MauiToolSchemas
             ["types"] = ToolSchema.Array(ToolSchema.String("Registered type full name."), "Type registry referenced by typeId fields."),
             ["rootPage"] = MauiElementReferenceSchema,
             ["currentPage"] = MauiElementReferenceSchema,
+            ["activeNavigationPage"] = MauiElementReferenceSchema,
+            ["includeInactivePages"] = ToolSchema.Boolean("Whether inactive navigation children were included."),
             ["coordinateSpace"] = GenericObjectSchema,
             ["nodeCount"] = ToolSchema.Integer("Number of nodes included in the payload."),
             ["truncated"] = ToolSchema.Boolean("Whether the payload was truncated by maxNodes."),
@@ -394,7 +399,7 @@ internal static class MauiToolSchemas
         properties: new Dictionary<string, ToolSchema>
         {
             ["nodeId"] = ToolSchema.String("Node id returned by the MAUI visual tree, or an AutomationId."),
-            ["action"] = ToolSchema.String("Action to invoke.", enumValues: new[] { "focus", "unfocus", "executeCommand", "invokeTap", "toggle", "setText", "selectPickerItem" }),
+            ["action"] = ToolSchema.String("Action to invoke.", enumValues: new[] { "focus", "unfocus", "executeCommand", "invokeTap", "toggle", "setText", "selectPickerItem", "selectTab" }),
             ["commandName"] = ToolSchema.String("Command property name for executeCommand.", nullable: true),
             ["parameterJson"] = ToolSchema.String("Optional command parameter encoded as JSON.", nullable: true),
             ["valueJson"] = ToolSchema.String("Optional action value encoded as JSON.", nullable: true),
@@ -420,6 +425,7 @@ internal static class MauiToolSchemas
             ["propertyName"] = ToolSchema.String("Bindable or binding-context property name for value conditions.", nullable: true),
             ["expectedJson"] = ToolSchema.String("Expected value encoded as JSON for value conditions.", nullable: true),
             ["root"] = ToolSchema.String("Capture root for element searches.", enumValues: new[] { "currentPage", "rootPage", "window" }),
+            ["includeInactivePages"] = ToolSchema.Boolean("Include inactive navigation children while waiting for element conditions."),
             ["maxDepth"] = ToolSchema.Integer("Maximum child depth to search.")
         },
         required: new[] { "condition" });

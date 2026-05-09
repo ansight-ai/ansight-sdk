@@ -62,11 +62,12 @@ internal static partial class MauiToolHelpers
 
         var rootPage = window.Page;
         var currentPage = rootPage == null ? null : ResolveDisplayedPage(rootPage) ?? rootPage;
+        var activeNavigationPage = rootPage == null ? null : ResolveActiveNavigationPage(rootPage);
 
         switch (normalizedRootScope)
         {
             case "window":
-                context = new MauiActiveRootContext(window, rootPage, currentPage, window, normalizedRootScope);
+                context = new MauiActiveRootContext(window, rootPage, currentPage, activeNavigationPage, window, normalizedRootScope);
                 return true;
             case "rootPage":
                 if (rootPage == null)
@@ -75,7 +76,7 @@ internal static partial class MauiToolHelpers
                     return false;
                 }
 
-                context = new MauiActiveRootContext(window, rootPage, currentPage, rootPage, normalizedRootScope);
+                context = new MauiActiveRootContext(window, rootPage, currentPage, activeNavigationPage, rootPage, normalizedRootScope);
                 return true;
             case "currentPage":
                 if (rootPage == null)
@@ -84,7 +85,7 @@ internal static partial class MauiToolHelpers
                     return false;
                 }
 
-                context = new MauiActiveRootContext(window, rootPage, currentPage, currentPage ?? rootPage, normalizedRootScope);
+                context = new MauiActiveRootContext(window, rootPage, currentPage, activeNavigationPage, currentPage ?? rootPage, normalizedRootScope);
                 return true;
             default:
                 error = "The root argument must be one of: currentPage, rootPage, window.";
@@ -141,6 +142,33 @@ internal static partial class MauiToolHelpers
         return page;
     }
 
+    internal static NavigationPage? ResolveActiveNavigationPage(Page? rootPage)
+    {
+        return ResolveActiveNavigationPage(rootPage, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+    }
+
+    private static NavigationPage? ResolveActiveNavigationPage(Page? page, HashSet<string> visited)
+    {
+        if (page == null || !visited.Add(GetElementId(page)))
+        {
+            return null;
+        }
+
+        var modalPage = FindTopModalPage(page, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+        if (modalPage != null && !ReferenceEquals(modalPage, page))
+        {
+            return ResolveActiveNavigationPage(modalPage, visited);
+        }
+
+        if (page is NavigationPage navigationPage)
+        {
+            return navigationPage;
+        }
+
+        var childPage = GetDisplayedNavigationChildPage(page);
+        return childPage == null ? null : ResolveActiveNavigationPage(childPage, visited);
+    }
+
     private static Page? FindTopModalPage(Page page, HashSet<string> visited)
     {
         if (!visited.Add(GetElementId(page)))
@@ -165,6 +193,7 @@ internal static partial class MauiToolHelpers
             Shell shell when shell.CurrentPage != null => shell.CurrentPage,
             NavigationPage navigationPage when navigationPage.CurrentPage != null => navigationPage.CurrentPage,
             TabbedPage tabbedPage when tabbedPage.CurrentPage != null => tabbedPage.CurrentPage,
+            FlyoutPage { IsPresented: true, Flyout: not null } flyoutPage => flyoutPage.Flyout,
             FlyoutPage flyoutPage when flyoutPage.Detail != null => flyoutPage.Detail,
             _ => null
         };
@@ -223,16 +252,20 @@ internal static partial class MauiToolHelpers
 
     internal static JsonObject CreateNavigationSnapshot(Page rootPage, Page currentPage)
     {
+        var activeNavigationPage = ResolveActiveNavigationPage(rootPage);
         var navigation = new JsonObject
         {
             ["rootPageId"] = GetElementId(rootPage),
-            ["currentPageId"] = GetElementId(currentPage)
+            ["currentPageId"] = GetElementId(currentPage),
+            ["activeNavigationPageId"] = activeNavigationPage == null ? null : GetElementId(activeNavigationPage),
+            ["activeNavigationPage"] = activeNavigationPage == null ? null : CreateElementReference(activeNavigationPage)
         };
 
         var navigationStack = new JsonArray();
-        if (currentPage.Navigation?.NavigationStack != null)
+        var navigationStackSource = activeNavigationPage?.Navigation?.NavigationStack ?? currentPage.Navigation?.NavigationStack;
+        if (navigationStackSource != null)
         {
-            foreach (var page in currentPage.Navigation.NavigationStack)
+            foreach (var page in navigationStackSource)
             {
                 navigationStack.Add(CreateElementReference(page));
             }
@@ -254,7 +287,114 @@ internal static partial class MauiToolHelpers
             navigation["shellCurrentPage"] = shell.CurrentPage == null ? null : CreateElementReference(shell.CurrentPage);
         }
 
+        var activeFlyoutPage = ResolveActiveFlyoutPage(rootPage);
+        if (activeFlyoutPage != null)
+        {
+            navigation["flyout"] = CreateFlyoutSnapshot(activeFlyoutPage);
+        }
+
+        var activeTabbedPage = ResolveActiveTabbedPage(rootPage);
+        if (activeTabbedPage != null)
+        {
+            navigation["tabbed"] = CreateTabbedSnapshot(activeTabbedPage);
+        }
+
         return navigation;
+    }
+
+    private static FlyoutPage? ResolveActiveFlyoutPage(Page? page)
+    {
+        return ResolveActiveFlyoutPage(page, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+    }
+
+    private static FlyoutPage? ResolveActiveFlyoutPage(Page? page, HashSet<string> visited)
+    {
+        if (page == null || !visited.Add(GetElementId(page)))
+        {
+            return null;
+        }
+
+        var modalPage = FindTopModalPage(page, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+        if (modalPage != null && !ReferenceEquals(modalPage, page))
+        {
+            return ResolveActiveFlyoutPage(modalPage, visited);
+        }
+
+        if (page is FlyoutPage flyoutPage)
+        {
+            return flyoutPage;
+        }
+
+        var childPage = GetDisplayedNavigationChildPage(page);
+        return childPage == null ? null : ResolveActiveFlyoutPage(childPage, visited);
+    }
+
+    private static TabbedPage? ResolveActiveTabbedPage(Page? page)
+    {
+        return ResolveActiveTabbedPage(page, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+    }
+
+    private static TabbedPage? ResolveActiveTabbedPage(Page? page, HashSet<string> visited)
+    {
+        if (page == null || !visited.Add(GetElementId(page)))
+        {
+            return null;
+        }
+
+        var modalPage = FindTopModalPage(page, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+        if (modalPage != null && !ReferenceEquals(modalPage, page))
+        {
+            return ResolveActiveTabbedPage(modalPage, visited);
+        }
+
+        if (page is TabbedPage tabbedPage)
+        {
+            return tabbedPage;
+        }
+
+        var childPage = GetDisplayedNavigationChildPage(page);
+        return childPage == null ? null : ResolveActiveTabbedPage(childPage, visited);
+    }
+
+    private static JsonObject CreateFlyoutSnapshot(FlyoutPage flyoutPage)
+    {
+        var displayedPage = GetDisplayedNavigationChildPage(flyoutPage);
+        return new JsonObject
+        {
+            ["page"] = CreateElementReference(flyoutPage),
+            ["isPresented"] = flyoutPage.IsPresented,
+            ["displayedPage"] = displayedPage == null ? null : CreateElementReference(displayedPage),
+            ["flyoutPage"] = flyoutPage.Flyout == null ? null : CreateElementReference(flyoutPage.Flyout),
+            ["detailPage"] = flyoutPage.Detail == null ? null : CreateElementReference(flyoutPage.Detail)
+        };
+    }
+
+    private static JsonObject CreateTabbedSnapshot(TabbedPage tabbedPage)
+    {
+        var tabs = new JsonArray();
+        var selectedIndex = -1;
+        for (var index = 0; index < tabbedPage.Children.Count; index++)
+        {
+            var tab = tabbedPage.Children[index];
+            var isCurrent = ReferenceEquals(tab, tabbedPage.CurrentPage);
+            if (isCurrent)
+            {
+                selectedIndex = index;
+            }
+
+            var tabJson = CreateElementReference(tab);
+            tabJson["index"] = index;
+            tabJson["isCurrent"] = isCurrent;
+            tabs.Add(tabJson);
+        }
+
+        return new JsonObject
+        {
+            ["page"] = CreateElementReference(tabbedPage),
+            ["currentPage"] = tabbedPage.CurrentPage == null ? null : CreateElementReference(tabbedPage.CurrentPage),
+            ["selectedIndex"] = selectedIndex,
+            ["tabs"] = tabs
+        };
     }
 
     private static IReadOnlyList<Page> ResolveModalStack(Page rootPage, Page currentPage)

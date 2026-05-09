@@ -48,6 +48,7 @@ public sealed class FindElementsTool : ITool
             var propertyValueJson = GetString(arguments, "propertyValueJson");
             var includeBounds = GetBoolean(arguments, "includeBounds", defaultValue: true);
             var includeProperties = GetBoolean(arguments, "includeProperties", defaultValue: false);
+            var includeInactivePages = GetBoolean(arguments, "includeInactivePages", defaultValue: false);
             var maxDepth = GetInt(arguments, "maxDepth", DefaultTreeDepth, minimum: 0, maximum: MaximumTreeDepth);
             var maxResults = GetInt(arguments, "maxResults", DefaultSearchResults, minimum: 1, maximum: MaximumSearchResults);
 
@@ -78,7 +79,8 @@ public sealed class FindElementsTool : ITool
             var matches = new JsonArray();
             var totalMatches = 0;
 
-            foreach (var entry in TraverseElements(selectedRoot, maxDepth))
+            var traversalOptions = includeInactivePages ? MauiElementTraversalOptions.Full : MauiElementTraversalOptions.ActiveNavigationOnly;
+            foreach (var entry in TraverseElements(selectedRoot, maxDepth, traversalOptions))
             {
                 var element = entry.Element;
 
@@ -177,6 +179,7 @@ public sealed class FindElementsTool : ITool
                 ["platform"] = CurrentPlatform,
                 ["capturedAtUtc"] = DateTime.UtcNow.ToString("O"),
                 ["rootScope"] = normalizedRootScope,
+                ["includeInactivePages"] = includeInactivePages,
                 ["matchCount"] = totalMatches,
                 ["returnedCount"] = matches.Count,
                 ["truncated"] = totalMatches > maxResults,

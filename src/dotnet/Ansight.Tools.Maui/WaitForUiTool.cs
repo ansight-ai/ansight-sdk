@@ -42,6 +42,7 @@ public sealed class WaitForUiTool : ITool
             var timeoutMs = GetInt(arguments, "timeoutMs", defaultValue: 5000, minimum: 1, maximum: 60000);
             var pollIntervalMs = GetInt(arguments, "pollIntervalMs", defaultValue: 100, minimum: 10, maximum: 5000);
             var rootScope = (GetString(arguments, "root") ?? "currentPage").Trim();
+            var includeInactivePages = GetBoolean(arguments, "includeInactivePages", defaultValue: false);
             var maxDepth = GetInt(arguments, "maxDepth", DefaultTreeDepth, minimum: 0, maximum: MaximumTreeDepth);
 
             var stopwatch = Stopwatch.StartNew();
@@ -166,7 +167,8 @@ public sealed class WaitForUiTool : ITool
                         }
                         else if (TryGetActiveRoot(rootScope, out var rootElement, out _, out _))
                         {
-                            foreach (var entry in TraverseElements(rootElement, maxDepth))
+                            var traversalOptions = includeInactivePages ? MauiElementTraversalOptions.Full : MauiElementTraversalOptions.ActiveNavigationOnly;
+                            foreach (var entry in TraverseElements(rootElement, maxDepth, traversalOptions))
                             {
                                 var element = entry.Element;
                                 if (!string.IsNullOrWhiteSpace(automationId) &&
