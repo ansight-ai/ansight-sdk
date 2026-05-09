@@ -31,6 +31,11 @@ public sealed class DeviceAppProfile
     public int ProfileSeq { get; set; } = 1;
 
     /// <summary>
+    /// Metadata for the SDK that produced this profile.
+    /// </summary>
+    public DeviceSdkProfile? Sdk { get; set; }
+
+    /// <summary>
     /// Device-specific metadata.
     /// </summary>
     public DeviceProfile? Device { get; set; }

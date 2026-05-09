@@ -80,6 +80,26 @@ public sealed class DeviceAppProfileResolverTests
         Assert.Equal(1, profile.ProfileSeq);
     }
 
+    [Fact]
+    public void Resolve_FillsSdkProfileWhenProviderDoesNot()
+    {
+        var profile = new DeviceAppProfile
+        {
+            App = new DeviceApplicationProfile
+            {
+                AppId = "com.ansight.test"
+            }
+        };
+        var sut = new DeviceAppProfileResolver(new StubDeviceAppProfileProvider(profile));
+
+        var resolved = sut.Resolve(callerProfile: null);
+
+        Assert.NotNull(resolved?.Sdk);
+        Assert.Equal("Ansight .NET SDK", resolved!.Sdk!.Name);
+        Assert.Equal("dotnet", resolved.Sdk.Language);
+        Assert.False(string.IsNullOrWhiteSpace(resolved.Sdk.Version));
+    }
+
     private sealed class StubDeviceAppProfileProvider : IDeviceAppProfileProvider
     {
         private readonly DeviceAppProfile? profile;

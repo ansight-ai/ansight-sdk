@@ -26,17 +26,19 @@ internal sealed class DeviceAppProfileResolver
             Logger.Warning($"Failed to create baseline DeviceAppProfile automatically: {ex.Message}");
         }
 
-        if (automaticProfile is null)
+        var resolvedProfile = automaticProfile switch
         {
-            return callerProfile;
+            null => callerProfile,
+            _ when callerProfile is null => automaticProfile,
+            _ => MergeDeviceAppProfiles(automaticProfile, callerProfile)
+        };
+
+        if (resolvedProfile is not null)
+        {
+            DeviceAppProfileCollector.EnsureSdkProfile(resolvedProfile);
         }
 
-        if (callerProfile is null)
-        {
-            return automaticProfile;
-        }
-
-        return MergeDeviceAppProfiles(automaticProfile, callerProfile);
+        return resolvedProfile;
     }
 
     public string? ResolveExpectedAppId(DeviceAppProfile? profile)

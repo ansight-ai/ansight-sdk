@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Reflection;
 using Ansight.Pairing;
 
 namespace Ansight.UnitTests;
@@ -15,6 +16,22 @@ public sealed class DeviceAppProfileCollectorTests
     }
 
     [Fact]
+    public void Create_PopulatesSdkVersion()
+    {
+        var profile = DeviceAppProfileCollector.Create();
+        var expectedVersion = typeof(global::Ansight.Runtime).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+            .InformationalVersion;
+
+        Assert.NotNull(profile.Sdk);
+        Assert.Equal("Ansight .NET SDK", profile.Sdk!.Name);
+        Assert.Equal("Ansight.Core", profile.Sdk.PackageId);
+        Assert.Equal("dotnet", profile.Sdk.Language);
+        Assert.False(string.IsNullOrWhiteSpace(profile.Sdk.Version));
+        Assert.Equal(expectedVersion, profile.Sdk.Version);
+    }
+
+    [Fact]
     public void Create_SerializesProcessIdInAppProfilePayload()
     {
         var profile = DeviceAppProfileCollector.Create();
@@ -22,6 +39,8 @@ public sealed class DeviceAppProfileCollectorTests
         var json = JsonSerializer.Serialize(profile, PairingJson.Compact);
 
         Assert.Contains($"\"processId\":{Environment.ProcessId}", json, StringComparison.Ordinal);
+        Assert.Contains("\"sdk\":{", json, StringComparison.Ordinal);
+        Assert.Contains("\"version\":", json, StringComparison.Ordinal);
     }
 
     [Fact]

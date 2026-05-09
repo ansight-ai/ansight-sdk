@@ -8,6 +8,8 @@
 
   <PropertyGroup>
     <PackageVersion Condition="'$(PackageVersion)' == ''">$(AnsightPackageVersion)</PackageVersion>
+    <Version Condition="'$(Version)' == ''">$(PackageVersion)</Version>
+    <InformationalVersion Condition="'$(InformationalVersion)' == ''">$(PackageVersion)</InformationalVersion>
     <Authors Condition="'$(Authors)' == ''">Ansight AI</Authors>
     <Company Condition="'$(Company)' == ''">Ansight AI</Company>
     <Product Condition="'$(Product)' == ''">Ansight</Product>

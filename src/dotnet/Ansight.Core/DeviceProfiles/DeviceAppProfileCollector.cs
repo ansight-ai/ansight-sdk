@@ -17,6 +17,7 @@ internal static partial class DeviceAppProfileCollector
             SentAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             ReasonCode = 1,
             ProfileSeq = 1,
+            Sdk = CreateSdkProfile(),
             Device = CreateDeviceProfile(),
             App = CreateApplicationProfile(),
             Runtime = CreateRuntimeProfile(),
@@ -25,6 +26,28 @@ internal static partial class DeviceAppProfileCollector
                 "ansight-baseline-profile"
             ]
         };
+    }
+
+    internal static DeviceSdkProfile CreateSdkProfile()
+    {
+        return new DeviceSdkProfile
+        {
+            Name = "Ansight .NET SDK",
+            PackageId = "Ansight.Core",
+            Version = ResolveSdkVersion(),
+            Language = "dotnet"
+        };
+    }
+
+    internal static void EnsureSdkProfile(DeviceAppProfile profile)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+
+        var sdk = profile.Sdk ??= CreateSdkProfile();
+        sdk.Name = NullIfWhiteSpace(sdk.Name) ?? "Ansight .NET SDK";
+        sdk.PackageId = NullIfWhiteSpace(sdk.PackageId) ?? "Ansight.Core";
+        sdk.Version = NullIfWhiteSpace(sdk.Version) ?? ResolveSdkVersion();
+        sdk.Language = NullIfWhiteSpace(sdk.Language) ?? "dotnet";
     }
 
     private static DeviceProfile CreateDeviceProfile()
@@ -93,6 +116,13 @@ internal static partial class DeviceAppProfileCollector
     {
         return NullIfWhiteSpace(Assembly.GetEntryAssembly()?.GetName().Version?.ToString())
                ?? NullIfWhiteSpace(Assembly.GetExecutingAssembly().GetName().Version?.ToString());
+    }
+
+    private static string? ResolveSdkVersion()
+    {
+        var assembly = typeof(DeviceAppProfileCollector).Assembly;
+        return NullIfWhiteSpace(assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion)
+               ?? NullIfWhiteSpace(assembly.GetName().Version?.ToString());
     }
 
     private static int ResolveEnvironmentCode()
