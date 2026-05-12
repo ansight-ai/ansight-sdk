@@ -205,4 +205,52 @@ public sealed class PairingSessionConnectorTests
         Assert.False(result.Accepted);
         Assert.Equal(IPAddress.Loopback, result.HostAddress);
     }
+
+    [Fact]
+    public async Task ConnectAsync_WhenHostRequiresSignIn_SurfacesSignInRejection()
+    {
+        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        using var listener = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        var listenerEndPoint = (IPEndPoint)listener.Client.LocalEndPoint!;
+        var connector = new PairingSessionConnector(() => PairingWifiPreflightStatus.Connected);
+        var config = PairingTestDocumentFactory.CreateSignedConfig(signingKey, discoveryPort: listenerEndPoint.Port);
+        var document = new ParsedPairingDocument
+        {
+            Config = config,
+            DiscoveryHint = PairingTestDocumentFactory.CreateDiscoveryHint(hostAddress: IPAddress.Loopback.ToString(), discoveryPort: listenerEndPoint.Port)
+        };
+
+        var connectTask = connector.ConnectAsync(
+            document,
+            "Unit Test App",
+            options: null,
+            progress: null,
+            CancellationToken.None);
+
+        var request = await listener.ReceiveAsync();
+        var payload = JsonSerializer.SerializeToUtf8Bytes(
+            new ConnectResponse
+            {
+                Type = "CONNECT_RESP",
+                Ver = 1,
+                Accepted = false,
+                Reason = PairingFailureCodes.SignInRequired,
+                ReasonMessage = "Sign in required. Sign in to Ansight Studio before connecting an app.",
+                HostId = "host-1",
+                HostName = "Host",
+                Message = "Sign in required. Sign in to Ansight Studio before connecting an app."
+            },
+            PairingJson.Compact);
+        await listener.SendAsync(payload, payload.Length, request.RemoteEndPoint);
+
+        var result = await connectTask;
+
+        Assert.False(result.Success);
+        Assert.False(result.Accepted);
+        Assert.Equal("Sign in required. Sign in to Ansight Studio before connecting an app.", result.Message);
+        Assert.Equal(IPAddress.Loopback, result.HostAddress);
+        Assert.NotNull(result.ConnectResponse);
+        Assert.Equal(PairingFailureCodes.SignInRequired, result.ConnectResponse!.Reason);
+        Assert.Equal("Sign in required. Sign in to Ansight Studio before connecting an app.", result.ConnectResponse.ReasonMessage);
+    }
 }

@@ -248,6 +248,43 @@ public sealed class HostPairingManagerTests
     }
 
     [Fact]
+    public async Task AutoConnectAsync_WhenSavedConfigRequiresSignIn_DoesNotFallbackOrClearSavedConfig()
+    {
+        var savedConfigPath = CreateTempFilePath();
+        var bundledLoaderCallCount = 0;
+        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var savedDocument = CreateDocument(signingKey, configId: "cfg-saved", hostAddress: "192.168.1.10");
+        var bundledDocument = CreateDocument(signingKey, configId: "cfg-bundled", hostAddress: "192.168.1.20");
+
+        using var hostConnection = new FakeHostConnection();
+        hostConnection.ConnectResults.Enqueue(CreateRejectedConnectionResult(
+            PairingFailureCodes.SignInRequired,
+            "Sign in required. Sign in to Ansight Studio before connecting an app."));
+        using var manager = CreateManager(
+            hostConnection,
+            savedConfigPath,
+            new HostConnectionOptions
+            {
+                BundledConfigLoader = _ =>
+                {
+                    bundledLoaderCallCount++;
+                    return Task.FromResult<string?>(CreateConfigDocumentJson(bundledDocument));
+                }
+            });
+        SaveSavedConfig(savedConfigPath, savedDocument);
+
+        var result = await manager.ConnectAsync(HostConnectionRequest.Auto());
+
+        Assert.False(result.Success);
+        Assert.Equal(PairingFailureCodes.SignInRequired, result.ReasonCode);
+        Assert.Contains("Sign in required", result.Message, StringComparison.Ordinal);
+        Assert.Equal(0, bundledLoaderCallCount);
+        var connectedDocument = Assert.Single(hostConnection.ConnectDocuments);
+        Assert.Equal("cfg-saved", connectedDocument.Config.ConfigId);
+        Assert.True(manager.HasSavedConfig);
+    }
+
+    [Fact]
     public async Task ConnectFromPayloadAsync_WhenPayloadIsInvalid_DoesNotOverwriteSavedConfig()
     {
         var savedConfigPath = CreateTempFilePath();

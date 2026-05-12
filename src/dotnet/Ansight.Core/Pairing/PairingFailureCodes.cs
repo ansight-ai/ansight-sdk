@@ -36,6 +36,11 @@ public static class PairingFailureCodes
     public const string PairingProofInvalid = "PairingProofInvalid";
 
     /// <summary>
+    /// The host requires the user to sign in to Ansight Studio before an app can connect.
+    /// </summary>
+    public const string SignInRequired = "SignInRequired";
+
+    /// <summary>
     /// The UDP bootstrap handshake failed before the client could resolve a WebSocket endpoint.
     /// </summary>
     public const string UdpBootstrapFailed = "UdpBootstrapFailed";
