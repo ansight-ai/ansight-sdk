@@ -1,4 +1,6 @@
 using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Ansight.Pairing;
 using Ansight.Pairing.Models;
@@ -24,6 +26,7 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
     private readonly Lock statusGate = new();
     private HostConnectionStatus status;
     private HostConnectionCapabilities capabilities;
+    private BundledConfigSnapshot bundledConfigSnapshot = BundledConfigSnapshot.None;
     private bool hasBundledConfig;
     private bool disposed;
 
@@ -77,8 +80,41 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
 
     public async Task<HostConnectionCapabilities> RefreshCapabilitiesAsync(CancellationToken cancellationToken = default)
     {
-        var resolvedHasBundledConfig = await ResolveBundledConfigAvailabilityAsync(cancellationToken);
-        return UpdateStatusAndCapabilities(resolvedHasBundledConfig);
+        var resolvedBundledConfig = await ResolveBundledConfigSnapshotAsync(cancellationToken);
+        bundledConfigSnapshot = resolvedBundledConfig;
+        return UpdateStatusAndCapabilities(resolvedBundledConfig.HasConfig);
+    }
+
+    public async Task<HostConnectionResult> NotifyConfigChangedAsync(CancellationToken cancellationToken = default)
+    {
+        await operationGate.WaitAsync(cancellationToken);
+        try
+        {
+            var previousSnapshot = bundledConfigSnapshot;
+            var nextSnapshot = await ResolveBundledConfigSnapshotAsync(cancellationToken);
+            var configChanged = HasBundledConfigChanged(previousSnapshot, nextSnapshot);
+
+            bundledConfigSnapshot = nextSnapshot;
+            UpdateStatusAndCapabilities(nextSnapshot.HasConfig, forceChangedEvent: configChanged);
+
+            var resultSource = ResolveConfigChangeSource(previousSnapshot, nextSnapshot);
+            if (nextSnapshot.IsFailure)
+            {
+                return HostConnectionResult.FromFailure(
+                    $"Failed to refresh the Ansight host config: {nextSnapshot.Error}",
+                    HostConnectionActionKind.NotifyConfigChanged,
+                    resultSource);
+            }
+
+            return HostConnectionResult.FromSuccess(
+                DescribeConfigChange(previousSnapshot, nextSnapshot, configChanged),
+                HostConnectionActionKind.NotifyConfigChanged,
+                resultSource);
+        }
+        finally
+        {
+            operationGate.Release();
+        }
     }
 
     private bool CanReadRequest(HostConnectionRequestKind kind)
@@ -464,16 +500,17 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
             return;
         }
 
-        var hasBundledDeveloperConfig = await TryResolveBundledConfigAvailabilityAsync(
+        var bundledDeveloperConfig = await TryResolveBundledConfigSnapshotAsync(
             ResolveBundledDocumentLoader(HostConnectionSource.BundledDeveloperConfig),
             HostConnectionSource.BundledDeveloperConfig,
             cancellationToken);
-        if (!hasBundledDeveloperConfig || disposed || !isRuntimeActive())
+        if (!bundledDeveloperConfig.HasConfig || disposed || !isRuntimeActive())
         {
             return;
         }
 
-        UpdateStatusAndCapabilities(hasBundledConfig || hasBundledDeveloperConfig);
+        bundledConfigSnapshot = bundledDeveloperConfig;
+        UpdateStatusAndCapabilities(hasBundledConfig || bundledDeveloperConfig.HasConfig);
         Logger.Info("Bundled developer pairing config detected. Attempting Ansight startup auto-connect.");
 
         var result = await ConnectAutoAsync(clientName: null, progress: null, cancellationToken: cancellationToken);
@@ -702,6 +739,7 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
     {
         if (loader is null)
         {
+            RecordBundledConfigSnapshot(BundledConfigSnapshot.Unavailable(source));
             return ResolvedPairingDocument.FromFailure("No bundled pairing config is available.");
         }
 
@@ -717,20 +755,24 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
         catch (Exception ex)
         {
             Logger.Exception(ex);
+            RecordBundledConfigSnapshot(BundledConfigSnapshot.FromFailure(source, ex.Message));
             return ResolvedPairingDocument.FromFailure($"Failed to load a bundled pairing config: {ex.Message}");
         }
 
         if (string.IsNullOrWhiteSpace(json))
         {
+            RecordBundledConfigSnapshot(BundledConfigSnapshot.Unavailable(source));
             return ResolvedPairingDocument.FromFailure("No bundled pairing config is available.");
         }
 
         if (!hostConnection.TryParseAndValidateDocument(json, out var document, out var error) || document is null)
         {
+            RecordBundledConfigSnapshot(BundledConfigSnapshot.FromFailure(source, error));
             Logger.Warning($"Ignoring invalid bundled pairing config. {error}");
             return ResolvedPairingDocument.FromFailure(error);
         }
 
+        RecordBundledConfigSnapshot(BundledConfigSnapshot.FromDocument(document, source));
         return ResolvedPairingDocument.FromSuccess(
             document,
             successMessage,
@@ -817,33 +859,42 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
                 string.Equals(reasonCode, PairingFailureCodes.HostAddressRequired, StringComparison.Ordinal));
     }
 
-    private async Task<bool> ResolveBundledConfigAvailabilityAsync(CancellationToken cancellationToken)
+    private async Task<BundledConfigSnapshot> ResolveBundledConfigSnapshotAsync(CancellationToken cancellationToken)
     {
-        if (await TryResolveBundledConfigAvailabilityAsync(
-                ResolveBundledDocumentLoader(HostConnectionSource.BundledDeveloperConfig),
-                HostConnectionSource.BundledDeveloperConfig,
-                cancellationToken))
+        var bundledDeveloperConfig = await TryResolveBundledConfigSnapshotAsync(
+            ResolveBundledDocumentLoader(HostConnectionSource.BundledDeveloperConfig),
+            HostConnectionSource.BundledDeveloperConfig,
+            cancellationToken);
+        if (bundledDeveloperConfig.HasConfig)
         {
-            hasBundledConfig = true;
-            return true;
+            return bundledDeveloperConfig;
         }
 
-        var hasBundled = await TryResolveBundledConfigAvailabilityAsync(
+        var bundledConfig = await TryResolveBundledConfigSnapshotAsync(
             ResolveBundledDocumentLoader(HostConnectionSource.BundledConfig),
             HostConnectionSource.BundledConfig,
             cancellationToken);
-        hasBundledConfig = hasBundled;
-        return hasBundled;
+        if (bundledConfig.HasConfig)
+        {
+            return bundledConfig;
+        }
+
+        if (bundledDeveloperConfig.IsFailure)
+        {
+            return bundledDeveloperConfig;
+        }
+
+        return bundledConfig;
     }
 
-    private async Task<bool> TryResolveBundledConfigAvailabilityAsync(
+    private async Task<BundledConfigSnapshot> TryResolveBundledConfigSnapshotAsync(
         Func<CancellationToken, Task<string?>>? loader,
         HostConnectionSource source,
         CancellationToken cancellationToken)
     {
         if (loader is null)
         {
-            return false;
+            return BundledConfigSnapshot.None;
         }
 
         try
@@ -851,10 +902,15 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
             var json = await loader(cancellationToken);
             if (string.IsNullOrWhiteSpace(json))
             {
-                return false;
+                return BundledConfigSnapshot.Unavailable(source);
             }
 
-            return hostConnection.TryParseAndValidateDocument(json, out var _, out var _);
+            if (!hostConnection.TryParseAndValidateDocument(json, out var document, out var error) || document is null)
+            {
+                return BundledConfigSnapshot.FromFailure(source, error);
+            }
+
+            return BundledConfigSnapshot.FromDocument(document, source);
         }
         catch (OperationCanceledException)
         {
@@ -863,7 +919,7 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
         catch (Exception ex)
         {
             Logger.Warning($"Failed to probe {DescribeSource(source)} availability: {ex.Message}");
-            return false;
+            return BundledConfigSnapshot.FromFailure(source, ex.Message);
         }
     }
 
@@ -1026,7 +1082,75 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
         UpdateStatusAndCapabilities(hasBundledConfig);
     }
 
-    private HostConnectionCapabilities UpdateStatusAndCapabilities(bool nextHasBundledConfig)
+    private void RecordBundledConfigSnapshot(BundledConfigSnapshot snapshot)
+    {
+        bundledConfigSnapshot = snapshot;
+        hasBundledConfig = snapshot.HasConfig;
+    }
+
+    private static bool HasBundledConfigChanged(
+        BundledConfigSnapshot previousSnapshot,
+        BundledConfigSnapshot nextSnapshot)
+    {
+        if (previousSnapshot.HasConfig != nextSnapshot.HasConfig)
+        {
+            return true;
+        }
+
+        if (!previousSnapshot.HasConfig)
+        {
+            return false;
+        }
+
+        return previousSnapshot.Source != nextSnapshot.Source ||
+               !string.Equals(previousSnapshot.Fingerprint, nextSnapshot.Fingerprint, StringComparison.Ordinal);
+    }
+
+    private static HostConnectionSource ResolveConfigChangeSource(
+        BundledConfigSnapshot previousSnapshot,
+        BundledConfigSnapshot nextSnapshot)
+    {
+        if (nextSnapshot.Source != HostConnectionSource.None)
+        {
+            return nextSnapshot.Source;
+        }
+
+        if (previousSnapshot.Source != HostConnectionSource.None)
+        {
+            return previousSnapshot.Source;
+        }
+
+        return HostConnectionSource.BundledConfig;
+    }
+
+    private static string DescribeConfigChange(
+        BundledConfigSnapshot previousSnapshot,
+        BundledConfigSnapshot nextSnapshot,
+        bool configChanged)
+    {
+        if (!configChanged)
+        {
+            return nextSnapshot.HasConfig
+                ? "Ansight host config is unchanged."
+                : "No Ansight host config is available.";
+        }
+
+        if (!previousSnapshot.HasConfig && nextSnapshot.HasConfig)
+        {
+            return "Ansight host config is now available.";
+        }
+
+        if (previousSnapshot.HasConfig && !nextSnapshot.HasConfig)
+        {
+            return "Ansight host config is no longer available.";
+        }
+
+        return "Ansight host config changed.";
+    }
+
+    private HostConnectionCapabilities UpdateStatusAndCapabilities(
+        bool nextHasBundledConfig,
+        bool forceChangedEvent = false)
     {
         EventHandler<HostConnectionChangedEventArgs>? statusChanged;
         HostConnectionChangedEventArgs? args = null;
@@ -1036,7 +1160,7 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
             hasBundledConfig = nextHasBundledConfig;
             var nextStatus = BuildStatusSnapshot(nextHasBundledConfig);
             var nextCapabilities = BuildCapabilities(nextHasBundledConfig);
-            if (Equals(status, nextStatus) && Equals(capabilities, nextCapabilities))
+            if (!forceChangedEvent && Equals(status, nextStatus) && Equals(capabilities, nextCapabilities))
             {
                 return capabilities;
             }
@@ -1153,5 +1277,36 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
             string message,
             HostConnectionSource source)
             => new(true, document, message, source);
+    }
+
+    private sealed record BundledConfigSnapshot(
+        bool HasConfig,
+        string? Fingerprint,
+        HostConnectionSource Source,
+        string? Error)
+    {
+        public static BundledConfigSnapshot None { get; } = new(
+            false,
+            null,
+            HostConnectionSource.None,
+            null);
+
+        public bool IsFailure => !HasConfig && !string.IsNullOrWhiteSpace(Error);
+
+        public static BundledConfigSnapshot Unavailable(HostConnectionSource source)
+            => new(false, null, source, null);
+
+        public static BundledConfigSnapshot FromFailure(HostConnectionSource source, string error)
+            => new(false, null, source, string.IsNullOrWhiteSpace(error) ? "Invalid Ansight host config." : error.Trim());
+
+        public static BundledConfigSnapshot FromDocument(ParsedPairingDocument document, HostConnectionSource source)
+            => new(true, CreateFingerprint(document), source, null);
+
+        private static string CreateFingerprint(ParsedPairingDocument document)
+        {
+            var configDocument = PairingConfigDocumentService.CreateConfigDocument(document);
+            var json = PairingConfigDocumentJson.Serialize(configDocument, indented: false);
+            return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)));
+        }
     }
 }

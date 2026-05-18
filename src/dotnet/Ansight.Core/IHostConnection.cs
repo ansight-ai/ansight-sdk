@@ -38,6 +38,13 @@ public interface IHostConnection
     Task<HostConnectionCapabilities> RefreshCapabilitiesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Signals that the configured host pairing config source may have changed.
+    /// The runtime re-reads and validates the configured bundled config source, updates host connection status,
+    /// and raises <see cref="StatusChanged" /> when the effective availability or contents changed.
+    /// </summary>
+    Task<HostConnectionResult> NotifyConfigChangedAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Parses and validates a pairing config document or compact pairing config code.
     /// </summary>
     bool TryParseConfigDocument(string payload, out PairingConfigDocument? config, out string error);

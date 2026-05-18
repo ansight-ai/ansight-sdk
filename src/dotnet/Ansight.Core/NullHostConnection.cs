@@ -42,6 +42,9 @@ internal sealed class NullHostConnection : IHostConnection
     public Task<HostConnectionCapabilities> RefreshCapabilitiesAsync(CancellationToken cancellationToken = default)
         => Task.FromResult(capabilities);
 
+    public Task<HostConnectionResult> NotifyConfigChangedAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult(HostConnectionResult.FromFailure(StatusSummary, HostConnectionActionKind.NotifyConfigChanged));
+
     public bool TryParseConfigDocument(string payload, out PairingConfigDocument? config, out string error)
     {
         config = null;

@@ -485,6 +485,119 @@ public sealed class HostPairingManagerTests
     }
 
     [Fact]
+    public async Task NotifyConfigChangedAsync_WhenBundledConfigIsAdded_UpdatesAvailability()
+    {
+        var savedConfigPath = CreateTempFilePath();
+        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var bundledDocument = CreateDocument(signingKey, configId: "cfg-bundled", hostAddress: "192.168.1.20");
+        string? bundledJson = null;
+        using var hostConnection = new FakeHostConnection();
+        using var manager = CreateManager(
+            hostConnection,
+            savedConfigPath,
+            new HostConnectionOptions
+            {
+                BundledDeveloperConfigLoader = _ => Task.FromResult<string?>(null),
+                BundledConfigLoader = _ => Task.FromResult<string?>(bundledJson)
+            });
+
+        var initialResult = await manager.NotifyConfigChangedAsync();
+        Assert.True(initialResult.Success);
+        Assert.False(manager.Status.HasBundledConfig);
+
+        var changes = new List<HostConnectionChangedEventArgs>();
+        manager.StatusChanged += (_, args) => changes.Add(args);
+        bundledJson = CreateConfigDocumentJson(bundledDocument);
+
+        var result = await manager.NotifyConfigChangedAsync();
+
+        Assert.True(result.Success);
+        Assert.Contains("now available", result.Message, StringComparison.Ordinal);
+        Assert.True(manager.Status.HasBundledConfig);
+        Assert.True(manager.Capabilities.CanConnectUsingBundledConfig);
+        var change = Assert.Single(changes);
+        Assert.True(change.Status.HasBundledConfig);
+    }
+
+    [Fact]
+    public async Task NotifyConfigChangedAsync_WhenBundledConfigChanges_RaisesStatusChanged()
+    {
+        var savedConfigPath = CreateTempFilePath();
+        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var firstBundledDocument = CreateDocument(signingKey, configId: "cfg-bundled-1", hostAddress: "192.168.1.20");
+        var secondBundledDocument = CreateDocument(signingKey, configId: "cfg-bundled-2", hostAddress: "192.168.1.21");
+        var bundledJson = CreateConfigDocumentJson(firstBundledDocument);
+        using var hostConnection = new FakeHostConnection();
+        using var manager = CreateManager(
+            hostConnection,
+            savedConfigPath,
+            new HostConnectionOptions
+            {
+                BundledDeveloperConfigLoader = _ => Task.FromResult<string?>(null),
+                BundledConfigLoader = _ => Task.FromResult<string?>(bundledJson)
+            });
+
+        var initialResult = await manager.NotifyConfigChangedAsync();
+        Assert.True(initialResult.Success);
+        Assert.True(manager.Status.HasBundledConfig);
+
+        var changes = new List<HostConnectionChangedEventArgs>();
+        manager.StatusChanged += (_, args) => changes.Add(args);
+        bundledJson = CreateConfigDocumentJson(secondBundledDocument);
+
+        var result = await manager.NotifyConfigChangedAsync();
+
+        Assert.True(result.Success);
+        Assert.Contains("changed", result.Message, StringComparison.Ordinal);
+        Assert.True(manager.Status.HasBundledConfig);
+        Assert.True(manager.Capabilities.CanConnectUsingBundledConfig);
+        var change = Assert.Single(changes);
+        Assert.True(change.Status.HasBundledConfig);
+
+        hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using updated bundled config."));
+        var connectResult = await manager.ConnectAsync(HostConnectionRequest.BundledConfig());
+
+        Assert.True(connectResult.Success);
+        var connectedDocument = Assert.Single(hostConnection.ConnectDocuments);
+        Assert.Equal("cfg-bundled-2", connectedDocument.Config.ConfigId);
+    }
+
+    [Fact]
+    public async Task NotifyConfigChangedAsync_WhenBundledConfigIsRemoved_UpdatesAvailability()
+    {
+        var savedConfigPath = CreateTempFilePath();
+        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var bundledDocument = CreateDocument(signingKey, configId: "cfg-bundled", hostAddress: "192.168.1.20");
+        string? bundledJson = CreateConfigDocumentJson(bundledDocument);
+        using var hostConnection = new FakeHostConnection();
+        using var manager = CreateManager(
+            hostConnection,
+            savedConfigPath,
+            new HostConnectionOptions
+            {
+                BundledDeveloperConfigLoader = _ => Task.FromResult<string?>(null),
+                BundledConfigLoader = _ => Task.FromResult<string?>(bundledJson)
+            });
+
+        var initialResult = await manager.NotifyConfigChangedAsync();
+        Assert.True(initialResult.Success);
+        Assert.True(manager.Status.HasBundledConfig);
+
+        var changes = new List<HostConnectionChangedEventArgs>();
+        manager.StatusChanged += (_, args) => changes.Add(args);
+        bundledJson = null;
+
+        var result = await manager.NotifyConfigChangedAsync();
+
+        Assert.True(result.Success);
+        Assert.Contains("no longer available", result.Message, StringComparison.Ordinal);
+        Assert.False(manager.Status.HasBundledConfig);
+        Assert.False(manager.Capabilities.CanConnectUsingBundledConfig);
+        var change = Assert.Single(changes);
+        Assert.False(change.Status.HasBundledConfig);
+    }
+
+    [Fact]
     public void Status_WhenSavedAndCachedProfilesExist_ReportsMultipleConfigsAvailable()
     {
         var savedConfigPath = CreateTempFilePath();

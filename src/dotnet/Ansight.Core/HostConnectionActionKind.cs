@@ -48,5 +48,10 @@ public enum HostConnectionActionKind
     /// <summary>
     /// Attempt to reconnect using the runtime-cached session.
     /// </summary>
-    ConnectUsingCachedSession = 8
+    ConnectUsingCachedSession = 8,
+
+    /// <summary>
+    /// Refresh runtime-owned host config state after the app reports that config availability or contents changed.
+    /// </summary>
+    NotifyConfigChanged = 9
 }

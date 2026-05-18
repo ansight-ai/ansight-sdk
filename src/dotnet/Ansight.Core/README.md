@@ -89,6 +89,8 @@ var options = optionsBuilder.Build();
 
 Explicit requests such as `HostConnectionRequest.PayloadText(...)` and `HostConnectionRequest.QrCode(...)` always use the supplied pairing payload and replace the current host session. That gives QR/paste flows an explicit override path even when developer pairing is configured by default.
 
+If the bundled config loader is backed by authenticated app sync instead of a packaged asset, call `Runtime.HostConnection.NotifyConfigChangedAsync()` after sync adds, updates, or removes the config. The runtime re-reads and validates the effective bundled config source, updates host connection status/capabilities, and raises `StatusChanged` even when a valid config changed while availability stayed true. Call `ConnectAsync(HostConnectionRequest.BundledConfig())` when the app should connect using the latest synced config.
+
 ## Data access
 
 ```csharp
