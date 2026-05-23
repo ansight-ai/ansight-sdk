@@ -192,6 +192,7 @@ internal sealed class AndroidTouchCaptureSession : ITouchCaptureSession
         private readonly Activity activity;
         private readonly Window.ICallback inner;
         private readonly TouchCaptureOptions options;
+        private readonly TouchMoveThrottle moveThrottle;
         private readonly System.Action<CapturedTouch> recordTouch;
 
         public TouchCaptureWindowCallback(
@@ -203,6 +204,7 @@ internal sealed class AndroidTouchCaptureSession : ITouchCaptureSession
             this.activity = activity;
             this.inner = inner;
             this.options = options;
+            moveThrottle = new TouchMoveThrottle(options);
             this.recordTouch = recordTouch;
         }
 
@@ -351,7 +353,7 @@ internal sealed class AndroidTouchCaptureSession : ITouchCaptureSession
             var surfaceHeight = rootView?.Height > 0 ? rootView.Height : (int?)null;
             var density = activity.Resources?.DisplayMetrics?.Density;
 
-            recordTouch(new CapturedTouch(
+            var capturedTouch = new CapturedTouch(
                 action,
                 motionEvent.GetPointerId(pointerIndex),
                 pointerIndex,
@@ -362,7 +364,20 @@ internal sealed class AndroidTouchCaptureSession : ITouchCaptureSession
                 surfaceHeight,
                 "pixels",
                 density,
-                DateTimeOffset.UtcNow));
+                DateTimeOffset.UtcNow);
+
+            RecordCapturedTouch(capturedTouch);
+        }
+
+        private void RecordCapturedTouch(CapturedTouch capturedTouch)
+        {
+            if (!moveThrottle.ShouldRecord(capturedTouch))
+            {
+                return;
+            }
+
+            recordTouch(capturedTouch);
+            moveThrottle.ObserveRecorded(capturedTouch);
         }
     }
 }

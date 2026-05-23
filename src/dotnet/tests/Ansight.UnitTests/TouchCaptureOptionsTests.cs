@@ -8,12 +8,18 @@ public sealed class TouchCaptureOptionsTests
     public void WithTouchCapture_ConfiguresCaptureOptions()
     {
         var options = Options.CreateBuilder()
-            .WithTouchCapture(captureMoveEvents: false, captureCancelEvents: true)
+            .WithTouchCapture(
+                captureMoveEvents: false,
+                captureCancelEvents: true,
+                moveCaptureDistanceThreshold: 6.5d,
+                moveCaptureFramesPerSecond: 24)
             .Build();
 
         Assert.NotNull(options.TouchCapture);
         Assert.False(options.TouchCapture.CaptureMoveEvents);
         Assert.True(options.TouchCapture.CaptureCancelEvents);
+        Assert.Equal(6.5d, options.TouchCapture.MoveCaptureDistanceThreshold);
+        Assert.Equal(24, options.TouchCapture.MoveCaptureFramesPerSecond);
     }
 
     [Fact]
@@ -22,7 +28,9 @@ public sealed class TouchCaptureOptionsTests
         var source = new TouchCaptureOptions
         {
             CaptureMoveEvents = false,
-            CaptureCancelEvents = false
+            CaptureCancelEvents = false,
+            MoveCaptureDistanceThreshold = 8,
+            MoveCaptureFramesPerSecond = 12
         };
 
         var options = Options.CreateBuilder()
@@ -31,10 +39,27 @@ public sealed class TouchCaptureOptionsTests
 
         source.CaptureMoveEvents = true;
         source.CaptureCancelEvents = true;
+        source.MoveCaptureDistanceThreshold = 1;
+        source.MoveCaptureFramesPerSecond = 60;
 
         Assert.NotNull(options.TouchCapture);
         Assert.False(options.TouchCapture.CaptureMoveEvents);
         Assert.False(options.TouchCapture.CaptureCancelEvents);
+        Assert.Equal(8, options.TouchCapture.MoveCaptureDistanceThreshold);
+        Assert.Equal(12, options.TouchCapture.MoveCaptureFramesPerSecond);
+    }
+
+    [Fact]
+    public void WithTouchCapture_UsesNonFloodingMoveDefaults()
+    {
+        var options = Options.CreateBuilder()
+            .WithTouchCapture()
+            .Build();
+
+        Assert.NotNull(options.TouchCapture);
+        Assert.Equal(TouchCaptureOptions.DefaultMoveCaptureDistanceThreshold, options.TouchCapture.MoveCaptureDistanceThreshold);
+        Assert.Equal(15, TouchCaptureOptions.DefaultMoveCaptureFramesPerSecond);
+        Assert.Equal(TouchCaptureOptions.DefaultMoveCaptureFramesPerSecond, options.TouchCapture.MoveCaptureFramesPerSecond);
     }
 
     [Fact]

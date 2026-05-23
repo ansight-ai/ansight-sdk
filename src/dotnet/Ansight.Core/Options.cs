@@ -191,6 +191,21 @@ public class Options
                 SessionJpegCapture.MaxWidth = 8192;
             }
         }
+
+        if (TouchCapture is not null)
+        {
+            if (!double.IsFinite(TouchCapture.MoveCaptureDistanceThreshold) || TouchCapture.MoveCaptureDistanceThreshold < 0)
+            {
+                Logger.Warning("The 'TouchCapture.MoveCaptureDistanceThreshold' was invalid. It has been reset to the default distance threshold.");
+                TouchCapture.MoveCaptureDistanceThreshold = TouchCaptureOptions.DefaultMoveCaptureDistanceThreshold;
+            }
+
+            if (TouchCapture.MoveCaptureFramesPerSecond < 0)
+            {
+                Logger.Warning("The 'TouchCapture.MoveCaptureFramesPerSecond' was negative. It has been reset to the default FPS threshold.");
+                TouchCapture.MoveCaptureFramesPerSecond = TouchCaptureOptions.DefaultMoveCaptureFramesPerSecond;
+            }
+        }
     }
 
     public static OptionsBuilder CreateBuilder() => new OptionsBuilder();
@@ -447,12 +462,16 @@ public class Options
         /// </summary>
         public OptionsBuilder WithTouchCapture(
             bool captureMoveEvents = true,
-            bool captureCancelEvents = true)
+            bool captureCancelEvents = true,
+            double moveCaptureDistanceThreshold = TouchCaptureOptions.DefaultMoveCaptureDistanceThreshold,
+            int moveCaptureFramesPerSecond = TouchCaptureOptions.DefaultMoveCaptureFramesPerSecond)
         {
             options.TouchCapture = new TouchCaptureOptions
             {
                 CaptureMoveEvents = captureMoveEvents,
-                CaptureCancelEvents = captureCancelEvents
+                CaptureCancelEvents = captureCancelEvents,
+                MoveCaptureDistanceThreshold = moveCaptureDistanceThreshold,
+                MoveCaptureFramesPerSecond = moveCaptureFramesPerSecond
             };
             return this;
         }

@@ -130,11 +130,13 @@ internal sealed class AppleTouchCaptureSession : ITouchCaptureSession
     private sealed class WindowTouchCaptureRecognizer : UIGestureRecognizer
     {
         private readonly TouchCaptureOptions options;
+        private readonly TouchMoveThrottle moveThrottle;
         private readonly Action<CapturedTouch> recordTouch;
 
         public WindowTouchCaptureRecognizer(TouchCaptureOptions options, Action<CapturedTouch> recordTouch)
         {
             this.options = options;
+            moveThrottle = new TouchMoveThrottle(options);
             this.recordTouch = recordTouch;
         }
 
@@ -189,7 +191,7 @@ internal sealed class AppleTouchCaptureSession : ITouchCaptureSession
                 try
                 {
                     var point = touch.LocationInView(window);
-                    recordTouch(new CapturedTouch(
+                    var capturedTouch = new CapturedTouch(
                         action,
                         (long)(nint)touch.Handle,
                         pointerIndex,
@@ -200,7 +202,9 @@ internal sealed class AppleTouchCaptureSession : ITouchCaptureSession
                         window.Bounds.Height,
                         "points",
                         window.Screen?.Scale ?? UIScreen.MainScreen.Scale,
-                        DateTimeOffset.UtcNow));
+                        DateTimeOffset.UtcNow);
+
+                    RecordCapturedTouch(capturedTouch);
                 }
                 catch (Exception ex)
                 {
@@ -209,6 +213,17 @@ internal sealed class AppleTouchCaptureSession : ITouchCaptureSession
 
                 pointerIndex++;
             }
+        }
+
+        private void RecordCapturedTouch(CapturedTouch capturedTouch)
+        {
+            if (!moveThrottle.ShouldRecord(capturedTouch))
+            {
+                return;
+            }
+
+            recordTouch(capturedTouch);
+            moveThrottle.ObserveRecorded(capturedTouch);
         }
     }
 
