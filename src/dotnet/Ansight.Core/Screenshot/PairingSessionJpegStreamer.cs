@@ -97,6 +97,11 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
         };
     }
 
+    private static bool ShouldSkipCaptureForLifecycle()
+    {
+        return Runtime.CurrentAppLifecycleState == AppLifecycleState.Background;
+    }
+
     private async Task RunCapturePumpAsync(
         SessionJpegCaptureOptions options,
         IProgress<HostConnectionProgressUpdate>? progress,
@@ -123,6 +128,11 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
 
             try
             {
+                if (ShouldSkipCaptureForLifecycle())
+                {
+                    continue;
+                }
+
                 var surface = await SessionJpegCaptureSupport.CaptureSurfaceAsync(options, cancellationToken);
                 if (surface is null)
                 {
