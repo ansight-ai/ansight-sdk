@@ -29,7 +29,7 @@ public sealed class AnsightAllInOneTests
         Assert.Equal(2000, options.SessionJpegCapture.IntervalMilliseconds);
         Assert.Equal(60, options.SessionJpegCapture.Quality);
         Assert.Equal(480, options.SessionJpegCapture.MaxWidth);
-        Assert.Null(options.TouchCapture);
+        Assert.NotNull(options.TouchCapture);
         Assert.True(options.HostAutoProbe.Enabled);
         Assert.Equal(bundledConfigAssembly, options.HostConnection.BundledConfigAssembly);
         Assert.Equal(
@@ -79,7 +79,7 @@ public sealed class AnsightAllInOneTests
         Assert.Equal(400, options.SampleFrequencyMilliseconds);
         Assert.Equal(120, options.RetentionPeriodSeconds);
         Assert.NotNull(options.SessionJpegCapture);
-        Assert.Null(options.TouchCapture);
+        Assert.NotNull(options.TouchCapture);
         Assert.Empty(options.Tools);
         Assert.False(options.ToolGuard.ExecutionEnabled);
     }
@@ -97,7 +97,7 @@ public sealed class AnsightAllInOneTests
         Assert.Equal(400, options.SampleFrequencyMilliseconds);
         Assert.Equal(120, options.RetentionPeriodSeconds);
         Assert.NotNull(options.SessionJpegCapture);
-        Assert.Null(options.TouchCapture);
+        Assert.NotNull(options.TouchCapture);
         Assert.Equal(bundledConfigAssembly, options.HostConnection.BundledConfigAssembly);
         Assert.Equal(
             expectedRemoteToolIds.Concat(expectedMauiToolIds),

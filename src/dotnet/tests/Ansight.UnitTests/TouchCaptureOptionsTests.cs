@@ -5,6 +5,20 @@ namespace Ansight.UnitTests;
 public sealed class TouchCaptureOptionsTests
 {
     [Fact]
+    public void OptionsDefault_EnableTouchCapture()
+    {
+        AssertDefaultTouchCapture(Options.Default.TouchCapture);
+    }
+
+    [Fact]
+    public void BuilderDefault_EnableTouchCapture()
+    {
+        var options = Options.CreateBuilder().Build();
+
+        AssertDefaultTouchCapture(options.TouchCapture);
+    }
+
+    [Fact]
     public void WithTouchCapture_ConfiguresCaptureOptions()
     {
         var options = Options.CreateBuilder()
@@ -66,7 +80,6 @@ public sealed class TouchCaptureOptionsTests
     public void WithoutTouchCapture_RemovesConfiguredCapture()
     {
         var options = Options.CreateBuilder()
-            .WithTouchCapture()
             .WithoutTouchCapture()
             .Build();
 
@@ -106,5 +119,14 @@ public sealed class TouchCaptureOptionsTests
             DateTimeOffset.UtcNow));
 
         Assert.Equal(0, captured);
+    }
+
+    private static void AssertDefaultTouchCapture(TouchCaptureOptions? touchCapture)
+    {
+        Assert.NotNull(touchCapture);
+        Assert.True(touchCapture.CaptureMoveEvents);
+        Assert.True(touchCapture.CaptureCancelEvents);
+        Assert.Equal(TouchCaptureOptions.DefaultMoveCaptureDistanceThreshold, touchCapture.MoveCaptureDistanceThreshold);
+        Assert.Equal(TouchCaptureOptions.DefaultMoveCaptureFramesPerSecond, touchCapture.MoveCaptureFramesPerSecond);
     }
 }

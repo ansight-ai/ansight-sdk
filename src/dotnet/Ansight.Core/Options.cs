@@ -12,7 +12,7 @@ using System.Reflection;
 public class Options
 {
     /// <summary>
-    /// Default options instance: 500ms sampling, 10-minute retention, FPS on.
+    /// Default options instance: 500ms sampling, 10-minute retention, FPS on, touch capture on.
     /// </summary>
     public static readonly Options Default = new Options()
     {
@@ -80,10 +80,10 @@ public class Options
     public SessionJpegCaptureOptions? SessionJpegCapture { get; private set; }
 
     /// <summary>
-    /// Optional app-local touch capture while the runtime is active.
+    /// App-local touch capture while the runtime is active.
     /// Captured touches are emitted through the input-capture stream, not through metrics or telemetry events.
     /// </summary>
-    public TouchCaptureOptions? TouchCapture { get; private set; }
+    public TouchCaptureOptions? TouchCapture { get; private set; } = new();
 
     /// <summary>
     /// Guard policy controlling whether registered tools may be discovered and executed.
@@ -457,7 +457,7 @@ public class Options
         }
 
         /// <summary>
-        /// Enables app-local touch capture while the Ansight runtime is active.
+        /// Configures app-local touch capture while the Ansight runtime is active.
         /// Captured touches are streamed as input-capture records and are not added to <see cref="IDataSink"/>.
         /// </summary>
         public OptionsBuilder WithTouchCapture(
@@ -477,7 +477,7 @@ public class Options
         }
 
         /// <summary>
-        /// Enables app-local touch capture while the Ansight runtime is active using a fully configured options object.
+        /// Configures app-local touch capture while the Ansight runtime is active using a fully configured options object.
         /// Captured touches are streamed as input-capture records and are not added to <see cref="IDataSink"/>.
         /// </summary>
         public OptionsBuilder WithTouchCapture(TouchCaptureOptions touchCapture)
