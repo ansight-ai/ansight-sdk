@@ -1,4 +1,5 @@
 using System.Net;
+using Ansight.Input;
 using Ansight.Pairing;
 using Ansight.Pairing.Models;
 
@@ -204,6 +205,8 @@ public sealed class HostConnectionManagerTests
 
         public int StartMetricsStreamingCallCount { get; private set; }
 
+        public int StartTouchCaptureStreamingCallCount { get; private set; }
+
         public OpenSessionResult OpenSessionResult { get; set; } = OpenSessionResult.FromFailure("no session result queued");
 
         public OpenSessionResult OpenCachedSessionResult { get; set; } = OpenSessionResult.FromFailure("no cached session result queued");
@@ -251,6 +254,15 @@ public sealed class HostConnectionManagerTests
             }
 
             return Task.FromResult(MetricsStreamingResult);
+        }
+
+        public Task<OperationResult> StartTouchCaptureStreamingAsync(
+            TouchCaptureHub touchCaptureHub,
+            IProgress<HostConnectionProgressUpdate>? progress,
+            CancellationToken cancellationToken)
+        {
+            StartTouchCaptureStreamingCallCount++;
+            return Task.FromResult(OperationResult.FromSuccess("touch capture streaming"));
         }
 
         public Task<OperationResult> CloseSessionAsync(CancellationToken cancellationToken)

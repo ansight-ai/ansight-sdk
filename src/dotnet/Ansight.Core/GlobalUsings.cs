@@ -1,4 +1,5 @@
 global using Ansight.DeviceProfiles;
+global using Ansight.Input;
 global using Ansight.Pairing.Models;
 global using Ansight.Screenshot;
 global using Ansight.Telemetry;

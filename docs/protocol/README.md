@@ -20,7 +20,7 @@ The implemented session flow is:
 3. Send a UDP `CONNECT_REQ` JSON packet to the host discovery port.
 4. Receive a UDP `CONNECT_RESP` JSON packet with a WebSocket handoff.
 5. Open a WebSocket using the returned `token` query string.
-6. Attach the WebSocket transport, send control requests for `session.open` and `device.profile`, then start optional screenshot streaming.
+6. Attach the WebSocket transport, send control requests for `session.open` and `device.profile`, then start optional screenshot and input-capture streaming.
 
 The relevant code paths are:
 
@@ -311,6 +311,48 @@ Current batching behavior:
 - maximum `160` events per batch
 - events are deduplicated by `id` while pending
 - built-in event types are sent as their enum names, for example `Navigation`, `Lifecycle`, or `ScreenViewed`
+
+## Input capture message families
+
+Input capture streaming is separate from metrics and telemetry events. Captured touches are not added to `IDataSink`, `Metric`, or `AppEvent`; they are emitted only on the live session socket while touch capture is enabled.
+
+### `CLIENT_TOUCH_INPUT`
+
+Sent fire-and-forget with `SendTextAsync(...)`. No acknowledgement is expected.
+
+```json
+{
+  "source": "client",
+  "type": "CLIENT_TOUCH_INPUT",
+  "sentAtUtc": "2026-03-20T10:00:00Z",
+  "touches": [
+    {
+      "id": "018f4d3e-9d79-7d91-a38b-0260f9e69a52",
+      "action": "down",
+      "capturedAtUtc": "2026-03-20T09:59:59Z",
+      "pointerId": 0,
+      "pointerIndex": 0,
+      "pointerCount": 1,
+      "x": 120.0,
+      "y": 240.0,
+      "normalizedX": 0.25,
+      "normalizedY": 0.5,
+      "surfaceWidth": 480.0,
+      "surfaceHeight": 480.0,
+      "coordinateSpace": "window",
+      "coordinateUnit": "pixels",
+      "surfaceScale": 2.0
+    }
+  ]
+}
+```
+
+Current batching behavior:
+
+- maximum `200` touch records per batch
+- pending touch queue capped at `2000`
+- Android coordinates are emitted in window pixels
+- iOS and Mac Catalyst coordinates are emitted in window points
 
 ## Tool protocol on the session socket
 

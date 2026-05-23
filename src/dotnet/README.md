@@ -122,12 +122,15 @@ using Ansight;
 
 var options = Options.CreateBuilder()
     .WithFramesPerSecond()
+    .WithBatteryLevel()
     .WithSessionJpegCapture(intervalMilliseconds: 2000, quality: 60, maxWidth: 720)
     .WithBundledHostConnection(typeof(AppBootstrap).Assembly)
     .Build();
 
 Runtime.InitializeAndActivate(options);
 ```
+
+Battery level telemetry is disabled by default; `WithBatteryLevel()` only emits on platforms that expose a battery API.
 
 Install `Ansight.Core` for this lower-level surface. Add `Ansight.Pairing` separately if the app should own native QR acquisition while staying on the core package set.
 

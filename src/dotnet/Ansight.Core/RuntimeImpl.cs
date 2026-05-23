@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using Ansight.Pairing;
+using Ansight.Telemetry.Battery;
 using Ansight.Telemetry.Memory;
 using Ansight.Tools;
 
@@ -16,13 +17,17 @@ internal class RuntimeImpl : IRuntime
 
     private readonly MutableDataSink mutableDataSink;
     private readonly IFrameRateMonitor frameRateMonitor;
+    private readonly IBatteryLevelMonitor batteryLevelMonitor;
+    private readonly ITouchCaptureSession touchCaptureSession;
     private readonly HostSessionManager hostConnection;
     private readonly HostPairingManager hostPairing;
     private bool fpsTrackingEnabled;
+    private readonly bool batteryLevelTrackingEnabled;
 
     public IDataSink DataSink => mutableDataSink;
     internal Options Options => options;
     internal PairingBinaryTransferHub BinaryTransferHub { get; } = new();
+    internal TouchCaptureHub TouchCaptureHub { get; }
     internal AppLifecycleState CurrentAppLifecycleState => mutableDataSink.CurrentAppLifecycleState;
     internal DateTimeOffset? CurrentAppLifecycleStateChangedUtc => mutableDataSink.CurrentAppLifecycleStateChangedUtc;
 
@@ -35,7 +40,11 @@ internal class RuntimeImpl : IRuntime
         this.options = options ?? throw new ArgumentNullException(nameof(options));
         mutableDataSink = new MutableDataSink(options);
         frameRateMonitor = FrameRateMonitorFactory.Create();
+        batteryLevelMonitor = BatteryLevelMonitorFactory.Create();
+        TouchCaptureHub = new TouchCaptureHub(options.TouchCapture);
+        touchCaptureSession = TouchCaptureSupport.CreateSession(TouchCaptureHub);
         fpsTrackingEnabled = options.EnableFramesPerSecond;
+        batteryLevelTrackingEnabled = options.EnableBatteryLevel && batteryLevelMonitor.IsSupported;
         ToolBridge = options.Tools.CreateBridge(options.ToolGuard);
         hostConnection = new HostSessionManager(
             this,
@@ -66,13 +75,20 @@ internal class RuntimeImpl : IRuntime
                 frameRateMonitor.Start();
             }
 
+            if (ShouldTrackBatteryLevel())
+            {
+                batteryLevelMonitor.Start();
+            }
+
             samplerThread = new MemorySamplerThread(options.SampleFrequencyMilliseconds, snapshot =>
             {
                 mutableDataSink.RecordMemorySnapshot(snapshot);
                 RecordFrameSample();
+                RecordBatteryLevelSample();
             });
 
             IsActive = true;
+            touchCaptureSession.Start();
         }
 
         hostConnection.OnRuntimeActivated();
@@ -100,10 +116,12 @@ internal class RuntimeImpl : IRuntime
 
             samplerThread?.Dispose();
             samplerThread = null;
+            touchCaptureSession.Stop();
             IsActive = false;
         }
 
         frameRateMonitor.Stop();
+        batteryLevelMonitor.Stop();
         hostConnection.OnRuntimeDeactivated();
         OnDeactivated?.Invoke(this, EventArgs.Empty);
     }
@@ -142,6 +160,24 @@ internal class RuntimeImpl : IRuntime
     }
 
     private bool ShouldTrackFps() => fpsTrackingEnabled;
+
+    private void RecordBatteryLevelSample()
+    {
+        if (!ShouldTrackBatteryLevel())
+        {
+            return;
+        }
+
+        var batteryLevelPercentage = batteryLevelMonitor.ReadBatteryLevelPercentage();
+        if (!batteryLevelPercentage.HasValue)
+        {
+            return;
+        }
+
+        mutableDataSink.RecordBatteryLevel(batteryLevelPercentage.Value);
+    }
+
+    private bool ShouldTrackBatteryLevel() => batteryLevelTrackingEnabled;
 
     public void Metric(long value, byte channel)
     {

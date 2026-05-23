@@ -145,6 +145,7 @@ Preserve reserved channel IDs:
 - `2`: Android RSS.
 - `3`: FPS.
 - `4`: lifecycle.
+- `5`: Battery Level.
 - `255`: not specified.
 
 Implement the data sink behavior:

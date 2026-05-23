@@ -295,6 +295,23 @@ internal sealed class HostSessionManager : IHostSessionConnection, IHostAutoProb
                     openResult.RejectionCode ?? openResult.FailureCode);
             }
 
+            var touchCaptureResult = await sessionClient.StartTouchCaptureStreamingAsync(
+                runtime.TouchCaptureHub,
+                progress,
+                cancellationToken);
+            if (!touchCaptureResult.Success)
+            {
+                await sessionClient.CloseSessionAsync(CancellationToken.None);
+                activeSessionResult = null;
+                SetStatus(HostConnectionState.Disconnected, touchCaptureResult.Message);
+                return HostSessionActionResult.FromFailure(
+                    touchCaptureResult.Message,
+                    openResult,
+                    actionKind,
+                    actionSource,
+                    openResult.RejectionCode ?? openResult.FailureCode);
+            }
+
             LastDisconnectedAtUtc = null;
             SetStatus(HostConnectionState.Connected, BuildConnectedSummary(openResult));
             return HostSessionActionResult.FromSuccess(

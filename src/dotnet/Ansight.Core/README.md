@@ -18,6 +18,8 @@ using Ansight;
 
 var options = Options.CreateBuilder()
     .WithFramesPerSecond()
+    // Battery level is opt-in and only emits on platforms that expose a battery API.
+    .WithBatteryLevel()
     // JPEG session capture can affect runtime performance. Use conservative settings unless you need richer review snapshots.
     .WithSessionJpegCapture(intervalMilliseconds: 2000, quality: 60, maxWidth: 720)
     .Build();

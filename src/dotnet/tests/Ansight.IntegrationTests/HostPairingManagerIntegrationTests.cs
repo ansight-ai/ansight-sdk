@@ -1,6 +1,7 @@
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
+using Ansight.Input;
 using Ansight.Pairing;
 
 namespace Ansight.IntegrationTests;
@@ -213,6 +214,8 @@ public sealed class HostPairingManagerIntegrationTests
 
         public int StartMetricsStreamingCallCount { get; private set; }
 
+        public int StartTouchCaptureStreamingCallCount { get; private set; }
+
         public OpenSessionResult OpenSessionResult { get; set; } = OpenSessionResult.FromFailure("no session result queued");
 
         public OpenSessionResult OpenCachedSessionResult { get; set; } = OpenSessionResult.FromFailure("no cached session result queued");
@@ -254,6 +257,15 @@ public sealed class HostPairingManagerIntegrationTests
         {
             StartMetricsStreamingCallCount++;
             return Task.FromResult(OperationResult.FromSuccess("streaming"));
+        }
+
+        public Task<OperationResult> StartTouchCaptureStreamingAsync(
+            TouchCaptureHub touchCaptureHub,
+            IProgress<HostConnectionProgressUpdate>? progress,
+            CancellationToken cancellationToken)
+        {
+            StartTouchCaptureStreamingCallCount++;
+            return Task.FromResult(OperationResult.FromSuccess("touch capture streaming"));
         }
 
         public Task<OperationResult> CloseSessionAsync(CancellationToken cancellationToken)

@@ -64,6 +64,11 @@ public class Options
     public bool EnableFramesPerSecond { get; private set; } = false;
 
     /// <summary>
+    /// Enable battery level sampling at startup when supported by the current platform.
+    /// </summary>
+    public bool EnableBatteryLevel { get; private set; } = false;
+
+    /// <summary>
     /// Registered remote tools available to paired hosts.
     /// </summary>
     public ToolRegistry Tools { get; private set; } = ToolRegistry.Empty;
@@ -73,6 +78,12 @@ public class Options
     /// Enabling this renders and compresses the app surface during active pairing sessions and can negatively affect runtime performance.
     /// </summary>
     public SessionJpegCaptureOptions? SessionJpegCapture { get; private set; }
+
+    /// <summary>
+    /// Optional app-local touch capture while the runtime is active.
+    /// Captured touches are emitted through the input-capture stream, not through metrics or telemetry events.
+    /// </summary>
+    public TouchCaptureOptions? TouchCapture { get; private set; }
 
     /// <summary>
     /// Guard policy controlling whether registered tools may be discovered and executed.
@@ -213,6 +224,7 @@ public class Options
                 DefaultMemoryChannels = initialOptions.DefaultMemoryChannels,
                 AdditionalLogger = initialOptions.AdditionalLogger,
                 EnableFramesPerSecond = initialOptions.EnableFramesPerSecond,
+                EnableBatteryLevel = initialOptions.EnableBatteryLevel,
                 Tools = initialOptions.Tools ?? ToolRegistry.Empty,
                 SessionJpegCapture = initialOptions.SessionJpegCapture is null
                     ? null
@@ -222,6 +234,7 @@ public class Options
                         Quality = initialOptions.SessionJpegCapture.Quality,
                         MaxWidth = initialOptions.SessionJpegCapture.MaxWidth
                     },
+                TouchCapture = initialOptions.TouchCapture?.Clone(),
                 ToolGuard = initialOptions.ToolGuard ?? ToolGuard.Disabled,
                 HostAutoProbe = initialOptions.HostAutoProbe?.Clone() ?? HostAutoProbeOptions.EnabledDefault.Clone(),
                 HostConnection = initialOptions.HostConnection?.Clone() ?? HostConnectionOptions.Default.Clone()
@@ -243,6 +256,24 @@ public class Options
         public OptionsBuilder WithFramesPerSecond()
         {
             options.EnableFramesPerSecond = true;
+            return this;
+        }
+
+        /// <summary>
+        /// Enables battery level sampling at startup when supported by the current platform.
+        /// </summary>
+        public OptionsBuilder WithBatteryLevel()
+        {
+            options.EnableBatteryLevel = true;
+            return this;
+        }
+
+        /// <summary>
+        /// Disables battery level sampling at startup.
+        /// </summary>
+        public OptionsBuilder WithoutBatteryLevel()
+        {
+            options.EnableBatteryLevel = false;
             return this;
         }
 
@@ -407,6 +438,43 @@ public class Options
         public OptionsBuilder WithoutSessionJpegCapture()
         {
             options.SessionJpegCapture = null;
+            return this;
+        }
+
+        /// <summary>
+        /// Enables app-local touch capture while the Ansight runtime is active.
+        /// Captured touches are streamed as input-capture records and are not added to <see cref="IDataSink"/>.
+        /// </summary>
+        public OptionsBuilder WithTouchCapture(
+            bool captureMoveEvents = true,
+            bool captureCancelEvents = true)
+        {
+            options.TouchCapture = new TouchCaptureOptions
+            {
+                CaptureMoveEvents = captureMoveEvents,
+                CaptureCancelEvents = captureCancelEvents
+            };
+            return this;
+        }
+
+        /// <summary>
+        /// Enables app-local touch capture while the Ansight runtime is active using a fully configured options object.
+        /// Captured touches are streamed as input-capture records and are not added to <see cref="IDataSink"/>.
+        /// </summary>
+        public OptionsBuilder WithTouchCapture(TouchCaptureOptions touchCapture)
+        {
+            if (touchCapture == null) throw new ArgumentNullException(nameof(touchCapture));
+
+            options.TouchCapture = touchCapture.Clone();
+            return this;
+        }
+
+        /// <summary>
+        /// Disables app-local touch capture.
+        /// </summary>
+        public OptionsBuilder WithoutTouchCapture()
+        {
+            options.TouchCapture = null;
             return this;
         }
 

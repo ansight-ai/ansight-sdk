@@ -17,5 +17,6 @@ public enum HostConnectionSource
     Transport = 9,
     Telemetry = 10,
     AppState = 11,
-    SessionJpegCapture = 12
+    SessionJpegCapture = 12,
+    TouchCapture = 13
 }

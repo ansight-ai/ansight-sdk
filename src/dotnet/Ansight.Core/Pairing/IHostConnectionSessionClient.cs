@@ -29,6 +29,11 @@ internal interface IHostConnectionSessionClient : IDisposable
         IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken);
 
+    Task<OperationResult> StartTouchCaptureStreamingAsync(
+        TouchCaptureHub touchCaptureHub,
+        IProgress<HostConnectionProgressUpdate>? progress,
+        CancellationToken cancellationToken);
+
     Task<OperationResult> CloseSessionAsync(CancellationToken cancellationToken);
 
     void ClearCachedPairingProfile();

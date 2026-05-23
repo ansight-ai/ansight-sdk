@@ -30,6 +30,7 @@ public static class Constants
         public const byte ClrMemoryUsage_Id = 0;
         public const byte FramesPerSecond_Id = 3;
         public const byte Lifecycle_Id = 4;
+        public const byte BatteryLevel_Id = 5;
 
         public const byte ChannelNotSpecified_Id = byte.MaxValue;
 
@@ -40,6 +41,8 @@ public static class Constants
         public static readonly Color FramesPerSecond_Color = Color.FromArgb(35, 181, 115);
         public const string Lifecycle_Name = "Lifecycle";
         public static readonly Color Lifecycle_Color = Color.FromArgb(255, 149, 0);
+        public const string BatteryLevel_Name = "Battery Level";
+        public static readonly Color BatteryLevel_Color = Color.FromArgb(255, 204, 0);
 
 #if IOS || MACCATALYST
         public const byte PlatformMemoryUsage_Id = 1;
@@ -67,6 +70,7 @@ public static class Constants
         return channel.Id == Constants.ReservedChannels.ClrMemoryUsage_Id
             || channel.Id == Constants.ReservedChannels.FramesPerSecond_Id
             || channel.Id == Constants.ReservedChannels.Lifecycle_Id
+            || channel.Id == Constants.ReservedChannels.BatteryLevel_Id
 #if IOS || MACCATALYST
             || channel.Id == Constants.ReservedChannels.PlatformMemoryUsage_Id
 #elif ANDROID

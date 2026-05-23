@@ -26,6 +26,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
     private readonly PairingSessionTransport transport;
     private readonly PairingSessionAppStateStreamer appStateStreamer;
     private readonly TelemetryStreamer telemetryStreamer;
+    private readonly PairingSessionTouchCaptureStreamer touchCaptureStreamer;
     private readonly PairingSessionJpegStreamer jpegStreamer;
     private readonly StoredPairingDocumentCache storedPairingDocumentCache;
     private bool disposed;
@@ -78,6 +79,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         transport = new PairingSessionTransport();
         appStateStreamer = new PairingSessionAppStateStreamer(transport);
         telemetryStreamer = new TelemetryStreamer(transport);
+        touchCaptureStreamer = new PairingSessionTouchCaptureStreamer(transport);
         jpegStreamer = new PairingSessionJpegStreamer(transport);
         this.storedPairingDocumentCache = storedPairingDocumentCache
                                          ?? new StoredPairingDocumentCache(
@@ -464,6 +466,21 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
     }
 
     /// <summary>
+    /// Starts streaming captured touch input records to the connected host when touch capture is enabled.
+    /// </summary>
+    /// <param name="touchCaptureHub">Runtime-owned touch capture hub to observe.</param>
+    /// <param name="progress">Optional progress sink for structured streaming updates.</param>
+    /// <param name="cancellationToken">Cancellation token for the operation.</param>
+    /// <returns>The result of starting touch capture streaming.</returns>
+    Task<OperationResult> IHostConnectionSessionClient.StartTouchCaptureStreamingAsync(
+        TouchCaptureHub touchCaptureHub,
+        IProgress<HostConnectionProgressUpdate>? progress,
+        CancellationToken cancellationToken)
+    {
+        return touchCaptureStreamer.StartAsync(touchCaptureHub, progress, cancellationToken);
+    }
+
+    /// <summary>
     /// Stops session-owned streaming components and closes the live pairing transport.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token for the operation.</param>
@@ -472,6 +489,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
     {
         await appStateStreamer.StopAsync(CancellationToken.None);
         await telemetryStreamer.StopAsync(progress: null, CancellationToken.None);
+        await touchCaptureStreamer.StopAsync(progress: null, CancellationToken.None);
         await jpegStreamer.StopAsync(CancellationToken.None);
         var result = await transport.CloseAsync(cancellationToken);
         if (Runtime.IsInitialized)
@@ -577,6 +595,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         transport.Closed -= HandleTransportClosed;
         appStateStreamer.Dispose();
         telemetryStreamer.Dispose();
+        touchCaptureStreamer.Dispose();
         jpegStreamer.Dispose();
         if (Runtime.IsInitialized)
         {

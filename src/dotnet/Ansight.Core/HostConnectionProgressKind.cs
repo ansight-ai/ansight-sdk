@@ -12,5 +12,6 @@ public enum HostConnectionProgressKind
     AppState = 4,
     Telemetry = 5,
     SessionJpegCapture = 6,
-    Warning = 7
+    TouchCapture = 7,
+    Warning = 8
 }

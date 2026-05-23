@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Runtime.InteropServices;
+using Ansight.Telemetry.Battery;
 using Ansight.Telemetry.Memory;
 
 namespace Ansight.Telemetry.Data;
@@ -27,6 +28,11 @@ internal class MutableDataSink : IDataSink, IAppLifecycleStateSource
             channels[Constants.ReservedChannels.ClrMemoryUsage_Id] = new Channel(Constants.ReservedChannels.ClrMemoryUsage_Id, Constants.ReservedChannels.ClrMemoryUsage_Name, Constants.ReservedChannels.ClrMemoryUsage_Color);
         }
         channels[Constants.ReservedChannels.FramesPerSecond_Id] = new Channel(Constants.ReservedChannels.FramesPerSecond_Id, Constants.ReservedChannels.FramesPerSecond_Name, Constants.ReservedChannels.FramesPerSecond_Color);
+
+        if (options.EnableBatteryLevel && BatteryLevelMonitorFactory.IsSupported)
+        {
+            channels[Constants.ReservedChannels.BatteryLevel_Id] = new Channel(Constants.ReservedChannels.BatteryLevel_Id, Constants.ReservedChannels.BatteryLevel_Name, Constants.ReservedChannels.BatteryLevel_Color);
+        }
         
 #if IOS || MACCATALYST
         if (options.DefaultMemoryChannels.HasFlag(DefaultMemoryChannels.PhysicalFootprint))
@@ -549,7 +555,6 @@ internal class MutableDataSink : IDataSink, IAppLifecycleStateSource
         });
     }
 
-#if ANDROID
     private static void AddMetricIfPresent(Dictionary<byte, List<Metric>> metrics, List<Metric> added, byte channelId, long value)
     {
         if (!metrics.TryGetValue(channelId, out var channelMetrics))
@@ -567,7 +572,18 @@ internal class MutableDataSink : IDataSink, IAppLifecycleStateSource
         added.Add(metric);
         channelMetrics.Add(metric);
     }
-#endif
+
+    public void RecordBatteryLevel(long levelPercentage)
+    {
+        var value = Math.Clamp(levelPercentage, 0, 100);
+        MutateMetrics(metrics =>
+        {
+            List<Metric> added = new List<Metric>();
+            AddMetricIfPresent(metrics, added, Constants.ReservedChannels.BatteryLevel_Id, value);
+
+            return added;
+        });
+    }
     
     public void Metric(long value, byte channel)
     {
