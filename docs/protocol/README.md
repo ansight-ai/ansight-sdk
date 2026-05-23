@@ -207,6 +207,12 @@ Important top-level fields:
 - `permissions`
 - `tags`
 
+Important `device` fields include:
+
+- `formFactor`: normalized form factor such as `phone`, `tablet`, `desktop`, `tv`, `watch`, `car`, or `vr`
+- `isVirtual`: whether the app appears to be running on a virtual device, emulator, or simulator
+- `isEmulator`: legacy-compatible emulator/simulator flag populated with the same value as `isVirtual` by the .NET SDK
+
 This payload is sent with request/response semantics, so the client waits for a correlated control response after sending it.
 
 ## Telemetry message families

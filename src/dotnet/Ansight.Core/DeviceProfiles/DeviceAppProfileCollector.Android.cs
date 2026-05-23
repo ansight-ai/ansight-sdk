@@ -11,14 +11,23 @@ namespace Ansight.DeviceProfiles;
 
 internal static partial class DeviceAppProfileCollector
 {
+    private const int AndroidScreenLayoutSizeLarge = 0x03;
+    private const int AndroidScreenLayoutSizeMask = 0x0f;
+    private const int AndroidUiModeTypeCar = 0x03;
+    private const int AndroidUiModeTypeMask = 0x0f;
+    private const int AndroidUiModeTypeTelevision = 0x04;
+    private const int AndroidUiModeTypeVrHeadset = 0x07;
+    private const int AndroidUiModeTypeWatch = 0x06;
+
     private static partial void PopulateDeviceProfile(DeviceProfile profile)
     {
         profile.Manufacturer = NullIfWhiteSpace(Build.Manufacturer);
         profile.Brand = NullIfWhiteSpace(Build.Brand);
         profile.Model = NullIfWhiteSpace(Build.Model);
         profile.Product = NullIfWhiteSpace(Build.Product);
+        profile.FormFactor = ResolveAndroidFormFactor();
         profile.DeviceClassCode = ResolveAppleOrAndroidDeviceClassCode(isDesktop: false);
-        profile.IsEmulator = ResolveAndroidIsEmulator();
+        SetVirtualDeviceState(profile, ResolveAndroidIsEmulator());
         profile.OsName = "android";
         profile.OsVersion = NullIfWhiteSpace(Build.VERSION.Release);
         profile.OsBuild = NullIfWhiteSpace(Build.Display);
@@ -123,6 +132,41 @@ internal static partial class DeviceAppProfileCollector
             (int)BatteryStatus.NotCharging => 1,
             _ => 0
         };
+    }
+
+    private static string? ResolveAndroidFormFactor()
+    {
+        var configuration = Application.Context?.Resources?.Configuration;
+        if (configuration is null)
+        {
+            return null;
+        }
+
+        var uiModeType = (int)configuration.UiMode & AndroidUiModeTypeMask;
+        if (uiModeType == AndroidUiModeTypeCar)
+        {
+            return DeviceFormFactors.Car;
+        }
+
+        if (uiModeType == AndroidUiModeTypeTelevision)
+        {
+            return DeviceFormFactors.Tv;
+        }
+
+        if (uiModeType == AndroidUiModeTypeWatch)
+        {
+            return DeviceFormFactors.Watch;
+        }
+
+        if (uiModeType == AndroidUiModeTypeVrHeadset)
+        {
+            return DeviceFormFactors.Vr;
+        }
+
+        var screenLayoutSize = (int)configuration.ScreenLayout & AndroidScreenLayoutSizeMask;
+        return screenLayoutSize >= AndroidScreenLayoutSizeLarge
+            ? DeviceFormFactors.Tablet
+            : DeviceFormFactors.Phone;
     }
 
     private static bool ResolveAndroidIsEmulator()

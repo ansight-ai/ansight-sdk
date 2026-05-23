@@ -7,6 +7,8 @@ internal static partial class DeviceAppProfileCollector
 {
     private static partial void PopulateDeviceProfile(DeviceProfile profile)
     {
+        profile.FormFactor = DeviceFormFactors.Desktop;
+        SetVirtualDeviceState(profile, isVirtual: false);
         profile.OsName = ResolveFallbackOsName();
         profile.OsVersion = NullIfWhiteSpace(global::System.Environment.OSVersion.VersionString);
     }

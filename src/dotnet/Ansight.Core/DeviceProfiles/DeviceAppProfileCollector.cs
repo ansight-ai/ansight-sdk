@@ -168,6 +168,12 @@ internal static partial class DeviceAppProfileCollector
         return isDesktop ? 3 : 1;
     }
 
+    private static void SetVirtualDeviceState(DeviceProfile profile, bool isVirtual)
+    {
+        profile.IsVirtual = isVirtual;
+        profile.IsEmulator = isVirtual;
+    }
+
     private static DeviceApplicationIconProfile? CreateApplicationIconProfile(
         byte[]? bytes,
         string format,

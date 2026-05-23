@@ -11,7 +11,9 @@ internal static partial class DeviceAppProfileCollector
         profile.Manufacturer = "Apple";
         profile.Brand = "Apple";
         profile.Model = NullIfWhiteSpace(UIDevice.CurrentDevice.Model);
+        profile.FormFactor = ResolveAppleFormFactor(isDesktop);
         profile.DeviceClassCode = ResolveAppleOrAndroidDeviceClassCode(isDesktop);
+        SetVirtualDeviceState(profile, ResolveAppleIsVirtual());
         profile.OsName = osName;
         profile.OsVersion = NullIfWhiteSpace(UIDevice.CurrentDevice.SystemVersion);
         profile.OsBuild = NullIfWhiteSpace(UIDevice.CurrentDevice.SystemVersion);
@@ -28,6 +30,48 @@ internal static partial class DeviceAppProfileCollector
         profile.VersionCode = ReadBundleString("CFBundleVersion") ?? profile.VersionCode;
         profile.BuildNumber = profile.VersionCode;
         profile.Icon = ResolveAppleApplicationIcon();
+    }
+
+    private static string ResolveAppleFormFactor(bool isDesktop)
+    {
+        if (isDesktop)
+        {
+            return DeviceFormFactors.Desktop;
+        }
+
+        return UIDevice.CurrentDevice.UserInterfaceIdiom switch
+        {
+            UIUserInterfaceIdiom.Phone => DeviceFormFactors.Phone,
+            UIUserInterfaceIdiom.Pad => DeviceFormFactors.Tablet,
+            UIUserInterfaceIdiom.TV => DeviceFormFactors.Tv,
+            UIUserInterfaceIdiom.CarPlay => DeviceFormFactors.Car,
+            UIUserInterfaceIdiom.Mac => DeviceFormFactors.Desktop,
+            _ => DeviceFormFactors.Unknown
+        };
+    }
+
+    private static bool ResolveAppleIsVirtual()
+    {
+#if IOS
+        if (ObjCRuntime.Runtime.Arch == ObjCRuntime.Arch.SIMULATOR)
+        {
+            return true;
+        }
+#endif
+
+        var model = UIDevice.CurrentDevice.Model ?? string.Empty;
+        var localizedModel = UIDevice.CurrentDevice.LocalizedModel ?? string.Empty;
+        return HasSimulatorEnvironmentValue("SIMULATOR_DEVICE_NAME")
+               || HasSimulatorEnvironmentValue("SIMULATOR_MODEL_IDENTIFIER")
+               || HasSimulatorEnvironmentValue("SIMULATOR_UDID")
+               || model.Contains("Simulator", StringComparison.OrdinalIgnoreCase)
+               || localizedModel.Contains("Simulator", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool HasSimulatorEnvironmentValue(string name)
+    {
+        return !string.IsNullOrWhiteSpace(global::System.Environment.GetEnvironmentVariable(name))
+               || !string.IsNullOrWhiteSpace(NSProcessInfo.ProcessInfo.Environment[name]?.ToString());
     }
 
     private static DeviceDisplayProfile? CreateAppleDisplayProfile()

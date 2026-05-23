@@ -44,6 +44,37 @@ public sealed class DeviceAppProfileCollectorTests
     }
 
     [Fact]
+    public void Create_PopulatesFirstClassDeviceFormFactorAndVirtualState()
+    {
+        var profile = DeviceAppProfileCollector.Create();
+
+        Assert.NotNull(profile.Device);
+        Assert.Equal(DeviceFormFactors.Desktop, profile.Device!.FormFactor);
+        Assert.False(profile.Device.IsVirtual);
+        Assert.False(profile.Device.IsEmulator);
+    }
+
+    [Fact]
+    public void DeviceProfile_SerializesFirstClassFormFactorAndVirtualState()
+    {
+        var profile = new DeviceAppProfile
+        {
+            Device = new DeviceProfile
+            {
+                FormFactor = DeviceFormFactors.Tablet,
+                IsVirtual = true,
+                IsEmulator = true
+            }
+        };
+
+        var json = JsonSerializer.Serialize(profile, PairingJson.Compact);
+
+        Assert.Contains("\"formFactor\":\"tablet\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"isVirtual\":true", json, StringComparison.Ordinal);
+        Assert.Contains("\"isEmulator\":true", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void DeviceApplicationIconProfile_SerializesInlineIconPayload()
     {
         var profile = new DeviceAppProfile

@@ -26,9 +26,20 @@ public sealed class DeviceProfile
     public string? Product { get; set; }
 
     /// <summary>
+    /// Normalized device form factor, such as <see cref="DeviceFormFactors.Phone"/>,
+    /// <see cref="DeviceFormFactors.Tablet"/>, or <see cref="DeviceFormFactors.Desktop"/>.
+    /// </summary>
+    public string? FormFactor { get; set; }
+
+    /// <summary>
     /// Protocol-defined device class code.
     /// </summary>
     public int? DeviceClassCode { get; set; }
+
+    /// <summary>
+    /// Indicates whether the app appears to be running on a virtual device, emulator, or simulator.
+    /// </summary>
+    public bool? IsVirtual { get; set; }
 
     /// <summary>
     /// Indicates whether the app appears to be running on an emulator or simulator.
