@@ -33,6 +33,11 @@ public interface IRuntime
     bool IsFramesPerSecondEnabled { get; }
 
     /// <summary>
+    /// Indicates whether touch capture is configured and allowed by the runtime-level capture toggle.
+    /// </summary>
+    bool IsTouchCaptureEnabled { get; }
+
+    /// <summary>
     /// Raised after activation finishes and sampling begins.
     /// </summary>
     event EventHandler OnActivated;
@@ -61,6 +66,23 @@ public interface IRuntime
     /// Disables frames-per-second tracking.
     /// </summary>
     void DisableFramesPerSecond();
+
+    /// <summary>
+    /// Enables runtime-level touch capture emission when touch capture was configured at initialization.
+    /// </summary>
+    void EnableTouchCapture();
+
+    /// <summary>
+    /// Disables runtime-level touch capture emission without changing the runtime activation state.
+    /// </summary>
+    void DisableTouchCapture();
+
+    /// <summary>
+    /// Sets an optional runtime-level guard that is evaluated before each captured touch is emitted.
+    /// Return <see langword="true"/> to allow capture, or <see langword="false"/> to suppress it.
+    /// Pass <see langword="null"/> to clear the guard.
+    /// </summary>
+    void SetTouchCaptureGuard(Func<bool>? guard);
 
     /// <summary>
     /// Captures a new metric using the given <paramref name="value"/> against the <paramref name="channel"/>.

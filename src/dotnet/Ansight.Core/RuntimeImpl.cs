@@ -57,6 +57,8 @@ internal class RuntimeImpl : IRuntime
 
     public bool IsFramesPerSecondEnabled => fpsTrackingEnabled;
 
+    public bool IsTouchCaptureEnabled => TouchCaptureHub.IsRuntimeCaptureEnabled;
+
     public event EventHandler? OnActivated;
 
     public event EventHandler? OnDeactivated;
@@ -157,6 +159,21 @@ internal class RuntimeImpl : IRuntime
     {
         fpsTrackingEnabled = false;
         frameRateMonitor.Stop();
+    }
+
+    public void EnableTouchCapture()
+    {
+        TouchCaptureHub.EnableRuntimeCapture();
+    }
+
+    public void DisableTouchCapture()
+    {
+        TouchCaptureHub.DisableRuntimeCapture();
+    }
+
+    public void SetTouchCaptureGuard(Func<bool>? guard)
+    {
+        TouchCaptureHub.SetRuntimeCaptureGuard(guard);
     }
 
     private bool ShouldTrackFps() => fpsTrackingEnabled;

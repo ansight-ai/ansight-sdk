@@ -105,19 +105,103 @@ public sealed class TouchCaptureOptionsTests
         var captured = 0;
         hub.TouchCaptured += (_, _) => captured++;
 
-        hub.Record(new CapturedTouch(
-            CapturedTouchAction.Down,
-            pointerId: 1,
-            pointerIndex: 0,
-            pointerCount: 1,
-            x: 10,
-            y: 20,
-            surfaceWidth: 100,
-            surfaceHeight: 200,
-            coordinateUnit: "pixels",
-            surfaceScale: 1,
-            DateTimeOffset.UtcNow));
+        hub.Record(CreateTouch());
 
+        Assert.Equal(0, captured);
+    }
+
+    [Fact]
+    public void TouchCaptureHub_IgnoresRecordsWhenRuntimeCaptureDisabled()
+    {
+        var hub = new TouchCaptureHub(new TouchCaptureOptions());
+        var captured = 0;
+        hub.TouchCaptured += (_, _) => captured++;
+
+        hub.DisableRuntimeCapture();
+        hub.Record(CreateTouch());
+
+        Assert.False(hub.IsRuntimeCaptureEnabled);
+        Assert.Equal(0, captured);
+
+        hub.EnableRuntimeCapture();
+        hub.Record(CreateTouch());
+
+        Assert.True(hub.IsRuntimeCaptureEnabled);
+        Assert.Equal(1, captured);
+    }
+
+    [Fact]
+    public void TouchCaptureHub_AppliesRuntimeCaptureGuardForEachRecord()
+    {
+        var hub = new TouchCaptureHub(new TouchCaptureOptions());
+        var captureAllowed = true;
+        var guardCalls = 0;
+        var captured = 0;
+        hub.TouchCaptured += (_, _) => captured++;
+        hub.SetRuntimeCaptureGuard(() =>
+        {
+            guardCalls++;
+            return captureAllowed;
+        });
+
+        hub.Record(CreateTouch());
+        captureAllowed = false;
+        hub.Record(CreateTouch());
+        hub.SetRuntimeCaptureGuard(null);
+        hub.Record(CreateTouch());
+
+        Assert.Equal(2, guardCalls);
+        Assert.Equal(2, captured);
+    }
+
+    [Fact]
+    public void RuntimeImpl_ControlsTouchCaptureAtRuntime()
+    {
+        var runtime = new RuntimeImpl(Options.CreateBuilder().WithTouchCapture().Build());
+        var captured = 0;
+        runtime.TouchCaptureHub.TouchCaptured += (_, _) => captured++;
+
+        runtime.DisableTouchCapture();
+        runtime.TouchCaptureHub.Record(CreateTouch());
+
+        Assert.False(runtime.IsTouchCaptureEnabled);
+        Assert.Equal(0, captured);
+
+        runtime.EnableTouchCapture();
+        runtime.TouchCaptureHub.Record(CreateTouch());
+
+        Assert.True(runtime.IsTouchCaptureEnabled);
+        Assert.Equal(1, captured);
+    }
+
+    [Fact]
+    public void RuntimeImpl_TouchCaptureGuardSuppressesRecords()
+    {
+        var runtime = new RuntimeImpl(Options.CreateBuilder().WithTouchCapture().Build());
+        var captureAllowed = false;
+        var captured = 0;
+        runtime.TouchCaptureHub.TouchCaptured += (_, _) => captured++;
+        runtime.SetTouchCaptureGuard(() => captureAllowed);
+
+        runtime.TouchCaptureHub.Record(CreateTouch());
+        captureAllowed = true;
+        runtime.TouchCaptureHub.Record(CreateTouch());
+
+        Assert.True(runtime.IsTouchCaptureEnabled);
+        Assert.Equal(1, captured);
+    }
+
+    [Fact]
+    public void RuntimeImpl_DoesNotEnableTouchCaptureWhenTouchCaptureWasNotConfigured()
+    {
+        var runtime = new RuntimeImpl(Options.CreateBuilder().WithoutTouchCapture().Build());
+        var captured = 0;
+        runtime.TouchCaptureHub.TouchCaptured += (_, _) => captured++;
+
+        runtime.EnableTouchCapture();
+        runtime.TouchCaptureHub.Record(CreateTouch());
+
+        Assert.False(runtime.IsTouchCaptureEnabled);
         Assert.Equal(0, captured);
     }
 
@@ -128,5 +212,21 @@ public sealed class TouchCaptureOptionsTests
         Assert.True(touchCapture.CaptureCancelEvents);
         Assert.Equal(TouchCaptureOptions.DefaultMoveCaptureDistanceThreshold, touchCapture.MoveCaptureDistanceThreshold);
         Assert.Equal(TouchCaptureOptions.DefaultMoveCaptureFramesPerSecond, touchCapture.MoveCaptureFramesPerSecond);
+    }
+
+    private static CapturedTouch CreateTouch()
+    {
+        return new CapturedTouch(
+            CapturedTouchAction.Down,
+            pointerId: 1,
+            pointerIndex: 0,
+            pointerCount: 1,
+            x: 10,
+            y: 20,
+            surfaceWidth: 100,
+            surfaceHeight: 200,
+            coordinateUnit: "pixels",
+            surfaceScale: 1,
+            DateTimeOffset.UtcNow);
     }
 }

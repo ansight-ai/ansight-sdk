@@ -257,6 +257,22 @@ public static class Runtime
     }
 
     /// <summary>
+    /// Indicates whether touch capture is configured and allowed by the runtime-level capture toggle.
+    /// </summary>
+    public static bool IsTouchCaptureEnabled
+    {
+        get
+        {
+            if (!IsInitialized)
+            {
+                return false;
+            }
+
+            return Instance.IsTouchCaptureEnabled;
+        }
+    }
+
+    /// <summary>
     /// Enables frames-per-second tracking.
     /// </summary>
     public static void EnableFramesPerSecond()
@@ -280,6 +296,47 @@ public static class Runtime
         }
 
         Instance.DisableFramesPerSecond();
+    }
+
+    /// <summary>
+    /// Enables runtime-level touch capture emission when touch capture was configured at initialization.
+    /// </summary>
+    public static void EnableTouchCapture()
+    {
+        if (!IsInitialized)
+        {
+            return;
+        }
+
+        Instance.EnableTouchCapture();
+    }
+
+    /// <summary>
+    /// Disables runtime-level touch capture emission without changing the runtime activation state.
+    /// </summary>
+    public static void DisableTouchCapture()
+    {
+        if (!IsInitialized)
+        {
+            return;
+        }
+
+        Instance.DisableTouchCapture();
+    }
+
+    /// <summary>
+    /// Sets an optional runtime-level guard that is evaluated before each captured touch is emitted.
+    /// Return <see langword="true"/> to allow capture, or <see langword="false"/> to suppress it.
+    /// Pass <see langword="null"/> to clear the guard.
+    /// </summary>
+    public static void SetTouchCaptureGuard(Func<bool>? guard)
+    {
+        if (!IsInitialized)
+        {
+            return;
+        }
+
+        Instance.SetTouchCaptureGuard(guard);
     }
 
     /// <summary>
