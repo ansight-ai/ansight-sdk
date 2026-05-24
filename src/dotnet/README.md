@@ -134,6 +134,22 @@ Battery level telemetry is disabled by default; `WithBatteryLevel()` only emits 
 
 Install `Ansight.Core` for this lower-level surface. Add `Ansight.Pairing` separately if the app should own native QR acquisition while staying on the core package set.
 
+### Custom session properties
+
+Apps can register grouped scalar custom properties that are sent on `session.open` and updated while a live pairing session is connected:
+
+```csharp
+var options = Options.CreateBuilder()
+    .RegisterCustomProperty("app", "tenant", "acme")
+    .RegisterCustomProperty("flags", "beta", true)
+    .Build();
+
+Runtime.InitializeAndActivate(options);
+Runtime.RegisterCustomProperty("app", "region", "au");
+```
+
+Calling `RegisterCustomProperty(group, key, value)` again replaces the existing value. Use `RemoveCustomProperty(...)` or `ClearCustomProperties()` when a property should not be sent on future sessions.
+
 ## Host Pairing Memory
 
 The runtime-owned host connection remembers successful host sessions by the Wi-Fi network name reported by the connected host. Each remembered profile stores the latest host/LAN address, host name, discovery metadata, and signed pairing config for that network.

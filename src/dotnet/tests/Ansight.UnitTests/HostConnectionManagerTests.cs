@@ -119,11 +119,12 @@ public sealed class HostConnectionManagerTests
         Assert.Equal("No Ansight host session is connected.", manager.StatusSummary);
     }
 
-    private static RuntimeImpl CreateRuntime()
+    private static RuntimeImpl CreateRuntime(Action<Options.OptionsBuilder>? configure = null)
     {
-        var options = Options.CreateBuilder()
-            .WithoutHostAutoProbe()
-            .Build();
+        var builder = Options.CreateBuilder()
+            .WithoutHostAutoProbe();
+        configure?.Invoke(builder);
+        var options = builder.Build();
         return new RuntimeImpl(options);
     }
 
@@ -207,6 +208,10 @@ public sealed class HostConnectionManagerTests
 
         public int StartTouchCaptureStreamingCallCount { get; private set; }
 
+        public PairingConnectionOptions? LastOpenSessionOptions { get; private set; }
+
+        public PairingConnectionOptions? LastOpenCachedSessionOptions { get; private set; }
+
         public OpenSessionResult OpenSessionResult { get; set; } = OpenSessionResult.FromFailure("no session result queued");
 
         public OpenSessionResult OpenCachedSessionResult { get; set; } = OpenSessionResult.FromFailure("no cached session result queued");
@@ -228,16 +233,19 @@ public sealed class HostConnectionManagerTests
             CancellationToken cancellationToken)
         {
             OpenSessionCallCount++;
+            LastOpenSessionOptions = options;
             IsSessionOpen = OpenSessionResult.Success;
             return Task.FromResult(OpenSessionResult);
         }
 
         public Task<OpenSessionResult> OpenCachedSessionAsync(
             string? clientName,
+            PairingConnectionOptions? options,
             IProgress<HostConnectionProgressUpdate>? progress,
             CancellationToken cancellationToken)
         {
             OpenCachedSessionCallCount++;
+            LastOpenCachedSessionOptions = options;
             IsSessionOpen = OpenCachedSessionResult.Success;
             return Task.FromResult(OpenCachedSessionResult);
         }

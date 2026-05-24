@@ -24,6 +24,7 @@ public class Options
         EnableFramesPerSecond = true,
         Tools = ToolRegistry.Empty,
         ToolGuard = ToolGuard.Disabled,
+        CustomProperties = new SessionCustomProperties(),
         HostAutoProbe = HostAutoProbeOptions.EnabledDefault.Clone(),
         HostConnection = HostConnectionOptions.Default.Clone()
     };
@@ -91,6 +92,11 @@ public class Options
     public ToolGuard ToolGuard { get; private set; } = ToolGuard.Disabled;
 
     /// <summary>
+    /// Initial custom grouped properties sent when a live pairing session opens.
+    /// </summary>
+    public SessionCustomProperties CustomProperties { get; private set; } = new();
+
+    /// <summary>
     /// Background host auto-probe policy used while the runtime is active.
     /// </summary>
     public HostAutoProbeOptions HostAutoProbe { get; private set; } = HostAutoProbeOptions.EnabledDefault.Clone();
@@ -139,6 +145,7 @@ public class Options
         Tools.Validate();
         ToolGuard = ToolGuard ?? ToolGuard.Disabled;
         ToolGuard.Validate();
+        CustomProperties ??= new SessionCustomProperties();
         HostAutoProbe ??= HostAutoProbeOptions.EnabledDefault.Clone();
         HostConnection ??= HostConnectionOptions.Default.Clone();
 
@@ -251,6 +258,7 @@ public class Options
                     },
                 TouchCapture = initialOptions.TouchCapture?.Clone(),
                 ToolGuard = initialOptions.ToolGuard ?? ToolGuard.Disabled,
+                CustomProperties = initialOptions.CustomProperties?.Clone() ?? new SessionCustomProperties(),
                 HostAutoProbe = initialOptions.HostAutoProbe?.Clone() ?? HostAutoProbeOptions.EnabledDefault.Clone(),
                 HostConnection = initialOptions.HostConnection?.Clone() ?? HostConnectionOptions.Default.Clone()
             };
@@ -546,6 +554,34 @@ public class Options
         public OptionsBuilder WithAllToolAccess()
         {
             options.ToolGuard = ToolGuard.FullAccess;
+            return this;
+        }
+
+        /// <summary>
+        /// Registers or replaces an initial custom grouped property to send when a live pairing session opens.
+        /// </summary>
+        public OptionsBuilder RegisterCustomProperty(string group, string key, object? value)
+        {
+            options.CustomProperties ??= new SessionCustomProperties();
+            options.CustomProperties.Register(group, key, value);
+            return this;
+        }
+
+        /// <summary>
+        /// Removes a custom grouped property from the initial live pairing session property set.
+        /// </summary>
+        public OptionsBuilder RemoveCustomProperty(string group, string key)
+        {
+            options.CustomProperties?.Remove(group, key);
+            return this;
+        }
+
+        /// <summary>
+        /// Clears all custom grouped properties from the initial live pairing session property set.
+        /// </summary>
+        public OptionsBuilder ClearCustomProperties()
+        {
+            options.CustomProperties?.Clear();
             return this;
         }
 

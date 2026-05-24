@@ -21,6 +21,7 @@ internal class RuntimeImpl : IRuntime
     private readonly ITouchCaptureSession touchCaptureSession;
     private readonly HostSessionManager hostConnection;
     private readonly HostPairingManager hostPairing;
+    private readonly SessionCustomProperties customProperties;
     private bool fpsTrackingEnabled;
     private readonly bool batteryLevelTrackingEnabled;
 
@@ -43,6 +44,7 @@ internal class RuntimeImpl : IRuntime
         batteryLevelMonitor = BatteryLevelMonitorFactory.Create();
         TouchCaptureHub = new TouchCaptureHub(options.TouchCapture);
         touchCaptureSession = TouchCaptureSupport.CreateSession(TouchCaptureHub);
+        customProperties = options.CustomProperties?.Clone() ?? new SessionCustomProperties();
         fpsTrackingEnabled = options.EnableFramesPerSecond;
         batteryLevelTrackingEnabled = options.EnableBatteryLevel && batteryLevelMonitor.IsSupported;
         ToolBridge = options.Tools.CreateBridge(options.ToolGuard);
@@ -62,6 +64,8 @@ internal class RuntimeImpl : IRuntime
     public event EventHandler? OnActivated;
 
     public event EventHandler? OnDeactivated;
+
+    internal event EventHandler? CustomPropertiesChanged;
 
     public void Activate()
     {
@@ -269,6 +273,39 @@ internal class RuntimeImpl : IRuntime
         if (string.IsNullOrWhiteSpace(screenName)) throw new ArgumentException("Value cannot be null or whitespace.", nameof(screenName));
 
         mutableDataSink.ScreenViewed(screenName, channel, details);
+    }
+
+    public void RegisterCustomProperty(string group, string key, object? value)
+    {
+        customProperties.Register(group, key, value);
+        CustomPropertiesChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public bool RemoveCustomProperty(string group, string key)
+    {
+        var removed = customProperties.Remove(group, key);
+        if (removed)
+        {
+            CustomPropertiesChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        return removed;
+    }
+
+    public void ClearCustomProperties()
+    {
+        if (customProperties.IsEmpty)
+        {
+            return;
+        }
+
+        customProperties.Clear();
+        CustomPropertiesChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    internal SessionCustomProperties CreateCustomPropertiesSnapshot()
+    {
+        return customProperties.Clone();
     }
 
     public void Clear()

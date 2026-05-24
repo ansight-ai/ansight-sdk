@@ -242,6 +242,7 @@ public sealed class HostPairingManagerIntegrationTests
 
         public Task<OpenSessionResult> OpenCachedSessionAsync(
             string? clientName,
+            PairingConnectionOptions? options,
             IProgress<HostConnectionProgressUpdate>? progress,
             CancellationToken cancellationToken)
         {

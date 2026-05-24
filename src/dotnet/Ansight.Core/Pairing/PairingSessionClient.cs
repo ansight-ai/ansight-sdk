@@ -29,6 +29,11 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
     private readonly PairingSessionTouchCaptureStreamer touchCaptureStreamer;
     private readonly PairingSessionJpegStreamer jpegStreamer;
     private readonly StoredPairingDocumentCache storedPairingDocumentCache;
+    private readonly Lock runtimeCustomPropertiesLock = new();
+    private readonly SemaphoreSlim customPropertiesSendLock = new(1, 1);
+    private RuntimeImpl? subscribedRuntime;
+    private EventHandler? customPropertiesChangedHandler;
+    private SessionCustomProperties? sessionConnectionCustomProperties;
     private bool disposed;
 
     /// <summary>
@@ -289,7 +294,13 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
                 Runtime.MutableInstance.BinaryTransferHub.AttachTransport(transport);
             }
 
-            var sessionOpenResult = await SendSessionOpenAsync(config, clientName, progress, cancellationToken);
+            sessionConnectionCustomProperties = options?.CustomProperties?.Clone();
+            var sessionOpenResult = await SendSessionOpenAsync(
+                config,
+                clientName,
+                CreateEffectiveCustomProperties(sessionConnectionCustomProperties),
+                progress,
+                cancellationToken);
             if (!sessionOpenResult.Success)
             {
                 await CloseSessionAsync(CancellationToken.None);
@@ -313,6 +324,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
                 return OpenSessionResult.FromFailure(appStateResult.Message);
             }
 
+            StartRuntimeCustomPropertiesStreaming();
             await jpegStreamer.StartAsync(progress);
             try
             {
@@ -487,6 +499,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
     /// <returns>The result of closing the session.</returns>
     public async Task<OperationResult> CloseSessionAsync(CancellationToken cancellationToken)
     {
+        StopRuntimeCustomPropertiesStreaming();
         await appStateStreamer.StopAsync(CancellationToken.None);
         await telemetryStreamer.StopAsync(progress: null, CancellationToken.None);
         await touchCaptureStreamer.StopAsync(progress: null, CancellationToken.None);
@@ -502,10 +515,11 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
 
     internal async Task<OpenSessionResult> OpenCachedSessionAsync(
         string? clientName,
+        PairingConnectionOptions? options,
         IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
-        var baselineProfile = deviceAppProfileResolver.Resolve(callerProfile: null);
+        var baselineProfile = deviceAppProfileResolver.Resolve(options?.DeviceAppProfile);
         var expectedAppId = deviceAppProfileResolver.ResolveExpectedAppId(baselineProfile);
         if (!storedPairingDocumentCache.TryLoadValidatedProfiles(expectedAppId, out var profiles, out var error) ||
             profiles.Count == 0)
@@ -531,13 +545,13 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
                 $"Trying cached Ansight host session for {DescribeProfile(profile)}.",
                 source: HostConnectionSource.CachedSession);
 
+            var connectionOptions = options?.Clone() ?? new PairingConnectionOptions();
+            connectionOptions.DiscoveryPort = PairingDiscoveryPortResolver.Resolve(document, options?.DiscoveryPort);
+
             var result = await OpenSessionAsync(
                 document,
                 ResolveClientName(clientName, baselineProfile),
-                new PairingConnectionOptions
-                {
-                    DiscoveryPort = PairingDiscoveryPortResolver.Resolve(document)
-                },
+                connectionOptions,
                 progress,
                 cancellationToken);
             if (result.Success)
@@ -571,9 +585,10 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
 
     Task<OpenSessionResult> IHostConnectionSessionClient.OpenCachedSessionAsync(
         string? clientName,
+        PairingConnectionOptions? options,
         IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
-        => OpenCachedSessionAsync(clientName, progress, cancellationToken);
+        => OpenCachedSessionAsync(clientName, options, progress, cancellationToken);
 
     void IHostConnectionSessionClient.ClearCachedPairingProfile()
         => ClearCachedPairingProfile();
@@ -592,11 +607,13 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         }
 
         disposed = true;
+        StopRuntimeCustomPropertiesStreaming();
         transport.Closed -= HandleTransportClosed;
         appStateStreamer.Dispose();
         telemetryStreamer.Dispose();
         touchCaptureStreamer.Dispose();
         jpegStreamer.Dispose();
+        customPropertiesSendLock.Dispose();
         if (Runtime.IsInitialized)
         {
             Runtime.MutableInstance.BinaryTransferHub.DetachTransport(transport);
@@ -607,22 +624,118 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
 
     private void HandleTransportClosed(object? sender, EventArgs e)
     {
+        StopRuntimeCustomPropertiesStreaming();
         SessionClosed?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void StartRuntimeCustomPropertiesStreaming()
+    {
+        if (!Runtime.IsInitialized)
+        {
+            return;
+        }
+
+        StopRuntimeCustomPropertiesStreaming(clearConnectionCustomProperties: false);
+        var runtime = Runtime.MutableInstance;
+        EventHandler handler = (sender, eventArgs) =>
+        {
+            if (sender is RuntimeImpl changedRuntime)
+            {
+                _ = SendRuntimeCustomPropertiesUpdateAsync(changedRuntime);
+            }
+        };
+
+        lock (runtimeCustomPropertiesLock)
+        {
+            subscribedRuntime = runtime;
+            customPropertiesChangedHandler = handler;
+            runtime.CustomPropertiesChanged += handler;
+        }
+    }
+
+    private void StopRuntimeCustomPropertiesStreaming(bool clearConnectionCustomProperties = true)
+    {
+        RuntimeImpl? runtime;
+        EventHandler? handler;
+        lock (runtimeCustomPropertiesLock)
+        {
+            runtime = subscribedRuntime;
+            handler = customPropertiesChangedHandler;
+            subscribedRuntime = null;
+            customPropertiesChangedHandler = null;
+            if (clearConnectionCustomProperties)
+            {
+                sessionConnectionCustomProperties = null;
+            }
+        }
+
+        if (runtime is not null && handler is not null)
+        {
+            runtime.CustomPropertiesChanged -= handler;
+        }
+    }
+
+    private async Task SendRuntimeCustomPropertiesUpdateAsync(RuntimeImpl runtime)
+    {
+        try
+        {
+            await customPropertiesSendLock.WaitAsync(CancellationToken.None);
+            try
+            {
+                RuntimeImpl? currentRuntime;
+                SessionCustomProperties? connectionCustomProperties;
+                lock (runtimeCustomPropertiesLock)
+                {
+                    currentRuntime = subscribedRuntime;
+                    connectionCustomProperties = sessionConnectionCustomProperties?.Clone();
+                }
+
+                if (!ReferenceEquals(runtime, currentRuntime) || !transport.IsOpen)
+                {
+                    return;
+                }
+
+                var payload = CreateSessionPropertiesPayload(
+                    CreateEffectiveCustomProperties(connectionCustomProperties, runtime.CreateCustomPropertiesSnapshot()));
+                var result = await transport.SendControlRequestAsync(
+                    PairingControlActions.SessionProperties,
+                    payload,
+                    "WS -> session.properties",
+                    "Session properties updated.",
+                    "Failed to update session properties",
+                    progress: null,
+                    acknowledgementTimeout: TimeSpan.FromSeconds(10),
+                    cancellationToken: CancellationToken.None,
+                    source: HostConnectionSource.Transport,
+                    kind: HostConnectionProgressKind.Transport);
+
+                if (!result.Success)
+                {
+                    Logger.Warning(result.Message);
+                }
+            }
+            finally
+            {
+                customPropertiesSendLock.Release();
+            }
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+        catch (Exception ex)
+        {
+            Logger.Warning($"Failed to update session properties: {ex.Message}");
+        }
     }
 
     private Task<OperationResult> SendSessionOpenAsync(
         PairingConfig config,
         string clientName,
+        SessionCustomProperties? customProperties,
         IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
-        var payload = new JsonObject
-        {
-            ["clientName"] = clientName,
-            ["configId"] = config.ConfigId,
-            ["appId"] = config.AppId,
-            ["openedAtUtc"] = DateTimeOffset.UtcNow
-        };
+        var payload = CreateSessionOpenPayload(config, clientName, customProperties);
 
         return transport.SendControlRequestAsync(
             PairingControlActions.SessionOpen,
@@ -635,6 +748,49 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
             cancellationToken,
             HostConnectionSource.Transport,
             HostConnectionProgressKind.Transport);
+    }
+
+    internal static JsonObject CreateSessionOpenPayload(
+        PairingConfig config,
+        string clientName,
+        SessionCustomProperties? customProperties)
+    {
+        var payload = new JsonObject
+        {
+            ["clientName"] = clientName,
+            ["configId"] = config.ConfigId,
+            ["appId"] = config.AppId,
+            ["openedAtUtc"] = DateTimeOffset.UtcNow
+        };
+
+        if (customProperties is not null && !customProperties.IsEmpty)
+        {
+            payload["customProperties"] = customProperties.ToJsonObject();
+        }
+
+        return payload;
+    }
+
+    internal static JsonObject CreateSessionPropertiesPayload(SessionCustomProperties? customProperties)
+    {
+        return new JsonObject
+        {
+            ["customProperties"] = customProperties?.ToJsonObject() ?? new JsonObject(),
+            ["updatedAtUtc"] = DateTimeOffset.UtcNow
+        };
+    }
+
+    private static SessionCustomProperties? CreateEffectiveCustomProperties(
+        SessionCustomProperties? connectionCustomProperties,
+        SessionCustomProperties? runtimeCustomProperties = null)
+    {
+        var properties = runtimeCustomProperties?.Clone()
+                         ?? (Runtime.IsInitialized
+                             ? Runtime.MutableInstance.CreateCustomPropertiesSnapshot()
+                             : new SessionCustomProperties());
+        properties.MergeFrom(connectionCustomProperties);
+
+        return properties.IsEmpty ? null : properties;
     }
 
     internal static ParsedPairingDocument CreateCachedDocument(

@@ -526,4 +526,43 @@ public static class Runtime
 
         Instance.ScreenViewed(screenName, channel, details);
     }
+
+    /// <summary>
+    /// Registers or replaces a custom grouped property for current and future live pairing sessions.
+    /// </summary>
+    public static void RegisterCustomProperty(string group, string key, object? value)
+    {
+        if (!IsInitialized)
+        {
+            return;
+        }
+
+        Instance.RegisterCustomProperty(group, key, value);
+    }
+
+    /// <summary>
+    /// Removes a custom grouped property from current and future live pairing sessions.
+    /// </summary>
+    public static bool RemoveCustomProperty(string group, string key)
+    {
+        if (!IsInitialized)
+        {
+            return false;
+        }
+
+        return Instance.RemoveCustomProperty(group, key);
+    }
+
+    /// <summary>
+    /// Clears all custom grouped properties from current and future live pairing sessions.
+    /// </summary>
+    public static void ClearCustomProperties()
+    {
+        if (!IsInitialized)
+        {
+            return;
+        }
+
+        Instance.ClearCustomProperties();
+    }
 }

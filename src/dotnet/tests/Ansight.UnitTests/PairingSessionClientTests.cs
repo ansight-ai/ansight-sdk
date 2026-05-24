@@ -7,6 +7,52 @@ namespace Ansight.UnitTests;
 public sealed class PairingSessionClientTests
 {
     [Fact]
+    public void CreateSessionOpenPayload_WhenCustomPropertiesAreRegistered_IncludesGroupedProperties()
+    {
+        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var config = PairingTestDocumentFactory.CreateSignedConfig(signingKey);
+        var customProperties = new SessionCustomProperties()
+            .Register("app", "tenant", "acme")
+            .Register("app", "region", "au")
+            .Register("flags", "beta", true);
+
+        var payload = PairingSessionClient.CreateSessionOpenPayload(config, "Unit Test App", customProperties);
+
+        Assert.Equal("Unit Test App", payload["clientName"]?.GetValue<string>());
+        Assert.Equal(config.ConfigId, payload["configId"]?.GetValue<string>());
+        Assert.Equal(config.AppId, payload["appId"]?.GetValue<string>());
+
+        var properties = Assert.IsType<System.Text.Json.Nodes.JsonObject>(payload["customProperties"]);
+        Assert.Equal("acme", properties["app"]?["tenant"]?.GetValue<string>());
+        Assert.Equal("au", properties["app"]?["region"]?.GetValue<string>());
+        Assert.True(properties["flags"]?["beta"]?.GetValue<bool>());
+    }
+
+    [Fact]
+    public void CreateSessionPropertiesPayload_WhenCustomPropertiesAreRegistered_IncludesGroupedProperties()
+    {
+        var customProperties = new SessionCustomProperties()
+            .Register("app", "tenant", "acme")
+            .Register("flags", "beta", true);
+
+        var payload = PairingSessionClient.CreateSessionPropertiesPayload(customProperties);
+
+        var properties = Assert.IsType<System.Text.Json.Nodes.JsonObject>(payload["customProperties"]);
+        Assert.Equal("acme", properties["app"]?["tenant"]?.GetValue<string>());
+        Assert.True(properties["flags"]?["beta"]?.GetValue<bool>());
+        Assert.NotNull(payload["updatedAtUtc"]);
+    }
+
+    [Fact]
+    public void CreateSessionPropertiesPayload_WhenCustomPropertiesAreEmpty_IncludesEmptyObject()
+    {
+        var payload = PairingSessionClient.CreateSessionPropertiesPayload(customProperties: null);
+
+        var properties = Assert.IsType<System.Text.Json.Nodes.JsonObject>(payload["customProperties"]);
+        Assert.Empty(properties);
+    }
+
+    [Fact]
     public void CreateCachedDocument_WhenConnectedHostAddressIsAvailable_AddsDiscoveryHint()
     {
         using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);

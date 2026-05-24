@@ -140,6 +140,21 @@ public interface IRuntime
     void ScreenViewed(string screenName, byte channel, string details);
 
     /// <summary>
+    /// Registers or replaces a custom grouped property for current and future live pairing sessions.
+    /// </summary>
+    void RegisterCustomProperty(string group, string key, object? value);
+
+    /// <summary>
+    /// Removes a custom grouped property from current and future live pairing sessions.
+    /// </summary>
+    bool RemoveCustomProperty(string group, string key);
+
+    /// <summary>
+    /// Clears all custom grouped properties from current and future live pairing sessions.
+    /// </summary>
+    void ClearCustomProperties();
+
+    /// <summary>
     /// Clears the backing data sink, removing all recorded metrics and events.
     /// </summary>
     void Clear();

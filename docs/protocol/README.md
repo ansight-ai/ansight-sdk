@@ -185,6 +185,52 @@ Current behavior:
 
 The receive pump is text-oriented. Structured control traffic uses `CONTROL_REQ` and `CONTROL_RESP` JSON envelopes, while telemetry and screenshot streams remain fire-and-forget.
 
+## Session open
+
+After the WebSocket is attached, [PairingSessionClient.cs](../../src/dotnet/Ansight.Core/Pairing/PairingSessionClient.cs) sends `session.open` with request/response semantics.
+
+Payload shape:
+
+```json
+{
+  "clientName": "My App",
+  "configId": "cfg_123",
+  "appId": "com.example.app",
+  "openedAtUtc": "2026-03-20T10:00:00Z",
+  "customProperties": {
+    "app": {
+      "tenant": "acme",
+      "region": "au"
+    },
+    "flags": {
+      "beta": true
+    }
+  }
+}
+```
+
+`customProperties` is omitted when no app-supplied properties are registered. The `.NET` API stores them as grouped scalar JSON values keyed by `group` and `key`.
+
+## Session properties update
+
+When a live session is already open, runtime custom property changes are sent with request/response semantics through `session.properties`.
+
+Payload shape:
+
+```json
+{
+  "customProperties": {
+    "app": {
+      "tenant": "acme",
+      "region": "au"
+    }
+  },
+  "updatedAtUtc": "2026-03-20T10:02:00Z"
+}
+```
+
+The payload carries the current full grouped property bag. An empty `customProperties` object clears previously registered custom properties for the session.
+
 ## Initial profile exchange
 
 After the WebSocket is attached, [PairingSessionClient.cs](../../src/dotnet/Ansight.Core/Pairing/PairingSessionClient.cs) sends a baseline `DeviceAppProfile` if one is available.

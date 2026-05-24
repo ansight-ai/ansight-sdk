@@ -1,3 +1,5 @@
+using Ansight;
+
 namespace Ansight.Pairing.Models;
 
 /// <summary>
@@ -21,4 +23,18 @@ public sealed class PairingConnectionOptions
     /// Optional app profile values to add to or override the automatically collected baseline profile.
     /// </summary>
     public DeviceAppProfile? DeviceAppProfile { get; set; }
+
+    /// <summary>
+    /// Optional custom grouped properties to send when the live pairing session opens.
+    /// </summary>
+    public SessionCustomProperties? CustomProperties { get; set; }
+
+    internal PairingConnectionOptions Clone()
+        => new()
+        {
+            HostAddressOverride = HostAddressOverride,
+            DiscoveryPort = DiscoveryPort,
+            DeviceAppProfile = DeviceAppProfile,
+            CustomProperties = CustomProperties?.Clone()
+        };
 }

@@ -90,12 +90,13 @@ internal sealed class HostSessionManager : IHostSessionConnection, IHostAutoProb
             $"Connecting to Ansight host using {DescribeConnectionTarget(document)}.",
             HostConnectionActionKind.Connect,
             HostConnectionSource.HostConnection,
-            (resolvedClientName, effectiveProgress, effectiveCancellationToken) => sessionClient.OpenSessionAsync(
-                document,
-                resolvedClientName,
-                connectionOptions,
-                effectiveProgress,
-                effectiveCancellationToken),
+            (resolvedClientName, effectiveProgress, effectiveCancellationToken) =>
+                sessionClient.OpenSessionAsync(
+                    document,
+                    resolvedClientName,
+                    connectionOptions,
+                    effectiveProgress,
+                    effectiveCancellationToken),
             clientName,
             progress,
             cancellationToken);
@@ -221,6 +222,7 @@ internal sealed class HostSessionManager : IHostSessionConnection, IHostAutoProb
             HostConnectionSource.CachedSession,
             (resolvedClientName, effectiveProgress, effectiveCancellationToken) => sessionClient.OpenCachedSessionAsync(
                 resolvedClientName,
+                options: null,
                 effectiveProgress,
                 effectiveCancellationToken),
             clientName,
