@@ -99,25 +99,6 @@ internal static class AndroidSceneCapture
         var scaleY = windowBitmap.Height / (float)rootView.Height;
         var overlaidSurfaceHandles = new HashSet<nint>();
 
-        await OverlaySurfaceBackedChildrenAsync(
-            canvas,
-            rootView,
-            rootLocation,
-            scaleX,
-            scaleY,
-            overlaidSurfaceHandles,
-            includeTextureViews: false,
-            cancellationToken);
-        await OverlayFragmentHostedSurfaceBackedViewsAsync(
-            activity,
-            canvas,
-            rootLocation,
-            scaleX,
-            scaleY,
-            overlaidSurfaceHandles,
-            includeTextureViews: false,
-            cancellationToken);
-
         var windowCopyResult = await CopyWindowAsync(activity.Window!, windowBitmap, cancellationToken);
         if (windowCopyResult != (int)PixelCopyResult.Success)
         {
@@ -126,6 +107,25 @@ internal static class AndroidSceneCapture
 
         canvas.DrawBitmap(windowBitmap, 0f, 0f, null);
 
+        await OverlaySurfaceBackedChildrenAsync(
+            canvas,
+            rootView,
+            rootLocation,
+            scaleX,
+            scaleY,
+            overlaidSurfaceHandles,
+            includeTextureViews: true,
+            cancellationToken);
+        await OverlayFragmentHostedSurfaceBackedViewsAsync(
+            activity,
+            canvas,
+            rootLocation,
+            scaleX,
+            scaleY,
+            overlaidSurfaceHandles,
+            includeTextureViews: true,
+            cancellationToken);
+
         foreach (var topLevelView in GetTopLevelViews(activity))
         {
             if (IsSameJavaObject(topLevelView, rootView))
@@ -133,6 +133,7 @@ internal static class AndroidSceneCapture
                 continue;
             }
 
+            DrawView(canvas, topLevelView, rootLocation, scaleX, scaleY);
             await OverlaySurfaceBackedChildrenAsync(
                 canvas,
                 topLevelView,
@@ -142,7 +143,6 @@ internal static class AndroidSceneCapture
                 overlaidSurfaceHandles,
                 includeTextureViews: true,
                 cancellationToken);
-            DrawView(canvas, topLevelView, rootLocation, scaleX, scaleY);
         }
 
         return true;
@@ -163,22 +163,34 @@ internal static class AndroidSceneCapture
 
         if (topLevelViews.Count == 0)
         {
+            var fallbackSurfaceHandles = new HashSet<nint>();
+            DrawView(canvas, rootView, rootLocation, scaleX, scaleY);
             await OverlaySurfaceBackedChildrenAsync(
                 canvas,
                 rootView,
                 rootLocation,
                 scaleX,
                 scaleY,
-                new HashSet<nint>(),
+                fallbackSurfaceHandles,
                 includeTextureViews: true,
                 cancellationToken);
-            DrawView(canvas, rootView, rootLocation, scaleX, scaleY);
+            await OverlayFragmentHostedSurfaceBackedViewsAsync(
+                activity,
+                canvas,
+                rootLocation,
+                scaleX,
+                scaleY,
+                fallbackSurfaceHandles,
+                includeTextureViews: true,
+                cancellationToken);
             return;
         }
 
         var overlaidSurfaceHandles = new HashSet<nint>();
+        var fragmentSurfacesOverlaid = false;
         foreach (var topLevelView in topLevelViews)
         {
+            DrawView(canvas, topLevelView, rootLocation, scaleX, scaleY);
             await OverlaySurfaceBackedChildrenAsync(
                 canvas,
                 topLevelView,
@@ -188,18 +200,34 @@ internal static class AndroidSceneCapture
                 overlaidSurfaceHandles,
                 includeTextureViews: true,
                 cancellationToken);
-            DrawView(canvas, topLevelView, rootLocation, scaleX, scaleY);
+
+            if (!fragmentSurfacesOverlaid && IsSameJavaObject(topLevelView, rootView))
+            {
+                await OverlayFragmentHostedSurfaceBackedViewsAsync(
+                    activity,
+                    canvas,
+                    rootLocation,
+                    scaleX,
+                    scaleY,
+                    overlaidSurfaceHandles,
+                    includeTextureViews: true,
+                    cancellationToken);
+                fragmentSurfacesOverlaid = true;
+            }
         }
 
-        await OverlayFragmentHostedSurfaceBackedViewsAsync(
-            activity,
-            canvas,
-            rootLocation,
-            scaleX,
-            scaleY,
-            overlaidSurfaceHandles,
-            includeTextureViews: true,
-            cancellationToken);
+        if (!fragmentSurfacesOverlaid)
+        {
+            await OverlayFragmentHostedSurfaceBackedViewsAsync(
+                activity,
+                canvas,
+                rootLocation,
+                scaleX,
+                scaleY,
+                overlaidSurfaceHandles,
+                includeTextureViews: true,
+                cancellationToken);
+        }
     }
 
     [SupportedOSPlatform("android26.0")]
@@ -224,7 +252,7 @@ internal static class AndroidSceneCapture
         return await completion.Task;
     }
 
-    private static List<View> GetTopLevelViews(Activity activity)
+    internal static List<View> GetTopLevelViews(Activity activity)
     {
         var topLevelViews = new List<View>();
         var activityRootView = activity.Window?.DecorView?.RootView;

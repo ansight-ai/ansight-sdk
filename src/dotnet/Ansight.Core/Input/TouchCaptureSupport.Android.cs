@@ -1,5 +1,6 @@
 #if ANDROID
 using Android.App;
+using Android.Content;
 using Android.OS;
 using Android.Views;
 using Android.Views.Accessibility;
@@ -10,19 +11,24 @@ namespace Ansight.Input;
 
 internal sealed class AndroidTouchCaptureSession : ITouchCaptureSession
 {
+    private const long WindowScanIntervalMilliseconds = 500;
+
     private static readonly Handler mainHandler = new(Looper.MainLooper!);
 
     private readonly TouchCaptureOptions options;
     private readonly System.Action<CapturedTouch> recordTouch;
     private readonly Lock sync = new();
-    private readonly Dictionary<Activity, TouchCaptureWindowCallback> installedCallbacks = new();
+    private readonly Dictionary<nint, TouchCaptureWindowCallback> installedCallbacks = new();
+    private readonly ScanRunnable scanRunnable;
     private ActivityCallbacks? activityCallbacks;
+    private bool scanScheduled;
     private bool started;
 
     public AndroidTouchCaptureSession(TouchCaptureOptions options, System.Action<CapturedTouch> recordTouch)
     {
         this.options = options.Clone();
         this.recordTouch = recordTouch ?? throw new ArgumentNullException(nameof(recordTouch));
+        scanRunnable = new ScanRunnable(this);
     }
 
     public void Start()
@@ -47,6 +53,8 @@ internal sealed class AndroidTouchCaptureSession : ITouchCaptureSession
             {
                 Install(currentRoot.Activity);
             }
+
+            ScheduleWindowScan();
         });
     }
 
@@ -60,6 +68,8 @@ internal sealed class AndroidTouchCaptureSession : ITouchCaptureSession
             }
 
             started = false;
+            scanScheduled = false;
+            mainHandler.RemoveCallbacks(scanRunnable);
 
             if (Application.Context is Application application && activityCallbacks is not null)
             {
@@ -95,22 +105,90 @@ internal sealed class AndroidTouchCaptureSession : ITouchCaptureSession
             return;
         }
 
+        var activeWindowHandles = new HashSet<nint>();
+        activeWindowHandles.Add(activity.Window.Handle);
+        InstallWindow(activity, activity.Window, () => activity.Window?.DecorView?.RootView);
+
+        foreach (var topLevelView in AndroidSceneCapture.GetTopLevelViews(activity))
+        {
+            var window = TryGetWindowForTopLevelView(topLevelView);
+            if (window != null)
+            {
+                activeWindowHandles.Add(window.Handle);
+            }
+
+            InstallWindow(activity, window, () => topLevelView);
+        }
+
+        PruneDetachedWindows(activity, activeWindowHandles);
+    }
+
+    private void InstallWindow(Activity activity, Window? window, Func<View?> eventRootViewProvider)
+    {
+        if (window == null || window.Handle == IntPtr.Zero)
+        {
+            return;
+        }
+
         lock (sync)
         {
-            if (!started || installedCallbacks.ContainsKey(activity))
+            var windowHandle = window.Handle;
+            if (!started || installedCallbacks.ContainsKey(windowHandle))
             {
                 return;
             }
 
-            var currentCallback = activity.Window.Callback;
+            Window.ICallback? currentCallback;
+            try
+            {
+                currentCallback = window.Callback;
+            }
+            catch
+            {
+                return;
+            }
+
             if (currentCallback is null || currentCallback is TouchCaptureWindowCallback)
             {
                 return;
             }
 
-            var callback = new TouchCaptureWindowCallback(activity, currentCallback, options, recordTouch);
-            installedCallbacks[activity] = callback;
-            activity.Window.Callback = callback;
+            var callback = new TouchCaptureWindowCallback(activity, window, currentCallback, eventRootViewProvider, options, recordTouch);
+            installedCallbacks[windowHandle] = callback;
+
+            try
+            {
+                window.Callback = callback;
+            }
+            catch
+            {
+                installedCallbacks.Remove(windowHandle);
+                callback.Dispose();
+            }
+        }
+    }
+
+    private void PruneDetachedWindows(Activity activity, HashSet<nint> activeWindowHandles)
+    {
+        List<TouchCaptureWindowCallback> callbacks;
+        lock (sync)
+        {
+            callbacks = installedCallbacks.Values
+                .Where(callback =>
+                    IsSameJavaObject(callback.Activity, activity) &&
+                    !activeWindowHandles.Contains(callback.WindowHandle))
+                .ToList();
+
+            foreach (var callback in callbacks)
+            {
+                installedCallbacks.Remove(callback.WindowHandle);
+            }
+        }
+
+        foreach (var callback in callbacks)
+        {
+            callback.RestoreIfCurrent();
+            callback.Dispose();
         }
     }
 
@@ -121,17 +199,62 @@ internal sealed class AndroidTouchCaptureSession : ITouchCaptureSession
             return;
         }
 
-        TouchCaptureWindowCallback? callback;
+        List<TouchCaptureWindowCallback> callbacks;
         lock (sync)
         {
-            if (!installedCallbacks.Remove(activity, out callback))
+            callbacks = installedCallbacks.Values
+                .Where(callback => IsSameJavaObject(callback.Activity, activity))
+                .ToList();
+
+            foreach (var installedCallback in callbacks)
             {
-                return;
+                installedCallbacks.Remove(installedCallback.WindowHandle);
             }
         }
 
-        callback.RestoreIfCurrent();
-        callback.Dispose();
+        foreach (var installedCallback in callbacks)
+        {
+            installedCallback.RestoreIfCurrent();
+            installedCallback.Dispose();
+        }
+    }
+
+    private void ScheduleWindowScan()
+    {
+        lock (sync)
+        {
+            if (!started || scanScheduled)
+            {
+                return;
+            }
+
+            scanScheduled = true;
+        }
+
+        mainHandler.PostDelayed(scanRunnable, WindowScanIntervalMilliseconds);
+    }
+
+    private void RunWindowScan()
+    {
+        try
+        {
+            var currentRoot = AndroidSceneCapture.GetCurrentRoot();
+            if (currentRoot is not null)
+            {
+                Install(currentRoot.Activity);
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Logger.Warning($"Android touch capture window scan skipped: {ex.Message}");
+        }
+
+        lock (sync)
+        {
+            scanScheduled = false;
+        }
+
+        ScheduleWindowScan();
     }
 
     private static void RunOnMainThread(System.Action action)
@@ -143,6 +266,91 @@ internal sealed class AndroidTouchCaptureSession : ITouchCaptureSession
         }
 
         mainHandler.Post(action);
+    }
+
+    private static Window? TryGetWindowForTopLevelView(View view)
+    {
+        var window = TryGetWindowFromViewField(view);
+        if (window != null)
+        {
+            return window;
+        }
+
+        return TryGetActivity(view.Context)?.Window;
+    }
+
+    private static Window? TryGetWindowFromViewField(View view)
+    {
+        var currentClass = view.Class;
+        while (currentClass != null)
+        {
+            try
+            {
+                using var field = currentClass.GetDeclaredField("mWindow");
+                field.Accessible = true;
+                var value = field.Get(view);
+                if (value is Window window)
+                {
+                    return window;
+                }
+
+                value?.Dispose();
+            }
+            catch
+            {
+            }
+
+            currentClass = currentClass.Superclass;
+        }
+
+        return null;
+    }
+
+    private static Activity? TryGetActivity(Context? context)
+    {
+        while (context != null)
+        {
+            if (context is Activity activity)
+            {
+                return activity;
+            }
+
+            if (context is ContextWrapper contextWrapper &&
+                contextWrapper.BaseContext != null &&
+                !ReferenceEquals(context, contextWrapper.BaseContext))
+            {
+                context = contextWrapper.BaseContext;
+                continue;
+            }
+
+            return null;
+        }
+
+        return null;
+    }
+
+    private static bool IsSameJavaObject(Java.Lang.Object? left, Java.Lang.Object? right)
+    {
+        return left != null &&
+            right != null &&
+            left.Handle != IntPtr.Zero &&
+            right.Handle != IntPtr.Zero &&
+            Android.Runtime.JNIEnv.IsSameObject(left.Handle, right.Handle);
+    }
+
+    private sealed class ScanRunnable : Object, IRunnable
+    {
+        private readonly AndroidTouchCaptureSession session;
+
+        public ScanRunnable(AndroidTouchCaptureSession session)
+        {
+            this.session = session;
+        }
+
+        public void Run()
+        {
+            session.RunWindowScan();
+        }
     }
 
     private sealed class ActivityCallbacks : Object, Application.IActivityLifecycleCallbacks
@@ -190,29 +398,45 @@ internal sealed class AndroidTouchCaptureSession : ITouchCaptureSession
     private sealed class TouchCaptureWindowCallback : Object, Window.ICallback
     {
         private readonly Activity activity;
+        private readonly Window window;
         private readonly Window.ICallback inner;
+        private readonly Func<View?> eventRootViewProvider;
         private readonly TouchCaptureOptions options;
         private readonly TouchMoveThrottle moveThrottle;
         private readonly System.Action<CapturedTouch> recordTouch;
 
         public TouchCaptureWindowCallback(
             Activity activity,
+            Window window,
             Window.ICallback inner,
+            Func<View?> eventRootViewProvider,
             TouchCaptureOptions options,
             System.Action<CapturedTouch> recordTouch)
         {
             this.activity = activity;
+            this.window = window;
             this.inner = inner;
+            this.eventRootViewProvider = eventRootViewProvider;
             this.options = options;
             moveThrottle = new TouchMoveThrottle(options);
             this.recordTouch = recordTouch;
         }
 
+        public Activity Activity => activity;
+
+        public nint WindowHandle => window.Handle;
+
         public void RestoreIfCurrent()
         {
-            if (activity.Window?.Callback == this)
+            try
             {
-                activity.Window.Callback = inner;
+                if (window.Callback == this)
+                {
+                    window.Callback = inner;
+                }
+            }
+            catch
+            {
             }
         }
 
@@ -348,18 +572,31 @@ internal sealed class AndroidTouchCaptureSession : ITouchCaptureSession
                 return;
             }
 
-            var rootView = activity.Window?.DecorView?.RootView;
-            var surfaceWidth = rootView?.Width > 0 ? rootView.Width : (int?)null;
-            var surfaceHeight = rootView?.Height > 0 ? rootView.Height : (int?)null;
+            var activityRootView = activity.Window?.DecorView?.RootView;
+            var surfaceWidth = activityRootView?.Width > 0 ? activityRootView.Width : (int?)null;
+            var surfaceHeight = activityRootView?.Height > 0 ? activityRootView.Height : (int?)null;
             var density = activity.Resources?.DisplayMetrics?.Density;
+            var x = (double)motionEvent.GetX(pointerIndex);
+            var y = (double)motionEvent.GetY(pointerIndex);
+
+            var eventRootView = eventRootViewProvider();
+            if (activityRootView != null &&
+                eventRootView != null &&
+                !IsSameJavaObject(activityRootView, eventRootView))
+            {
+                var activityLocation = GetViewLocationOnScreen(activityRootView);
+                var eventLocation = GetViewLocationOnScreen(eventRootView);
+                x += eventLocation.X - activityLocation.X;
+                y += eventLocation.Y - activityLocation.Y;
+            }
 
             var capturedTouch = new CapturedTouch(
                 action,
                 motionEvent.GetPointerId(pointerIndex),
                 pointerIndex,
                 motionEvent.PointerCount,
-                motionEvent.GetX(pointerIndex),
-                motionEvent.GetY(pointerIndex),
+                x,
+                y,
                 surfaceWidth,
                 surfaceHeight,
                 "pixels",
@@ -379,6 +616,15 @@ internal sealed class AndroidTouchCaptureSession : ITouchCaptureSession
             recordTouch(capturedTouch);
             moveThrottle.ObserveRecorded(capturedTouch);
         }
+
+        private static ViewLocation GetViewLocationOnScreen(View view)
+        {
+            var location = new int[2];
+            view.GetLocationOnScreen(location);
+            return new ViewLocation(location[0], location[1]);
+        }
+
+        private readonly record struct ViewLocation(int X, int Y);
     }
 }
 #endif
