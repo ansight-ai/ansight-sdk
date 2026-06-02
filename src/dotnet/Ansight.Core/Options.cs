@@ -1,5 +1,6 @@
 namespace Ansight;
 
+using Ansight.Artifacts;
 using Ansight.Tools;
 using System;
 using System.Collections.Generic;
@@ -23,6 +24,7 @@ public class Options
         AdditionalLogger = new ConsoleLogger(),
         EnableFramesPerSecond = true,
         Tools = ToolRegistry.Empty,
+        ArtifactProviders = ArtifactRegistry.Empty,
         ToolGuard = ToolGuard.Disabled,
         CustomProperties = new SessionCustomProperties(),
         HostAutoProbe = HostAutoProbeOptions.EnabledDefault.Clone(),
@@ -73,6 +75,11 @@ public class Options
     /// Registered remote tools available to paired hosts.
     /// </summary>
     public ToolRegistry Tools { get; private set; } = ToolRegistry.Empty;
+
+    /// <summary>
+    /// Registered app artifact providers available to paired hosts through the core artifact tools.
+    /// </summary>
+    public ArtifactRegistry ArtifactProviders { get; private set; } = ArtifactRegistry.Empty;
 
     /// <summary>
     /// Optional periodic JPEG capture streamed over live pairing sessions.
@@ -143,6 +150,8 @@ public class Options
 
         Tools = Tools ?? ToolRegistry.Empty;
         Tools.Validate();
+        ArtifactProviders = ArtifactProviders ?? ArtifactRegistry.Empty;
+        ArtifactProviders.Validate();
         ToolGuard = ToolGuard ?? ToolGuard.Disabled;
         ToolGuard.Validate();
         CustomProperties ??= new SessionCustomProperties();
@@ -248,6 +257,7 @@ public class Options
                 EnableFramesPerSecond = initialOptions.EnableFramesPerSecond,
                 EnableBatteryLevel = initialOptions.EnableBatteryLevel,
                 Tools = initialOptions.Tools ?? ToolRegistry.Empty,
+                ArtifactProviders = initialOptions.ArtifactProviders ?? ArtifactRegistry.Empty,
                 SessionJpegCapture = initialOptions.SessionJpegCapture is null
                     ? null
                     : new SessionJpegCaptureOptions
@@ -262,6 +272,8 @@ public class Options
                 HostAutoProbe = initialOptions.HostAutoProbe?.Clone() ?? HostAutoProbeOptions.EnabledDefault.Clone(),
                 HostConnection = initialOptions.HostConnection?.Clone() ?? HostConnectionOptions.Default.Clone()
             };
+
+            EnsureArtifactTools();
         }
 
         /// <summary>
@@ -418,6 +430,59 @@ public class Options
         {
             ArgumentException.ThrowIfNullOrEmpty(toolId);
             return (options.Tools ?? ToolRegistry.Empty).Contains(toolId);
+        }
+
+        /// <summary>
+        /// Replaces the registered artifact provider collection.
+        /// </summary>
+        /// <param name="providers">Artifact providers to register for remote discovery and request.</param>
+        /// <returns>The current builder.</returns>
+        public OptionsBuilder WithArtifactProviders(IEnumerable<IArtifactProvider> providers)
+        {
+            if (providers == null) throw new ArgumentNullException(nameof(providers));
+
+            options.ArtifactProviders = new ArtifactRegistry(providers);
+            EnsureArtifactTools();
+            return this;
+        }
+
+        /// <summary>
+        /// Adds a single artifact provider to the registered provider collection.
+        /// </summary>
+        /// <param name="provider">Artifact provider to add.</param>
+        /// <returns>The current builder.</returns>
+        public OptionsBuilder AddArtifactProvider(IArtifactProvider provider)
+        {
+            if (provider == null) throw new ArgumentNullException(nameof(provider));
+
+            options.ArtifactProviders = (options.ArtifactProviders ?? ArtifactRegistry.Empty).Add(provider);
+            EnsureArtifactTools();
+            return this;
+        }
+
+        /// <summary>
+        /// Adds multiple artifact providers to the registered provider collection.
+        /// </summary>
+        /// <param name="providers">Artifact providers to add.</param>
+        /// <returns>The current builder.</returns>
+        public OptionsBuilder AddArtifactProviders(IEnumerable<IArtifactProvider> providers)
+        {
+            if (providers == null) throw new ArgumentNullException(nameof(providers));
+
+            options.ArtifactProviders = (options.ArtifactProviders ?? ArtifactRegistry.Empty).AddRange(providers);
+            EnsureArtifactTools();
+            return this;
+        }
+
+        /// <summary>
+        /// Determines whether an artifact provider with the supplied id is already registered on this builder.
+        /// </summary>
+        /// <param name="providerId">Artifact provider id to look up.</param>
+        /// <returns><see langword="true"/> when the builder has a registered artifact provider with the supplied id; otherwise, <see langword="false"/>.</returns>
+        public bool ContainsArtifactProvider(string providerId)
+        {
+            ArgumentException.ThrowIfNullOrEmpty(providerId);
+            return (options.ArtifactProviders ?? ArtifactRegistry.Empty).Contains(providerId);
         }
 
         /// <summary>
@@ -694,8 +759,57 @@ public class Options
         /// </summary>
         public Options Build()
         {
+            EnsureArtifactTools();
             options.Validate();
             return options;
+        }
+
+        private void EnsureArtifactTools()
+        {
+            var artifactProviders = options.ArtifactProviders ?? ArtifactRegistry.Empty;
+            var tools = (options.Tools ?? ToolRegistry.Empty).ToList();
+
+            if (artifactProviders.Count == 0)
+            {
+                tools.RemoveAll(tool =>
+                    (string.Equals(tool.Id, ArtifactToolIds.Query, StringComparison.OrdinalIgnoreCase) && tool is QueryArtifactsTool) ||
+                    (string.Equals(tool.Id, ArtifactToolIds.Request, StringComparison.OrdinalIgnoreCase) && tool is RequestArtifactTool));
+                options.Tools = new ToolRegistry(tools);
+                return;
+            }
+
+            var hasCustomQueryTool = tools.Any(tool =>
+                string.Equals(tool.Id, ArtifactToolIds.Query, StringComparison.OrdinalIgnoreCase) &&
+                tool is not QueryArtifactsTool);
+            var hasCustomRequestTool = tools.Any(tool =>
+                string.Equals(tool.Id, ArtifactToolIds.Request, StringComparison.OrdinalIgnoreCase) &&
+                tool is not RequestArtifactTool);
+
+            tools.RemoveAll(tool =>
+                (string.Equals(tool.Id, ArtifactToolIds.Query, StringComparison.OrdinalIgnoreCase) && tool is QueryArtifactsTool) ||
+                (string.Equals(tool.Id, ArtifactToolIds.Request, StringComparison.OrdinalIgnoreCase) && tool is RequestArtifactTool));
+
+            var toolsToAdd = new List<ITool>();
+            if (!hasCustomQueryTool)
+            {
+                toolsToAdd.Add(new QueryArtifactsTool(() => options.ArtifactProviders ?? ArtifactRegistry.Empty));
+            }
+
+            if (!hasCustomRequestTool)
+            {
+                toolsToAdd.Add(new RequestArtifactTool(
+                    () => options.ArtifactProviders ?? ArtifactRegistry.Empty,
+                    static () => Runtime.IsInitialized
+                        ? Runtime.MutableInstance.BinaryTransferHub
+                        : null));
+            }
+
+            if (toolsToAdd.Count > 0)
+            {
+                tools.AddRange(toolsToAdd);
+            }
+
+            options.Tools = new ToolRegistry(tools);
         }
     }
 }
