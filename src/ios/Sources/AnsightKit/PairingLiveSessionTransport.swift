@@ -6,15 +6,20 @@ final class PairingLiveSessionTransport: @unchecked Sendable {
 
     private let lock = NSLock()
     private let sendTimeoutSeconds: TimeInterval
-    private var webSocket: URLSessionWebSocketTask?
+    private let webSocketFactory: @Sendable (URL) -> any PairingWebSocket
+    private var webSocket: (any PairingWebSocket)?
     private var receiveTask: Task<Void, Never>?
     private var pendingResponses: [String: CheckedContinuation<PairingControlEnvelope, Error>] = [:]
     private var toolMessageHandler: (@Sendable (String) async -> String?)?
     private var toolResponseSentHandler: (@Sendable (String, String) async -> Void)?
     private var closeHandler: (@Sendable (String) async -> Void)?
 
-    init(sendTimeoutSeconds: TimeInterval = PairingLiveSessionTransport.defaultSendTimeoutSeconds) {
+    init(
+        sendTimeoutSeconds: TimeInterval = PairingLiveSessionTransport.defaultSendTimeoutSeconds,
+        webSocketFactory: @escaping @Sendable (URL) -> any PairingWebSocket = { URLSessionPairingWebSocket(url: $0) }
+    ) {
         self.sendTimeoutSeconds = max(0.2, sendTimeoutSeconds)
+        self.webSocketFactory = webSocketFactory
     }
 
     var isOpen: Bool {
@@ -28,7 +33,7 @@ final class PairingLiveSessionTransport: @unchecked Sendable {
         closeHandler: (@Sendable (String) async -> Void)? = nil
     ) async throws {
         await close(notify: false)
-        let task = URLSession.shared.webSocketTask(with: url)
+        let task = webSocketFactory(url)
         lock.withLock {
             webSocket = task
             self.toolMessageHandler = toolMessageHandler
@@ -100,7 +105,7 @@ final class PairingLiveSessionTransport: @unchecked Sendable {
 
     func close(reason: String = "WebSocket session closed.", notify: Bool = false) async {
         let state = lock.withLock { () -> (
-            URLSessionWebSocketTask?,
+            (any PairingWebSocket)?,
             Task<Void, Never>?,
             (@Sendable (String) async -> Void)?
         ) in
@@ -172,7 +177,7 @@ final class PairingLiveSessionTransport: @unchecked Sendable {
 
     private func sendWebSocketMessage(
         _ message: URLSessionWebSocketTask.Message,
-        using socket: URLSessionWebSocketTask
+        using socket: any PairingWebSocket
     ) async throws {
         let timeoutSeconds = sendTimeoutSeconds
         try await withCheckedThrowingContinuation { continuation in
@@ -195,7 +200,7 @@ final class PairingLiveSessionTransport: @unchecked Sendable {
         }
     }
 
-    private func runReceivePump(_ socket: URLSessionWebSocketTask) async {
+    private func runReceivePump(_ socket: any PairingWebSocket) async {
         var closeReason = "WebSocket session closed."
         while !Task.isCancelled {
             do {

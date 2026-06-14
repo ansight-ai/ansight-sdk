@@ -8,7 +8,7 @@ Date: 2026-06-14
 - Pairing config parsing for `ansight.pairing-config.v1`, `ansight.pairing-config-document.v1`, and legacy `ansight.pairing-ticket.v1`.
 - UDP bootstrap, WebSocket session handoff, remembered host profiles with saved/cached status separation, Wi-Fi-keyed cached profile refresh, legacy cached-profile migration, newest-first cached profile resolution, automatic live retry across resolved host candidates, app-provided file/QR config reader entry points, SDK-owned UIKit document picker and QR scanner, metric channel announcement, sequence-cursored retained metric/event streaming, app state streaming, clean disconnect, and host status snapshots.
 - Automatic UIKit foreground/background capture, UIKit view-controller and SwiftUI `UIHostingController` screen-view capture with opt-out controls, app-provided route naming hooks, FPS capture through `CADisplayLink`, live JPEG screen capture, and UIKit touch capture.
-- Tool protocol bridge with `tool.query`, `tool.catalog`, `tool.call`, guard policy, security metadata, case-insensitive IDs, duplicate rejection, and live binary transfer queueing.
+- Tool protocol bridge with `tool.query`, `tool.catalog`, `tool.call`, guard policy, security metadata, case-insensitive IDs, duplicate rejection, live binary transfer queueing, host acknowledgement/send timeout coverage, and sustained large-transfer frame/chunk-boundary coverage.
 - Device/app profile collection with SDK/app/build/process metadata, app icon payloads, Apple device/OS/locale/time-zone/CPU/memory/storage/display/battery/thermal metadata, Swift/runtime stack codes, Metal GPU/render-backend metadata, and privacy-safe coarse network path metadata.
 - SwiftPM products:
   - `AnsightKit`
@@ -40,8 +40,8 @@ Date: 2026-06-14
 
 4. Tool infrastructure polish:
    - Basic protocol-boundary validation now rejects non-object `arguments` payloads, rejects non-object `payload` values, preserves JSON object/array/scalar arguments as tool strings, ignores unsupported capabilities, and covers unknown tool protocol types for .NET parity.
-   - Add host timeout and sustained large-transfer parity tests.
-   - Keep binary transfer behavior under sustained large-file load.
+   - Host acknowledgement timeout, WebSocket send timeout, sustained large-transfer framing, and runtime chunk-size clamp tests are implemented.
+   - Remaining tool infrastructure validation is a live Studio large-binary reassembly run through `files.begin_binary_download`.
 
 5. Reflection tools:
    - Still intentionally blocked pending native security and object-model design approval.
@@ -95,7 +95,8 @@ Broad visual-tree apps:
 
 ## Latest Validation Evidence
 
-- `swift test` in `src/ios`: 71 tests, 1 skipped, 0 failures.
+- `swift test` in `src/ios`: 75 tests, 1 skipped, 0 failures.
+- Native unit coverage now verifies host acknowledgement timeout, WebSocket send timeout closure, sustained binary transfer frame headers/chunk offsets, payload reconstruction, and runtime chunk-size clamps.
 - Native harness Xcode build succeeded for iPhone 17e iOS 26.4 simulator.
 - Ansight Studio live session `ai-ansight-ios-native-harness-510` reported WebSocket Open and a 28-tool catalog.
 - Studio `data.list_databases` found `Documents/ansight-harness/sample.sqlite`.

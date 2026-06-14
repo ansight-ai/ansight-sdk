@@ -243,6 +243,98 @@ final class FileSystemToolTests: XCTestCase {
         XCTAssertEqual(errorCode(envelope), "filesystem_binary_download_unavailable")
     }
 
+    func testBinaryTransferWireProtocolFramesSustainedLargePayload() throws {
+        let transferId = try XCTUnwrap(UUID(uuidString: "01234567-89AB-CDEF-0123-456789ABCDEF"))
+        let sourcePayload = Data((0..<150_000).map { UInt8($0 % 251) })
+        let chunkBytes = 64 * 1024
+        var frames: [Data] = []
+        var sequence: Int32 = 0
+        var offsetBytes: Int64 = 0
+
+        while offsetBytes < sourcePayload.count {
+            let remainingBytes = sourcePayload.count - Int(offsetBytes)
+            let byteCount = min(chunkBytes, remainingBytes)
+            let payload = sourcePayload.subdata(in: Int(offsetBytes)..<Int(offsetBytes) + byteCount)
+            frames.append(
+                PairingFileTransferWireProtocol.createFrame(
+                    transferId: transferId,
+                    frameType: .chunk,
+                    sequence: sequence,
+                    offsetBytes: offsetBytes,
+                    payload: payload
+                )
+            )
+
+            sequence += 1
+            offsetBytes += Int64(byteCount)
+        }
+
+        frames.append(
+            PairingFileTransferWireProtocol.createFrame(
+                transferId: transferId,
+                frameType: .complete,
+                sequence: sequence,
+                offsetBytes: offsetBytes,
+                payload: Data()
+            )
+        )
+
+        let expectedPayloadCounts = [65_536, 65_536, 18_928, 0]
+        let expectedOffsets = [0, 65_536, 131_072, 150_000]
+        let transferIdHex = transferId.uuidString.replacingOccurrences(of: "-", with: "").lowercased()
+        var reconstructedPayload = Data()
+
+        XCTAssertEqual(frames.count, expectedPayloadCounts.count)
+        for (index, frame) in frames.enumerated() {
+            let isCompleteFrame = index == frames.count - 1
+            XCTAssertEqual(frame.count, PairingFileTransferWireProtocol.headerSize + expectedPayloadCounts[index])
+            XCTAssertEqual(Array(frame[0..<4]), Array(PairingFileTransferWireProtocol.magic.utf8))
+            XCTAssertEqual(frame[4], PairingFileTransferWireProtocol.version)
+            XCTAssertEqual(
+                frame[5],
+                isCompleteFrame
+                    ? PairingFileTransferFrameType.complete.rawValue
+                    : PairingFileTransferFrameType.chunk.rawValue
+            )
+            XCTAssertEqual(String(decoding: frame[8..<40], as: UTF8.self), transferIdHex)
+            XCTAssertEqual(readInt32(frame, at: 40), Int32(index))
+            XCTAssertEqual(readInt64(frame, at: 44), Int64(expectedOffsets[index]))
+            XCTAssertEqual(readInt32(frame, at: 52), Int32(expectedPayloadCounts[index]))
+
+            if !isCompleteFrame {
+                reconstructedPayload.append(frame.subdata(in: PairingFileTransferWireProtocol.headerSize..<frame.count))
+            }
+        }
+
+        XCTAssertEqual(reconstructedPayload, sourcePayload)
+    }
+
+    func testPendingBinaryTransferClampsChunkSizeToRuntimeBounds() {
+        let transferId = UUID()
+        let tinyChunkTransfer = AnsightPendingBinaryTransfer(
+            transferId: transferId,
+            data: Data(),
+            chunkBytes: 0,
+            description: "tiny"
+        )
+        let defaultChunkTransfer = AnsightPendingBinaryTransfer(
+            transferId: transferId,
+            data: Data(),
+            chunkBytes: 64 * 1_024,
+            description: "default"
+        )
+        let oversizedChunkTransfer = AnsightPendingBinaryTransfer(
+            transferId: transferId,
+            data: Data(),
+            chunkBytes: 2 * 1_024 * 1_024,
+            description: "oversized"
+        )
+
+        XCTAssertEqual(tinyChunkTransfer.chunkBytes, 1)
+        XCTAssertEqual(defaultChunkTransfer.chunkBytes, 64 * 1_024)
+        XCTAssertEqual(oversizedChunkTransfer.chunkBytes, 1_024 * 1_024)
+    }
+
     private func options(root: URL) -> AnsightFileSystemToolsOptions {
         AnsightFileSystemToolsOptions(additionalRoots: [
             AnsightFileSystemRoot(alias: "test", path: root.path),
@@ -336,5 +428,21 @@ final class FileSystemToolTests: XCTestCase {
         }
 
         return code
+    }
+
+    private func readInt32(_ data: Data, at index: Int) -> Int32 {
+        var value: Int32 = 0
+        _ = withUnsafeMutableBytes(of: &value) { buffer in
+            data.copyBytes(to: buffer, from: index..<index + MemoryLayout<Int32>.size)
+        }
+        return Int32(littleEndian: value)
+    }
+
+    private func readInt64(_ data: Data, at index: Int) -> Int64 {
+        var value: Int64 = 0
+        _ = withUnsafeMutableBytes(of: &value) { buffer in
+            data.copyBytes(to: buffer, from: index..<index + MemoryLayout<Int64>.size)
+        }
+        return Int64(littleEndian: value)
     }
 }
