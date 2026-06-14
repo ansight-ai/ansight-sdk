@@ -100,7 +100,24 @@ Returning `nil` or a blank route name keeps the default descriptor.
 
 ## File and QR pairing payloads
 
-File and QR requests use an app-provided config reader. The reader owns any platform UI, then returns the pairing payload string to the normal `connect(...)` flow:
+The aggregate `Ansight` product registers `PlatformHostConnectionConfigReader` by default from `initializeAndActivateAnsightSdk(...)`. It presents a UIKit document picker for `.file` requests and a UIKit/AVFoundation QR scanner for `.qrCode` requests:
+
+```swift
+import Ansight
+
+try AnsightRuntime.shared.initializeAndActivateAnsightSdk()
+await AnsightRuntime.shared.connect(.qrCode(title: "Scan Pairing QR"))
+```
+
+Lower-level `AnsightKit` integrations can register the platform reader explicitly:
+
+```swift
+AnsightRuntime.shared.setHostConnectionConfigReader(PlatformHostConnectionConfigReader())
+```
+
+Apps that use `.qrCode` must include `NSCameraUsageDescription` in `Info.plist`.
+
+Apps that need custom pairing UI can provide their own reader. The reader owns the UI, then returns the pairing payload string to the normal `connect(...)` flow:
 
 ```swift
 final class MyPairingReader: HostConnectionConfigReading {
@@ -153,6 +170,6 @@ That preset keeps the core package tool-free by default, sets telemetry to 400 m
 
 - `openSession(...)` remains a harness-only local compatibility API; use `connect(...)` or `openLiveSession(...)` for a real Studio session
 - reflection tools and custom remote tool suites are later first-complete-pass steps
-- file/QR connection requests require an app-provided `HostConnectionConfigReading` implementation; a packaged UIKit scanner or document picker is not included yet
+- SDK-owned file/QR pairing UI is UIKit-only; macOS package builds compile the reader surface but report those request kinds unsupported
 - binary file/screenshot transfer requires a live tool-protocol request context; direct in-process execution still reports a transfer-unavailable error
 - the build-time developer pairing and bundled-tool scan currently ship only through SwiftPM; CocoaPods does not yet have equivalent automation

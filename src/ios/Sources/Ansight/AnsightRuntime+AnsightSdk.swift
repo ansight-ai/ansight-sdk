@@ -10,9 +10,12 @@ public extension AnsightRuntime {
 
     func initializeAndActivateAnsightSdk(
         options: AnsightOptions = .ansightDeveloperDefaults,
-        remoteToolOptions: AnsightRemoteToolOptions? = .default
+        remoteToolOptions: AnsightRemoteToolOptions? = .default,
+        hostConnectionConfigReader: (any HostConnectionConfigReading)? = PlatformHostConnectionConfigReader()
     ) throws {
-        try initializeAndActivate(options: options)
+        try initialize(options: options)
+        setHostConnectionConfigReader(hostConnectionConfigReader)
+        try activate()
         if let remoteToolOptions {
             try registerAnsightRemoteTools(options: remoteToolOptions)
         }

@@ -437,6 +437,23 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertNil(result.openSession)
     }
 
+    func testPlatformHostConnectionConfigReaderAdvertisesPlatformUiRequestKinds() {
+        let reader = PlatformHostConnectionConfigReader()
+
+        #if canImport(UIKit)
+        XCTAssertTrue(reader.canRead(.file))
+        XCTAssertTrue(reader.canRead(.qrCode))
+        #else
+        XCTAssertFalse(reader.canRead(.file))
+        XCTAssertFalse(reader.canRead(.qrCode))
+        #endif
+        XCTAssertFalse(reader.canRead(.auto))
+        XCTAssertFalse(reader.canRead(.savedConfig))
+        XCTAssertFalse(reader.canRead(.bundledConfig))
+        XCTAssertFalse(reader.canRead(.payload))
+        XCTAssertFalse(reader.canRead(.config))
+    }
+
     func testOptionsClampToSharedTelemetryBoundsAndRejectReservedCustomChannels() throws {
         let options = try AnsightOptions(
             sampleFrequencyMilliseconds: 50,
