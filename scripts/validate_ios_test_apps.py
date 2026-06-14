@@ -287,15 +287,42 @@ def format_command_failure(result: CommandResult, max_chars: int = 4000) -> str:
     text = f"{' '.join(result.command)}{location} exited {result.returncode}"
     combined = "\n".join(part for part in [result.stdout, result.stderr] if part)
     if combined:
+        diagnostics = extract_diagnostic_lines(combined)
+        if diagnostics:
+            text += "\n--- diagnostics ---\n" + "\n".join(diagnostics)
         text += "\n" + combined[-max_chars:]
     return text
+
+
+def extract_diagnostic_lines(text: str, max_lines: int = 40) -> list[str]:
+    diagnostic_patterns = [
+        re.compile(r"(^|\s)(fatal error|error):\s"),
+        re.compile(r"^ld:\s"),
+        re.compile(r"^\*\* BUILD FAILED \*\*$"),
+        re.compile(r"^The following build commands failed:"),
+    ]
+    lines: list[str] = []
+    seen: set[str] = set()
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if not any(pattern.search(line) for pattern in diagnostic_patterns):
+            continue
+        if line in seen:
+            continue
+        seen.add(line)
+        lines.append(line)
+        if len(lines) >= max_lines:
+            break
+    return lines
 
 
 def summarize_error(error: Exception | str, max_chars: int = 600) -> str:
     text = str(error)
     preferred_patterns = [
-        r"error: [^\n]+",
-        r"ld: [^\n]+",
+        r"(?:^|\n)[^\n]*(?:fatal error|error): [^\n]+",
+        r"(?:^|\n)ld: [^\n]+",
         r"\*\* BUILD FAILED \*\*",
         r"Timed out waiting[^\n]+",
         r"No live Studio session[^\n]+",
@@ -303,7 +330,7 @@ def summarize_error(error: Exception | str, max_chars: int = 600) -> str:
     ]
     matches: list[str] = []
     for pattern in preferred_patterns:
-        matches.extend(re.findall(pattern, text))
+        matches.extend(match.strip() for match in re.findall(pattern, text))
     summary = " | ".join(dict.fromkeys(matches)) if matches else text.splitlines()[0] if text else ""
     if len(summary) > max_chars:
         return summary[: max_chars - 3] + "..."
@@ -1007,6 +1034,15 @@ def xcode_build_container_args(project: AppProject) -> list[str]:
     return xcode_container_args(project, use_workspace=None)
 
 
+def xcode_destination(destination_id: str | None, architecture: str | None = None) -> str | None:
+    if not destination_id:
+        return None
+    destination = f"id={destination_id}"
+    if architecture:
+        destination += f",arch={architecture}"
+    return destination
+
+
 def legacy_infer_scheme(project: AppProject, target_name: str) -> str | None:
     try:
         listing = xcode_list(project, use_workspace=False)
@@ -1022,7 +1058,7 @@ def build_settings(
     project: AppProject,
     scheme: str,
     configuration: str,
-    destination_id: str | None,
+    destination: str | None,
     derived_data_path: Path | None,
 ) -> dict[str, str]:
     command = [
@@ -1035,8 +1071,8 @@ def build_settings(
         "-configuration",
         configuration,
     ]
-    if destination_id:
-        command += ["-destination", f"id={destination_id}"]
+    if destination:
+        command += ["-destination", destination]
     if derived_data_path:
         command += ["-derivedDataPath", str(derived_data_path)]
     result = run(command, cwd=project.root, check=True, timeout=BUILD_SETTINGS_TIMEOUT_SECONDS)
@@ -1136,7 +1172,7 @@ def prepare_project(
     host_address: str,
     discovery_port: int,
     configuration: str,
-    destination_id: str | None,
+    destination: str | None,
     derived_data_path: Path | None,
     inject_validation_app_icon: bool,
     inject_validation_route_resolver: bool,
@@ -1153,7 +1189,7 @@ def prepare_project(
     app.scheme = scheme
     app.target_name = target_name
 
-    settings = build_settings(app, scheme, configuration, destination_id, derived_data_path)
+    settings = build_settings(app, scheme, configuration, destination, derived_data_path)
     bundle_id = expand_bundle_id(settings.get("PRODUCT_BUNDLE_IDENTIFIER", ""), settings)
     if not bundle_id:
         raise RuntimeError(f"Could not resolve PRODUCT_BUNDLE_IDENTIFIER for {app.slug}.")
@@ -1229,7 +1265,7 @@ def prepare_project(
 def resolve_project_identity(
     app: AppProject,
     configuration: str,
-    destination_id: str | None,
+    destination: str | None,
     derived_data_path: Path | None,
 ) -> AppProject:
     project = load_project(app.project_path)
@@ -1240,7 +1276,7 @@ def resolve_project_identity(
     if not scheme:
         raise RuntimeError(f"Could not infer a scheme for {app.slug}.")
 
-    settings = build_settings(app, scheme, configuration, destination_id, derived_data_path)
+    settings = build_settings(app, scheme, configuration, destination, derived_data_path)
     bundle_id = expand_bundle_id(settings.get("PRODUCT_BUNDLE_IDENTIFIER", ""), settings)
     if not bundle_id:
         raise RuntimeError(f"Could not resolve PRODUCT_BUNDLE_IDENTIFIER for {app.slug}.")
@@ -1277,10 +1313,11 @@ def resolve_project_identity_fast(app: AppProject) -> AppProject:
 def build_app(
     app: AppProject,
     configuration: str,
-    destination_id: str,
+    destination: str,
     derived_data_path: Path,
     deployment_target: str,
     exclude_simulator_arm64: bool,
+    relax_warnings: bool,
 ) -> None:
     command = [
         "xcodebuild",
@@ -1290,7 +1327,7 @@ def build_app(
         "-configuration",
         configuration,
         "-destination",
-        f"id={destination_id}",
+        destination,
         "-derivedDataPath",
         str(derived_data_path),
         "build",
@@ -1299,6 +1336,16 @@ def build_app(
     ]
     if exclude_simulator_arm64:
         command.append("EXCLUDED_ARCHS[sdk=iphonesimulator*]=arm64")
+    if relax_warnings:
+        command.extend(
+            [
+                "GCC_TREAT_WARNINGS_AS_ERRORS=NO",
+                "SWIFT_TREAT_WARNINGS_AS_ERRORS=NO",
+                "CLANG_WARN_PARENTHESES=NO",
+                "GCC_WARN_INHIBIT_ALL_WARNINGS=YES",
+                "OTHER_CFLAGS=$(inherited) -Wno-parentheses",
+            ]
+        )
     env = {
         "ANSIGHT_ALLOW_REMOTE_TOOLS": "true",
         "ANSIGHT_DEVELOPER_PAIRING_ENABLED": "false",
@@ -1311,10 +1358,10 @@ def build_app(
 def built_app_path(
     app: AppProject,
     configuration: str,
-    destination_id: str,
+    destination: str,
     derived_data_path: Path,
 ) -> Path:
-    settings = build_settings(app, app.scheme or app.target_name or app.project_path.stem, configuration, destination_id, derived_data_path)
+    settings = build_settings(app, app.scheme or app.target_name or app.project_path.stem, configuration, destination, derived_data_path)
     target_build_dir = settings.get("TARGET_BUILD_DIR")
     full_product_name = settings.get("FULL_PRODUCT_NAME")
     if not target_build_dir or not full_product_name:
@@ -1778,7 +1825,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--exclude-simulator-arm64",
         action="store_true",
-        help="Pass EXCLUDED_ARCHS[sdk=iphonesimulator*]=arm64 for older pods that only ship device arm64 static libraries.",
+        help="Force an x86_64 simulator build and pass EXCLUDED_ARCHS[sdk=iphonesimulator*]=arm64 for older binary pods.",
+    )
+    parser.add_argument(
+        "--relax-warnings",
+        action="store_true",
+        help="Do not let warning-heavy legacy sample dependencies fail validation builds.",
     )
     parser.add_argument(
         "--inject-validation-app-icon",
@@ -1896,6 +1948,12 @@ def main() -> int:
 
     destination_id = args.simulator or first_booted_simulator()
     boot_simulator(destination_id)
+    destination = xcode_destination(
+        destination_id,
+        "x86_64" if args.exclude_simulator_arm64 else None,
+    )
+    if not destination:
+        raise RuntimeError("Could not resolve an Xcode destination.")
 
     results: list[ValidationResult] = []
     studio_client: StudioMCPClient | None = None
@@ -1932,7 +1990,7 @@ def main() -> int:
                     resolved = resolve_project_identity(
                         project,
                         args.configuration,
-                        destination_id,
+                        destination,
                         derived_data_path,
                     )
                     result.scheme = resolved.scheme
@@ -1958,7 +2016,7 @@ def main() -> int:
                     args.host_address,
                     args.discovery_port,
                     args.configuration,
-                    destination_id,
+                    destination,
                     derived_data_path,
                     args.inject_validation_app_icon,
                     args.inject_validation_route_resolver,
@@ -1980,15 +2038,16 @@ def main() -> int:
                 build_app(
                     project,
                     args.configuration,
-                    destination_id,
+                    destination,
                     derived_data_path,
                     args.deployment_target,
                     args.exclude_simulator_arm64,
+                    args.relax_warnings,
                 )
                 result.built = True
 
                 stage = "resolving_app_path"
-                app_path = built_app_path(project, args.configuration, destination_id, derived_data_path)
+                app_path = built_app_path(project, args.configuration, destination, derived_data_path)
                 result.app_path = str(app_path)
                 if args.build_only:
                     result.status = "built"
