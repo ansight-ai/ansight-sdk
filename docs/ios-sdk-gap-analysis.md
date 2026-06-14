@@ -39,8 +39,8 @@ Date: 2026-06-14
    - Remaining depth is permission-relevant facts where native APIs allow them without PII, and richer network or hardware data only after explicit privacy/security review.
 
 4. Tool infrastructure polish:
-   - Basic protocol-boundary validation now rejects non-object `arguments` payloads and preserves JSON object/array/scalar arguments as tool strings for .NET parity.
-   - Add more protocol-edge parity tests for malformed envelopes and host timeouts.
+   - Basic protocol-boundary validation now rejects non-object `arguments` payloads, rejects non-object `payload` values, preserves JSON object/array/scalar arguments as tool strings, ignores unsupported capabilities, and covers unknown tool protocol types for .NET parity.
+   - Add host timeout and sustained large-transfer parity tests.
    - Keep binary transfer behavior under sustained large-file load.
 
 5. Reflection tools:
@@ -95,7 +95,7 @@ Broad visual-tree apps:
 
 ## Latest Validation Evidence
 
-- `swift test` in `src/ios`: 68 tests, 1 skipped, 0 failures.
+- `swift test` in `src/ios`: 71 tests, 1 skipped, 0 failures.
 - Native harness Xcode build succeeded for iPhone 17e iOS 26.4 simulator.
 - Ansight Studio live session `ai-ansight-ios-native-harness-510` reported WebSocket Open and a 28-tool catalog.
 - Studio `data.list_databases` found `Documents/ansight-harness/sample.sqlite`.

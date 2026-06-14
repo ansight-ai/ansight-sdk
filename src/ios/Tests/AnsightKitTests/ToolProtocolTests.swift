@@ -137,6 +137,48 @@ final class ToolProtocolTests: XCTestCase {
         XCTAssertEqual(code, "tool_protocol_invalid_request")
     }
 
+    func testUnsupportedToolCapabilityIsIgnored() throws {
+        let bridge = AnsightToolProtocolBridge(registry: [:], guardPolicy: .readOnly)
+
+        let responseJson = try bridge.handleIfSupported(
+            """
+            {"type":"tool.query","id":"req_wrong_capability","capability":"tool.other","payload":{}}
+            """
+        )
+
+        XCTAssertNil(responseJson)
+    }
+
+    func testUnknownToolProtocolTypeReturnsToolError() throws {
+        let bridge = AnsightToolProtocolBridge(registry: [:], guardPolicy: .readOnly)
+
+        let responseJson = try bridge.handleIfSupported(
+            """
+            {"type":"tool.unknown","id":"req_unknown","capability":"tool.exec","payload":{}}
+            """
+        )
+
+        let envelope = try XCTUnwrap(decodeEnvelope(responseJson))
+        XCTAssertEqual(envelope.type, "tool.error")
+        XCTAssertEqual(errorCode(in: envelope), "tool_protocol_unknown_type")
+        XCTAssertEqual(envelope.replyTo, "req_unknown")
+    }
+
+    func testInvalidToolCallPayloadReturnsToolError() throws {
+        let bridge = AnsightToolProtocolBridge(registry: [:], guardPolicy: .readOnly)
+
+        let responseJson = try bridge.handleIfSupported(
+            """
+            {"type":"tool.call","id":"req_bad_payload","capability":"tool.exec","payload":["not","an","object"]}
+            """
+        )
+
+        let envelope = try XCTUnwrap(decodeEnvelope(responseJson))
+        XCTAssertEqual(envelope.type, "tool.error")
+        XCTAssertEqual(errorCode(in: envelope), "tool_call_payload_invalid")
+        XCTAssertEqual(envelope.replyTo, "req_bad_payload")
+    }
+
     func testInvalidToolCallArgumentsReturnToolError() throws {
         let bridge = AnsightToolProtocolBridge(
             registry: [
@@ -185,6 +227,15 @@ final class ToolProtocolTests: XCTestCase {
         }
 
         return try? JSONDecoder().decode(AnsightToolProtocolEnvelope.self, from: data)
+    }
+
+    private func errorCode(in envelope: AnsightToolProtocolEnvelope) -> String? {
+        guard case .object(let payload) = envelope.payload,
+              case .string(let code)? = payload["code"] else {
+            return nil
+        }
+
+        return code
     }
 }
 
