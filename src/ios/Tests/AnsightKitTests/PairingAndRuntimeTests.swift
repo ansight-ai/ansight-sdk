@@ -191,6 +191,74 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertTrue(AnsightRuntime.shared.recordedEvents().contains { $0.type == .lifecycle })
     }
 
+    func testScreenRouteResolverOverridesDefaultDescriptor() {
+        let defaultDescriptor = AnsightScreenDescriptor(
+            name: "GameView",
+            key: "UIHostingController:GameView",
+            details: [
+                "source": "uikit",
+                "viewController": "UIHostingController",
+            ]
+        )
+        let context = AnsightScreenRouteContext(
+            source: "uikit",
+            defaultName: "GameView",
+            defaultKey: defaultDescriptor.key,
+            title: nil,
+            viewControllerName: "UIHostingController",
+            viewControllerTypeName: "SwiftUI.UIHostingController<GameView>",
+            swiftUIRootTypeName: "GameView",
+            details: defaultDescriptor.details
+        )
+        let resolver = AnsightScreenRouteResolver { context in
+            XCTAssertEqual(context.swiftUIRootTypeName, "GameView")
+            return AnsightScreenRoute(
+                name: "Checkout",
+                key: "route:/checkout",
+                details: ["route": "/checkout"]
+            )
+        }
+
+        let screen = AnsightScreenRouteResolution.resolve(
+            defaultDescriptor: defaultDescriptor,
+            context: context,
+            resolver: resolver
+        )
+
+        XCTAssertEqual(screen.name, "Checkout")
+        XCTAssertEqual(screen.key, "route:/checkout")
+        XCTAssertEqual(screen.details["source"], "uikit")
+        XCTAssertEqual(screen.details["route"], "/checkout")
+    }
+
+    func testScreenRouteResolverFallsBackWhenRouteNameIsBlank() {
+        let defaultDescriptor = AnsightScreenDescriptor(
+            name: "Home",
+            key: "HomeViewController:Home",
+            details: ["source": "uikit"]
+        )
+        let context = AnsightScreenRouteContext(
+            source: "uikit",
+            defaultName: "Home",
+            defaultKey: defaultDescriptor.key,
+            title: "Home",
+            viewControllerName: "HomeViewController",
+            viewControllerTypeName: "TestApp.HomeViewController",
+            details: defaultDescriptor.details
+        )
+        let resolver = AnsightScreenRouteResolver { _ in
+            AnsightScreenRoute(name: "  ", key: "route:/ignored")
+        }
+
+        let screen = AnsightScreenRouteResolution.resolve(
+            defaultDescriptor: defaultDescriptor,
+            context: context,
+            resolver: resolver
+        )
+
+        XCTAssertEqual(screen, defaultDescriptor)
+    }
+
     func testRuntimeRecordsFrameRateSampleOnFpsChannel() throws {
         try AnsightRuntime.shared.initialize(
             options: AnsightOptions(hostAutoProbe: .disabledDefault)

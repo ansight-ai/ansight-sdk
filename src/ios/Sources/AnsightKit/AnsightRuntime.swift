@@ -242,6 +242,13 @@ public final class AnsightRuntime: @unchecked Sendable {
         stopTouchCapture(message: "Touch capture disabled.")
     }
 
+    public func setScreenRouteResolver(_ resolver: AnsightScreenRouteResolver?) {
+        lifecycleObserver.setScreenRouteResolver(resolver)
+        lock.withLock {
+            sessionMessage = resolver == nil ? "Screen route resolver cleared." : "Screen route resolver configured."
+        }
+    }
+
     public func captureScreenFrame(options overrideOptions: AnsightSessionJpegCaptureOptions? = nil) async -> OperationResult {
         var captureOptions = overrideOptions ?? lock.withLock { options.sessionJpegCapture } ?? AnsightSessionJpegCaptureOptions()
         captureOptions.validate()

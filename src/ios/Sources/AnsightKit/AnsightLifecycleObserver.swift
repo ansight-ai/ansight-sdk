@@ -18,6 +18,7 @@ final class AnsightLifecycleObserver: @unchecked Sendable {
     private var options = AnsightLifecycleCaptureOptions.disabled
     private var lastScreenKey: String?
     private var lastScreenCapturedAt: Date?
+    private var screenRouteResolver: AnsightScreenRouteResolver?
 
     #if canImport(UIKit)
     private var notificationObservers: [NSObjectProtocol] = []
@@ -56,6 +57,14 @@ final class AnsightLifecycleObserver: @unchecked Sendable {
         lock.withLock {
             runtime = nil
             options = .disabled
+            lastScreenKey = nil
+            lastScreenCapturedAt = nil
+        }
+    }
+
+    func setScreenRouteResolver(_ resolver: AnsightScreenRouteResolver?) {
+        lock.withLock {
+            screenRouteResolver = resolver
             lastScreenKey = nil
             lastScreenCapturedAt = nil
         }
@@ -157,9 +166,14 @@ final class AnsightLifecycleObserver: @unchecked Sendable {
 
     private func recordVisibleScreen(from viewController: UIViewController) {
         let target = Self.visibleLeafViewController(from: viewController)
-        guard !Self.shouldIgnore(target),
-              let runtime = lock.withLock({ self.runtime }),
-              let screen = Self.screenDescriptor(for: target)
+        guard !Self.shouldIgnore(target) else {
+            return
+        }
+
+        let runtime = lock.withLock { self.runtime }
+        let resolver = lock.withLock { self.screenRouteResolver }
+        guard let runtime,
+              let screen = Self.screenDescriptor(for: target, resolver: resolver)
         else {
             return
         }
@@ -243,7 +257,10 @@ final class AnsightLifecycleObserver: @unchecked Sendable {
         return false
     }
 
-    private static func screenDescriptor(for viewController: UIViewController) -> AnsightScreenDescriptor? {
+    private static func screenDescriptor(
+        for viewController: UIViewController,
+        resolver: AnsightScreenRouteResolver?
+    ) -> AnsightScreenDescriptor? {
         let className = String(describing: type(of: viewController))
         let reflectedClassName = String(reflecting: type(of: viewController))
         let title = firstNonEmpty(
@@ -251,13 +268,29 @@ final class AnsightLifecycleObserver: @unchecked Sendable {
             viewController.title,
             viewController.tabBarItem.title
         )
-        let name = title ?? swiftUIHostingScreenName(for: viewController) ?? className
+        let swiftUIName = swiftUIHostingScreenName(for: viewController)
+        let name = title ?? swiftUIName ?? className
         let details: [String: String] = [
             "source": "uikit",
             "viewController": className,
             "viewControllerType": reflectedClassName,
         ]
-        return AnsightScreenDescriptor(name: name, key: "\(className):\(name)", details: details)
+        let defaultDescriptor = AnsightScreenDescriptor(name: name, key: "\(className):\(name)", details: details)
+        let context = AnsightScreenRouteContext(
+            source: "uikit",
+            defaultName: name,
+            defaultKey: defaultDescriptor.key,
+            title: title,
+            viewControllerName: className,
+            viewControllerTypeName: reflectedClassName,
+            swiftUIRootTypeName: swiftUIName,
+            details: details
+        )
+        return AnsightScreenRouteResolution.resolve(
+            defaultDescriptor: defaultDescriptor,
+            context: context,
+            resolver: resolver
+        )
     }
 
     private static func firstNonEmpty(_ values: String?...) -> String? {

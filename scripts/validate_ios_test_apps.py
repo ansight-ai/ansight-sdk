@@ -53,6 +53,7 @@ VALIDATION_OBJC_FILE = "AnsightValidationConstructor.m"
 VALIDATION_ASSETS_DIR = "AnsightValidationAssets.xcassets"
 VALIDATION_APP_ICON_NAME = "AnsightValidationAppIcon"
 VALIDATION_APP_ICON_SET = f"{VALIDATION_APP_ICON_NAME}.appiconset"
+VALIDATION_ROUTE_NAME = "Ansight SDK Validation Route"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -104,6 +105,8 @@ class ValidationResult:
     studio_session_icon_height: int | None = None
     studio_session_icon_byte_count: int | None = None
     validation_app_icon_injected: bool = False
+    validation_route_resolver_injected: bool = False
+    studio_validation_route_seen: bool = False
     studio_error: str | None = None
     status: str = "pending"
     failure_stage: str | None = None
@@ -695,11 +698,29 @@ def write_validation_sources(
     app_name: str,
     bundle_id: str,
     pairing_config_json: str,
+    inject_validation_route_resolver: bool,
 ) -> None:
     validation_dir = project_root / VALIDATION_GROUP_NAME
     validation_dir.mkdir(parents=True, exist_ok=True)
     swift_file = validation_dir / VALIDATION_SWIFT_FILE
     objc_file = validation_dir / VALIDATION_OBJC_FILE
+    validation_route_resolver = ""
+    if inject_validation_route_resolver:
+        validation_route_resolver = f"""
+            runtime.setScreenRouteResolver(AnsightScreenRouteResolver {{ context in
+                AnsightScreenRoute(
+                    name: {swift_string_literal(VALIDATION_ROUTE_NAME)},
+                    key: "ansight-validation-route:\\(expectedBundleId)",
+                    details: [
+                        "route": "/ansight-validation",
+                        "defaultScreen": context.defaultName,
+                        "screenSource": context.source,
+                        "viewController": context.viewControllerName,
+                        "swiftUIRoot": context.swiftUIRootTypeName ?? ""
+                    ]
+                )
+            }})
+"""
 
     swift_file.write_text(
         f"""import Ansight
@@ -740,6 +761,7 @@ private enum AnsightValidationBootstrap {{
 
         let runtime = AnsightRuntime.shared
         do {{
+{validation_route_resolver.rstrip()}
             var options = AnsightOptions.ansightDeveloperDefaults
             options.hostConnection = AnsightHostConnectionOptions(
                 savedConfigKey: "ai.ansight.validation.\\(expectedBundleId)",
@@ -1089,6 +1111,7 @@ def prepare_project(
     destination_id: str | None,
     derived_data_path: Path | None,
     inject_validation_app_icon: bool,
+    inject_validation_route_resolver: bool,
 ) -> AppProject:
     project = load_project(app.project_path)
     objects = object_map(project)
@@ -1116,7 +1139,13 @@ def prepare_project(
         host_address,
         discovery_port,
     )
-    write_validation_sources(app.root, app.app_name or target_name, bundle_id, pairing_config_json)
+    write_validation_sources(
+        app.root,
+        app.app_name or target_name,
+        bundle_id,
+        pairing_config_json,
+        inject_validation_route_resolver,
+    )
     if inject_validation_app_icon:
         write_validation_app_icon_assets(app.root)
 
@@ -1295,6 +1324,7 @@ def verify_studio_session(
     min_tools: int,
     require_fps: bool,
     require_icon: bool,
+    require_validation_route: bool,
 ) -> None:
     if not app.bundle_id:
         raise RuntimeError("Cannot verify Studio session before resolving the bundle id.")
@@ -1327,6 +1357,9 @@ def verify_studio_session(
                     fps_sample_count = get_fps_sample_count(studio, result.studio_session_id)
                     result.studio_fps_sample_count = fps_sample_count
 
+                if require_validation_route:
+                    result.studio_validation_route_seen = get_validation_route_seen(studio, result.studio_session_id)
+
                 failures: list[str] = []
                 if result.studio_status != "WebSocket Open":
                     failures.append(f"session status is {result.studio_status!r}")
@@ -1342,6 +1375,8 @@ def verify_studio_session(
                     failures.append("no FPS telemetry samples")
                 if require_icon and not result.studio_icon_synced:
                     failures.append("app icon was not synced into the Studio session")
+                if require_validation_route and not result.studio_validation_route_seen:
+                    failures.append(f"validation route {VALIDATION_ROUTE_NAME!r} was not observed")
 
                 if not failures:
                     result.studio_verified = True
@@ -1391,6 +1426,32 @@ def get_fps_sample_count(studio: StudioMCPClient, session_id: str | None) -> int
         },
     )
     return int(telemetry.get("matchedSampleCount") or 0)
+
+
+def get_validation_route_seen(studio: StudioMCPClient, session_id: str | None) -> bool:
+    if not session_id:
+        return False
+    artifacts = studio.call_tool(
+        "ansight_get_session_artifacts",
+        {
+            "sessionId": session_id,
+            "types": ["logs"],
+            "limit": 500,
+        },
+    )
+    return contains_validation_route(artifacts)
+
+
+def contains_validation_route(value: Any) -> bool:
+    if isinstance(value, dict):
+        for key in ("label", "name", "screenName", "eventLabel"):
+            item = value.get(key)
+            if isinstance(item, str) and item == VALIDATION_ROUTE_NAME:
+                return True
+        return any(contains_validation_route(item) for item in value.values())
+    if isinstance(value, list):
+        return any(contains_validation_route(item) for item in value)
+    return isinstance(value, str) and VALIDATION_ROUTE_NAME in value
 
 
 def update_studio_app_icon_fields(studio: StudioMCPClient, app: AppProject, result: ValidationResult) -> None:
@@ -1513,6 +1574,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Inject a deterministic app icon asset catalog and make it the target app icon for validation.",
     )
+    parser.add_argument(
+        "--inject-validation-route-resolver",
+        action="store_true",
+        help="Inject an Ansight screen route resolver that renames automatic screen-view captures for validation.",
+    )
     parser.add_argument("--studio-daemon", type=Path, default=DEFAULT_STUDIO_DAEMON)
     parser.add_argument("--studio-issue-configs", action="store_true", help="Issue fresh Ansight Studio pairing configs for each app before preparing.")
     parser.add_argument("--studio-config-duration", default="12h", help="Lifetime for pairing configs issued with --studio-issue-configs.")
@@ -1524,6 +1590,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--studio-min-tools", type=int, default=1)
     parser.add_argument("--studio-no-require-fps", action="store_true", help="Do not require FPS telemetry during Studio verification.")
     parser.add_argument("--studio-require-icon", action="store_true", help="Fail Studio verification unless the app icon is synced into Studio.")
+    parser.add_argument(
+        "--studio-require-validation-route",
+        action="store_true",
+        help=f"Fail Studio verification unless the {VALIDATION_ROUTE_NAME!r} screen-view event is observed.",
+    )
     return parser.parse_args()
 
 
@@ -1655,9 +1726,11 @@ def main() -> int:
                     destination_id,
                     derived_data_path,
                     args.inject_validation_app_icon,
+                    args.inject_validation_route_resolver,
                 )
                 result.prepared = True
                 result.validation_app_icon_injected = args.inject_validation_app_icon
+                result.validation_route_resolver_injected = args.inject_validation_route_resolver
                 result.scheme = prepared.scheme
                 result.bundle_id = prepared.bundle_id
                 result.app_name = prepared.app_name
@@ -1702,6 +1775,7 @@ def main() -> int:
                         args.studio_min_tools,
                         not args.studio_no_require_fps,
                         args.studio_require_icon,
+                        args.studio_require_validation_route,
                     )
                     result.status = "verified"
                 else:
