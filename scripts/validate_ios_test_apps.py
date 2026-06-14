@@ -9,6 +9,7 @@ that format and it lets us mutate the project as structured data.
 from __future__ import annotations
 
 import argparse
+import base64
 import dataclasses
 import datetime as dt
 import hashlib
@@ -55,6 +56,8 @@ VALIDATION_ASSETS_DIR = "AnsightValidationAssets.xcassets"
 VALIDATION_APP_ICON_NAME = "AnsightValidationAppIcon"
 VALIDATION_APP_ICON_SET = f"{VALIDATION_APP_ICON_NAME}.appiconset"
 VALIDATION_ROUTE_NAME = "Ansight SDK Validation Route"
+VALIDATION_INPUT_OVERLAY_EVENT = "ansight.validation.inputOverlay"
+VALIDATION_INPUT_OVERLAY_MARKER_MIN_PIXELS = 500
 VALIDATION_BINARY_FILE = "large-transfer.bin"
 VALIDATION_BINARY_SIZE_BYTES = 150_000
 VALIDATION_BINARY_CHUNK_BYTES = 64 * 1024
@@ -118,11 +121,15 @@ class ValidationResult:
     validation_app_icon_injected: bool = False
     validation_route_resolver_injected: bool = False
     validation_touch_probe_injected: bool = False
+    validation_input_overlay_injected: bool = False
     studio_validation_route_seen: bool = False
     studio_touch_input_verified: bool = False
     studio_touch_count: int | None = None
     studio_touch_gesture_count: int | None = None
     studio_touch_error: str | None = None
+    studio_input_overlay_verified: bool = False
+    studio_input_overlay_marker_pixels: int | None = None
+    studio_input_overlay_error: str | None = None
     studio_binary_download_metadata_verified: bool = False
     studio_binary_download_reassembled: bool = False
     studio_binary_download_size_bytes: int | None = None
@@ -803,6 +810,7 @@ def write_validation_sources(
     pairing_config_json: str,
     inject_validation_route_resolver: bool,
     inject_validation_touch_input: bool,
+    inject_validation_input_overlay: bool,
 ) -> None:
     validation_dir = project_root / VALIDATION_GROUP_NAME
     validation_dir.mkdir(parents=True, exist_ok=True)
@@ -828,6 +836,9 @@ def write_validation_sources(
     validation_imports = "import Ansight"
     validation_touch_probe_call = ""
     validation_touch_probe_function = ""
+    validation_input_overlay_storage = ""
+    validation_input_overlay_call = ""
+    validation_input_overlay_function = ""
     if inject_validation_touch_input:
         validation_imports = "@_spi(AnsightValidation) import Ansight"
         validation_touch_probe_call = """
@@ -868,6 +879,70 @@ def write_validation_sources(
         }
     }
 """
+    if inject_validation_input_overlay:
+        validation_input_overlay_storage = """
+    private static var validationInputOverlayField: UITextField?
+"""
+        validation_input_overlay_call = """
+                scheduleValidationInputOverlay(runtime: runtime)
+"""
+        validation_input_overlay_function = f"""
+
+    private static func scheduleValidationInputOverlay(runtime: AnsightRuntime) {{
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {{
+            guard let window = activeValidationWindow() else {{
+                try? runtime.event(
+                    "{VALIDATION_INPUT_OVERLAY_EVENT}",
+                    details: "No active window was available for the validation input overlay."
+                )
+                return
+            }}
+
+            let field = UITextField(frame: CGRect(x: 16, y: 96, width: 260, height: 44))
+            field.borderStyle = .roundedRect
+            field.text = "Ansight input overlay"
+            field.accessibilityIdentifier = "ansight.validation.inputOverlayField"
+
+            let overlayHeight = CGFloat(220)
+            let overlay = UIView(frame: CGRect(x: 0, y: 0, width: max(window.bounds.width, 320), height: overlayHeight))
+            overlay.backgroundColor = UIColor(red: 1, green: 0, blue: 1, alpha: 1)
+            overlay.accessibilityIdentifier = "ansight.validation.inputOverlayMarker"
+
+            let label = UILabel(frame: CGRect(x: 16, y: 32, width: overlay.bounds.width - 32, height: 80))
+            label.autoresizingMask = [.flexibleWidth]
+            label.text = "ANSIGHT INPUT OVERLAY MARKER"
+            label.textColor = .white
+            label.font = .boldSystemFont(ofSize: 22)
+            label.textAlignment = .center
+            label.numberOfLines = 0
+            overlay.addSubview(label)
+
+            field.inputView = overlay
+            window.addSubview(field)
+            validationInputOverlayField = field
+            field.becomeFirstResponder()
+
+            try? runtime.event(
+                "{VALIDATION_INPUT_OVERLAY_EVENT}",
+                details: "Presented magenta input overlay marker."
+            )
+        }}
+    }}
+
+    private static func activeValidationWindow() -> UIWindow? {{
+        let foregroundScenes = UIApplication.shared.connectedScenes
+            .compactMap {{ $0 as? UIWindowScene }}
+            .filter {{ scene in
+                scene.activationState == .foregroundActive || scene.activationState == .foregroundInactive
+            }}
+        return foregroundScenes
+            .flatMap(\\.windows)
+            .first {{ $0.isKeyWindow }}
+            ?? foregroundScenes.flatMap(\\.windows).first {{ !$0.isHidden && $0.alpha > 0 }}
+            ?? UIApplication.shared.windows.first {{ $0.isKeyWindow }}
+            ?? UIApplication.shared.windows.first {{ !$0.isHidden && $0.alpha > 0 }}
+    }}
+"""
 
     swift_file.write_text(
         f"""{validation_imports}
@@ -884,6 +959,7 @@ private enum AnsightValidationBootstrap {{
     private static var didStart = false
     private static let appName = {swift_string_literal(app_name)}
     private static let expectedBundleId = {swift_string_literal(bundle_id)}
+{validation_input_overlay_storage.rstrip()}
     private static let pairingConfigJson = ###\"\"\"
 {pairing_config_json.rstrip()}
 \"\"\"###
@@ -947,6 +1023,7 @@ private enum AnsightValidationBootstrap {{
             if result.success {{
                 NSLog("[AnsightValidation] connected: \\(result.message)")
 {validation_touch_probe_call.rstrip()}
+{validation_input_overlay_call.rstrip()}
             }} else {{
                 NSLog("[AnsightValidation] connect failed: \\(result.message)")
             }}
@@ -982,6 +1059,7 @@ private enum AnsightValidationBootstrap {{
         }}
     }}
 {validation_touch_probe_function.rstrip()}
+{validation_input_overlay_function.rstrip()}
 }}
 """,
         encoding="utf-8",
@@ -1279,6 +1357,7 @@ def prepare_project(
     inject_validation_app_icon: bool,
     inject_validation_route_resolver: bool,
     inject_validation_touch_input: bool,
+    inject_validation_input_overlay: bool,
 ) -> AppProject:
     project = load_project(app.project_path)
     objects = object_map(project)
@@ -1313,6 +1392,7 @@ def prepare_project(
         pairing_config_json,
         inject_validation_route_resolver,
         inject_validation_touch_input,
+        inject_validation_input_overlay,
     )
     if inject_validation_app_icon:
         write_validation_app_icon_assets(app.root)
@@ -1531,6 +1611,7 @@ def verify_studio_session(
     probe_binary_download: bool,
     require_binary_download_artifact: bool,
     require_touch_input: bool,
+    require_input_overlay: bool,
 ) -> None:
     if not app.bundle_id:
         raise RuntimeError("Cannot verify Studio session before resolving the bundle id.")
@@ -1572,6 +1653,12 @@ def verify_studio_session(
                     except Exception as error:
                         result.studio_touch_error = str(error)
 
+                if require_input_overlay:
+                    try:
+                        update_studio_input_overlay_fields(studio, result)
+                    except Exception as error:
+                        result.studio_input_overlay_error = str(error)
+
                 if probe_binary_download:
                     try:
                         update_studio_binary_download_fields(studio, result)
@@ -1599,6 +1686,8 @@ def verify_studio_session(
                     failures.append("device profile runtime/network details were not synced into the Studio session")
                 if require_touch_input and not result.studio_touch_input_verified:
                     failures.append(result.studio_touch_error or "touch input was not observed in the Studio session")
+                if require_input_overlay and not result.studio_input_overlay_verified:
+                    failures.append(result.studio_input_overlay_error or "validation input overlay was not present in the Studio screenshot")
                 if probe_binary_download and not result.studio_binary_download_metadata_verified:
                     failures.append(result.studio_binary_download_error or "binary download metadata was not verified")
                 if require_binary_download_artifact and not result.studio_binary_download_reassembled:
@@ -1684,6 +1773,171 @@ def update_studio_touch_input_fields(studio: StudioMCPClient, result: Validation
     result.studio_touch_gesture_count = gesture_count
     result.studio_touch_input_verified = touch_count >= 2
     result.studio_touch_error = None if result.studio_touch_input_verified else f"touchCount {touch_count} < 2"
+
+
+def update_studio_input_overlay_fields(studio: StudioMCPClient, result: ValidationResult) -> None:
+    if not result.studio_session_id:
+        raise RuntimeError("Cannot verify the validation input overlay without a Studio session id.")
+
+    studio.call_tool(
+        "ansight_take_screenshot",
+        {
+            "sessionId": result.studio_session_id,
+            "format": "png",
+            "maxWidth": 390,
+            "afterScreenUpdates": True,
+        },
+    )
+    time.sleep(1)
+    frame = studio.call_tool(
+        "ansight_get_screenshot_frame",
+        {
+            "sessionId": result.studio_session_id,
+            "includeImageContent": False,
+            "includeImageBase64": True,
+        },
+    )
+    image_base64 = frame.get("imageBase64")
+    if not isinstance(image_base64, str) or not image_base64:
+        raise RuntimeError("Studio screenshot frame did not include imageBase64.")
+
+    image_bytes = normalize_screenshot_image_to_png(base64.b64decode(image_base64))
+    marker_pixels = count_validation_input_overlay_marker_pixels(image_bytes)
+    result.studio_input_overlay_marker_pixels = marker_pixels
+    result.studio_input_overlay_verified = marker_pixels >= VALIDATION_INPUT_OVERLAY_MARKER_MIN_PIXELS
+    result.studio_input_overlay_error = (
+        None
+        if result.studio_input_overlay_verified
+        else f"validation overlay marker pixels {marker_pixels} < {VALIDATION_INPUT_OVERLAY_MARKER_MIN_PIXELS}"
+    )
+
+
+def count_validation_input_overlay_marker_pixels(image_bytes: bytes) -> int:
+    width, height, channels, pixels = decode_png_pixels(image_bytes)
+    _ = width, height
+    marker_pixels = 0
+    for index in range(0, len(pixels), channels):
+        red = pixels[index]
+        green = pixels[index + 1]
+        blue = pixels[index + 2]
+        if red >= 220 and green <= 80 and blue >= 220:
+            marker_pixels += 1
+    return marker_pixels
+
+
+def normalize_screenshot_image_to_png(image_bytes: bytes) -> bytes:
+    if image_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+        return image_bytes
+
+    sips = shutil.which("sips")
+    if not sips:
+        raise RuntimeError("Screenshot frame was not PNG and macOS sips is unavailable for conversion.")
+
+    with tempfile.TemporaryDirectory(prefix="ansight-screenshot-") as temp_dir:
+        source = Path(temp_dir) / "screenshot.input"
+        output = Path(temp_dir) / "screenshot.png"
+        source.write_bytes(image_bytes)
+        run([sips, "-s", "format", "png", str(source), "--out", str(output)], check=True, timeout=30)
+        if not output.is_file():
+            raise RuntimeError("sips did not produce a PNG screenshot.")
+        return output.read_bytes()
+
+
+def decode_png_pixels(image_bytes: bytes) -> tuple[int, int, int, bytes]:
+    if not image_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+        raise RuntimeError("Screenshot frame was not a PNG image.")
+
+    offset = 8
+    width: int | None = None
+    height: int | None = None
+    bit_depth: int | None = None
+    color_type: int | None = None
+    interlace: int | None = None
+    idat_parts: list[bytes] = []
+    while offset + 8 <= len(image_bytes):
+        length = struct.unpack(">I", image_bytes[offset : offset + 4])[0]
+        chunk_type = image_bytes[offset + 4 : offset + 8]
+        payload_start = offset + 8
+        payload_end = payload_start + length
+        if payload_end + 4 > len(image_bytes):
+            raise RuntimeError("PNG chunk extends past the end of the image.")
+        payload = image_bytes[payload_start:payload_end]
+        offset = payload_end + 4
+
+        if chunk_type == b"IHDR":
+            width, height, bit_depth, color_type, compression, filter_method, interlace = struct.unpack(">IIBBBBB", payload)
+            if compression != 0 or filter_method != 0:
+                raise RuntimeError("PNG uses unsupported compression or filter method.")
+        elif chunk_type == b"IDAT":
+            idat_parts.append(payload)
+        elif chunk_type == b"IEND":
+            break
+
+    if width is None or height is None or bit_depth is None or color_type is None or interlace is None:
+        raise RuntimeError("PNG did not include an IHDR chunk.")
+    if bit_depth != 8 or color_type not in {2, 6} or interlace != 0:
+        raise RuntimeError(f"PNG uses unsupported bit depth/color type/interlace: {bit_depth}/{color_type}/{interlace}.")
+
+    channels = 4 if color_type == 6 else 3
+    bytes_per_pixel = channels
+    stride = width * channels
+    decompressed = zlib.decompress(b"".join(idat_parts))
+    expected_length = (stride + 1) * height
+    if len(decompressed) < expected_length:
+        raise RuntimeError("PNG pixel data is shorter than expected.")
+
+    rows: list[bytes] = []
+    previous = bytearray(stride)
+    cursor = 0
+    for _ in range(height):
+        filter_type = decompressed[cursor]
+        cursor += 1
+        filtered = decompressed[cursor : cursor + stride]
+        cursor += stride
+        reconstructed = reconstruct_png_scanline(filter_type, filtered, previous, bytes_per_pixel)
+        rows.append(bytes(reconstructed))
+        previous = reconstructed
+
+    return width, height, channels, b"".join(rows)
+
+
+def reconstruct_png_scanline(
+    filter_type: int,
+    filtered: bytes,
+    previous: bytearray,
+    bytes_per_pixel: int,
+) -> bytearray:
+    reconstructed = bytearray(filtered)
+    for index, value in enumerate(filtered):
+        left = reconstructed[index - bytes_per_pixel] if index >= bytes_per_pixel else 0
+        up = previous[index]
+        up_left = previous[index - bytes_per_pixel] if index >= bytes_per_pixel else 0
+        if filter_type == 0:
+            predictor = 0
+        elif filter_type == 1:
+            predictor = left
+        elif filter_type == 2:
+            predictor = up
+        elif filter_type == 3:
+            predictor = (left + up) // 2
+        elif filter_type == 4:
+            predictor = paeth_predictor(left, up, up_left)
+        else:
+            raise RuntimeError(f"PNG uses unsupported filter type {filter_type}.")
+        reconstructed[index] = (value + predictor) & 0xFF
+    return reconstructed
+
+
+def paeth_predictor(left: int, up: int, up_left: int) -> int:
+    estimate = left + up - up_left
+    left_distance = abs(estimate - left)
+    up_distance = abs(estimate - up)
+    up_left_distance = abs(estimate - up_left)
+    if left_distance <= up_distance and left_distance <= up_left_distance:
+        return left
+    if up_distance <= up_left_distance:
+        return up
+    return up_left
 
 
 def update_studio_binary_download_fields(studio: StudioMCPClient, result: ValidationResult) -> None:
@@ -1986,6 +2240,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Inject a deterministic down/up touch probe through the SDK validation SPI after the live session connects.",
     )
+    parser.add_argument(
+        "--inject-validation-input-overlay",
+        action="store_true",
+        help="Inject a magenta UITextField inputView overlay for validating picker-like screenshot capture.",
+    )
     parser.add_argument("--studio-daemon", type=Path, default=DEFAULT_STUDIO_DAEMON)
     parser.add_argument("--studio-issue-configs", action="store_true", help="Issue fresh Ansight Studio pairing configs for each app before preparing.")
     parser.add_argument("--studio-config-duration", default="12h", help="Lifetime for pairing configs issued with --studio-issue-configs.")
@@ -2011,6 +2270,11 @@ def parse_args() -> argparse.Namespace:
         "--studio-require-touch-input",
         action="store_true",
         help="Fail Studio verification unless captured touch input is observed through Studio touch review tools.",
+    )
+    parser.add_argument(
+        "--studio-require-input-overlay",
+        action="store_true",
+        help="Fail Studio verification unless the validation input overlay marker is present in a Studio screenshot frame.",
     )
     parser.add_argument(
         "--studio-probe-binary-download",
@@ -2170,11 +2434,13 @@ def main() -> int:
                     args.inject_validation_app_icon,
                     args.inject_validation_route_resolver,
                     args.inject_validation_touch_input,
+                    args.inject_validation_input_overlay,
                 )
                 result.prepared = True
                 result.validation_app_icon_injected = args.inject_validation_app_icon
                 result.validation_route_resolver_injected = args.inject_validation_route_resolver
                 result.validation_touch_probe_injected = args.inject_validation_touch_input
+                result.validation_input_overlay_injected = args.inject_validation_input_overlay
                 result.scheme = prepared.scheme
                 result.bundle_id = prepared.bundle_id
                 result.app_name = prepared.app_name
@@ -2233,6 +2499,7 @@ def main() -> int:
                         args.studio_probe_binary_download or args.studio_require_binary_download_artifact,
                         args.studio_require_binary_download_artifact,
                         args.studio_require_touch_input,
+                        args.studio_require_input_overlay,
                     )
                     result.status = "verified"
                 else:
