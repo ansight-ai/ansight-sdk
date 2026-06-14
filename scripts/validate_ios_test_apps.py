@@ -17,6 +17,7 @@ import os
 import plistlib
 import re
 import select
+import signal
 import shutil
 import struct
 import subprocess
@@ -262,24 +263,52 @@ def run(
     merged_env = os.environ.copy()
     if env:
         merged_env.update(env)
-    process = subprocess.run(
+
+    process = subprocess.Popen(
         command,
         cwd=str(cwd) if cwd else None,
         env=merged_env,
         text=True,
-        capture_output=True,
-        timeout=timeout,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        start_new_session=True,
     )
+    try:
+        stdout, stderr = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired as error:
+        terminate_process_group(process)
+        stdout, stderr = process.communicate()
+        raise subprocess.TimeoutExpired(command, timeout, output=stdout, stderr=stderr) from error
+
     result = CommandResult(
         command=command,
         cwd=cwd,
-        returncode=process.returncode,
-        stdout=process.stdout,
-        stderr=process.stderr,
+        returncode=process.returncode or 0,
+        stdout=stdout,
+        stderr=stderr,
     )
     if check and result.returncode != 0:
         raise RuntimeError(format_command_failure(result))
     return result
+
+
+def terminate_process_group(process: subprocess.Popen[str]) -> None:
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+
+    try:
+        process.wait(timeout=5)
+        return
+    except subprocess.TimeoutExpired:
+        pass
+
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        return
+    process.wait(timeout=5)
 
 
 def format_command_failure(result: CommandResult, max_chars: int = 4000) -> str:
