@@ -1099,7 +1099,7 @@ private enum AnsightValidationBootstrap {{
             return
         }}
 
-        Task {{
+        _Concurrency.Task {{
             let result = await runtime.connect(.bundledConfig(clientName: "Ansight SDK Validation - \\(appName)"))
             if result.success {{
                 NSLog("[AnsightValidation] connected: \\(result.message)")
