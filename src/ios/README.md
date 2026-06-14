@@ -52,6 +52,24 @@ With developer pairing enabled, the build tool reads the source pairing config, 
 
 Without `ANSIGHT_ALLOW_REMOTE_TOOLS=true`, the build fails when the target source contains concrete `AnsightTool` conformances.
 
+## CocoaPods
+
+The iOS SDK also ships local podspecs that mirror the SwiftPM products:
+
+```ruby
+pod 'Ansight', :path => '/path/to/ansight-sdk/src/ios'
+```
+
+For minimal integrations, depend on only the modules you need:
+
+```ruby
+pod 'AnsightKit', :path => '/path/to/ansight-sdk/src/ios'
+pod 'AnsightToolsFileSystem', :path => '/path/to/ansight-sdk/src/ios'
+pod 'AnsightToolsVisualTree', :path => '/path/to/ansight-sdk/src/ios'
+```
+
+The aggregate `Ansight` pod depends on `AnsightKit`, `AnsightToolsDatabase`, `AnsightToolsFileSystem`, `AnsightToolsPreferences`, `AnsightToolsSecureStorage`, and `AnsightToolsVisualTree`.
+
 ## Screen capture
 
 Configure `AnsightOptions.sessionJpegCapture` before connecting to Studio:
@@ -172,4 +190,4 @@ That preset keeps the core package tool-free by default, sets telemetry to 400 m
 - reflection tools and custom remote tool suites are later first-complete-pass steps
 - SDK-owned file/QR pairing UI is UIKit-only; macOS package builds compile the reader surface but report those request kinds unsupported
 - binary file/screenshot transfer requires a live tool-protocol request context; direct in-process execution still reports a transfer-unavailable error
-- the build-time developer pairing and bundled-tool scan currently ship only through SwiftPM; CocoaPods does not yet have equivalent automation
+- the build-time developer pairing and bundled-tool scan currently ship only through SwiftPM; CocoaPods podspecs do not yet have equivalent automation

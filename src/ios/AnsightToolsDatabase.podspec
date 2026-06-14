@@ -1,13 +1,14 @@
 Pod::Spec.new do |s|
-  s.name         = "AnsightKit"
+  s.name         = "AnsightToolsDatabase"
   s.version      = "0.1.0-pre1"
-  s.summary      = "Native iOS runtime for Ansight"
+  s.summary      = "Ansight SQLite remote tools for native iOS apps"
   s.homepage     = "https://github.com/ansight-ai/ansight-sdk"
   s.license      = { :type => "Ansight SDK Source-Available License", :file => "LICENSE" }
   s.authors      = { "Ansight" => "dev@ansight.ai" }
   s.source       = { :path => "." }
   s.platforms    = { :ios => "15.0" }
-  s.source_files = "Sources/AnsightKit/**/*.swift"
-  s.frameworks   = "AVFoundation", "CryptoKit", "Metal", "Network", "QuartzCore", "Security", "UIKit", "UniformTypeIdentifiers"
+  s.source_files = "Sources/AnsightToolsDatabase/**/*.swift"
+  s.libraries    = "sqlite3"
+  s.dependency "AnsightKit", s.version.to_s
   s.swift_version = "6.0"
 end

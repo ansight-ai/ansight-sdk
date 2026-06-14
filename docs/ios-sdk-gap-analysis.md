@@ -10,7 +10,7 @@ Date: 2026-06-14
 - Automatic UIKit foreground/background capture, UIKit view-controller and SwiftUI `UIHostingController` screen-view capture with opt-out controls, app-provided route naming hooks, FPS capture through `CADisplayLink`, live JPEG screen capture, and UIKit touch capture.
 - Tool protocol bridge with `tool.query`, `tool.catalog`, `tool.call`, guard policy, security metadata, case-insensitive IDs, duplicate rejection, live binary transfer queueing, host acknowledgement/send timeout coverage, and sustained large-transfer frame/chunk-boundary coverage.
 - Device/app profile collection with SDK/app/build/process metadata, app icon payloads, Apple device/OS/locale/time-zone/CPU/memory/storage/display/battery/thermal metadata, Swift/runtime stack codes, Metal GPU/render-backend metadata, and privacy-safe coarse network path metadata.
-- SwiftPM products:
+- SwiftPM products and matching local CocoaPods podspecs:
   - `AnsightKit`
   - aggregate `Ansight`
   - `AnsightToolsPreferences`
@@ -49,8 +49,8 @@ Date: 2026-06-14
    - Do not port .NET reflection directly.
 
 6. Distribution:
-   - CocoaPods support is not implemented.
-   - Release packaging/signing/versioning metadata needs a pass before external consumption.
+   - Local CocoaPods podspecs now mirror the SwiftPM product set and pass local aggregate lint.
+   - Remaining distribution work is public release source metadata, signing/versioning, and CocoaPods equivalents for SwiftPM developer pairing artifact generation and bundled remote-tool policy enforcement.
 
 7. Cross-app validation:
    - Native harness is validated live in Ansight Studio.
@@ -99,6 +99,7 @@ Broad visual-tree apps:
 - `swift test` in `src/ios`: 75 tests, 1 skipped, 0 failures.
 - Native unit coverage now verifies host acknowledgement timeout, WebSocket send timeout closure, sustained binary transfer frame headers/chunk offsets, payload reconstruction, and runtime chunk-size clamps.
 - `Clean-Swift__CleanStore` relaunched with the Studio binary-download probe and config `22c97980037945d58c04dddc53697b7f`; Ansight Studio live session `com-clean-swift-cleanstore-544` reported WebSocket Open, 34 metric samples, 29 FPS samples, 1 screenshot, a 28-tool catalog, app icon sync, the validation route, device profile details, and `files.begin_binary_download` metadata for a 150000-byte validation payload with transfer id `e70809b173a144c38f6513bdf533b9e3`. The current Studio MCP response did not include an artifact path, so host-side reassembly remains unverified.
+- CocoaPods validation: `pod lib lint Ansight.podspec --private --allow-warnings --skip-tests --platforms=ios '--include-podspecs=*.podspec' --use-static-frameworks` passed for the aggregate pod and all local SDK/tool pod dependencies.
 - Native harness Xcode build succeeded for iPhone 17e iOS 26.4 simulator.
 - Ansight Studio live session `ai-ansight-ios-native-harness-510` reported WebSocket Open and a 28-tool catalog.
 - Studio `data.list_databases` found `Documents/ansight-harness/sample.sqlite`.
