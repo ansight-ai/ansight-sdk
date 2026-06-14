@@ -450,6 +450,28 @@ def find_app_targets(objects: dict[str, dict[str, Any]]) -> list[tuple[str, dict
     ]
 
 
+def ios_candidate_score(name: str) -> int:
+    normalized = name.lower()
+    score = 0
+    if "ios" in normalized or "iphone" in normalized or "ipad" in normalized:
+        score += 100
+    if "watch" in normalized:
+        score -= 80
+    if "tvos" in normalized or " tv" in normalized:
+        score -= 70
+    if "macos" in normalized or " mac" in normalized:
+        score -= 70
+    if "widget" in normalized or "extension" in normalized or "complication" in normalized:
+        score -= 90
+    return score
+
+
+def select_preferred_ios_name(names: list[str]) -> str | None:
+    if not names:
+        return None
+    return max(names, key=ios_candidate_score)
+
+
 def select_app_target(
     objects: dict[str, dict[str, Any]],
     preferred_scheme: str | None,
@@ -463,7 +485,7 @@ def select_app_target(
             for object_id, target in app_targets:
                 if target.get("name") == requested:
                     return object_id, target
-    return app_targets[0]
+    return max(app_targets, key=lambda item: ios_candidate_score(str(item[1].get("name", ""))))
 
 
 def find_phase(
@@ -1048,7 +1070,7 @@ def infer_scheme(project: AppProject, target_name: str) -> str | None:
         if target_name in schemes:
             return target_name
         if schemes:
-            return schemes[0]
+            return select_preferred_ios_name([str(scheme) for scheme in schemes])
     return target_name
 
 
@@ -1080,7 +1102,7 @@ def legacy_infer_scheme(project: AppProject, target_name: str) -> str | None:
     schemes = listing.get("project", {}).get("schemes", [])
     if target_name in schemes:
         return target_name
-    return schemes[0] if schemes else target_name
+    return select_preferred_ios_name([str(scheme) for scheme in schemes]) or target_name
 
 
 def build_settings(
@@ -1347,6 +1369,7 @@ def build_app(
     deployment_target: str,
     exclude_simulator_arm64: bool,
     relax_warnings: bool,
+    skip_unavailable_actions: bool,
 ) -> None:
     command = [
         "xcodebuild",
@@ -1363,6 +1386,8 @@ def build_app(
         "CODE_SIGNING_ALLOWED=NO",
         f"IPHONEOS_DEPLOYMENT_TARGET={deployment_target}",
     ]
+    if skip_unavailable_actions:
+        command.insert(command.index("build"), "-skipUnavailableActions")
     if exclude_simulator_arm64:
         command.append("EXCLUDED_ARCHS[sdk=iphonesimulator*]=arm64")
     if relax_warnings:
@@ -1862,6 +1887,11 @@ def parse_args() -> argparse.Namespace:
         help="Do not let warning-heavy legacy sample dependencies fail validation builds.",
     )
     parser.add_argument(
+        "--skip-unavailable-actions",
+        action="store_true",
+        help="Pass -skipUnavailableActions to xcodebuild for multi-platform schemes with unavailable embedded actions.",
+    )
+    parser.add_argument(
         "--inject-validation-app-icon",
         action="store_true",
         help="Inject a deterministic app icon asset catalog and make it the target app icon for validation.",
@@ -2072,6 +2102,7 @@ def main() -> int:
                     args.deployment_target,
                     args.exclude_simulator_arm64,
                     args.relax_warnings,
+                    args.skip_unavailable_actions,
                 )
                 result.built = True
 
