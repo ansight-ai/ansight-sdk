@@ -70,6 +70,8 @@ pod 'AnsightToolsVisualTree', :path => '/path/to/ansight-sdk/src/ios'
 
 The aggregate `Ansight` pod depends on `AnsightKit`, `AnsightToolsDatabase`, `AnsightToolsFileSystem`, `AnsightToolsPreferences`, `AnsightToolsSecureStorage`, and `AnsightToolsVisualTree`.
 
+The `AnsightKit` pod runs the same developer build-artifact generator before compile. It honors `ANSIGHT_DEVELOPER_PAIRING_ENABLED`, `ANSIGHT_DEVELOPER_PAIRING_SOURCE_FILE`, and `ANSIGHT_ALLOW_REMOTE_TOOLS`, then writes the pod-only `AnsightGeneratedBuildArtifactsProvider` used by `AnsightDeveloperMode`.
+
 ## Screen capture
 
 Configure `AnsightOptions.sessionJpegCapture` before connecting to Studio:
@@ -190,4 +192,4 @@ That preset keeps the core package tool-free by default, sets telemetry to 400 m
 - reflection tools and custom remote tool suites are later first-complete-pass steps
 - SDK-owned file/QR pairing UI is UIKit-only; macOS package builds compile the reader surface but report those request kinds unsupported
 - binary file/screenshot transfer requires a live tool-protocol request context; direct in-process execution still reports a transfer-unavailable error
-- the build-time developer pairing and bundled-tool scan currently ship only through SwiftPM; CocoaPods podspecs do not yet have equivalent automation
+- public CocoaPods release publication still needs final source URL, signing, and versioning metadata
