@@ -104,6 +104,13 @@ class ValidationResult:
     studio_session_icon_width: int | None = None
     studio_session_icon_height: int | None = None
     studio_session_icon_byte_count: int | None = None
+    studio_device_profile_details_synced: bool = False
+    studio_device_profile_runtime_code: int | None = None
+    studio_device_profile_network_transport_code: int | None = None
+    studio_device_profile_gpu_api_code: int | None = None
+    studio_device_profile_render_backend_code: int | None = None
+    studio_device_profile_environment_code: int | None = None
+    studio_device_profile_privacy_safe: bool = False
     validation_app_icon_injected: bool = False
     validation_route_resolver_injected: bool = False
     studio_validation_route_seen: bool = False
@@ -1325,6 +1332,7 @@ def verify_studio_session(
     require_fps: bool,
     require_icon: bool,
     require_validation_route: bool,
+    require_device_profile_details: bool,
 ) -> None:
     if not app.bundle_id:
         raise RuntimeError("Cannot verify Studio session before resolving the bundle id.")
@@ -1350,7 +1358,7 @@ def verify_studio_session(
                 tool_count = verify_studio_tool_catalog(studio, result.studio_session_id)
                 result.studio_tool_count = tool_count
                 update_studio_app_icon_fields(studio, app, result)
-                update_studio_session_icon_fields(studio, result)
+                update_studio_device_profile_fields(studio, result)
 
                 fps_sample_count = 0
                 if require_fps:
@@ -1377,6 +1385,8 @@ def verify_studio_session(
                     failures.append("app icon was not synced into the Studio session")
                 if require_validation_route and not result.studio_validation_route_seen:
                     failures.append(f"validation route {VALIDATION_ROUTE_NAME!r} was not observed")
+                if require_device_profile_details and not result.studio_device_profile_details_synced:
+                    failures.append("device profile runtime/network details were not synced into the Studio session")
 
                 if not failures:
                     result.studio_verified = True
@@ -1466,7 +1476,7 @@ def update_studio_app_icon_fields(studio: StudioMCPClient, app: AppProject, resu
     result.studio_icon_synced = result.studio_icon_image_path is not None
 
 
-def update_studio_session_icon_fields(studio: StudioMCPClient, result: ValidationResult) -> None:
+def update_studio_device_profile_fields(studio: StudioMCPClient, result: ValidationResult) -> None:
     if not result.studio_session_id:
         return
 
@@ -1487,34 +1497,98 @@ def update_studio_session_icon_fields(studio: StudioMCPClient, result: Validatio
         profile = payload.get("profile")
         if not isinstance(profile, dict):
             continue
-        app = profile.get("app")
-        if not isinstance(app, dict):
-            continue
-        icon = app.get("icon")
-        if not isinstance(icon, dict):
-            continue
 
-        data_base64 = icon.get("dataBase64")
-        byte_count = icon.get("byteCount")
-        width = icon.get("width")
-        height = icon.get("height")
-        has_icon = (
-            isinstance(data_base64, str)
-            and bool(data_base64.strip())
-            and isinstance(byte_count, int)
-            and byte_count > 0
-            and isinstance(width, int)
-            and width > 0
-            and isinstance(height, int)
-            and height > 0
-        )
-        if has_icon:
-            result.studio_session_icon_synced = True
-            result.studio_session_icon_width = width
-            result.studio_session_icon_height = height
-            result.studio_session_icon_byte_count = byte_count
-            result.studio_icon_synced = True
-            return
+        update_studio_session_icon_fields_from_profile(result, profile)
+        update_studio_device_profile_detail_fields(result, profile, text)
+        return
+
+
+def update_studio_session_icon_fields_from_profile(result: ValidationResult, profile: dict[str, Any]) -> None:
+    app = profile.get("app")
+    if not isinstance(app, dict):
+        return
+    icon = app.get("icon")
+    if not isinstance(icon, dict):
+        return
+
+    data_base64 = icon.get("dataBase64")
+    byte_count = icon.get("byteCount")
+    width = icon.get("width")
+    height = icon.get("height")
+    has_icon = (
+        isinstance(data_base64, str)
+        and bool(data_base64.strip())
+        and isinstance(byte_count, int)
+        and byte_count > 0
+        and isinstance(width, int)
+        and width > 0
+        and isinstance(height, int)
+        and height > 0
+    )
+    if has_icon:
+        result.studio_session_icon_synced = True
+        result.studio_session_icon_width = width
+        result.studio_session_icon_height = height
+        result.studio_session_icon_byte_count = byte_count
+        result.studio_icon_synced = True
+
+
+def update_studio_device_profile_detail_fields(
+    result: ValidationResult,
+    profile: dict[str, Any],
+    raw_resource_text: str,
+) -> None:
+    runtime = profile.get("runtime")
+    if isinstance(runtime, dict):
+        primary = runtime.get("primary")
+        if isinstance(primary, int):
+            result.studio_device_profile_runtime_code = primary
+
+    device = profile.get("device")
+    if isinstance(device, dict):
+        network = device.get("network")
+        if isinstance(network, dict):
+            transport_code = network.get("transportCode")
+            if isinstance(transport_code, int):
+                result.studio_device_profile_network_transport_code = transport_code
+
+        gpu = device.get("gpu")
+        if isinstance(gpu, dict):
+            api_code = gpu.get("apiCode")
+            if isinstance(api_code, int):
+                result.studio_device_profile_gpu_api_code = api_code
+
+    graphics = profile.get("graphics")
+    if isinstance(graphics, dict):
+        render_backend_code = graphics.get("renderBackendCode")
+        if isinstance(render_backend_code, int):
+            result.studio_device_profile_render_backend_code = render_backend_code
+
+    app = profile.get("app")
+    if isinstance(app, dict):
+        environment_code = app.get("environmentCode")
+        if isinstance(environment_code, int):
+            result.studio_device_profile_environment_code = environment_code
+
+    lower_resource_text = raw_resource_text.lower()
+    result.studio_device_profile_privacy_safe = '"ssid"' not in lower_resource_text and '"wifiname"' not in lower_resource_text
+    result.studio_device_profile_details_synced = (
+        result.studio_device_profile_runtime_code is not None
+        and result.studio_device_profile_network_transport_code is not None
+        and result.studio_device_profile_environment_code in {1, 3}
+        and result.studio_device_profile_privacy_safe
+        and runtime_stack_has_runtime_code(profile)
+    )
+
+
+def runtime_stack_has_runtime_code(profile: dict[str, Any]) -> bool:
+    runtime = profile.get("runtime")
+    if not isinstance(runtime, dict):
+        return False
+    stack = runtime.get("stack")
+    if not isinstance(stack, list):
+        return False
+    return any(isinstance(item, dict) and isinstance(item.get("runtimeCode"), int) for item in stack)
 
 
 def filter_projects(projects: list[AppProject], requested_apps: list[str]) -> list[AppProject]:
@@ -1594,6 +1668,11 @@ def parse_args() -> argparse.Namespace:
         "--studio-require-validation-route",
         action="store_true",
         help=f"Fail Studio verification unless the {VALIDATION_ROUTE_NAME!r} screen-view event is observed.",
+    )
+    parser.add_argument(
+        "--studio-require-device-profile-details",
+        action="store_true",
+        help="Fail Studio verification unless runtime, coarse network, environment, and privacy-safe device profile fields are observed.",
     )
     return parser.parse_args()
 
@@ -1776,6 +1855,7 @@ def main() -> int:
                         not args.studio_no_require_fps,
                         args.studio_require_icon,
                         args.studio_require_validation_route,
+                        args.studio_require_device_profile_details,
                     )
                     result.status = "verified"
                 else:

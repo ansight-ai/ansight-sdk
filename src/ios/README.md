@@ -27,7 +27,7 @@ Ansight Services.
 - FPS telemetry sampling through `CADisplayLink` on UIKit platforms using the reserved FPS metric channel
 - live JPEG screen-frame capture using Studio's binary `ASJP` / `CLIENT_JPEG` WebSocket path
 - live UIKit touch capture using a simultaneous window gesture recognizer and Studio-compatible `CLIENT_TOUCH_INPUT` / `ansight.touches.v1` packed batches
-- baseline Apple device/app profile collection without direct PII
+- baseline Apple device/app profile collection without direct PII, including runtime stack codes, app icon payloads, Metal GPU/render-backend details, and coarse network transport
 - Keychain-backed saved pairing config storage with explicit clearing
 - queued `ansight.file-transfer.v1` binary artifact transfers for screenshot and file-download tools during live Studio sessions
 - executable tool registration, tool guard policy, tool security metadata, reserved tool call context arguments, and `tool.query` / `tool.call` protocol handling

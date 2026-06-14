@@ -490,6 +490,72 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertFalse(json.contains("heightPx"))
     }
 
+    func testDeviceProfileSubprofilesSerializeProtocolFields() throws {
+        let gpu = DeviceGpuProfile(
+            vendor: "Apple",
+            model: "Apple GPU",
+            driver: nil,
+            renderer: "Apple GPU",
+            apiCode: 3,
+            driverVersion: "metal",
+            vramMb: 1024,
+            featureLevel: "common3"
+        )
+        let network = DeviceNetworkProfile(
+            transportCode: 2,
+            metered: false,
+            effectiveType: "wifi",
+            rttMs: nil,
+            downKbps: nil
+        )
+        let stackEntry = DeviceRuntimeStackEntry(
+            runtimeCode: 2,
+            name: "ios",
+            version: "26.4.0",
+            layer: "platform"
+        )
+
+        let gpuObject = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder.ansightEncoder.encode(gpu)) as? [String: Any])
+        let networkObject = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder.ansightEncoder.encode(network)) as? [String: Any])
+        let stackObject = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder.ansightEncoder.encode(stackEntry)) as? [String: Any])
+
+        XCTAssertEqual(gpuObject["renderer"] as? String, "Apple GPU")
+        XCTAssertEqual(gpuObject["apiCode"] as? Int, 3)
+        XCTAssertEqual(gpuObject["driverVersion"] as? String, "metal")
+        XCTAssertEqual(gpuObject["vramMb"] as? Int, 1024)
+        XCTAssertEqual(gpuObject["featureLevel"] as? String, "common3")
+        XCTAssertEqual(networkObject["transportCode"] as? Int, 2)
+        XCTAssertEqual(networkObject["metered"] as? Bool, false)
+        XCTAssertEqual(networkObject["effectiveType"] as? String, "wifi")
+        XCTAssertEqual(stackObject["runtimeCode"] as? Int, 2)
+    }
+
+    func testAutomaticDeviceProfileIncludesRuntimeAndCoarseNetworkShape() throws {
+        let profile = AnsightDeviceAppProfileCollector.collect(reasonCode: 4, profileSeq: 99)
+
+        XCTAssertEqual(profile.type, "DeviceAppProfile")
+        XCTAssertEqual(profile.schema, "ansight.device-app-profile.v1")
+        XCTAssertEqual(profile.reasonCode, 4)
+        XCTAssertEqual(profile.profileSeq, 99)
+        XCTAssertEqual(profile.sdk?.language?.lowercased(), "swift")
+        XCTAssertEqual(profile.device?.osName, profile.device?.osName?.lowercased())
+        XCTAssertNotNil(profile.runtime?.primary)
+        XCTAssertTrue(profile.runtime?.stack?.contains { $0.runtimeCode != nil } == true)
+        XCTAssertEqual(profile.runtime?.engine?.name, "Swift")
+        XCTAssertTrue([1, 3].contains(try XCTUnwrap(profile.app?.environmentCode)))
+
+        let data = try JSONEncoder.ansightEncoder.encode(profile)
+        let json = String(decoding: data, as: UTF8.self)
+        XCTAssertFalse(json.contains(#""ssid""#))
+        XCTAssertFalse(json.contains(#""wifiName""#))
+
+        if let network = profile.device?.network {
+            XCTAssertNotNil(network.transportCode)
+            XCTAssertNil(network.rttMs)
+            XCTAssertNil(network.downKbps)
+        }
+    }
+
     func testTouchInputWireProtocolPacksStudioCompatibleBatch() throws {
         let start = Date(timeIntervalSince1970: 1_000)
         let touches = [

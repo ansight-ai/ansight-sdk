@@ -268,6 +268,20 @@ python3 scripts/validate_ios_test_apps.py \
   --studio-require-icon
 ```
 
+To also prove Studio received the native device profile runtime, coarse
+network, GPU/render-backend, environment, and privacy-safe profile fields, add
+the device-profile gate:
+
+```bash
+python3 scripts/validate_ios_test_apps.py \
+  --test-apps-root /Users/matthewrobbins/Development/git/ansight-sdk-test-apps/ios \
+  --app CleanStore \
+  --simulator <booted-simulator-udid> \
+  --studio-issue-configs \
+  --studio-verify \
+  --studio-require-device-profile-details
+```
+
 To prove custom automatic route naming, inject the validation route resolver and
 require Studio logs to include the custom screen-view route:
 
@@ -285,8 +299,8 @@ python3 scripts/validate_ios_test_apps.py \
 
 Studio verification writes the issued config id, live session id, WebSocket
 status, metric sample count, FPS sample count, screenshot count, remote tool
-count, known-app icon path when present, session app-icon sync status, and
-validation route visibility to
+count, known-app icon path when present, session app-icon sync status,
+device-profile detail status, and validation route visibility to
 `.ansight-validation/ios-test-app-validation-results.json`.
 
 After launch, validate the session in Ansight Studio with the live app session:

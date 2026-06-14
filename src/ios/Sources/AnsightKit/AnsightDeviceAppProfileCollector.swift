@@ -8,6 +8,14 @@ import Darwin
 import UIKit
 #endif
 
+#if canImport(Metal)
+import Metal
+#endif
+
+#if canImport(Network)
+import Network
+#endif
+
 public enum AnsightDeviceAppProfileCollector {
     private static let maxApplicationIconPixelLength = 256
     private static let maxApplicationIconByteCount = 2 * 1_024 * 1_024
@@ -43,7 +51,7 @@ public enum AnsightDeviceAppProfileCollector {
             versionName: info["CFBundleShortVersionString"] as? String,
             versionCode: info["CFBundleVersion"] as? String,
             buildNumber: info["CFBundleVersion"] as? String,
-            environmentCode: isDebugBuild ? 1 : 3,
+            environmentCode: isDebugBuild ? 3 : 1,
             installSource: nil,
             firstInstallTimeMs: nil,
             lastUpdateTimeMs: nil,
@@ -78,20 +86,20 @@ public enum AnsightDeviceAppProfileCollector {
             storageFreeMb: storage.freeMb,
             battery: batteryProfile(),
             display: displayProfile(),
-            gpu: nil,
-            network: nil,
+            gpu: gpuProfile(),
+            network: networkProfile(),
             thermal: thermalProfile()
         )
     }
 
     private static func collectRuntimeProfile() -> DeviceRuntimeProfile {
         DeviceRuntimeProfile(
-            primary: nil,
-            primaryVersion: swiftVersionLabel,
+            primary: platformRuntimeCode,
+            primaryVersion: osVersion,
             engine: DeviceRuntimeEngineProfile(name: "Swift", version: swiftVersionLabel, metadata: nil),
             stack: [
-                DeviceRuntimeStackEntry(name: "Swift", version: swiftVersionLabel, layer: "language"),
-                DeviceRuntimeStackEntry(name: osName, version: ProcessInfo.processInfo.operatingSystemVersionString, layer: "platform"),
+                DeviceRuntimeStackEntry(runtimeCode: 250, name: "Swift", version: swiftVersionLabel, layer: "language"),
+                DeviceRuntimeStackEntry(runtimeCode: platformRuntimeCode, name: osName, version: osVersion, layer: "platform"),
             ],
             aotEnabled: true,
             jitEnabled: false
@@ -100,9 +108,9 @@ public enum AnsightDeviceAppProfileCollector {
 
     private static func collectGraphicsProfile() -> DeviceGraphicsProfile {
         DeviceGraphicsProfile(
-            renderBackendCode: nil,
+            renderBackendCode: gpuProfile() == nil ? nil : 3,
             fpsTarget: displayProfile()?.refreshRateHz.map { Int($0.rounded()) },
-            vsyncEnabled: nil
+            vsyncEnabled: true
         )
     }
 
@@ -247,15 +255,32 @@ public enum AnsightDeviceAppProfileCollector {
 
     private static var osName: String {
         #if os(iOS)
-        return "iOS"
+        return "ios"
         #elseif os(macOS)
-        return "macOS"
+        return "macos"
         #elseif os(tvOS)
-        return "tvOS"
+        return "tvos"
         #elseif os(watchOS)
-        return "watchOS"
+        return "watchos"
         #else
-        return "Apple"
+        return "apple"
+        #endif
+    }
+
+    private static var osVersion: String {
+        let version = ProcessInfo.processInfo.operatingSystemVersion
+        return "\(version.majorVersion).\(version.minorVersion).\(version.patchVersion)"
+    }
+
+    private static var platformRuntimeCode: Int {
+        #if os(iOS)
+        return 2
+        #elseif os(tvOS)
+        return 2
+        #elseif os(watchOS)
+        return 2
+        #else
+        return 250
         #endif
     }
 
@@ -351,9 +376,9 @@ public enum AnsightDeviceAppProfileCollector {
             return 2
         case "desktop":
             return 3
-        case "watch":
-            return 4
         case "tv":
+            return 4
+        case "watch":
             return 5
         default:
             return nil
@@ -376,6 +401,102 @@ public enum AnsightDeviceAppProfileCollector {
         return nil
         #endif
     }
+
+    private static func gpuProfile() -> DeviceGpuProfile? {
+        #if canImport(Metal)
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            return nil
+        }
+
+        return DeviceGpuProfile(
+            vendor: "Apple",
+            model: device.name,
+            driver: nil,
+            renderer: device.name,
+            apiCode: 3,
+            driverVersion: nil,
+            vramMb: nil,
+            featureLevel: metalFeatureLevel(device)
+        )
+        #else
+        return nil
+        #endif
+    }
+
+    #if canImport(Metal)
+    private static func metalFeatureLevel(_ device: MTLDevice) -> String? {
+        var families: [String] = []
+        #if os(iOS) || os(tvOS)
+        if device.supportsFamily(.apple9) { families.append("apple9") }
+        if device.supportsFamily(.apple8) { families.append("apple8") }
+        if device.supportsFamily(.apple7) { families.append("apple7") }
+        if device.supportsFamily(.apple6) { families.append("apple6") }
+        if device.supportsFamily(.apple5) { families.append("apple5") }
+        if device.supportsFamily(.apple4) { families.append("apple4") }
+        #endif
+        #if os(macOS) || targetEnvironment(macCatalyst)
+        if device.supportsFamily(.mac2) { families.append("mac2") }
+        if device.supportsFamily(.mac1) { families.append("mac1") }
+        #endif
+        if device.supportsFamily(.common3) { families.append("common3") }
+        if device.supportsFamily(.common2) { families.append("common2") }
+        if device.supportsFamily(.common1) { families.append("common1") }
+
+        return families.isEmpty ? nil : families.joined(separator: ",")
+    }
+    #endif
+
+    private static func networkProfile() -> DeviceNetworkProfile? {
+        #if canImport(Network)
+        let path = currentNetworkPathSnapshot()
+        let transportCode: Int
+        let effectiveType: String?
+
+        if path.status == .unsatisfied {
+            transportCode = 1
+            effectiveType = "none"
+        } else if path.usesInterfaceType(.wifi) {
+            transportCode = 2
+            effectiveType = "wifi"
+        } else if path.usesInterfaceType(.cellular) {
+            transportCode = 3
+            effectiveType = "cellular"
+        } else if path.usesInterfaceType(.wiredEthernet) {
+            transportCode = 4
+            effectiveType = "ethernet"
+        } else if path.usesInterfaceType(.loopback) {
+            transportCode = 0
+            effectiveType = "loopback"
+        } else if path.usesInterfaceType(.other) {
+            transportCode = 0
+            effectiveType = "other"
+        } else {
+            transportCode = path.status == .satisfied ? 0 : 1
+            effectiveType = nil
+        }
+
+        return DeviceNetworkProfile(
+            transportCode: transportCode,
+            metered: path.isExpensive,
+            effectiveType: effectiveType,
+            rttMs: nil,
+            downKbps: nil
+        )
+        #else
+        return nil
+        #endif
+    }
+
+    #if canImport(Network)
+    private static func currentNetworkPathSnapshot() -> NWPath {
+        let monitor = NWPathMonitor()
+        let queue = DispatchQueue(label: "ai.ansight.device-profile.network-path")
+        monitor.start(queue: queue)
+        Thread.sleep(forTimeInterval: 0.05)
+        monitor.cancel()
+        return monitor.currentPath
+    }
+    #endif
 
     private static func batteryProfile() -> DeviceBatteryProfile? {
         #if canImport(UIKit)

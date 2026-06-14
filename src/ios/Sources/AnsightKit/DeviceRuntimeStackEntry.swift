@@ -9,6 +9,7 @@ import UIKit
 #endif
 
 public struct DeviceRuntimeStackEntry: Sendable, Codable, Equatable {
+    public var runtimeCode: Int?
     public var name: String?
     public var version: String?
     public var layer: String?
