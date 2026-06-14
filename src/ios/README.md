@@ -23,7 +23,7 @@ Ansight Services.
 - UDP `CONNECT_REQ` bootstrap and WebSocket handoff compatible with the .NET SDK transport contract
 - live control messages for `session.open`, `device.profile`, and `app.state`
 - live metric channel, metric sample, and app event streaming using the established `CLIENT_METRIC_CHANNELS`, `CLIENT_METRICS`, and `CLIENT_EVENTS` payloads
-- automatic UIKit foreground/background, UIKit view-controller screen-view, and SwiftUI `UIHostingController` root-view capture with explicit opt-out controls
+- automatic UIKit foreground/background, UIKit view-controller screen-view, and SwiftUI `UIHostingController` root-view capture with explicit opt-out controls and app-provided route naming hooks
 - FPS telemetry sampling through `CADisplayLink` on UIKit platforms using the reserved FPS metric channel
 - live JPEG screen-frame capture using Studio's binary `ASJP` / `CLIENT_JPEG` WebSocket path
 - live UIKit touch capture using a simultaneous window gesture recognizer and Studio-compatible `CLIENT_TOUCH_INPUT` / `ansight.touches.v1` packed batches
@@ -71,6 +71,33 @@ await AnsightRuntime.shared.connect(.auto(clientName: "iOS Native Harness"))
 
 When the WebSocket session opens, the SDK captures the foreground UIKit window on the main actor, encodes it as JPEG, and sends binary frames to Studio. Apps can also trigger a single frame with `await AnsightRuntime.shared.captureScreenFrame()`.
 
+## Screen route naming
+
+Automatic screen capture uses the UIKit title, SwiftUI hosting root view type, or view-controller class name by default. Apps with custom routers can provide a resolver before activation to replace those names with semantic routes:
+
+```swift
+AnsightRuntime.shared.setScreenRouteResolver(
+    AnsightScreenRouteResolver { context in
+        guard context.swiftUIRootTypeName == "RootView" else {
+            return nil
+        }
+
+        return AnsightScreenRoute(
+            name: "Orders",
+            key: "route:/orders",
+            details: [
+                "route": "/orders",
+                "defaultScreen": context.defaultName
+            ]
+        )
+    }
+)
+
+try AnsightRuntime.shared.initializeAndActivateAnsightSdk()
+```
+
+Returning `nil` or a blank route name keeps the default descriptor.
+
 ## Remote tools
 
 Tool products are opt-in. Register only the surfaces you want exposed to Studio:
@@ -105,6 +132,6 @@ That preset keeps the core package tool-free by default, sets telemetry to 400 m
 ## Current limits
 
 - `openSession(...)` remains a harness-only local compatibility API; use `connect(...)` or `openLiveSession(...)` for a real Studio session
-- app-provided SwiftUI route naming hooks, reflection tools, and custom remote tool suites are later first-complete-pass steps
+- reflection tools and custom remote tool suites are later first-complete-pass steps
 - binary file/screenshot transfer requires a live tool-protocol request context; direct in-process execution still reports a transfer-unavailable error
 - the build-time developer pairing and bundled-tool scan currently ship only through SwiftPM; CocoaPods does not yet have equivalent automation

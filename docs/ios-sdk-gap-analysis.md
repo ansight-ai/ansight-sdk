@@ -6,8 +6,8 @@ Date: 2026-06-14
 
 - Core runtime initialization, activation, clearing, manual and automatic UIKit lifecycle state, screen views, metrics, events, and debug snapshots.
 - Pairing config parsing for `ansight.pairing-config.v1`, `ansight.pairing-config-document.v1`, and legacy `ansight.pairing-ticket.v1`.
-- UDP bootstrap, WebSocket session handoff, metric channel announcement, sequence-cursored retained metric/event streaming, app state streaming, clean disconnect, and host status snapshots.
-- Automatic UIKit foreground/background capture, UIKit view-controller and SwiftUI `UIHostingController` screen-view capture with opt-out controls, FPS capture through `CADisplayLink`, live JPEG screen capture, and UIKit touch capture.
+- UDP bootstrap, WebSocket session handoff, cached pairing-profile reuse with saved/cached status separation, metric channel announcement, sequence-cursored retained metric/event streaming, app state streaming, clean disconnect, and host status snapshots.
+- Automatic UIKit foreground/background capture, UIKit view-controller and SwiftUI `UIHostingController` screen-view capture with opt-out controls, app-provided route naming hooks, FPS capture through `CADisplayLink`, live JPEG screen capture, and UIKit touch capture.
 - Tool protocol bridge with `tool.query`, `tool.catalog`, `tool.call`, guard policy, security metadata, case-insensitive IDs, duplicate rejection, and live binary transfer queueing.
 - SwiftPM products:
   - `AnsightKit`
@@ -18,7 +18,7 @@ Date: 2026-06-14
   - `AnsightToolsSecureStorage`
   - `AnsightToolsVisualTree`
 - SwiftPM build plugin for developer pairing artifacts and bundled remote-tool policy enforcement.
-- Native iOS test-app validator that can issue fresh Ansight Studio pairing configs through the Studio MCP daemon, install/launch simulator apps, inject deterministic validation app icons, and verify live Studio session evidence for metrics, FPS, screenshots, remote-tool catalog, and session-recorded app-icon sync status.
+- Native iOS test-app validator that can issue fresh Ansight Studio pairing configs through the Studio MCP daemon, install/launch simulator apps, inject deterministic validation app icons, inject route resolver validation hooks, and verify live Studio session evidence for metrics, FPS, screenshots, remote-tool catalog, session-recorded app-icon sync status, and custom automatic screen-view routes.
 - Native harness validated against Ansight Studio with live telemetry, screenshot, visual tree catalog, and database tool calls.
 - CleanStore test app validated against Ansight Studio with automatic `ListOrdersViewController` screen-view capture, foreground lifecycle state, FPS samples, screenshots, a 28-tool catalog, and telemetry/FPS streaming beyond the developer retention buffer in sessions `com-clean-swift-cleanstore-520` and `com-clean-swift-cleanstore-523`.
 - SwiftUI2048 test app validated against Ansight Studio with automatic `GameView` screen-view capture from `UIHostingController`, foreground lifecycle state, FPS samples, and screenshot capture in session `com-cyandev-swiftui2048-522`.
@@ -31,15 +31,15 @@ Date: 2026-06-14
    - Add file/QR pairing entry points if required for native apps.
 
 2. Lifecycle integration polish:
-   - UIKit lifecycle, UIKit view-controller screen capture, and SwiftUI `UIHostingController` screen capture are implemented with opt-out controls.
-   - Add app-provided route naming hooks for custom SwiftUI routers that need more semantic names than root view type names.
+   - UIKit lifecycle, UIKit view-controller screen capture, SwiftUI `UIHostingController` screen capture, opt-out controls, and app-provided route naming hooks are implemented.
+   - Remaining lifecycle work is broader corpus validation across apps with custom SwiftUI routers once those samples build on the current Xcode/Swift toolchain.
 
 3. Device/app profile depth:
    - Fill gaps against .NET profile payloads, especially battery, network, GPU/display/runtime details, and permission-relevant device facts where native APIs allow them without PII.
    - App icon profile serialization, bundle collection, deterministic test-app icon injection, and Studio session icon verification are implemented. Known-app `iconImagePath` remains Studio registration metadata and is not treated as the SDK session-icon proof.
 
 4. Tool infrastructure polish:
-   - Add stronger schema/argument validation at the protocol boundary where it is safe to do so.
+   - Basic protocol-boundary validation now rejects non-object `arguments` payloads and preserves JSON object/array/scalar arguments as tool strings for .NET parity.
    - Add more protocol-edge parity tests for malformed envelopes and host timeouts.
    - Keep binary transfer behavior under sustained large-file load.
 
@@ -95,7 +95,7 @@ Broad visual-tree apps:
 
 ## Latest Validation Evidence
 
-- `swift test` in `src/ios`: 51 tests, 1 skipped, 0 failures.
+- `swift test` in `src/ios`: 58 tests, 1 skipped, 0 failures.
 - Native harness Xcode build succeeded for iPhone 17e iOS 26.4 simulator.
 - Ansight Studio live session `ai-ansight-ios-native-harness-510` reported WebSocket Open and a 28-tool catalog.
 - Studio `data.list_databases` found `Documents/ansight-harness/sample.sqlite`.
@@ -107,6 +107,7 @@ Broad visual-tree apps:
 - `Clean-Swift__CleanStore` relaunched with config `9bfe51ea424b4eb28a711e6a01696234` after the retained telemetry cursor fix; Ansight Studio live session `com-clean-swift-cleanstore-523` stayed WebSocket Open, reached `metricSampleCount: 689`, and continued receiving FPS samples through `2026-06-14T04:42:47Z`, beyond the previous 360-sample developer retention cap.
 - `Clean-Swift__CleanStore` relaunched with config `94d12d40ff9147fc99ca9aec6b03050d` after the WebSocket send-timeout and reconnect fix; Ansight Studio live session `com-clean-swift-cleanstore-535` stayed WebSocket Open, reached `metricSampleCount: 586`, and continued receiving FPS and physical-footprint samples through `2026-06-14T05:24:49Z`.
 - `Clean-Swift__CleanStore` relaunched with injected validation app icon and config `376e847f7da44d00adb981a3a341bfa3`; Ansight Studio live session `com-clean-swift-cleanstore-537` recorded the session device-profile app icon as a `120x120` PNG with `2033` encoded bytes, while also reporting WebSocket Open, FPS samples, screenshot capture, and the 28-tool catalog.
+- `Clean-Swift__CleanStore` relaunched with an injected validation route resolver and config `98fe55033d8c4d6ea02b5a27d184e2e3`; Ansight Studio live session `com-clean-swift-cleanstore-538` reported WebSocket Open, 33 metric samples, 22 FPS samples, 1 screenshot, a 28-tool catalog, and a `SCREENVIEWED` log for `Ansight SDK Validation Route` with `route=/ansight-validation` and default source `List Orders`.
 - Studio-backed validator smoke run with fixed unique slugs verified:
   - `Clean-Swift__CleanStore`: session `com-clean-swift-cleanstore-532`, WebSocket Open, 21 metric samples, 18 FPS samples, 1 screenshot, 28 tools.
   - `austinzheng__swift-2048`: session `f3nghuang-swift-2048-533`, WebSocket Open, 23 metric samples, 19 FPS samples, 1 screenshot, 28 tools.

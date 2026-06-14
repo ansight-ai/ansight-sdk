@@ -175,7 +175,30 @@ try AnsightRuntime.shared.registerVisualTreeTools()
 
 ## Current app signals
 
-The developer defaults install UIKit lifecycle and view-controller appearance hooks so foreground/background state, UIKit screen-view events, and SwiftUI `UIHostingController` root view names are reported automatically. Apps that need manual reporting can opt out:
+The developer defaults install UIKit lifecycle and view-controller appearance hooks so foreground/background state, UIKit screen-view events, and SwiftUI `UIHostingController` root view names are reported automatically. Apps with custom routers can install a route resolver before activation:
+
+```swift
+AnsightRuntime.shared.setScreenRouteResolver(
+    AnsightScreenRouteResolver { context in
+        guard context.swiftUIRootTypeName == "RootView" else {
+            return nil
+        }
+
+        return AnsightScreenRoute(
+            name: "Orders",
+            key: "route:/orders",
+            details: [
+                "route": "/orders",
+                "defaultScreen": context.defaultName
+            ]
+        )
+    }
+)
+
+try AnsightRuntime.shared.initializeAndActivateAnsightSdk()
+```
+
+Returning `nil` or a blank route name keeps the default screen descriptor. Apps that need manual reporting can opt out:
 
 ```swift
 var options = AnsightOptions.ansightDeveloperDefaults
@@ -184,7 +207,7 @@ options.lifecycleCapture = .disabled
 try AnsightRuntime.shared.initializeAndActivateAnsightSdk(options: options)
 ```
 
-Manual lifecycle and screen-view calls are still available for custom names, custom SwiftUI routers, non-UIKit routing layers, or apps that disabled automatic capture:
+Manual lifecycle and screen-view calls are still available for non-UIKit routing layers or apps that disabled automatic capture:
 
 ```swift
 AnsightRuntime.shared.setAppLifecycleState(.foreground)
@@ -245,9 +268,25 @@ python3 scripts/validate_ios_test_apps.py \
   --studio-require-icon
 ```
 
+To prove custom automatic route naming, inject the validation route resolver and
+require Studio logs to include the custom screen-view route:
+
+```bash
+python3 scripts/validate_ios_test_apps.py \
+  --test-apps-root /Users/matthewrobbins/Development/git/ansight-sdk-test-apps/ios \
+  --app CleanStore \
+  --simulator <booted-simulator-udid> \
+  --studio-issue-configs \
+  --studio-verify \
+  --inject-validation-route-resolver \
+  --studio-require-validation-route \
+  --studio-min-tools 28
+```
+
 Studio verification writes the issued config id, live session id, WebSocket
 status, metric sample count, FPS sample count, screenshot count, remote tool
-count, known-app icon path when present, and session app-icon sync status to
+count, known-app icon path when present, session app-icon sync status, and
+validation route visibility to
 `.ansight-validation/ios-test-app-validation-results.json`.
 
 After launch, validate the session in Ansight Studio with the live app session:
