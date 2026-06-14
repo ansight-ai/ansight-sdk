@@ -2201,6 +2201,18 @@ def write_validation_summary(output_root: Path, results: list[ValidationResult])
     return path
 
 
+def replace_validation_result(results: list[ValidationResult], result: ValidationResult) -> None:
+    for index, existing in enumerate(results):
+        if existing.slug == result.slug:
+            results[index] = result
+            return
+    results.append(result)
+
+
+def index_results_by_slug(results: list[ValidationResult]) -> dict[str, ValidationResult]:
+    return {result.slug: result for result in results}
+
+
 def build_validation_summary(results: list[ValidationResult]) -> dict[str, Any]:
     failed_results = [result for result in results if result.status == "failed"]
     return {
@@ -2332,6 +2344,12 @@ def read_validation_results(path: Path) -> list[ValidationResult]:
     return results
 
 
+def read_validation_results_if_present(path: Path | None) -> list[ValidationResult]:
+    if path is None or not path.exists():
+        return []
+    return read_validation_results(path)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--test-apps-root", type=Path, default=DEFAULT_TEST_APPS_ROOT)
@@ -2342,6 +2360,17 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=None,
         help="Read an existing validation results JSON file and write only the aggregate summary artifact.",
+    )
+    parser.add_argument(
+        "--merge-results",
+        type=Path,
+        default=None,
+        help="Load an existing results JSON file and preserve rows for apps not covered by this run.",
+    )
+    parser.add_argument(
+        "--skip-verified-results",
+        action="store_true",
+        help="When --merge-results is used, skip apps that already have studio_verified=true in the merged results.",
     )
     parser.add_argument("--pairing-config-dir", type=Path, default=DEFAULT_OUTPUT_ROOT / "pairing-configs")
     parser.add_argument("--pairing-config", type=Path, default=None, help="Use one explicit pairing config JSON for the selected app.")
@@ -2461,6 +2490,8 @@ def main() -> int:
     args.output_root = args.output_root.expanduser().resolve()
     if args.summarize_results:
         args.summarize_results = args.summarize_results.expanduser().resolve()
+    if args.merge_results:
+        args.merge_results = args.merge_results.expanduser().resolve()
     args.pairing_config_dir = args.pairing_config_dir.expanduser().resolve()
     if args.pairing_config:
         args.pairing_config = args.pairing_config.expanduser().resolve()
@@ -2474,8 +2505,29 @@ def main() -> int:
         print(f"Wrote {summary_path}")
         return 0
 
+    merged_seed_results = read_validation_results_if_present(args.merge_results)
+    merged_seed_by_slug = index_results_by_slug(merged_seed_results)
     projects = discover_projects(args.test_apps_root)
     projects = filter_projects(projects, args.app)
+
+    if args.skip_verified_results:
+        skipped_projects = [
+            project
+            for project in projects
+            if merged_seed_by_slug.get(project.slug) is not None
+            and bool(merged_seed_by_slug[project.slug].studio_verified)
+        ]
+        projects = [
+            project
+            for project in projects
+            if not (
+                merged_seed_by_slug.get(project.slug) is not None
+                and bool(merged_seed_by_slug[project.slug].studio_verified)
+            )
+        ]
+        for project in skipped_projects:
+            print(f"==> Skipping {project.slug}; existing merged result is Studio verified.")
+
     if args.limit is not None:
         projects = projects[: args.limit]
 
@@ -2515,6 +2567,13 @@ def main() -> int:
         return 0
 
     if not projects:
+        if merged_seed_results and args.skip_verified_results:
+            results_path = write_results(args.output_root, merged_seed_results)
+            summary_path = args.output_root / VALIDATION_SUMMARY_FILE
+            print("No remaining iOS app projects after skipping verified merged results.")
+            print(f"Wrote {results_path}")
+            print(f"Wrote {summary_path}")
+            return 0
         print("No matching iOS app projects found.", file=sys.stderr)
         return 2
 
@@ -2527,7 +2586,7 @@ def main() -> int:
     if not destination:
         raise RuntimeError("Could not resolve an Xcode destination.")
 
-    results: list[ValidationResult] = []
+    results: list[ValidationResult] = list(merged_seed_results)
     studio_client: StudioMCPClient | None = None
     try:
         if args.studio_issue_configs or args.studio_verify:
@@ -2541,7 +2600,7 @@ def main() -> int:
                 scheme=project.scheme,
                 bundle_id=project.bundle_id,
             )
-            results.append(result)
+            replace_validation_result(results, result)
             derived_data_path = args.output_root / "DerivedData" / slugify(project.slug)
             stage = "starting"
             try:
@@ -2671,6 +2730,7 @@ def main() -> int:
                 result.error = str(error)
                 print(f"ERROR: {project.slug}: {error}", file=sys.stderr)
             finally:
+                replace_validation_result(results, result)
                 write_results(args.output_root, results)
     finally:
         if studio_client is not None:
