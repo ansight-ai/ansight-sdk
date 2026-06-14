@@ -63,6 +63,41 @@ final class ToolProtocolTests: XCTestCase {
         XCTAssertEqual(sessionId, "sess_1")
     }
 
+    func testCallPreservesJsonArgumentsAsStrings() throws {
+        let bridge = AnsightToolProtocolBridge(
+            registry: [
+                "echo.tool": RegisteredTool(
+                    descriptor: EchoTool().descriptor,
+                    execute: EchoTool().execute(arguments:)
+                ),
+            ],
+            guardPolicy: .readOnly
+        )
+
+        let responseJson = try bridge.handleIfSupported(
+            """
+            {"type":"tool.call","id":"req_json","capability":"tool.exec","payload":{"toolId":"echo.tool","arguments":{"count":3,"enabled":true,"filter":{"status":"open"},"ids":[1,2],"none":null}}}
+            """
+        )
+
+        let envelope = try XCTUnwrap(decodeEnvelope(responseJson))
+        XCTAssertEqual(envelope.type, "tool.result")
+        guard case .object(let payload) = envelope.payload,
+              case .object(let result)? = payload["result"],
+              case .string(let count)? = result["count"],
+              case .string(let enabled)? = result["enabled"],
+              case .string(let filter)? = result["filter"],
+              case .string(let ids)? = result["ids"] else {
+            return XCTFail("Expected stringified JSON arguments.")
+        }
+
+        XCTAssertEqual(count, "3")
+        XCTAssertEqual(enabled, "true")
+        XCTAssertEqual(filter, #"{"status":"open"}"#)
+        XCTAssertEqual(ids, "[1,2]")
+        XCTAssertNil(result["none"])
+    }
+
     func testCallResolvesToolIdsCaseInsensitively() throws {
         let bridge = AnsightToolProtocolBridge(
             registry: [
@@ -100,6 +135,32 @@ final class ToolProtocolTests: XCTestCase {
             return XCTFail("Expected tool error payload.")
         }
         XCTAssertEqual(code, "tool_protocol_invalid_request")
+    }
+
+    func testInvalidToolCallArgumentsReturnToolError() throws {
+        let bridge = AnsightToolProtocolBridge(
+            registry: [
+                "echo.tool": RegisteredTool(
+                    descriptor: EchoTool().descriptor,
+                    execute: EchoTool().execute(arguments:)
+                ),
+            ],
+            guardPolicy: .readOnly
+        )
+
+        let responseJson = try bridge.handleIfSupported(
+            """
+            {"type":"tool.call","id":"req_bad_args","capability":"tool.exec","payload":{"toolId":"echo.tool","arguments":["not","an","object"]}}
+            """
+        )
+
+        let envelope = try XCTUnwrap(decodeEnvelope(responseJson))
+        XCTAssertEqual(envelope.type, "tool.error")
+        guard case .object(let payload) = envelope.payload,
+              case .string(let code)? = payload["code"] else {
+            return XCTFail("Expected tool error payload.")
+        }
+        XCTAssertEqual(code, "tool_call_arguments_invalid")
     }
 
     func testRuntimeRejectsDuplicateToolIdsCaseInsensitively() throws {
@@ -148,10 +209,18 @@ private struct EchoTool: AnsightTool {
     )
 
     func execute(arguments: [String: String]) throws -> AnsightToolExecutionResult {
-        .success(.object([
+        var result: [String: JSONValue] = [
             "echo": .string(arguments["message"] ?? ""),
             "requestId": .string(arguments[AnsightToolExecutionArgumentNames.requestId] ?? ""),
             "sessionId": .string(arguments[AnsightToolExecutionArgumentNames.sessionId] ?? ""),
-        ]))
+        ]
+
+        for key in ["count", "enabled", "filter", "ids"] {
+            if let value = arguments[key] {
+                result[key] = .string(value)
+            }
+        }
+
+        return .success(.object(result))
     }
 }

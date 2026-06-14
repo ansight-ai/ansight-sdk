@@ -151,6 +151,13 @@ internal struct AnsightToolProtocolBridge {
                     flattenedArguments[key] = stringValue
                 }
             }
+        } else if let arguments = payload["arguments"], arguments != .null {
+            return createErrorEnvelope(
+                request: request,
+                code: "tool_call_arguments_invalid",
+                message: "Tool call 'arguments' must be a JSON object when provided.",
+                retryable: false
+            )
         }
         flattenedArguments[AnsightToolExecutionArgumentNames.requestId] = request.id
         if let sessionId = request.sessionId?.trimmingCharacters(in: .whitespacesAndNewlines),
