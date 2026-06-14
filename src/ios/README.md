@@ -4,6 +4,8 @@ The native iOS SDK plan lives in [../../docs/native-ios-android-sdk-plan.md](../
 
 The native harness app lives in `Examples/NativeHarness/`.
 
+Import `AnsightKit` plus individual tool products for a minimal integration, or import the aggregate `Ansight` product for developer defaults and the current native remote-tool suites.
+
 ## License
 
 The Ansight SDK is source-available software under the
@@ -13,9 +15,27 @@ Ansight Services.
 
 ## Current capabilities
 
-- pairing ticket parsing and validation for `ansight.pairing-ticket.v1`
+- runtime initialization, activation, deactivation, clearing, manual and automatic UIKit lifecycle state, screen views, custom metrics, custom events, and structured debug snapshots
+- shared telemetry bounds: 200-2000ms sampling, 60-3600s retention, reserved channel validation, bounded retained metric/event buffers
+- pairing config parsing and validation for `ansight.pairing-config.v1`, `ansight.pairing-config-document.v1`, and legacy `ansight.pairing-ticket.v1`
 - discovery-hint host resolution for local developer flows
-- executable tool registration, tool guard policy, and `tool.query` / `tool.call` protocol handling
+- host connection status/results for auto, saved, bundled, payload, and direct config sources
+- UDP `CONNECT_REQ` bootstrap and WebSocket handoff compatible with the .NET SDK transport contract
+- live control messages for `session.open`, `device.profile`, and `app.state`
+- live metric channel, metric sample, and app event streaming using the established `CLIENT_METRIC_CHANNELS`, `CLIENT_METRICS`, and `CLIENT_EVENTS` payloads
+- automatic UIKit foreground/background, UIKit view-controller screen-view, and SwiftUI `UIHostingController` root-view capture with explicit opt-out controls
+- FPS telemetry sampling through `CADisplayLink` on UIKit platforms using the reserved FPS metric channel
+- live JPEG screen-frame capture using Studio's binary `ASJP` / `CLIENT_JPEG` WebSocket path
+- live UIKit touch capture using a simultaneous window gesture recognizer and Studio-compatible `CLIENT_TOUCH_INPUT` / `ansight.touches.v1` packed batches
+- baseline Apple device/app profile collection without direct PII
+- Keychain-backed saved pairing config storage with explicit clearing
+- queued `ansight.file-transfer.v1` binary artifact transfers for screenshot and file-download tools during live Studio sessions
+- executable tool registration, tool guard policy, tool security metadata, reserved tool call context arguments, and `tool.query` / `tool.call` protocol handling
+- `AnsightToolsPreferences` SwiftPM product with `prefs.list_keys`, `prefs.get_value`, `prefs.set_value`, and `prefs.remove_key` for sandboxed `UserDefaults` access
+- `AnsightToolsFileSystem` SwiftPM product with sandboxed directory listing, file read/checksum/download, live binary download, push/copy/move/delete tools
+- `AnsightToolsDatabase` SwiftPM product with SQLite discovery, schema inspection, and constrained read-only query tools: `data.list_databases`, `data.describe_schema`, and `data.query`
+- `AnsightToolsSecureStorage` SwiftPM product with allow-listed Keychain `secure.get_value`, `secure.set_value`, and `secure.remove_key` tools
+- `AnsightToolsVisualTree` SwiftPM product with UIKit visual tree, node inspection, live screenshot, and diagnostic overlay tools
 - SwiftPM build-time developer pairing generation and bundled-tool enforcement
 
 ## SwiftPM developer mode
@@ -32,7 +52,59 @@ With developer pairing enabled, the build tool reads the source pairing config, 
 
 Without `ANSIGHT_ALLOW_REMOTE_TOOLS=true`, the build fails when the target source contains concrete `AnsightTool` conformances.
 
+## Screen capture
+
+Configure `AnsightOptions.sessionJpegCapture` before connecting to Studio:
+
+```swift
+try AnsightRuntime.shared.initializeAndActivate(
+    options: AnsightOptions(
+        sessionJpegCapture: AnsightSessionJpegCaptureOptions(
+            intervalMilliseconds: 1_000,
+            quality: 70,
+            maxWidth: 960
+        )
+    )
+)
+await AnsightRuntime.shared.connect(.auto(clientName: "iOS Native Harness"))
+```
+
+When the WebSocket session opens, the SDK captures the foreground UIKit window on the main actor, encodes it as JPEG, and sends binary frames to Studio. Apps can also trigger a single frame with `await AnsightRuntime.shared.captureScreenFrame()`.
+
+## Remote tools
+
+Tool products are opt-in. Register only the surfaces you want exposed to Studio:
+
+```swift
+import AnsightKit
+import AnsightToolsDatabase
+import AnsightToolsFileSystem
+import AnsightToolsPreferences
+import AnsightToolsSecureStorage
+import AnsightToolsVisualTree
+
+try AnsightRuntime.shared.registerPreferencesTools()
+try AnsightRuntime.shared.registerFileSystemTools()
+try AnsightRuntime.shared.registerDatabaseTools()
+try AnsightRuntime.shared.registerSecureStorageTools()
+try AnsightRuntime.shared.registerVisualTreeTools()
+```
+
+`AnsightToolsDatabase` opens SQLite files read-only inside approved app sandbox roots. `data.query` accepts one read-only SQL statement, clamps `maxRows` to `1...1000`, returns stable duplicate-column keys, and preserves ordered `rowValues` with SQLite storage types.
+
+For developer builds that should mirror the .NET `WithAnsightSdk` preset, depend on the aggregate `Ansight` product:
+
+```swift
+import Ansight
+
+try AnsightRuntime.shared.initializeAndActivateAnsightSdk()
+```
+
+That preset keeps the core package tool-free by default, sets telemetry to 400 ms / 120 s retention, enables FPS, touch capture, 2-second JPEG capture at quality 60 and max width 480, enables full tool access, and registers the current native tool suites. Reflection is intentionally excluded until the native security and object model are designed.
+
 ## Current limits
 
-- network transport is still not implemented; `openSession(...)` validates and resolves the pairing ticket locally, then opens a harness-only local session
+- `openSession(...)` remains a harness-only local compatibility API; use `connect(...)` or `openLiveSession(...)` for a real Studio session
+- app-provided SwiftUI route naming hooks, reflection tools, and custom remote tool suites are later first-complete-pass steps
+- binary file/screenshot transfer requires a live tool-protocol request context; direct in-process execution still reports a transfer-unavailable error
 - the build-time developer pairing and bundled-tool scan currently ship only through SwiftPM; CocoaPods does not yet have equivalent automation
