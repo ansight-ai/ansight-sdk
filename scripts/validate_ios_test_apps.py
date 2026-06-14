@@ -884,6 +884,7 @@ def write_validation_sources(
     if inject_validation_input_overlay:
         validation_input_overlay_storage = """
     private static var validationInputOverlayField: UITextField?
+    private static var validationInputOverlayMarkerWindow: UIWindow?
 """
         validation_input_overlay_call = """
                 scheduleValidationInputOverlay(runtime: runtime)
@@ -892,43 +893,124 @@ def write_validation_sources(
 
     private static func scheduleValidationInputOverlay(runtime: AnsightRuntime) {{
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {{
-            guard let window = activeValidationWindow() else {{
-                try? runtime.event(
-                    "{VALIDATION_INPUT_OVERLAY_EVENT}",
-                    details: "No active window was available for the validation input overlay."
-                )
-                return
-            }}
+            presentValidationInputOverlay(runtime: runtime, attempt: 0)
+        }}
+    }}
 
-            let field = UITextField(frame: CGRect(x: 16, y: 96, width: 260, height: 44))
-            field.borderStyle = .roundedRect
-            field.text = "Ansight input overlay"
-            field.accessibilityIdentifier = "ansight.validation.inputOverlayField"
-
-            let overlayHeight = CGFloat(220)
-            let overlay = UIView(frame: CGRect(x: 0, y: 0, width: max(window.bounds.width, 320), height: overlayHeight))
-            overlay.backgroundColor = UIColor(red: 1, green: 0, blue: 1, alpha: 1)
-            overlay.accessibilityIdentifier = "ansight.validation.inputOverlayMarker"
-
-            let label = UILabel(frame: CGRect(x: 16, y: 32, width: overlay.bounds.width - 32, height: 80))
-            label.autoresizingMask = [.flexibleWidth]
-            label.text = "ANSIGHT INPUT OVERLAY MARKER"
-            label.textColor = .white
-            label.font = .boldSystemFont(ofSize: 22)
-            label.textAlignment = .center
-            label.numberOfLines = 0
-            overlay.addSubview(label)
-
-            field.inputView = overlay
-            window.addSubview(field)
-            validationInputOverlayField = field
-            field.becomeFirstResponder()
-
+    private static func presentValidationInputOverlay(runtime: AnsightRuntime, attempt: Int) {{
+        guard let window = activeValidationWindow() else {{
             try? runtime.event(
                 "{VALIDATION_INPUT_OVERLAY_EVENT}",
-                details: "Presented magenta input overlay marker."
+                details: "No active window was available for the validation input overlay. attempt=\\(attempt)"
             )
+            if attempt < 5 {{
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {{
+                    presentValidationInputOverlay(runtime: runtime, attempt: attempt + 1)
+                }}
+            }}
+            return
         }}
+
+        window.endEditing(true)
+
+        let field = validationInputOverlayField ?? UITextField(frame: CGRect(x: 16, y: 96, width: 260, height: 44))
+        field.frame = CGRect(x: 16, y: 96, width: min(260, max(160, window.bounds.width - 32)), height: 44)
+        field.borderStyle = .roundedRect
+        field.text = "Ansight input overlay"
+        field.accessibilityIdentifier = "ansight.validation.inputOverlayField"
+        field.isEnabled = true
+        field.isUserInteractionEnabled = true
+        field.inputView = makeValidationInputOverlay(width: window.bounds.width)
+
+        if field.superview !== window {{
+            field.removeFromSuperview()
+            window.addSubview(field)
+        }}
+        window.bringSubviewToFront(field)
+        validationInputOverlayField = field
+
+        field.reloadInputViews()
+        let becameFirstResponder = field.becomeFirstResponder()
+
+        try? runtime.event(
+            "{VALIDATION_INPUT_OVERLAY_EVENT}",
+            details: "Presented magenta input overlay marker. firstResponder=\\(becameFirstResponder) isFirstResponder=\\(field.isFirstResponder) attempt=\\(attempt)"
+        )
+
+        guard becameFirstResponder || field.isFirstResponder else {{
+            if attempt < 5 {{
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {{
+                    presentValidationInputOverlay(runtime: runtime, attempt: attempt + 1)
+                }}
+            }} else {{
+                showValidationInputOverlayFallback(runtime: runtime, sourceWindow: window)
+            }}
+            return
+        }}
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {{
+            if !field.isFirstResponder {{
+                presentValidationInputOverlay(runtime: runtime, attempt: 0)
+            }}
+        }}
+    }}
+
+    private static func makeValidationInputOverlay(width: CGFloat) -> UIView {{
+        let overlayHeight = CGFloat(220)
+        let overlayWidth = max(width, 320)
+        let overlay = UIView(frame: CGRect(x: 0, y: 0, width: overlayWidth, height: overlayHeight))
+        overlay.backgroundColor = UIColor(red: 1, green: 0, blue: 1, alpha: 1)
+        overlay.accessibilityIdentifier = "ansight.validation.inputOverlayMarker"
+
+        let label = UILabel(frame: CGRect(x: 16, y: 32, width: overlay.bounds.width - 32, height: 80))
+        label.autoresizingMask = [.flexibleWidth]
+        label.text = "ANSIGHT INPUT OVERLAY MARKER"
+        label.textColor = .white
+        label.font = .boldSystemFont(ofSize: 22)
+        label.textAlignment = .center
+        label.numberOfLines = 0
+        overlay.addSubview(label)
+
+        return overlay
+    }}
+
+    private static func showValidationInputOverlayFallback(runtime: AnsightRuntime, sourceWindow: UIWindow) {{
+        guard validationInputOverlayMarkerWindow == nil else {{
+            return
+        }}
+
+        let markerWindow: UIWindow
+        if let scene = sourceWindow.windowScene {{
+            markerWindow = UIWindow(windowScene: scene)
+        }} else {{
+            markerWindow = UIWindow(frame: sourceWindow.frame)
+        }}
+        markerWindow.frame = sourceWindow.frame
+        markerWindow.windowLevel = UIWindow.Level(rawValue: sourceWindow.windowLevel.rawValue + 1)
+        markerWindow.backgroundColor = .clear
+        markerWindow.isUserInteractionEnabled = false
+
+        let rootViewController = UIViewController()
+        rootViewController.view.backgroundColor = .clear
+        markerWindow.rootViewController = rootViewController
+
+        let marker = makeValidationInputOverlay(width: sourceWindow.bounds.width)
+        marker.frame = CGRect(
+            x: 0,
+            y: max(0, sourceWindow.bounds.height - marker.bounds.height),
+            width: max(sourceWindow.bounds.width, 320),
+            height: marker.bounds.height
+        )
+        marker.autoresizingMask = [.flexibleWidth, .flexibleTopMargin]
+        rootViewController.view.addSubview(marker)
+
+        validationInputOverlayMarkerWindow = markerWindow
+        markerWindow.isHidden = false
+
+        try? runtime.event(
+            "{VALIDATION_INPUT_OVERLAY_EVENT}",
+            details: "Displayed fallback input overlay marker window after first-responder retries."
+        )
     }}
 
     private static func activeValidationWindow() -> UIWindow? {{
