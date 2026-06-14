@@ -124,6 +124,8 @@ class ValidationResult:
     studio_binary_download_transfer_id: str | None = None
     studio_binary_download_artifact_path: str | None = None
     studio_binary_download_error: str | None = None
+    pod_install_attempted: bool = False
+    pod_install_succeeded: bool = False
     studio_error: str | None = None
     status: str = "pending"
     failure_stage: str | None = None
@@ -293,6 +295,7 @@ def summarize_error(error: Exception | str, max_chars: int = 600) -> str:
     text = str(error)
     preferred_patterns = [
         r"error: [^\n]+",
+        r"ld: [^\n]+",
         r"\*\* BUILD FAILED \*\*",
         r"Timed out waiting[^\n]+",
         r"No live Studio session[^\n]+",
@@ -1276,6 +1279,7 @@ def build_app(
     configuration: str,
     destination_id: str,
     derived_data_path: Path,
+    exclude_simulator_arm64: bool,
 ) -> None:
     command = [
         "xcodebuild",
@@ -1292,6 +1296,8 @@ def build_app(
         "CODE_SIGNING_ALLOWED=NO",
         "IPHONEOS_DEPLOYMENT_TARGET=15.0",
     ]
+    if exclude_simulator_arm64:
+        command.append("EXCLUDED_ARCHS[sdk=iphonesimulator*]=arm64")
     env = {
         "ANSIGHT_ALLOW_REMOTE_TOOLS": "true",
         "ANSIGHT_DEVELOPER_PAIRING_ENABLED": "false",
@@ -1318,6 +1324,22 @@ def built_app_path(
 def boot_simulator(destination_id: str) -> None:
     run(["xcrun", "simctl", "boot", destination_id], check=False, timeout=60)
     run(["xcrun", "simctl", "bootstatus", destination_id, "-b"], check=True, timeout=180)
+
+
+def install_cocoapods_dependencies(app: AppProject, timeout_seconds: int) -> bool:
+    podfile = app.root / "Podfile"
+    if not podfile.exists():
+        return False
+
+    run(["pod", "install"], cwd=app.root, check=True, timeout=timeout_seconds)
+    workspaces = sorted(
+        workspace
+        for workspace in app.root.glob("*.xcworkspace")
+        if workspace.name != "Pods.xcworkspace"
+    )
+    if workspaces:
+        app.workspace_path = workspaces[0]
+    return True
 
 
 def install_and_launch(app: AppProject, app_path: Path, destination_id: str) -> None:
@@ -1749,6 +1771,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--inventory-details", action="store_true", help="Resolve and print scheme, target, bundle id, and app name as JSON.")
     parser.add_argument("--prepare-only", action="store_true", help="Inject SDK validation files and project references but do not build.")
     parser.add_argument("--build-only", action="store_true", help="Build after preparing but do not install or launch.")
+    parser.add_argument("--pod-install", action="store_true", help="Run pod install in selected app roots that contain a Podfile before resolving/building.")
+    parser.add_argument("--pod-install-timeout-seconds", type=int, default=900)
+    parser.add_argument(
+        "--exclude-simulator-arm64",
+        action="store_true",
+        help="Pass EXCLUDED_ARCHS[sdk=iphonesimulator*]=arm64 for older pods that only ship device arm64 static libraries.",
+    )
     parser.add_argument(
         "--inject-validation-app-icon",
         action="store_true",
@@ -1884,6 +1913,15 @@ def main() -> int:
             derived_data_path = args.output_root / "DerivedData" / slugify(project.slug)
             stage = "starting"
             try:
+                if args.pod_install:
+                    stage = "pod_install"
+                    print(f"==> Checking CocoaPods dependencies for {project.slug}")
+                    result.pod_install_attempted = (project.root / "Podfile").exists()
+                    result.pod_install_succeeded = install_cocoapods_dependencies(
+                        project,
+                        args.pod_install_timeout_seconds,
+                    )
+
                 if args.studio_issue_configs:
                     stage = "resolving"
                     if studio_client is None:
@@ -1937,7 +1975,7 @@ def main() -> int:
 
                 stage = "building"
                 print(f"==> Building {project.slug} ({project.bundle_id})")
-                build_app(project, args.configuration, destination_id, derived_data_path)
+                build_app(project, args.configuration, destination_id, derived_data_path, args.exclude_simulator_arm64)
                 result.built = True
 
                 stage = "resolving_app_path"
