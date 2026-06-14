@@ -55,6 +55,8 @@ VALIDATION_OBJC_FILE = "AnsightValidationConstructor.m"
 VALIDATION_ASSETS_DIR = "AnsightValidationAssets.xcassets"
 VALIDATION_APP_ICON_NAME = "AnsightValidationAppIcon"
 VALIDATION_APP_ICON_SET = f"{VALIDATION_APP_ICON_NAME}.appiconset"
+VALIDATION_RESULTS_FILE = "ios-test-app-validation-results.json"
+VALIDATION_SUMMARY_FILE = "ios-test-app-validation-summary.json"
 VALIDATION_ROUTE_NAME = "Ansight SDK Validation Route"
 VALIDATION_INPUT_OVERLAY_EVENT = "ansight.validation.inputOverlay"
 VALIDATION_INPUT_OVERLAY_MARKER_MIN_PIXELS = 500
@@ -2180,12 +2182,154 @@ def filter_projects(projects: list[AppProject], requested_apps: list[str]) -> li
 
 def write_results(output_root: Path, results: list[ValidationResult]) -> Path:
     output_root.mkdir(parents=True, exist_ok=True)
-    path = output_root / "ios-test-app-validation-results.json"
+    path = output_root / VALIDATION_RESULTS_FILE
     path.write_text(
         json.dumps([dataclasses.asdict(result) for result in results], indent=2),
         encoding="utf-8",
     )
+    write_validation_summary(output_root, results)
     return path
+
+
+def write_validation_summary(output_root: Path, results: list[ValidationResult]) -> Path:
+    output_root.mkdir(parents=True, exist_ok=True)
+    path = output_root / VALIDATION_SUMMARY_FILE
+    path.write_text(
+        json.dumps(build_validation_summary(results), indent=2),
+        encoding="utf-8",
+    )
+    return path
+
+
+def build_validation_summary(results: list[ValidationResult]) -> dict[str, Any]:
+    failed_results = [result for result in results if result.status == "failed"]
+    return {
+        "schema": "ansight.ios-test-app-validation-summary.v1",
+        "generatedAtUtc": utc_now_iso(),
+        "totalApps": len(results),
+        "statusCounts": count_by(result.status for result in results),
+        "failureStageCounts": count_by(result.failure_stage or "none" for result in failed_results),
+        "failureCategoryCounts": count_by(classify_validation_failure(result) for result in failed_results),
+        "sdkRuntimeReachedCount": sum(1 for result in results if validation_reached_sdk_runtime(result)),
+        "studioVerifiedCount": sum(1 for result in results if result.studio_verified),
+        "preRuntimeFailureCount": sum(1 for result in failed_results if not validation_reached_sdk_runtime(result)),
+        "studioVerificationFailureCount": sum(
+            1
+            for result in failed_results
+            if result.failure_stage == "studio_verification" or (result.launched and not result.studio_verified)
+        ),
+        "verificationGates": {
+            "fps": build_gate_summary(results, lambda result: (result.studio_fps_sample_count or 0) > 0),
+            "screenshots": build_gate_summary(results, lambda result: (result.studio_image_count or 0) > 0),
+            "remoteTools": build_gate_summary(results, lambda result: (result.studio_tool_count or 0) > 0),
+            "appIcon": build_gate_summary(results, lambda result: result.studio_icon_synced),
+            "deviceProfileDetails": build_gate_summary(results, lambda result: result.studio_device_profile_details_synced),
+            "validationRoute": build_gate_summary(results, lambda result: result.studio_validation_route_seen),
+            "touchInput": build_gate_summary(results, lambda result: result.studio_touch_input_verified),
+            "inputOverlayScreenshot": build_gate_summary(results, lambda result: result.studio_input_overlay_verified),
+            "binaryDownloadMetadata": build_gate_summary(results, lambda result: result.studio_binary_download_metadata_verified),
+            "binaryDownloadArtifact": build_gate_summary(results, lambda result: result.studio_binary_download_reassembled),
+        },
+        "verifiedApps": [
+            validation_summary_app(result)
+            for result in results
+            if result.studio_verified
+        ],
+        "failedApps": [
+            validation_summary_app(result) | {"failureCategory": classify_validation_failure(result)}
+            for result in failed_results
+        ],
+    }
+
+
+def count_by(values: Any) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for value in values:
+        key = str(value)
+        counts[key] = counts.get(key, 0) + 1
+    return dict(sorted(counts.items()))
+
+
+def validation_reached_sdk_runtime(result: ValidationResult) -> bool:
+    return result.launched or result.studio_session_id is not None or result.failure_stage == "studio_verification"
+
+
+def build_gate_summary(results: list[ValidationResult], predicate: Any) -> dict[str, Any]:
+    matching = [result.slug for result in results if predicate(result)]
+    return {
+        "count": len(matching),
+        "apps": sorted(matching),
+    }
+
+
+def validation_summary_app(result: ValidationResult) -> dict[str, Any]:
+    return {
+        "slug": result.slug,
+        "status": result.status,
+        "failureStage": result.failure_stage,
+        "errorSummary": result.error_summary,
+        "scheme": result.scheme,
+        "bundleId": result.bundle_id,
+        "studioSessionId": result.studio_session_id,
+        "studioStatus": result.studio_status,
+        "studioMetricSampleCount": result.studio_metric_sample_count,
+        "studioFpsSampleCount": result.studio_fps_sample_count,
+        "studioImageCount": result.studio_image_count,
+        "studioToolCount": result.studio_tool_count,
+        "touchCount": result.studio_touch_count,
+        "inputOverlayMarkerPixels": result.studio_input_overlay_marker_pixels,
+    }
+
+
+def classify_validation_failure(result: ValidationResult) -> str:
+    text = "\n".join(
+        item
+        for item in [
+            result.failure_stage,
+            result.error_summary,
+            result.error,
+            result.studio_error,
+        ]
+        if item
+    ).lower()
+
+    if result.failure_stage == "studio_verification" or (result.launched and not result.studio_verified):
+        return "studio_verification"
+    if "timed out" in text or "timeout" in text:
+        return "timeout"
+    if "macos" in text or "my mac" in text or "not an ios simulator" in text:
+        return "unsupported_destination"
+    if "watchos" in text or "runtime is not installed" in text or "not installed" in text:
+        return "missing_platform_runtime"
+    if "build input file cannot be found" in text or "no such file" in text or "missing source file" in text:
+        return "missing_source_file"
+    if "no such module" in text or "could not find package" in text or "unable to find a specification" in text:
+        return "missing_dependency"
+    if "pods" in text and ("xcconfig" in text or "pod install" in text or "sandbox is not in sync" in text):
+        return "missing_pods"
+    if "has been renamed" in text or "@propertydelegate" in text or "bindableobject" in text or "uiimageorientation" in text:
+        return "stale_swift_api"
+    if result.failure_stage in {"resolving", "issuing_pairing_config"}:
+        return "resolution"
+    if result.failure_stage == "pod_install":
+        return "pod_install"
+    if result.failure_stage == "building":
+        return "build_failure"
+    return result.failure_stage or "unknown"
+
+
+def read_validation_results(path: Path) -> list[ValidationResult]:
+    allowed_fields = {field.name for field in dataclasses.fields(ValidationResult)}
+    raw_results = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(raw_results, list):
+        raise RuntimeError("Validation results JSON must contain a list.")
+    results: list[ValidationResult] = []
+    for raw_result in raw_results:
+        if not isinstance(raw_result, dict):
+            raise RuntimeError("Validation result rows must be objects.")
+        values = {key: value for key, value in raw_result.items() if key in allowed_fields}
+        results.append(ValidationResult(**values))
+    return results
 
 
 def parse_args() -> argparse.Namespace:
@@ -2193,6 +2337,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--test-apps-root", type=Path, default=DEFAULT_TEST_APPS_ROOT)
     parser.add_argument("--sdk-package", type=Path, default=DEFAULT_SDK_PACKAGE)
     parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
+    parser.add_argument(
+        "--summarize-results",
+        type=Path,
+        default=None,
+        help="Read an existing validation results JSON file and write only the aggregate summary artifact.",
+    )
     parser.add_argument("--pairing-config-dir", type=Path, default=DEFAULT_OUTPUT_ROOT / "pairing-configs")
     parser.add_argument("--pairing-config", type=Path, default=None, help="Use one explicit pairing config JSON for the selected app.")
     parser.add_argument("--host-address", default="127.0.0.1", help="Host address to add to Studio pairing configs for simulator validation.")
@@ -2309,12 +2459,21 @@ def main() -> int:
     args.test_apps_root = args.test_apps_root.expanduser().resolve()
     args.sdk_package = args.sdk_package.expanduser().resolve()
     args.output_root = args.output_root.expanduser().resolve()
+    if args.summarize_results:
+        args.summarize_results = args.summarize_results.expanduser().resolve()
     args.pairing_config_dir = args.pairing_config_dir.expanduser().resolve()
     if args.pairing_config:
         args.pairing_config = args.pairing_config.expanduser().resolve()
     args.studio_daemon = args.studio_daemon.expanduser().resolve()
     BUILD_SETTINGS_TIMEOUT_SECONDS = args.build_settings_timeout_seconds
     BUILD_TIMEOUT_SECONDS = args.build_timeout_seconds
+
+    if args.summarize_results:
+        results = read_validation_results(args.summarize_results)
+        summary_path = write_validation_summary(args.output_root, results)
+        print(f"Wrote {summary_path}")
+        return 0
+
     projects = discover_projects(args.test_apps_root)
     projects = filter_projects(projects, args.app)
     if args.limit is not None:
@@ -2518,7 +2677,9 @@ def main() -> int:
             studio_client.close()
 
     results_path = write_results(args.output_root, results)
+    summary_path = args.output_root / VALIDATION_SUMMARY_FILE
     print(f"Wrote {results_path}")
+    print(f"Wrote {summary_path}")
     return 0 if all(result.status != "failed" for result in results) else 1
 
 
