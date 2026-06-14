@@ -52,11 +52,70 @@ final class ToolProtocolTests: XCTestCase {
         XCTAssertEqual(envelope.type, "tool.result")
         guard case .object(let payload) = envelope.payload,
               case .object(let result)? = payload["result"],
-              case .string(let echoed)? = result["echo"] else {
+              case .string(let echoed)? = result["echo"],
+              case .string(let requestId)? = result["requestId"],
+              case .string(let sessionId)? = result["sessionId"] else {
             return XCTFail("Expected successful tool result payload.")
         }
 
         XCTAssertEqual(echoed, "hello")
+        XCTAssertEqual(requestId, "req_2")
+        XCTAssertEqual(sessionId, "sess_1")
+    }
+
+    func testCallResolvesToolIdsCaseInsensitively() throws {
+        let bridge = AnsightToolProtocolBridge(
+            registry: [
+                AnsightToolProtocolBridge.normalizedToolId("Echo.Tool"): RegisteredTool(
+                    descriptor: EchoTool().descriptor,
+                    execute: EchoTool().execute(arguments:)
+                ),
+            ],
+            guardPolicy: .readOnly
+        )
+
+        let responseJson = try bridge.handleIfSupported(
+            """
+            {"type":"tool.call","id":"req_case","capability":"tool.exec","payload":{"toolId":"ECHO.TOOL","arguments":{"message":"hello"}}}
+            """
+        )
+
+        let envelope = try XCTUnwrap(decodeEnvelope(responseJson))
+        XCTAssertEqual(envelope.type, "tool.result")
+    }
+
+    func testInvalidToolProtocolRequestReturnsToolError() throws {
+        let bridge = AnsightToolProtocolBridge(registry: [:], guardPolicy: .readOnly)
+
+        let responseJson = try bridge.handleIfSupported(
+            """
+            {"type":"tool.call","capability":"tool.exec","payload":{"toolId":"echo.tool"}}
+            """
+        )
+
+        let envelope = try XCTUnwrap(decodeEnvelope(responseJson))
+        XCTAssertEqual(envelope.type, "tool.error")
+        guard case .object(let payload) = envelope.payload,
+              case .string(let code)? = payload["code"] else {
+            return XCTFail("Expected tool error payload.")
+        }
+        XCTAssertEqual(code, "tool_protocol_invalid_request")
+    }
+
+    func testRuntimeRejectsDuplicateToolIdsCaseInsensitively() throws {
+        let id = "duplicate.\(UUID().uuidString)"
+        try AnsightRuntime.shared.initialize(
+            options: AnsightOptions(hostAutoProbe: .disabledDefault)
+        )
+        try AnsightRuntime.shared.registerTool(
+            AnsightToolDescriptor(id: id, name: "First")
+        )
+
+        XCTAssertThrowsError(
+            try AnsightRuntime.shared.registerTool(
+                AnsightToolDescriptor(id: id.uppercased(), name: "Second")
+            )
+        )
     }
 
     private func decodeEnvelope(_ json: String?) -> AnsightToolProtocolEnvelope? {
@@ -91,6 +150,8 @@ private struct EchoTool: AnsightTool {
     func execute(arguments: [String: String]) throws -> AnsightToolExecutionResult {
         .success(.object([
             "echo": .string(arguments["message"] ?? ""),
+            "requestId": .string(arguments[AnsightToolExecutionArgumentNames.requestId] ?? ""),
+            "sessionId": .string(arguments[AnsightToolExecutionArgumentNames.sessionId] ?? ""),
         ]))
     }
 }

@@ -1,0 +1,24 @@
+{
+  "schema": "ansight.pairing-config.v1",
+  "configId": "5ca35358e2ab4555bcfe14ed9aa1a9d0",
+  "appId": "ai.ansight.ios.native-harness",
+  "appName": "Ansight iOS Native Harness",
+  "issuedAt": "2026-06-14T03:05:36.954789+00:00",
+  "expiresAt": "2026-06-14T15:05:36.954789+00:00",
+  "oneTimeToken": "JUUUaLfYHNJxP6awJ8etzj6YXN-KAGO2KE4PpidF95s",
+  "host": {
+    "hostPubKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE6r743De/Qz3D8wF19E7GBfhqropvzy/xyli4L6QpGoeLSoM74Fy3cmCYNgce0uk9kmmZdUW/ZKQ5mL/EeaMuQw==",
+    "hostPubKeyFingerprint": "41a2469e7f956d0c"
+  },
+  "challenge": {
+    "alg": "ECDSA-P256",
+    "challengePubKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE1mV/5MogTFprgVnbEhVrxiQSPy+PqVhzvv8SiGgCv9i4aBySuXBKSg50O/W8fG4xmZXcEy0ILllI4go4oLR8dQ==",
+    "requireProofOnFirstPair": true
+  },
+  "trust": {
+    "mode": "pinned-key+token+challenge",
+    "requireTokenOnFirstPair": true,
+    "allowLanDiscovery": false
+  },
+  "signature": "xW8rvW+V7EsDH8TDp5ULI8aXabZX4SA0ZNO9VRkCpYaRgvkKmfdI1J/Qtb8tQkN/DBzpAwKlqarD9pQztQ+/dA=="
+}

@@ -1,24 +1,5 @@
 import Foundation
 
-@objc
-internal protocol AnsightBuildArtifactsProviding {
-    static func embeddedDeveloperPairingJsonBase64() -> String?
-    static func detectedBundledToolTypes() -> [String]
-    static func allowBundledTools() -> Bool
-}
-
-internal final class AnsightBuildArtifactsClassProbe: NSObject {}
-
-public struct AnsightBundledToolScanReport: Sendable, Codable, Equatable {
-    public let detectedToolTypes: [String]
-    public let allowBundledTools: Bool
-
-    public init(detectedToolTypes: [String], allowBundledTools: Bool) {
-        self.detectedToolTypes = detectedToolTypes
-        self.allowBundledTools = allowBundledTools
-    }
-}
-
 public enum AnsightDeveloperMode {
     public static var embeddedPairingJson: String? {
         guard let base64 = providerType?.embeddedDeveloperPairingJsonBase64(),

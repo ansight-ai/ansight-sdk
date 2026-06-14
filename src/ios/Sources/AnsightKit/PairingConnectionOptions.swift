@@ -1,0 +1,21 @@
+import Foundation
+import Network
+
+public struct PairingConnectionOptions: Sendable, Equatable {
+    public var hostAddressOverride: String?
+    public var discoveryPort: Int?
+    public var deviceAppProfile: DeviceAppProfile?
+    public var customProperties: [String: [String: String]]
+
+    public init(
+        hostAddressOverride: String? = nil,
+        discoveryPort: Int? = nil,
+        deviceAppProfile: DeviceAppProfile? = nil,
+        customProperties: [String: [String: String]] = [:]
+    ) {
+        self.hostAddressOverride = hostAddressOverride
+        self.discoveryPort = discoveryPort
+        self.deviceAppProfile = deviceAppProfile
+        self.customProperties = customProperties
+    }
+}
