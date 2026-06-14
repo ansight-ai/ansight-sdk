@@ -233,6 +233,14 @@ public final class AnsightRuntime: @unchecked Sendable {
         try resolveConnectionRequest(request)
     }
 
+    func resolveConnectionRequestsForTesting(_ request: HostConnectionRequest) throws -> [ResolvedConnectionRequest] {
+        try resolveConnectionRequests(request)
+    }
+
+    func saveCachedPairingProfileForTesting(_ document: PairingConfigDocument) {
+        saveCachedPairingProfile(document)
+    }
+
     public func enableTouchCapture() {
         let canEnable = lock.withLock { () -> Bool in
             guard options.touchCapture != nil else {
@@ -1680,6 +1688,13 @@ public final class AnsightRuntime: @unchecked Sendable {
     }
 
     private func resolveConnectionRequest(_ request: HostConnectionRequest) throws -> ResolvedConnectionRequest {
+        guard let resolvedRequest = try resolveConnectionRequests(request).first else {
+            throw RuntimeError.invalidInput("No pairing config is available.")
+        }
+        return resolvedRequest
+    }
+
+    private func resolveConnectionRequests(_ request: HostConnectionRequest) throws -> [ResolvedConnectionRequest] {
         try lock.withLock {
             guard initialized else {
                 throw RuntimeError.notInitialized("AnsightRuntime must be initialized before connecting to a host.")
@@ -1691,46 +1706,60 @@ public final class AnsightRuntime: @unchecked Sendable {
 
         switch request.kind {
         case .auto:
+            var resolvedRequests: [ResolvedConnectionRequest] = []
             if let embedded = AnsightDeveloperMode.embeddedPairingJson {
-                return try resolvedRequest(fromPayload: embedded, source: .bundledDeveloperConfig, usedEmbeddedDeveloperPairing: true)
+                resolvedRequests.append(try resolvedRequest(
+                    fromPayload: embedded,
+                    source: .bundledDeveloperConfig,
+                    usedEmbeddedDeveloperPairing: true
+                ))
             }
-            if let cached = cachedPairingProfile() {
-                return cached
-            }
+            resolvedRequests.append(contentsOf: cachedPairingProfiles())
             if let savedJson = savedPairingStore.load(), !savedJson.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                return try resolvedRequest(fromPayload: savedJson, source: .savedConfig, usedEmbeddedDeveloperPairing: false)
+                resolvedRequests.append(try resolvedRequest(
+                    fromPayload: savedJson,
+                    source: .savedConfig,
+                    usedEmbeddedDeveloperPairing: false
+                ))
             }
             if let bundled = lock.withLock({ options.hostConnection.bundledConfigJson }) {
-                return try resolvedRequest(fromPayload: bundled, source: .bundledConfig, usedEmbeddedDeveloperPairing: false)
+                resolvedRequests.append(try resolvedRequest(
+                    fromPayload: bundled,
+                    source: .bundledConfig,
+                    usedEmbeddedDeveloperPairing: false
+                ))
             }
-            throw RuntimeError.invalidInput("No cached, saved, bundled, or developer pairing config is available.")
+            guard !resolvedRequests.isEmpty else {
+                throw RuntimeError.invalidInput("No cached, saved, bundled, or developer pairing config is available.")
+            }
+            return resolvedRequests
         case .savedConfig:
             guard let savedJson = savedPairingStore.load(), !savedJson.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 throw PairingDocumentError.invalidDocument("No saved pairing config is available.")
             }
-            return try resolvedRequest(fromPayload: savedJson, source: .savedConfig, usedEmbeddedDeveloperPairing: false)
+            return [try resolvedRequest(fromPayload: savedJson, source: .savedConfig, usedEmbeddedDeveloperPairing: false)]
         case .bundledConfig:
             if let bundled = lock.withLock({ options.hostConnection.bundledConfigJson }) {
-                return try resolvedRequest(fromPayload: bundled, source: .bundledConfig, usedEmbeddedDeveloperPairing: false)
+                return [try resolvedRequest(fromPayload: bundled, source: .bundledConfig, usedEmbeddedDeveloperPairing: false)]
             }
             if let embedded = AnsightDeveloperMode.embeddedPairingJson {
-                return try resolvedRequest(fromPayload: embedded, source: .bundledDeveloperConfig, usedEmbeddedDeveloperPairing: true)
+                return [try resolvedRequest(fromPayload: embedded, source: .bundledDeveloperConfig, usedEmbeddedDeveloperPairing: true)]
             }
             throw PairingDocumentError.invalidDocument("No bundled pairing config is available.")
         case .payload:
             guard let payload = request.payload else {
                 throw PairingDocumentError.invalidDocument("Pairing payload is required.")
             }
-            return try resolvedRequest(fromPayload: payload, source: .payload, usedEmbeddedDeveloperPairing: false)
+            return [try resolvedRequest(fromPayload: payload, source: .payload, usedEmbeddedDeveloperPairing: false)]
         case .config:
             guard let config = request.config else {
                 throw PairingDocumentError.invalidDocument("Pairing config value is required.")
             }
-            return ResolvedConnectionRequest(
+            return [ResolvedConnectionRequest(
                 document: ParsedPairingDocument(config: config.config, discoveryHint: config.discovery),
                 source: .configReader,
                 usedEmbeddedDeveloperPairing: false
-            )
+            )]
         case .file, .qrCode:
             throw RuntimeError.invalidInput("File and QR config readers are not configured in this first iOS pass.")
         }
@@ -1787,19 +1816,22 @@ public final class AnsightRuntime: @unchecked Sendable {
         let expiresAt = cachedAt.addingTimeInterval(
             Double(lock.withLock { options.hostConnection.connectionProfileRetentionSeconds })
         )
+        let networkKey = Self.cachedPairingNetworkKey(for: document)
         let profile = CachedPairingProfileDocument(
+            networkKey: networkKey,
+            wifiName: Self.normalizedCacheString(document.discovery?.wifiName),
+            hostName: Self.normalizedCacheString(document.discovery?.hostName),
             cachedAtUtc: AnsightClock.isoString(from: cachedAt),
             expiresAtUtc: AnsightClock.isoString(from: expiresAt),
             document: document
         )
 
-        guard let data = try? JSONEncoder.ansightEncoder.encode(profile),
-              let json = String(data: data, encoding: .utf8)
-        else {
-            return
+        var profiles = cachedPairingProfileDocuments()
+        profiles.removeAll { existing in
+            Self.cachedPairingNetworkKey(for: existing) == networkKey
         }
-
-        try? cachedPairingProfileStore.save(json)
+        profiles.append(profile)
+        saveCachedPairingProfileDocuments(profiles)
     }
 
     private func requestExpectedAppId(for document: ParsedPairingDocument) -> String? {
@@ -1921,33 +1953,128 @@ public final class AnsightRuntime: @unchecked Sendable {
     }
 
     private var hasCachedPairingProfileLocked: Bool {
-        cachedPairingProfile() != nil
+        !cachedPairingProfiles().isEmpty
     }
 
     private func cachedPairingProfile() -> ResolvedConnectionRequest? {
+        cachedPairingProfiles().first
+    }
+
+    private func cachedPairingProfiles() -> [ResolvedConnectionRequest] {
+        cachedPairingProfileDocuments().map { profile in
+            ResolvedConnectionRequest(
+                document: ParsedPairingDocument(
+                    config: profile.document.config,
+                    discoveryHint: profile.document.discovery
+                ),
+                source: .cachedSession,
+                usedEmbeddedDeveloperPairing: false
+            )
+        }
+    }
+
+    private func cachedPairingProfileDocuments() -> [CachedPairingProfileDocument] {
         guard let json = cachedPairingProfileStore.load(),
-              let data = json.data(using: .utf8),
-              let profile = try? JSONDecoder.ansightDecoder.decode(CachedPairingProfileDocument.self, from: data),
-              profile.schema == CachedPairingProfileDocument.schemaName
+              let data = json.data(using: .utf8)
         else {
-            return nil
+            return []
         }
 
-        guard let expiresAt = AnsightClock.parseISO8601(profile.expiresAtUtc),
-              expiresAt > Date()
-        else {
+        let decodedProfiles: [CachedPairingProfileDocument]
+        let shouldRewriteForSchema: Bool
+        if let collection = try? JSONDecoder.ansightDecoder.decode(
+            CachedPairingProfileCollectionDocument.self,
+            from: data
+        ), collection.schema == CachedPairingProfileCollectionDocument.schemaName {
+            decodedProfiles = collection.profiles
+            shouldRewriteForSchema = false
+        } else if let profile = try? JSONDecoder.ansightDecoder.decode(
+            CachedPairingProfileDocument.self,
+            from: data
+        ), profile.schema == CachedPairingProfileDocument.schemaName {
+            decodedProfiles = [profile]
+            shouldRewriteForSchema = true
+        } else {
             cachedPairingProfileStore.clear()
-            return nil
+            return []
         }
 
-        return ResolvedConnectionRequest(
-            document: ParsedPairingDocument(
-                config: profile.document.config,
-                discoveryHint: profile.document.discovery
-            ),
-            source: .cachedSession,
-            usedEmbeddedDeveloperPairing: false
+        let validProfiles = Self.sortedCachedPairingProfiles(
+            decodedProfiles.compactMap { profile in
+                guard profile.schema == CachedPairingProfileDocument.schemaName,
+                      let expiresAt = AnsightClock.parseISO8601(profile.expiresAtUtc),
+                      expiresAt > Date()
+                else {
+                    return nil
+                }
+                return normalizedCachedPairingProfile(profile)
+            }
         )
+
+        if shouldRewriteForSchema || validProfiles.count != decodedProfiles.count {
+            saveCachedPairingProfileDocuments(validProfiles)
+        }
+
+        return validProfiles
+    }
+
+    private func saveCachedPairingProfileDocuments(_ profiles: [CachedPairingProfileDocument]) {
+        let sortedProfiles = Self.sortedCachedPairingProfiles(profiles)
+        guard !sortedProfiles.isEmpty else {
+            cachedPairingProfileStore.clear()
+            return
+        }
+
+        let document = CachedPairingProfileCollectionDocument(profiles: sortedProfiles)
+        guard let data = try? JSONEncoder.ansightEncoder.encode(document),
+              let json = String(data: data, encoding: .utf8)
+        else {
+            return
+        }
+
+        try? cachedPairingProfileStore.save(json)
+    }
+
+    private func normalizedCachedPairingProfile(_ profile: CachedPairingProfileDocument) -> CachedPairingProfileDocument {
+        CachedPairingProfileDocument(
+            networkKey: Self.cachedPairingNetworkKey(for: profile),
+            wifiName: Self.normalizedCacheString(profile.wifiName ?? profile.document.discovery?.wifiName),
+            hostName: Self.normalizedCacheString(profile.hostName ?? profile.document.discovery?.hostName),
+            cachedAtUtc: profile.cachedAtUtc,
+            expiresAtUtc: profile.expiresAtUtc,
+            document: profile.document
+        )
+    }
+
+    private static func sortedCachedPairingProfiles(
+        _ profiles: [CachedPairingProfileDocument]
+    ) -> [CachedPairingProfileDocument] {
+        profiles.sorted { left, right in
+            let leftDate = AnsightClock.parseISO8601(left.cachedAtUtc) ?? .distantPast
+            let rightDate = AnsightClock.parseISO8601(right.cachedAtUtc) ?? .distantPast
+            if leftDate != rightDate {
+                return leftDate > rightDate
+            }
+            return cachedPairingNetworkKey(for: left).localizedCaseInsensitiveCompare(
+                cachedPairingNetworkKey(for: right)
+            ) == .orderedAscending
+        }
+    }
+
+    private static func cachedPairingNetworkKey(for profile: CachedPairingProfileDocument) -> String {
+        normalizedCacheString(profile.networkKey) ?? cachedPairingNetworkKey(for: profile.document)
+    }
+
+    private static func cachedPairingNetworkKey(for document: PairingConfigDocument) -> String {
+        if let wifiName = normalizedCacheString(document.discovery?.wifiName) {
+            return "wifi:\(wifiName)"
+        }
+        return "wifi:<unknown>"
+    }
+
+    private static func normalizedCacheString(_ value: String?) -> String? {
+        let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     private static func cachedPairingProfileKey(for savedConfigKey: String) -> String {

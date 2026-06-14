@@ -161,6 +161,104 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertEqual(resolved.document.discoveryHint?.hostAddress, "127.0.0.2")
     }
 
+    func testAutoConnectionOrdersCachedPairingProfilesNewestFirst() throws {
+        try XCTSkipIf(
+            AnsightDeveloperMode.embeddedPairingJson != nil,
+            "Embedded developer pairing intentionally takes precedence over cached test stores."
+        )
+        let savedStore = MemoryPairingConfigStore()
+        let cachedStore = MemoryPairingConfigStore()
+        try savedStore.save(TestPairingFactory.configDocumentJSON(configId: "cfg-saved", hostAddress: "127.0.0.1"))
+        try cachedStore.save(
+            TestPairingFactory.cachedProfileCollectionJSON([
+                TestPairingFactory.cachedProfile(
+                    configId: "cfg-home",
+                    hostAddress: "127.0.0.2",
+                    wifiName: "Home Wi-Fi",
+                    cachedAt: Date(timeIntervalSince1970: 1_000)
+                ),
+                TestPairingFactory.cachedProfile(
+                    configId: "cfg-office",
+                    hostAddress: "127.0.0.3",
+                    wifiName: "Office Wi-Fi",
+                    cachedAt: Date(timeIntervalSince1970: 2_000)
+                ),
+            ])
+        )
+
+        try AnsightRuntime.shared.initialize(options: AnsightOptions(hostAutoProbe: .disabledDefault))
+        try AnsightRuntime.shared.activate()
+        AnsightRuntime.shared.replacePairingStoresForTesting(saved: savedStore, cached: cachedStore)
+
+        let resolved = try AnsightRuntime.shared.resolveConnectionRequestsForTesting(.auto())
+
+        XCTAssertEqual(resolved.map { $0.document.config.configId }, ["cfg-office", "cfg-home", "cfg-saved"])
+        XCTAssertEqual(resolved[0].source, .cachedSession)
+        XCTAssertEqual(resolved[1].source, .cachedSession)
+        XCTAssertEqual(resolved[2].source, .savedConfig)
+    }
+
+    func testLegacySingleCachedPairingProfileMigratesToCollectionDocument() throws {
+        let cachedStore = MemoryPairingConfigStore()
+        try cachedStore.save(
+            TestPairingFactory.cachedProfileJSON(
+                configId: "cfg-legacy",
+                hostAddress: "127.0.0.2",
+                wifiName: "Legacy Wi-Fi"
+            )
+        )
+
+        try AnsightRuntime.shared.initialize(options: AnsightOptions(hostAutoProbe: .disabledDefault))
+        try AnsightRuntime.shared.activate()
+        AnsightRuntime.shared.replacePairingStoresForTesting(saved: MemoryPairingConfigStore(), cached: cachedStore)
+
+        let resolved = try AnsightRuntime.shared.resolveConnectionRequestForTesting(.auto())
+        XCTAssertEqual(resolved.document.config.configId, "cfg-legacy")
+
+        let rewrittenJson = try XCTUnwrap(cachedStore.load())
+        let rewritten = try JSONDecoder.ansightDecoder.decode(
+            CachedPairingProfileCollectionDocument.self,
+            from: Data(rewrittenJson.utf8)
+        )
+        XCTAssertEqual(rewritten.schema, CachedPairingProfileCollectionDocument.schemaName)
+        XCTAssertEqual(rewritten.profiles.count, 1)
+        XCTAssertEqual(rewritten.profiles[0].networkKey, "wifi:Legacy Wi-Fi")
+        XCTAssertEqual(rewritten.profiles[0].wifiName, "Legacy Wi-Fi")
+    }
+
+    func testCachedPairingProfileSaveRefreshesMatchingWifiNetwork() throws {
+        let cachedStore = MemoryPairingConfigStore()
+        try AnsightRuntime.shared.initialize(options: AnsightOptions(hostAutoProbe: .disabledDefault))
+        try AnsightRuntime.shared.activate()
+        AnsightRuntime.shared.replacePairingStoresForTesting(saved: MemoryPairingConfigStore(), cached: cachedStore)
+
+        AnsightRuntime.shared.saveCachedPairingProfileForTesting(
+            TestPairingFactory.configDocument(
+                configId: "cfg-home-old",
+                hostAddress: "127.0.0.2",
+                wifiName: "Home Wi-Fi"
+            )
+        )
+        AnsightRuntime.shared.saveCachedPairingProfileForTesting(
+            TestPairingFactory.configDocument(
+                configId: "cfg-home-new",
+                hostAddress: "127.0.0.3",
+                wifiName: "Home Wi-Fi"
+            )
+        )
+
+        let resolved = try AnsightRuntime.shared.resolveConnectionRequestsForTesting(.auto())
+        XCTAssertEqual(resolved.map { $0.document.config.configId }, ["cfg-home-new"])
+
+        let json = try XCTUnwrap(cachedStore.load())
+        let collection = try JSONDecoder.ansightDecoder.decode(
+            CachedPairingProfileCollectionDocument.self,
+            from: Data(json.utf8)
+        )
+        XCTAssertEqual(collection.profiles.count, 1)
+        XCTAssertEqual(collection.profiles[0].networkKey, "wifi:Home Wi-Fi")
+    }
+
     func testSavedPairingAndCachedSessionCanBeClearedSeparately() throws {
         let savedStore = MemoryPairingConfigStore()
         let cachedStore = MemoryPairingConfigStore()
@@ -764,9 +862,13 @@ private enum TestPairingFactory {
         return String(decoding: data, as: UTF8.self)
     }
 
-    static func configDocumentJSON(configId: String, hostAddress: String = "127.0.0.1") throws -> String {
+    static func configDocumentJSON(
+        configId: String,
+        hostAddress: String = "127.0.0.1",
+        wifiName: String? = nil
+    ) throws -> String {
         let data = try JSONEncoder.ansightEncoder.encode(
-            configDocument(configId: configId, hostAddress: hostAddress)
+            configDocument(configId: configId, hostAddress: hostAddress, wifiName: wifiName)
         )
         return String(decoding: data, as: UTF8.self)
     }
@@ -774,18 +876,50 @@ private enum TestPairingFactory {
     static func cachedProfileJSON(
         configId: String,
         hostAddress: String = "127.0.0.1",
+        wifiName: String? = nil,
+        cachedAt: Date = Date(),
         expiresAt: Date = Date().addingTimeInterval(600)
     ) throws -> String {
-        let profile = CachedPairingProfileDocument(
-            cachedAtUtc: timestamp(Date()),
-            expiresAtUtc: timestamp(expiresAt),
-            document: configDocument(configId: configId, hostAddress: hostAddress)
+        let profile = cachedProfile(
+            configId: configId,
+            hostAddress: hostAddress,
+            wifiName: wifiName,
+            cachedAt: cachedAt,
+            expiresAt: expiresAt
         )
         let data = try JSONEncoder.ansightEncoder.encode(profile)
         return String(decoding: data, as: UTF8.self)
     }
 
-    private static func configDocument(configId: String, hostAddress: String) -> PairingConfigDocument {
+    static func cachedProfileCollectionJSON(_ profiles: [CachedPairingProfileDocument]) throws -> String {
+        let data = try JSONEncoder.ansightEncoder.encode(
+            CachedPairingProfileCollectionDocument(profiles: profiles)
+        )
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    static func cachedProfile(
+        configId: String,
+        hostAddress: String = "127.0.0.1",
+        wifiName: String? = nil,
+        cachedAt: Date = Date(),
+        expiresAt: Date = Date().addingTimeInterval(600)
+    ) -> CachedPairingProfileDocument {
+        CachedPairingProfileDocument(
+            networkKey: wifiName.map { "wifi:\($0)" },
+            wifiName: wifiName,
+            hostName: "test-host",
+            cachedAtUtc: timestamp(cachedAt),
+            expiresAtUtc: timestamp(expiresAt),
+            document: configDocument(configId: configId, hostAddress: hostAddress, wifiName: wifiName)
+        )
+    }
+
+    static func configDocument(
+        configId: String,
+        hostAddress: String,
+        wifiName: String? = nil
+    ) -> PairingConfigDocument {
         PairingConfigDocument(
             config: signedConfig(configId: configId),
             discovery: PairingDiscoveryHint(
@@ -793,6 +927,7 @@ private enum TestPairingFactory {
                 hostAddress: hostAddress,
                 discoveryPort: 45123,
                 hostName: "test-host",
+                wifiName: wifiName,
                 capturedAt: timestamp(Date())
             )
         )
