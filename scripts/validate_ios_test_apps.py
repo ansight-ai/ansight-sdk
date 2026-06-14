@@ -922,11 +922,8 @@ def write_validation_sources(
         field.isUserInteractionEnabled = true
         field.inputView = makeValidationInputOverlay(width: window.bounds.width)
 
-        if field.superview !== window {{
-            field.removeFromSuperview()
-            window.addSubview(field)
-        }}
-        window.bringSubviewToFront(field)
+        field.removeFromSuperview()
+        window.addSubview(field)
         validationInputOverlayField = field
 
         field.reloadInputViews()
@@ -986,7 +983,7 @@ def write_validation_sources(
             markerWindow = UIWindow(frame: sourceWindow.frame)
         }}
         markerWindow.frame = sourceWindow.frame
-        markerWindow.windowLevel = UIWindow.Level(rawValue: sourceWindow.windowLevel.rawValue + 1)
+        markerWindow.windowLevel = sourceWindow.windowLevel
         markerWindow.backgroundColor = .clear
         markerWindow.isUserInteractionEnabled = false
 
