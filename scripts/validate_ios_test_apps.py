@@ -1374,6 +1374,27 @@ def expand_bundle_id(raw_bundle_id: str, settings: dict[str, str]) -> str:
     return expand_build_setting_variables(expanded, settings).strip(".")
 
 
+def resolve_bundle_id(settings: dict[str, str], project_root: Path) -> str:
+    bundle_id = expand_bundle_id(settings.get("PRODUCT_BUNDLE_IDENTIFIER", ""), settings)
+    if bundle_id:
+        return bundle_id
+
+    info_plist_file = expand_build_setting_variables(settings.get("INFOPLIST_FILE", ""), settings)
+    if not info_plist_file:
+        return ""
+
+    info_plist_path = Path(info_plist_file)
+    if not info_plist_path.is_absolute():
+        info_plist_path = project_root / info_plist_path
+    if not info_plist_path.exists():
+        return ""
+
+    with info_plist_path.open("rb") as file:
+        info_plist = plistlib.load(file)
+    raw_bundle_id = str(info_plist.get("CFBundleIdentifier", ""))
+    return expand_bundle_id(raw_bundle_id, settings)
+
+
 def expand_build_setting_variables(value: str, settings: dict[str, str]) -> str:
     variable_pattern = re.compile(r"\$\(([^):}]+)(?::(rfc1034identifier))?\)|\$\{([^):}]+)(?::(rfc1034identifier))?\}")
     expanded = value
@@ -1465,9 +1486,9 @@ def prepare_project(
     app.target_name = target_name
 
     settings = build_settings(app, scheme, configuration, destination, derived_data_path)
-    bundle_id = expand_bundle_id(settings.get("PRODUCT_BUNDLE_IDENTIFIER", ""), settings)
+    bundle_id = resolve_bundle_id(settings, app.root)
     if not bundle_id:
-        raise RuntimeError(f"Could not resolve PRODUCT_BUNDLE_IDENTIFIER for {app.slug}.")
+        raise RuntimeError(f"Could not resolve bundle identifier for {app.slug}.")
     app.bundle_id = bundle_id
     app.app_name = settings.get("FULL_PRODUCT_NAME", target_name).removesuffix(".app")
 
@@ -1554,9 +1575,9 @@ def resolve_project_identity(
         raise RuntimeError(f"Could not infer a scheme for {app.slug}.")
 
     settings = build_settings(app, scheme, configuration, destination, derived_data_path)
-    bundle_id = expand_bundle_id(settings.get("PRODUCT_BUNDLE_IDENTIFIER", ""), settings)
+    bundle_id = resolve_bundle_id(settings, app.root)
     if not bundle_id:
-        raise RuntimeError(f"Could not resolve PRODUCT_BUNDLE_IDENTIFIER for {app.slug}.")
+        raise RuntimeError(f"Could not resolve bundle identifier for {app.slug}.")
 
     app.scheme = scheme
     app.target_name = target_name
@@ -1574,16 +1595,16 @@ def resolve_project_identity_fast(app: AppProject) -> AppProject:
     configurations = find_build_configurations(objects, target)
     configuration = next((item for item in configurations if item.get("name") == "Debug"), None)
     configuration = configuration or (configurations[0] if configurations else None)
-    settings = configuration.get("buildSettings", {}) if configuration else {}
-    bundle_id = expand_bundle_id(str(settings.get("PRODUCT_BUNDLE_IDENTIFIER", "")), {
-        "PRODUCT_NAME": str(settings.get("PRODUCT_NAME", target_name)).replace("$(TARGET_NAME)", target_name),
-        "TARGET_NAME": target_name,
-    })
+    raw_settings = configuration.get("buildSettings", {}) if configuration else {}
+    settings = {str(key): str(value) for key, value in raw_settings.items()}
+    settings["PRODUCT_NAME"] = str(settings.get("PRODUCT_NAME", target_name)).replace("$(TARGET_NAME)", target_name)
+    settings["TARGET_NAME"] = target_name
+    bundle_id = resolve_bundle_id(settings, app.root)
 
     app.scheme = app.scheme or target_name
     app.target_name = target_name
     app.bundle_id = bundle_id or None
-    app.app_name = str(settings.get("PRODUCT_NAME", target_name)).replace("$(TARGET_NAME)", target_name)
+    app.app_name = settings.get("PRODUCT_NAME", target_name)
     return app
 
 
