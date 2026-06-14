@@ -11,9 +11,26 @@ import UIKit
 public final class AnsightRuntime: @unchecked Sendable {
     public static let shared = AnsightRuntime()
 
+    private static let cachedProfileResetReasonCodes: Set<String> = [
+        PairingFailureCodes.pairingRequired,
+        PairingFailureCodes.pairingTokenInvalid,
+        PairingFailureCodes.pairingTokenExpired,
+        PairingFailureCodes.pairingProofInvalid,
+        PairingFailureCodes.udpBootstrapFailed,
+        PairingFailureCodes.udpBootstrapTimeout,
+        PairingFailureCodes.hostAddressRequired,
+    ]
+
+    private static let storedProfileResetReasonCodes: Set<String> = [
+        PairingFailureCodes.pairingRequired,
+        PairingFailureCodes.pairingTokenInvalid,
+        PairingFailureCodes.pairingTokenExpired,
+        PairingFailureCodes.pairingProofInvalid,
+    ]
+
     private let lock = NSLock()
     private let pairingDocumentService = PairingConfigDocumentService()
-    private let connector = PairingSessionConnector()
+    private var connector: any PairingSessionConnecting = PairingSessionConnector()
     private let liveTransport = PairingLiveSessionTransport()
 
     private var savedPairingStore: any PairingConfigStore = KeychainPairingConfigStore(account: "ai.ansight.ios.saved-pairing")
@@ -226,6 +243,12 @@ public final class AnsightRuntime: @unchecked Sendable {
         lock.withLock {
             savedPairingStore = saved
             cachedPairingProfileStore = cached
+        }
+    }
+
+    func replaceConnectorForTesting(_ connector: any PairingSessionConnecting) {
+        lock.withLock {
+            self.connector = connector
         }
     }
 
@@ -508,9 +531,9 @@ public final class AnsightRuntime: @unchecked Sendable {
     }
 
     public func connect(_ request: HostConnectionRequest = .auto()) async -> HostConnectionResult {
-        let resolvedRequest: ResolvedConnectionRequest
+        let resolvedRequests: [ResolvedConnectionRequest]
         do {
-            resolvedRequest = try resolveConnectionRequest(request)
+            resolvedRequests = try resolveConnectionRequests(request)
         } catch {
             return HostConnectionResult(
                 success: false,
@@ -521,6 +544,43 @@ public final class AnsightRuntime: @unchecked Sendable {
             )
         }
 
+        let clientName = resolveClientName(request.clientName)
+        var lastResult: HostConnectionResult?
+        for resolvedRequest in resolvedRequests {
+            let result = await connectResolvedRequest(
+                resolvedRequest,
+                originalRequest: request,
+                clientName: clientName
+            )
+            if result.success {
+                return result
+            }
+
+            lastResult = result
+            cleanUpFailedAutoConnectionCandidate(resolvedRequest, result: result)
+            guard shouldTryNextAutoConnectionCandidate(
+                after: result,
+                resolvedRequest: resolvedRequest,
+                originalRequest: request
+            ) else {
+                return result
+            }
+        }
+
+        return lastResult ?? HostConnectionResult(
+            success: false,
+            message: "No pairing config is available.",
+            kind: request.kind,
+            source: source(for: request.kind),
+            reasonCode: nil
+        )
+    }
+
+    private func connectResolvedRequest(
+        _ resolvedRequest: ResolvedConnectionRequest,
+        originalRequest request: HostConnectionRequest,
+        clientName: String
+    ) async -> HostConnectionResult {
         let expectedAppId = requestExpectedAppId(for: resolvedRequest.document)
         do {
             try pairingDocumentService.validateDocument(resolvedRequest.document, expectedAppId: expectedAppId)
@@ -535,7 +595,6 @@ public final class AnsightRuntime: @unchecked Sendable {
             )
         }
 
-        let clientName = resolveClientName(request.clientName)
         lock.withLock {
             connectionState = .connecting
             sessionMessage = "Connecting to Ansight host."
@@ -547,6 +606,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             deviceAppProfile: nextDeviceProfile(),
             customProperties: options.customProperties
         )
+        let connector = lock.withLock { self.connector }
         let attempt = await connector.connect(
             document: resolvedRequest.document,
             clientName: clientName,
@@ -725,6 +785,91 @@ public final class AnsightRuntime: @unchecked Sendable {
             reasonCode: connectResponse.reason,
             openSession: open
         )
+    }
+
+    private func cleanUpFailedAutoConnectionCandidate(
+        _ resolvedRequest: ResolvedConnectionRequest,
+        result: HostConnectionResult
+    ) {
+        guard result.kind == .auto, !result.success else {
+            return
+        }
+
+        switch resolvedRequest.source {
+        case .cachedSession:
+            if shouldClearCachedPairingProfile(reasonCode: result.reasonCode) {
+                clearCachedPairingProfile(for: resolvedRequest)
+            }
+        case .savedConfig:
+            if shouldClearStoredPairingProfile(reasonCode: result.reasonCode) {
+                savedPairingStore.clear()
+            }
+        default:
+            return
+        }
+    }
+
+    private func shouldTryNextAutoConnectionCandidate(
+        after result: HostConnectionResult,
+        resolvedRequest: ResolvedConnectionRequest,
+        originalRequest: HostConnectionRequest
+    ) -> Bool {
+        guard originalRequest.kind == .auto, !result.success else {
+            return false
+        }
+
+        switch resolvedRequest.source {
+        case .bundledDeveloperConfig, .cachedSession:
+            return true
+        case .savedConfig:
+            return shouldRetryWithBundledConfig(reasonCode: result.reasonCode)
+        default:
+            return false
+        }
+    }
+
+    private func shouldRetryWithBundledConfig(reasonCode: String?) -> Bool {
+        guard let reasonCode, !reasonCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return false
+        }
+
+        return Self.storedProfileResetReasonCodes.contains(reasonCode) ||
+            reasonCode == PairingFailureCodes.hostAddressRequired
+    }
+
+    private func shouldClearCachedPairingProfile(reasonCode: String?) -> Bool {
+        guard let reasonCode, !reasonCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return false
+        }
+
+        return Self.cachedProfileResetReasonCodes.contains(reasonCode)
+    }
+
+    private func shouldClearStoredPairingProfile(reasonCode: String?) -> Bool {
+        guard let reasonCode, !reasonCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return false
+        }
+
+        return Self.storedProfileResetReasonCodes.contains(reasonCode)
+    }
+
+    private func clearCachedPairingProfile(for resolvedRequest: ResolvedConnectionRequest) {
+        let targetDocument = PairingConfigDocument(
+            config: resolvedRequest.document.config,
+            discovery: resolvedRequest.document.discoveryHint
+        )
+        let targetNetworkKey = Self.cachedPairingNetworkKey(for: targetDocument)
+        let targetConfigId = resolvedRequest.document.config.configId
+        var profiles = cachedPairingProfileDocuments()
+        let originalCount = profiles.count
+        profiles.removeAll { profile in
+            Self.cachedPairingNetworkKey(for: profile) == targetNetworkKey &&
+                profile.document.config.configId == targetConfigId
+        }
+
+        if profiles.count != originalCount {
+            saveCachedPairingProfileDocuments(profiles)
+        }
     }
 
     public func disconnect() async -> HostConnectionResult {
@@ -2100,6 +2245,15 @@ public final class AnsightRuntime: @unchecked Sendable {
 
     private func reasonCode(for error: Error) -> String? {
         let message = error.localizedDescription
+        if message.localizedCaseInsensitiveContains("expired") {
+            return PairingFailureCodes.pairingTokenExpired
+        }
+        if message.localizedCaseInsensitiveContains("signature is invalid") {
+            return PairingFailureCodes.pairingProofInvalid
+        }
+        if message.localizedCaseInsensitiveContains("does not match expected app id") {
+            return PairingFailureCodes.pairingRequired
+        }
         if message.contains("No saved pairing config") {
             return PairingFailureCodes.noSavedConfig
         }

@@ -313,6 +313,88 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertEqual(status.summaryKind, .disconnectedSavedConfigAvailable)
     }
 
+    func testAutoConnectionRetriesCachedProfilesInResolvedOrder() async throws {
+        try XCTSkipIf(
+            AnsightDeveloperMode.embeddedPairingJson != nil,
+            "Embedded developer pairing intentionally takes precedence over cached test stores."
+        )
+        let cachedStore = MemoryPairingConfigStore()
+        try cachedStore.save(
+            TestPairingFactory.cachedProfileCollectionJSON([
+                TestPairingFactory.cachedProfile(
+                    configId: "cfg-home",
+                    hostAddress: "127.0.0.2",
+                    wifiName: "Home Wi-Fi",
+                    cachedAt: Date(timeIntervalSince1970: 1_000)
+                ),
+                TestPairingFactory.cachedProfile(
+                    configId: "cfg-office",
+                    hostAddress: "127.0.0.3",
+                    wifiName: "Office Wi-Fi",
+                    cachedAt: Date(timeIntervalSince1970: 2_000)
+                ),
+            ])
+        )
+
+        try AnsightRuntime.shared.initialize(options: AnsightOptions(hostAutoProbe: .disabledDefault))
+        try AnsightRuntime.shared.activate()
+        AnsightRuntime.shared.replacePairingStoresForTesting(saved: MemoryPairingConfigStore(), cached: cachedStore)
+        let connector = FakePairingSessionConnector(
+            attemptsByConfigId: [
+                "cfg-office": .failure("Office profile timed out.", code: PairingFailureCodes.udpBootstrapTimeout),
+                "cfg-home": .failure("Home profile failed.", code: PairingFailureCodes.udpBootstrapFailed),
+            ]
+        )
+        AnsightRuntime.shared.replaceConnectorForTesting(connector)
+        defer {
+            AnsightRuntime.shared.replaceConnectorForTesting(PairingSessionConnector())
+        }
+
+        let result = await AnsightRuntime.shared.connect(.auto(clientName: "Unit Test"))
+
+        XCTAssertFalse(result.success)
+        XCTAssertEqual(connector.attemptedConfigIds, ["cfg-office", "cfg-home"])
+        XCTAssertEqual(result.source, .cachedSession)
+        XCTAssertEqual(result.reasonCode, PairingFailureCodes.udpBootstrapFailed)
+        XCTAssertEqual(result.openSession?.configId, "cfg-home")
+        XCTAssertNil(cachedStore.load())
+    }
+
+    func testAutoConnectionFallsBackFromSavedConfigToBundledConfigWhenSavedConfigIsStale() async throws {
+        try XCTSkipIf(
+            AnsightDeveloperMode.embeddedPairingJson != nil,
+            "Embedded developer pairing intentionally takes precedence over cached test stores."
+        )
+        let savedStore = MemoryPairingConfigStore()
+        try savedStore.save(TestPairingFactory.configDocumentJSON(configId: "cfg-saved", hostAddress: "127.0.0.2"))
+        let bundledJson = try TestPairingFactory.configDocumentJSON(configId: "cfg-bundled", hostAddress: "127.0.0.3")
+
+        try AnsightRuntime.shared.initialize(options: AnsightOptions(
+            hostAutoProbe: .disabledDefault,
+            hostConnection: AnsightHostConnectionOptions(bundledConfigJson: bundledJson)
+        ))
+        try AnsightRuntime.shared.activate()
+        AnsightRuntime.shared.replacePairingStoresForTesting(saved: savedStore, cached: MemoryPairingConfigStore())
+        let connector = FakePairingSessionConnector(
+            attemptsByConfigId: [
+                "cfg-saved": .failure("Saved profile has no current host address.", code: PairingFailureCodes.hostAddressRequired),
+                "cfg-bundled": .failure("Bundled profile failed.", code: PairingFailureCodes.udpBootstrapFailed),
+            ]
+        )
+        AnsightRuntime.shared.replaceConnectorForTesting(connector)
+        defer {
+            AnsightRuntime.shared.replaceConnectorForTesting(PairingSessionConnector())
+        }
+
+        let result = await AnsightRuntime.shared.connect(.auto(clientName: "Unit Test"))
+
+        XCTAssertFalse(result.success)
+        XCTAssertEqual(connector.attemptedConfigIds, ["cfg-saved", "cfg-bundled"])
+        XCTAssertEqual(result.source, .bundledConfig)
+        XCTAssertEqual(result.reasonCode, PairingFailureCodes.udpBootstrapFailed)
+        XCTAssertEqual(result.openSession?.configId, "cfg-bundled")
+    }
+
     func testOptionsClampToSharedTelemetryBoundsAndRejectReservedCustomChannels() throws {
         let options = try AnsightOptions(
             sampleFrequencyMilliseconds: 50,
@@ -865,10 +947,11 @@ private enum TestPairingFactory {
     static func configDocumentJSON(
         configId: String,
         hostAddress: String = "127.0.0.1",
-        wifiName: String? = nil
+        wifiName: String? = nil,
+        appId: String? = nil
     ) throws -> String {
         let data = try JSONEncoder.ansightEncoder.encode(
-            configDocument(configId: configId, hostAddress: hostAddress, wifiName: wifiName)
+            configDocument(configId: configId, hostAddress: hostAddress, wifiName: wifiName, appId: appId)
         )
         return String(decoding: data, as: UTF8.self)
     }
@@ -878,14 +961,16 @@ private enum TestPairingFactory {
         hostAddress: String = "127.0.0.1",
         wifiName: String? = nil,
         cachedAt: Date = Date(),
-        expiresAt: Date = Date().addingTimeInterval(600)
+        expiresAt: Date = Date().addingTimeInterval(600),
+        appId: String? = nil
     ) throws -> String {
         let profile = cachedProfile(
             configId: configId,
             hostAddress: hostAddress,
             wifiName: wifiName,
             cachedAt: cachedAt,
-            expiresAt: expiresAt
+            expiresAt: expiresAt,
+            appId: appId
         )
         let data = try JSONEncoder.ansightEncoder.encode(profile)
         return String(decoding: data, as: UTF8.self)
@@ -903,7 +988,8 @@ private enum TestPairingFactory {
         hostAddress: String = "127.0.0.1",
         wifiName: String? = nil,
         cachedAt: Date = Date(),
-        expiresAt: Date = Date().addingTimeInterval(600)
+        expiresAt: Date = Date().addingTimeInterval(600),
+        appId: String? = nil
     ) -> CachedPairingProfileDocument {
         CachedPairingProfileDocument(
             networkKey: wifiName.map { "wifi:\($0)" },
@@ -911,17 +997,18 @@ private enum TestPairingFactory {
             hostName: "test-host",
             cachedAtUtc: timestamp(cachedAt),
             expiresAtUtc: timestamp(expiresAt),
-            document: configDocument(configId: configId, hostAddress: hostAddress, wifiName: wifiName)
+            document: configDocument(configId: configId, hostAddress: hostAddress, wifiName: wifiName, appId: appId)
         )
     }
 
     static func configDocument(
         configId: String,
         hostAddress: String,
-        wifiName: String? = nil
+        wifiName: String? = nil,
+        appId: String? = nil
     ) -> PairingConfigDocument {
         PairingConfigDocument(
-            config: signedConfig(configId: configId),
+            config: signedConfig(configId: configId, appId: appId ?? runtimeAppId()),
             discovery: PairingDiscoveryHint(
                 source: "unit-test",
                 hostAddress: hostAddress,
@@ -931,6 +1018,10 @@ private enum TestPairingFactory {
                 capturedAt: timestamp(Date())
             )
         )
+    }
+
+    private static func runtimeAppId() -> String {
+        Bundle.main.bundleIdentifier ?? "com.ansight.test"
     }
 
     private static func timestamp(_ date: Date) -> String {

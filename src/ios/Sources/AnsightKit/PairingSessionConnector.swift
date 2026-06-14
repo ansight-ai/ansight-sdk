@@ -1,7 +1,7 @@
 import Foundation
 import Network
 
-public final class PairingSessionConnector: @unchecked Sendable {
+public final class PairingSessionConnector: PairingSessionConnecting, @unchecked Sendable {
     private let datagramClient: any PairingDatagramClient
 
     public convenience init() {
