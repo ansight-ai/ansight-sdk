@@ -13,10 +13,20 @@ targets:
       - AnsightNativeHarness
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: ai.ansight.nativeharness
+        PRODUCT_BUNDLE_IDENTIFIER: ai.ansight.ios.native-harness
         PRODUCT_NAME: AnsightNativeHarness
         INFOPLIST_FILE: AnsightNativeHarness/Info.plist
         SWIFT_VERSION: 6.0
     dependencies:
       - package: AnsightKit
         product: AnsightKit
+      - package: AnsightKit
+        product: AnsightToolsDatabase
+      - package: AnsightKit
+        product: AnsightToolsFileSystem
+      - package: AnsightKit
+        product: AnsightToolsPreferences
+      - package: AnsightKit
+        product: AnsightToolsSecureStorage
+      - package: AnsightKit
+        product: AnsightToolsVisualTree

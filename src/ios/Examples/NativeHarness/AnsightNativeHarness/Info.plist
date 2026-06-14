@@ -20,6 +20,8 @@
     <string>1</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>Ansight uses the local network to connect this harness to Ansight Studio during development.</string>
     <key>UIApplicationSceneManifest</key>
     <dict>
         <key>UIApplicationSupportsMultipleScenes</key>
