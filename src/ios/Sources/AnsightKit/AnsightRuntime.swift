@@ -17,6 +17,7 @@ public final class AnsightRuntime: @unchecked Sendable {
     private let liveTransport = PairingLiveSessionTransport()
 
     private var savedPairingStore: any PairingConfigStore = KeychainPairingConfigStore(account: "ai.ansight.ios.saved-pairing")
+    private var cachedPairingProfileStore: any PairingConfigStore = KeychainPairingConfigStore(account: "ai.ansight.ios.saved-pairing.cached-profile")
     private var options = AnsightOptions()
     private var initialized = false
     private var active = false
@@ -83,6 +84,9 @@ public final class AnsightRuntime: @unchecked Sendable {
         lock.withLock {
             self.options = validatedOptions
             self.savedPairingStore = KeychainPairingConfigStore(account: validatedOptions.hostConnection.savedConfigKey)
+            self.cachedPairingProfileStore = KeychainPairingConfigStore(
+                account: Self.cachedPairingProfileKey(for: validatedOptions.hostConnection.savedConfigKey)
+            )
             self.channels = Self.makeChannelDictionary(options: validatedOptions)
             metrics.removeAll()
             events.removeAll()
@@ -131,7 +135,7 @@ public final class AnsightRuntime: @unchecked Sendable {
 
             active = true
             sessionMessage = "Runtime activated."
-            return options.hostAutoProbe.enabled && (hasSavedConfigLocked || hasBundledConfigLocked)
+            return options.hostAutoProbe.enabled && (hasSavedConfigLocked || hasBundledConfigLocked || hasCachedPairingProfileLocked)
         }
 
         startTelemetrySamplingIfNeeded()
@@ -209,6 +213,24 @@ public final class AnsightRuntime: @unchecked Sendable {
         lock.withLock {
             sessionMessage = "Saved pairing config cleared."
         }
+    }
+
+    public func clearCachedSession() {
+        cachedPairingProfileStore.clear()
+        lock.withLock {
+            sessionMessage = "Cached pairing session cleared."
+        }
+    }
+
+    func replacePairingStoresForTesting(saved: any PairingConfigStore, cached: any PairingConfigStore) {
+        lock.withLock {
+            savedPairingStore = saved
+            cachedPairingProfileStore = cached
+        }
+    }
+
+    func resolveConnectionRequestForTesting(_ request: HostConnectionRequest) throws -> ResolvedConnectionRequest {
+        try resolveConnectionRequest(request)
     }
 
     public func enableTouchCapture() {
@@ -1669,16 +1691,19 @@ public final class AnsightRuntime: @unchecked Sendable {
 
         switch request.kind {
         case .auto:
-            if let savedJson = savedPairingStore.load(), !savedJson.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                return try resolvedRequest(fromPayload: savedJson, source: .savedConfig, usedEmbeddedDeveloperPairing: false)
-            }
             if let embedded = AnsightDeveloperMode.embeddedPairingJson {
                 return try resolvedRequest(fromPayload: embedded, source: .bundledDeveloperConfig, usedEmbeddedDeveloperPairing: true)
+            }
+            if let cached = cachedPairingProfile() {
+                return cached
+            }
+            if let savedJson = savedPairingStore.load(), !savedJson.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return try resolvedRequest(fromPayload: savedJson, source: .savedConfig, usedEmbeddedDeveloperPairing: false)
             }
             if let bundled = lock.withLock({ options.hostConnection.bundledConfigJson }) {
                 return try resolvedRequest(fromPayload: bundled, source: .bundledConfig, usedEmbeddedDeveloperPairing: false)
             }
-            throw RuntimeError.invalidInput("No saved, bundled, or developer pairing config is available.")
+            throw RuntimeError.invalidInput("No cached, saved, bundled, or developer pairing config is available.")
         case .savedConfig:
             guard let savedJson = savedPairingStore.load(), !savedJson.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 throw PairingDocumentError.invalidDocument("No saved pairing config is available.")
@@ -1754,6 +1779,27 @@ public final class AnsightRuntime: @unchecked Sendable {
            let json = String(data: data, encoding: .utf8) {
             try? savedPairingStore.save(json)
         }
+        saveCachedPairingProfile(configDocument)
+    }
+
+    private func saveCachedPairingProfile(_ document: PairingConfigDocument) {
+        let cachedAt = Date()
+        let expiresAt = cachedAt.addingTimeInterval(
+            Double(lock.withLock { options.hostConnection.connectionProfileRetentionSeconds })
+        )
+        let profile = CachedPairingProfileDocument(
+            cachedAtUtc: AnsightClock.isoString(from: cachedAt),
+            expiresAtUtc: AnsightClock.isoString(from: expiresAt),
+            document: document
+        )
+
+        guard let data = try? JSONEncoder.ansightEncoder.encode(profile),
+              let json = String(data: data, encoding: .utf8)
+        else {
+            return
+        }
+
+        try? cachedPairingProfileStore.save(json)
     }
 
     private func requestExpectedAppId(for document: ParsedPairingDocument) -> String? {
@@ -1811,9 +1857,11 @@ public final class AnsightRuntime: @unchecked Sendable {
     private var hostConnectionStatusLocked: HostConnectionStatus {
         let saved = hasSavedConfigLocked
         let bundled = hasBundledConfigLocked
-        let cached = saved
+        let cached = hasCachedPairingProfileLocked
         let summary: HostConnectionSummaryKind
         let message: String
+
+        let availableConfigCount = [saved, bundled, cached].filter { $0 }.count
 
         if !initialized {
             summary = .runtimeUnavailable
@@ -1827,9 +1875,9 @@ public final class AnsightRuntime: @unchecked Sendable {
         } else if connectionState == .connected {
             summary = .connected
             message = hostName.map { "Connected to \($0)." } ?? "Connected to Ansight host."
-        } else if saved && bundled {
+        } else if availableConfigCount > 1 {
             summary = .disconnectedMultipleConfigsAvailable
-            message = "Disconnected. Saved and bundled pairing configs are available."
+            message = "Disconnected. Multiple pairing configs are available."
         } else if saved {
             summary = .disconnectedSavedConfigAvailable
             message = "Disconnected. A saved pairing config is available."
@@ -1870,6 +1918,40 @@ public final class AnsightRuntime: @unchecked Sendable {
             return true
         }
         return AnsightDeveloperMode.embeddedPairingJson != nil
+    }
+
+    private var hasCachedPairingProfileLocked: Bool {
+        cachedPairingProfile() != nil
+    }
+
+    private func cachedPairingProfile() -> ResolvedConnectionRequest? {
+        guard let json = cachedPairingProfileStore.load(),
+              let data = json.data(using: .utf8),
+              let profile = try? JSONDecoder.ansightDecoder.decode(CachedPairingProfileDocument.self, from: data),
+              profile.schema == CachedPairingProfileDocument.schemaName
+        else {
+            return nil
+        }
+
+        guard let expiresAt = AnsightClock.parseISO8601(profile.expiresAtUtc),
+              expiresAt > Date()
+        else {
+            cachedPairingProfileStore.clear()
+            return nil
+        }
+
+        return ResolvedConnectionRequest(
+            document: ParsedPairingDocument(
+                config: profile.document.config,
+                discoveryHint: profile.document.discovery
+            ),
+            source: .cachedSession,
+            usedEmbeddedDeveloperPairing: false
+        )
+    }
+
+    private static func cachedPairingProfileKey(for savedConfigKey: String) -> String {
+        "\(savedConfigKey).cached-profile"
     }
 
     private func source(for kind: HostConnectionRequestKind) -> HostConnectionSource {

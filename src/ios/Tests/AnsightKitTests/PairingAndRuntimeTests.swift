@@ -136,6 +136,85 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertEqual(document.discoveryHint?.discoveryPort, 45123)
     }
 
+    func testAutoConnectionUsesCachedPairingProfileBeforeSavedConfig() throws {
+        try XCTSkipIf(
+            AnsightDeveloperMode.embeddedPairingJson != nil,
+            "Embedded developer pairing intentionally takes precedence over cached test stores."
+        )
+        let savedStore = MemoryPairingConfigStore()
+        let cachedStore = MemoryPairingConfigStore()
+        try savedStore.save(TestPairingFactory.configDocumentJSON(configId: "cfg-saved", hostAddress: "127.0.0.1"))
+        try cachedStore.save(TestPairingFactory.cachedProfileJSON(configId: "cfg-cached", hostAddress: "127.0.0.2"))
+
+        try AnsightRuntime.shared.initialize(options: AnsightOptions(hostAutoProbe: .disabledDefault))
+        try AnsightRuntime.shared.activate()
+        AnsightRuntime.shared.replacePairingStoresForTesting(saved: savedStore, cached: cachedStore)
+
+        let status = AnsightRuntime.shared.hostConnectionStatus()
+        XCTAssertTrue(status.hasSavedConfig)
+        XCTAssertTrue(status.hasCachedSession)
+        XCTAssertEqual(status.summaryKind, .disconnectedMultipleConfigsAvailable)
+
+        let resolved = try AnsightRuntime.shared.resolveConnectionRequestForTesting(.auto())
+        XCTAssertEqual(resolved.source, .cachedSession)
+        XCTAssertEqual(resolved.document.config.configId, "cfg-cached")
+        XCTAssertEqual(resolved.document.discoveryHint?.hostAddress, "127.0.0.2")
+    }
+
+    func testSavedPairingAndCachedSessionCanBeClearedSeparately() throws {
+        let savedStore = MemoryPairingConfigStore()
+        let cachedStore = MemoryPairingConfigStore()
+        try savedStore.save(TestPairingFactory.configDocumentJSON(configId: "cfg-saved"))
+        try cachedStore.save(TestPairingFactory.cachedProfileJSON(configId: "cfg-cached"))
+
+        try AnsightRuntime.shared.initialize(options: AnsightOptions(hostAutoProbe: .disabledDefault))
+        try AnsightRuntime.shared.activate()
+        AnsightRuntime.shared.replacePairingStoresForTesting(saved: savedStore, cached: cachedStore)
+        AnsightRuntime.shared.clearSavedPairing()
+
+        var status = AnsightRuntime.shared.hostConnectionStatus()
+        XCTAssertFalse(status.hasSavedConfig)
+        XCTAssertTrue(status.hasCachedSession)
+        XCTAssertEqual(status.summaryKind, .disconnectedCachedSessionAvailable)
+
+        AnsightRuntime.shared.clearCachedSession()
+        status = AnsightRuntime.shared.hostConnectionStatus()
+        XCTAssertFalse(status.hasSavedConfig)
+        XCTAssertFalse(status.hasCachedSession)
+        XCTAssertEqual(status.summaryKind, .disconnectedNoConfigs)
+    }
+
+    func testExpiredCachedPairingProfileFallsBackToSavedConfig() throws {
+        try XCTSkipIf(
+            AnsightDeveloperMode.embeddedPairingJson != nil,
+            "Embedded developer pairing intentionally takes precedence over cached test stores."
+        )
+        let savedStore = MemoryPairingConfigStore()
+        let cachedStore = MemoryPairingConfigStore()
+        try savedStore.save(TestPairingFactory.configDocumentJSON(configId: "cfg-saved", hostAddress: "127.0.0.1"))
+        try cachedStore.save(
+            TestPairingFactory.cachedProfileJSON(
+                configId: "cfg-expired",
+                hostAddress: "127.0.0.2",
+                expiresAt: Date().addingTimeInterval(-60)
+            )
+        )
+
+        try AnsightRuntime.shared.initialize(options: AnsightOptions(hostAutoProbe: .disabledDefault))
+        try AnsightRuntime.shared.activate()
+        AnsightRuntime.shared.replacePairingStoresForTesting(saved: savedStore, cached: cachedStore)
+
+        let resolved = try AnsightRuntime.shared.resolveConnectionRequestForTesting(.auto())
+        XCTAssertEqual(resolved.source, .savedConfig)
+        XCTAssertEqual(resolved.document.config.configId, "cfg-saved")
+        XCTAssertNil(cachedStore.load())
+
+        let status = AnsightRuntime.shared.hostConnectionStatus()
+        XCTAssertFalse(status.hasCachedSession)
+        XCTAssertTrue(status.hasSavedConfig)
+        XCTAssertEqual(status.summaryKind, .disconnectedSavedConfigAvailable)
+    }
+
     func testOptionsClampToSharedTelemetryBoundsAndRejectReservedCustomChannels() throws {
         let options = try AnsightOptions(
             sampleFrequencyMilliseconds: 50,
@@ -617,6 +696,40 @@ private enum TestPairingFactory {
         ]
         let data = try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
         return String(decoding: data, as: UTF8.self)
+    }
+
+    static func configDocumentJSON(configId: String, hostAddress: String = "127.0.0.1") throws -> String {
+        let data = try JSONEncoder.ansightEncoder.encode(
+            configDocument(configId: configId, hostAddress: hostAddress)
+        )
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    static func cachedProfileJSON(
+        configId: String,
+        hostAddress: String = "127.0.0.1",
+        expiresAt: Date = Date().addingTimeInterval(600)
+    ) throws -> String {
+        let profile = CachedPairingProfileDocument(
+            cachedAtUtc: timestamp(Date()),
+            expiresAtUtc: timestamp(expiresAt),
+            document: configDocument(configId: configId, hostAddress: hostAddress)
+        )
+        let data = try JSONEncoder.ansightEncoder.encode(profile)
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    private static func configDocument(configId: String, hostAddress: String) -> PairingConfigDocument {
+        PairingConfigDocument(
+            config: signedConfig(configId: configId),
+            discovery: PairingDiscoveryHint(
+                source: "unit-test",
+                hostAddress: hostAddress,
+                discoveryPort: 45123,
+                hostName: "test-host",
+                capturedAt: timestamp(Date())
+            )
+        )
     }
 
     private static func timestamp(_ date: Date) -> String {
