@@ -35,6 +35,7 @@ public final class AnsightRuntime: @unchecked Sendable {
 
     private var savedPairingStore: any PairingConfigStore = KeychainPairingConfigStore(account: "ai.ansight.ios.saved-pairing")
     private var cachedPairingProfileStore: any PairingConfigStore = KeychainPairingConfigStore(account: "ai.ansight.ios.saved-pairing.cached-profile")
+    private var hostConnectionConfigReader: (any HostConnectionConfigReading)?
     private var options = AnsightOptions()
     private var initialized = false
     private var active = false
@@ -236,6 +237,12 @@ public final class AnsightRuntime: @unchecked Sendable {
         cachedPairingProfileStore.clear()
         lock.withLock {
             sessionMessage = "Cached pairing session cleared."
+        }
+    }
+
+    public func setHostConnectionConfigReader(_ reader: (any HostConnectionConfigReading)?) {
+        lock.withLock {
+            hostConnectionConfigReader = reader
         }
     }
 
@@ -533,7 +540,7 @@ public final class AnsightRuntime: @unchecked Sendable {
     public func connect(_ request: HostConnectionRequest = .auto()) async -> HostConnectionResult {
         let resolvedRequests: [ResolvedConnectionRequest]
         do {
-            resolvedRequests = try resolveConnectionRequests(request)
+            resolvedRequests = try await resolveConnectionRequestsForConnect(request)
         } catch {
             return HostConnectionResult(
                 success: false,
@@ -1832,6 +1839,38 @@ public final class AnsightRuntime: @unchecked Sendable {
         }
     }
 
+    private func resolveConnectionRequestsForConnect(_ request: HostConnectionRequest) async throws -> [ResolvedConnectionRequest] {
+        switch request.kind {
+        case .file, .qrCode:
+            try lock.withLock {
+                guard initialized else {
+                    throw RuntimeError.notInitialized("AnsightRuntime must be initialized before connecting to a host.")
+                }
+                guard active else {
+                    throw RuntimeError.invalidInput("AnsightRuntime must be active before connecting to a host.")
+                }
+            }
+
+            let reader = lock.withLock { hostConnectionConfigReader }
+            guard let reader, reader.canRead(request.kind) else {
+                throw RuntimeError.invalidInput("No host config reader is registered for \(request.kind.rawValue).")
+            }
+
+            let payload = try await reader.readConfigPayload(for: request)
+            guard let payload, !payload.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                throw PairingDocumentError.invalidDocument("No pairing config was provided.")
+            }
+
+            return [try resolvedRequest(
+                fromPayload: payload,
+                source: .configReader,
+                usedEmbeddedDeveloperPairing: false
+            )]
+        default:
+            return try resolveConnectionRequests(request)
+        }
+    }
+
     private func resolveConnectionRequest(_ request: HostConnectionRequest) throws -> ResolvedConnectionRequest {
         guard let resolvedRequest = try resolveConnectionRequests(request).first else {
             throw RuntimeError.invalidInput("No pairing config is available.")
@@ -1906,7 +1945,7 @@ public final class AnsightRuntime: @unchecked Sendable {
                 usedEmbeddedDeveloperPairing: false
             )]
         case .file, .qrCode:
-            throw RuntimeError.invalidInput("File and QR config readers are not configured in this first iOS pass.")
+            throw RuntimeError.invalidInput("File and QR config readers are resolved asynchronously by connect(...).")
         }
     }
 
@@ -2253,6 +2292,10 @@ public final class AnsightRuntime: @unchecked Sendable {
         }
         if message.localizedCaseInsensitiveContains("does not match expected app id") {
             return PairingFailureCodes.pairingRequired
+        }
+        if message.contains("No host config reader") ||
+            message.contains("File and QR config readers") {
+            return PairingFailureCodes.unsupportedSource
         }
         if message.contains("No saved pairing config") {
             return PairingFailureCodes.noSavedConfig

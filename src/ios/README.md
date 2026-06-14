@@ -19,7 +19,7 @@ Ansight Services.
 - shared telemetry bounds: 200-2000ms sampling, 60-3600s retention, reserved channel validation, bounded retained metric/event buffers
 - pairing config parsing and validation for `ansight.pairing-config.v1`, `ansight.pairing-config-document.v1`, and legacy `ansight.pairing-ticket.v1`
 - discovery-hint host resolution for local developer flows
-- host connection status/results for auto, saved, bundled, payload, and direct config sources
+- host connection status/results for auto, saved, bundled, payload, direct config, and app-provided file/QR config-reader sources
 - UDP `CONNECT_REQ` bootstrap and WebSocket handoff compatible with the .NET SDK transport contract
 - live control messages for `session.open`, `device.profile`, and `app.state`
 - live metric channel, metric sample, and app event streaming using the established `CLIENT_METRIC_CHANNELS`, `CLIENT_METRICS`, and `CLIENT_EVENTS` payloads
@@ -98,6 +98,26 @@ try AnsightRuntime.shared.initializeAndActivateAnsightSdk()
 
 Returning `nil` or a blank route name keeps the default descriptor.
 
+## File and QR pairing payloads
+
+File and QR requests use an app-provided config reader. The reader owns any platform UI, then returns the pairing payload string to the normal `connect(...)` flow:
+
+```swift
+final class MyPairingReader: HostConnectionConfigReading {
+    func canRead(_ kind: HostConnectionRequestKind) -> Bool {
+        kind == .file || kind == .qrCode
+    }
+
+    func readConfigPayload(for request: HostConnectionRequest) async throws -> String? {
+        // Present a document picker, scanner, paste sheet, or app-owned import UI.
+        nil
+    }
+}
+
+AnsightRuntime.shared.setHostConnectionConfigReader(MyPairingReader())
+await AnsightRuntime.shared.connect(.qrCode(title: "Scan Pairing QR"))
+```
+
 ## Remote tools
 
 Tool products are opt-in. Register only the surfaces you want exposed to Studio:
@@ -133,5 +153,6 @@ That preset keeps the core package tool-free by default, sets telemetry to 400 m
 
 - `openSession(...)` remains a harness-only local compatibility API; use `connect(...)` or `openLiveSession(...)` for a real Studio session
 - reflection tools and custom remote tool suites are later first-complete-pass steps
+- file/QR connection requests require an app-provided `HostConnectionConfigReading` implementation; a packaged UIKit scanner or document picker is not included yet
 - binary file/screenshot transfer requires a live tool-protocol request context; direct in-process execution still reports a transfer-unavailable error
 - the build-time developer pairing and bundled-tool scan currently ship only through SwiftPM; CocoaPods does not yet have equivalent automation

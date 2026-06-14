@@ -395,6 +395,48 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertEqual(result.openSession?.configId, "cfg-bundled")
     }
 
+    func testQrCodeConnectionUsesRegisteredConfigReaderPayload() async throws {
+        let pairingJson = try TestPairingFactory.configDocumentJSON(configId: "cfg-qr", hostAddress: "127.0.0.4")
+        let reader = FakeHostConnectionConfigReader(supportedKinds: [.qrCode], payload: pairingJson)
+        let connector = FakePairingSessionConnector(
+            attemptsByConfigId: [
+                "cfg-qr": .failure("QR profile failed.", code: PairingFailureCodes.udpBootstrapFailed),
+            ]
+        )
+
+        try AnsightRuntime.shared.initialize(options: AnsightOptions(hostAutoProbe: .disabledDefault))
+        try AnsightRuntime.shared.activate()
+        AnsightRuntime.shared.replacePairingStoresForTesting(saved: MemoryPairingConfigStore(), cached: MemoryPairingConfigStore())
+        AnsightRuntime.shared.setHostConnectionConfigReader(reader)
+        AnsightRuntime.shared.replaceConnectorForTesting(connector)
+        defer {
+            AnsightRuntime.shared.setHostConnectionConfigReader(nil)
+            AnsightRuntime.shared.replaceConnectorForTesting(PairingSessionConnector())
+        }
+
+        let result = await AnsightRuntime.shared.connect(.qrCode(title: "Scan Pairing QR", clientName: "Unit Test"))
+
+        XCTAssertFalse(result.success)
+        XCTAssertEqual(reader.readRequestKinds, [.qrCode])
+        XCTAssertEqual(connector.attemptedConfigIds, ["cfg-qr"])
+        XCTAssertEqual(result.source, .configReader)
+        XCTAssertEqual(result.reasonCode, PairingFailureCodes.udpBootstrapFailed)
+        XCTAssertEqual(result.openSession?.configId, "cfg-qr")
+    }
+
+    func testFileConnectionFailsWhenNoConfigReaderCanReadRequest() async throws {
+        try AnsightRuntime.shared.initialize(options: AnsightOptions(hostAutoProbe: .disabledDefault))
+        try AnsightRuntime.shared.activate()
+        AnsightRuntime.shared.setHostConnectionConfigReader(nil)
+
+        let result = await AnsightRuntime.shared.connect(.file(title: "Import Pairing Config", clientName: "Unit Test"))
+
+        XCTAssertFalse(result.success)
+        XCTAssertEqual(result.source, .configReader)
+        XCTAssertEqual(result.reasonCode, PairingFailureCodes.unsupportedSource)
+        XCTAssertNil(result.openSession)
+    }
+
     func testOptionsClampToSharedTelemetryBoundsAndRejectReservedCustomChannels() throws {
         let options = try AnsightOptions(
             sampleFrequencyMilliseconds: 50,
