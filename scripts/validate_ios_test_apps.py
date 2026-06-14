@@ -36,6 +36,8 @@ DEFAULT_OUTPUT_ROOT = Path("/Users/matthewrobbins/Development/git/ansight-sdk/.a
 DEFAULT_STUDIO_DAEMON = Path("/Applications/Ansight.app/Contents/Helpers/ansight-daemon")
 BUILD_SETTINGS_TIMEOUT_SECONDS = 120
 BUILD_TIMEOUT_SECONDS = 900
+SKIP_PACKAGE_PLUGIN_VALIDATION = False
+SKIP_MACRO_VALIDATION = False
 EXCLUDED_DISCOVERY_PARTS = {
     ".ansight-validation",
     ".build",
@@ -1304,6 +1306,15 @@ def xcode_destination(destination_id: str | None, architecture: str | None = Non
     return destination
 
 
+def xcode_validation_flags() -> list[str]:
+    flags: list[str] = []
+    if SKIP_PACKAGE_PLUGIN_VALIDATION:
+        flags.append("-skipPackagePluginValidation")
+    if SKIP_MACRO_VALIDATION:
+        flags.append("-skipMacroValidation")
+    return flags
+
+
 def legacy_infer_scheme(project: AppProject, target_name: str) -> str | None:
     try:
         listing = xcode_list(project, use_workspace=False)
@@ -1324,6 +1335,7 @@ def build_settings(
 ) -> dict[str, str]:
     command = [
         "xcodebuild",
+        *xcode_validation_flags(),
         "-showBuildSettings",
         "-json",
         *xcode_build_container_args(project),
@@ -1596,6 +1608,7 @@ def build_app(
         destination,
         "-derivedDataPath",
         str(derived_data_path),
+        *xcode_validation_flags(),
         "build",
         "CODE_SIGNING_ALLOWED=NO",
         f"IPHONEOS_DEPLOYMENT_TARGET={deployment_target}",
@@ -2390,6 +2403,8 @@ def classify_validation_failure(result: ValidationResult) -> str:
         return "timeout"
     if "macos" in text or "my mac" in text or "not an ios simulator" in text:
         return "unsupported_destination"
+    if "missing metal toolchain" in text or "cannot execute tool 'metal'" in text:
+        return "missing_host_toolchain"
     if "watchos" in text or "runtime is not installed" in text or "not installed" in text:
         return "missing_platform_runtime"
     if "build input file cannot be found" in text or "no such file" in text or "missing source file" in text:
@@ -2484,6 +2499,16 @@ def parse_args() -> argparse.Namespace:
         help="Pass -skipUnavailableActions to xcodebuild for multi-platform schemes with unavailable embedded actions.",
     )
     parser.add_argument(
+        "--skip-package-plugin-validation",
+        action="store_true",
+        help="Pass -skipPackagePluginValidation to xcodebuild when validating samples with trusted package plugins.",
+    )
+    parser.add_argument(
+        "--skip-macro-validation",
+        action="store_true",
+        help="Pass -skipMacroValidation to xcodebuild when validating samples with trusted Swift macros.",
+    )
+    parser.add_argument(
         "--inject-validation-app-icon",
         action="store_true",
         help="Inject a deterministic app icon asset catalog and make it the target app icon for validation.",
@@ -2558,7 +2583,7 @@ def first_booted_simulator() -> str:
 
 
 def main() -> int:
-    global BUILD_SETTINGS_TIMEOUT_SECONDS, BUILD_TIMEOUT_SECONDS
+    global BUILD_SETTINGS_TIMEOUT_SECONDS, BUILD_TIMEOUT_SECONDS, SKIP_PACKAGE_PLUGIN_VALIDATION, SKIP_MACRO_VALIDATION
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(line_buffering=True)
         sys.stderr.reconfigure(line_buffering=True)
@@ -2577,6 +2602,8 @@ def main() -> int:
     args.studio_daemon = args.studio_daemon.expanduser().resolve()
     BUILD_SETTINGS_TIMEOUT_SECONDS = args.build_settings_timeout_seconds
     BUILD_TIMEOUT_SECONDS = args.build_timeout_seconds
+    SKIP_PACKAGE_PLUGIN_VALIDATION = args.skip_package_plugin_validation
+    SKIP_MACRO_VALIDATION = args.skip_macro_validation
 
     if args.summarize_results:
         results = read_validation_results(args.summarize_results)
