@@ -54,6 +54,9 @@ VALIDATION_ASSETS_DIR = "AnsightValidationAssets.xcassets"
 VALIDATION_APP_ICON_NAME = "AnsightValidationAppIcon"
 VALIDATION_APP_ICON_SET = f"{VALIDATION_APP_ICON_NAME}.appiconset"
 VALIDATION_ROUTE_NAME = "Ansight SDK Validation Route"
+VALIDATION_BINARY_FILE = "large-transfer.bin"
+VALIDATION_BINARY_SIZE_BYTES = 150_000
+VALIDATION_BINARY_CHUNK_BYTES = 64 * 1024
 
 
 @dataclasses.dataclass(frozen=True)
@@ -114,6 +117,13 @@ class ValidationResult:
     validation_app_icon_injected: bool = False
     validation_route_resolver_injected: bool = False
     studio_validation_route_seen: bool = False
+    studio_binary_download_metadata_verified: bool = False
+    studio_binary_download_reassembled: bool = False
+    studio_binary_download_size_bytes: int | None = None
+    studio_binary_download_received_bytes: int | None = None
+    studio_binary_download_transfer_id: str | None = None
+    studio_binary_download_artifact_path: str | None = None
+    studio_binary_download_error: str | None = None
     studio_error: str | None = None
     status: str = "pending"
     failure_stage: str | None = None
@@ -828,6 +838,14 @@ private enum AnsightValidationBootstrap {{
             let file = directory.appendingPathComponent("validation.txt")
             let body = "Ansight SDK validation for \\(appName) [\\(expectedBundleId)]"
             try body.write(to: file, atomically: true, encoding: .utf8)
+
+            let binaryFile = directory.appendingPathComponent("{VALIDATION_BINARY_FILE}")
+            var binaryPayload = Data()
+            binaryPayload.reserveCapacity({VALIDATION_BINARY_SIZE_BYTES})
+            for index in 0..<{VALIDATION_BINARY_SIZE_BYTES} {{
+                binaryPayload.append(UInt8(index % 251))
+            }}
+            try binaryPayload.write(to: binaryFile, options: .atomic)
         }} catch {{
             NSLog("[AnsightValidation] artifact seed failed: \\(error)")
         }}
@@ -1333,6 +1351,8 @@ def verify_studio_session(
     require_icon: bool,
     require_validation_route: bool,
     require_device_profile_details: bool,
+    probe_binary_download: bool,
+    require_binary_download_artifact: bool,
 ) -> None:
     if not app.bundle_id:
         raise RuntimeError("Cannot verify Studio session before resolving the bundle id.")
@@ -1368,6 +1388,12 @@ def verify_studio_session(
                 if require_validation_route:
                     result.studio_validation_route_seen = get_validation_route_seen(studio, result.studio_session_id)
 
+                if probe_binary_download:
+                    try:
+                        update_studio_binary_download_fields(studio, result)
+                    except Exception as error:
+                        result.studio_binary_download_error = str(error)
+
                 failures: list[str] = []
                 if result.studio_status != "WebSocket Open":
                     failures.append(f"session status is {result.studio_status!r}")
@@ -1387,6 +1413,10 @@ def verify_studio_session(
                     failures.append(f"validation route {VALIDATION_ROUTE_NAME!r} was not observed")
                 if require_device_profile_details and not result.studio_device_profile_details_synced:
                     failures.append("device profile runtime/network details were not synced into the Studio session")
+                if probe_binary_download and not result.studio_binary_download_metadata_verified:
+                    failures.append(result.studio_binary_download_error or "binary download metadata was not verified")
+                if require_binary_download_artifact and not result.studio_binary_download_reassembled:
+                    failures.append(result.studio_binary_download_error or "binary download artifact was not reassembled")
 
                 if not failures:
                     result.studio_verified = True
@@ -1450,6 +1480,82 @@ def get_validation_route_seen(studio: StudioMCPClient, session_id: str | None) -
         },
     )
     return contains_validation_route(artifacts)
+
+
+def update_studio_binary_download_fields(studio: StudioMCPClient, result: ValidationResult) -> None:
+    if not result.studio_session_id:
+        raise RuntimeError("Cannot verify binary download without a Studio session id.")
+    if result.studio_binary_download_metadata_verified:
+        return
+
+    download_id = f"ansight-validation-{int(time.time() * 1000)}"
+    response = studio.call_tool(
+        "ansight_call_app_tool",
+        {
+            "sessionId": result.studio_session_id,
+            "toolId": "files.begin_binary_download",
+            "arguments": {
+                "root": "documents",
+                "path": f"ansight-validation/{VALIDATION_BINARY_FILE}",
+                "downloadId": download_id,
+                "chunkBytes": str(VALIDATION_BINARY_CHUNK_BYTES),
+            },
+        },
+    )
+
+    if response.get("responseType") != "tool.result":
+        raise RuntimeError(f"Binary download returned responseType {response.get('responseType')!r}.")
+    payload = response.get("payload")
+    if not isinstance(payload, dict):
+        raise RuntimeError("Binary download response payload was not an object.")
+    if payload.get("toolId") != "files.begin_binary_download":
+        raise RuntimeError(f"Binary download response used unexpected tool id {payload.get('toolId')!r}.")
+    if payload.get("success") is not True:
+        raise RuntimeError(f"Binary download tool reported failure: {payload.get('message')!r}.")
+    result_payload = payload.get("result")
+    if not isinstance(result_payload, dict):
+        raise RuntimeError("Binary download tool result was not an object.")
+
+    transfer_id = result_payload.get("transferId")
+    size_bytes = result_payload.get("sizeBytes")
+    if not isinstance(transfer_id, str) or not transfer_id:
+        raise RuntimeError("Binary download result did not include a transfer id.")
+    if int(size_bytes or -1) != VALIDATION_BINARY_SIZE_BYTES:
+        raise RuntimeError(
+            f"Binary download sizeBytes {size_bytes!r} did not match {VALIDATION_BINARY_SIZE_BYTES}."
+        )
+    if result_payload.get("downloadId") != download_id:
+        raise RuntimeError("Binary download result did not preserve the requested download id.")
+    if result_payload.get("deliveryMode") != "websocket_binary":
+        raise RuntimeError("Binary download result did not use websocket_binary delivery.")
+    if result_payload.get("wireProtocol") != "ansight.file-transfer.v1":
+        raise RuntimeError("Binary download result did not use ansight.file-transfer.v1.")
+
+    result.studio_binary_download_metadata_verified = True
+    result.studio_binary_download_size_bytes = int(size_bytes)
+    result.studio_binary_download_transfer_id = transfer_id
+    result.studio_binary_download_error = None
+
+    artifact_path = result_payload.get("artifactPath")
+    if isinstance(artifact_path, str) and artifact_path:
+        result.studio_binary_download_artifact_path = artifact_path
+        artifact_file = Path(artifact_path)
+        if not artifact_file.is_file():
+            raise RuntimeError(f"Binary download artifact path does not exist: {artifact_path}")
+        artifact_bytes = artifact_file.read_bytes()
+        result.studio_binary_download_received_bytes = len(artifact_bytes)
+        if artifact_bytes != validation_binary_payload():
+            raise RuntimeError("Binary download artifact bytes did not match the validation payload.")
+        result.studio_binary_download_reassembled = True
+    else:
+        received_bytes = result_payload.get("receivedBytes")
+        if isinstance(received_bytes, int):
+            result.studio_binary_download_received_bytes = received_bytes
+        result.studio_binary_download_reassembled = False
+
+
+def validation_binary_payload() -> bytes:
+    return bytes(index % 251 for index in range(VALIDATION_BINARY_SIZE_BYTES))
 
 
 def contains_validation_route(value: Any) -> bool:
@@ -1674,6 +1780,16 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Fail Studio verification unless runtime, coarse network, environment, and privacy-safe device profile fields are observed.",
     )
+    parser.add_argument(
+        "--studio-probe-binary-download",
+        action="store_true",
+        help="Call files.begin_binary_download for the injected validation binary and record the live Studio response.",
+    )
+    parser.add_argument(
+        "--studio-require-binary-download-artifact",
+        action="store_true",
+        help="Fail Studio verification unless the validation binary download is reassembled into a host artifact path.",
+    )
     return parser.parse_args()
 
 
@@ -1856,6 +1972,8 @@ def main() -> int:
                         args.studio_require_icon,
                         args.studio_require_validation_route,
                         args.studio_require_device_profile_details,
+                        args.studio_probe_binary_download or args.studio_require_binary_download_artifact,
+                        args.studio_require_binary_download_artifact,
                     )
                     result.status = "verified"
                 else:
