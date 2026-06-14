@@ -1279,6 +1279,7 @@ def build_app(
     configuration: str,
     destination_id: str,
     derived_data_path: Path,
+    deployment_target: str,
     exclude_simulator_arm64: bool,
 ) -> None:
     command = [
@@ -1294,7 +1295,7 @@ def build_app(
         str(derived_data_path),
         "build",
         "CODE_SIGNING_ALLOWED=NO",
-        "IPHONEOS_DEPLOYMENT_TARGET=15.0",
+        f"IPHONEOS_DEPLOYMENT_TARGET={deployment_target}",
     ]
     if exclude_simulator_arm64:
         command.append("EXCLUDED_ARCHS[sdk=iphonesimulator*]=arm64")
@@ -1764,6 +1765,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--app", action="append", default=[], help="App slug, substring, root path, or xcodeproj path to validate. Repeatable.")
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--configuration", default="Debug")
+    parser.add_argument("--deployment-target", default="15.0", help="IPHONEOS_DEPLOYMENT_TARGET override passed to xcodebuild.")
     parser.add_argument("--build-settings-timeout-seconds", type=int, default=BUILD_SETTINGS_TIMEOUT_SECONDS)
     parser.add_argument("--build-timeout-seconds", type=int, default=BUILD_TIMEOUT_SECONDS)
     parser.add_argument("--simulator", default=None, help="Simulator UDID. Defaults to the first booted iOS simulator.")
@@ -1975,7 +1977,14 @@ def main() -> int:
 
                 stage = "building"
                 print(f"==> Building {project.slug} ({project.bundle_id})")
-                build_app(project, args.configuration, destination_id, derived_data_path, args.exclude_simulator_arm64)
+                build_app(
+                    project,
+                    args.configuration,
+                    destination_id,
+                    derived_data_path,
+                    args.deployment_target,
+                    args.exclude_simulator_arm64,
+                )
                 result.built = True
 
                 stage = "resolving_app_path"
