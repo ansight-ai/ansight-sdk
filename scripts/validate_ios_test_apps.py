@@ -117,7 +117,12 @@ class ValidationResult:
     studio_device_profile_privacy_safe: bool = False
     validation_app_icon_injected: bool = False
     validation_route_resolver_injected: bool = False
+    validation_touch_probe_injected: bool = False
     studio_validation_route_seen: bool = False
+    studio_touch_input_verified: bool = False
+    studio_touch_count: int | None = None
+    studio_touch_gesture_count: int | None = None
+    studio_touch_error: str | None = None
     studio_binary_download_metadata_verified: bool = False
     studio_binary_download_reassembled: bool = False
     studio_binary_download_size_bytes: int | None = None
@@ -797,6 +802,7 @@ def write_validation_sources(
     bundle_id: str,
     pairing_config_json: str,
     inject_validation_route_resolver: bool,
+    inject_validation_touch_input: bool,
 ) -> None:
     validation_dir = project_root / VALIDATION_GROUP_NAME
     validation_dir.mkdir(parents=True, exist_ok=True)
@@ -819,9 +825,52 @@ def write_validation_sources(
                 )
             }})
 """
+    validation_imports = "import Ansight"
+    validation_touch_probe_call = ""
+    validation_touch_probe_function = ""
+    if inject_validation_touch_input:
+        validation_imports = "@_spi(AnsightValidation) import Ansight"
+        validation_touch_probe_call = """
+                scheduleValidationTouchProbe(runtime: runtime)
+"""
+        validation_touch_probe_function = """
+
+    private static func scheduleValidationTouchProbe(runtime: AnsightRuntime) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            let capturedAt = Date()
+            let scale = UIScreen.main.scale
+            runtime.recordValidationTouchInput(
+                action: "down",
+                pointerId: 314159,
+                x: 24,
+                y: 48,
+                surfaceWidth: 320,
+                surfaceHeight: 640,
+                coordinateUnit: "points",
+                surfaceScale: scale,
+                capturedAt: capturedAt
+            )
+            runtime.recordValidationTouchInput(
+                action: "up",
+                pointerId: 314159,
+                x: 24,
+                y: 48,
+                surfaceWidth: 320,
+                surfaceHeight: 640,
+                coordinateUnit: "points",
+                surfaceScale: scale,
+                capturedAt: capturedAt.addingTimeInterval(0.075)
+            )
+            try? runtime.event(
+                "ansight.validation.touch",
+                details: "Synthetic touch validation emitted."
+            )
+        }
+    }
+"""
 
     swift_file.write_text(
-        f"""import Ansight
+        f"""{validation_imports}
 import Foundation
 import UIKit
 
@@ -897,6 +946,7 @@ private enum AnsightValidationBootstrap {{
             let result = await runtime.connect(.bundledConfig(clientName: "Ansight SDK Validation - \\(appName)"))
             if result.success {{
                 NSLog("[AnsightValidation] connected: \\(result.message)")
+{validation_touch_probe_call.rstrip()}
             }} else {{
                 NSLog("[AnsightValidation] connect failed: \\(result.message)")
             }}
@@ -931,6 +981,7 @@ private enum AnsightValidationBootstrap {{
             NSLog("[AnsightValidation] artifact seed failed: \\(error)")
         }}
     }}
+{validation_touch_probe_function.rstrip()}
 }}
 """,
         encoding="utf-8",
@@ -1227,6 +1278,7 @@ def prepare_project(
     derived_data_path: Path | None,
     inject_validation_app_icon: bool,
     inject_validation_route_resolver: bool,
+    inject_validation_touch_input: bool,
 ) -> AppProject:
     project = load_project(app.project_path)
     objects = object_map(project)
@@ -1260,6 +1312,7 @@ def prepare_project(
         bundle_id,
         pairing_config_json,
         inject_validation_route_resolver,
+        inject_validation_touch_input,
     )
     if inject_validation_app_icon:
         write_validation_app_icon_assets(app.root)
@@ -1477,6 +1530,7 @@ def verify_studio_session(
     require_device_profile_details: bool,
     probe_binary_download: bool,
     require_binary_download_artifact: bool,
+    require_touch_input: bool,
 ) -> None:
     if not app.bundle_id:
         raise RuntimeError("Cannot verify Studio session before resolving the bundle id.")
@@ -1512,6 +1566,12 @@ def verify_studio_session(
                 if require_validation_route:
                     result.studio_validation_route_seen = get_validation_route_seen(studio, result.studio_session_id)
 
+                if require_touch_input:
+                    try:
+                        update_studio_touch_input_fields(studio, result)
+                    except Exception as error:
+                        result.studio_touch_error = str(error)
+
                 if probe_binary_download:
                     try:
                         update_studio_binary_download_fields(studio, result)
@@ -1537,6 +1597,8 @@ def verify_studio_session(
                     failures.append(f"validation route {VALIDATION_ROUTE_NAME!r} was not observed")
                 if require_device_profile_details and not result.studio_device_profile_details_synced:
                     failures.append("device profile runtime/network details were not synced into the Studio session")
+                if require_touch_input and not result.studio_touch_input_verified:
+                    failures.append(result.studio_touch_error or "touch input was not observed in the Studio session")
                 if probe_binary_download and not result.studio_binary_download_metadata_verified:
                     failures.append(result.studio_binary_download_error or "binary download metadata was not verified")
                 if require_binary_download_artifact and not result.studio_binary_download_reassembled:
@@ -1604,6 +1666,24 @@ def get_validation_route_seen(studio: StudioMCPClient, session_id: str | None) -
         },
     )
     return contains_validation_route(artifacts)
+
+
+def update_studio_touch_input_fields(studio: StudioMCPClient, result: ValidationResult) -> None:
+    if not result.studio_session_id:
+        raise RuntimeError("Cannot verify touch input without a Studio session id.")
+
+    summary = studio.call_tool(
+        "ansight_summarize_touch_flow",
+        {
+            "sessionId": result.studio_session_id,
+        },
+    )
+    touch_count = int(summary.get("touchCount") or 0)
+    gesture_count = int(summary.get("gestureCount") or 0)
+    result.studio_touch_count = touch_count
+    result.studio_touch_gesture_count = gesture_count
+    result.studio_touch_input_verified = touch_count >= 2
+    result.studio_touch_error = None if result.studio_touch_input_verified else f"touchCount {touch_count} < 2"
 
 
 def update_studio_binary_download_fields(studio: StudioMCPClient, result: ValidationResult) -> None:
@@ -1901,6 +1981,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Inject an Ansight screen route resolver that renames automatic screen-view captures for validation.",
     )
+    parser.add_argument(
+        "--inject-validation-touch-input",
+        action="store_true",
+        help="Inject a deterministic down/up touch probe through the SDK validation SPI after the live session connects.",
+    )
     parser.add_argument("--studio-daemon", type=Path, default=DEFAULT_STUDIO_DAEMON)
     parser.add_argument("--studio-issue-configs", action="store_true", help="Issue fresh Ansight Studio pairing configs for each app before preparing.")
     parser.add_argument("--studio-config-duration", default="12h", help="Lifetime for pairing configs issued with --studio-issue-configs.")
@@ -1921,6 +2006,11 @@ def parse_args() -> argparse.Namespace:
         "--studio-require-device-profile-details",
         action="store_true",
         help="Fail Studio verification unless runtime, coarse network, environment, and privacy-safe device profile fields are observed.",
+    )
+    parser.add_argument(
+        "--studio-require-touch-input",
+        action="store_true",
+        help="Fail Studio verification unless captured touch input is observed through Studio touch review tools.",
     )
     parser.add_argument(
         "--studio-probe-binary-download",
@@ -2079,10 +2169,12 @@ def main() -> int:
                     derived_data_path,
                     args.inject_validation_app_icon,
                     args.inject_validation_route_resolver,
+                    args.inject_validation_touch_input,
                 )
                 result.prepared = True
                 result.validation_app_icon_injected = args.inject_validation_app_icon
                 result.validation_route_resolver_injected = args.inject_validation_route_resolver
+                result.validation_touch_probe_injected = args.inject_validation_touch_input
                 result.scheme = prepared.scheme
                 result.bundle_id = prepared.bundle_id
                 result.app_name = prepared.app_name
@@ -2140,6 +2232,7 @@ def main() -> int:
                         args.studio_require_device_profile_details,
                         args.studio_probe_binary_download or args.studio_require_binary_download_artifact,
                         args.studio_require_binary_download_artifact,
+                        args.studio_require_touch_input,
                     )
                     result.status = "verified"
                 else:

@@ -1,1 +1,1 @@
-@_exported import AnsightKit
+@_exported @_spi(AnsightValidation) import AnsightKit

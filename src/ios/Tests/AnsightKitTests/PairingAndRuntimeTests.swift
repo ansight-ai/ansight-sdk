@@ -1,6 +1,6 @@
 import CryptoKit
 import XCTest
-@testable import AnsightKit
+@_spi(AnsightValidation) @testable import AnsightKit
 
 final class PairingAndRuntimeTests: XCTestCase {
     func testParseDocumentParsesPairingTicket() throws {
@@ -870,6 +870,38 @@ final class PairingAndRuntimeTests: XCTestCase {
         let snapshot = AnsightRuntime.shared.snapshot()
         XCTAssertTrue(snapshot.touchCaptureEnabled)
         XCTAssertEqual(snapshot.touchesCaptured, 1)
+        XCTAssertEqual(snapshot.touchesSent, 0)
+        XCTAssertEqual(snapshot.lastTouchCaptureMessage, "Captured touch input.")
+    }
+
+    func testRuntimeRecordsValidationTouchInputInDebugSnapshot() throws {
+        try AnsightRuntime.shared.initialize(
+            options: AnsightOptions(hostAutoProbe: .disabledDefault)
+        )
+        try AnsightRuntime.shared.activate()
+
+        AnsightRuntime.shared.recordValidationTouchInput(
+            action: "began",
+            pointerId: 42,
+            x: 10,
+            y: 20,
+            surfaceWidth: 100,
+            surfaceHeight: 200,
+            surfaceScale: 2
+        )
+        AnsightRuntime.shared.recordValidationTouchInput(
+            action: "ended",
+            pointerId: 42,
+            x: 10,
+            y: 20,
+            surfaceWidth: 100,
+            surfaceHeight: 200,
+            surfaceScale: 2
+        )
+
+        let snapshot = AnsightRuntime.shared.snapshot()
+        XCTAssertTrue(snapshot.touchCaptureEnabled)
+        XCTAssertEqual(snapshot.touchesCaptured, 2)
         XCTAssertEqual(snapshot.touchesSent, 0)
         XCTAssertEqual(snapshot.lastTouchCaptureMessage, "Captured touch input.")
     }
