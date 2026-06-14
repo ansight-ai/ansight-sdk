@@ -11,6 +11,13 @@
 *.sln.docstates
 *.env
 
+# Local Ansight SDK validation output
+.ansight-validation/
+
+# Python validation tooling cache
+__pycache__/
+*.py[cod]
+
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
