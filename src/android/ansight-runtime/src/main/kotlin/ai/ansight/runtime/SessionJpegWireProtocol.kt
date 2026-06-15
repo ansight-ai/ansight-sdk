@@ -1,0 +1,46 @@
+package ai.ansight.runtime
+
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+
+object SessionJpegWireProtocol {
+    const val HeaderSize = 28
+    private const val Version: Byte = 1
+    private const val FormatJpeg: Byte = 1
+
+    fun createFrame(
+        capturedAtEpochMs: Long,
+        width: Int,
+        height: Int,
+        quality: Int,
+        jpegBytes: ByteArray,
+    ): ByteArray {
+        val frame = ByteArray(HeaderSize + jpegBytes.size)
+        frame[0] = 'A'.code.toByte()
+        frame[1] = 'S'.code.toByte()
+        frame[2] = 'J'.code.toByte()
+        frame[3] = 'P'.code.toByte()
+        frame[4] = Version
+        frame[5] = FormatJpeg
+        frame[6] = quality.coerceIn(1, 100).toByte()
+        frame[7] = 0
+        ByteBuffer.wrap(frame, 8, 8).order(ByteOrder.LITTLE_ENDIAN).putLong(capturedAtEpochMs)
+        ByteBuffer.wrap(frame, 16, 4).order(ByteOrder.LITTLE_ENDIAN).putInt(width)
+        ByteBuffer.wrap(frame, 20, 4).order(ByteOrder.LITTLE_ENDIAN).putInt(height)
+        ByteBuffer.wrap(frame, 24, 4).order(ByteOrder.LITTLE_ENDIAN).putInt(jpegBytes.size)
+        jpegBytes.copyInto(frame, HeaderSize)
+        return frame
+    }
+}
+
+fun PairingLiveSessionTransport.sendSessionJpegFrame(screenshot: CapturedScreenshot, quality: Int): OperationResult {
+    return sendData(
+        SessionJpegWireProtocol.createFrame(
+            capturedAtEpochMs = System.currentTimeMillis(),
+            width = screenshot.width,
+            height = screenshot.height,
+            quality = quality,
+            jpegBytes = screenshot.bytes,
+        ),
+    )
+}

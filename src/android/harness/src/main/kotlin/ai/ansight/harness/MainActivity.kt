@@ -7,7 +7,6 @@ import androidx.appcompat.app.AppCompatActivity
 import ai.ansight.runtime.AnsightEventType
 import ai.ansight.runtime.AnsightOptions
 import ai.ansight.runtime.AnsightRuntime
-import ai.ansight.runtime.PairingOpenOptions
 
 class MainActivity : AppCompatActivity() {
     private lateinit var snapshotView: TextView
@@ -17,6 +16,13 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         snapshotView = findViewById(R.id.snapshotView)
+        runCatching {
+            AnsightRuntime.initializeAndActivate(
+                application = application,
+                options = AnsightOptions(enableFramesPerSecond = true, enableBatteryLevel = true),
+            )
+            AnsightRuntime.screenViewed("Harness")
+        }
 
         findViewById<Button>(R.id.initializeButton).setOnClickListener {
             AnsightRuntime.initialize(
@@ -36,7 +42,7 @@ class MainActivity : AppCompatActivity() {
             renderSnapshot()
         }
 
-        findViewById<Button>(R.id/eventButton).setOnClickListener {
+        findViewById<Button>(R.id.eventButton).setOnClickListener {
             runCatching {
                 AnsightRuntime.event(
                     label = "android_harness_tapped",
@@ -49,14 +55,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         findViewById<Button>(R.id.openSessionButton).setOnClickListener {
-            runCatching {
-                AnsightRuntime.openSession(
-                    pairingJson = """{"schema":"ansight.pairing-ticket.v1"}""",
-                    options = PairingOpenOptions(
-                        clientName = "Android Harness",
-                    ),
-                )
-            }
+            runCatching { AnsightRuntime.connect() }
             renderSnapshot()
         }
 
@@ -74,8 +73,13 @@ class MainActivity : AppCompatActivity() {
             appendLine("initialized=${snapshot.initialized}")
             appendLine("active=${snapshot.active}")
             appendLine("sessionOpen=${snapshot.sessionOpen}")
+            appendLine("connection=${snapshot.connectionStatus.connectionState}")
+            appendLine("lifecycle=${snapshot.lifecycleState}")
+            appendLine("screen=${snapshot.currentScreen?.name ?: "<none>"}")
             appendLine("metricsRecorded=${snapshot.metricsRecorded}")
             appendLine("eventsRecorded=${snapshot.eventsRecorded}")
+            appendLine("channels=${snapshot.channels.size}")
+            appendLine("appId=${snapshot.deviceProfile?.app?.appId ?: "<none>"}")
             appendLine("registeredTools=${snapshot.registeredTools}")
             appendLine("sessionMessage=${snapshot.sessionMessage ?: "<none>"}")
             appendLine("lastMetric=${snapshot.lastMetric ?: "<none>"}")
