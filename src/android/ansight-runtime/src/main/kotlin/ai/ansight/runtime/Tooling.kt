@@ -2,6 +2,7 @@ package ai.ansight.runtime
 
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.Locale
 
 enum class ToolScope {
     Read,
@@ -158,7 +159,7 @@ class AndroidToolRegistry(tools: Iterable<AndroidTool> = emptyList()) {
     private val toolsById = linkedMapOf<String, AndroidTool>()
 
     init {
-        tools.forEach(::register)
+        tools.forEach { tool -> register(tool) }
     }
 
     val size: Int
@@ -167,7 +168,16 @@ class AndroidToolRegistry(tools: Iterable<AndroidTool> = emptyList()) {
     fun register(tool: AndroidTool) {
         val validated = tool.definition.validated()
         require(validated.id !in toolsById) { "A tool with id '${validated.id}' is already registered." }
-        toolsById[validated.id] = if (validated == tool.definition) tool else FunctionAndroidTool(validated, tool::execute)
+        toolsById[validated.id] = if (validated == tool.definition) {
+            tool
+        } else {
+            object : AndroidTool {
+                override val definition: ToolDefinition = validated
+
+                override fun execute(arguments: Map<String, String>, context: AndroidToolExecutionContext): AndroidToolResult =
+                    tool.execute(arguments, context)
+            }
+        }
     }
 
     fun clear() {
@@ -189,7 +199,7 @@ internal fun AnsightToolGuard.canDiscover(scope: ToolScope): Boolean = when (thi
 
 internal fun AnsightToolGuard.canExecute(scope: ToolScope): Boolean = canDiscover(scope)
 
-internal fun String.toToolScope(): ToolScope = when (trim().lowercase()) {
+internal fun String.toToolScope(): ToolScope = when (trim().toLowerCase(Locale.US)) {
     "write" -> ToolScope.Write
     "delete" -> ToolScope.Delete
     else -> ToolScope.Read
@@ -199,7 +209,7 @@ internal fun AnsightToolGuard.toProtocolJson(): JSONObject {
     val scopes = when (this) {
         AnsightToolGuard.Disabled -> emptyList()
         AnsightToolGuard.ReadOnly -> listOf(ToolScope.Read.name)
-        AnsightToolGuard.Full -> ToolScope.entries.map { it.name }
+        AnsightToolGuard.Full -> ToolScope.values().map { it.name }
     }
     return JSONObject()
         .put("discoveryEnabled", this != AnsightToolGuard.Disabled)

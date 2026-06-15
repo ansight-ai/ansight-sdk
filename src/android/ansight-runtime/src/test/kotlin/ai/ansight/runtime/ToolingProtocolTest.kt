@@ -7,6 +7,30 @@ import org.junit.Test
 
 class ToolingProtocolTest {
     @Test
+    fun standardToolsIncludeNativeSuites() {
+        val ids = AndroidStandardTools.create().map { it.definition.id }.toSet()
+
+        listOf(
+            "ui.get_visual_tree",
+            "ui.get_screenshot",
+            "files.list_directory",
+            "files.begin_binary_download",
+            "prefs.list_keys",
+            "secure.get_value",
+            "data.list_databases",
+            "data.describe_schema",
+            "data.query",
+            "reflect.list_roots",
+            "reflect.inspect_object",
+            "reflect.describe_type",
+            "reflect.set_member_value",
+            "reflect.invoke_method",
+        ).forEach { id ->
+            assertTrue("Missing tool id $id", ids.contains(id))
+        }
+    }
+
+    @Test
     fun guardLimitsVisibleScopes() {
         assertTrue(AnsightToolGuard.ReadOnly.canDiscover(ToolScope.Read))
         assertFalse(AnsightToolGuard.ReadOnly.canDiscover(ToolScope.Write))
@@ -43,5 +67,20 @@ class ToolingProtocolTest {
         assertEquals(1.toByte(), frame[4])
         assertEquals(FileTransferFrameType.Chunk.code, frame[5])
         assertEquals(PairingFileTransferWireProtocol.HeaderSize + 3, frame.size)
+    }
+
+    @Test
+    fun runtimeFacadeExposesDotNetStyleEventAndLifecycleApis() {
+        val runtimeClass = Class.forName("ai.ansight.runtime.Runtime", false, javaClass.classLoader)
+        val methods = runtimeClass.methods.map { method ->
+            method.name to method.parameterTypes.map { it.simpleName }
+        }.toSet()
+
+        assertTrue(methods.contains("Event" to listOf("String")))
+        assertTrue(methods.contains("Event" to listOf("String", "AnsightEventType")))
+        assertTrue(methods.contains("Event" to listOf("String", "int")))
+        assertTrue(methods.contains("Event" to listOf("String", "AnsightEventType", "int", "String")))
+        assertTrue(methods.contains("ScreenViewed" to listOf("String")))
+        assertTrue(methods.contains("SetAppLifecycleState" to listOf("AppLifecycleState")))
     }
 }

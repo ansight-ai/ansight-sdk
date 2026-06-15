@@ -24,6 +24,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.lang.ref.WeakReference
+import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -63,6 +64,9 @@ object AndroidUiEvidence {
     private val callbackWrappers = mutableMapOf<Int, TouchWindowCallback>()
     private var touchHandler: ((CapturedTouch) -> Unit)? = null
     private val overlays = linkedMapOf<String, OverlaySpec>()
+    private var streamBitmap: Bitmap? = null
+    private var streamBitmapWidth: Int = 0
+    private var streamBitmapHeight: Int = 0
 
     fun onActivityResumed(activity: Activity) {
         currentActivity = WeakReference(activity)
@@ -74,16 +78,36 @@ object AndroidUiEvidence {
         val key = System.identityHashCode(activity.window)
         callbackWrappers.remove(key)
         if (currentActivity.get() === activity) {
+            releaseSessionScreenshotResources()
             currentActivity = WeakReference(null)
         }
     }
 
     fun setTouchCaptureEnabled(enabled: Boolean, handler: ((CapturedTouch) -> Unit)?) {
         touchHandler = if (enabled) handler else null
-        currentActivity.get()?.let(::installTouchCallback)
+        currentActivity.get()?.let { activity -> installTouchCallback(activity) }
     }
 
+    fun currentActivity(): Activity? = currentActivity.get()
+
     fun captureScreenshot(format: String = "jpeg", quality: Int = 80, maxWidth: Int? = null): CapturedScreenshot {
+        return captureScreenshot(format, quality, maxWidth, reuseStreamBitmap = false)
+    }
+
+    fun captureSessionScreenshot(format: String = "jpeg", quality: Int = 80, maxWidth: Int? = null): CapturedScreenshot {
+        return captureScreenshot(format, quality, maxWidth, reuseStreamBitmap = true)
+    }
+
+    fun releaseSessionScreenshotResources() {
+        runOnMain {
+            streamBitmap?.recycle()
+            streamBitmap = null
+            streamBitmapWidth = 0
+            streamBitmapHeight = 0
+        }
+    }
+
+    private fun captureScreenshot(format: String, quality: Int, maxWidth: Int?, reuseStreamBitmap: Boolean): CapturedScreenshot {
         return runOnMain {
             val activity = currentActivity.get() ?: error("No resumed Android activity is available for screenshot capture.")
             val root = activity.window.decorView.rootView ?: error("No Android root view is available for screenshot capture.")
@@ -94,27 +118,43 @@ object AndroidUiEvidence {
             val scale = maxWidth?.takeIf { it > 0 && root.width > it }?.let { it.toFloat() / root.width.toFloat() } ?: 1f
             val width = (root.width * scale).toInt().coerceAtLeast(1)
             val height = (root.height * scale).toInt().coerceAtLeast(1)
-            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            val bitmap = if (reuseStreamBitmap) {
+                streamBitmap?.takeIf { !it.isRecycled && streamBitmapWidth == width && streamBitmapHeight == height }
+                    ?: Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).also {
+                        streamBitmap?.recycle()
+                        streamBitmap = it
+                        streamBitmapWidth = width
+                        streamBitmapHeight = height
+                    }
+            } else {
+                Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            }
+            bitmap.eraseColor(Color.TRANSPARENT)
             val canvas = Canvas(bitmap)
             if (scale != 1f) {
                 canvas.scale(scale, scale)
             }
             root.draw(canvas)
 
-            val normalizedFormat = format.trim().lowercase()
-            val compressFormat = if (normalizedFormat == "png") Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG
-            val mimeType = if (compressFormat == Bitmap.CompressFormat.PNG) "image/png" else "image/jpeg"
-            val extension = if (compressFormat == Bitmap.CompressFormat.PNG) "png" else "jpg"
-            val output = ByteArrayOutputStream()
-            bitmap.compress(compressFormat, quality.coerceIn(1, 100), output)
-            bitmap.recycle()
-            CapturedScreenshot(
-                bytes = output.toByteArray(),
-                width = width,
-                height = height,
-                mimeType = mimeType,
-                fileName = "ansight-android-${System.currentTimeMillis()}.$extension",
-            )
+            try {
+                val normalizedFormat = format.trim().toLowerCase(Locale.US)
+                val compressFormat = if (normalizedFormat == "png") Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG
+                val mimeType = if (compressFormat == Bitmap.CompressFormat.PNG) "image/png" else "image/jpeg"
+                val extension = if (compressFormat == Bitmap.CompressFormat.PNG) "png" else "jpg"
+                val output = ByteArrayOutputStream()
+                bitmap.compress(compressFormat, quality.coerceIn(1, 100), output)
+                CapturedScreenshot(
+                    bytes = output.toByteArray(),
+                    width = width,
+                    height = height,
+                    mimeType = mimeType,
+                    fileName = "ansight-android-${System.currentTimeMillis()}.$extension",
+                )
+            } finally {
+                if (!reuseStreamBitmap) {
+                    bitmap.recycle()
+                }
+            }
         }
     }
 
@@ -161,7 +201,7 @@ object AndroidUiEvidence {
     }
 
     fun queryOverlays(): JSONObject = JSONObject()
-        .put("overlays", JSONArray(overlays.values.map(::overlayJson)))
+            .put("overlays", JSONArray(overlays.values.map { overlay -> overlayJson(overlay) }))
         .put("count", overlays.size)
 
     fun updateOverlay(arguments: Map<String, String>): JSONObject {

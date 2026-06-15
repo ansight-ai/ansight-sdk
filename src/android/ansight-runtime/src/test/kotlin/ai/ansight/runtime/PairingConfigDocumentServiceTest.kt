@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.Instant
 
 class PairingConfigDocumentServiceTest {
     @Test
@@ -39,6 +40,13 @@ class PairingConfigDocumentServiceTest {
             PairingConfigDocumentService.validateDocument(document, "ai.ansight.ios.native-harness")
         }
         assertTrue(error.message?.contains("expired", ignoreCase = true) == true)
+    }
+
+    @Test
+    fun parseConfigInstantAcceptsOffsetTimestamps() {
+        val parsed = PairingConfigDocumentService.parseConfigInstant("2026-06-15T10:49:15.800804+10:00")
+
+        assertEquals(Instant.parse("2026-06-15T00:49:15.800804Z"), parsed)
     }
 
     private val studioConfigJson = """

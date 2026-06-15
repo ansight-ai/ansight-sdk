@@ -1,6 +1,7 @@
 package ai.ansight.runtime
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
@@ -57,5 +58,26 @@ class AnsightOptionsTest {
         assertEquals(true, validated.secureStorage.isAllowed("token"))
         assertEquals(true, validated.secureStorage.isAllowed("debug.session"))
         assertEquals(false, validated.secureStorage.isAllowed("prod.session"))
+    }
+
+    @Test
+    fun developerDefaultsMatchNativeAggregateDefaults() {
+        val options = AnsightDeveloperMode.options(
+            bundledDeveloperConfigJson = "{}",
+            clientName = "Validation Client",
+        ).validated()
+
+        assertEquals(400, options.sampleFrequencyMilliseconds)
+        assertEquals(120, options.retentionPeriodSeconds)
+        assertEquals(true, options.enableFramesPerSecond)
+        assertEquals(false, options.enableBatteryLevel)
+        assertEquals(AnsightToolGuard.Full, options.toolGuard)
+        assertEquals(true, options.hostAutoProbe.enabled)
+        assertEquals("Validation Client", options.hostAutoProbe.clientName)
+        assertEquals("{}", options.hostConnection.bundledDeveloperConfigJson)
+        assertEquals(2_000, options.sessionJpegCapture?.intervalMilliseconds)
+        assertEquals(60, options.sessionJpegCapture?.quality)
+        assertEquals(480, options.sessionJpegCapture?.maxWidth)
+        assertNotNull(options.touchCapture)
     }
 }

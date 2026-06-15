@@ -16,10 +16,10 @@ object SessionJpegWireProtocol {
         jpegBytes: ByteArray,
     ): ByteArray {
         val frame = ByteArray(HeaderSize + jpegBytes.size)
-        frame[0] = 'A'.code.toByte()
-        frame[1] = 'S'.code.toByte()
-        frame[2] = 'J'.code.toByte()
-        frame[3] = 'P'.code.toByte()
+        frame[0] = 'A'.toInt().toByte()
+        frame[1] = 'S'.toInt().toByte()
+        frame[2] = 'J'.toInt().toByte()
+        frame[3] = 'P'.toInt().toByte()
         frame[4] = Version
         frame[5] = FormatJpeg
         frame[6] = quality.coerceIn(1, 100).toByte()

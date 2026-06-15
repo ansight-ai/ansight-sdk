@@ -11,7 +11,9 @@ import java.security.KeyFactory
 import java.security.Signature
 import java.security.spec.X509EncodedKeySpec
 import java.time.Instant
+import java.time.OffsetDateTime
 import java.util.Base64
+import java.util.Locale
 
 object PairingProtocolDefaults {
     const val DiscoveryPort = 45_123
@@ -119,11 +121,11 @@ data class PairingDiscoveryHint(
             val rawAddresses = json.optJSONArray("hostAddresses")
             if (rawAddresses != null) {
                 for (index in 0 until rawAddresses.length()) {
-                    rawAddresses.optString(index).trim().ifBlank { null }?.let(addresses::add)
+                    rawAddresses.optString(index).trim().ifBlank { null }?.let { address -> addresses.add(address) }
                 }
             }
 
-            json.optionalString("hostAddress")?.let(addresses::add)
+            json.optionalString("hostAddress")?.let { address -> addresses.add(address) }
 
             return PairingDiscoveryHint(
                 schema = json.optionalString("schema") ?: "ansight.discovery-hint.v1",
@@ -198,11 +200,7 @@ object PairingConfigDocumentService {
             "Connection config signature is invalid."
         }
 
-        val expiresAt = try {
-            Instant.parse(config.expiresAt)
-        } catch (ex: Exception) {
-            throw IllegalArgumentException("Pairing config expiry could not be parsed.", ex)
-        }
+        val expiresAt = parseConfigInstant(config.expiresAt)
         require(!Instant.now().isAfter(expiresAt)) {
             "Connection config expired at ${config.expiresAt}."
         }
@@ -228,6 +226,11 @@ object PairingConfigDocumentService {
             false
         }
     }
+
+    internal fun parseConfigInstant(value: String): Instant =
+        runCatching { Instant.parse(value) }
+            .recoverCatching { OffsetDateTime.parse(value).toInstant() }
+            .getOrElse { throw IllegalArgumentException("Pairing config expiry could not be parsed.", it) }
 
     private fun ensureDerSignature(signature: ByteArray): ByteArray {
         if (signature.firstOrNull() == 0x30.toByte()) {
@@ -317,9 +320,10 @@ internal object PairingCanonicalJson {
                 '\t' -> builder.append("\\t")
                 '+' -> if (escapePlus) builder.append("\\u002B") else builder.append('+')
                 else -> {
-                    if (char.code < 0x20) {
+                    val code = char.toInt()
+                    if (code < 0x20) {
                         builder.append("\\u")
-                        builder.append(char.code.toString(16).uppercase().padStart(4, '0'))
+                        builder.append(code.toString(16).toUpperCase(Locale.US).padStart(4, '0'))
                     } else {
                         builder.append(char)
                     }

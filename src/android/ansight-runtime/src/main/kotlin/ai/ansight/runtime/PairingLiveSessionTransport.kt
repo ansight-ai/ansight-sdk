@@ -129,7 +129,7 @@ class PairingLiveSessionTransport {
     fun sendData(bytes: ByteArray): OperationResult {
         val socket = synchronized(lock) { webSocket }
             ?: return OperationResult.failure("WebSocket session is not open.")
-        return if (socket.send(ByteString.of(*bytes))) {
+        return if (socket.send(OkioCompat.byteStringOf(bytes))) {
             OperationResult.success("Binary payload sent.")
         } else {
             OperationResult.failure("Failed to send WebSocket binary payload.")

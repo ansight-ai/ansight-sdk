@@ -156,31 +156,42 @@ data class DeviceApplicationProfile(
 }
 
 data class DeviceRuntimeProfile(
-    val platformName: String,
-    val platformVersion: String?,
-    val runtimeName: String,
-    val runtimeVersion: String?,
-    val engine: String?,
+    val primary: Int?,
+    val primaryVersion: String?,
+    val engine: DeviceRuntimeEngineProfile?,
     val stack: List<DeviceRuntimeStackEntry>,
+    val aotEnabled: Boolean?,
+    val jitEnabled: Boolean?,
 ) {
     fun toJson(): JSONObject = JSONObject()
-        .put("platformName", platformName)
-        .putIfNotNull("platformVersion", platformVersion)
-        .put("runtimeName", runtimeName)
-        .putIfNotNull("runtimeVersion", runtimeVersion)
-        .putIfNotNull("engine", engine)
+        .putIfNotNull("primary", primary)
+        .putIfNotNull("primaryVersion", primaryVersion)
+        .putIfNotNull("engine", engine?.toJson())
         .put("stack", JSONArray(stack.map { it.toJson() }))
+        .putIfNotNull("aotEnabled", aotEnabled)
+        .putIfNotNull("jitEnabled", jitEnabled)
+}
+
+data class DeviceRuntimeEngineProfile(
+    val name: String?,
+    val version: String?,
+) {
+    fun toJson(): JSONObject = JSONObject()
+        .putIfNotNull("name", name)
+        .putIfNotNull("version", version)
 }
 
 data class DeviceRuntimeStackEntry(
+    val runtimeCode: Int?,
     val name: String,
     val version: String?,
-    val kind: String,
+    val layer: String?,
 ) {
     fun toJson(): JSONObject = JSONObject()
+        .putIfNotNull("runtimeCode", runtimeCode)
         .put("name", name)
         .putIfNotNull("version", version)
-        .put("kind", kind)
+        .putIfNotNull("layer", layer)
 }
 
 data class DeviceGraphicsProfile(
@@ -225,6 +236,9 @@ data class DeviceNetworkProfile(
 
 object DeviceAppProfileCollector {
     private const val sdkVersion = "0.1.0-pre1"
+    private const val androidRuntimeCode = 1
+    private const val kotlinRuntimeCode = 250
+    private const val javaRuntimeCode = 251
 
     fun collect(application: Application, profileSeq: Int, reasonCode: Int = 1): DeviceAppProfile {
         val packageInfo = packageInfo(application)
@@ -266,7 +280,7 @@ object DeviceAppProfileCollector {
                 osBuild = Build.DISPLAY.nullIfBlank(),
                 apiLevel = Build.VERSION.SDK_INT,
                 cpuArch = System.getProperty("os.arch").nullIfBlank(),
-                cpuCoreCount = Runtime.getRuntime().availableProcessors(),
+                cpuCoreCount = java.lang.Runtime.getRuntime().availableProcessors(),
                 abiList = Build.SUPPORTED_ABIS?.mapNotNull { it.nullIfBlank() } ?: emptyList(),
                 memoryTotalMb = memoryInfo(application)?.totalMem?.bytesToMb(),
                 memoryFreeMb = memoryInfo(application)?.availMem?.bytesToMb(),
@@ -290,16 +304,19 @@ object DeviceAppProfileCollector {
                 debuggable = application.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0,
             ),
             runtime = DeviceRuntimeProfile(
-                platformName = "android",
-                platformVersion = Build.VERSION.RELEASE.nullIfBlank(),
-                runtimeName = "ART",
-                runtimeVersion = System.getProperty("java.vm.version").nullIfBlank(),
-                engine = System.getProperty("java.vm.name").nullIfBlank(),
-                stack = listOf(
-                    DeviceRuntimeStackEntry("Android", Build.VERSION.RELEASE.nullIfBlank(), "platform"),
-                    DeviceRuntimeStackEntry("Kotlin", KotlinVersion.CURRENT.toString(), "language"),
-                    DeviceRuntimeStackEntry("Java", System.getProperty("java.version").nullIfBlank(), "runtime"),
+                primary = androidRuntimeCode,
+                primaryVersion = Build.VERSION.RELEASE.nullIfBlank(),
+                engine = DeviceRuntimeEngineProfile(
+                    name = System.getProperty("java.vm.name").nullIfBlank() ?: "ART",
+                    version = System.getProperty("java.vm.version").nullIfBlank(),
                 ),
+                stack = listOf(
+                    DeviceRuntimeStackEntry(kotlinRuntimeCode, "Kotlin", KotlinVersion.CURRENT.toString(), "language"),
+                    DeviceRuntimeStackEntry(javaRuntimeCode, "Java", System.getProperty("java.version").nullIfBlank(), "runtime"),
+                    DeviceRuntimeStackEntry(androidRuntimeCode, "Android", Build.VERSION.RELEASE.nullIfBlank(), "platform"),
+                ),
+                aotEnabled = true,
+                jitEnabled = true,
             ),
             graphics = DeviceGraphicsProfile(display),
         )
@@ -449,7 +466,7 @@ object DeviceAppProfileCollector {
 
 internal object AndroidMetricSampler {
     fun javaHeapBytes(): Long {
-        val runtime = Runtime.getRuntime()
+        val runtime = java.lang.Runtime.getRuntime()
         return runtime.totalMemory() - runtime.freeMemory()
     }
 

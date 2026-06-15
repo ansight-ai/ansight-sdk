@@ -60,6 +60,7 @@ object AnsightRuntime {
     private val tools = linkedMapOf<String, AnsightToolDescriptor>()
     private val toolRegistry = AndroidToolRegistry()
 
+    @JvmOverloads
     fun initialize(application: Application, options: AnsightOptions = AnsightOptions()) {
         val validated = options.validated()
         synchronized(lock) {
@@ -73,7 +74,7 @@ object AnsightRuntime {
             touches.clear()
             tools.clear()
             toolRegistry.clear()
-            AndroidStandardTools.create().forEach(toolRegistry::register)
+            AndroidStandardTools.create().forEach { tool -> toolRegistry.register(tool) }
             initialized = true
             active = false
             sessionOpen = false
@@ -98,6 +99,7 @@ object AnsightRuntime {
         }
     }
 
+    @JvmOverloads
     fun initializeAndActivate(application: Application, options: AnsightOptions = AnsightOptions()) {
         initialize(application, options)
         activate()
@@ -120,7 +122,7 @@ object AnsightRuntime {
         if (options.enableFramesPerSecond) {
             frameRateSampler.start()
         }
-        AndroidUiEvidence.setTouchCaptureEnabled(options.touchCapture != null, ::onTouchCaptured)
+        AndroidUiEvidence.setTouchCaptureEnabled(options.touchCapture != null) { touch -> onTouchCaptured(touch) }
         startAutoProbeIfNeeded(app)
     }
 
@@ -964,7 +966,7 @@ object AnsightRuntime {
                     return
                 }
                 synchronized(lock) {
-                    lastStreamedMetricSequence = maxOf(lastStreamedMetricSequence, batch.metrics.last().sequence)
+                    lastStreamedMetricSequence = maxSequence(lastStreamedMetricSequence, batch.metrics.last().sequence)
                 }
             }
 
@@ -976,7 +978,7 @@ object AnsightRuntime {
                     return
                 }
                 synchronized(lock) {
-                    lastStreamedEventSequence = maxOf(lastStreamedEventSequence, batch.events.last().sequence)
+                    lastStreamedEventSequence = maxSequence(lastStreamedEventSequence, batch.events.last().sequence)
                 }
             }
 
@@ -988,11 +990,13 @@ object AnsightRuntime {
                     return
                 }
                 synchronized(lock) {
-                    lastStreamedTouchSequence = maxOf(lastStreamedTouchSequence, batch.touches.last().sequence)
+                    lastStreamedTouchSequence = maxSequence(lastStreamedTouchSequence, batch.touches.last().sequence)
                 }
             }
         }
     }
+
+    private fun maxSequence(current: Long, candidate: Long): Long = if (candidate > current) candidate else current
 
     private fun makeMetricsPayload(batch: List<RecordedMetric>): JSONObject = JSONObject()
         .put("source", "client")
@@ -1363,7 +1367,7 @@ object AnsightRuntime {
         }
 
         val screenshot = try {
-            AndroidUiEvidence.captureScreenshot("jpeg", state.first.quality, state.first.maxWidth)
+            AndroidUiEvidence.captureSessionScreenshot("jpeg", state.first.quality, state.first.maxWidth)
         } catch (_: Exception) {
             return
         }
@@ -1382,6 +1386,7 @@ object AnsightRuntime {
         sessionJpegTask = null
         sessionJpegExecutor?.shutdownNow()
         sessionJpegExecutor = null
+        AndroidUiEvidence.releaseSessionScreenshotResources()
     }
 
     private fun nextDeviceProfileLocked(app: Application, increment: Boolean): DeviceAppProfile {

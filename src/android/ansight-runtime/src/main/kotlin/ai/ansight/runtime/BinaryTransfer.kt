@@ -25,10 +25,10 @@ object PairingFileTransferWireProtocol {
     ): ByteArray {
         val normalizedTransferId = transferId.replace("-", "").padEnd(32, '0').take(32)
         val frame = ByteArray(HeaderSize + payload.size)
-        frame[0] = 'A'.code.toByte()
-        frame[1] = 'S'.code.toByte()
-        frame[2] = 'F'.code.toByte()
-        frame[3] = 'T'.code.toByte()
+        frame[0] = 'A'.toInt().toByte()
+        frame[1] = 'S'.toInt().toByte()
+        frame[2] = 'F'.toInt().toByte()
+        frame[3] = 'T'.toInt().toByte()
         frame[4] = Version
         frame[5] = frameType.code
         frame[6] = 0
@@ -70,8 +70,17 @@ fun PairingLiveSessionTransport.sendBinaryTransfer(
     transferId: String,
     bytes: ByteArray,
     chunkBytes: Int = 64 * 1024,
+    initialDelayMilliseconds: Long = 150,
 ): OperationResult {
     val chunkSize = chunkBytes.coerceIn(1024, 1024 * 1024)
+    if (initialDelayMilliseconds > 0) {
+        try {
+            Thread.sleep(initialDelayMilliseconds)
+        } catch (_: InterruptedException) {
+            Thread.currentThread().interrupt()
+            return OperationResult.failure("Binary transfer was interrupted before it started.")
+        }
+    }
     var offset = 0
     var sequence = 0
     while (offset < bytes.size) {
