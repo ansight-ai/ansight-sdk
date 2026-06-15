@@ -29,6 +29,12 @@ Implemented:
 - Telemetry capture: bounded sample buffers, built-in Java heap/native heap/RSS,
   FPS via `Choreographer`, optional battery percentage, custom channels, channel
   announcement, `CLIENT_METRICS`, and `CLIENT_EVENTS` streaming.
+- Evidence and tooling: ASJP session JPEG streaming, `ui.get_screenshot`,
+  Android visual tree and node inspection, diagnostic overlays, app sandbox file
+  tools, SharedPreferences tools, secure-storage tools, SQLite schema/query
+  tools, and binary file-transfer framing.
+- Input capture: Android `Window.Callback` touch capture with packed
+  `CLIENT_TOUCH_INPUT` streaming.
 
 ## Validation Evidence
 
@@ -39,21 +45,35 @@ Validated on 2026-06-15 with the Android modules on compile/target SDK 35:
 - `src/android :harness:assembleDebug` passed.
 - `src/android :ansight-runtime:publishReleasePublicationToMavenLocal` passed,
   publishing `ai.ansight:ansight-runtime-android:0.1.0-pre1`.
-- Native Android corpus app `sogonov__anubis` was copied to
-  `/tmp/ansight-android-validation-anubis`, patched to use `mavenLocal()`,
-  depend on the local Ansight AAR, and call `AnsightRuntime.initializeAndActivate`
-  from its existing `Application` subclass. `:app:assembleDebug` passed.
-
-Runtime launch smoke was attempted with `Pixel_3a_API_33_arm64-v8a`, but the
-local emulator did not register with ADB and emitted graphics library load
-errors. A second attempt with `Pixel_9a` failed because that AVD has a broken
-system image path. No device-backed Studio validation was completed in this
-pass.
+- Device-backed validation used attached Pixel 7 device `2A201FDH200BXX` and
+  Ansight Studio `0.5.11`. The mounted MCP tools returned
+  `MCP-Session-Id` initialization errors in this Codex thread, so validation used
+  `/Applications/Ansight.app/Contents/Helpers/ansight-daemon mcp-stdio`.
+- Studio pairing config `f265484fc8744df9b8b81c28b3a1af8b` opened live session
+  `ai-ansight-harness-600` for `ai.ansight.harness` with status
+  `WebSocket Open`.
+- The live session reported 7 metric channels and 705 metric samples at the
+  time of the artifact query. Memory and performance channels were present:
+  Java heap, Native heap, RSS, FPS, and Battery Level.
+- ASJP screenshot streaming reached Studio: the fresh session had 2 JPEG frames,
+  and `ansight_take_screenshot` transferred a 720x1600 JPEG through the remote
+  `ui.get_screenshot` tool.
+- Touch capture reached Studio: `ansight_get_session_timeline` returned touch
+  `down` and `up` events for an `adb input tap`, with normalized coordinates for
+  the same live session.
+- Remote tool discovery reached Studio: `ansight_list_app_tools` returned 28
+  Android tools for the live harness session.
+- Android corpus validation injected the local AAR into 25 copied Android test
+  apps under `/tmp/ansight-android-corpus-validation`. All 25 apps passed
+  `assembleDebug` with Ansight injected after temp-copy repairs for stale app
+  build issues, including missing API keys, obsolete plugin repositories,
+  missing submodule contents, a copied Gradle wrapper issue, and an invalid
+  local debug keystore format.
 
 ## Known Gaps
 
-- Live Studio validation still needs a bootable emulator or attached Android
-  device plus a fresh Android-targeted pairing config.
-- Screenshot, touch streaming, visual tree, file/preferences/secure/database
-  tools, and release-build tool policy belong to goals 07 through 13 and remain
-  for the next Android passes.
+- Android release-build tool policy still needs a dedicated consumer-facing
+  workflow.
+- Studio MCP mounted-tool access in this Codex thread still fails with an
+  `MCP-Session-Id` initialization error; direct daemon stdio remains a working
+  fallback.
