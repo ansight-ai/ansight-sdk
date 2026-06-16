@@ -33,7 +33,7 @@ Use one of the pairing buttons in the app:
 - `Pairing File` opens the native document picker for an Ansight Studio pairing config.
 - `Scan QR` opens the native QR pairing scanner.
 
-If `src/ios/ansight.json` is embedded by the SDK build plugin, the app will try auto-pairing on launch.
+The harness bundles `src/ios/ansight.json` as an app resource and passes it to `AnsightHostConnectionOptions.bundledConfigJson`. Studio-issued public configs are enough to validate bundling, but live pairing still needs host discovery from a QR/file/config-document payload. If the bundled config includes host discovery, the app tries pairing on launch; otherwise use `Scan QR` or `Pairing File`.
 
 ## Validation Checklist
 

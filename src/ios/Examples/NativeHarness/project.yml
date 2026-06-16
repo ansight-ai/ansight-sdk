@@ -11,6 +11,8 @@ targets:
     deploymentTarget: "15.0"
     sources:
       - AnsightNativeHarness
+      - path: ../../ansight.json
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ai.ansight.ios.native-harness

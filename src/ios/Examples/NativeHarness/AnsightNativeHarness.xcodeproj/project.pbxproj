@@ -7,7 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		14C5BF5DF937358964EE6A20 /* HarnessBundledPairingConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5238774EE821FF17AB219B3C /* HarnessBundledPairingConfig.swift */; };
 		592259775E247AAF756FE860 /* HarnessPickerInputField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A8DF8D27FA9DCE708F361E8 /* HarnessPickerInputField.swift */; };
+		8A2D33E88EA7042E1FBE8B2A /* ansight.json in Resources */ = {isa = PBXBuildFile; fileRef = 57D293C387F127A73DAFB1F2 /* ansight.json */; };
 		A99FC1D79037770E2353DAD9 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BF91F3A78233ABD7720C6DA /* ContentView.swift */; };
 		B6C3361E7D8795172495191D /* Ansight in Frameworks */ = {isa = PBXBuildFile; productRef = 195BFF2572E1282BBDC484BA /* Ansight */; };
 		F2C67ADBE98B978C53875297 /* AnsightHarnessApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 300777DDB543B1E0767806A6 /* AnsightHarnessApp.swift */; };
@@ -18,7 +20,9 @@
 		0A8DF8D27FA9DCE708F361E8 /* HarnessPickerInputField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarnessPickerInputField.swift; sourceTree = "<group>"; };
 		300777DDB543B1E0767806A6 /* AnsightHarnessApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightHarnessApp.swift; sourceTree = "<group>"; };
 		461DD5032FE4FCFAB7293C23 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		5238774EE821FF17AB219B3C /* HarnessBundledPairingConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarnessBundledPairingConfig.swift; sourceTree = "<group>"; };
 		558141FEE50406D0632934B9 /* AnsightNativeHarness.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = AnsightNativeHarness.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		57D293C387F127A73DAFB1F2 /* ansight.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ansight.json; sourceTree = "<group>"; };
 		9BF91F3A78233ABD7720C6DA /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		CC143DB0B4B5F7072193C962 /* ios */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ios; path = ../..; sourceTree = SOURCE_ROOT; };
 		F57A96E23D5DB5605CEC93B8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -44,10 +48,20 @@
 			name = Packages;
 			sourceTree = "<group>";
 		};
+		3B313B2D9F8101E50ACEA9A0 /* ios */ = {
+			isa = PBXGroup;
+			children = (
+				57D293C387F127A73DAFB1F2 /* ansight.json */,
+			);
+			name = ios;
+			path = ../..;
+			sourceTree = "<group>";
+		};
 		57E544B152B7DFC797C9E39B = {
 			isa = PBXGroup;
 			children = (
 				859A9F341E6CDCEADD64BE67 /* AnsightNativeHarness */,
+				3B313B2D9F8101E50ACEA9A0 /* ios */,
 				1EFCD60A27ABADA593D7A78B /* Packages */,
 				8BF89118D367EEBCDA34E1C5 /* Products */,
 			);
@@ -59,6 +73,7 @@
 				300777DDB543B1E0767806A6 /* AnsightHarnessApp.swift */,
 				461DD5032FE4FCFAB7293C23 /* Assets.xcassets */,
 				9BF91F3A78233ABD7720C6DA /* ContentView.swift */,
+				5238774EE821FF17AB219B3C /* HarnessBundledPairingConfig.swift */,
 				0A8DF8D27FA9DCE708F361E8 /* HarnessPickerInputField.swift */,
 				F57A96E23D5DB5605CEC93B8 /* Info.plist */,
 			);
@@ -135,6 +150,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				FB22CCD497BF15DD0622EF87 /* Assets.xcassets in Resources */,
+				8A2D33E88EA7042E1FBE8B2A /* ansight.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -147,6 +163,7 @@
 			files = (
 				F2C67ADBE98B978C53875297 /* AnsightHarnessApp.swift in Sources */,
 				A99FC1D79037770E2353DAD9 /* ContentView.swift in Sources */,
+				14C5BF5DF937358964EE6A20 /* HarnessBundledPairingConfig.swift in Sources */,
 				592259775E247AAF756FE860 /* HarnessPickerInputField.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

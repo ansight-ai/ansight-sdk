@@ -222,6 +222,9 @@ struct ContentView: View {
         toolDiscoveryEnabled=\(snapshot.toolDiscoveryEnabled)
         toolExecutionEnabled=\(snapshot.toolExecutionEnabled)
         embeddedDeveloperPairingAvailable=\(snapshot.embeddedDeveloperPairingAvailable)
+        bundledHarnessPairingAvailable=\(HarnessBundledPairingConfig.json != nil)
+        bundledHarnessPairingSource=\(HarnessBundledPairingConfig.sourceDescription)
+        bundledHarnessPairingHasHostDiscovery=\(HarnessBundledPairingConfig.hasHostDiscovery)
         detectedBundledTools=\(snapshot.detectedBundledTools.joined(separator: ","))
         lastPairingConfigId=\(snapshot.lastPairingConfigId ?? "<none>")
         resolvedHostAddress=\(snapshot.resolvedHostAddress ?? "<none>")
@@ -248,9 +251,11 @@ struct ContentView: View {
             setLifecycle(.foreground)
             recordMetric()
 
-            if AnsightDeveloperMode.embeddedPairingJson != nil {
-                let result = await AnsightRuntime.shared.connect(.auto(clientName: HarnessConstants.clientName))
+            if HarnessBundledPairingConfig.hasHostDiscovery {
+                let result = await AnsightRuntime.shared.connect(.bundledConfig(clientName: HarnessConstants.clientName))
                 connectionMessage = result.message
+            } else if HarnessBundledPairingConfig.json != nil {
+                connectionMessage = "Initialized with bundled public config. Scan QR or import a config with host discovery to connect."
             } else {
                 connectionMessage = "Initialized. Use Auto, Pairing File, or Scan QR to connect to Studio."
             }
@@ -326,7 +331,7 @@ struct ContentView: View {
             ],
             hostAutoProbe: .disabledDefault,
             hostConnection: AnsightHostConnectionOptions(
-                bundledConfigJson: AnsightDeveloperMode.embeddedPairingJson
+                bundledConfigJson: HarnessBundledPairingConfig.json
             )
         )
     }
