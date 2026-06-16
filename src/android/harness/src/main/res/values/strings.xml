@@ -6,5 +6,8 @@
     <string name="record_metric">Record metric</string>
     <string name="record_event">Record event</string>
     <string name="open_session">Open harness session</string>
+    <string name="show_pairing_sheet">Show QR pairing sheet</string>
     <string name="clear_buffers">Clear buffers</string>
+    <string name="show_dialog">Show capture dialog</string>
+    <string name="capture_evidence">Capture evidence PNG</string>
 </resources>
