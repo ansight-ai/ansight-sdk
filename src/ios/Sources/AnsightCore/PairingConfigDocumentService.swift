@@ -19,6 +19,13 @@ public struct PairingConfigDocumentService: Sendable {
             throw PairingDocumentError.invalidDocument("Paste or load a pairing config.")
         }
 
+        if let compactDocument = PairingConfigCodeGenerator.tryParse(trimmedJson) {
+            return ParsedPairingDocument(
+                config: compactDocument.config,
+                discoveryHint: normalizeDiscovery(compactDocument.discovery)
+            )
+        }
+
         let data = Data(trimmedJson.utf8)
         let rootObject = try decodeJSONObject(data)
         let schema = rootObject["schema"] as? String
@@ -118,9 +125,22 @@ public struct PairingConfigDocumentService: Sendable {
             return nil
         }
 
+        var seenAddresses = Set<String>()
         let normalizedAddresses = (discoveryHint.hostAddresses ?? [])
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
+            .compactMap { address -> String? in
+                let normalizedAddress = address.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !normalizedAddress.isEmpty else {
+                    return nil
+                }
+
+                let key = normalizedAddress.lowercased()
+                guard !seenAddresses.contains(key) else {
+                    return nil
+                }
+
+                seenAddresses.insert(key)
+                return normalizedAddress
+            }
         discoveryHint.hostAddresses = normalizedAddresses.isEmpty ? nil : normalizedAddresses
         if discoveryHint.schema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             discoveryHint.schema = PairingDiscoveryHint.schemaName

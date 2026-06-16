@@ -20,6 +20,43 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertEqual(document.discoveryHint?.hostAddress, "127.0.0.1")
     }
 
+    func testParseDocumentAcceptsCompactPairingConfigCode() throws {
+        let compactCode = """
+        apc1:H4sIAAAAAAAC_4VSy27bMBD8FYPXRoKkxkatm9PUQJC4NVADORQ9MOLKIixxaT7sBoH_vUtLkZS4QSFCJHdmZx_cF2aLChrOcsaVldvKxZpLI9U2KlCVchsJLHwDysWHlF2x1sjyl__5jel3gmhFGaBG88IRwLVurdjErwIObAd95w0QuGiByYYAS4i01oNYOIKyZD6PkpTWJkny8_p0_hMN_mhpwL7lZZc8VLCRDWxwB4qoLuyjFCukdKjQsK_90z08E0n7p2hHp6uReUlVg9FUfIhYDrde7ESdqHhdA0FBktfUQvbt6-3PRbTOpjM2wvtQvaULaGDvqa61QSx_qKU0FJ9aznJnPFAE2tqEGxShewIOUKMGM_ieS73wpZbXNR4fuLqVtsADmOdelB5AcedNEBzOBIiB-o9Z6NGokq-jY9Gb4qzjvJAY7U3XxYUQ9FwWLMt_sUk6z-J09iVO4zSZEIPW2BSuSRy-Kfs9SmONhoq_nqbZ51a1m6EVd66CY7TixQ3ijtyPspTvBuxRLmV4A65DeR9NWNpNzun0F_eMyGk2AwAA
+        """
+
+        let document = try PairingConfigDocumentService().parseDocument(compactCode)
+
+        XCTAssertEqual(document.config.configId, "cfg-compact")
+        XCTAssertEqual(document.discoveryHint?.source, "studio-qr")
+        XCTAssertEqual(document.discoveryHint?.hostAddresses, ["192.168.1.10", "10.0.0.5"])
+        XCTAssertEqual(document.discoveryHint?.discoveryPort, 45123)
+        XCTAssertEqual(document.discoveryHint?.hostName, "Matthew-MacBook")
+        XCTAssertEqual(document.discoveryHint?.wifiName, "Ansight WiFi")
+    }
+
+    func testCompactPairingConfigCodeRoundTripsSignedDocument() throws {
+        let config = TestPairingFactory.signedConfig(configId: "cfg-compact-signed")
+        let configDocument = PairingConfigDocument(
+            config: config,
+            discovery: PairingDiscoveryHint(
+                source: "studio-qr",
+                hostAddresses: [" 127.0.0.1 ", "127.0.0.1", "127.0.0.2"],
+                discoveryPort: 45123
+            )
+        )
+        let compactCode = try PairingConfigCodeGenerator.serialize(configDocument)
+
+        let document = try PairingConfigDocumentService().parseAndValidateDocument(
+            compactCode,
+            expectedAppId: config.appId
+        )
+
+        XCTAssertEqual(document.config.configId, "cfg-compact-signed")
+        XCTAssertEqual(document.discoveryHint?.hostAddresses, ["127.0.0.1", "127.0.0.2"])
+        XCTAssertEqual(document.discoveryHint?.discoveryPort, 45123)
+    }
+
     func testOpenSessionUsesTicketDiscoveryHint() throws {
         let config = TestPairingFactory.signedConfig()
         let documentJson = try TestPairingFactory.ticketJSON(config: config)

@@ -58,6 +58,9 @@ let package = Package(
         .target(
             name: "AnsightCore",
             path: "Sources/AnsightCore",
+            linkerSettings: [
+                .linkedLibrary("z"),
+            ],
             plugins: [
                 .plugin(name: "AnsightBuildToolPlugin"),
             ]
