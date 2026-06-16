@@ -1,6 +1,6 @@
 # Ansight iOS Native Harness
 
-This app is the native iOS validation harness for the Swift SDK. It is intentionally small, but it exercises the aggregate `Ansight` SwiftPM product, pairing flows, telemetry, screen capture, touch capture, FPS capture, and all current remote tool suites.
+This app is the native iOS validation harness for the Swift SDK. It exercises the aggregate `Ansight` SwiftPM product, pairing flows, telemetry, screen capture, touch capture, FPS capture, navigation surfaces, inline 3D content, seeded storage, and all current remote tool suites.
 
 The harness bundle id is:
 
@@ -29,11 +29,11 @@ try AnsightRuntime.shared.initializeAndActivateAnsightSdk(...)
 
 Use one of the pairing buttons in the app:
 
-- `Auto Connect` uses saved, bundled, or cached pairing state.
+- `Auto Connect` explicitly tries the SDK's normal auto order: embedded developer config, cached session, saved config, then bundled config.
 - `Pairing File` opens the native document picker for an Ansight Studio pairing config.
 - `Scan QR` opens the native QR pairing scanner.
 
-The harness bundles `src/ios/ansight.json` as an app resource and passes it to `AnsightHostConnectionOptions.bundledConfigJson`. Studio-issued public configs are enough to validate bundling, but live pairing still needs host discovery from a QR/file/config-document payload. If the bundled config includes host discovery, the app tries pairing on launch; otherwise use `Scan QR` or `Pairing File`.
+The harness bundles `src/ios/ansight.json` as an app resource and passes it to `AnsightHostConnectionOptions.bundledConfigJson`. Host auto-probe is enabled and mirrors the .NET SDK behavior: it only reconnects a cached session while the runtime is active. Public bundled configs do not contain LAN routing metadata, so first pairing still needs a QR/file/config-document payload with discovery host addresses.
 
 ## Validation Checklist
 
@@ -43,11 +43,24 @@ After pairing with Ansight Studio, validate:
 - Telemetry: custom metric channel `42`, lifecycle events, manual events, screen views, FPS metrics.
 - Screen capture: live JPEG stream and the manual `Capture Frame` button.
 - Touch capture: tap, drag, keyboard focus, picker focus, and toggle interactions.
+- Navigation: tabs, push/pop stack, sheet modal, full-screen modal, menu flyout, and custom drawer flyout.
+- Inline 3D: SceneKit viewer renders cube/sphere/torus content, supports material changes, rotation controls, camera interaction, and node tap selection.
 - Visual tree: SwiftUI content plus UIKit `UITextField` picker input view.
 - Modal picker overlay capture: tap `Shipping Speed` and inspect the captured screen frame while the native picker is open.
 - Preferences tools: keys under `ansight.harness.`.
 - File-system tools: `documents/ansight-harness/hello.txt`.
-- Database tools: `documents/ansight-harness/sample.sqlite`, table `harness_events`.
+- Database tools: `documents/ansight-harness/sample.sqlite`, tables `harness_events`, `harness_orders`, `harness_inventory`, and `harness_navigation_events`.
 - Secure-storage tools: service `ai.ansight.ios.native-harness.secure`, key `ansight.harness.token`.
+- Custom tools: `harness.state.snapshot`, `harness.reflection_roots.list`, and `harness.reflection_root.inspect`.
 
 The `Re-seed Harness Data` button rewrites the sample Preferences, Documents, SQLite, and Keychain data without reinstalling the app.
+
+## Harness Reflection Roots
+
+The harness registers custom inspection roots for manual Studio validation:
+
+- `ui.orderDraft`: bound text, picker, toggle, and quantity state.
+- `navigation.flow`: selected tab, active modal, flyout selection, pushed depth, and recent navigation events.
+- `scene.inline3d`: SceneKit material, rotation state, spin speed, and selected node.
+- `data.seededStore`: seeded file/database/preferences/keychain metadata.
+- `runtime.snapshot`: current Ansight runtime counters and capture status.
