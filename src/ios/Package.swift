@@ -40,6 +40,10 @@ let package = Package(
             name: "AnsightToolsVisualTree",
             targets: ["AnsightToolsVisualTree"]
         ),
+        .library(
+            name: "AnsightObjC",
+            targets: ["AnsightObjC"]
+        ),
     ],
     targets: [
         .target(
@@ -110,6 +114,13 @@ let package = Package(
             ],
             path: "Sources/AnsightToolsVisualTree"
         ),
+        .target(
+            name: "AnsightObjC",
+            dependencies: [
+                "Ansight",
+            ],
+            path: "Sources/AnsightObjC"
+        ),
         .executableTarget(
             name: "AnsightBuildTool",
             path: "Plugins/AnsightBuildTool"
@@ -132,6 +143,7 @@ let package = Package(
                 "AnsightToolsPreferences",
                 "AnsightToolsSecureStorage",
                 "AnsightToolsVisualTree",
+                "AnsightObjC",
             ],
             path: "Tests/AnsightCoreTests"
         ),

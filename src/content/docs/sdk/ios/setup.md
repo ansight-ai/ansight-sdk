@@ -56,6 +56,99 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
 }
 ```
 
+## Objective-C apps
+
+Objective-C apps should use the `AnsightObjC` product or pod. The facade wraps
+the Swift SDK with `NSObject` classes, `NSError **` setup calls, callback-based
+async calls, Foundation dictionaries, and block-based extension points.
+
+With CocoaPods:
+
+```ruby
+pod "AnsightObjC", :path => "/absolute/path/to/ansight-sdk/src/ios"
+```
+
+Then import the generated Swift header from Objective-C:
+
+```objc
+#import <AnsightObjC/AnsightObjC-Swift.h>
+```
+
+Start the SDK during application startup:
+
+```objc
+NSError *error = nil;
+BOOL started = [ANSAnsight initializeAndActivateWithPairingConfigJson:nil
+                                                           clientName:@"Objective-C App"
+                                                                error:&error];
+if (!started) {
+    NSLog(@"Failed to start Ansight: %@", error);
+}
+```
+
+Record custom metrics manually:
+
+```objc
+[ANSAnsight registerMetricChannelWithId:91
+                                   name:@"React Native JS FPS"
+                                   unit:@"fps"
+                                   type:@"reactNative"
+                               colorHex:@"#61DAFB"
+                                  error:&error];
+
+[ANSAnsight recordMetric:58 channel:91 error:&error];
+```
+
+Register an official sampled metric stream with a block:
+
+```objc
+[ANSAnsight registerMetricStreamWithId:92
+                                  name:@"Flutter build time"
+                                  unit:@"microseconds"
+                                  type:@"flutter"
+                              colorHex:@"#0A84FF"
+                               sampler:^NSNumber * _Nullable{
+    return @(16700);
+} error:&error];
+```
+
+Provide another visual tree flavour by registering a provider source:
+
+```objc
+ANSVisualTreeProvider *provider =
+    [[ANSVisualTreeProvider alloc] initWithSource:@"reactNative"
+                                      displayName:@"React Native"
+                                    getVisualTree:^NSDictionary * _Nullable(NSDictionary *arguments) {
+        return @{
+            @"platform": @"ios",
+            @"source": @"reactNative",
+            @"adapter": @"react.native",
+            @"capturedAtUtc": @"2026-06-16T00:00:00.000Z",
+            @"root": @{
+                @"id": @"root",
+                @"type": @"RootComponent"
+            }
+        };
+    } inspectNode:^NSDictionary * _Nullable(NSDictionary *arguments) {
+        NSString *nodeId = arguments[@"nodeId"] ?: @"root";
+        return @{
+            @"platform": @"ios",
+            @"source": @"reactNative",
+            @"adapter": @"react.native",
+            @"capturedAtUtc": @"2026-06-16T00:00:00.000Z",
+            @"node": @{
+                @"id": nodeId,
+                @"type": @"Component"
+            }
+        };
+    }];
+
+[ANSAnsight registerVisualTreeProvider:provider error:&error];
+```
+
+Studio can then request that tree through `ui.get_visual_tree` with
+`source: "reactNative"`. Omitting `source` keeps using the native UIKit tree.
+
 `initializeAndActivateAnsightSdk()` applies the native developer defaults and registers the bundled tool suites:
 
 - telemetry sampling every 400 ms with 120 seconds of retained samples
