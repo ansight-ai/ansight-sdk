@@ -1,0 +1,350 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		592259775E247AAF756FE860 /* HarnessPickerInputField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A8DF8D27FA9DCE708F361E8 /* HarnessPickerInputField.swift */; };
+		A99FC1D79037770E2353DAD9 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BF91F3A78233ABD7720C6DA /* ContentView.swift */; };
+		B6C3361E7D8795172495191D /* Ansight in Frameworks */ = {isa = PBXBuildFile; productRef = 195BFF2572E1282BBDC484BA /* Ansight */; };
+		F2C67ADBE98B978C53875297 /* AnsightHarnessApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 300777DDB543B1E0767806A6 /* AnsightHarnessApp.swift */; };
+		FB22CCD497BF15DD0622EF87 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 461DD5032FE4FCFAB7293C23 /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		0A8DF8D27FA9DCE708F361E8 /* HarnessPickerInputField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarnessPickerInputField.swift; sourceTree = "<group>"; };
+		300777DDB543B1E0767806A6 /* AnsightHarnessApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightHarnessApp.swift; sourceTree = "<group>"; };
+		461DD5032FE4FCFAB7293C23 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		558141FEE50406D0632934B9 /* AnsightNativeHarness.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = AnsightNativeHarness.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		9BF91F3A78233ABD7720C6DA /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		CC143DB0B4B5F7072193C962 /* ios */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ios; path = ../..; sourceTree = SOURCE_ROOT; };
+		F57A96E23D5DB5605CEC93B8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		6D3E29636EFAE4851A3FD2CD /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B6C3361E7D8795172495191D /* Ansight in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		1EFCD60A27ABADA593D7A78B /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				CC143DB0B4B5F7072193C962 /* ios */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		57E544B152B7DFC797C9E39B = {
+			isa = PBXGroup;
+			children = (
+				859A9F341E6CDCEADD64BE67 /* AnsightNativeHarness */,
+				1EFCD60A27ABADA593D7A78B /* Packages */,
+				8BF89118D367EEBCDA34E1C5 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		859A9F341E6CDCEADD64BE67 /* AnsightNativeHarness */ = {
+			isa = PBXGroup;
+			children = (
+				300777DDB543B1E0767806A6 /* AnsightHarnessApp.swift */,
+				461DD5032FE4FCFAB7293C23 /* Assets.xcassets */,
+				9BF91F3A78233ABD7720C6DA /* ContentView.swift */,
+				0A8DF8D27FA9DCE708F361E8 /* HarnessPickerInputField.swift */,
+				F57A96E23D5DB5605CEC93B8 /* Info.plist */,
+			);
+			path = AnsightNativeHarness;
+			sourceTree = "<group>";
+		};
+		8BF89118D367EEBCDA34E1C5 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				558141FEE50406D0632934B9 /* AnsightNativeHarness.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		3A158CD208E95450F74539FD /* AnsightNativeHarness */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 06CF9885B6CE81159A696C09 /* Build configuration list for PBXNativeTarget "AnsightNativeHarness" */;
+			buildPhases = (
+				08857153315D9D2CBC7DCB9B /* Sources */,
+				4E28768A7F266EECBDBDDCA0 /* Resources */,
+				6D3E29636EFAE4851A3FD2CD /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AnsightNativeHarness;
+			packageProductDependencies = (
+				195BFF2572E1282BBDC484BA /* Ansight */,
+			);
+			productName = AnsightNativeHarness;
+			productReference = 558141FEE50406D0632934B9 /* AnsightNativeHarness.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		EE425D286B967AE08C1C7E3A /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = 580A4E3CAEDE3EE3549487F7 /* Build configuration list for PBXProject "AnsightNativeHarness" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 57E544B152B7DFC797C9E39B;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				9E89629DB423147C6813A0FB /* XCLocalSwiftPackageReference "../..//" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 8BF89118D367EEBCDA34E1C5 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				3A158CD208E95450F74539FD /* AnsightNativeHarness */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		4E28768A7F266EECBDBDDCA0 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FB22CCD497BF15DD0622EF87 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		08857153315D9D2CBC7DCB9B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F2C67ADBE98B978C53875297 /* AnsightHarnessApp.swift in Sources */,
+				A99FC1D79037770E2353DAD9 /* ContentView.swift in Sources */,
+				592259775E247AAF756FE860 /* HarnessPickerInputField.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		9E93529A06BBEA4FF3D353DF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A791B2D1C2CAB8361246EEFF /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		E18344A9F64DFA3C082D8229 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = AnsightNativeHarness/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "ai.ansight.ios.native-harness";
+				PRODUCT_NAME = AnsightNativeHarness;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		F75DFB971C64339035E171F4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = AnsightNativeHarness/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "ai.ansight.ios.native-harness";
+				PRODUCT_NAME = AnsightNativeHarness;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		06CF9885B6CE81159A696C09 /* Build configuration list for PBXNativeTarget "AnsightNativeHarness" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E18344A9F64DFA3C082D8229 /* Debug */,
+				F75DFB971C64339035E171F4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		580A4E3CAEDE3EE3549487F7 /* Build configuration list for PBXProject "AnsightNativeHarness" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9E93529A06BBEA4FF3D353DF /* Debug */,
+				A791B2D1C2CAB8361246EEFF /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		9E89629DB423147C6813A0FB /* XCLocalSwiftPackageReference "../..//" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../..//";
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		195BFF2572E1282BBDC484BA /* Ansight */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Ansight;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = EE425D286B967AE08C1C7E3A /* Project object */;
+}

@@ -16,17 +16,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: ai.ansight.ios.native-harness
         PRODUCT_NAME: AnsightNativeHarness
         INFOPLIST_FILE: AnsightNativeHarness/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         SWIFT_VERSION: 6.0
     dependencies:
       - package: AnsightSDK
-        product: AnsightCore
-      - package: AnsightSDK
-        product: AnsightToolsDatabase
-      - package: AnsightSDK
-        product: AnsightToolsFileSystem
-      - package: AnsightSDK
-        product: AnsightToolsPreferences
-      - package: AnsightSDK
-        product: AnsightToolsSecureStorage
-      - package: AnsightSDK
-        product: AnsightToolsVisualTree
+        product: Ansight
