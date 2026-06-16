@@ -16,5 +16,13 @@ dependencyResolutionManagement {
 
 rootProject.name = "ansight-android"
 
-include(":ansight-runtime")
+include(":ansight-core")
+include(":ansight-tools-visualtree")
+include(":ansight-tools-filesystem")
+include(":ansight-tools-preferences")
+include(":ansight-tools-securestorage")
+include(":ansight-tools-database")
+include(":ansight-tools-reflection")
+include(":ansight-pairing")
+include(":ansight")
 include(":harness")

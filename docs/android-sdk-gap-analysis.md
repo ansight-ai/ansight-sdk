@@ -35,10 +35,14 @@ Implemented:
   tools, and binary file-transfer framing.
 - Input capture: Android `Window.Callback` touch capture with packed
   `CLIENT_TOUCH_INPUT` streaming.
+- Package layout: `ansight-core-android`, `ansight-pairing-android`, discrete
+  `ansight-tools-*` artifacts, and the all-in-one `ansight-android` artifact.
+  Tool suites expose public `*ToolIds` constants matching the .NET packages.
 
 ## Validation Evidence
 
-Validated on 2026-06-15 with the Android modules on compile/target SDK 35:
+First-pass validation on 2026-06-15 used the original Android runtime module on
+compile/target SDK 35:
 
 - `src/android :ansight-runtime:compileDebugKotlin` passed.
 - `src/android :ansight-runtime:testDebugUnitTest` passed.
@@ -69,6 +73,15 @@ Validated on 2026-06-15 with the Android modules on compile/target SDK 35:
   build issues, including missing API keys, obsolete plugin repositories,
   missing submodule contents, a copied Gradle wrapper issue, and an invalid
   local debug keystore format.
+
+Package split validation on 2026-06-16:
+
+- `src/android :ansight-core:testDebugUnitTest` passed.
+- `src/android :ansight:testDebugUnitTest` passed.
+- `src/android :harness:assembleDebug` passed with the harness consuming
+  `project(":ansight")`.
+- `src/android publishReleasePublicationToMavenLocal` passed for core, pairing,
+  all six tool-suite packages, and the all-in-one package.
 
 ## Known Gaps
 
