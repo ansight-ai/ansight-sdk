@@ -4,7 +4,7 @@ The native iOS SDK plan lives in [../../docs/native-ios-android-sdk-plan.md](../
 
 The native harness app lives in `Examples/NativeHarness/`.
 
-Import `AnsightKit` plus individual tool products for a minimal integration, or import the aggregate `Ansight` product for developer defaults and the current native remote-tool suites.
+Import `AnsightCore` plus individual pairing/tool products for a minimal integration, or import the aggregate `Ansight` product for developer defaults, QR/file pairing UI, and the current native remote-tool suites.
 
 ## License
 
@@ -36,11 +36,12 @@ Ansight Services.
 - `AnsightToolsDatabase` SwiftPM product with SQLite discovery, schema inspection, and constrained read-only query tools: `data.list_databases`, `data.describe_schema`, and `data.query`
 - `AnsightToolsSecureStorage` SwiftPM product with allow-listed Keychain `secure.get_value`, `secure.set_value`, and `secure.remove_key` tools
 - `AnsightToolsVisualTree` SwiftPM product with UIKit visual tree, node inspection, live screenshot, and diagnostic overlay tools
+- `AnsightPairingQR` SwiftPM product with UIKit document import and AVFoundation QR scanning for SDK-owned pairing UI
 - SwiftPM build-time developer pairing generation and bundled-tool enforcement
 
 ## SwiftPM developer mode
 
-When building this package through SwiftPM, the `AnsightBuildToolPlugin` runs automatically for the `AnsightKit` target.
+When building this package through SwiftPM, the `AnsightBuildToolPlugin` runs automatically for the `AnsightCore` target.
 
 Environment variables:
 
@@ -63,14 +64,15 @@ pod 'Ansight', :path => '/path/to/ansight-sdk/src/ios'
 For minimal integrations, depend on only the modules you need:
 
 ```ruby
-pod 'AnsightKit', :path => '/path/to/ansight-sdk/src/ios'
+pod 'AnsightCore', :path => '/path/to/ansight-sdk/src/ios'
+pod 'AnsightPairingQR', :path => '/path/to/ansight-sdk/src/ios'
 pod 'AnsightToolsFileSystem', :path => '/path/to/ansight-sdk/src/ios'
 pod 'AnsightToolsVisualTree', :path => '/path/to/ansight-sdk/src/ios'
 ```
 
-The aggregate `Ansight` pod depends on `AnsightKit`, `AnsightToolsDatabase`, `AnsightToolsFileSystem`, `AnsightToolsPreferences`, `AnsightToolsSecureStorage`, and `AnsightToolsVisualTree`.
+The aggregate `Ansight` pod depends on `AnsightCore`, `AnsightPairingQR`, `AnsightToolsDatabase`, `AnsightToolsFileSystem`, `AnsightToolsPreferences`, `AnsightToolsSecureStorage`, and `AnsightToolsVisualTree`.
 
-The `AnsightKit` pod runs the same developer build-artifact generator before compile. It honors `ANSIGHT_DEVELOPER_PAIRING_ENABLED`, `ANSIGHT_DEVELOPER_PAIRING_SOURCE_FILE`, and `ANSIGHT_ALLOW_REMOTE_TOOLS`, then writes the pod-only `AnsightGeneratedBuildArtifactsProvider` used by `AnsightDeveloperMode`.
+The `AnsightCore` pod runs the same developer build-artifact generator before compile. It honors `ANSIGHT_DEVELOPER_PAIRING_ENABLED`, `ANSIGHT_DEVELOPER_PAIRING_SOURCE_FILE`, and `ANSIGHT_ALLOW_REMOTE_TOOLS`, then writes the pod-only `AnsightGeneratedBuildArtifactsProvider` used by `AnsightDeveloperMode`.
 
 ## Screen capture
 
@@ -129,9 +131,12 @@ try AnsightRuntime.shared.initializeAndActivateAnsightSdk()
 await AnsightRuntime.shared.connect(.qrCode(title: "Scan Pairing QR"))
 ```
 
-Lower-level `AnsightKit` integrations can register the platform reader explicitly:
+Lower-level `AnsightCore` integrations should add `AnsightPairingQR` and register the platform reader explicitly:
 
 ```swift
+import AnsightCore
+import AnsightPairingQR
+
 AnsightRuntime.shared.setHostConnectionConfigReader(PlatformHostConnectionConfigReader())
 ```
 
@@ -160,7 +165,7 @@ await AnsightRuntime.shared.connect(.qrCode(title: "Scan Pairing QR"))
 Tool products are opt-in. Register only the surfaces you want exposed to Studio:
 
 ```swift
-import AnsightKit
+import AnsightCore
 import AnsightToolsDatabase
 import AnsightToolsFileSystem
 import AnsightToolsPreferences
@@ -190,6 +195,6 @@ That preset keeps the core package tool-free by default, sets telemetry to 400 m
 
 - `openSession(...)` remains a harness-only local compatibility API; use `connect(...)` or `openLiveSession(...)` for a real Studio session
 - reflection tools and custom remote tool suites are later first-complete-pass steps
-- SDK-owned file/QR pairing UI is UIKit-only; macOS package builds compile the reader surface but report those request kinds unsupported
+- SDK-owned file/QR pairing UI lives in the optional `AnsightPairingQR` product and is UIKit-only; macOS package builds compile the reader surface but report those request kinds unsupported
 - binary file/screenshot transfer requires a live tool-protocol request context; direct in-process execution still reports a transfer-unavailable error
 - public CocoaPods release publication still needs final source URL, signing, and versioning metadata

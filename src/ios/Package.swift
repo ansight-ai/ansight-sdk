@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "AnsightKit",
+    name: "AnsightSDK",
     platforms: [
         .iOS(.v15),
         .macOS(.v11),
@@ -13,8 +13,12 @@ let package = Package(
             targets: ["Ansight"]
         ),
         .library(
-            name: "AnsightKit",
-            targets: ["AnsightKit"]
+            name: "AnsightCore",
+            targets: ["AnsightCore"]
+        ),
+        .library(
+            name: "AnsightPairingQR",
+            targets: ["AnsightPairingQR"]
         ),
         .library(
             name: "AnsightToolsPreferences",
@@ -41,7 +45,8 @@ let package = Package(
         .target(
             name: "Ansight",
             dependencies: [
-                "AnsightKit",
+                "AnsightCore",
+                "AnsightPairingQR",
                 "AnsightToolsDatabase",
                 "AnsightToolsFileSystem",
                 "AnsightToolsPreferences",
@@ -51,30 +56,37 @@ let package = Package(
             path: "Sources/Ansight"
         ),
         .target(
-            name: "AnsightKit",
-            path: "Sources/AnsightKit",
+            name: "AnsightCore",
+            path: "Sources/AnsightCore",
             plugins: [
                 .plugin(name: "AnsightBuildToolPlugin"),
             ]
         ),
         .target(
+            name: "AnsightPairingQR",
+            dependencies: [
+                "AnsightCore",
+            ],
+            path: "Sources/AnsightPairingQR"
+        ),
+        .target(
             name: "AnsightToolsPreferences",
             dependencies: [
-                "AnsightKit",
+                "AnsightCore",
             ],
             path: "Sources/AnsightToolsPreferences"
         ),
         .target(
             name: "AnsightToolsFileSystem",
             dependencies: [
-                "AnsightKit",
+                "AnsightCore",
             ],
             path: "Sources/AnsightToolsFileSystem"
         ),
         .target(
             name: "AnsightToolsDatabase",
             dependencies: [
-                "AnsightKit",
+                "AnsightCore",
             ],
             path: "Sources/AnsightToolsDatabase",
             linkerSettings: [
@@ -84,14 +96,14 @@ let package = Package(
         .target(
             name: "AnsightToolsSecureStorage",
             dependencies: [
-                "AnsightKit",
+                "AnsightCore",
             ],
             path: "Sources/AnsightToolsSecureStorage"
         ),
         .target(
             name: "AnsightToolsVisualTree",
             dependencies: [
-                "AnsightKit",
+                "AnsightCore",
             ],
             path: "Sources/AnsightToolsVisualTree"
         ),
@@ -107,17 +119,18 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "AnsightKitTests",
+            name: "AnsightCoreTests",
             dependencies: [
                 "Ansight",
-                "AnsightKit",
+                "AnsightCore",
+                "AnsightPairingQR",
                 "AnsightToolsDatabase",
                 "AnsightToolsFileSystem",
                 "AnsightToolsPreferences",
                 "AnsightToolsSecureStorage",
                 "AnsightToolsVisualTree",
             ],
-            path: "Tests/AnsightKitTests"
+            path: "Tests/AnsightCoreTests"
         ),
     ]
 )

@@ -8,7 +8,8 @@ Pod::Spec.new do |s|
   s.source       = { :path => "." }
   s.platforms    = { :ios => "15.0" }
   s.source_files = "Sources/Ansight/**/*.swift"
-  s.dependency "AnsightKit", s.version.to_s
+  s.dependency "AnsightCore", s.version.to_s
+  s.dependency "AnsightPairingQR", s.version.to_s
   s.dependency "AnsightToolsDatabase", s.version.to_s
   s.dependency "AnsightToolsFileSystem", s.version.to_s
   s.dependency "AnsightToolsPreferences", s.version.to_s

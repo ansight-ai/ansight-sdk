@@ -1,5 +1,5 @@
 Pod::Spec.new do |s|
-  s.name         = "AnsightKit"
+  s.name         = "AnsightCore"
   s.version      = "0.1.0-pre1"
   s.summary      = "Native iOS runtime for Ansight"
   s.homepage     = "https://github.com/ansight-ai/ansight-sdk"
@@ -7,8 +7,8 @@ Pod::Spec.new do |s|
   s.authors      = { "Ansight" => "dev@ansight.ai" }
   s.source       = { :path => "." }
   s.platforms    = { :ios => "15.0" }
-  s.source_files = "Sources/AnsightKit/**/*.swift", "Generated/CocoaPods/AnsightGeneratedBuildArtifacts.swift"
-  s.frameworks   = "AVFoundation", "CryptoKit", "Metal", "Network", "QuartzCore", "Security", "UIKit", "UniformTypeIdentifiers"
+  s.source_files = "Sources/AnsightCore/**/*.swift", "Generated/CocoaPods/AnsightGeneratedBuildArtifacts.swift"
+  s.frameworks   = "CryptoKit", "Metal", "Network", "QuartzCore", "Security", "UIKit"
   s.script_phase = {
     :name => "Generate Ansight Developer Build Artifacts",
     :execution_position => :before_compile,
@@ -21,7 +21,7 @@ MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)"
 SDKROOT="${MACOS_SDK}" xcrun --sdk macosx swiftc -sdk "${MACOS_SDK}" "${PODS_TARGET_SRCROOT}/Plugins/AnsightBuildTool/"*.swift -o "${TOOL}"
 "${TOOL}" \
   --output-file "${PODS_TARGET_SRCROOT}/Generated/CocoaPods/AnsightGeneratedBuildArtifacts.swift" \
-  --target-directory "${PODS_TARGET_SRCROOT}/Sources/AnsightKit" \
+  --target-directory "${PODS_TARGET_SRCROOT}/Sources/AnsightCore" \
   --package-directory "${PODS_TARGET_SRCROOT}"
     SCRIPT
   }

@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import AnsightKit
+@testable import AnsightCore
 
 final class PairingLiveSessionTransportTests: XCTestCase {
     func testSendDataTimesOutAndClosesTransportWhenHostSendStalls() async throws {

@@ -2,7 +2,7 @@ name: AnsightNativeHarness
 options:
   minimumXcodeGenVersion: 2.38.0
 packages:
-  AnsightKit:
+  AnsightSDK:
     path: ../../
 targets:
   AnsightNativeHarness:
@@ -18,15 +18,15 @@ targets:
         INFOPLIST_FILE: AnsightNativeHarness/Info.plist
         SWIFT_VERSION: 6.0
     dependencies:
-      - package: AnsightKit
-        product: AnsightKit
-      - package: AnsightKit
+      - package: AnsightSDK
+        product: AnsightCore
+      - package: AnsightSDK
         product: AnsightToolsDatabase
-      - package: AnsightKit
+      - package: AnsightSDK
         product: AnsightToolsFileSystem
-      - package: AnsightKit
+      - package: AnsightSDK
         product: AnsightToolsPreferences
-      - package: AnsightKit
+      - package: AnsightSDK
         product: AnsightToolsSecureStorage
-      - package: AnsightKit
+      - package: AnsightSDK
         product: AnsightToolsVisualTree

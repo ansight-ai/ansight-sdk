@@ -1,79 +1,76 @@
 import XCTest
-@testable import AnsightKit
-@testable import AnsightToolsSecureStorage
+@testable import AnsightCore
+@testable import AnsightToolsPreferences
 
-final class SecureStorageToolTests: XCTestCase {
-    func testSecureStorageToolsRoundTripViaToolProtocol() throws {
-        let service = "ai.ansight.tests.secure.\(UUID().uuidString)"
-        let key = "ansight.tests.secret"
-        let options = AnsightSecureStorageToolsOptions(
-            appleService: service,
+final class PreferencesToolTests: XCTestCase {
+    func testPreferencesToolsRoundTripViaToolProtocol() throws {
+        let suiteName = "ai.ansight.tests.\(UUID().uuidString)"
+        let key = "ansight.tests.roundtrip"
+        UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName)
+        defer {
+            UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName)
+        }
+
+        let options = AnsightPreferencesToolOptions(
+            defaultStore: suiteName,
+            allowedStores: [suiteName],
             allowedKeyPrefixes: ["ansight.tests."]
         )
         let bridge = bridge(
-            tools: AnsightSecureStorageTools.tools(options: options),
+            tools: AnsightPreferencesTools.tools(options: options),
             guardPolicy: .fullAccess
         )
-        defer {
-            _ = try? call(
-                bridge,
-                id: "secure_cleanup",
-                toolId: AnsightSecureStorageToolIds.removeKey,
-                arguments: ["key": key]
-            )
-        }
 
-        let setEnvelope = try call(
+        let setResponse = try call(
             bridge,
-            id: "secure_set",
-            toolId: AnsightSecureStorageToolIds.setValue,
+            id: "prefs_set",
+            toolId: AnsightPreferencesToolIds.setValue,
             arguments: [
                 "key": key,
-                "value": "secret-value",
+                "value": "hello",
+                "valueType": "string",
             ]
         )
-        let setResult = try resultPayload(setEnvelope)
-        XCTAssertEqual(setResult["store"], .string(service))
-        XCTAssertEqual(setResult["key"], .string(key))
-        XCTAssertEqual(setResult["updated"], .bool(true))
+        XCTAssertEqual(setResponse.type, "tool.result")
 
-        let getEnvelope = try call(
+        let getResponse = try call(
             bridge,
-            id: "secure_get",
-            toolId: AnsightSecureStorageToolIds.getValue,
+            id: "prefs_get",
+            toolId: AnsightPreferencesToolIds.getValue,
             arguments: ["key": key]
         )
-        let getResult = try resultPayload(getEnvelope)
-        XCTAssertEqual(getResult["store"], .string(service))
+        let getResult = try resultPayload(getResponse)
+        XCTAssertEqual(getResult["store"], .string(suiteName))
         XCTAssertEqual(getResult["key"], .string(key))
         XCTAssertEqual(getResult["exists"], .bool(true))
-        XCTAssertEqual(getResult["value"], .string("secret-value"))
+        XCTAssertEqual(getResult["value"], .string("hello"))
+        XCTAssertEqual(getResult["valueType"], .string("string"))
 
-        let removeEnvelope = try call(
+        let listResponse = try call(
             bridge,
-            id: "secure_remove",
-            toolId: AnsightSecureStorageToolIds.removeKey,
+            id: "prefs_list",
+            toolId: AnsightPreferencesToolIds.listKeys,
+            arguments: ["prefix": "ansight.tests."]
+        )
+        let listResult = try resultPayload(listResponse)
+        guard case .array(let keys)? = listResult["keys"] else {
+            return XCTFail("Expected key list.")
+        }
+        XCTAssertTrue(keys.contains(.string(key)))
+
+        let removeResponse = try call(
+            bridge,
+            id: "prefs_remove",
+            toolId: AnsightPreferencesToolIds.removeKey,
             arguments: ["key": key]
         )
-        let removeResult = try resultPayload(removeEnvelope)
+        let removeResult = try resultPayload(removeResponse)
         XCTAssertEqual(removeResult["removed"], .bool(true))
-
-        let missingEnvelope = try call(
-            bridge,
-            id: "secure_missing",
-            toolId: AnsightSecureStorageToolIds.getValue,
-            arguments: ["key": key]
-        )
-        let missingResult = try resultPayload(missingEnvelope)
-        XCTAssertEqual(missingResult["exists"], .bool(false))
-        XCTAssertEqual(missingResult["value"], .null)
     }
 
-    func testSecureStorageCatalogIncludesCriticalSecurityMetadata() throws {
+    func testPreferencesCatalogIncludesSecurityMetadata() throws {
         let bridge = bridge(
-            tools: AnsightSecureStorageTools.tools(
-                options: AnsightSecureStorageToolsOptions(allowedKeyPrefixes: ["allowed."])
-            ),
+            tools: AnsightPreferencesTools.tools(),
             guardPolicy: .fullAccess
         )
 
@@ -84,61 +81,63 @@ final class SecureStorageToolTests: XCTestCase {
             return XCTFail("Expected catalog tools.")
         }
 
-        let getTool = tools.compactMap { tool -> [String: JSONValue]? in
+        let getValueTool = tools.compactMap { tool -> [String: JSONValue]? in
             guard case .object(let object) = tool,
-                  object["id"] == .string(AnsightSecureStorageToolIds.getValue) else {
+                  object["id"] == .string(AnsightPreferencesToolIds.getValue) else {
                 return nil
             }
 
             return object
         }.first
 
-        guard let getTool,
-              case .object(let security)? = getTool["security"],
+        guard let getValueTool,
+              case .object(let security)? = getValueTool["security"],
               case .array(let implications)? = security["implications"] else {
             return XCTFail("Expected get-value security metadata.")
         }
 
-        XCTAssertEqual(security["level"], .string("Critical"))
-        XCTAssertTrue(implications.contains(.string("exports_data")))
-        XCTAssertTrue(implications.contains(.string("accesses_secure_storage")))
-        XCTAssertTrue(implications.contains(.string("handles_secrets")))
+        XCTAssertEqual(security["level"], .string("High"))
+        XCTAssertTrue(implications.contains(.string("reads_app_data")))
+        XCTAssertTrue(implications.contains(.string("accesses_preferences")))
     }
 
-    func testSecureStorageDenyByDefaultAndAllowListFailure() throws {
+    func testPreferencesAllowListFailureReturnsToolError() throws {
+        let suiteName = "ai.ansight.tests.\(UUID().uuidString)"
+        let options = AnsightPreferencesToolOptions(
+            defaultStore: suiteName,
+            allowedStores: [suiteName],
+            allowedKeyPrefixes: ["allowed."]
+        )
         let bridge = bridge(
-            tools: [GetSecureStorageValueTool()],
+            tools: [GetPreferenceValueTool(options: options)],
             guardPolicy: .fullAccess
         )
 
         let envelope = try call(
             bridge,
-            id: "secure_denied",
-            toolId: AnsightSecureStorageToolIds.getValue,
-            arguments: ["key": "not.allowed"]
+            id: "prefs_denied",
+            toolId: AnsightPreferencesToolIds.getValue,
+            arguments: ["key": "denied.value"]
         )
 
         XCTAssertEqual(envelope.type, "tool.error")
-        XCTAssertEqual(errorCode(envelope), "secure_get_failed")
+        XCTAssertEqual(errorCode(envelope), "prefs_get_failed")
     }
 
-    func testReadOnlyGuardDeniesSecureStorageWrites() throws {
+    func testReadOnlyGuardDeniesPreferenceWrites() throws {
         let bridge = bridge(
-            tools: [
-                SetSecureStorageValueTool(
-                    options: AnsightSecureStorageToolsOptions(allowedKeyPrefixes: ["allowed."])
-                ),
-            ],
+            tools: [SetPreferenceValueTool()],
             guardPolicy: .readOnly
         )
 
         let envelope = try call(
             bridge,
-            id: "secure_write_denied",
-            toolId: AnsightSecureStorageToolIds.setValue,
+            id: "prefs_write_denied",
+            toolId: AnsightPreferencesToolIds.setValue,
             arguments: [
-                "key": "allowed.key",
-                "value": "secret",
+                "key": "sample",
+                "value": "hello",
+                "valueType": "string",
             ]
         )
 
@@ -167,7 +166,7 @@ final class SecureStorageToolTests: XCTestCase {
     private func queryCatalog(_ bridge: AnsightToolProtocolBridge) throws -> AnsightToolProtocolEnvelope {
         let responseJson = try bridge.handleIfSupported(
             """
-            {"type":"tool.query","id":"secure_catalog","capability":"tool.exec","payload":{}}
+            {"type":"tool.query","id":"prefs_catalog","capability":"tool.exec","payload":{}}
             """
         )
         return try decodeEnvelope(responseJson)
@@ -182,14 +181,14 @@ final class SecureStorageToolTests: XCTestCase {
         let envelope = AnsightToolProtocolEnvelope(
             type: "tool.call",
             id: id,
-            sessionId: "secure_session",
+            sessionId: "prefs_session",
             payload: .object([
                 "toolId": .string(toolId),
                 "arguments": .object(from: arguments),
             ])
         )
-        let data = try JSONEncoder().encode(envelope)
-        let request = try XCTUnwrap(String(data: data, encoding: .utf8))
+        let json = try JSONEncoder().encode(envelope)
+        let request = try XCTUnwrap(String(data: json, encoding: .utf8))
         let responseJson = try bridge.handleIfSupported(request)
         return try decodeEnvelope(responseJson)
     }

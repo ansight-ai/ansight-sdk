@@ -1,5 +1,5 @@
 import XCTest
-@testable import AnsightKit
+@testable import AnsightCore
 @testable import AnsightToolsVisualTree
 
 final class VisualTreeToolTests: XCTestCase {

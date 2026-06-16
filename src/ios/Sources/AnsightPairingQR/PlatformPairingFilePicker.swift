@@ -1,4 +1,5 @@
 #if canImport(UIKit) && canImport(UniformTypeIdentifiers)
+import AnsightCore
 import Foundation
 import UIKit
 import UniformTypeIdentifiers

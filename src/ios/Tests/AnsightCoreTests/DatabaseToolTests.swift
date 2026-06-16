@@ -1,6 +1,6 @@
 import SQLite3
 import XCTest
-@testable import AnsightKit
+@testable import AnsightCore
 @testable import AnsightToolsDatabase
 
 final class DatabaseToolTests: XCTestCase {

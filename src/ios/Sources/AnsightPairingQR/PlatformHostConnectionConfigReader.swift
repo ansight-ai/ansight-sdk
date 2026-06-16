@@ -1,3 +1,4 @@
+import AnsightCore
 import Foundation
 
 public final class PlatformHostConnectionConfigReader: HostConnectionConfigReading, @unchecked Sendable {

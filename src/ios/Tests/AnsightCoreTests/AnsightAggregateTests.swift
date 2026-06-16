@@ -1,6 +1,6 @@
 import XCTest
 @testable import Ansight
-@testable import AnsightKit
+@testable import AnsightCore
 @testable import AnsightToolsDatabase
 @testable import AnsightToolsFileSystem
 @testable import AnsightToolsPreferences

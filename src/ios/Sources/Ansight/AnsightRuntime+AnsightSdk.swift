@@ -1,4 +1,5 @@
-import AnsightKit
+import AnsightCore
+import AnsightPairingQR
 import Foundation
 
 public extension AnsightRuntime {

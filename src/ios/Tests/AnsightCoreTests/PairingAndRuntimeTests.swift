@@ -1,6 +1,7 @@
 import CryptoKit
 import XCTest
-@_spi(AnsightValidation) @testable import AnsightKit
+@_spi(AnsightValidation) @testable import AnsightCore
+@testable import AnsightPairingQR
 
 final class PairingAndRuntimeTests: XCTestCase {
     func testParseDocumentParsesPairingTicket() throws {

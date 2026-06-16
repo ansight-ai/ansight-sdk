@@ -1,4 +1,4 @@
-import AnsightKit
+import AnsightCore
 import Foundation
 
 internal struct AnsightOverlayRectangle: Sendable, Equatable {

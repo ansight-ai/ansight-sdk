@@ -1,5 +1,5 @@
 import XCTest
-@testable import AnsightKit
+@testable import AnsightCore
 
 final class ToolProtocolTests: XCTestCase {
     func testQueryReturnsCatalogWhenGuardAllowsDiscovery() throws {

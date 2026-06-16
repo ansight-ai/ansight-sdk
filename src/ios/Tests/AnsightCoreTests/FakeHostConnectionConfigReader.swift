@@ -1,5 +1,5 @@
 import Foundation
-@testable import AnsightKit
+@testable import AnsightCore
 
 final class FakeHostConnectionConfigReader: HostConnectionConfigReading, @unchecked Sendable {
     private let lock = NSLock()

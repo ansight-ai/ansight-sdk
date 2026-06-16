@@ -11,14 +11,15 @@ Date: 2026-06-14
 - Tool protocol bridge with `tool.query`, `tool.catalog`, `tool.call`, guard policy, security metadata, case-insensitive IDs, duplicate rejection, live binary transfer queueing, host acknowledgement/send timeout coverage, and sustained large-transfer frame/chunk-boundary coverage.
 - Device/app profile collection with SDK/app/build/process metadata, app icon payloads, Apple device/OS/locale/time-zone/CPU/memory/storage/display/battery/thermal metadata, Swift/runtime stack codes, Metal GPU/render-backend metadata, and privacy-safe coarse network path metadata.
 - SwiftPM products and matching local CocoaPods podspecs:
-  - `AnsightKit`
+  - `AnsightCore`
+  - `AnsightPairingQR`
   - aggregate `Ansight`
   - `AnsightToolsPreferences`
   - `AnsightToolsFileSystem`
   - `AnsightToolsDatabase`
   - `AnsightToolsSecureStorage`
   - `AnsightToolsVisualTree`
-- SwiftPM build plugin and CocoaPods `AnsightKit` script phase for developer pairing artifacts and bundled remote-tool policy enforcement.
+- SwiftPM build plugin and CocoaPods `AnsightCore` script phase for developer pairing artifacts and bundled remote-tool policy enforcement; UIKit file/QR pairing UI is isolated in `AnsightPairingQR`.
 - Native iOS test-app validator that can issue fresh Ansight Studio pairing configs through the Studio MCP daemon, prefer iOS targets/schemes in multi-platform projects, optionally run `pod install` for CocoaPods apps, force x86_64 simulator destinations with an arm64 exclusion override for older binary pods, relax warning-heavy legacy dependency builds when requested, override the simulator deployment target for apps that require newer APIs, optionally skip unavailable Xcode scheme actions and trusted package-plugin/macro validation prompts, install/launch simulator apps, inject deterministic validation app icons, inject route resolver validation hooks, inject validation-only synthetic touch probes and picker-style input overlays with first-responder retry/fallback handling, seed deterministic validation files, tear down timed-out Xcode command process groups, verify live Studio session evidence for metrics, FPS, screenshots, remote-tool catalog, session-recorded app-icon sync status, custom automatic screen-view routes, captured touch input, input-overlay screenshot pixels, and `files.begin_binary_download` metadata for a chunked validation payload, write an aggregate summary artifact for corpus-level gate/failure triage, and merge/skip prior verified rows for resumable full-corpus validation.
 - Native harness validated against Ansight Studio with live telemetry, screenshot, visual tree catalog, and database tool calls.
 - CleanStore test app validated against Ansight Studio with automatic `ListOrdersViewController` screen-view capture, foreground lifecycle state, FPS samples, screenshots, a 28-tool catalog, and telemetry/FPS streaming beyond the developer retention buffer in sessions `com-clean-swift-cleanstore-520` and `com-clean-swift-cleanstore-523`.
@@ -51,7 +52,7 @@ Date: 2026-06-14
    - Do not port .NET reflection directly.
 
 6. Distribution:
-   - Local CocoaPods podspecs now mirror the SwiftPM product set, the `AnsightKit` pod runs the developer build-artifact generator before compile, and local aggregate lint passes.
+   - Local CocoaPods podspecs now mirror the SwiftPM product set, `AnsightPairingQR` carries the UIKit/AVFoundation pairing UI, the `AnsightCore` pod runs the developer build-artifact generator before compile, and local aggregate lint passes.
    - Remaining distribution work is public release source metadata, signing/versioning, and external publication validation.
 
 7. Cross-app validation:
@@ -126,7 +127,7 @@ Broad visual-tree apps:
 - Resume/merge smoke validation passed: running the validator with `--merge-results .ansight-validation/ios-test-app-validation-results.json --skip-verified-results --app newlinedotco__FlappySwift` skipped the existing Studio-verified FlappySwift row, wrote merged results, and preserved the passing summary without requiring another simulator launch.
 - `jordansinger__SwiftUI-Kit` initially selected a watchOS scheme; after the validator's iOS target/scheme preference fix it resolved the intended `SwiftUI Kit iOS` target and issued config `aa271cd534f14ce499cf6ca83b963030` for `com.swiftui.kit`. Build still fails before SDK runtime validation because that iOS scheme embeds a watch app and this Xcode installation does not have watchOS 26.4 installed; `--skip-unavailable-actions` did not bypass the embedded watchOS requirement.
 - `jordibruin__Swift-Charts-Examples` rerun with `--pod-install`, `--exclude-simulator-arm64`, `--relax-warnings`, and `--deployment-target 17.0`: Ansight Studio live session `com-goodsnooze-swift-charts-examples-550` reported WebSocket Open, 48 metric samples, 31 FPS samples, 1 screenshot, a 28-tool catalog, app icon sync with a 120x120 PNG session icon, validation route, device profile details, and `files.begin_binary_download` metadata for a 150000-byte validation payload with transfer id `c9820ef7e6b04debbd199c010ce7f623`.
-- CocoaPods validation: `pod lib lint Ansight.podspec --private --allow-warnings --skip-tests --platforms=ios '--include-podspecs=*.podspec' --use-static-frameworks` passed for the aggregate pod, all local SDK/tool pod dependencies, and the `AnsightKit` developer build-artifact script phase.
+- CocoaPods validation: `pod lib lint Ansight.podspec --private --allow-warnings --skip-tests --platforms=ios '--include-podspecs=*.podspec' --use-static-frameworks` passed for the aggregate pod, all local SDK/tool pod dependencies, and the `AnsightCore` developer build-artifact script phase.
 - Native harness Xcode build succeeded for iPhone 17e iOS 26.4 simulator.
 - Ansight Studio live session `ai-ansight-ios-native-harness-510` reported WebSocket Open and a 28-tool catalog.
 - Studio `data.list_databases` found `Documents/ansight-harness/sample.sqlite`.

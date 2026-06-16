@@ -1,5 +1,6 @@
 #if canImport(UIKit) && canImport(AVFoundation)
 import AVFoundation
+import AnsightCore
 import UIKit
 
 @MainActor

@@ -1,4 +1,5 @@
 #if canImport(UIKit)
+import AnsightCore
 import UIKit
 
 enum PlatformPairingPresenter {

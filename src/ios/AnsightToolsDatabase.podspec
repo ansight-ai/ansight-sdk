@@ -9,6 +9,6 @@ Pod::Spec.new do |s|
   s.platforms    = { :ios => "15.0" }
   s.source_files = "Sources/AnsightToolsDatabase/**/*.swift"
   s.libraries    = "sqlite3"
-  s.dependency "AnsightKit", s.version.to_s
+  s.dependency "AnsightCore", s.version.to_s
   s.swift_version = "6.0"
 end

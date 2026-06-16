@@ -1,5 +1,5 @@
 import Foundation
-@testable import AnsightKit
+@testable import AnsightCore
 
 final class TestPairingWebSocket: PairingWebSocket, @unchecked Sendable {
     enum SendBehavior {
