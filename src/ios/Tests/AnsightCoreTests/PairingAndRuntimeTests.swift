@@ -137,6 +137,54 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertFalse(signable.contains(#""issuedAt":"2026-06-14T00:31:47.473808\u002B00:00""#))
     }
 
+    func testPairingConnectorReturnsWifiRequiredWhenWifiPreflightReportsNotConnected() async {
+        let datagramClient = FakePairingDatagramClient()
+        let connector = PairingSessionConnector(
+            datagramClient: datagramClient,
+            wifiStatusProvider: { .notConnected }
+        )
+        let document = ParsedPairingDocument(
+            config: TestPairingFactory.signedConfig(configId: "cfg-wifi-required"),
+            discoveryHint: PairingDiscoveryHint(
+                hostAddress: "127.0.0.1",
+                discoveryPort: 45123,
+                wifiName: "Studio Wi-Fi"
+            )
+        )
+
+        let attempt = await connector.connect(document: document, clientName: "Unit Test", options: nil)
+
+        XCTAssertFalse(attempt.success)
+        XCTAssertEqual(attempt.failureCode, PairingFailureCodes.wifiRequired)
+        XCTAssertTrue(attempt.message.contains("not connected to Wi-Fi"))
+        XCTAssertTrue(attempt.message.contains("Last known host Wi-Fi: Studio Wi-Fi"))
+        XCTAssertEqual(datagramClient.requestCount, 0)
+    }
+
+    func testPairingConnectorUdpTimeoutMessageIncludesHostNetworkHint() async {
+        let datagramClient = FakePairingDatagramClient(responseData: nil)
+        let connector = PairingSessionConnector(
+            datagramClient: datagramClient,
+            wifiStatusProvider: { .connected }
+        )
+        let document = ParsedPairingDocument(
+            config: TestPairingFactory.signedConfig(configId: "cfg-wifi-timeout"),
+            discoveryHint: PairingDiscoveryHint(
+                hostAddress: "127.0.0.1",
+                discoveryPort: 45123,
+                wifiName: "Studio Wi-Fi"
+            )
+        )
+
+        let attempt = await connector.connect(document: document, clientName: "Unit Test", options: nil)
+
+        XCTAssertFalse(attempt.success)
+        XCTAssertEqual(attempt.failureCode, PairingFailureCodes.udpBootstrapTimeout)
+        XCTAssertTrue(attempt.message.contains("Last known host Wi-Fi: Studio Wi-Fi"))
+        XCTAssertTrue(attempt.message.contains("remembered host address may be stale"))
+        XCTAssertEqual(datagramClient.requestCount, 1)
+    }
+
     func testSessionJpegWireProtocolEncodesHostHeader() {
         let jpegData = Data([0xFF, 0xD8, 0xFF, 0xD9])
         let frame = AnsightCapturedScreenFrame(
@@ -460,6 +508,36 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertEqual(result.source, .configReader)
         XCTAssertEqual(result.reasonCode, PairingFailureCodes.udpBootstrapFailed)
         XCTAssertEqual(result.openSession?.configId, "cfg-qr")
+    }
+
+    func testConcurrentConnectCallsShareInFlightConnectionAttempt() async throws {
+        let pairingJson = try TestPairingFactory.configDocumentJSON(configId: "cfg-concurrent", hostAddress: "127.0.0.4")
+        let connector = FakePairingSessionConnector(
+            attemptsByConfigId: [
+                "cfg-concurrent": .failure("Concurrent profile failed.", code: PairingFailureCodes.udpBootstrapTimeout),
+            ],
+            responseDelayNanoseconds: 200_000_000
+        )
+
+        try AnsightRuntime.shared.initialize(options: AnsightOptions(hostAutoProbe: .disabledDefault))
+        try AnsightRuntime.shared.activate()
+        AnsightRuntime.shared.replacePairingStoresForTesting(saved: MemoryPairingConfigStore(), cached: MemoryPairingConfigStore())
+        AnsightRuntime.shared.replaceConnectorForTesting(connector)
+        defer {
+            AnsightRuntime.shared.replaceConnectorForTesting(PairingSessionConnector())
+        }
+
+        async let first = AnsightRuntime.shared.connect(.payloadText(pairingJson, clientName: "Unit Test"))
+        try await Task.sleep(nanoseconds: 10_000_000)
+        async let second = AnsightRuntime.shared.connect(.payloadText(pairingJson, clientName: "Unit Test"))
+
+        let firstResult = await first
+        let secondResult = await second
+
+        XCTAssertEqual(connector.attemptedConfigIds, ["cfg-concurrent"])
+        XCTAssertEqual(firstResult, secondResult)
+        XCTAssertFalse(firstResult.success)
+        XCTAssertEqual(firstResult.reasonCode, PairingFailureCodes.udpBootstrapTimeout)
     }
 
     func testFileConnectionFailsWhenNoConfigReaderCanReadRequest() async throws {

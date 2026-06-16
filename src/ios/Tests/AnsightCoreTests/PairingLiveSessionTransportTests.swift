@@ -43,4 +43,27 @@ final class PairingLiveSessionTransportTests: XCTestCase {
         XCTAssertTrue(socket.didResume())
         XCTAssertTrue(socket.didCancel())
     }
+
+    func testClosingPreviousReceivePumpDoesNotCloseCurrentSocket() async throws {
+        let firstSocket = TestPairingWebSocket(sendBehavior: .complete)
+        let secondSocket = TestPairingWebSocket(sendBehavior: .complete)
+        let factory = TestPairingWebSocketFactory(sockets: [firstSocket, secondSocket])
+        let transport = PairingLiveSessionTransport(
+            sendTimeoutSeconds: 0.2,
+            webSocketFactory: factory.makeSocket
+        )
+        let url = try XCTUnwrap(URL(string: "ws://127.0.0.1/ansight-test"))
+
+        try await transport.attach(url: url)
+        try await transport.attach(url: url)
+        try await Task.sleep(nanoseconds: 100_000_000)
+
+        let result = await transport.sendText("still-open")
+        await transport.close(notify: false)
+
+        XCTAssertTrue(result.success)
+        XCTAssertTrue(firstSocket.didCancel())
+        XCTAssertTrue(secondSocket.didResume())
+        XCTAssertEqual(secondSocket.sentMessageCount(), 1)
+    }
 }

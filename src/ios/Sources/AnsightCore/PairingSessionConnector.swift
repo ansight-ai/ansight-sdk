@@ -3,13 +3,18 @@ import Network
 
 public final class PairingSessionConnector: PairingSessionConnecting, @unchecked Sendable {
     private let datagramClient: any PairingDatagramClient
+    private let wifiStatusProvider: @Sendable () -> PairingWifiPreflightStatus
 
     public convenience init() {
         self.init(datagramClient: NetworkPairingDatagramClient())
     }
 
-    init(datagramClient: any PairingDatagramClient) {
+    init(
+        datagramClient: any PairingDatagramClient,
+        wifiStatusProvider: @escaping @Sendable () -> PairingWifiPreflightStatus = PairingWifiPreflight.getStatus
+    ) {
         self.datagramClient = datagramClient
+        self.wifiStatusProvider = wifiStatusProvider
     }
 
     func connect(
@@ -35,6 +40,14 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
 
         guard (1...65_535).contains(discoveryPort) else {
             return .failure("Pairing discovery port must be between 1 and 65535.", code: PairingFailureCodes.hostAddressRequired)
+        }
+
+        let hostNetworkCheckMessage = Self.hostNetworkCheckMessage(discoveryHint: document.discoveryHint)
+        if wifiStatusProvider() == .notConnected {
+            return .failure(
+                "Ansight is unavailable because this device is not connected to Wi-Fi. \(hostNetworkCheckMessage)",
+                code: PairingFailureCodes.wifiRequired
+            )
         }
 
         let request = ConnectRequest(
@@ -65,7 +78,7 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
 
         guard let responseData else {
             return .failure(
-                "No connect response from host. Check that this device is on the same Wi-Fi network as the Ansight host.",
+                "No connect response from host. \(hostNetworkCheckMessage) The remembered host address may be stale. Import a fresh pairing QR code or enter the host IP manually.",
                 code: PairingFailureCodes.udpBootstrapTimeout
             )
         }
@@ -105,5 +118,14 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
         }
 
         return .success(hostAddress: hostAddress, response: response, webSocketURL: url)
+    }
+
+    private static func hostNetworkCheckMessage(discoveryHint: PairingDiscoveryHint?) -> String {
+        if let wifiName = discoveryHint?.wifiName?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !wifiName.isEmpty {
+            return "Check that this device is on the same Wi-Fi network as the Ansight host. Last known host Wi-Fi: \(wifiName)."
+        }
+
+        return "Check that this device is on the same Wi-Fi network as the Ansight host."
     }
 }

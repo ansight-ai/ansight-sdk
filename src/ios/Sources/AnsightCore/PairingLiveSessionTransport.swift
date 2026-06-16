@@ -84,7 +84,7 @@ final class PairingLiveSessionTransport: @unchecked Sendable {
             try await sendWebSocketMessage(.string(text), using: socket)
             return .success("Payload sent.")
         } catch {
-            await close(reason: "Failed to send WebSocket payload: \(error.localizedDescription)", notify: true)
+            await closeIfCurrent(socket, reason: "Failed to send WebSocket payload: \(error.localizedDescription)", notify: true)
             return .failure("Failed to send WebSocket payload: \(error.localizedDescription)")
         }
     }
@@ -98,7 +98,7 @@ final class PairingLiveSessionTransport: @unchecked Sendable {
             try await sendWebSocketMessage(.data(data), using: socket)
             return .success("Binary payload sent.")
         } catch {
-            await close(reason: "Failed to send WebSocket binary payload: \(error.localizedDescription)", notify: true)
+            await closeIfCurrent(socket, reason: "Failed to send WebSocket binary payload: \(error.localizedDescription)", notify: true)
             return .failure("Failed to send WebSocket binary payload: \(error.localizedDescription)")
         }
     }
@@ -156,7 +156,7 @@ final class PairingLiveSessionTransport: @unchecked Sendable {
                     try await self.sendWebSocketMessage(.string(json), using: socket)
                 } catch {
                     self.failPendingResponse(requestId, error: error)
-                    await self.close(reason: "Failed to send \(envelope.action): \(error.localizedDescription)", notify: true)
+                    await self.closeIfCurrent(socket, reason: "Failed to send \(envelope.action): \(error.localizedDescription)", notify: true)
                 }
             }
 
@@ -219,7 +219,44 @@ final class PairingLiveSessionTransport: @unchecked Sendable {
             }
         }
 
-        await close(reason: closeReason, notify: true)
+        await closeIfCurrent(socket, reason: closeReason, notify: true)
+    }
+
+    private func closeIfCurrent(_ socket: any PairingWebSocket, reason: String, notify: Bool) async {
+        let state = lock.withLock { () -> (
+            Task<Void, Never>?,
+            (@Sendable (String) async -> Void)?
+        )? in
+            guard let currentSocket = webSocket,
+                  currentSocket === socket
+            else {
+                return nil
+            }
+
+            let receiveTask = receiveTask
+            webSocket = nil
+            self.receiveTask = nil
+            toolMessageHandler = nil
+            toolResponseSentHandler = nil
+            let handler = closeHandler
+            closeHandler = nil
+            let pending = pendingResponses
+            pendingResponses.removeAll()
+            for continuation in pending.values {
+                continuation.resume(throwing: TransportError.closed)
+            }
+            return (receiveTask, handler)
+        }
+
+        guard let state else {
+            return
+        }
+
+        socket.cancel(with: .normalClosure, reason: nil)
+        state.0?.cancel()
+        if notify, let handler = state.1 {
+            await handler(reason)
+        }
     }
 
     private func handleIncomingText(_ text: String) async {

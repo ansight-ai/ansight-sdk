@@ -53,23 +53,22 @@ public enum AnsightScreenSnapshotRenderer {
             return nil
         }
 
-        if let screenSnapshot = renderScreenSnapshot(
-            screen: referenceWindow.screen,
-            bounds: bounds
-        ) {
-            return screenSnapshot
-        }
-
         let format = UIGraphicsImageRendererFormat()
         format.scale = referenceWindow.screen.scale > 0 ? referenceWindow.screen.scale : UIScreen.main.scale
         format.opaque = false
 
-        return UIGraphicsImageRenderer(bounds: bounds, format: format).image { context in
+        let windowSnapshot = UIGraphicsImageRenderer(bounds: bounds, format: format).image { context in
             context.cgContext.clear(bounds)
             for window in windows where window.screen === referenceWindow.screen {
                 draw(window: window, relativeTo: referenceWindow, afterScreenUpdates: afterScreenUpdates, context: context.cgContext)
             }
         }
+
+        if windowSnapshot.cgImage != nil {
+            return windowSnapshot
+        }
+
+        return renderScreenSnapshot(screen: referenceWindow.screen, bounds: bounds)
     }
 
     @MainActor

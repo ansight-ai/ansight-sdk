@@ -54,6 +54,7 @@ public final class AnsightRuntime: @unchecked Sendable {
     private var connectionState: HostConnectionState = .disconnected
     private var hostId: String?
     private var hostName: String?
+    private var lastDisconnectedAtUtc: Date?
     private var profileSequence = 0
     private var nextMetricSequence: Int64 = 0
     private var nextEventSequence: Int64 = 0
@@ -64,6 +65,9 @@ public final class AnsightRuntime: @unchecked Sendable {
     private var telemetryGeneration = 0
     private var telemetrySamplingTask: Task<Void, Never>?
     private var autoProbeTask: Task<Void, Never>?
+    private var startupDeveloperConnectTask: Task<Void, Never>?
+    private var connectionTask: Task<HostConnectionResult, Never>?
+    private var connectionTaskId: UUID?
     private var screenCaptureTask: Task<Void, Never>?
     private let lifecycleObserver = AnsightLifecycleObserver()
     private var frameRateSampler: AnsightFrameRateSampler?
@@ -88,11 +92,17 @@ public final class AnsightRuntime: @unchecked Sendable {
             active = false
             sessionOpen = false
             connectionState = .disconnected
+            lastDisconnectedAtUtc = nil
         }
         telemetrySamplingTask?.cancel()
         telemetrySamplingTask = nil
         autoProbeTask?.cancel()
         autoProbeTask = nil
+        startupDeveloperConnectTask?.cancel()
+        startupDeveloperConnectTask = nil
+        connectionTask?.cancel()
+        connectionTask = nil
+        connectionTaskId = nil
         stopLifecycleCapture()
         stopScreenCapture()
         stopFrameRateSampling()
@@ -132,6 +142,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             hostId = nil
             hostName = nil
             connectionState = .disconnected
+            lastDisconnectedAtUtc = nil
             sessionMessage = "Runtime initialized."
         }
     }
@@ -142,25 +153,36 @@ public final class AnsightRuntime: @unchecked Sendable {
     }
 
     public func activate() throws {
-        let shouldStartAutoProbe = try lock.withLock {
+        let activation = try lock.withLock {
             guard initialized else {
                 throw RuntimeError.notInitialized("AnsightRuntime must be initialized before activation.")
             }
 
             guard !active else {
-                return false
+                return RuntimeActivationWork(
+                    shouldStartAutoProbe: false,
+                    shouldStartDeveloperConnect: false,
+                    clientName: options.hostAutoProbe.clientName
+                )
             }
 
             active = true
             sessionMessage = "Runtime activated."
-            return options.hostAutoProbe.enabled && (hasSavedConfigLocked || hasBundledConfigLocked || hasCachedPairingProfileLocked)
+            return RuntimeActivationWork(
+                shouldStartAutoProbe: options.hostAutoProbe.enabled,
+                shouldStartDeveloperConnect: AnsightDeveloperMode.embeddedPairingJson != nil,
+                clientName: options.hostAutoProbe.clientName
+            )
         }
 
         startTelemetrySamplingIfNeeded()
         startLifecycleCaptureIfNeeded()
         startFrameRateSamplingIfNeeded()
         startTouchCaptureIfNeeded()
-        if shouldStartAutoProbe {
+        if activation.shouldStartDeveloperConnect {
+            startStartupDeveloperConnectIfNeeded(clientName: activation.clientName)
+        }
+        if activation.shouldStartAutoProbe {
             startAutoProbeIfNeeded()
         }
     }
@@ -177,6 +199,11 @@ public final class AnsightRuntime: @unchecked Sendable {
         telemetrySamplingTask = nil
         autoProbeTask?.cancel()
         autoProbeTask = nil
+        startupDeveloperConnectTask?.cancel()
+        startupDeveloperConnectTask = nil
+        connectionTask?.cancel()
+        connectionTask = nil
+        connectionTaskId = nil
 
         lock.withLock {
             active = false
@@ -190,6 +217,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             resolvedHostAddress = nil
             hostId = nil
             hostName = nil
+            lastDisconnectedAtUtc = Date()
             pendingBinaryTransfers.removeAll()
             sessionMessage = "Runtime deactivated."
         }
@@ -538,6 +566,45 @@ public final class AnsightRuntime: @unchecked Sendable {
     }
 
     public func connect(_ request: HostConnectionRequest = .auto()) async -> HostConnectionResult {
+        let connectionTask = lock.withLock { () -> RuntimeConnectionTask in
+            if let existingTask = self.connectionTask,
+               let existingTaskId = self.connectionTaskId {
+                return RuntimeConnectionTask(id: existingTaskId, task: existingTask, created: false)
+            }
+
+            let taskId = UUID()
+            let task = Task { [weak self] in
+                guard let self else {
+                    return HostConnectionResult(
+                        success: false,
+                        message: "Ansight runtime is no longer available.",
+                        kind: request.kind,
+                        source: .hostConnection,
+                        reasonCode: nil
+                    )
+                }
+
+                return await self.connectCore(request)
+            }
+            self.connectionTaskId = taskId
+            self.connectionTask = task
+            return RuntimeConnectionTask(id: taskId, task: task, created: true)
+        }
+
+        let result = await connectionTask.task.value
+        if connectionTask.created {
+            lock.withLock {
+                if connectionTaskId == connectionTask.id {
+                    connectionTaskId = nil
+                    self.connectionTask = nil
+                }
+            }
+        }
+
+        return result
+    }
+
+    private func connectCore(_ request: HostConnectionRequest) async -> HostConnectionResult {
         let resolvedRequests: [ResolvedConnectionRequest]
         do {
             resolvedRequests = try await resolveConnectionRequestsForConnect(request)
@@ -654,54 +721,26 @@ public final class AnsightRuntime: @unchecked Sendable {
             )
         }
 
-        do {
-            try await liveTransport.attach(
-                url: webSocketURL,
-                toolMessageHandler: { [weak self] message in
-                    try? self?.handleToolProtocolMessage(message)
-                },
-                toolResponseSentHandler: { [weak self] request, _ in
-                    self?.startQueuedBinaryTransferIfNeeded(forToolProtocolMessage: request)
-                },
-                closeHandler: { [weak self] reason in
-                    self?.handleLiveTransportClosed(reason: reason)
-                }
-            )
-        } catch {
+        let sessionOpenAttempt = await openLiveTransportSession(
+            url: webSocketURL,
+            config: resolvedRequest.document.config,
+            clientName: clientName
+        )
+        guard sessionOpenAttempt.result.success else {
             lock.withLock {
                 connectionState = .disconnected
                 sessionOpen = false
                 sessionId = nil
                 lastStreamedMetricSequence = 0
                 lastStreamedEventSequence = 0
-                sessionMessage = error.localizedDescription
+                sessionMessage = sessionOpenAttempt.result.message
             }
             return HostConnectionResult(
                 success: false,
-                message: "WebSocket endpoint did not become reachable: \(error.localizedDescription)",
+                message: sessionOpenAttempt.result.message,
                 kind: request.kind,
                 source: .transport,
-                reasonCode: PairingFailureCodes.webSocketEndpointUnreachable
-            )
-        }
-
-        let sessionOpenResult = await sendSessionOpen(config: resolvedRequest.document.config, clientName: clientName)
-        guard sessionOpenResult.success else {
-            await liveTransport.close(notify: false)
-            lock.withLock {
-                connectionState = .disconnected
-                sessionOpen = false
-                sessionId = nil
-                lastStreamedMetricSequence = 0
-                lastStreamedEventSequence = 0
-                sessionMessage = sessionOpenResult.message
-            }
-            return HostConnectionResult(
-                success: false,
-                message: sessionOpenResult.message,
-                kind: request.kind,
-                source: .transport,
-                reasonCode: PairingFailureCodes.webSocketHandshakeFailed
+                reasonCode: sessionOpenAttempt.reasonCode
             )
         }
 
@@ -762,6 +801,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             resolvedHostAddress = attempt.hostAddress
             hostId = connectResponse.hostId
             hostName = connectResponse.hostName
+            lastDisconnectedAtUtc = nil
             sessionMessage = attempt.message
         }
         streamPendingTelemetry()
@@ -792,6 +832,32 @@ public final class AnsightRuntime: @unchecked Sendable {
             reasonCode: connectResponse.reason,
             openSession: open
         )
+    }
+
+    private func connectCachedPairingProfileForAutoProbe(clientName requestedClientName: String?) async -> HostConnectionResult {
+        let request = HostConnectionRequest.auto(
+            clientName: requestedClientName,
+            sourceDescription: "auto-probe"
+        )
+        guard let resolvedRequest = cachedPairingProfile() else {
+            return HostConnectionResult(
+                success: false,
+                message: "No cached Ansight host session is available.",
+                kind: request.kind,
+                source: .cachedSession,
+                reasonCode: nil
+            )
+        }
+
+        let result = await connectResolvedRequest(
+            resolvedRequest,
+            originalRequest: request,
+            clientName: resolveClientName(request.clientName)
+        )
+        if !result.success {
+            cleanUpFailedAutoConnectionCandidate(resolvedRequest, result: result)
+        }
+        return result
     }
 
     private func cleanUpFailedAutoConnectionCandidate(
@@ -894,6 +960,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             resolvedHostAddress = nil
             hostId = nil
             hostName = nil
+            lastDisconnectedAtUtc = Date()
             pendingBinaryTransfers.removeAll()
             sessionMessage = "Session disconnected."
         }
@@ -925,13 +992,13 @@ public final class AnsightRuntime: @unchecked Sendable {
             resolvedHostAddress = nil
             hostId = nil
             hostName = nil
+            lastDisconnectedAtUtc = Date()
             pendingBinaryTransfers.removeAll()
             sessionMessage = reason
 
             return initialized &&
                 active &&
-                options.hostAutoProbe.enabled &&
-                (hasSavedConfigLocked || hasBundledConfigLocked)
+                options.hostAutoProbe.enabled
         }
 
         if shouldReconnect {
@@ -1097,6 +1164,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             resolvedHostAddress = nil
             hostId = nil
             hostName = nil
+            lastDisconnectedAtUtc = Date()
             pendingBinaryTransfers.removeAll()
             sessionMessage = "Session closed."
         }
@@ -1540,26 +1608,119 @@ public final class AnsightRuntime: @unchecked Sendable {
         }
     }
 
+    private func startStartupDeveloperConnectIfNeeded(clientName: String?) {
+        startupDeveloperConnectTask?.cancel()
+        startupDeveloperConnectTask = Task { [weak self] in
+            guard let self else {
+                return
+            }
+
+            let shouldConnect = self.lock.withLock {
+                self.initialized &&
+                    self.active &&
+                    !self.sessionOpen &&
+                    self.connectionState != .connecting &&
+                    AnsightDeveloperMode.embeddedPairingJson != nil
+            }
+            guard shouldConnect else {
+                return
+            }
+
+            let result = await self.connect(.auto(
+                clientName: clientName,
+                sourceDescription: "startup-bundled-developer-config"
+            ))
+            self.lock.withLock {
+                if self.active && !self.sessionOpen {
+                    self.sessionMessage = result.message
+                }
+            }
+        }
+    }
+
     private func startAutoProbeIfNeeded() {
         autoProbeTask?.cancel()
         let autoOptions = lock.withLock { options.hostAutoProbe }
+        guard autoOptions.enabled else {
+            autoProbeTask = nil
+            return
+        }
+
         autoProbeTask = Task { [weak self] in
             guard let self else {
                 return
             }
-            try? await Task.sleep(nanoseconds: UInt64(autoOptions.initialDelayMilliseconds) * 1_000_000)
-            guard !Task.isCancelled else {
+            guard await self.sleepAutoProbe(milliseconds: autoOptions.initialDelayMilliseconds) else {
                 return
             }
 
-            let result = await self.connect(.auto(clientName: autoOptions.clientName, sourceDescription: "auto-probe"))
-            if !result.success {
+            while !Task.isCancelled {
+                let nextDelayMilliseconds = self.lock.withLock { () -> Int? in
+                    guard self.initialized,
+                          self.active,
+                          self.options.hostAutoProbe.enabled
+                    else {
+                        return nil
+                    }
+
+                    if self.sessionOpen || self.connectionState == .connecting {
+                        return autoOptions.probeIntervalMilliseconds
+                    }
+
+                    if let lastDisconnectedAtUtc = self.lastDisconnectedAtUtc {
+                        let elapsedMilliseconds = Int(Date().timeIntervalSince(lastDisconnectedAtUtc) * 1_000)
+                        let remainingMilliseconds = autoOptions.reconnectDelayMilliseconds - elapsedMilliseconds
+                        if remainingMilliseconds > 0 {
+                            return remainingMilliseconds
+                        }
+                    }
+
+                    guard self.hasCachedPairingProfileLocked else {
+                        return autoOptions.probeIntervalMilliseconds
+                    }
+
+                    return 0
+                }
+
+                guard let nextDelayMilliseconds else {
+                    return
+                }
+
+                if nextDelayMilliseconds > 0 {
+                    guard await self.sleepAutoProbe(milliseconds: nextDelayMilliseconds) else {
+                        return
+                    }
+                    continue
+                }
+
+                let result = await self.connectCachedPairingProfileForAutoProbe(clientName: autoOptions.clientName)
+                if result.success {
+                    continue
+                }
+
                 self.lock.withLock {
-                    if self.active {
+                    if self.active && !self.sessionOpen {
                         self.sessionMessage = result.message
                     }
                 }
+
+                guard await self.sleepAutoProbe(milliseconds: autoOptions.probeIntervalMilliseconds) else {
+                    return
+                }
             }
+        }
+    }
+
+    private func sleepAutoProbe(milliseconds: Int) async -> Bool {
+        guard milliseconds > 0 else {
+            return !Task.isCancelled
+        }
+
+        do {
+            try await Task.sleep(nanoseconds: UInt64(milliseconds) * 1_000_000)
+            return !Task.isCancelled
+        } catch {
+            return false
         }
     }
 
@@ -1646,6 +1807,68 @@ public final class AnsightRuntime: @unchecked Sendable {
                 lastScreenCaptureMessage = "Screen capture stopped."
             }
         }
+    }
+
+    private func openLiveTransportSession(url: URL, config: PairingConfig, clientName: String) async -> LiveSessionOpenAttempt {
+        let maxAttempts = 12
+        let retryDelayNanoseconds: UInt64 = 250_000_000
+        var lastResult = OperationResult.failure("WebSocket endpoint did not become reachable in time.")
+
+        for attempt in 1...maxAttempts {
+            do {
+                try await liveTransport.attach(
+                    url: url,
+                    toolMessageHandler: { [weak self] message in
+                        try? self?.handleToolProtocolMessage(message)
+                    },
+                    toolResponseSentHandler: { [weak self] request, _ in
+                        self?.startQueuedBinaryTransferIfNeeded(forToolProtocolMessage: request)
+                    },
+                    closeHandler: { [weak self] reason in
+                        self?.handleLiveTransportClosed(reason: reason)
+                    }
+                )
+            } catch {
+                lastResult = .failure("WebSocket endpoint did not become reachable: \(error.localizedDescription)")
+                await liveTransport.close(notify: false)
+                if attempt < maxAttempts {
+                    try? await Task.sleep(nanoseconds: retryDelayNanoseconds)
+                    continue
+                }
+
+                return LiveSessionOpenAttempt(
+                    result: lastResult,
+                    reasonCode: PairingFailureCodes.webSocketEndpointUnreachable
+                )
+            }
+
+            let sessionOpenResult = await sendSessionOpen(config: config, clientName: clientName)
+            if sessionOpenResult.success {
+                return LiveSessionOpenAttempt(result: sessionOpenResult, reasonCode: nil)
+            }
+
+            lastResult = sessionOpenResult
+            await liveTransport.close(notify: false)
+            guard Self.isRetryableSessionOpenFailure(sessionOpenResult) else {
+                return LiveSessionOpenAttempt(
+                    result: sessionOpenResult,
+                    reasonCode: PairingFailureCodes.webSocketHandshakeFailed
+                )
+            }
+
+            if attempt < maxAttempts {
+                try? await Task.sleep(nanoseconds: retryDelayNanoseconds)
+            }
+        }
+
+        return LiveSessionOpenAttempt(
+            result: .failure("WebSocket endpoint did not become reachable in time. Last error: \(lastResult.message)"),
+            reasonCode: PairingFailureCodes.webSocketEndpointUnreachable
+        )
+    }
+
+    private static func isRetryableSessionOpenFailure(_ result: OperationResult) -> Bool {
+        result.message.hasPrefix("Failed to send \(PairingControlActions.sessionOpen):")
     }
 
     private func sendSessionOpen(config: PairingConfig, clientName: String) async -> OperationResult {
