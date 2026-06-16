@@ -45,6 +45,7 @@ public final class AnsightRuntime: @unchecked Sendable {
     private var metrics: [RecordedMetric] = []
     private var events: [RecordedEvent] = []
     private var channels: [Int: AnsightChannel] = [:]
+    private var metricStreams: [Int: AnsightMetricStream] = [:]
     private var tools: [String: RegisteredTool] = [:]
     private var lastPairingDocument: ParsedPairingDocument?
     private var resolvedHostAddress: String?
@@ -116,6 +117,7 @@ public final class AnsightRuntime: @unchecked Sendable {
                 account: Self.cachedPairingProfileKey(for: validatedOptions.hostConnection.savedConfigKey)
             )
             self.channels = Self.makeChannelDictionary(options: validatedOptions)
+            metricStreams.removeAll()
             metrics.removeAll()
             events.removeAll()
             nextMetricSequence = 0
@@ -138,6 +140,9 @@ public final class AnsightRuntime: @unchecked Sendable {
             lastTouchCaptureMessage = nil
             pendingBinaryTransfers.removeAll()
             lastPairingDocument = nil
+            currentScreen = nil
+            currentLifecycleState = .unknown
+            currentLifecycleChangedAtUtc = nil
             resolvedHostAddress = nil
             hostId = nil
             hostName = nil
@@ -380,19 +385,26 @@ public final class AnsightRuntime: @unchecked Sendable {
     }
 
     public func registerMetricChannel(_ channel: AnsightChannel) throws {
-        guard (0...255).contains(channel.id) else {
-            throw RuntimeError.invalidInput("Channel ids must be between 0 and 255.")
+        let validated = try Self.validatedMetricChannel(channel, allowReservedIds: false, allowUnspecified: false)
+
+        lock.withLock {
+            channels[validated.id] = validated
+            announcedMetricChannelIds.remove(validated.id)
+            sessionMessage = "Registered metric channel \(validated.id)."
         }
-        guard !AnsightChannels.reservedIds.contains(channel.id) else {
-            throw RuntimeError.invalidInput("Channel id \(channel.id) is reserved.")
-        }
-        guard !channel.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw RuntimeError.invalidInput("Channel name must not be blank.")
+    }
+
+    public func registerMetricStream(_ stream: AnsightMetricStream) throws {
+        let validated = try Self.validatedMetricChannel(stream.channel, allowReservedIds: false, allowUnspecified: false)
+        let validatedStream = AnsightMetricStream(channel: validated) {
+            stream.sample()
         }
 
         lock.withLock {
-            channels[channel.id] = channel
-            sessionMessage = "Registered metric channel \(channel.id)."
+            channels[validated.id] = validated
+            metricStreams[validated.id] = validatedStream
+            announcedMetricChannelIds.remove(validated.id)
+            sessionMessage = "Registered metric stream \(validated.id)."
         }
     }
 
@@ -411,15 +423,7 @@ public final class AnsightRuntime: @unchecked Sendable {
                 return
             }
 
-            nextMetricSequence += 1
-            metrics.append(
-                RecordedMetric(
-                    value: value,
-                    channel: try validateChannel(channel),
-                    sequence: nextMetricSequence
-                )
-            )
-            trimMetricsLocked()
+            recordMetricLocked(value: value, channel: try validateChannel(channel))
             sessionMessage = "Recorded metric \(value)."
         }
 
@@ -496,9 +500,9 @@ public final class AnsightRuntime: @unchecked Sendable {
     }
 
     public func setAppLifecycleState(_ state: AppLifecycleState, changedAtUtc: String = AnsightClock.isoNow()) {
-        let shouldSend: Bool = lock.withLock {
+        let lifecycleChange = lock.withLock { () -> RuntimeLifecycleChange in
             guard initialized, currentLifecycleState != state else {
-                return false
+                return .unchanged
             }
 
             currentLifecycleState = state
@@ -516,21 +520,28 @@ public final class AnsightRuntime: @unchecked Sendable {
             )
             trimEventsLocked()
             sessionMessage = "Lifecycle state changed to \(state.rawValue)."
-            return sessionOpen
+            return RuntimeLifecycleChange(didChange: true, shouldSendAppState: sessionOpen)
+        }
+
+        guard lifecycleChange.didChange else {
+            return
         }
 
         streamPendingTelemetry()
 
-        if shouldSend {
-            Task {
-                _ = await liveTransport.sendControlRequest(
-                    action: PairingControlActions.appState,
-                    payload: .object([
-                        "state": .string(state.rawValue),
-                        "changedAtUtc": .string(changedAtUtc),
-                    ])
-                )
+        if lifecycleChange.shouldSendAppState {
+            Task { [weak self] in
+                await self?.sendCurrentAppState()
             }
+        }
+
+        switch state {
+        case .foreground:
+            recoverLiveSessionAfterForeground()
+        case .background:
+            pauseLiveSessionPipelinesForBackground()
+        case .unknown:
+            break
         }
     }
 
@@ -1251,6 +1262,14 @@ public final class AnsightRuntime: @unchecked Sendable {
     }
 
     public func captureBuiltInTelemetrySample() {
+        let streams = lock.withLock { () -> [AnsightMetricStream] in
+            guard initialized && active else {
+                return []
+            }
+
+            return Array(metricStreams.values)
+        }
+
         guard lock.withLock({ initialized && active }) else {
             return
         }
@@ -1266,6 +1285,38 @@ public final class AnsightRuntime: @unchecked Sendable {
            let level = Self.currentBatteryLevelPercentage() {
             try? metric(Int64(level), channel: AnsightChannels.batteryLevel)
         }
+
+        let streamMetrics = streams.compactMap { stream -> RecordedMetric? in
+            guard let value = stream.sample() else {
+                return nil
+            }
+
+            return RecordedMetric(value: value, channel: stream.channel.id)
+        }
+
+        guard !streamMetrics.isEmpty else {
+            return
+        }
+
+        lock.withLock {
+            guard initialized && active else {
+                return
+            }
+
+            for metric in streamMetrics {
+                guard channels[metric.channel] != nil else {
+                    continue
+                }
+
+                recordMetricLocked(
+                    value: metric.value,
+                    channel: metric.channel,
+                    capturedAtUtc: metric.capturedAtUtc
+                )
+            }
+        }
+
+        streamPendingTelemetry()
     }
 
     public func hostConnectionStatus() -> HostConnectionStatus {
@@ -1417,6 +1468,19 @@ public final class AnsightRuntime: @unchecked Sendable {
         }
 
         return channel
+    }
+
+    private func recordMetricLocked(value: Int64, channel: Int, capturedAtUtc: String = AnsightClock.isoNow()) {
+        nextMetricSequence += 1
+        metrics.append(
+            RecordedMetric(
+                value: value,
+                channel: channel,
+                capturedAtUtc: capturedAtUtc,
+                sequence: nextMetricSequence
+            )
+        )
+        trimMetricsLocked()
     }
 
     private func startTelemetrySamplingIfNeeded() {
@@ -1605,6 +1669,118 @@ public final class AnsightRuntime: @unchecked Sendable {
             }
             lastTouchCaptureMessage = result.message
             sessionMessage = result.message
+        }
+    }
+
+    private func pauseLiveSessionPipelinesForBackground() {
+        stopScreenCapture(message: "Screen capture paused while app is in the background.")
+        stopTouchCaptureStreaming(message: "Touch capture streaming paused while app is in the background.")
+    }
+
+    private func recoverLiveSessionAfterForeground() {
+        let action = foregroundRecoveryAction(transportOpen: liveTransport.isOpen)
+        guard action != .none else {
+            return
+        }
+
+        Task { [weak self] in
+            guard let self else {
+                return
+            }
+
+            await self.performForegroundRecovery(action)
+        }
+    }
+
+    func foregroundRecoveryActionForTesting(transportOpen: Bool) -> RuntimeForegroundRecoveryAction {
+        foregroundRecoveryAction(transportOpen: transportOpen)
+    }
+
+    private func foregroundRecoveryAction(transportOpen: Bool) -> RuntimeForegroundRecoveryAction {
+        lock.withLock {
+            guard initialized, active else {
+                return .none
+            }
+
+            guard connectionState != .connecting,
+                  connectionTask == nil
+            else {
+                return .none
+            }
+
+            if transportOpen, sessionOpen, connectionState == .connected {
+                sessionMessage = "Foregrounded; refreshing live session streams."
+                return .refreshOpenSession
+            }
+
+            guard options.hostAutoProbe.enabled else {
+                if transportOpen {
+                    sessionMessage = "Foregrounded with stale live transport; closing."
+                    return .closeStaleTransport
+                }
+
+                return .none
+            }
+
+            lastDisconnectedAtUtc = nil
+            if transportOpen {
+                connectionState = .disconnected
+                sessionOpen = false
+                sessionId = nil
+                lastStreamedMetricSequence = 0
+                lastStreamedEventSequence = 0
+                announcedMetricChannelIds = []
+                telemetryStreamLoopActive = false
+                sessionMessage = "Foregrounded with stale live transport; reconnecting."
+                return .closeStaleTransportAndReconnect
+            }
+
+            sessionMessage = "Foregrounded; reconnecting to Ansight host."
+            return .reconnect
+        }
+    }
+
+    private func performForegroundRecovery(_ action: RuntimeForegroundRecoveryAction) async {
+        switch action {
+        case .none:
+            return
+        case .refreshOpenSession:
+            await refreshLiveSessionPipelinesAfterForeground()
+        case .closeStaleTransport:
+            await liveTransport.close(notify: false)
+        case .reconnect:
+            await reconnectLiveSessionAfterForeground()
+        case .closeStaleTransportAndReconnect:
+            await liveTransport.close(notify: false)
+            await reconnectLiveSessionAfterForeground()
+        }
+    }
+
+    private func refreshLiveSessionPipelinesAfterForeground() async {
+        await sendCurrentAppState()
+        _ = await sendMetricChannelDefinitions()
+        _ = startTouchCaptureStreamingIfNeeded()
+        streamPendingTelemetry()
+        startScreenCaptureIfNeeded()
+    }
+
+    private func reconnectLiveSessionAfterForeground() async {
+        let clientName = lock.withLock { options.hostAutoProbe.clientName }
+        let result = await connect(.auto(clientName: clientName, sourceDescription: "foreground-recovery"))
+        if result.success {
+            return
+        }
+
+        let shouldContinueAutoProbe = lock.withLock { () -> Bool in
+            if active && !sessionOpen {
+                sessionMessage = result.message
+            }
+
+            return initialized && active && options.hostAutoProbe.enabled
+        }
+
+        if shouldContinueAutoProbe {
+            startAutoProbeIfNeeded()
         }
     }
 
@@ -1930,6 +2106,8 @@ public final class AnsightRuntime: @unchecked Sendable {
                     .object([
                         "id": .integer(Int64(channel.id)),
                         "name": .string(channel.name),
+                        "unit": channel.unit.map(JSONValue.string) ?? .null,
+                        "type": .string(channel.type),
                         "color": channel.color.map(JSONValue.string) ?? .null,
                     ])
                 }),
@@ -2552,6 +2730,41 @@ public final class AnsightRuntime: @unchecked Sendable {
         .object([
             "reason": .string("client log stream complete"),
         ])
+    }
+
+    static func validatedMetricChannel(
+        _ channel: AnsightChannel,
+        allowReservedIds: Bool,
+        allowUnspecified: Bool
+    ) throws -> AnsightChannel {
+        guard (0...255).contains(channel.id) else {
+            throw RuntimeError.invalidInput("Channel ids must be between 0 and 255.")
+        }
+
+        if !allowReservedIds, AnsightChannels.reservedIds.contains(channel.id) {
+            throw RuntimeError.invalidInput("Channel id \(channel.id) is reserved.")
+        }
+
+        if !allowUnspecified, channel.id == AnsightChannels.unspecified {
+            throw RuntimeError.invalidInput("Channel id \(channel.id) is reserved.")
+        }
+
+        let name = channel.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else {
+            throw RuntimeError.invalidInput("Channel name must not be blank.")
+        }
+
+        let color = channel.color?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let unit = channel.unit?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let type = channel.type.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return AnsightChannel(
+            id: channel.id,
+            name: name,
+            color: color?.isEmpty == true ? nil : color,
+            unit: unit?.isEmpty == true ? nil : unit,
+            type: type.isEmpty ? "custom" : type
+        )
     }
 
     static func makeMetricsPayload(_ metrics: [RecordedMetric]) -> JSONValue {

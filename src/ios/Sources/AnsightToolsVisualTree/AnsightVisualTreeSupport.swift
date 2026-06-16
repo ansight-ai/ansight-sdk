@@ -18,6 +18,17 @@ internal enum AnsightVisualTreeSupport {
     }
 
     static func getVisualTree(arguments: [String: String]) -> AnsightToolExecutionResult {
+        let source = AnsightVisualTreeProviderRegistry.normalizedSourceOrDefault(
+            AnsightVisualTreeArgumentReader.string(arguments, key: "source")
+        )
+        guard let provider = AnsightVisualTreeProviderRegistry.provider(for: source) else {
+            return .failure("No visual tree provider is registered for source '\(source)'.", errorCode: "visual_tree_provider_not_found")
+        }
+
+        return provider.getVisualTree(arguments: arguments)
+    }
+
+    static func getNativeVisualTree(arguments: [String: String]) -> AnsightToolExecutionResult {
         do {
             let includeBounds = try AnsightVisualTreeArgumentReader.bool(arguments, key: "includeBounds", defaultValue: true)
             let includeProperties = try AnsightVisualTreeArgumentReader.bool(arguments, key: "includeComputedStyles", defaultValue: false)
@@ -31,6 +42,8 @@ internal enum AnsightVisualTreeSupport {
 
             return .success(.object([
                 "platform": .string(currentPlatform),
+                "source": .string(AnsightVisualTreeProviderRegistry.nativeSource),
+                "adapter": .string("apple.uikit"),
                 "capturedAtUtc": .string(AnsightClock.isoNow()),
                 "root": selectedRoot.jsonValue(includeBounds: includeBounds, includeProperties: includeProperties, maxDepth: maxDepth),
             ]))
@@ -42,6 +55,17 @@ internal enum AnsightVisualTreeSupport {
     }
 
     static func inspectNode(arguments: [String: String]) -> AnsightToolExecutionResult {
+        let source = AnsightVisualTreeProviderRegistry.normalizedSourceOrDefault(
+            AnsightVisualTreeArgumentReader.string(arguments, key: "source")
+        )
+        guard let provider = AnsightVisualTreeProviderRegistry.provider(for: source) else {
+            return .failure("No visual tree provider is registered for source '\(source)'.", errorCode: "visual_tree_provider_not_found")
+        }
+
+        return provider.inspectNode(arguments: arguments)
+    }
+
+    static func inspectNativeNode(arguments: [String: String]) -> AnsightToolExecutionResult {
         do {
             let nodeId = try AnsightVisualTreeArgumentReader.requiredString(arguments, key: "nodeId")
             let includeAncestors = try AnsightVisualTreeArgumentReader.bool(arguments, key: "includeAncestors", defaultValue: false)
@@ -56,6 +80,8 @@ internal enum AnsightVisualTreeSupport {
 
             var payload: [String: JSONValue] = [
                 "platform": .string(currentPlatform),
+                "source": .string(AnsightVisualTreeProviderRegistry.nativeSource),
+                "adapter": .string("apple.uikit"),
                 "capturedAtUtc": .string(AnsightClock.isoNow()),
                 "node": node.jsonValue(includeBounds: true, includeProperties: includeProperties, maxDepth: 32),
             ]

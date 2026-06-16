@@ -540,6 +540,60 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertEqual(firstResult.reasonCode, PairingFailureCodes.udpBootstrapTimeout)
     }
 
+    func testForegroundRecoveryClosesStaleOpenTransportWhenRuntimeIsDisconnected() throws {
+        try AnsightRuntime.shared.initialize(options: AnsightOptions(
+            hostAutoProbe: AnsightHostAutoProbeOptions(
+                enabled: true,
+                initialDelayMilliseconds: 60_000,
+                probeIntervalMilliseconds: 60_000,
+                reconnectDelayMilliseconds: 60_000
+            )
+        ))
+        try AnsightRuntime.shared.activate()
+
+        let action = AnsightRuntime.shared.foregroundRecoveryActionForTesting(transportOpen: true)
+
+        XCTAssertEqual(action, .closeStaleTransportAndReconnect)
+    }
+
+    func testForegroundLifecycleImmediatelyReconnectsCachedSessionWhenDisconnected() async throws {
+        try XCTSkipIf(
+            AnsightDeveloperMode.embeddedPairingJson != nil,
+            "Embedded developer pairing intentionally takes precedence over cached test stores."
+        )
+        let cachedStore = MemoryPairingConfigStore()
+        try cachedStore.save(TestPairingFactory.cachedProfileJSON(configId: "cfg-foreground", hostAddress: "127.0.0.4"))
+        let connector = FakePairingSessionConnector(
+            attemptsByConfigId: [
+                "cfg-foreground": .failure("Foreground reconnect failed.", code: PairingFailureCodes.udpBootstrapTimeout),
+            ]
+        )
+
+        try AnsightRuntime.shared.initialize(options: AnsightOptions(
+            hostAutoProbe: AnsightHostAutoProbeOptions(
+                enabled: true,
+                initialDelayMilliseconds: 60_000,
+                probeIntervalMilliseconds: 60_000,
+                reconnectDelayMilliseconds: 60_000,
+                clientName: "Unit Test"
+            )
+        ))
+        AnsightRuntime.shared.replacePairingStoresForTesting(saved: MemoryPairingConfigStore(), cached: cachedStore)
+        AnsightRuntime.shared.replaceConnectorForTesting(connector)
+        try AnsightRuntime.shared.activate()
+        defer {
+            AnsightRuntime.shared.replaceConnectorForTesting(PairingSessionConnector())
+        }
+
+        AnsightRuntime.shared.setAppLifecycleState(.foreground, changedAtUtc: "2026-06-16T04:19:49.746Z")
+        try await waitForCondition {
+            connector.attemptedConfigIds == ["cfg-foreground"]
+        }
+
+        XCTAssertEqual(connector.attemptedConfigIds, ["cfg-foreground"])
+        XCTAssertEqual(AnsightRuntime.shared.snapshot().hostConnectionStatus.connectionState, .disconnected)
+    }
+
     func testFileConnectionFailsWhenNoConfigReaderCanReadRequest() async throws {
         try AnsightRuntime.shared.initialize(options: AnsightOptions(hostAutoProbe: .disabledDefault))
         try AnsightRuntime.shared.activate()
@@ -623,6 +677,40 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertTrue(snapshot.channels.contains { $0.id == 42 && $0.name == "Custom" })
         XCTAssertTrue(AnsightRuntime.shared.recordedEvents().contains { $0.type == .screenViewed })
         XCTAssertTrue(AnsightRuntime.shared.recordedEvents().contains { $0.type == .lifecycle })
+    }
+
+    func testRuntimeSamplesRegisteredMetricStreams() throws {
+        try AnsightRuntime.shared.initialize(
+            options: AnsightOptions(
+                defaultMemoryChannels: .none,
+                enableFramesPerSecond: false,
+                hostAutoProbe: .disabledDefault
+            )
+        )
+        try AnsightRuntime.shared.registerMetricStream(
+            AnsightMetricStream(
+                channel: AnsightChannel(
+                    id: 42,
+                    name: "Flutter Build",
+                    color: "#0A84FF",
+                    unit: "microseconds",
+                    type: "flutter"
+                )
+            ) {
+                16_700
+            }
+        )
+        try AnsightRuntime.shared.activate()
+
+        AnsightRuntime.shared.captureBuiltInTelemetrySample()
+
+        let metrics = AnsightRuntime.shared.recordedMetrics()
+        XCTAssertEqual(metrics.count, 1)
+        XCTAssertEqual(metrics.first?.channel, 42)
+        XCTAssertEqual(metrics.first?.value, 16_700)
+        let channel = AnsightRuntime.shared.snapshot().channels.first { $0.id == 42 }
+        XCTAssertEqual(channel?.unit, "microseconds")
+        XCTAssertEqual(channel?.type, "flutter")
     }
 
     func testScreenRouteResolverOverridesDefaultDescriptor() {
@@ -1057,6 +1145,22 @@ final class PairingAndRuntimeTests: XCTestCase {
         }
         return Int64(littleEndian: value)
     }
+}
+
+private func waitForCondition(
+    attempts: Int = 20,
+    intervalNanoseconds: UInt64 = 50_000_000,
+    _ condition: @escaping () -> Bool
+) async throws {
+    for _ in 0..<attempts {
+        if condition() {
+            return
+        }
+
+        try await Task.sleep(nanoseconds: intervalNanoseconds)
+    }
+
+    XCTAssertTrue(condition())
 }
 
 private enum TestPairingFactory {

@@ -5,6 +5,7 @@ internal enum AnsightVisualTreeToolSchemas {
     static let getVisualTreeArguments = object(
         description: "Arguments for retrieving the current visual tree.",
         properties: [
+            "source": string("Optional visual tree provider source. Defaults to native.", nullable: true),
             "includeBounds": boolean("Include node bounds in the result."),
             "includeComputedStyles": boolean("Include implementation-specific node properties."),
             "maxDepth": integer("Maximum child depth to include."),
@@ -16,15 +17,18 @@ internal enum AnsightVisualTreeToolSchemas {
         description: "Visual tree payload.",
         properties: [
             "platform": string("Current runtime platform."),
+            "source": string("Visual tree provider source."),
+            "adapter": string("Implementation adapter that produced the tree.", nullable: true),
             "capturedAtUtc": string("UTC timestamp for capture.", format: "date-time"),
             "root": visualNode,
         ],
-        required: ["platform", "capturedAtUtc", "root"]
+        required: ["platform", "source", "capturedAtUtc", "root"]
     )
 
     static let inspectNodeArguments = object(
         description: "Arguments for inspecting a specific node.",
         properties: [
+            "source": string("Optional visual tree provider source. Defaults to native.", nullable: true),
             "nodeId": string("Identifier of the node to inspect."),
             "includeAncestors": boolean("Include ancestor nodes in the response."),
             "includeDescendants": boolean("Include descendant nodes in the response."),
@@ -37,12 +41,14 @@ internal enum AnsightVisualTreeToolSchemas {
         description: "Detailed node inspection payload.",
         properties: [
             "platform": string("Current runtime platform."),
+            "source": string("Visual tree provider source."),
+            "adapter": string("Implementation adapter that produced the tree.", nullable: true),
             "capturedAtUtc": string("UTC timestamp for capture.", format: "date-time"),
             "node": visualNode,
             "ancestors": array(visualNode, "Optional ancestor chain.", nullable: true),
             "descendants": array(genericObject, "Optional descendant list.", nullable: true),
         ],
-        required: ["platform", "capturedAtUtc", "node"]
+        required: ["platform", "source", "capturedAtUtc", "node"]
     )
 
     static let getScreenshotArguments = object(

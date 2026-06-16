@@ -78,6 +78,26 @@ final class VisualTreeToolTests: XCTestCase {
         #endif
     }
 
+    func testVisualTreeProviderRegistryRoutesSourceRequests() throws {
+        try AnsightVisualTreeProviderRegistry.register(StubVisualTreeProvider(source: "unit-test"))
+
+        let treeResult = try GetVisualTreeTool().execute(arguments: ["source": "unit-test"])
+        XCTAssertTrue(treeResult.success)
+        XCTAssertEqual(resultObject(treeResult)?["source"], .string("unit-test"))
+        XCTAssertEqual(resultObject(treeResult)?["adapter"], .string("unit.test"))
+
+        let inspectResult = try InspectNodeTool().execute(arguments: [
+            "source": "unit-test",
+            "nodeId": "root",
+        ])
+        XCTAssertTrue(inspectResult.success)
+        XCTAssertEqual(resultObject(inspectResult)?["source"], .string("unit-test"))
+        XCTAssertEqual(resultObject(inspectResult)?["node"], .object([
+            "id": .string("root"),
+            "type": .string("TestNode"),
+        ]))
+    }
+
     func testReadOnlyGuardDeniesOverlayWrites() throws {
         let bridge = bridge(
             tools: [ShowOverlayTool()],
@@ -157,5 +177,44 @@ final class VisualTreeToolTests: XCTestCase {
         }
 
         return code
+    }
+
+    private func resultObject(_ result: AnsightToolExecutionResult) -> [String: JSONValue]? {
+        guard case .object(let object)? = result.result else {
+            return nil
+        }
+
+        return object
+    }
+}
+
+private struct StubVisualTreeProvider: AnsightVisualTreeProvider {
+    let source: String
+    let displayName = "Unit Test"
+
+    func getVisualTree(arguments: [String: String]) -> AnsightToolExecutionResult {
+        .success(.object([
+            "platform": .string("test"),
+            "source": .string(source),
+            "adapter": .string("unit.test"),
+            "capturedAtUtc": .string("2026-06-16T00:00:00.000Z"),
+            "root": .object([
+                "id": .string("root"),
+                "type": .string("TestNode"),
+            ]),
+        ]))
+    }
+
+    func inspectNode(arguments: [String: String]) -> AnsightToolExecutionResult {
+        .success(.object([
+            "platform": .string("test"),
+            "source": .string(source),
+            "adapter": .string("unit.test"),
+            "capturedAtUtc": .string("2026-06-16T00:00:00.000Z"),
+            "node": .object([
+                "id": .string(arguments["nodeId"] ?? "root"),
+                "type": .string("TestNode"),
+            ]),
+        ]))
     }
 }
