@@ -15,9 +15,15 @@ object AndroidVisualTreeTools {
         androidUiTool(
             VisualTreeToolIds.GetVisualTree,
             "Get Visual Tree",
-            "Returns the current Android View hierarchy.",
-        ) { _, _ ->
-            AndroidToolResult.success(AndroidUiEvidence.visualTree())
+            "Returns the current visual hierarchy for the requested source.",
+        ) { args, context ->
+            val source = AndroidVisualTreeProviderRegistry.normalizeSourceOrDefault(args["source"])
+            val provider = AndroidVisualTreeProviderRegistry.provider(source)
+                ?: return@androidUiTool AndroidToolResult.failure(
+                    "No visual tree provider is registered for source '$source'.",
+                    "visual_tree_provider_not_found",
+                )
+            provider.getVisualTree(args, context)
         },
         androidUiTool(
             VisualTreeToolIds.GetScreenshot,
@@ -59,9 +65,14 @@ object AndroidVisualTreeTools {
             VisualTreeToolIds.InspectNode,
             "Inspect Node",
             "Returns one node from the current visual tree.",
-        ) { args, _ ->
-            val id = args["id"] ?: args["nodeId"] ?: return@androidUiTool AndroidToolResult.failure("Node id is required.", "node_id_required")
-            AndroidToolResult.success(AndroidUiEvidence.inspectNode(id))
+        ) { args, context ->
+            val source = AndroidVisualTreeProviderRegistry.normalizeSourceOrDefault(args["source"])
+            val provider = AndroidVisualTreeProviderRegistry.provider(source)
+                ?: return@androidUiTool AndroidToolResult.failure(
+                    "No visual tree provider is registered for source '$source'.",
+                    "visual_tree_provider_not_found",
+                )
+            provider.inspectNode(args, context)
         },
         androidUiTool(
             VisualTreeToolIds.ShowOverlay,

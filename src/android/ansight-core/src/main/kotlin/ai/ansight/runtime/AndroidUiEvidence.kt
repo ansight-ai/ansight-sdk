@@ -358,6 +358,7 @@ object AndroidUiEvidence {
             val counter = NodeCounter(maxNodes.coerceAtLeast(1))
             JSONObject()
                 .put("platform", "android")
+                .put("source", "native")
                 .put("adapter", "android.views")
                 .put("capturedAtUtc", AnsightClock.isoNow())
                 .put("activity", activity.javaClass.name)

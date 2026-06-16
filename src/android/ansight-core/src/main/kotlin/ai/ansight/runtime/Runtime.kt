@@ -67,6 +67,30 @@ object Runtime {
     }
 
     @JvmStatic
+    fun registerMetricChannel(channel: AnsightChannel) {
+        if (isInitialized()) {
+            AnsightRuntime.registerMetricChannel(channel)
+        }
+    }
+
+    @JvmStatic
+    fun RegisterMetricChannel(channel: AnsightChannel) {
+        registerMetricChannel(channel)
+    }
+
+    @JvmStatic
+    fun registerMetricStream(stream: AnsightMetricStream) {
+        if (isInitialized()) {
+            AnsightRuntime.registerMetricStream(stream)
+        }
+    }
+
+    @JvmStatic
+    fun RegisterMetricStream(stream: AnsightMetricStream) {
+        registerMetricStream(stream)
+    }
+
+    @JvmStatic
     @JvmOverloads
     fun metric(value: Long, channel: Int = AnsightChannels.Unspecified) {
         if (isInitialized()) {

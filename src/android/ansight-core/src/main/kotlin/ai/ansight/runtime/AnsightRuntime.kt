@@ -57,6 +57,7 @@ object AnsightRuntime {
     private val events = mutableListOf<RecordedEvent>()
     private val touches = mutableListOf<RecordedTouch>()
     private val channels = linkedMapOf<Int, AnsightChannel>()
+    private val metricStreams = linkedMapOf<Int, AnsightMetricStream>()
     private val tools = linkedMapOf<String, AnsightToolDescriptor>()
     private val toolRegistry = AndroidToolRegistry()
 
@@ -69,6 +70,7 @@ object AnsightRuntime {
             this.options = validated
             channels.clear()
             channels.putAll(makeChannelDictionary(validated))
+            metricStreams.clear()
             metrics.clear()
             events.clear()
             touches.clear()
@@ -157,7 +159,20 @@ object AnsightRuntime {
         require(validated.id !in AnsightChannels.reservedIds) { "Channel id ${validated.id} is reserved." }
         synchronized(lock) {
             channels[validated.id] = validated
+            announcedMetricChannelIds.remove(validated.id)
             sessionMessage = "Registered metric channel ${validated.id}."
+        }
+    }
+
+    fun registerMetricStream(stream: AnsightMetricStream) {
+        val validated = stream.channel.validated()
+        require(validated.id !in AnsightChannels.reservedIds) { "Channel id ${validated.id} is reserved." }
+        val validatedStream = AnsightMetricStream(validated, AnsightMetricSampler { stream.sample() })
+        synchronized(lock) {
+            channels[validated.id] = validated
+            metricStreams[validated.id] = validatedStream
+            announcedMetricChannelIds.remove(validated.id)
+            sessionMessage = "Registered metric stream ${validated.id}."
         }
     }
 
@@ -1200,6 +1215,14 @@ object AnsightRuntime {
     }
 
     private fun sampleBuiltInTelemetry() {
+        val streams = synchronized(lock) {
+            if (!initialized || !active) {
+                emptyList()
+            } else {
+                metricStreams.values.toList()
+            }
+        }
+
         synchronized(lock) {
             if (!initialized || !active) {
                 return
@@ -1231,6 +1254,24 @@ object AnsightRuntime {
                 }
             }
         }
+
+        val streamMetrics = streams.mapNotNull { stream ->
+            val value = stream.sample() ?: return@mapNotNull null
+            RecordedMetric(value = value, channel = stream.channel.id)
+        }
+
+        if (streamMetrics.isNotEmpty()) {
+            synchronized(lock) {
+                if (initialized && active) {
+                    streamMetrics.forEach { metric ->
+                        if (channels.containsKey(metric.channel)) {
+                            recordMetricLocked(metric.value, metric.channel)
+                        }
+                    }
+                }
+            }
+        }
+
         streamPendingTelemetry()
     }
 

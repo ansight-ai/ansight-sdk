@@ -29,6 +29,23 @@ class AnsightOptionsTest {
     }
 
     @Test
+    fun metricStreamCarriesChannelMetadataAndSamplesCurrentValue() {
+        var value = 58L
+        val stream = AnsightMetricStream(
+            AnsightChannel(42, "React Native JS FPS", "#61DAFB", "fps", "reactNative"),
+            AnsightMetricSampler { value },
+        )
+
+        assertEquals(42, stream.channel.id)
+        assertEquals("fps", stream.channel.unit)
+        assertEquals("reactNative", stream.channel.type)
+        assertEquals(58L, stream.sample())
+
+        value = 43L
+        assertEquals(43L, stream.sample())
+    }
+
+    @Test
     fun validatedNormalizesNestedCustomProperties() {
         val validated = AnsightOptions(
             customProperties = mapOf(

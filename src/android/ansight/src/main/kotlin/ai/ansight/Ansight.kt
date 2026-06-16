@@ -4,6 +4,8 @@ import ai.ansight.pairing.AnsightPairing
 import ai.ansight.runtime.AndroidTool
 import ai.ansight.runtime.AnsightDeveloperMode
 import ai.ansight.runtime.AnsightHostConnectionOptions
+import ai.ansight.runtime.AnsightChannel
+import ai.ansight.runtime.AnsightMetricStream
 import ai.ansight.runtime.AnsightOptions
 import ai.ansight.runtime.AnsightRuntime
 import ai.ansight.runtime.HostConnectionResult
@@ -63,6 +65,16 @@ object Ansight {
                 clientName = clientName,
             ),
         )
+    }
+
+    @JvmStatic
+    fun registerMetricChannel(channel: AnsightChannel) {
+        AnsightRuntime.registerMetricChannel(channel)
+    }
+
+    @JvmStatic
+    fun registerMetricStream(stream: AnsightMetricStream) {
+        AnsightRuntime.registerMetricStream(stream)
     }
 
     @JvmStatic

@@ -6,7 +6,12 @@ import ai.ansight.tools.filesystem.FileSystemToolIds
 import ai.ansight.tools.preferences.PreferencesToolIds
 import ai.ansight.tools.reflection.ReflectionToolIds
 import ai.ansight.tools.securestorage.SecureStorageToolIds
+import ai.ansight.tools.visualtree.AndroidVisualTreeProvider
+import ai.ansight.tools.visualtree.AndroidVisualTreeProviderRegistry
 import ai.ansight.tools.visualtree.VisualTreeToolIds
+import ai.ansight.runtime.AndroidToolExecutionContext
+import ai.ansight.runtime.AndroidToolResult
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -61,5 +66,36 @@ class AnsightAggregateTest {
     @Test
     fun developerOptionsWireAllStandardTools() {
         assertEquals(33, Ansight.developerOptions().initialTools.size)
+    }
+
+    @Test
+    fun visualTreeProviderRegistryTracksCustomSources() {
+        val provider = object : AndroidVisualTreeProvider {
+            override val source = "unit-test"
+            override val displayName = "Unit Test"
+
+            override fun getVisualTree(arguments: Map<String, String>, context: AndroidToolExecutionContext): AndroidToolResult {
+                return AndroidToolResult.success(
+                    JSONObject()
+                        .put("platform", "test")
+                        .put("source", source)
+                        .put("adapter", "unit.test"),
+                )
+            }
+
+            override fun inspectNode(arguments: Map<String, String>, context: AndroidToolExecutionContext): AndroidToolResult {
+                return AndroidToolResult.success(
+                    JSONObject()
+                        .put("platform", "test")
+                        .put("source", source)
+                        .put("node", JSONObject().put("id", arguments["nodeId"] ?: "root")),
+                )
+            }
+        }
+
+        AndroidVisualTreeProviderRegistry.register(provider)
+
+        assertEquals(provider, AndroidVisualTreeProviderRegistry.provider("Unit-Test"))
+        assertTrue(AndroidVisualTreeProviderRegistry.registeredSources().contains("unit-test"))
     }
 }
