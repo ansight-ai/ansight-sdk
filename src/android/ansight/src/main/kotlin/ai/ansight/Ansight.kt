@@ -7,8 +7,11 @@ import ai.ansight.runtime.AnsightHostConnectionOptions
 import ai.ansight.runtime.AnsightChannel
 import ai.ansight.runtime.AnsightMetricStream
 import ai.ansight.runtime.AnsightOptions
+import ai.ansight.runtime.AnsightOptionsBuilder
 import ai.ansight.runtime.AnsightRuntime
 import ai.ansight.runtime.HostConnectionResult
+import ai.ansight.runtime.HostConnectionStatusListener
+import ai.ansight.runtime.HostConnectionStatusSubscription
 import ai.ansight.runtime.OperationResult
 import android.app.Application
 import android.app.Activity
@@ -21,6 +24,12 @@ object Ansight {
     @JvmStatic
     @JvmOverloads
     fun options(baseOptions: AnsightOptions = AnsightOptions()): AnsightOptions = withStandardTools(baseOptions)
+
+    fun options(configure: AnsightOptionsBuilder.() -> Unit): AnsightOptions {
+        val builder = AnsightOptions.createBuilder()
+        builder.configure()
+        return withStandardTools(builder.build())
+    }
 
     @JvmStatic
     fun options(hostConnection: AnsightHostConnectionOptions): AnsightOptions = options(
@@ -38,6 +47,21 @@ object Ansight {
             clientName = clientName,
         ),
     )
+
+    fun developerOptions(
+        bundledDeveloperConfigJson: String? = null,
+        clientName: String? = null,
+        configure: AnsightOptionsBuilder.() -> Unit,
+    ): AnsightOptions {
+        val builder = AnsightOptions.createBuilder(
+            AnsightDeveloperMode.options(
+                bundledDeveloperConfigJson = bundledDeveloperConfigJson,
+                clientName = clientName,
+            ),
+        )
+        builder.configure()
+        return withStandardTools(builder.build())
+    }
 
     @JvmStatic
     @JvmOverloads
@@ -95,6 +119,50 @@ object Ansight {
     @JvmStatic
     fun clearCustomProperties(): OperationResult {
         return AnsightRuntime.clearCustomProperties()
+    }
+
+    @JvmStatic
+    fun isFramesPerSecondEnabled(): Boolean {
+        return AnsightRuntime.isFramesPerSecondEnabled()
+    }
+
+    @JvmStatic
+    fun enableFramesPerSecond() {
+        AnsightRuntime.enableFramesPerSecond()
+    }
+
+    @JvmStatic
+    fun disableFramesPerSecond() {
+        AnsightRuntime.disableFramesPerSecond()
+    }
+
+    @JvmStatic
+    fun isTouchCaptureEnabled(): Boolean {
+        return AnsightRuntime.isTouchCaptureEnabled()
+    }
+
+    @JvmStatic
+    fun setTouchCaptureGuard(guard: (() -> Boolean)?) {
+        AnsightRuntime.setTouchCaptureGuard(guard)
+    }
+
+    @JvmStatic
+    fun notifyHostConnectionConfigChanged(): HostConnectionResult {
+        return AnsightRuntime.notifyHostConnectionConfigChanged()
+    }
+
+    @JvmStatic
+    fun clearCachedSession(): OperationResult {
+        return AnsightRuntime.clearCachedSession()
+    }
+
+    @JvmStatic
+    @JvmOverloads
+    fun addHostConnectionStatusListener(
+        listener: HostConnectionStatusListener,
+        emitCurrent: Boolean = true,
+    ): HostConnectionStatusSubscription {
+        return AnsightRuntime.addHostConnectionStatusListener(listener, emitCurrent)
     }
 
     @JvmStatic

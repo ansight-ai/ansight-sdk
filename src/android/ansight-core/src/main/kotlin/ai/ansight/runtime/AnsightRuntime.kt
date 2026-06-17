@@ -14,6 +14,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 object AnsightRuntime {
     private val lock = Any()
@@ -52,6 +53,9 @@ object AnsightRuntime {
     private var lifecycleCallbacks: Application.ActivityLifecycleCallbacks? = null
     private var startedActivityCount = 0
     private val frameRateSampler = AndroidFrameRateSampler()
+    private var frameRateTrackingEnabled = false
+    private var touchCaptureRuntimeEnabled = true
+    private var touchCaptureGuard: (() -> Boolean)? = null
 
     private val metrics = mutableListOf<RecordedMetric>()
     private val events = mutableListOf<RecordedEvent>()
@@ -60,9 +64,14 @@ object AnsightRuntime {
     private val metricStreams = linkedMapOf<Int, AnsightMetricStream>()
     private val tools = linkedMapOf<String, AnsightToolDescriptor>()
     private val toolRegistry = AndroidToolRegistry()
+    private val hostConnectionStatusListeners = linkedMapOf<Int, HostConnectionStatusListener>()
+    private val nextHostConnectionStatusListenerId = AtomicInteger(1)
+    private var lastPublishedHostConnectionStatus: HostConnectionStatus? = null
+    private var lastPublishedHostConnectionCapabilities: HostConnectionCapabilities? = null
 
     @JvmOverloads
     fun initialize(application: Application, options: AnsightOptions = AnsightOptions()) {
+        AnsightLogger.info("Initializing Ansight runtime.")
         val validated = options.validated()
         synchronized(lock) {
             deactivateLocked(closeTransport = true)
@@ -77,6 +86,11 @@ object AnsightRuntime {
             tools.clear()
             toolRegistry.clear()
             validated.initialTools.forEach { tool -> registerToolLocked(tool) }
+            if (validated.artifactProviders.isNotEmpty()) {
+                AndroidArtifactTools.create { this.options.artifactProviders }
+                    .filterNot { toolRegistry.contains(it.definition.id) }
+                    .forEach { tool -> registerToolLocked(tool) }
+            }
             initialized = true
             active = false
             sessionOpen = false
@@ -94,11 +108,16 @@ object AnsightRuntime {
             lastStreamedTouchSequence = 0
             announcedMetricChannelIds.clear()
             telemetryStreamLoopActive = false
+            frameRateTrackingEnabled = validated.enableFramesPerSecond
+            touchCaptureRuntimeEnabled = true
+            touchCaptureGuard = null
             hostId = null
             hostName = null
             resolvedHostAddress = null
             sessionMessage = "Runtime initialized."
         }
+        publishHostConnectionStatusIfChanged(force = true)
+        AnsightLogger.info("Ansight runtime initialized.")
     }
 
     @JvmOverloads
@@ -118,14 +137,44 @@ object AnsightRuntime {
             sessionMessage = "Runtime activated."
             application ?: error("AnsightRuntime has no application context.")
         }
+        AnsightLogger.info("Ansight runtime activated.")
 
         startLifecycleCapture(app)
+        bindCurrentActivity(app)
         startTelemetrySampling()
-        if (options.enableFramesPerSecond) {
+        if (frameRateTrackingEnabled) {
             frameRateSampler.start()
         }
-        AndroidUiEvidence.setTouchCaptureEnabled(options.touchCapture != null) { touch -> onTouchCaptured(touch) }
+        AndroidUiEvidence.setTouchCaptureEnabled(options.touchCapture != null && touchCaptureRuntimeEnabled) { touch -> onTouchCaptured(touch) }
         startAutoProbeIfNeeded(app)
+        publishHostConnectionStatusIfChanged()
+    }
+
+    fun bindActivity(activity: Activity) {
+        AndroidUiEvidence.onActivityResumed(activity)
+        recordBoundActivity()
+    }
+
+    private fun bindCurrentActivity(app: Application) {
+        if (AndroidUiEvidence.bindCurrentActivity(app) != null) {
+            recordBoundActivity()
+        }
+    }
+
+    private fun recordBoundActivity() {
+        val shouldRecordForeground = synchronized(lock) {
+            if (!initialized) {
+                return
+            }
+            if (active && startedActivityCount == 0) {
+                startedActivityCount = 1
+            }
+            active
+        }
+
+        if (shouldRecordForeground) {
+            setAppLifecycleState(AppLifecycleState.Foreground)
+        }
     }
 
     fun deactivate() {
@@ -133,6 +182,8 @@ object AnsightRuntime {
             deactivateLocked(closeTransport = true)
             sessionMessage = "Runtime deactivated."
         }
+        publishHostConnectionStatusIfChanged()
+        AnsightLogger.info("Ansight runtime deactivated.")
     }
 
     fun clear() {
@@ -152,6 +203,7 @@ object AnsightRuntime {
             announcedMetricChannelIds.clear()
             sessionMessage = "Runtime buffers cleared."
         }
+        publishHostConnectionStatusIfChanged()
     }
 
     fun registerMetricChannel(channel: AnsightChannel) {
@@ -270,7 +322,11 @@ object AnsightRuntime {
 
     internal fun onTouchCaptured(touch: CapturedTouch) {
         synchronized(lock) {
-            if (!initialized || !active || options.touchCapture == null) {
+            if (!initialized || !active || options.touchCapture == null || !touchCaptureRuntimeEnabled) {
+                return
+            }
+            val guard = touchCaptureGuard
+            if (guard != null && !runCatching { guard() }.getOrDefault(false)) {
                 return
             }
 
@@ -334,9 +390,11 @@ object AnsightRuntime {
             }
         }
 
-        return runConnectionOffCallingThread {
+        val result = runConnectionOffCallingThread {
             connectInternal(request)
         }
+        publishHostConnectionStatusIfChanged()
+        return result
     }
 
     fun disconnect(): HostConnectionResult {
@@ -352,11 +410,13 @@ object AnsightRuntime {
             }
         }
         transport?.close(notify = false)
-        return HostConnectionResult.success(
+        val result = HostConnectionResult.success(
             "Disconnected from Ansight host.",
             kind = HostConnectionActionKind.Disconnect,
             source = HostConnectionSource.HostConnection,
         )
+        publishHostConnectionStatusIfChanged()
+        return result
     }
 
     fun completeSession() {
@@ -383,23 +443,66 @@ object AnsightRuntime {
             stopAutoProbeLocked()
             sessionMessage = "Saved pairing config cleared."
         }
-        return HostConnectionResult.success(
+        val result = HostConnectionResult.success(
             "Saved pairing config cleared.",
             kind = HostConnectionActionKind.ClearSavedConfig,
             source = HostConnectionSource.SavedConfig,
         )
+        publishHostConnectionStatusIfChanged()
+        return result
     }
 
-    fun savePairingConfig(pairingJson: String): HostConnectionResult {
+    fun clearCachedSession(): OperationResult {
+        val app = synchronized(lock) { application }
+            ?: return OperationResult.failure("AnsightRuntime is not initialized.")
+        clearCachedPairingProfile(app)
+        synchronized(lock) {
+            stopAutoProbeLocked()
+            sessionMessage = "Cached pairing session cleared."
+        }
+        publishHostConnectionStatusIfChanged()
+        return OperationResult.success("Cached pairing session cleared.")
+    }
+
+    fun notifyHostConnectionConfigChanged(): HostConnectionResult {
+        val result = synchronized(lock) {
+            if (!initialized) {
+                return HostConnectionResult.failure(
+                    "AnsightRuntime must be initialized before refreshing host connection config state.",
+                    kind = HostConnectionActionKind.NotifyConfigChanged,
+                    source = HostConnectionSource.ConfigReader,
+                )
+            }
+
+            val status = hostConnectionStatusLocked()
+            sessionMessage = status.summaryMessage
+            HostConnectionResult.success(
+                status.summaryMessage,
+                kind = HostConnectionActionKind.NotifyConfigChanged,
+                source = when {
+                    options.hostConnection.bundledDeveloperConfigJson != null -> HostConnectionSource.BundledDeveloperConfig
+                    options.hostConnection.bundledConfigJson != null -> HostConnectionSource.BundledConfig
+                    else -> HostConnectionSource.ConfigReader
+                },
+            )
+        }
+        publishHostConnectionStatusIfChanged(force = true)
+        return result
+    }
+
+    @JvmOverloads
+    fun savePairingConfig(pairingJson: String, expectedAppId: String? = null): HostConnectionResult {
         val app = synchronized(lock) { application }
             ?: return HostConnectionResult.failure("AnsightRuntime is not initialized.", HostConnectionActionKind.Connect)
 
         return try {
-            val expectedAppId = app.packageName
-            PairingConfigDocumentService.parseAndValidateDocument(pairingJson, expectedAppId)
+            val normalizedExpectedAppId = expectedAppId?.trim()?.ifBlank { null } ?: app.packageName
+            PairingConfigDocumentService.parseAndValidateDocument(pairingJson, normalizedExpectedAppId)
             savePairingConfigLocked(app, pairingJson)
             startAutoProbeIfNeeded(app)
-            HostConnectionResult.success("Saved pairing config.", source = HostConnectionSource.SavedConfig)
+            val result = HostConnectionResult.success("Saved pairing config.", source = HostConnectionSource.SavedConfig)
+            publishHostConnectionStatusIfChanged()
+            result
         } catch (ex: Exception) {
             HostConnectionResult.failure(
                 ex.message ?: "Pairing config could not be saved.",
@@ -409,7 +512,117 @@ object AnsightRuntime {
         }
     }
 
-    fun registerTool(tool: AnsightToolDescriptor) {
+    fun isFramesPerSecondEnabled(): Boolean = synchronized(lock) { frameRateTrackingEnabled }
+
+    fun enableFramesPerSecond() {
+        val shouldStart = synchronized(lock) {
+            frameRateTrackingEnabled = true
+            channels[AnsightChannels.FramesPerSecond] = framesPerSecondChannel()
+            sessionMessage = "Frames-per-second sampling enabled."
+            active
+        }
+        if (shouldStart) {
+            frameRateSampler.start()
+        }
+    }
+
+    fun disableFramesPerSecond() {
+        synchronized(lock) {
+            frameRateTrackingEnabled = false
+            sessionMessage = "Frames-per-second sampling disabled."
+        }
+        frameRateSampler.stop()
+    }
+
+    fun isTouchCaptureEnabled(): Boolean = synchronized(lock) {
+        initialized && options.touchCapture != null && touchCaptureRuntimeEnabled
+    }
+
+    fun setTouchCaptureGuard(guard: (() -> Boolean)?) {
+        synchronized(lock) {
+            touchCaptureGuard = guard
+            sessionMessage = if (guard == null) "Touch capture guard cleared." else "Touch capture guard configured."
+        }
+    }
+
+    fun enableTouchCapture(): OperationResult {
+        val canEnable = synchronized(lock) {
+            if (!initialized) {
+                return OperationResult.failure("AnsightRuntime must be initialized before enabling touch capture.")
+            }
+            if (options.touchCapture == null) {
+                sessionMessage = "Touch capture is not configured."
+                return OperationResult.failure("Touch capture is not configured.")
+            }
+            touchCaptureRuntimeEnabled = true
+            sessionMessage = "Touch capture enabled."
+            active
+        }
+        if (canEnable) {
+            AndroidUiEvidence.setTouchCaptureEnabled(true) { touch -> onTouchCaptured(touch) }
+        }
+        return OperationResult.success("Touch capture enabled.")
+    }
+
+    fun disableTouchCapture(): OperationResult {
+        synchronized(lock) {
+            if (!initialized) {
+                return OperationResult.failure("AnsightRuntime must be initialized before disabling touch capture.")
+            }
+            touchCaptureRuntimeEnabled = false
+            sessionMessage = "Touch capture disabled."
+        }
+        AndroidUiEvidence.setTouchCaptureEnabled(false, null)
+        return OperationResult.success("Touch capture disabled.")
+    }
+
+    fun captureScreenFrame(options: AnsightSessionJpegCaptureOptions? = null): OperationResult {
+        val state = synchronized(lock) {
+            val transport = liveTransport
+            if (!initialized || !active || !sessionOpen || connectionState != HostConnectionState.Connected || transport?.isOpen != true) {
+                sessionMessage = "A connected live session is required before capturing a screen frame."
+                return OperationResult.failure("A connected live session is required before capturing a screen frame.")
+            }
+
+            val captureOptions = (options ?: this.options.sessionJpegCapture ?: AnsightSessionJpegCaptureOptions()).validated()
+            captureOptions to transport
+        }
+        application?.let { app -> bindCurrentActivity(app) }
+
+        val screenshot = try {
+            AndroidUiEvidence.captureSessionScreenshot("jpeg", state.first.quality, state.first.maxWidth)
+        } catch (ex: Exception) {
+            val message = ex.message ?: "Android screen frame capture failed."
+            synchronized(lock) {
+                sessionMessage = message
+            }
+            return OperationResult.failure(message)
+        }
+
+        val result = state.second.sendSessionJpegFrame(screenshot, state.first.quality)
+        val message = if (result.success) {
+            "Captured and sent screen frame ${screenshot.width}x${screenshot.height} (${screenshot.bytes.size} bytes)."
+        } else {
+            result.message
+        }
+        synchronized(lock) {
+            sessionMessage = message
+            if (!result.success) {
+                stopSessionJpegCaptureLocked()
+            }
+        }
+        return OperationResult(result.success, message)
+    }
+
+    fun captureBuiltInTelemetrySample() {
+        sampleBuiltInTelemetry()
+    }
+
+    fun isToolRegistered(toolId: String): Boolean =
+        synchronized(lock) { toolRegistry.contains(toolId) }
+
+    @JvmOverloads
+    fun registerTool(tool: AnsightToolDescriptor, replaceExisting: Boolean = false) {
         require(tool.id.isNotBlank()) { "Tool id must not be blank." }
 
         synchronized(lock) {
@@ -427,14 +640,16 @@ object AnsightRuntime {
                 ) { _, _ ->
                     AndroidToolResult.failure("Tool '${tool.id}' was registered as metadata only and has no Android handler.", "tool_handler_missing")
                 },
+                replaceExisting = replaceExisting,
             )
             sessionMessage = "Registered tool ${tool.id}."
         }
     }
 
-    fun registerTool(tool: AndroidTool) {
+    @JvmOverloads
+    fun registerTool(tool: AndroidTool, replaceExisting: Boolean = false) {
         synchronized(lock) {
-            registerToolLocked(tool)
+            registerToolLocked(tool, replaceExisting)
             sessionMessage = "Registered tool ${tool.definition.id}."
         }
     }
@@ -565,9 +780,56 @@ object AnsightRuntime {
         }
     }
 
+    fun recordedMetrics(): List<RecordedMetric> {
+        synchronized(lock) {
+            return metrics.toList()
+        }
+    }
+
+    fun recordedEvents(): List<RecordedEvent> {
+        synchronized(lock) {
+            return events.toList()
+        }
+    }
+
     fun hostConnectionStatus(): HostConnectionStatus {
         synchronized(lock) {
             return hostConnectionStatusLocked()
+        }
+    }
+
+    fun hostConnectionCapabilities(): HostConnectionCapabilities {
+        synchronized(lock) {
+            return hostConnectionCapabilitiesLocked()
+        }
+    }
+
+    @JvmOverloads
+    fun addHostConnectionStatusListener(
+        listener: HostConnectionStatusListener,
+        emitCurrent: Boolean = true,
+    ): HostConnectionStatusSubscription {
+        val listenerId = nextHostConnectionStatusListenerId.getAndIncrement()
+        val current = synchronized(lock) {
+            hostConnectionStatusListeners[listenerId] = listener
+            if (emitCurrent) {
+                hostConnectionSnapshotLocked().also { snapshot ->
+                    lastPublishedHostConnectionStatus = snapshot.status
+                    lastPublishedHostConnectionCapabilities = snapshot.capabilities
+                }
+            } else {
+                null
+            }
+        }
+
+        current?.let { snapshot ->
+            runCatching { listener.onChanged(snapshot.status, snapshot.capabilities) }
+        }
+
+        return HostConnectionStatusSubscription {
+            synchronized(lock) {
+                hostConnectionStatusListeners.remove(listenerId)
+            }
         }
     }
 
@@ -575,6 +837,7 @@ object AnsightRuntime {
         val app = synchronized(lock) { application ?: error("AnsightRuntime has no application context.") }
         val candidates = resolveConnectionCandidates(app, request)
         if (candidates.isEmpty()) {
+            AnsightLogger.warning("No pairing config is available for ${request.kind}.")
             return HostConnectionResult.failure(
                 "No pairing config is available.",
                 kind = HostConnectionActionKind.Connect,
@@ -588,6 +851,12 @@ object AnsightRuntime {
             val result = connectCandidate(app, request, candidate)
             if (result.success) {
                 return result
+            }
+            if (request.kind == HostConnectionRequestKind.Auto &&
+                candidate.source == HostConnectionSource.CachedSession &&
+                shouldClearCachedPairingProfile(result.reasonCode)
+            ) {
+                clearCachedPairingProfile(app)
             }
             lastResult = result
             if (request.kind != HostConnectionRequestKind.Auto) {
@@ -621,6 +890,8 @@ object AnsightRuntime {
                 connectionState = HostConnectionState.Failed
                 sessionMessage = ex.message
             }
+            publishHostConnectionStatusIfChanged()
+            AnsightLogger.warning(ex.message ?: "Pairing config is invalid.", ex)
             return HostConnectionResult.failure(
                 ex.message ?: "Pairing config is invalid.",
                 kind = HostConnectionActionKind.Connect,
@@ -635,12 +906,14 @@ object AnsightRuntime {
             sessionId = null
             sessionMessage = "Connecting to Ansight host."
         }
+        publishHostConnectionStatusIfChanged()
 
         val attempt = connector.connect(
             document = document,
             clientName = clientName,
             options = PairingConnectionOptions(
-                hostAddressOverride = originalRequest.hostAddressOverride,
+                hostAddressOverride = originalRequest.hostAddressOverride?.trim()?.ifBlank { null }
+                    ?: candidate.hostAddressOverride,
                 discoveryPort = options.hostConnection.discoveryPort,
             ),
         )
@@ -652,6 +925,8 @@ object AnsightRuntime {
                 sessionId = null
                 sessionMessage = attempt.message
             }
+            publishHostConnectionStatusIfChanged()
+            AnsightLogger.warning(attempt.message)
             val open = OpenSessionResult(
                 success = false,
                 accepted = attempt.accepted,
@@ -693,6 +968,7 @@ object AnsightRuntime {
                 connectionState = HostConnectionState.Disconnected
                 sessionMessage = sessionOpenResult.message
             }
+            publishHostConnectionStatusIfChanged()
             return HostConnectionResult.failure(
                 sessionOpenResult.message,
                 kind = HostConnectionActionKind.Connect,
@@ -709,6 +985,7 @@ object AnsightRuntime {
                 connectionState = HostConnectionState.Disconnected
                 sessionMessage = profileResult.message
             }
+            publishHostConnectionStatusIfChanged()
             return HostConnectionResult.failure(
                 profileResult.message,
                 kind = HostConnectionActionKind.Connect,
@@ -732,6 +1009,8 @@ object AnsightRuntime {
             telemetryStreamLoopActive = false
             sessionMessage = "Connected to Ansight host."
         }
+        publishHostConnectionStatusIfChanged()
+        AnsightLogger.info("Connected to Ansight host.")
 
         sendCurrentAppState()
         sendSessionProperties()
@@ -742,6 +1021,7 @@ object AnsightRuntime {
         if (candidate.shouldSaveOnSuccess) {
             savePairingConfigLocked(app, candidate.payload)
         }
+        saveCachedPairingProfile(app, candidate.payload, attempt.hostAddress)
 
         val open = OpenSessionResult(
             success = true,
@@ -767,19 +1047,30 @@ object AnsightRuntime {
 
     private fun resolveConnectionCandidates(app: Application, request: HostConnectionRequest): List<ResolvedConnectionCandidate> {
         val saved = { loadSavedPairingConfig(app) }
+        val cached = { loadCachedPairingProfile(app) }
         return when (request.kind) {
             HostConnectionRequestKind.Payload,
-            HostConnectionRequestKind.QrCode,
             HostConnectionRequestKind.Config -> listOfNotNull(
                 request.payload?.trim()?.ifBlank { null }?.let {
                     ResolvedConnectionCandidate(it, sourceFor(request.kind), shouldSaveOnSuccess = true)
                 },
             )
+            HostConnectionRequestKind.QrCode -> listOfNotNull(
+                readConfigPayloadFromReader(request)?.let {
+                    ResolvedConnectionCandidate(it, HostConnectionSource.ConfigReader, shouldSaveOnSuccess = true)
+                },
+                request.payload?.trim()?.ifBlank { null }?.let {
+                    ResolvedConnectionCandidate(it, HostConnectionSource.ConfigReader, shouldSaveOnSuccess = true)
+                },
+            )
             HostConnectionRequestKind.File -> listOfNotNull(
+                readConfigPayloadFromReader(request),
                 request.payload?.trim()?.ifBlank { null }?.let { path ->
                     runCatching { File(path).readText() }.getOrNull()
-                }?.let { ResolvedConnectionCandidate(it, HostConnectionSource.ConfigReader, shouldSaveOnSuccess = true) },
-            )
+                },
+            ).map { payload ->
+                ResolvedConnectionCandidate(payload, HostConnectionSource.ConfigReader, shouldSaveOnSuccess = true)
+            }
             HostConnectionRequestKind.SavedConfig -> listOfNotNull(
                 saved()?.let { ResolvedConnectionCandidate(it, HostConnectionSource.SavedConfig) },
             )
@@ -790,13 +1081,22 @@ object AnsightRuntime {
                 options.hostConnection.bundledConfigJson?.let { ResolvedConnectionCandidate(it, HostConnectionSource.BundledConfig) },
             )
             HostConnectionRequestKind.Auto -> listOfNotNull(
-                saved()?.let { ResolvedConnectionCandidate(it, HostConnectionSource.SavedConfig) },
                 options.hostConnection.bundledDeveloperConfigJson?.let {
                     ResolvedConnectionCandidate(it, HostConnectionSource.BundledDeveloperConfig, usedEmbeddedDeveloperPairing = true)
                 },
+                cached(),
+                saved()?.let { ResolvedConnectionCandidate(it, HostConnectionSource.SavedConfig) },
                 options.hostConnection.bundledConfigJson?.let { ResolvedConnectionCandidate(it, HostConnectionSource.BundledConfig) },
             )
         }
+    }
+
+    private fun readConfigPayloadFromReader(request: HostConnectionRequest): String? {
+        val reader = options.hostConnection.configReader ?: return null
+        if (!runCatching { reader.canRead(request.kind) }.getOrDefault(false)) {
+            return null
+        }
+        return runCatching { reader.readConfigPayload(request)?.trim()?.ifBlank { null } }.getOrNull()
     }
 
     private fun sendCurrentAppState(): OperationResult {
@@ -869,9 +1169,9 @@ object AnsightRuntime {
         return normalizedCustomProperties().mapValues { LinkedHashMap(it.value) }
     }
 
-    private fun registerToolLocked(tool: AndroidTool) {
+    private fun registerToolLocked(tool: AndroidTool, replaceExisting: Boolean = false) {
         val definition = tool.definition.validated()
-        toolRegistry.register(tool)
+        toolRegistry.register(tool, replaceExisting = replaceExisting)
         tools[definition.id] = AnsightToolDescriptor(
             id = definition.id,
             name = definition.name,
@@ -1240,7 +1540,7 @@ object AnsightRuntime {
                     recordMetricLocked(rss, AnsightChannels.Rss)
                 }
             }
-            if (options.enableFramesPerSecond) {
+            if (frameRateTrackingEnabled) {
                 val fps = frameRateSampler.consumeFramesPerSecond()
                 if (fps > 0) {
                     recordMetricLocked(fps.toLong(), AnsightChannels.FramesPerSecond)
@@ -1369,6 +1669,7 @@ object AnsightRuntime {
     }
 
     private fun deactivateLocked(closeTransport: Boolean) {
+        val hadUiEvidenceCapture = active || lifecycleCallbacks != null || sessionJpegTask != null || sessionJpegExecutor != null
         active = false
         sessionOpen = false
         sessionId = null
@@ -1378,26 +1679,63 @@ object AnsightRuntime {
         telemetryTask = null
         telemetryExecutor?.shutdownNow()
         telemetryExecutor = null
-        stopSessionJpegCaptureLocked()
+        stopSessionJpegCaptureLocked(releaseUiResources = hadUiEvidenceCapture)
         stopAutoProbeLocked()
         frameRateSampler.stop()
-        AndroidUiEvidence.setTouchCaptureEnabled(false, null)
+        if (hadUiEvidenceCapture) {
+            AndroidUiEvidence.setTouchCaptureEnabled(false, null)
+        }
         if (closeTransport) {
             liveTransport?.close(notify = false)
             liveTransport = null
         }
     }
 
+    private fun publishHostConnectionStatusIfChanged(force: Boolean = false) {
+        val notification = synchronized(lock) {
+            val snapshot = hostConnectionSnapshotLocked()
+            if (!force &&
+                snapshot.status == lastPublishedHostConnectionStatus &&
+                snapshot.capabilities == lastPublishedHostConnectionCapabilities
+            ) {
+                return
+            }
+
+            lastPublishedHostConnectionStatus = snapshot.status
+            lastPublishedHostConnectionCapabilities = snapshot.capabilities
+
+            if (hostConnectionStatusListeners.isEmpty()) {
+                return
+            }
+
+            HostConnectionStatusNotification(
+                listeners = hostConnectionStatusListeners.values.toList(),
+                status = snapshot.status,
+                capabilities = snapshot.capabilities,
+            )
+        }
+
+        notification.listeners.forEach { listener ->
+            runCatching { listener.onChanged(notification.status, notification.capabilities) }
+        }
+    }
+
+    private fun hostConnectionSnapshotLocked(): HostConnectionSnapshot {
+        val status = hostConnectionStatusLocked()
+        return HostConnectionSnapshot(status, hostConnectionCapabilitiesLocked(status))
+    }
+
     private fun hostConnectionStatusLocked(): HostConnectionStatus {
         val app = application
         val connected = sessionOpen && liveTransport?.isOpen == true && connectionState == HostConnectionState.Connected
         val hasSaved = app?.let { loadSavedPairingConfig(it) != null } ?: false
+        val hasCached = app?.let { loadCachedPairingProfile(it) != null } ?: false
         val hasBundled = options.hostConnection.bundledConfigJson != null || options.hostConnection.bundledDeveloperConfigJson != null
         return HostConnectionStatus(
             isRuntimeActive = active,
             isConnected = connected,
             connectionState = connectionState,
-            hasCachedSession = false,
+            hasCachedSession = hasCached,
             hasSavedConfig = hasSaved,
             hasBundledConfig = hasBundled,
             summaryKind = when {
@@ -1410,6 +1748,32 @@ object AnsightRuntime {
             summaryMessage = sessionMessage ?: if (connected) "Connected to Ansight host." else "Not connected.",
         )
     }
+
+    private fun hostConnectionCapabilitiesLocked(status: HostConnectionStatus = hostConnectionStatusLocked()): HostConnectionCapabilities {
+        return HostConnectionCapabilities(
+            canConnectUsingSavedConfig = initialized && status.hasSavedConfig,
+            canConnectUsingBundledConfig = initialized && status.hasBundledConfig,
+            canChooseConfigFile = initialized && hostConnectionReaderCanRead(HostConnectionRequestKind.File),
+            canScanConfigQrCode = initialized && hostConnectionReaderCanRead(HostConnectionRequestKind.QrCode),
+            canClearSavedConfigs = initialized && (status.hasSavedConfig || status.hasCachedSession),
+        )
+    }
+
+    private fun hostConnectionReaderCanRead(kind: HostConnectionRequestKind): Boolean {
+        val reader = options.hostConnection.configReader ?: return false
+        return runCatching { reader.canRead(kind) }.getOrDefault(false)
+    }
+
+    private data class HostConnectionSnapshot(
+        val status: HostConnectionStatus,
+        val capabilities: HostConnectionCapabilities,
+    )
+
+    private data class HostConnectionStatusNotification(
+        val listeners: List<HostConnectionStatusListener>,
+        val status: HostConnectionStatus,
+        val capabilities: HostConnectionCapabilities,
+    )
 
     private fun startAutoProbeIfNeeded(app: Application) {
         synchronized(lock) {
@@ -1522,6 +1886,7 @@ object AnsightRuntime {
             val transport = liveTransport?.takeIf { it.isOpen } ?: return
             captureOptions to transport
         }
+        application?.let { app -> bindCurrentActivity(app) }
 
         val screenshot = try {
             AndroidUiEvidence.captureSessionScreenshot("jpeg", state.first.quality, state.first.maxWidth)
@@ -1538,12 +1903,14 @@ object AnsightRuntime {
         }
     }
 
-    private fun stopSessionJpegCaptureLocked() {
+    private fun stopSessionJpegCaptureLocked(releaseUiResources: Boolean = true) {
         sessionJpegTask?.cancel(false)
         sessionJpegTask = null
         sessionJpegExecutor?.shutdownNow()
         sessionJpegExecutor = null
-        AndroidUiEvidence.releaseSessionScreenshotResources()
+        if (releaseUiResources) {
+            AndroidUiEvidence.releaseSessionScreenshotResources()
+        }
     }
 
     private fun nextDeviceProfileLocked(app: Application, increment: Boolean): DeviceAppProfile {
@@ -1565,7 +1932,7 @@ object AnsightRuntime {
             dictionary[AnsightChannels.Rss] = AnsightChannel(AnsightChannels.Rss, "RSS", "#C88C1E", "bytes", "memory")
         }
         if (options.enableFramesPerSecond) {
-            dictionary[AnsightChannels.FramesPerSecond] = AnsightChannel(AnsightChannels.FramesPerSecond, "FPS", "#23B573", "fps", "frames")
+            dictionary[AnsightChannels.FramesPerSecond] = framesPerSecondChannel()
         }
         dictionary[AnsightChannels.Lifecycle] = AnsightChannel(AnsightChannels.Lifecycle, "Lifecycle", "#FF9500", null, "lifecycle")
         if (options.enableBatteryLevel) {
@@ -1575,6 +1942,9 @@ object AnsightRuntime {
         options.additionalChannels.forEach { dictionary[it.id] = it }
         return dictionary
     }
+
+    private fun framesPerSecondChannel(): AnsightChannel =
+        AnsightChannel(AnsightChannels.FramesPerSecond, "FPS", "#23B573", "fps", "frames")
 
     private fun validateChannel(channel: Int): Int {
         require(channel in 0..255) { "Channel ids must be between 0 and 255." }
@@ -1607,6 +1977,15 @@ object AnsightRuntime {
         }
     }
 
+    private fun shouldClearCachedPairingProfile(reasonCode: String?): Boolean =
+        reasonCode == PairingFailureCodes.PairingRequired ||
+            reasonCode == PairingFailureCodes.PairingTokenInvalid ||
+            reasonCode == PairingFailureCodes.PairingTokenExpired ||
+            reasonCode == PairingFailureCodes.PairingProofInvalid ||
+            reasonCode == PairingFailureCodes.UdpBootstrapFailed ||
+            reasonCode == PairingFailureCodes.UdpBootstrapTimeout ||
+            reasonCode == PairingFailureCodes.HostAddressRequired
+
     private fun loadSavedPairingConfig(app: Application): String? {
         return app.getSharedPreferences(options.hostConnection.savedConfigKey, Application.MODE_PRIVATE)
             .getString("payload", null)
@@ -1621,6 +2000,46 @@ object AnsightRuntime {
             .putLong("savedAtEpochMs", System.currentTimeMillis())
             .apply()
     }
+
+    private fun loadCachedPairingProfile(app: Application): ResolvedConnectionCandidate? {
+        val preferences = app.getSharedPreferences(cachedPairingProfileKey(), Application.MODE_PRIVATE)
+        val payload = preferences.getString("payload", null)?.trim()?.ifBlank { null }
+        val expiresAtEpochMs = preferences.getLong("expiresAtEpochMs", 0L)
+        if (payload == null || expiresAtEpochMs <= System.currentTimeMillis()) {
+            preferences.edit().clear().apply()
+            return null
+        }
+
+        return ResolvedConnectionCandidate(
+            payload = payload,
+            source = HostConnectionSource.CachedSession,
+            hostAddressOverride = preferences.getString("hostAddress", null)?.trim()?.ifBlank { null },
+        )
+    }
+
+    private fun saveCachedPairingProfile(app: Application, payload: String, hostAddress: String?) {
+        val normalizedPayload = payload.trim().ifBlank { return }
+        val now = System.currentTimeMillis()
+        val retentionMillis = synchronized(lock) {
+            options.hostConnection.connectionProfileRetentionSeconds.coerceAtLeast(1) * 1_000L
+        }
+        app.getSharedPreferences(cachedPairingProfileKey(), Application.MODE_PRIVATE)
+            .edit()
+            .putString("payload", normalizedPayload)
+            .putString("hostAddress", hostAddress?.trim()?.ifBlank { null })
+            .putLong("cachedAtEpochMs", now)
+            .putLong("expiresAtEpochMs", now + retentionMillis)
+            .apply()
+    }
+
+    private fun clearCachedPairingProfile(app: Application) {
+        app.getSharedPreferences(cachedPairingProfileKey(), Application.MODE_PRIVATE)
+            .edit()
+            .clear()
+            .apply()
+    }
+
+    private fun cachedPairingProfileKey(): String = "${options.hostConnection.savedConfigKey}.cached-profile"
 
     private fun runConnectionOffCallingThread(block: () -> HostConnectionResult): HostConnectionResult {
         val result = arrayOfNulls<HostConnectionResult>(1)
@@ -1655,6 +2074,7 @@ object AnsightRuntime {
         val source: HostConnectionSource,
         val shouldSaveOnSuccess: Boolean = false,
         val usedEmbeddedDeveloperPairing: Boolean = false,
+        val hostAddressOverride: String? = null,
     )
 
     private data class TelemetryBatch(
@@ -1665,7 +2085,7 @@ object AnsightRuntime {
 }
 
 private class AndroidFrameRateSampler {
-    private val mainHandler = Handler(Looper.getMainLooper())
+    private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
     private var running = false
     private var frameCount = 0
     private var lastSampleNanos = 0L
@@ -1704,6 +2124,9 @@ private class AndroidFrameRateSampler {
     }
 
     fun stop() {
+        if (!running) {
+            return
+        }
         running = false
         mainHandler.post {
             Choreographer.getInstance().removeFrameCallback(callback)

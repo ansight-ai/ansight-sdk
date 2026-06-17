@@ -17,13 +17,15 @@ import java.security.MessageDigest
 import java.util.Locale
 
 object AndroidFileSystemTools {
-    fun create(): List<AndroidTool> = listOf(
+    @JvmStatic
+    @JvmOverloads
+    fun create(options: AndroidFileSystemToolsOptions = AndroidFileSystemToolsOptions.Default): List<AndroidTool> = listOf(
         androidFileTool(
             FileSystemToolIds.ListDirectory,
             "List Directory",
             "Lists files inside an approved app root.",
         ) { args, context ->
-            val directory = AndroidFileSandbox.resolve(context.application, args, requireExisting = true, expectDirectory = true)
+            val directory = AndroidFileSandbox.resolve(context.application, args, options, requireExisting = true, expectDirectory = true)
             val entries = directory.file.listFiles()?.sortedBy { it.name.lowercase(Locale.US) } ?: emptyList()
             AndroidToolResult.success(
                 AndroidFileSandbox.describe(directory).put(
@@ -44,7 +46,7 @@ object AndroidFileSystemTools {
             "Read File",
             "Reads a UTF-8 text file inside an approved app root.",
         ) { args, context ->
-            val file = AndroidFileSandbox.resolve(context.application, args, requireExisting = true, expectDirectory = false)
+            val file = AndroidFileSandbox.resolve(context.application, args, options, requireExisting = true, expectDirectory = false)
             val maxBytes = args.intArg("maxBytes", 256 * 1024).coerceIn(1, 1024 * 1024)
             val bytes = file.file.readBytes()
             if (bytes.size > maxBytes) {
@@ -61,7 +63,7 @@ object AndroidFileSystemTools {
             "Get File Checksum",
             "Returns a SHA-256 checksum for a file.",
         ) { args, context ->
-            val file = AndroidFileSandbox.resolve(context.application, args, requireExisting = true, expectDirectory = false)
+            val file = AndroidFileSandbox.resolve(context.application, args, options, requireExisting = true, expectDirectory = false)
             val digest = MessageDigest.getInstance("SHA-256").digest(file.file.readBytes()).joinToString("") { "%02x".format(it) }
             AndroidToolResult.success(AndroidFileSandbox.describe(file).put("sha256", digest))
         },
@@ -70,7 +72,7 @@ object AndroidFileSystemTools {
             "Download File",
             "Returns a small file inline as base64.",
         ) { args, context ->
-            val file = AndroidFileSandbox.resolve(context.application, args, requireExisting = true, expectDirectory = false)
+            val file = AndroidFileSandbox.resolve(context.application, args, options, requireExisting = true, expectDirectory = false)
             val maxBytes = args.intArg("maxBytes", 512 * 1024).coerceIn(1, 1024 * 1024)
             val bytes = file.file.readBytes()
             if (bytes.size > maxBytes) {
@@ -91,7 +93,7 @@ object AndroidFileSystemTools {
             "Begin Binary Download",
             "Transfers a file over the WebSocket binary channel.",
         ) { args, context ->
-            val file = AndroidFileSandbox.resolve(context.application, args, requireExisting = true, expectDirectory = false)
+            val file = AndroidFileSandbox.resolve(context.application, args, options, requireExisting = true, expectDirectory = false)
             val transferId = args["transferId"]?.trim()?.ifBlank { null } ?: PairingFileTransferWireProtocol.newTransferId()
             val downloadId = args["downloadId"]?.trim()?.ifBlank { null } ?: context.requestId ?: transferId
             val chunkBytes = args.intArg("chunkBytes", 64 * 1024)
@@ -126,7 +128,7 @@ object AndroidFileSystemTools {
             "Writes a file inside an approved app root.",
             ToolScope.Write,
         ) { args, context ->
-            val file = AndroidFileSandbox.resolve(context.application, args, requireExisting = false, expectDirectory = false)
+            val file = AndroidFileSandbox.resolve(context.application, args, options, requireExisting = false, expectDirectory = false)
             file.file.parentFile?.mkdirs()
             val bytes = args["contentBase64"]?.let { Base64.decode(it, Base64.DEFAULT) }
                 ?: (args["content"] ?: "").toByteArray(Charsets.UTF_8)
@@ -139,10 +141,11 @@ object AndroidFileSystemTools {
             "Copies a file between approved app roots.",
             ToolScope.Write,
         ) { args, context ->
-            val source = AndroidFileSandbox.resolve(context.application, args, requireExisting = true, expectDirectory = false)
+            val source = AndroidFileSandbox.resolve(context.application, args, options, requireExisting = true, expectDirectory = false)
             val destination = AndroidFileSandbox.resolve(
                 context.application,
                 args,
+                options,
                 pathKey = "destinationPath",
                 rootKey = "destinationRoot",
                 requireExisting = false,
@@ -158,10 +161,11 @@ object AndroidFileSystemTools {
             "Moves a file between approved app roots.",
             ToolScope.Write,
         ) { args, context ->
-            val source = AndroidFileSandbox.resolve(context.application, args, requireExisting = true, expectDirectory = false)
+            val source = AndroidFileSandbox.resolve(context.application, args, options, requireExisting = true, expectDirectory = false)
             val destination = AndroidFileSandbox.resolve(
                 context.application,
                 args,
+                options,
                 pathKey = "destinationPath",
                 rootKey = "destinationRoot",
                 requireExisting = false,
@@ -180,7 +184,7 @@ object AndroidFileSystemTools {
             "Deletes a file inside an approved app root.",
             ToolScope.Delete,
         ) { args, context ->
-            val file = AndroidFileSandbox.resolve(context.application, args, requireExisting = true, expectDirectory = false)
+            val file = AndroidFileSandbox.resolve(context.application, args, options, requireExisting = true, expectDirectory = false)
             val deleted = file.file.delete()
             AndroidToolResult.success(AndroidFileSandbox.describe(file).put("deleted", deleted))
         },

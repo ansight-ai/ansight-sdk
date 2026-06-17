@@ -10,28 +10,40 @@ internal object AndroidDatabaseFileSandbox {
         fun relativePath(child: File = file): String = child.canonicalFile.relativeTo(root.canonicalFile).path
     }
 
-    fun roots(application: Application): Map<String, File> {
+    fun roots(
+        application: Application,
+        options: AndroidDatabaseToolsOptions = AndroidDatabaseToolsOptions.Default,
+    ): Map<String, File> {
         val roots = linkedMapOf<String, File>()
-        roots["appData"] = application.filesDir
-        roots["cache"] = application.cacheDir
-        if (Build.VERSION.SDK_INT >= 21) {
-            application.noBackupFilesDir?.let { roots["noBackup"] = it }
+        if (options.includePlatformRoots) {
+            roots["appData"] = application.filesDir
+            roots["cache"] = application.cacheDir
+            if (Build.VERSION.SDK_INT >= 21) {
+                application.noBackupFilesDir?.let { roots["noBackup"] = it }
+            }
+            application.getExternalFilesDir(null)?.let { roots["externalFiles"] = it }
+            application.getDatabasePath("__ansight_probe__").parentFile?.let { roots["databases"] = it }
         }
-        application.getExternalFilesDir(null)?.let { roots["externalFiles"] = it }
-        application.getDatabasePath("__ansight_probe__").parentFile?.let { roots["databases"] = it }
+        options.validated().additionalRoots.forEach { root ->
+            roots[root.alias] = File(root.path)
+        }
         return roots.mapValues { it.value.canonicalFile }
     }
 
     fun resolve(
         application: Application,
         args: Map<String, String>,
+        options: AndroidDatabaseToolsOptions = AndroidDatabaseToolsOptions.Default,
         pathKey: String = "path",
         rootKey: String = "root",
         requireExisting: Boolean,
         expectDirectory: Boolean,
     ): Resolved {
         val rootAlias = args[rootKey]?.trim()?.ifBlank { null } ?: "appData"
-        val root = roots(application)[rootAlias] ?: error("Unknown root '$rootAlias'.")
+        val rootEntry = roots(application, options).entries
+            .firstOrNull { it.key.equals(rootAlias, ignoreCase = true) }
+            ?: error("Unknown root '$rootAlias'.")
+        val root = rootEntry.value
         val relative = args[pathKey]?.trim()?.ifBlank { null } ?: "."
         val target = File(root, relative).canonicalFile
         require(target.path == root.path || target.path.startsWith(root.path + File.separator)) {
@@ -45,7 +57,7 @@ internal object AndroidDatabaseFileSandbox {
                 if (expectDirectory) "Path '$relative' is not a directory." else "Path '$relative' is not a file."
             }
         }
-        return Resolved(rootAlias, root, target)
+        return Resolved(rootEntry.key, root, target)
     }
 
     fun describe(resolved: Resolved): JSONObject = JSONObject()
@@ -58,8 +70,12 @@ internal object AndroidDatabaseFileSandbox {
         .put("sizeBytes", if (resolved.file.isFile) resolved.file.length() else JSONObject.NULL)
         .put("lastModifiedEpochMs", if (resolved.file.exists()) resolved.file.lastModified() else JSONObject.NULL)
 
-    fun describePath(application: Application, file: File): JSONObject {
-        val rootEntry = roots(application).entries
+    fun describePath(
+        application: Application,
+        file: File,
+        options: AndroidDatabaseToolsOptions = AndroidDatabaseToolsOptions.Default,
+    ): JSONObject {
+        val rootEntry = roots(application, options).entries
             .filter { file.canonicalPath.startsWith(it.value.canonicalPath) }
             .maxByOrNull { it.value.canonicalPath.length }
         val fallbackRoot = file.parentFile ?: file

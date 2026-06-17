@@ -13,6 +13,7 @@ Pod::Spec.new do |s|
   s.dependency "AnsightToolsDatabase", s.version.to_s
   s.dependency "AnsightToolsFileSystem", s.version.to_s
   s.dependency "AnsightToolsPreferences", s.version.to_s
+  s.dependency "AnsightToolsReflection", s.version.to_s
   s.dependency "AnsightToolsSecureStorage", s.version.to_s
   s.dependency "AnsightToolsVisualTree", s.version.to_s
   s.swift_version = "6.0"

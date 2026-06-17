@@ -9,19 +9,21 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 object AndroidDatabaseTools {
-    fun create(): List<AndroidTool> = listOf(
+    @JvmStatic
+    @JvmOverloads
+    fun create(options: AndroidDatabaseToolsOptions = AndroidDatabaseToolsOptions.Default): List<AndroidTool> = listOf(
         androidDatabaseTool(
             DatabaseToolIds.ListDatabases,
             "List Databases",
             "Lists SQLite database files in app-owned roots.",
         ) { _, context ->
-            val roots = AndroidDatabaseFileSandbox.roots(context.application)
+            val roots = AndroidDatabaseFileSandbox.roots(context.application, options)
             val databases = roots.values.flatMap { root ->
                 root.walkTopDown().maxDepth(4).filter { it.isFile && AndroidSQLiteSupport.isDatabase(it) }.toList()
             }.distinctBy { it.canonicalPath }
             AndroidToolResult.success(
                 JSONObject()
-                    .put("databases", JSONArray(databases.map { AndroidDatabaseFileSandbox.describePath(context.application, it) }))
+                    .put("databases", JSONArray(databases.map { AndroidDatabaseFileSandbox.describePath(context.application, it, options) }))
                     .put("count", databases.size),
             )
         },
@@ -30,7 +32,7 @@ object AndroidDatabaseTools {
             "Describe Schema",
             "Describes a SQLite database schema.",
         ) { args, context ->
-            val db = AndroidDatabaseFileSandbox.resolve(context.application, args, requireExisting = true, expectDirectory = false)
+            val db = AndroidDatabaseFileSandbox.resolve(context.application, args, options, requireExisting = true, expectDirectory = false)
             AndroidSQLiteSupport.openReadOnly(db.file).use { database ->
                 AndroidToolResult.success(AndroidDatabaseFileSandbox.describe(db).put("tables", AndroidSQLiteSupport.tables(database)))
             }
@@ -45,7 +47,7 @@ object AndroidDatabaseTools {
             if (!AndroidSQLiteSupport.isReadOnly(sql)) {
                 return@androidDatabaseTool AndroidToolResult.failure("Only read-only SQLite queries are supported.", "sql_not_read_only")
             }
-            val db = AndroidDatabaseFileSandbox.resolve(context.application, args, requireExisting = true, expectDirectory = false)
+            val db = AndroidDatabaseFileSandbox.resolve(context.application, args, options, requireExisting = true, expectDirectory = false)
             AndroidSQLiteSupport.openReadOnly(db.file).use { database ->
                 AndroidToolResult.success(
                     AndroidDatabaseFileSandbox.describe(db).put("query", AndroidSQLiteSupport.query(database, sql, args.intArg("limit", 100))),

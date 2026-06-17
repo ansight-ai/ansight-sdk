@@ -5,6 +5,7 @@ import XCTest
 @testable import AnsightToolsDatabase
 @testable import AnsightToolsFileSystem
 @testable import AnsightToolsPreferences
+@testable import AnsightToolsReflection
 @testable import AnsightToolsSecureStorage
 @testable import AnsightToolsVisualTree
 
@@ -45,6 +46,11 @@ final class AnsightAggregateTests: XCTestCase {
                 AnsightPreferencesToolIds.listKeys,
                 AnsightPreferencesToolIds.removeKey,
                 AnsightPreferencesToolIds.setValue,
+                AnsightReflectionToolIds.describeType,
+                AnsightReflectionToolIds.inspectObject,
+                AnsightReflectionToolIds.invokeMethod,
+                AnsightReflectionToolIds.listRoots,
+                AnsightReflectionToolIds.setMemberValue,
                 AnsightSecureStorageToolIds.getValue,
                 AnsightSecureStorageToolIds.removeKey,
                 AnsightSecureStorageToolIds.setValue,

@@ -3,5 +3,6 @@
 @_exported import AnsightToolsDatabase
 @_exported import AnsightToolsFileSystem
 @_exported import AnsightToolsPreferences
+@_exported import AnsightToolsReflection
 @_exported import AnsightToolsSecureStorage
 @_exported import AnsightToolsVisualTree

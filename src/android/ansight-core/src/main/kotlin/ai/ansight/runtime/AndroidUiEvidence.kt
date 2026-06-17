@@ -1,6 +1,9 @@
 package ai.ansight.runtime
 
 import android.app.Activity
+import android.app.Application
+import android.content.Context
+import android.content.ContextWrapper
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -77,9 +80,9 @@ object AndroidUiEvidence {
     private var streamBitmapHeight: Int = 0
 
     fun onActivityResumed(activity: Activity) {
-        currentActivity = WeakReference(activity)
-        installTouchCallback(activity)
-        attachOverlaySurface(activity)
+        runOnMain {
+            bindActivity(activity)
+        }
     }
 
     fun onActivityDestroyed(activity: Activity) {
@@ -93,10 +96,23 @@ object AndroidUiEvidence {
 
     fun setTouchCaptureEnabled(enabled: Boolean, handler: ((CapturedTouch) -> Unit)?) {
         touchHandler = if (enabled) handler else null
-        currentActivity.get()?.let { activity -> installTouchCallback(activity) }
+        runOnMain {
+            currentActivity.get()?.let { activity -> installTouchCallback(activity) }
+        }
     }
 
     fun currentActivity(): Activity? = currentActivity.get()
+
+    fun bindCurrentActivity(application: Application? = null): Activity? {
+        return runOnMain {
+            val activity = currentActivity.get()?.takeIf { it.isUsableFor(application) }
+                ?: reflectedWindowActivity(application)
+                ?: reflectedActivityThreadActivity(application)
+                ?: return@runOnMain null
+            bindActivity(activity)
+            activity
+        }
+    }
 
     fun captureScreenshot(format: String = "jpeg", quality: Int = 80, maxWidth: Int? = null): CapturedScreenshot {
         return captureScreenshot(format, quality, maxWidth, reuseStreamBitmap = false)
@@ -117,7 +133,7 @@ object AndroidUiEvidence {
 
     private fun captureScreenshot(format: String, quality: Int, maxWidth: Int?, reuseStreamBitmap: Boolean): CapturedScreenshot {
         return runOnMain {
-            val activity = currentActivity.get() ?: error("No resumed Android activity is available for screenshot capture.")
+            val activity = currentActivity.get() ?: bindCurrentActivity() ?: error("No resumed Android activity is available for screenshot capture.")
             val activityRoot = activity.window.decorView.rootView ?: error("No Android root view is available for screenshot capture.")
             if (activityRoot.width <= 0 || activityRoot.height <= 0) {
                 error("Android root view has no renderable size.")
@@ -328,6 +344,15 @@ object AndroidUiEvidence {
     }
 
     private fun reflectedWindowRoots(activity: Activity): List<View> {
+        val activityRoot = activity.window.decorView.rootView
+        return reflectedWindowRoots()
+            .filter { view ->
+                view.rootView === activityRoot ||
+                    runCatching { view.context.applicationContext === activity.applicationContext }.getOrDefault(false)
+            }
+    }
+
+    private fun reflectedWindowRoots(): List<View> {
         return try {
             val globalClass = Class.forName("android.view.WindowManagerGlobal")
             val getInstance = globalClass.getDeclaredMethod("getInstance")
@@ -342,10 +367,7 @@ object AndroidUiEvidence {
             rawViews
                 .filterIsInstance<View>()
                 .map { it.rootView ?: it }
-                .filter { view ->
-                    view.isRenderable() &&
-                        runCatching { view.context.applicationContext === activity.applicationContext }.getOrDefault(false)
-                }
+                .filter { view -> view.isRenderable() }
         } catch (_: Exception) {
             emptyList()
         }
@@ -353,7 +375,7 @@ object AndroidUiEvidence {
 
     fun visualTree(maxDepth: Int = 40, maxNodes: Int = 2_000): JSONObject {
         return runOnMain {
-            val activity = currentActivity.get() ?: error("No resumed Android activity is available for visual tree capture.")
+            val activity = currentActivity.get() ?: bindCurrentActivity() ?: error("No resumed Android activity is available for visual tree capture.")
             val root = activity.window.decorView.rootView ?: error("No Android root view is available for visual tree capture.")
             val counter = NodeCounter(maxNodes.coerceAtLeast(1))
             JSONObject()
@@ -435,7 +457,7 @@ object AndroidUiEvidence {
         val window = activity.window ?: return
         val key = System.identityHashCode(window)
         val existing = callbackWrappers[key]
-        if (existing != null && existing.activity.get() === activity) {
+        if (existing != null && existing.activity.get() === activity && window.callback === existing) {
             return
         }
 
@@ -450,6 +472,42 @@ object AndroidUiEvidence {
         }
         callbackWrappers[key] = wrapper
         window.callback = wrapper
+    }
+
+    private fun bindActivity(activity: Activity) {
+        currentActivity = WeakReference(activity)
+        installTouchCallback(activity)
+        attachOverlaySurface(activity)
+    }
+
+    private fun reflectedWindowActivity(application: Application?): Activity? {
+        return reflectedWindowRoots()
+            .asSequence()
+            .mapNotNull { view -> view.context.activityOrNull() }
+            .firstOrNull { activity -> activity.isUsableFor(application) }
+    }
+
+    private fun reflectedActivityThreadActivity(application: Application?): Activity? {
+        return try {
+            val threadClass = Class.forName("android.app.ActivityThread")
+            val currentThread = threadClass.getDeclaredMethod("currentActivityThread").invoke(null) ?: return null
+            val activitiesField = threadClass.getDeclaredField("mActivities").apply { isAccessible = true }
+            val records = (activitiesField.get(currentThread) as? Map<*, *>)?.values ?: return null
+            val candidates = records.mapNotNull { record ->
+                val actualRecord = record ?: return@mapNotNull null
+                val activity = actualRecord.fieldValue("activity") as? Activity ?: return@mapNotNull null
+                val paused = actualRecord.booleanFieldValue("paused") ?: actualRecord.booleanFieldValue("mPaused")
+                val stopped = actualRecord.booleanFieldValue("stopped") ?: actualRecord.booleanFieldValue("mStopped")
+                ActivityRecordCandidate(activity, paused, stopped)
+            }
+            candidates.firstOrNull { candidate ->
+                candidate.activity.isUsableFor(application) && candidate.paused == false && candidate.stopped == false
+            }?.activity ?: candidates.firstOrNull { candidate ->
+                candidate.activity.isUsableFor(application)
+            }?.activity
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private fun captureTouch(activity: Activity, event: MotionEvent) {
@@ -625,6 +683,12 @@ object AndroidUiEvidence {
         val zIndex: Int,
     )
 
+    private data class ActivityRecordCandidate(
+        val activity: Activity,
+        val paused: Boolean?,
+        val stopped: Boolean?,
+    )
+
     private class NodeCounter(private val maxNodes: Int) {
         var count = 0
             private set
@@ -726,6 +790,44 @@ private fun View.boundsInScreen(): Rect {
 
 private fun View.isRenderable(): Boolean =
     width > 0 && height > 0 && visibility == View.VISIBLE && isShown && alpha > 0f
+
+private fun Activity.isUsableFor(application: Application?): Boolean {
+    if (application != null && this.application !== application) {
+        return false
+    }
+    if (isFinishing) {
+        return false
+    }
+    if (booleanFieldValue("mStopped") == true) {
+        return false
+    }
+    return Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR1 || !isDestroyed
+}
+
+private fun Context.activityOrNull(): Activity? {
+    var current: Context? = this
+    while (current is ContextWrapper) {
+        if (current is Activity) {
+            return current
+        }
+        current = current.baseContext
+    }
+    return current as? Activity
+}
+
+private fun Any.fieldValue(name: String): Any? {
+    var type: Class<*>? = javaClass
+    while (type != null) {
+        try {
+            return type.getDeclaredField(name).apply { isAccessible = true }.get(this)
+        } catch (_: Exception) {
+            type = type.superclass
+        }
+    }
+    return null
+}
+
+private fun Any.booleanFieldValue(name: String): Boolean? = fieldValue(name) as? Boolean
 
 private fun View.forEachDescendant(action: (View) -> Unit) {
     action(this)

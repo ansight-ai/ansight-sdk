@@ -47,6 +47,7 @@ public final class AnsightRuntime: @unchecked Sendable {
     private var channels: [Int: AnsightChannel] = [:]
     private var metricStreams: [Int: AnsightMetricStream] = [:]
     private var tools: [String: RegisteredTool] = [:]
+    private var artifactProviders: [String: any AnsightArtifactProvider] = [:]
     private var lastPairingDocument: ParsedPairingDocument?
     private var resolvedHostAddress: String?
     private var currentLifecycleState: AppLifecycleState = .unknown
@@ -72,6 +73,7 @@ public final class AnsightRuntime: @unchecked Sendable {
     private var screenCaptureTask: Task<Void, Never>?
     private let lifecycleObserver = AnsightLifecycleObserver()
     private var frameRateSampler: AnsightFrameRateSampler?
+    private var frameRateTrackingEnabled = false
     private var touchCaptureSession: AnsightTouchCaptureSession?
     private var touchCaptureStreamer: AnsightTouchCaptureStreamer?
     private var screenCaptureGeneration = 0
@@ -80,14 +82,19 @@ public final class AnsightRuntime: @unchecked Sendable {
     private var lastScreenCaptureMessage: String?
     private var lastFrameRate: Int?
     private var touchCaptureRuntimeEnabled = true
+    private var touchCaptureGuard: (@Sendable () -> Bool)?
     private var touchesCaptured = 0
     private var touchesSent = 0
     private var lastTouchCaptureMessage: String?
     private var pendingBinaryTransfers: [String: AnsightPendingBinaryTransfer] = [:]
+    private var hostConnectionStatusListeners: [UUID: HostConnectionStatusListener] = [:]
+    private var lastPublishedHostConnectionStatus: HostConnectionStatus?
+    private var lastPublishedHostConnectionCapabilities: HostConnectionCapabilities?
 
     private init() {}
 
     public func initialize(options: AnsightOptions = .init()) throws {
+        AnsightLogger.info("Initializing Ansight runtime.")
         lock.withLock {
             telemetryGeneration += 1
             active = false
@@ -134,7 +141,9 @@ public final class AnsightRuntime: @unchecked Sendable {
             screenFramesSent = 0
             lastScreenCaptureMessage = nil
             lastFrameRate = nil
+            frameRateTrackingEnabled = validatedOptions.enableFramesPerSecond
             touchCaptureRuntimeEnabled = validatedOptions.touchCapture != nil
+            touchCaptureGuard = nil
             touchesCaptured = 0
             touchesSent = 0
             lastTouchCaptureMessage = nil
@@ -150,6 +159,8 @@ public final class AnsightRuntime: @unchecked Sendable {
             lastDisconnectedAtUtc = nil
             sessionMessage = "Runtime initialized."
         }
+        publishHostConnectionStatusIfChanged(force: true)
+        AnsightLogger.info("Ansight runtime initialized.")
     }
 
     public func initializeAndActivate(options: AnsightOptions = .init()) throws {
@@ -190,6 +201,8 @@ public final class AnsightRuntime: @unchecked Sendable {
         if activation.shouldStartAutoProbe {
             startAutoProbeIfNeeded()
         }
+        publishHostConnectionStatusIfChanged()
+        AnsightLogger.info("Ansight runtime activated.")
     }
 
     public func deactivate() {
@@ -226,10 +239,12 @@ public final class AnsightRuntime: @unchecked Sendable {
             pendingBinaryTransfers.removeAll()
             sessionMessage = "Runtime deactivated."
         }
+        publishHostConnectionStatusIfChanged()
 
         Task {
             await liveTransport.close(notify: false)
         }
+        AnsightLogger.info("Ansight runtime deactivated.")
     }
 
     public func clear() {
@@ -257,6 +272,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             pendingBinaryTransfers.removeAll()
             sessionMessage = "Runtime buffers cleared."
         }
+        publishHostConnectionStatusIfChanged()
     }
 
     public func clearSavedPairing() {
@@ -264,6 +280,7 @@ public final class AnsightRuntime: @unchecked Sendable {
         lock.withLock {
             sessionMessage = "Saved pairing config cleared."
         }
+        publishHostConnectionStatusIfChanged()
     }
 
     public func clearCachedSession() {
@@ -271,12 +288,70 @@ public final class AnsightRuntime: @unchecked Sendable {
         lock.withLock {
             sessionMessage = "Cached pairing session cleared."
         }
+        publishHostConnectionStatusIfChanged()
+    }
+
+    public func savePairingConfig(_ pairingJson: String, expectedAppId: String? = nil) -> HostConnectionResult {
+        let isInitialized = lock.withLock { initialized }
+        guard isInitialized else {
+            return HostConnectionResult(
+                success: false,
+                message: "AnsightRuntime must be initialized before saving a pairing config.",
+                kind: .savedConfig,
+                source: .savedConfig
+            )
+        }
+
+        let trimmedJson = pairingJson.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedJson.isEmpty else {
+            return HostConnectionResult(
+                success: false,
+                message: "Pairing config JSON is required.",
+                kind: .savedConfig,
+                source: .savedConfig
+            )
+        }
+
+        let normalizedExpectedAppId = expectedAppId?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let bundleId = Bundle.main.bundleIdentifier?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let effectiveExpectedAppId: String?
+        if let normalizedExpectedAppId, !normalizedExpectedAppId.isEmpty {
+            effectiveExpectedAppId = normalizedExpectedAppId
+        } else if let bundleId, !bundleId.isEmpty {
+            effectiveExpectedAppId = bundleId
+        } else {
+            effectiveExpectedAppId = nil
+        }
+
+        do {
+            _ = try pairingDocumentService.parseAndValidateDocument(trimmedJson, expectedAppId: effectiveExpectedAppId)
+            try savedPairingStore.save(trimmedJson)
+            lock.withLock {
+                sessionMessage = "Saved pairing config."
+            }
+            publishHostConnectionStatusIfChanged()
+            return HostConnectionResult(
+                success: true,
+                message: "Saved pairing config.",
+                kind: .savedConfig,
+                source: .savedConfig
+            )
+        } catch {
+            return HostConnectionResult(
+                success: false,
+                message: error.localizedDescription,
+                kind: .savedConfig,
+                source: .savedConfig,
+                reasonCode: reasonCode(for: error)
+            )
+        }
     }
 
     public func setHostConnectionConfigReader(_ reader: (any HostConnectionConfigReading)?) {
         lock.withLock {
             hostConnectionConfigReader = reader
         }
+        publishHostConnectionStatusIfChanged(force: true)
     }
 
     func replacePairingStoresForTesting(saved: any PairingConfigStore, cached: any PairingConfigStore) {
@@ -302,6 +377,44 @@ public final class AnsightRuntime: @unchecked Sendable {
 
     func saveCachedPairingProfileForTesting(_ document: PairingConfigDocument) {
         saveCachedPairingProfile(document)
+    }
+
+    public var isFramesPerSecondEnabled: Bool {
+        lock.withLock { frameRateTrackingEnabled }
+    }
+
+    public func enableFramesPerSecond() {
+        let shouldStart = lock.withLock { () -> Bool in
+            frameRateTrackingEnabled = true
+            channels[AnsightChannels.framesPerSecond] = AnsightChannels.framesPerSecondChannel
+            sessionMessage = "Frames-per-second sampling enabled."
+            return active
+        }
+
+        if shouldStart {
+            startFrameRateSamplingIfNeeded()
+        }
+    }
+
+    public func disableFramesPerSecond() {
+        lock.withLock {
+            frameRateTrackingEnabled = false
+            sessionMessage = "Frames-per-second sampling disabled."
+        }
+        stopFrameRateSampling()
+    }
+
+    public var isTouchCaptureEnabled: Bool {
+        lock.withLock {
+            initialized && options.touchCapture != nil && touchCaptureRuntimeEnabled
+        }
+    }
+
+    public func setTouchCaptureGuard(_ guardCallback: (@Sendable () -> Bool)?) {
+        lock.withLock {
+            touchCaptureGuard = guardCallback
+            sessionMessage = guardCallback == nil ? "Touch capture guard cleared." : "Touch capture guard configured."
+        }
     }
 
     public func enableTouchCapture() {
@@ -548,7 +661,7 @@ public final class AnsightRuntime: @unchecked Sendable {
     func recordFrameRateSample(_ framesPerSecond: Int) {
         let normalized = max(0, min(framesPerSecond, 1_000))
         lock.withLock {
-            guard initialized, active, options.enableFramesPerSecond else {
+            guard initialized, active, frameRateTrackingEnabled else {
                 return
             }
 
@@ -559,6 +672,11 @@ public final class AnsightRuntime: @unchecked Sendable {
     }
 
     func recordCapturedTouch(_ touch: AnsightCapturedTouch) {
+        let guardCallback = lock.withLock { touchCaptureGuard }
+        if let guardCallback, !guardCallback() {
+            return
+        }
+
         let streamer = lock.withLock { () -> AnsightTouchCaptureStreamer? in
             guard initialized,
                   active,
@@ -620,6 +738,7 @@ public final class AnsightRuntime: @unchecked Sendable {
         do {
             resolvedRequests = try await resolveConnectionRequestsForConnect(request)
         } catch {
+            AnsightLogger.warning(error.localizedDescription, error: error)
             return HostConnectionResult(
                 success: false,
                 message: error.localizedDescription,
@@ -638,9 +757,11 @@ public final class AnsightRuntime: @unchecked Sendable {
                 clientName: clientName
             )
             if result.success {
+                AnsightLogger.info("Connected to Ansight host.")
                 return result
             }
 
+            AnsightLogger.warning(result.message)
             lastResult = result
             cleanUpFailedAutoConnectionCandidate(resolvedRequest, result: result)
             guard shouldTryNextAutoConnectionCandidate(
@@ -666,7 +787,7 @@ public final class AnsightRuntime: @unchecked Sendable {
         originalRequest request: HostConnectionRequest,
         clientName: String
     ) async -> HostConnectionResult {
-        let expectedAppId = requestExpectedAppId(for: resolvedRequest.document)
+        let expectedAppId = requestExpectedAppId(for: resolvedRequest.document, request: request)
         do {
             try pairingDocumentService.validateDocument(resolvedRequest.document, expectedAppId: expectedAppId)
             try validatePinnedHostIdentity(for: resolvedRequest.document, source: resolvedRequest.source)
@@ -684,9 +805,10 @@ public final class AnsightRuntime: @unchecked Sendable {
             connectionState = .connecting
             sessionMessage = "Connecting to Ansight host."
         }
+        publishHostConnectionStatusIfChanged()
 
         let connectionOptions = PairingConnectionOptions(
-            hostAddressOverride: nil,
+            hostAddressOverride: request.hostAddressOverride,
             discoveryPort: options.hostConnection.discoveryPort,
             deviceAppProfile: nextDeviceProfile(),
             customProperties: options.customProperties
@@ -707,6 +829,7 @@ public final class AnsightRuntime: @unchecked Sendable {
                 lastStreamedEventSequence = 0
                 sessionMessage = attempt.message
             }
+            publishHostConnectionStatusIfChanged()
 
             let open = OpenSessionResult(
                 success: false,
@@ -746,6 +869,7 @@ public final class AnsightRuntime: @unchecked Sendable {
                 lastStreamedEventSequence = 0
                 sessionMessage = sessionOpenAttempt.result.message
             }
+            publishHostConnectionStatusIfChanged()
             return HostConnectionResult(
                 success: false,
                 message: sessionOpenAttempt.result.message,
@@ -767,6 +891,7 @@ public final class AnsightRuntime: @unchecked Sendable {
                 lastStreamedEventSequence = 0
                 sessionMessage = profileResult.message
             }
+            publishHostConnectionStatusIfChanged()
             return HostConnectionResult(
                 success: false,
                 message: profileResult.message,
@@ -795,6 +920,7 @@ public final class AnsightRuntime: @unchecked Sendable {
                 lastStreamedEventSequence = 0
                 sessionMessage = touchCaptureResult.message
             }
+            publishHostConnectionStatusIfChanged()
             return HostConnectionResult(
                 success: false,
                 message: touchCaptureResult.message,
@@ -815,6 +941,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             lastDisconnectedAtUtc = nil
             sessionMessage = attempt.message
         }
+        publishHostConnectionStatusIfChanged()
         streamPendingTelemetry()
 
         startScreenCaptureIfNeeded()
@@ -975,6 +1102,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             pendingBinaryTransfers.removeAll()
             sessionMessage = "Session disconnected."
         }
+        publishHostConnectionStatusIfChanged()
         return HostConnectionResult(
             success: true,
             message: "Session disconnected.",
@@ -1011,6 +1139,7 @@ public final class AnsightRuntime: @unchecked Sendable {
                 active &&
                 options.hostAutoProbe.enabled
         }
+        publishHostConnectionStatusIfChanged()
 
         if shouldReconnect {
             startAutoProbeIfNeeded()
@@ -1018,7 +1147,13 @@ public final class AnsightRuntime: @unchecked Sendable {
     }
 
     public func openLiveSession(pairingJson: String, options: PairingOpenOptions) async throws -> OpenSessionResult {
-        let request = HostConnectionRequest.payloadText(pairingJson, clientName: options.clientName)
+        let request = HostConnectionRequest.payloadText(
+            pairingJson,
+            clientName: options.clientName,
+            expectedAppId: options.expectedAppId,
+            hostAddressOverride: options.hostAddressOverride,
+            sourceDescription: "PairingOpenOptions"
+        )
         let result = await connect(request)
         return result.openSession ?? OpenSessionResult(
             success: result.success,
@@ -1029,7 +1164,7 @@ public final class AnsightRuntime: @unchecked Sendable {
     }
 
     public func openSession(pairingJson: String, options: PairingOpenOptions) throws -> OpenSessionResult {
-        try lock.withLock {
+        let result = try lock.withLock {
             guard initialized else {
                 throw RuntimeError.notInitialized("AnsightRuntime must be initialized before opening a session.")
             }
@@ -1085,6 +1220,10 @@ public final class AnsightRuntime: @unchecked Sendable {
                 discoverySource: document.discoveryHint?.source
             )
         }
+        if result.success {
+            publishHostConnectionStatusIfChanged()
+        }
+        return result
     }
 
     public func sendClientLog(_ logLine: String) async -> OperationResult {
@@ -1179,20 +1318,32 @@ public final class AnsightRuntime: @unchecked Sendable {
             pendingBinaryTransfers.removeAll()
             sessionMessage = "Session closed."
         }
+        publishHostConnectionStatusIfChanged()
 
         Task {
             await liveTransport.close(notify: false)
         }
     }
 
-    public func registerTool(_ tool: AnsightToolDescriptor) throws {
+    public func isToolRegistered(_ toolId: String) -> Bool {
+        let normalizedId = AnsightToolProtocolBridge.normalizedToolId(toolId)
+        guard !normalizedId.isEmpty else {
+            return false
+        }
+
+        return lock.withLock {
+            tools[normalizedId] != nil
+        }
+    }
+
+    public func registerTool(_ tool: AnsightToolDescriptor, replaceExisting: Bool = false) throws {
         let normalizedId = AnsightToolProtocolBridge.normalizedToolId(tool.id)
         guard !normalizedId.isEmpty else {
             throw RuntimeError.invalidInput("Tool id must not be blank.")
         }
 
         try lock.withLock {
-            guard tools[normalizedId] == nil else {
+            guard replaceExisting || tools[normalizedId] == nil else {
                 throw RuntimeError.invalidInput("A tool with id '\(tool.id)' has already been registered.")
             }
 
@@ -1201,7 +1352,7 @@ public final class AnsightRuntime: @unchecked Sendable {
         }
     }
 
-    public func registerTool(_ tool: any AnsightTool) throws {
+    public func registerTool(_ tool: any AnsightTool, replaceExisting: Bool = false) throws {
         let descriptor = tool.descriptor
         let normalizedId = AnsightToolProtocolBridge.normalizedToolId(descriptor.id)
         guard !normalizedId.isEmpty else {
@@ -1209,7 +1360,7 @@ public final class AnsightRuntime: @unchecked Sendable {
         }
 
         try lock.withLock {
-            guard tools[normalizedId] == nil else {
+            guard replaceExisting || tools[normalizedId] == nil else {
                 throw RuntimeError.invalidInput("A tool with id '\(descriptor.id)' has already been registered.")
             }
 
@@ -1218,6 +1369,127 @@ public final class AnsightRuntime: @unchecked Sendable {
                 execute: tool.execute(arguments:)
             )
             sessionMessage = "Registered executable tool \(descriptor.id)."
+        }
+    }
+
+    private func registerExecutableTool(
+        _ descriptor: AnsightToolDescriptor,
+        replaceExisting: Bool = false,
+        execute: @escaping ([String: String]) throws -> AnsightToolExecutionResult
+    ) throws {
+        let normalizedId = AnsightToolProtocolBridge.normalizedToolId(descriptor.id)
+        guard !normalizedId.isEmpty else {
+            throw RuntimeError.invalidInput("Tool id must not be blank.")
+        }
+
+        try lock.withLock {
+            guard replaceExisting || tools[normalizedId] == nil else {
+                throw RuntimeError.invalidInput("A tool with id '\(descriptor.id)' has already been registered.")
+            }
+
+            tools[normalizedId] = RegisteredTool(
+                descriptor: descriptor,
+                execute: execute
+            )
+            sessionMessage = "Registered executable tool \(descriptor.id)."
+        }
+    }
+
+    public func registerArtifactProvider(
+        _ provider: any AnsightArtifactProvider,
+        replaceExisting: Bool = false
+    ) throws {
+        let descriptor = try provider.descriptor.validated()
+        let normalizedId = descriptor.id.lowercased()
+
+        try lock.withLock {
+            guard replaceExisting || artifactProviders[normalizedId] == nil else {
+                throw RuntimeError.invalidInput("An artifact provider with id '\(descriptor.id)' has already been registered.")
+            }
+
+            artifactProviders[normalizedId] = provider
+            sessionMessage = "Registered artifact provider \(descriptor.id)."
+        }
+
+        try registerArtifactToolsIfNeeded()
+    }
+
+    public func registerArtifactProviders(
+        _ providers: [any AnsightArtifactProvider],
+        replaceExisting: Bool = false
+    ) throws {
+        for provider in providers {
+            try registerArtifactProvider(provider, replaceExisting: replaceExisting)
+        }
+    }
+
+    @discardableResult
+    public func unregisterArtifactProvider(_ providerId: String) -> Bool {
+        let normalizedId = providerId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !normalizedId.isEmpty else {
+            return false
+        }
+
+        return lock.withLock {
+            let removed = artifactProviders.removeValue(forKey: normalizedId) != nil
+            if removed {
+                sessionMessage = "Unregistered artifact provider \(providerId)."
+            }
+
+            return removed
+        }
+    }
+
+    public func clearArtifactProviders() {
+        lock.withLock {
+            artifactProviders.removeAll()
+            sessionMessage = "Cleared artifact providers."
+        }
+    }
+
+    public func registeredArtifactProviderIds() -> [String] {
+        lock.withLock {
+            artifactProviders.values
+                .compactMap { try? $0.descriptor.validated().id }
+                .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        }
+    }
+
+    public func registeredArtifactProviders() -> [any AnsightArtifactProvider] {
+        lock.withLock {
+            artifactProviders.values.sorted { lhs, rhs in
+                let lhsId = (try? lhs.descriptor.validated().id) ?? lhs.descriptor.id
+                let rhsId = (try? rhs.descriptor.validated().id) ?? rhs.descriptor.id
+                return lhsId.localizedCaseInsensitiveCompare(rhsId) == .orderedAscending
+            }
+        }
+    }
+
+    public func registerArtifactTools(replaceExisting: Bool = false) throws {
+        let providers: @Sendable () -> [any AnsightArtifactProvider] = { [weak self] in
+            self?.registeredArtifactProviders() ?? []
+        }
+
+        let queryDescriptor = AnsightArtifactToolSupport.queryDescriptor
+        if replaceExisting || !isToolRegistered(queryDescriptor.id) {
+            try registerExecutableTool(queryDescriptor, replaceExisting: replaceExisting) { arguments in
+                try AnsightArtifactToolSupport.executeQuery(arguments: arguments, providers: providers)
+            }
+        }
+
+        let requestDescriptor = AnsightArtifactToolSupport.requestDescriptor
+        if replaceExisting || !isToolRegistered(requestDescriptor.id) {
+            try registerExecutableTool(requestDescriptor, replaceExisting: replaceExisting) { [weak self] arguments in
+                guard let self else {
+                    return .failure("AnsightRuntime is no longer available.", errorCode: "artifact_request_failed")
+                }
+
+                return try AnsightArtifactToolSupport.executeRequest(
+                    arguments: arguments,
+                    providers: providers,
+                    runtime: self
+                )
+            }
         }
     }
 
@@ -1231,6 +1503,10 @@ public final class AnsightRuntime: @unchecked Sendable {
         }
 
         return try bridge.handleIfSupported(json)
+    }
+
+    private func registerArtifactToolsIfNeeded() throws {
+        try registerArtifactTools(replaceExisting: false)
     }
 
     public func queueBinaryTransfer(
@@ -1323,6 +1599,43 @@ public final class AnsightRuntime: @unchecked Sendable {
         lock.withLock { hostConnectionStatusLocked }
     }
 
+    public func hostConnectionCapabilities() -> HostConnectionCapabilities {
+        lock.withLock { hostConnectionCapabilitiesLocked }
+    }
+
+    @discardableResult
+    public func addHostConnectionStatusListener(
+        emitCurrent: Bool = true,
+        _ listener: @escaping HostConnectionStatusListener
+    ) -> HostConnectionStatusSubscription {
+        let listenerId = UUID()
+        let current = lock.withLock { () -> HostConnectionSnapshot? in
+            hostConnectionStatusListeners[listenerId] = listener
+            guard emitCurrent else {
+                return nil
+            }
+
+            let snapshot = hostConnectionSnapshotLocked()
+            lastPublishedHostConnectionStatus = snapshot.status
+            lastPublishedHostConnectionCapabilities = snapshot.capabilities
+            return snapshot
+        }
+
+        if let current {
+            listener(current.status, current.capabilities)
+        }
+
+        return HostConnectionStatusSubscription { [weak self] in
+            guard let self else {
+                return
+            }
+
+            self.lock.withLock {
+                self.hostConnectionStatusListeners.removeValue(forKey: listenerId)
+            }
+        }
+    }
+
     public func snapshot() -> AnsightDebugSnapshot {
         lock.withLock {
             let executableTools = tools.values.filter { $0.execute != nil }.count
@@ -1365,6 +1678,41 @@ public final class AnsightRuntime: @unchecked Sendable {
 
     public func currentOptions() -> AnsightOptions {
         lock.withLock { options }
+    }
+
+    public func notifyHostConnectionConfigChanged() -> HostConnectionResult {
+        let result = lock.withLock {
+            guard initialized else {
+                return HostConnectionResult(
+                    success: false,
+                    message: "AnsightRuntime must be initialized before refreshing host connection config state.",
+                    kind: .config,
+                    source: .configReader
+                )
+            }
+
+            let status = hostConnectionStatusLocked
+            sessionMessage = status.summaryMessage
+            let source: HostConnectionSource
+            if options.hostConnection.bundledDeveloperConfigJson != nil ||
+                AnsightDeveloperMode.embeddedPairingJson != nil {
+                source = .bundledDeveloperConfig
+            } else if hasBundledConfigLocked {
+                source = .bundledConfig
+            } else {
+                source = .configReader
+            }
+            return HostConnectionResult(
+                success: true,
+                message: status.summaryMessage,
+                kind: hasBundledConfigLocked ? .bundledConfig : .config,
+                source: source
+            )
+        }
+        if result.success {
+            publishHostConnectionStatusIfChanged(force: true)
+        }
+        return result
     }
 
     public func recordedMetrics() -> [RecordedMetric] {
@@ -1516,7 +1864,7 @@ public final class AnsightRuntime: @unchecked Sendable {
         let sampler = lock.withLock { () -> AnsightFrameRateSampler? in
             guard initialized,
                   active,
-                  options.enableFramesPerSecond,
+                  frameRateTrackingEnabled,
                   frameRateSampler == nil
             else {
                 return nil
@@ -2292,7 +2640,7 @@ public final class AnsightRuntime: @unchecked Sendable {
         switch request.kind {
         case .auto:
             var resolvedRequests: [ResolvedConnectionRequest] = []
-            if let embedded = AnsightDeveloperMode.embeddedPairingJson {
+            if let embedded = lock.withLock({ options.hostConnection.bundledDeveloperConfigJson }) ?? AnsightDeveloperMode.embeddedPairingJson {
                 resolvedRequests.append(try resolvedRequest(
                     fromPayload: embedded,
                     source: .bundledDeveloperConfig,
@@ -2324,11 +2672,11 @@ public final class AnsightRuntime: @unchecked Sendable {
             }
             return [try resolvedRequest(fromPayload: savedJson, source: .savedConfig, usedEmbeddedDeveloperPairing: false)]
         case .bundledConfig:
+            if let embedded = lock.withLock({ options.hostConnection.bundledDeveloperConfigJson }) ?? AnsightDeveloperMode.embeddedPairingJson {
+                return [try resolvedRequest(fromPayload: embedded, source: .bundledDeveloperConfig, usedEmbeddedDeveloperPairing: true)]
+            }
             if let bundled = lock.withLock({ options.hostConnection.bundledConfigJson }) {
                 return [try resolvedRequest(fromPayload: bundled, source: .bundledConfig, usedEmbeddedDeveloperPairing: false)]
-            }
-            if let embedded = AnsightDeveloperMode.embeddedPairingJson {
-                return [try resolvedRequest(fromPayload: embedded, source: .bundledDeveloperConfig, usedEmbeddedDeveloperPairing: true)]
             }
             throw PairingDocumentError.invalidDocument("No bundled pairing config is available.")
         case .payload:
@@ -2419,7 +2767,14 @@ public final class AnsightRuntime: @unchecked Sendable {
         saveCachedPairingProfileDocuments(profiles)
     }
 
-    private func requestExpectedAppId(for document: ParsedPairingDocument) -> String? {
+    private func requestExpectedAppId(
+        for document: ParsedPairingDocument,
+        request: HostConnectionRequest
+    ) -> String? {
+        let expectedAppId = request.expectedAppId?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if expectedAppId?.isEmpty == false {
+            return expectedAppId
+        }
         let bundleId = Bundle.main.bundleIdentifier?.trimmingCharacters(in: .whitespacesAndNewlines)
         return bundleId?.isEmpty == false ? bundleId : document.config.appId
     }
@@ -2469,6 +2824,46 @@ public final class AnsightRuntime: @unchecked Sendable {
         let cutoffIso = AnsightClock.isoString(from: cutoff)
         metrics.removeAll { $0.capturedAtUtc < cutoffIso }
         events.removeAll { $0.capturedAtUtc < cutoffIso }
+    }
+
+    private func publishHostConnectionStatusIfChanged(force: Bool = false) {
+        let notification = lock.withLock { () -> HostConnectionStatusNotification? in
+            let snapshot = hostConnectionSnapshotLocked()
+            if !force,
+               snapshot.status == lastPublishedHostConnectionStatus,
+               snapshot.capabilities == lastPublishedHostConnectionCapabilities {
+                return nil
+            }
+
+            lastPublishedHostConnectionStatus = snapshot.status
+            lastPublishedHostConnectionCapabilities = snapshot.capabilities
+
+            guard !hostConnectionStatusListeners.isEmpty else {
+                return nil
+            }
+
+            return HostConnectionStatusNotification(
+                listeners: Array(hostConnectionStatusListeners.values),
+                status: snapshot.status,
+                capabilities: snapshot.capabilities
+            )
+        }
+
+        guard let notification else {
+            return
+        }
+
+        for listener in notification.listeners {
+            listener(notification.status, notification.capabilities)
+        }
+    }
+
+    private func hostConnectionSnapshotLocked() -> HostConnectionSnapshot {
+        let status = hostConnectionStatusLocked
+        return HostConnectionSnapshot(
+            status: status,
+            capabilities: hostConnectionCapabilitiesLocked(status: status)
+        )
     }
 
     private var hostConnectionStatusLocked: HostConnectionStatus {
@@ -2531,6 +2926,9 @@ public final class AnsightRuntime: @unchecked Sendable {
     }
 
     private var hasBundledConfigLocked: Bool {
+        if options.hostConnection.bundledDeveloperConfigJson?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+            return true
+        }
         if options.hostConnection.bundledConfigJson?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
             return true
         }
@@ -2539,6 +2937,32 @@ public final class AnsightRuntime: @unchecked Sendable {
 
     private var hasCachedPairingProfileLocked: Bool {
         !cachedPairingProfiles().isEmpty
+    }
+
+    private var hostConnectionCapabilitiesLocked: HostConnectionCapabilities {
+        let status = hostConnectionStatusLocked
+        return hostConnectionCapabilitiesLocked(status: status)
+    }
+
+    private func hostConnectionCapabilitiesLocked(status: HostConnectionStatus) -> HostConnectionCapabilities {
+        return HostConnectionCapabilities(
+            canConnectUsingSavedConfig: initialized && status.hasSavedConfig,
+            canConnectUsingBundledConfig: initialized && status.hasBundledConfig,
+            canChooseConfigFile: initialized && (hostConnectionConfigReader?.canRead(.file) ?? false),
+            canScanConfigQrCode: initialized && (hostConnectionConfigReader?.canRead(.qrCode) ?? false),
+            canClearSavedConfigs: initialized && status.hasSavedConfig
+        )
+    }
+
+    private struct HostConnectionSnapshot: Equatable {
+        let status: HostConnectionStatus
+        let capabilities: HostConnectionCapabilities
+    }
+
+    private struct HostConnectionStatusNotification {
+        let listeners: [HostConnectionStatusListener]
+        let status: HostConnectionStatus
+        let capabilities: HostConnectionCapabilities
     }
 
     private func cachedPairingProfile() -> ResolvedConnectionRequest? {

@@ -18,7 +18,7 @@ public extension AnsightOptions {
             toolGuard: .fullAccess,
             hostAutoProbe: .enabledDefault,
             hostConnection: AnsightHostConnectionOptions(
-                bundledConfigJson: AnsightDeveloperMode.embeddedPairingJson
+                bundledDeveloperConfigJson: AnsightDeveloperMode.embeddedPairingJson
             )
         )
     }

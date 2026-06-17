@@ -18,7 +18,11 @@ import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 
 object AndroidReflectionTools {
-    fun create(): List<AndroidTool> = listOf(
+    @JvmStatic
+    @JvmOverloads
+    fun create(options: AndroidReflectionToolsOptions = AndroidReflectionToolsOptions.Default): List<AndroidTool> {
+        val toolOptions = options.validated()
+        return listOf(
         androidReflectionTool(
             ReflectionToolIds.ListRoots,
             "List Reflection Roots",
@@ -26,7 +30,7 @@ object AndroidReflectionTools {
             ToolScope.Read,
             ToolSecurity(ToolSecurityLevel.High, listOf("MetadataDisclosure", "InspectsRuntimeState")),
         ) { _, context ->
-            AndroidToolResult.success(JSONObject().put("roots", JSONArray(roots(context).map { it.toJson() })))
+            AndroidToolResult.success(JSONObject().put("roots", JSONArray(roots(context, toolOptions).map { it.toJson() })))
         },
         androidReflectionTool(
             ReflectionToolIds.InspectObject,
@@ -35,7 +39,7 @@ object AndroidReflectionTools {
             ToolScope.Read,
             ToolSecurity(ToolSecurityLevel.Critical, listOf("ReadsAppData", "InspectsRuntimeState")),
         ) { args, context ->
-            val target = resolveTarget(context, args)
+            val target = resolveTarget(context, args, toolOptions)
             AndroidToolResult.success(JSONObject().put("snapshot", snapshot(target.value, target.rootId, target.path, args.intArg("maxDepth", 1))))
         },
         androidReflectionTool(
@@ -45,9 +49,13 @@ object AndroidReflectionTools {
             ToolScope.Read,
             ToolSecurity(ToolSecurityLevel.Medium, listOf("MetadataDisclosure")),
         ) { args, context ->
-            val type = args["type"]?.trim()?.ifBlank { null }?.let { Class.forName(it) }
-                ?: resolveTarget(context, args).value?.javaClass
-                ?: return@androidReflectionTool AndroidToolResult.failure("No type or live object was resolved.", "reflect_type_required")
+            val type = args["type"]?.trim()?.ifBlank { null }?.let { typeName ->
+                require(toolOptions.isTypeAllowed(typeName)) {
+                    "Reflection type '$typeName' is not allow-listed."
+                }
+                Class.forName(typeName)
+            } ?: resolveTarget(context, args, toolOptions).value?.javaClass
+            ?: return@androidReflectionTool AndroidToolResult.failure("No type or live object was resolved.", "reflect_type_required")
             describeType(type)
         },
         androidReflectionTool(
@@ -58,7 +66,7 @@ object AndroidReflectionTools {
             ToolSecurity(ToolSecurityLevel.Critical, listOf("WritesAppData", "MutatesRuntimeState")),
         ) { args, context ->
             val member = args["member"] ?: args["name"] ?: return@androidReflectionTool AndroidToolResult.failure("Member name is required.", "reflect_member_required")
-            val target = resolveTarget(context, args)
+            val target = resolveTarget(context, args, toolOptions)
             val receiver = target.value ?: return@androidReflectionTool AndroidToolResult.failure("Cannot set a member on null.", "reflect_null_target")
             val rawValue = args["value"] ?: return@androidReflectionTool AndroidToolResult.failure("Value is required.", "reflect_value_required")
             writeMember(receiver, member, rawValue)
@@ -71,14 +79,18 @@ object AndroidReflectionTools {
             ToolSecurity(ToolSecurityLevel.Critical, listOf("InvokesAppCode", "MutatesRuntimeState")),
         ) { args, context ->
             val methodName = args["method"] ?: args["name"] ?: return@androidReflectionTool AndroidToolResult.failure("Method name is required.", "reflect_method_required")
-            val target = resolveTarget(context, args)
+            val target = resolveTarget(context, args, toolOptions)
             val receiver = target.value ?: return@androidReflectionTool AndroidToolResult.failure("Cannot invoke a method on null.", "reflect_null_target")
             invokeNoArgMethod(receiver, methodName, target.rootId, target.path)
         },
-    )
+        )
+    }
 
-    private fun roots(context: AndroidToolExecutionContext): List<ReflectionRoot> {
-        val builtInRoots = listOf(
+    private fun roots(
+        context: AndroidToolExecutionContext,
+        options: AndroidReflectionToolsOptions,
+    ): List<ReflectionRoot> {
+        val builtInRoots = if (options.includeBuiltInRoots) listOf(
             ReflectionRoot(
                 id = "application",
                 value = context.application,
@@ -100,7 +112,7 @@ object AndroidReflectionTools {
                 description = "Current SDK runtime state.",
                 referenceType = "strong",
             ),
-        )
+        ) else emptyList()
         val registeredRoots = AndroidReflectionRootRegistry.snapshot().map { root ->
             val resolved = runCatching { root.resolve() }.getOrNull()
             ReflectionRoot(
@@ -111,12 +123,16 @@ object AndroidReflectionTools {
                 referenceType = root.referenceType,
             )
         }
-        return builtInRoots + registeredRoots
+        return (builtInRoots + registeredRoots).filter { options.isRootAllowed(it.id) }
     }
 
-    private fun resolveTarget(context: AndroidToolExecutionContext, args: Map<String, String>): ReflectionTarget {
+    private fun resolveTarget(
+        context: AndroidToolExecutionContext,
+        args: Map<String, String>,
+        options: AndroidReflectionToolsOptions,
+    ): ReflectionTarget {
         val rootId = args["root"] ?: args["rootId"] ?: "application"
-        val root = roots(context).firstOrNull { it.id == rootId }
+        val root = roots(context, options).firstOrNull { it.id == rootId }
             ?: throw IllegalArgumentException("Unknown reflection root '$rootId'.")
         val path = args["path"]?.trim()?.ifBlank { null }
         var value = root.value ?: throw IllegalArgumentException("Reflection root '$rootId' is unavailable.")

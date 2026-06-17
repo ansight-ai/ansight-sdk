@@ -1,6 +1,7 @@
 package ai.ansight.pairing
 
 import ai.ansight.runtime.AnsightRuntime
+import ai.ansight.runtime.HostConnectionConfigReader
 import ai.ansight.runtime.HostConnectionRequest
 import ai.ansight.runtime.HostConnectionRequestKind
 import ai.ansight.runtime.HostConnectionResult
@@ -21,8 +22,46 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 object AnsightPairing {
+    @JvmStatic
+    @JvmOverloads
+    fun qrCodeConfigReader(
+        activityProvider: () -> Activity?,
+        timeoutMilliseconds: Long = 120_000,
+    ): HostConnectionConfigReader = object : HostConnectionConfigReader {
+        override fun canRead(kind: HostConnectionRequestKind): Boolean = kind == HostConnectionRequestKind.QrCode
+
+        override fun readConfigPayload(request: HostConnectionRequest): String? {
+            val activity = activityProvider()
+                ?: throw IllegalStateException("QR pairing is unavailable because no Android activity is available.")
+            val latch = CountDownLatch(1)
+            val payload = AtomicReference<String?>()
+            val error = AtomicReference<Throwable?>()
+
+            scanQrCode(
+                activity = activity,
+                onPayload = {
+                    payload.set(it)
+                    latch.countDown()
+                },
+                onError = {
+                    error.set(it)
+                    latch.countDown()
+                },
+            )
+
+            if (!latch.await(timeoutMilliseconds.coerceAtLeast(1), TimeUnit.MILLISECONDS)) {
+                throw IllegalStateException("QR pairing timed out before a pairing payload was scanned.")
+            }
+            error.get()?.let { throw it }
+            return payload.get()
+        }
+    }
+
     fun scanQrCode(
         activity: Activity,
         onPayload: (String?) -> Unit,

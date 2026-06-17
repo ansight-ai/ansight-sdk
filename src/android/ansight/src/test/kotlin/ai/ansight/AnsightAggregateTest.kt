@@ -11,10 +11,13 @@ import ai.ansight.tools.visualtree.AndroidVisualTreeProviderRegistry
 import ai.ansight.tools.visualtree.VisualTreeToolIds
 import ai.ansight.runtime.AndroidToolExecutionContext
 import ai.ansight.runtime.AndroidToolResult
+import ai.ansight.runtime.AnsightToolGuard
+import ai.ansight.runtime.AnsightOptions
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import ai.ansight.tools.filesystem.withFileSystemTools
 
 class AnsightAggregateTest {
     @Test
@@ -66,6 +69,38 @@ class AnsightAggregateTest {
     @Test
     fun developerOptionsWireAllStandardTools() {
         assertEquals(33, Ansight.developerOptions().initialTools.size)
+    }
+
+    @Test
+    fun optionsBuilderOverloadKeepsStandardToolsAndCustomizesRuntimeOptions() {
+        val options = Ansight.options {
+            withReadOnlyToolAccess()
+            withSessionJpegCapture(intervalMilliseconds = 1_500, quality = 65, maxWidth = 600)
+        }
+
+        assertEquals(33, options.initialTools.size)
+        assertEquals(AnsightToolGuard.ReadOnly, options.toolGuard)
+        assertEquals(1_500, options.sessionJpegCapture?.intervalMilliseconds)
+        assertEquals(65, options.sessionJpegCapture?.quality)
+        assertEquals(600, options.sessionJpegCapture?.maxWidth)
+    }
+
+    @Test
+    fun withAnsightSdkPreservesExplicitSuiteRegistrationAndAddsRemainingTools() {
+        val options = AnsightOptions.createBuilder()
+            .withAnsightSdk {
+                withFileSystemTools {
+                    addRoot("exports", "/tmp/ansight-exports")
+                }
+            }
+            .build()
+        val toolIds = options.initialTools.map { it.definition.id }
+
+        assertEquals(33, toolIds.size)
+        assertEquals(33, toolIds.toSet().size)
+        assertEquals(AnsightToolGuard.FullAccess, options.toolGuard)
+        assertTrue(toolIds.contains(FileSystemToolIds.ListDirectory))
+        assertTrue(toolIds.contains(VisualTreeToolIds.GetVisualTree))
     }
 
     @Test

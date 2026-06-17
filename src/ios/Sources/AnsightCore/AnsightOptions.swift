@@ -45,6 +45,14 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
         self.hostConnection = hostConnection
     }
 
+    public static func createBuilder() -> AnsightOptionsBuilder {
+        AnsightOptionsBuilder()
+    }
+
+    public static func createBuilder(_ options: AnsightOptions) -> AnsightOptionsBuilder {
+        AnsightOptionsBuilder(options)
+    }
+
     public var maximumBufferSize: Int {
         retentionPeriodSeconds * Int(ceil(1000.0 / Double(sampleFrequencyMilliseconds)))
     }

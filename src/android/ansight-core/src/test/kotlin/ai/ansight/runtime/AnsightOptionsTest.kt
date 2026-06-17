@@ -1,8 +1,10 @@
 package ai.ansight.runtime
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AnsightOptionsTest {
@@ -92,13 +94,84 @@ class AnsightOptionsTest {
         assertEquals(120, options.retentionPeriodSeconds)
         assertEquals(true, options.enableFramesPerSecond)
         assertEquals(false, options.enableBatteryLevel)
-        assertEquals(AnsightToolGuard.Full, options.toolGuard)
+        assertEquals(AnsightToolGuard.FullAccess, options.toolGuard)
         assertEquals(true, options.hostAutoProbe.enabled)
         assertEquals("Validation Client", options.hostAutoProbe.clientName)
         assertEquals("{}", options.hostConnection.bundledDeveloperConfigJson)
-        assertEquals(500, options.sessionJpegCapture?.intervalMilliseconds)
+        assertEquals(2_000, options.sessionJpegCapture?.intervalMilliseconds)
         assertEquals(60, options.sessionJpegCapture?.quality)
         assertEquals(480, options.sessionJpegCapture?.maxWidth)
         assertNotNull(options.touchCapture)
+    }
+
+    @Test
+    fun builderAppliesDotNetStyleOptionsConvention() {
+        val tool = FunctionAndroidTool(
+            ToolDefinition(
+                id = "app.echo",
+                name = "Echo",
+                description = "Echoes input.",
+                category = "app",
+                scope = ToolScope.Read,
+                keywords = "echo",
+            ),
+        ) { _, _ -> AndroidToolResult.success() }
+
+        val options = AnsightOptions.createBuilder()
+            .withSampleFrequencyMilliseconds(400)
+            .withRetentionPeriodSeconds(120)
+            .withoutFramesPerSecond()
+            .withBatteryLevel()
+            .withSessionJpegCapture()
+            .withTouchCapture(moveCaptureFramesPerSecond = 12)
+            .withReadWriteToolAccess()
+            .registerCustomProperty(" runtime ", " sdk ", " android ")
+            .withBundledHostConnection(bundledDeveloperConfigJson = "{developer}", bundledConfigJson = "{profile}")
+            .withHostConnectionDiscoveryPort(45200)
+            .withHostConnectionProfileRetentionSeconds(60)
+            .addArtifactProvider(TestArtifactProvider())
+            .addTool(tool)
+            .build()
+
+        assertEquals(400, options.sampleFrequencyMilliseconds)
+        assertEquals(120, options.retentionPeriodSeconds)
+        assertFalse(options.enableFramesPerSecond)
+        assertTrue(options.enableBatteryLevel)
+        assertEquals(2_000, options.sessionJpegCapture?.intervalMilliseconds)
+        assertEquals(12, options.touchCapture?.moveCaptureFramesPerSecond)
+        assertEquals(AnsightToolGuard.ReadWrite, options.toolGuard)
+        assertEquals("android", options.customProperties["runtime"]?.get("sdk"))
+        assertEquals("{developer}", options.hostConnection.bundledDeveloperConfigJson)
+        assertEquals("{profile}", options.hostConnection.bundledConfigJson)
+        assertEquals(45200, options.hostConnection.discoveryPort)
+        assertEquals(60, options.hostConnection.connectionProfileRetentionSeconds)
+        assertTrue(options.initialTools.any { it.definition.id == "app.echo" })
+        assertTrue(options.artifactProviders.any { it.descriptor.id == "app.report" })
+    }
+
+    private class TestArtifactProvider : AndroidArtifactProvider {
+        override val descriptor = AndroidArtifactProviderDescriptor(
+            id = "app.report",
+            name = "App Report",
+            description = "Test report provider.",
+        )
+
+        override fun query(context: AndroidArtifactQueryContext): List<AndroidArtifactDefinition> = emptyList()
+
+        override fun create(request: AndroidArtifactRequest): AndroidArtifactResult {
+            val bytes = "hello".toByteArray()
+            return AndroidArtifactResult(
+                metadata = AndroidArtifactMetadata(
+                    providerId = descriptor.id,
+                    artifactId = request.artifactId,
+                    name = "Report",
+                    kind = "text",
+                    mimeType = "text/plain",
+                    fileName = "report.txt",
+                    sizeBytes = bytes.size.toLong(),
+                ),
+                bytes = bytes,
+            )
+        }
     }
 }

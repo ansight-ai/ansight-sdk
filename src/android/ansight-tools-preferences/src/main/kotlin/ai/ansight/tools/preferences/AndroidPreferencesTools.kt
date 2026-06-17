@@ -11,18 +11,23 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 object AndroidPreferencesTools {
-    fun create(): List<AndroidTool> = listOf(
+    @JvmStatic
+    @JvmOverloads
+    fun create(options: AndroidPreferencesToolsOptions = AndroidPreferencesToolsOptions.Default): List<AndroidTool> = listOf(
         androidPreferencesTool(
             PreferencesToolIds.ListKeys,
             "List Preference Keys",
             "Lists keys from SharedPreferences.",
         ) { args, context ->
-            val prefs = preferences(context.application, args)
+            val prefs = preferences(context.application, args, options)
+            val keys = prefs.second.all.keys
+                .filter { options.isKeyAllowed(it) }
+                .sorted()
             AndroidToolResult.success(
                 JSONObject()
                     .put("name", prefs.first)
-                    .put("keys", JSONArray(prefs.second.all.keys.sorted()))
-                    .put("count", prefs.second.all.size),
+                    .put("keys", JSONArray(keys))
+                    .put("count", keys.size),
             )
         },
         androidPreferencesTool(
@@ -34,7 +39,10 @@ object AndroidPreferencesTools {
                 "Preference key is required.",
                 "preference_key_required",
             )
-            val prefs = preferences(context.application, args)
+            if (!options.isKeyAllowed(key)) {
+                return@androidPreferencesTool AndroidToolResult.failure("Preference key is not allow-listed.", "preference_key_denied")
+            }
+            val prefs = preferences(context.application, args, options)
             AndroidToolResult.success(
                 JSONObject()
                     .put("name", prefs.first)
@@ -54,7 +62,10 @@ object AndroidPreferencesTools {
                 "preference_key_required",
             )
             val value = args["value"] ?: ""
-            val prefs = preferences(context.application, args)
+            if (!options.isKeyAllowed(key)) {
+                return@androidPreferencesTool AndroidToolResult.failure("Preference key is not allow-listed.", "preference_key_denied")
+            }
+            val prefs = preferences(context.application, args, options)
             prefs.second.edit().putString(key, value).apply()
             AndroidToolResult.success(JSONObject().put("name", prefs.first).put("key", key).put("written", true))
         },
@@ -68,14 +79,25 @@ object AndroidPreferencesTools {
                 "Preference key is required.",
                 "preference_key_required",
             )
-            val prefs = preferences(context.application, args)
+            if (!options.isKeyAllowed(key)) {
+                return@androidPreferencesTool AndroidToolResult.failure("Preference key is not allow-listed.", "preference_key_denied")
+            }
+            val prefs = preferences(context.application, args, options)
             prefs.second.edit().remove(key).apply()
             AndroidToolResult.success(JSONObject().put("name", prefs.first).put("key", key).put("removed", true))
         },
     )
 
-    private fun preferences(application: Application, args: Map<String, String>): Pair<String, SharedPreferences> {
-        val name = args["name"]?.trim()?.ifBlank { null } ?: "${application.packageName}_preferences"
+    private fun preferences(
+        application: Application,
+        args: Map<String, String>,
+        options: AndroidPreferencesToolsOptions,
+    ): Pair<String, SharedPreferences> {
+        val name = args["store"]?.trim()?.ifBlank { null }
+            ?: args["name"]?.trim()?.ifBlank { null }
+            ?: options.defaultStore
+            ?: "${application.packageName}_preferences"
+        require(options.isStoreAllowed(name)) { "Preferences store '$name' is not allow-listed." }
         return name to application.getSharedPreferences(name, Application.MODE_PRIVATE)
     }
 }

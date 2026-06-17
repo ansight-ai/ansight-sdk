@@ -33,6 +33,10 @@ let package = Package(
             targets: ["AnsightToolsDatabase"]
         ),
         .library(
+            name: "AnsightToolsReflection",
+            targets: ["AnsightToolsReflection"]
+        ),
+        .library(
             name: "AnsightToolsSecureStorage",
             targets: ["AnsightToolsSecureStorage"]
         ),
@@ -54,14 +58,17 @@ let package = Package(
                 "AnsightToolsDatabase",
                 "AnsightToolsFileSystem",
                 "AnsightToolsPreferences",
+                "AnsightToolsReflection",
                 "AnsightToolsSecureStorage",
                 "AnsightToolsVisualTree",
             ],
-            path: "Sources/Ansight"
+            path: "Sources/Ansight",
+            exclude: ["README.md"]
         ),
         .target(
             name: "AnsightCore",
             path: "Sources/AnsightCore",
+            exclude: ["README.md"],
             linkerSettings: [
                 .linkedLibrary("z"),
             ],
@@ -74,21 +81,24 @@ let package = Package(
             dependencies: [
                 "AnsightCore",
             ],
-            path: "Sources/AnsightPairingQR"
+            path: "Sources/AnsightPairingQR",
+            exclude: ["README.md"]
         ),
         .target(
             name: "AnsightToolsPreferences",
             dependencies: [
                 "AnsightCore",
             ],
-            path: "Sources/AnsightToolsPreferences"
+            path: "Sources/AnsightToolsPreferences",
+            exclude: ["README.md"]
         ),
         .target(
             name: "AnsightToolsFileSystem",
             dependencies: [
                 "AnsightCore",
             ],
-            path: "Sources/AnsightToolsFileSystem"
+            path: "Sources/AnsightToolsFileSystem",
+            exclude: ["README.md"]
         ),
         .target(
             name: "AnsightToolsDatabase",
@@ -96,30 +106,42 @@ let package = Package(
                 "AnsightCore",
             ],
             path: "Sources/AnsightToolsDatabase",
+            exclude: ["README.md"],
             linkerSettings: [
                 .linkedLibrary("sqlite3"),
             ]
+        ),
+        .target(
+            name: "AnsightToolsReflection",
+            dependencies: [
+                "AnsightCore",
+            ],
+            path: "Sources/AnsightToolsReflection",
+            exclude: ["README.md"]
         ),
         .target(
             name: "AnsightToolsSecureStorage",
             dependencies: [
                 "AnsightCore",
             ],
-            path: "Sources/AnsightToolsSecureStorage"
+            path: "Sources/AnsightToolsSecureStorage",
+            exclude: ["README.md"]
         ),
         .target(
             name: "AnsightToolsVisualTree",
             dependencies: [
                 "AnsightCore",
             ],
-            path: "Sources/AnsightToolsVisualTree"
+            path: "Sources/AnsightToolsVisualTree",
+            exclude: ["README.md"]
         ),
         .target(
             name: "AnsightObjC",
             dependencies: [
                 "Ansight",
             ],
-            path: "Sources/AnsightObjC"
+            path: "Sources/AnsightObjC",
+            exclude: ["README.md"]
         ),
         .executableTarget(
             name: "AnsightBuildTool",
@@ -141,6 +163,7 @@ let package = Package(
                 "AnsightToolsDatabase",
                 "AnsightToolsFileSystem",
                 "AnsightToolsPreferences",
+                "AnsightToolsReflection",
                 "AnsightToolsSecureStorage",
                 "AnsightToolsVisualTree",
                 "AnsightObjC",

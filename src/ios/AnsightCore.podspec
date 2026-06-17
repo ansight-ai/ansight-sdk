@@ -17,6 +17,7 @@ Pod::Spec.new do |s|
 set -euo pipefail
 
 TOOL="${DERIVED_FILE_DIR}/ansight-build-tool"
+mkdir -p "$(dirname "${TOOL}")" "${PODS_TARGET_SRCROOT}/Generated/CocoaPods"
 MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)"
 SDKROOT="${MACOS_SDK}" xcrun --sdk macosx swiftc -sdk "${MACOS_SDK}" "${PODS_TARGET_SRCROOT}/Plugins/AnsightBuildTool/"*.swift -o "${TOOL}"
 "${TOOL}" \

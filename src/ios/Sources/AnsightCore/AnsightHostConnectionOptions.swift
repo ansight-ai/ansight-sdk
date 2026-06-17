@@ -4,17 +4,20 @@ public struct AnsightHostConnectionOptions: Sendable, Codable, Equatable {
     public var savedConfigKey: String
     public var connectionProfileRetentionSeconds: Int
     public var discoveryPort: Int?
+    public var bundledDeveloperConfigJson: String?
     public var bundledConfigJson: String?
 
     public init(
         savedConfigKey: String = "ai.ansight.ios.saved-pairing",
         connectionProfileRetentionSeconds: Int = 14 * 24 * 60 * 60,
         discoveryPort: Int? = nil,
+        bundledDeveloperConfigJson: String? = nil,
         bundledConfigJson: String? = nil
     ) {
         self.savedConfigKey = savedConfigKey
         self.connectionProfileRetentionSeconds = connectionProfileRetentionSeconds
         self.discoveryPort = discoveryPort
+        self.bundledDeveloperConfigJson = bundledDeveloperConfigJson
         self.bundledConfigJson = bundledConfigJson
     }
 
@@ -31,6 +34,9 @@ public struct AnsightHostConnectionOptions: Sendable, Codable, Equatable {
 
         if let trimmed = bundledConfigJson?.trimmingCharacters(in: .whitespacesAndNewlines), trimmed.isEmpty {
             bundledConfigJson = nil
+        }
+        if let trimmed = bundledDeveloperConfigJson?.trimmingCharacters(in: .whitespacesAndNewlines), trimmed.isEmpty {
+            bundledDeveloperConfigJson = nil
         }
     }
 }

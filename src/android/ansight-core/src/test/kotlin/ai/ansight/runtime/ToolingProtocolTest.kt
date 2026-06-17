@@ -4,13 +4,16 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import android.app.Application
 
 class ToolingProtocolTest {
     @Test
     fun guardLimitsVisibleScopes() {
         assertTrue(AnsightToolGuard.ReadOnly.canDiscover(ToolScope.Read))
         assertFalse(AnsightToolGuard.ReadOnly.canDiscover(ToolScope.Write))
-        assertTrue(AnsightToolGuard.Full.canDiscover(ToolScope.Delete))
+        assertTrue(AnsightToolGuard.ReadWrite.canDiscover(ToolScope.Write))
+        assertFalse(AnsightToolGuard.ReadWrite.canDiscover(ToolScope.Delete))
+        assertTrue(AnsightToolGuard.FullAccess.canDiscover(ToolScope.Delete))
         assertFalse(AnsightToolGuard.Disabled.canDiscover(ToolScope.Read))
     }
 
@@ -46,6 +49,50 @@ class ToolingProtocolTest {
     }
 
     @Test
+    fun artifactQueryToolReturnsProviderAndDefinitions() {
+        val tool = AndroidArtifactTools.create { listOf(TestArtifactProvider()) }
+            .first { it.definition.id == AndroidArtifactToolIds.Query }
+
+        val result = tool.execute(
+            emptyMap(),
+            AndroidToolExecutionContext(
+                application = Application(),
+                transport = null,
+                sessionId = "session-1",
+                requestId = "request-1",
+                options = AnsightOptions(),
+            ),
+        )
+
+        assertTrue(result.success)
+        val payload = result.payload!!
+        assertEquals(1, payload.getInt("providerCount"))
+        assertEquals(1, payload.getInt("artifactCount"))
+        assertEquals("app.report", payload.getJSONArray("providers").getJSONObject(0).getString("id"))
+        assertEquals("current", payload.getJSONArray("artifacts").getJSONObject(0).getString("id"))
+    }
+
+    @Test
+    fun artifactRequestToolRequiresLiveTransport() {
+        val tool = AndroidArtifactTools.create { listOf(TestArtifactProvider()) }
+            .first { it.definition.id == AndroidArtifactToolIds.Request }
+
+        val result = tool.execute(
+            mapOf("providerId" to "app.report", "artifactId" to "current"),
+            AndroidToolExecutionContext(
+                application = Application(),
+                transport = null,
+                sessionId = "session-1",
+                requestId = "request-1",
+                options = AnsightOptions(),
+            ),
+        )
+
+        assertFalse(result.success)
+        assertEquals("artifact_transfer_unavailable", result.errorCode)
+    }
+
+    @Test
     fun runtimeFacadeExposesDotNetStyleEventAndLifecycleApis() {
         val runtimeClass = Class.forName("ai.ansight.runtime.Runtime", false, javaClass.classLoader)
         val methods = runtimeClass.methods.map { method ->
@@ -58,5 +105,43 @@ class ToolingProtocolTest {
         assertTrue(methods.contains("Event" to listOf("String", "AnsightEventType", "int", "String")))
         assertTrue(methods.contains("ScreenViewed" to listOf("String")))
         assertTrue(methods.contains("SetAppLifecycleState" to listOf("AppLifecycleState")))
+    }
+
+    private class TestArtifactProvider : AndroidArtifactProvider {
+        override val descriptor = AndroidArtifactProviderDescriptor(
+            id = "app.report",
+            name = "App Report",
+            description = "Test report provider.",
+        )
+
+        override fun query(context: AndroidArtifactQueryContext): List<AndroidArtifactDefinition> = listOf(
+            AndroidArtifactDefinition(
+                id = "current",
+                name = "Current Report",
+                description = "Current report.",
+                kind = "text",
+                category = "diagnostics",
+                mimeType = "text/plain",
+                fileName = "report.txt",
+                estimatedSizeBytes = 5,
+                tags = listOf("debug"),
+            ),
+        )
+
+        override fun create(request: AndroidArtifactRequest): AndroidArtifactResult {
+            val bytes = "hello".toByteArray()
+            return AndroidArtifactResult(
+                metadata = AndroidArtifactMetadata(
+                    providerId = descriptor.id,
+                    artifactId = request.artifactId,
+                    name = "Current Report",
+                    kind = "text",
+                    mimeType = "text/plain",
+                    fileName = "report.txt",
+                    sizeBytes = bytes.size.toLong(),
+                ),
+                bytes = bytes,
+            )
+        }
     }
 }

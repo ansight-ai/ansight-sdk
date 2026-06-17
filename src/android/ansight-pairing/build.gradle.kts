@@ -34,7 +34,7 @@ android {
 dependencies {
     api(project(":ansight-core"))
     implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
-    api("com.google.android.material:material:1.12.0")
+    api("com.google.android.material:material:1.4.0")
 }
 
 afterEvaluate {

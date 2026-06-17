@@ -14,12 +14,12 @@ object AnsightDeveloperMode {
         enableFramesPerSecond = true,
         enableBatteryLevel = false,
         sessionJpegCapture = AnsightSessionJpegCaptureOptions(
-            intervalMilliseconds = 500,
+            intervalMilliseconds = 2_000,
             quality = 60,
             maxWidth = 480,
         ),
         touchCapture = AnsightTouchCaptureOptions(),
-        toolGuard = AnsightToolGuard.Full,
+        toolGuard = AnsightToolGuard.FullAccess,
         hostAutoProbe = AnsightHostAutoProbeOptions(
             enabled = true,
             clientName = clientName,

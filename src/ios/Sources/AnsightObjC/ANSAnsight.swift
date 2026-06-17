@@ -24,7 +24,7 @@ public final class ANSAnsight: NSObject {
     public static func initializeAndActivate(pairingConfigJson: String?, clientName: String?) throws {
         var options = AnsightOptions.ansightDeveloperDefaults
         if let pairingConfigJson = normalized(pairingConfigJson) {
-            options.hostConnection.bundledConfigJson = pairingConfigJson
+            options.hostConnection.bundledDeveloperConfigJson = pairingConfigJson
         }
         options.hostAutoProbe.clientName = normalized(clientName)
 

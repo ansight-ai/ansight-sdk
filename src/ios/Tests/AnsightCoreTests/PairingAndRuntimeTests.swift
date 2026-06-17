@@ -368,6 +368,64 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertEqual(status.summaryKind, .disconnectedNoConfigs)
     }
 
+    func testHostConnectionStatusListenerReceivesCurrentStatusAndConfigRefresh() throws {
+        try AnsightRuntime.shared.initialize(options: AnsightOptions(
+            hostAutoProbe: .disabledDefault,
+            hostConnection: AnsightHostConnectionOptions(
+                bundledConfigJson: #"{"schema":"test"}"#
+            )
+        ))
+        AnsightRuntime.shared.replacePairingStoresForTesting(
+            saved: MemoryPairingConfigStore(),
+            cached: MemoryPairingConfigStore()
+        )
+
+        let recorder = HostConnectionStatusRecorder()
+        let subscription = AnsightRuntime.shared.addHostConnectionStatusListener { status, nextCapabilities in
+            recorder.record(status: status, capabilities: nextCapabilities)
+        }
+        defer {
+            subscription.remove()
+            AnsightRuntime.shared.setHostConnectionConfigReader(nil)
+            AnsightRuntime.shared.deactivate()
+        }
+
+        var statuses = recorder.statuses
+        var capabilities = recorder.capabilities
+        XCTAssertEqual(statuses.count, 1)
+        XCTAssertFalse(statuses[0].isRuntimeActive)
+        XCTAssertTrue(statuses[0].hasBundledConfig)
+        XCTAssertTrue(capabilities[0].canConnectUsingBundledConfig)
+
+        try AnsightRuntime.shared.activate()
+
+        statuses = recorder.statuses
+        XCTAssertEqual(statuses.count, 2)
+        XCTAssertTrue(statuses[1].isRuntimeActive)
+
+        AnsightRuntime.shared.setHostConnectionConfigReader(
+            FakeHostConnectionConfigReader(supportedKinds: [.file], payload: "{}")
+        )
+
+        statuses = recorder.statuses
+        capabilities = recorder.capabilities
+        XCTAssertEqual(statuses.count, 3)
+        XCTAssertTrue(capabilities[2].canChooseConfigFile)
+
+        let result = AnsightRuntime.shared.notifyHostConnectionConfigChanged()
+
+        statuses = recorder.statuses
+        XCTAssertTrue(result.success)
+        XCTAssertEqual(result.source, .bundledConfig)
+        XCTAssertEqual(statuses.count, 4)
+        XCTAssertTrue(statuses[3].hasBundledConfig)
+
+        subscription.remove()
+        _ = AnsightRuntime.shared.notifyHostConnectionConfigChanged()
+
+        XCTAssertEqual(recorder.statuses.count, 4)
+    }
+
     func testExpiredCachedPairingProfileFallsBackToSavedConfig() throws {
         try XCTSkipIf(
             AnsightDeveloperMode.embeddedPairingJson != nil,
@@ -1161,6 +1219,27 @@ private func waitForCondition(
     }
 
     XCTAssertTrue(condition())
+}
+
+private final class HostConnectionStatusRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var recordedStatuses: [HostConnectionStatus] = []
+    private var recordedCapabilities: [HostConnectionCapabilities] = []
+
+    var statuses: [HostConnectionStatus] {
+        lock.withLock { recordedStatuses }
+    }
+
+    var capabilities: [HostConnectionCapabilities] {
+        lock.withLock { recordedCapabilities }
+    }
+
+    func record(status: HostConnectionStatus, capabilities: HostConnectionCapabilities) {
+        lock.withLock {
+            recordedStatuses.append(status)
+            recordedCapabilities.append(capabilities)
+        }
+    }
 }
 
 private enum TestPairingFactory {

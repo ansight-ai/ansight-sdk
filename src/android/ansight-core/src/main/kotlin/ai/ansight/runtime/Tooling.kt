@@ -165,9 +165,9 @@ class AndroidToolRegistry(tools: Iterable<AndroidTool> = emptyList()) {
     val size: Int
         get() = toolsById.size
 
-    fun register(tool: AndroidTool) {
+    fun register(tool: AndroidTool, replaceExisting: Boolean = false) {
         val validated = tool.definition.validated()
-        require(validated.id !in toolsById) { "A tool with id '${validated.id}' is already registered." }
+        require(replaceExisting || validated.id !in toolsById) { "A tool with id '${validated.id}' is already registered." }
         toolsById[validated.id] = if (validated == tool.definition) {
             tool
         } else {
@@ -188,13 +188,16 @@ class AndroidToolRegistry(tools: Iterable<AndroidTool> = emptyList()) {
 
     fun get(id: String): AndroidTool? = toolsById[id.trim()]
 
+    fun contains(id: String): Boolean = id.trim() in toolsById
+
     fun visible(guard: AnsightToolGuard): List<AndroidTool> = all().filter { guard.canDiscover(it.definition.scope) }
 }
 
 internal fun AnsightToolGuard.canDiscover(scope: ToolScope): Boolean = when (this) {
     AnsightToolGuard.Disabled -> false
     AnsightToolGuard.ReadOnly -> scope == ToolScope.Read
-    AnsightToolGuard.Full -> true
+    AnsightToolGuard.ReadWrite -> scope == ToolScope.Read || scope == ToolScope.Write
+    AnsightToolGuard.FullAccess -> true
 }
 
 internal fun AnsightToolGuard.canExecute(scope: ToolScope): Boolean = canDiscover(scope)
@@ -209,7 +212,8 @@ internal fun AnsightToolGuard.toProtocolJson(): JSONObject {
     val scopes = when (this) {
         AnsightToolGuard.Disabled -> emptyList()
         AnsightToolGuard.ReadOnly -> listOf(ToolScope.Read.name)
-        AnsightToolGuard.Full -> ToolScope.values().map { it.name }
+        AnsightToolGuard.ReadWrite -> listOf(ToolScope.Read.name, ToolScope.Write.name)
+        AnsightToolGuard.FullAccess -> ToolScope.values().map { it.name }
     }
     return JSONObject()
         .put("discoveryEnabled", this != AnsightToolGuard.Disabled)

@@ -13,6 +13,12 @@ public struct AnsightToolGuard: Sendable, Codable, Equatable {
         allowedScopes: [.read]
     )
 
+    public static let readWrite = AnsightToolGuard(
+        discoveryEnabled: true,
+        executionEnabled: true,
+        allowedScopes: [.read, .write]
+    )
+
     public static let fullAccess = AnsightToolGuard(
         discoveryEnabled: true,
         executionEnabled: true,

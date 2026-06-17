@@ -86,7 +86,8 @@ data class AnsightTouchCaptureOptions(
 enum class AnsightToolGuard {
     Disabled,
     ReadOnly,
-    Full,
+    ReadWrite,
+    FullAccess,
 }
 
 data class AnsightHostAutoProbeOptions(
@@ -112,6 +113,7 @@ data class AnsightHostConnectionOptions(
     val bundledDeveloperConfigJson: String? = null,
     val discoveryPort: Int? = null,
     val connectionProfileRetentionSeconds: Long = 14L * 24L * 60L * 60L,
+    val configReader: HostConnectionConfigReader? = null,
 ) {
     fun validated(): AnsightHostConnectionOptions {
         if (discoveryPort != null) {
@@ -125,6 +127,11 @@ data class AnsightHostConnectionOptions(
             connectionProfileRetentionSeconds = connectionProfileRetentionSeconds.coerceAtLeast(1),
         )
     }
+}
+
+interface HostConnectionConfigReader {
+    fun canRead(kind: HostConnectionRequestKind): Boolean
+    fun readConfigPayload(request: HostConnectionRequest): String?
 }
 
 data class AnsightSecureStorageOptions(
@@ -161,7 +168,16 @@ data class AnsightOptions(
     val hostConnection: AnsightHostConnectionOptions = AnsightHostConnectionOptions(),
     val secureStorage: AnsightSecureStorageOptions = AnsightSecureStorageOptions(),
     val initialTools: List<AndroidTool> = emptyList(),
+    val artifactProviders: List<AndroidArtifactProvider> = emptyList(),
 ) {
+    companion object {
+        @JvmStatic
+        fun createBuilder(): AnsightOptionsBuilder = AnsightOptionsBuilder()
+
+        @JvmStatic
+        fun createBuilder(options: AnsightOptions): AnsightOptionsBuilder = AnsightOptionsBuilder(options)
+    }
+
     val maximumBufferSize: Int
         get() = retentionPeriodSeconds * ceil(1000.0 / sampleFrequencyMilliseconds.toDouble()).toInt()
 
@@ -263,6 +279,7 @@ enum class HostConnectionActionKind {
     Connect,
     Disconnect,
     ClearSavedConfig,
+    NotifyConfigChanged,
 }
 
 data class HostConnectionRequest(
@@ -271,7 +288,85 @@ data class HostConnectionRequest(
     val clientName: String? = null,
     val expectedAppId: String? = null,
     val hostAddressOverride: String? = null,
-)
+) {
+    companion object {
+        @JvmStatic
+        fun auto(
+            clientName: String? = null,
+            expectedAppId: String? = null,
+            hostAddressOverride: String? = null,
+        ) = HostConnectionRequest(
+            kind = HostConnectionRequestKind.Auto,
+            clientName = clientName,
+            expectedAppId = expectedAppId,
+            hostAddressOverride = hostAddressOverride,
+        )
+
+        @JvmStatic
+        fun savedConfig(
+            clientName: String? = null,
+            expectedAppId: String? = null,
+            hostAddressOverride: String? = null,
+        ) = HostConnectionRequest(
+            kind = HostConnectionRequestKind.SavedConfig,
+            clientName = clientName,
+            expectedAppId = expectedAppId,
+            hostAddressOverride = hostAddressOverride,
+        )
+
+        @JvmStatic
+        fun bundledConfig(
+            clientName: String? = null,
+            expectedAppId: String? = null,
+            hostAddressOverride: String? = null,
+        ) = HostConnectionRequest(
+            kind = HostConnectionRequestKind.BundledConfig,
+            clientName = clientName,
+            expectedAppId = expectedAppId,
+            hostAddressOverride = hostAddressOverride,
+        )
+
+        @JvmStatic
+        fun file(
+            path: String? = null,
+            clientName: String? = null,
+            expectedAppId: String? = null,
+            hostAddressOverride: String? = null,
+        ) = HostConnectionRequest(
+            kind = HostConnectionRequestKind.File,
+            payload = path,
+            clientName = clientName,
+            expectedAppId = expectedAppId,
+            hostAddressOverride = hostAddressOverride,
+        )
+
+        @JvmStatic
+        fun qrCode(
+            clientName: String? = null,
+            expectedAppId: String? = null,
+            hostAddressOverride: String? = null,
+        ) = HostConnectionRequest(
+            kind = HostConnectionRequestKind.QrCode,
+            clientName = clientName,
+            expectedAppId = expectedAppId,
+            hostAddressOverride = hostAddressOverride,
+        )
+
+        @JvmStatic
+        fun payloadText(
+            payload: String,
+            clientName: String? = null,
+            expectedAppId: String? = null,
+            hostAddressOverride: String? = null,
+        ) = HostConnectionRequest(
+            kind = HostConnectionRequestKind.Payload,
+            payload = payload,
+            clientName = clientName,
+            expectedAppId = expectedAppId,
+            hostAddressOverride = hostAddressOverride,
+        )
+    }
+}
 
 data class HostConnectionStatus(
     val isRuntimeActive: Boolean,
@@ -283,6 +378,34 @@ data class HostConnectionStatus(
     val summaryKind: HostConnectionSummaryKind,
     val summaryMessage: String,
 )
+
+data class HostConnectionCapabilities(
+    val canConnectUsingSavedConfig: Boolean,
+    val canConnectUsingBundledConfig: Boolean,
+    val canChooseConfigFile: Boolean,
+    val canScanConfigQrCode: Boolean,
+    val canClearSavedConfigs: Boolean,
+)
+
+fun interface HostConnectionStatusListener {
+    fun onChanged(status: HostConnectionStatus, capabilities: HostConnectionCapabilities)
+}
+
+class HostConnectionStatusSubscription internal constructor(
+    private val removeAction: () -> Unit,
+) : AutoCloseable {
+    private val removed = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    fun remove() {
+        if (removed.compareAndSet(false, true)) {
+            removeAction()
+        }
+    }
+
+    override fun close() {
+        remove()
+    }
+}
 
 data class HostConnectionResult(
     val success: Boolean,
