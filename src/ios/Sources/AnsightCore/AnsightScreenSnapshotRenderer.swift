@@ -8,8 +8,8 @@ public enum AnsightScreenSnapshotRenderer {
     @MainActor
     public static func capture(
         format: AnsightScreenSnapshotFormat = .jpeg,
-        quality: Int = 80,
-        maxWidth: Int? = nil,
+        quality: Int = AnsightSessionJpegCaptureOptions.defaultQuality,
+        maxWidth: Int? = AnsightSessionJpegCaptureOptions.defaultMaxWidth,
         afterScreenUpdates: Bool = false
     ) throws -> AnsightScreenSnapshot {
         #if canImport(UIKit)

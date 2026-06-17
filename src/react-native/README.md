@@ -399,7 +399,7 @@ const snapshot = await Ansight.snapshot();
 const options = await Ansight.currentOptions();
 
 await Ansight.captureBuiltInTelemetrySample();
-await Ansight.captureScreenFrame({ quality: 70, maxWidth: 960 });
+await Ansight.captureScreenFrame({ quality: 60, maxWidth: 480 });
 await Ansight.enableTouchCapture();
 await Ansight.disableTouchCapture();
 ```

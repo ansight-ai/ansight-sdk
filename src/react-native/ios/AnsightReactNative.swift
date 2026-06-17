@@ -916,9 +916,13 @@ final class AnsightReactNative: RCTEventEmitter {
                 options.sessionJpegCapture = nil
             } else if let jpeg = raw as? NSDictionary {
                 options.sessionJpegCapture = AnsightSessionJpegCaptureOptions(
-                    intervalMilliseconds: intValue(jpeg, "intervalMilliseconds", defaultValue: 1_000),
-                    quality: intValue(jpeg, "quality", defaultValue: 75),
-                    maxWidth: optionalInt(jpeg, "maxWidth")
+                    intervalMilliseconds: intValue(
+                        jpeg,
+                        "intervalMilliseconds",
+                        defaultValue: AnsightSessionJpegCaptureOptions.defaultIntervalMilliseconds
+                    ),
+                    quality: intValue(jpeg, "quality", defaultValue: AnsightSessionJpegCaptureOptions.defaultQuality),
+                    maxWidth: optionalInt(jpeg, "maxWidth") ?? AnsightSessionJpegCaptureOptions.defaultMaxWidth
                 )
             }
         }
@@ -1217,9 +1221,13 @@ final class AnsightReactNative: RCTEventEmitter {
             return nil
         }
         return AnsightSessionJpegCaptureOptions(
-            intervalMilliseconds: intValue(dictionary, "intervalMilliseconds", defaultValue: 1_000),
-            quality: intValue(dictionary, "quality", defaultValue: 80),
-            maxWidth: optionalInt(dictionary, "maxWidth")
+            intervalMilliseconds: intValue(
+                dictionary,
+                "intervalMilliseconds",
+                defaultValue: AnsightSessionJpegCaptureOptions.defaultIntervalMilliseconds
+            ),
+            quality: intValue(dictionary, "quality", defaultValue: AnsightSessionJpegCaptureOptions.defaultQuality),
+            maxWidth: optionalInt(dictionary, "maxWidth") ?? AnsightSessionJpegCaptureOptions.defaultMaxWidth
         )
     }
 

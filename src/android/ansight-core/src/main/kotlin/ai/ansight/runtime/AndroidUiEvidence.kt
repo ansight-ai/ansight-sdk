@@ -114,11 +114,19 @@ object AndroidUiEvidence {
         }
     }
 
-    fun captureScreenshot(format: String = "jpeg", quality: Int = 80, maxWidth: Int? = null): CapturedScreenshot {
+    fun captureScreenshot(
+        format: String = "jpeg",
+        quality: Int = AnsightSessionJpegCaptureOptions.DefaultQuality,
+        maxWidth: Int? = AnsightSessionJpegCaptureOptions.DefaultMaxWidth,
+    ): CapturedScreenshot {
         return captureScreenshot(format, quality, maxWidth, reuseStreamBitmap = false)
     }
 
-    fun captureSessionScreenshot(format: String = "jpeg", quality: Int = 80, maxWidth: Int? = null): CapturedScreenshot {
+    fun captureSessionScreenshot(
+        format: String = "jpeg",
+        quality: Int = AnsightSessionJpegCaptureOptions.DefaultQuality,
+        maxWidth: Int? = AnsightSessionJpegCaptureOptions.DefaultMaxWidth,
+    ): CapturedScreenshot {
         return captureScreenshot(format, quality, maxWidth, reuseStreamBitmap = true)
     }
 

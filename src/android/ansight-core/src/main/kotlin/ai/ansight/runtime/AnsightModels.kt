@@ -69,10 +69,16 @@ data class DefaultMemoryChannels(
 }
 
 data class AnsightSessionJpegCaptureOptions(
-    val intervalMilliseconds: Int = 1_000,
-    val quality: Int = 75,
-    val maxWidth: Int? = 960,
+    val intervalMilliseconds: Int = DefaultIntervalMilliseconds,
+    val quality: Int = DefaultQuality,
+    val maxWidth: Int? = DefaultMaxWidth,
 ) {
+    companion object {
+        const val DefaultIntervalMilliseconds = 2_000
+        const val DefaultQuality = 60
+        const val DefaultMaxWidth = 480
+    }
+
     fun validated(): AnsightSessionJpegCaptureOptions {
         return copy(
             intervalMilliseconds = intervalMilliseconds.coerceAtLeast(250),

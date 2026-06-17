@@ -63,9 +63,9 @@ class AnsightOptionsBuilder @JvmOverloads constructor(
 
     @JvmOverloads
     fun withSessionJpegCapture(
-        intervalMilliseconds: Int = 2_000,
-        quality: Int = 70,
-        maxWidth: Int? = 720,
+        intervalMilliseconds: Int = AnsightSessionJpegCaptureOptions.DefaultIntervalMilliseconds,
+        quality: Int = AnsightSessionJpegCaptureOptions.DefaultQuality,
+        maxWidth: Int? = AnsightSessionJpegCaptureOptions.DefaultMaxWidth,
     ): AnsightOptionsBuilder {
         options = options.copy(
             sessionJpegCapture = AnsightSessionJpegCaptureOptions(

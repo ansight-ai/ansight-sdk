@@ -138,6 +138,8 @@ class AnsightOptionsTest {
         assertFalse(options.enableFramesPerSecond)
         assertTrue(options.enableBatteryLevel)
         assertEquals(2_000, options.sessionJpegCapture?.intervalMilliseconds)
+        assertEquals(60, options.sessionJpegCapture?.quality)
+        assertEquals(480, options.sessionJpegCapture?.maxWidth)
         assertEquals(12, options.touchCapture?.moveCaptureFramesPerSecond)
         assertEquals(AnsightToolGuard.ReadWrite, options.toolGuard)
         assertEquals("android", options.customProperties["runtime"]?.get("sdk"))

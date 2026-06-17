@@ -110,8 +110,19 @@ internal enum AnsightVisualTreeSupport {
         do {
             let rawFormat = (AnsightVisualTreeArgumentReader.string(arguments, key: "format") ?? "png").lowercased()
             let format = rawFormat == "jpeg" || rawFormat == "jpg" ? "jpeg" : "png"
-            let quality = try AnsightVisualTreeArgumentReader.integer(arguments, key: "quality", defaultValue: 90, minimum: 1, maximum: 100)
-            let maxWidth = try AnsightVisualTreeArgumentReader.optionalInteger(arguments, key: "maxWidth", minimum: 1, maximum: 8192)
+            let quality = try AnsightVisualTreeArgumentReader.integer(
+                arguments,
+                key: "quality",
+                defaultValue: AnsightSessionJpegCaptureOptions.defaultQuality,
+                minimum: 1,
+                maximum: 100
+            )
+            let maxWidth = try AnsightVisualTreeArgumentReader.optionalInteger(
+                arguments,
+                key: "maxWidth",
+                minimum: 1,
+                maximum: 8192
+            ) ?? AnsightSessionJpegCaptureOptions.defaultMaxWidth
             _ = try AnsightVisualTreeArgumentReader.bool(arguments, key: "annotateNodeIds", defaultValue: false)
             let afterScreenUpdates = try AnsightVisualTreeArgumentReader.bool(arguments, key: "afterScreenUpdates", defaultValue: true)
             return .success(try captureScreenshot(format: format, quality: quality, maxWidth: maxWidth, afterScreenUpdates: afterScreenUpdates))

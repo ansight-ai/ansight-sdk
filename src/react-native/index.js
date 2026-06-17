@@ -247,15 +247,15 @@ class AnsightOptionsBuilder {
     if (typeof optionsOrIntervalMilliseconds === "number") {
       this._options.sessionJpegCapture = {
         intervalMilliseconds: optionsOrIntervalMilliseconds,
-        quality: arguments.length > 1 ? arguments[1] : 70,
-        maxWidth: arguments.length > 2 ? arguments[2] : 720,
+        quality: arguments.length > 1 ? arguments[1] : 60,
+        maxWidth: arguments.length > 2 ? arguments[2] : 480,
       };
       return this;
     }
     this._options.sessionJpegCapture = {
       intervalMilliseconds: 2000,
-      quality: 70,
-      maxWidth: 720,
+      quality: 60,
+      maxWidth: 480,
       ...(optionsOrIntervalMilliseconds || {}),
     };
     return this;

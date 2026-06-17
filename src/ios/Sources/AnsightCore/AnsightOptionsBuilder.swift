@@ -75,9 +75,9 @@ public final class AnsightOptionsBuilder {
 
     @discardableResult
     public func withSessionJpegCapture(
-        intervalMilliseconds: Int = 2_000,
-        quality: Int = 70,
-        maxWidth: Int? = 720
+        intervalMilliseconds: Int = AnsightSessionJpegCaptureOptions.defaultIntervalMilliseconds,
+        quality: Int = AnsightSessionJpegCaptureOptions.defaultQuality,
+        maxWidth: Int? = AnsightSessionJpegCaptureOptions.defaultMaxWidth
     ) -> AnsightOptionsBuilder {
         options.sessionJpegCapture = AnsightSessionJpegCaptureOptions(
             intervalMilliseconds: intervalMilliseconds,

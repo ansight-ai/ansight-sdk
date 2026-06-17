@@ -3,6 +3,7 @@ package ai.ansight.tools.visualtree
 import ai.ansight.runtime.AndroidTool
 import ai.ansight.runtime.AndroidToolResult
 import ai.ansight.runtime.AndroidUiEvidence
+import ai.ansight.runtime.AnsightSessionJpegCaptureOptions
 import ai.ansight.runtime.BinaryTransferDescriptor
 import ai.ansight.runtime.PairingFileTransferWireProtocol
 import ai.ansight.runtime.ToolScope
@@ -32,8 +33,13 @@ object AndroidVisualTreeTools {
         ) { args, context ->
             val screenshot = AndroidUiEvidence.captureScreenshot(
                 format = args["format"] ?: "jpeg",
-                quality = args.intArg("quality", context.options.sessionJpegCapture?.quality ?: 80),
-                maxWidth = args["maxWidth"]?.toIntOrNull() ?: context.options.sessionJpegCapture?.maxWidth,
+                quality = args.intArg(
+                    "quality",
+                    context.options.sessionJpegCapture?.quality ?: AnsightSessionJpegCaptureOptions.DefaultQuality,
+                ),
+                maxWidth = args["maxWidth"]?.toIntOrNull()
+                    ?: context.options.sessionJpegCapture?.maxWidth
+                    ?: AnsightSessionJpegCaptureOptions.DefaultMaxWidth,
             )
             val transferId = PairingFileTransferWireProtocol.newTransferId()
             val downloadId = args["downloadId"]?.trim()?.ifBlank { null } ?: context.requestId ?: transferId

@@ -693,9 +693,12 @@ class AnsightReactNativeModule(
                 } else {
                     val jpeg = map.getMapOrNull("sessionJpegCapture")
                     AnsightSessionJpegCaptureOptions(
-                        intervalMilliseconds = jpeg.intValue("intervalMilliseconds", 1_000),
-                        quality = jpeg.intValue("quality", 75),
-                        maxWidth = jpeg.optionalInt("maxWidth"),
+                        intervalMilliseconds = jpeg.intValue(
+                            "intervalMilliseconds",
+                            AnsightSessionJpegCaptureOptions.DefaultIntervalMilliseconds,
+                        ),
+                        quality = jpeg.intValue("quality", AnsightSessionJpegCaptureOptions.DefaultQuality),
+                        maxWidth = jpeg.optionalInt("maxWidth") ?: AnsightSessionJpegCaptureOptions.DefaultMaxWidth,
                     )
                 },
             )
@@ -854,9 +857,12 @@ class AnsightReactNativeModule(
             return null
         }
         return AnsightSessionJpegCaptureOptions(
-            intervalMilliseconds = map.intValue("intervalMilliseconds", 1_000),
-            quality = map.intValue("quality", 75),
-            maxWidth = map.optionalInt("maxWidth"),
+            intervalMilliseconds = map.intValue(
+                "intervalMilliseconds",
+                AnsightSessionJpegCaptureOptions.DefaultIntervalMilliseconds,
+            ),
+            quality = map.intValue("quality", AnsightSessionJpegCaptureOptions.DefaultQuality),
+            maxWidth = map.optionalInt("maxWidth") ?: AnsightSessionJpegCaptureOptions.DefaultMaxWidth,
         )
     }
 

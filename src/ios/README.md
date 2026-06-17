@@ -286,9 +286,9 @@ Configure `AnsightOptions.sessionJpegCapture` before connecting to Studio:
 try AnsightRuntime.shared.initializeAndActivate(
     options: AnsightOptions(
         sessionJpegCapture: AnsightSessionJpegCaptureOptions(
-            intervalMilliseconds: 1_000,
-            quality: 70,
-            maxWidth: 960
+            intervalMilliseconds: 2_000,
+            quality: 60,
+            maxWidth: 480
         )
     )
 )

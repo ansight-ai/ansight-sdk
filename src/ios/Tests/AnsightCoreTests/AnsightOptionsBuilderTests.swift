@@ -26,6 +26,8 @@ final class AnsightOptionsBuilderTests: XCTestCase {
         XCTAssertTrue(options.defaultMemoryChannels.contains(.managedHeap))
         XCTAssertFalse(options.defaultMemoryChannels.contains(.nativeHeap))
         XCTAssertEqual(options.sessionJpegCapture?.intervalMilliseconds, 2_000)
+        XCTAssertEqual(options.sessionJpegCapture?.quality, 60)
+        XCTAssertEqual(options.sessionJpegCapture?.maxWidth, 480)
         XCTAssertEqual(options.touchCapture?.moveCaptureFramesPerSecond, 12)
         XCTAssertEqual(options.toolGuard, .readWrite)
         XCTAssertEqual(options.customProperties["runtime"]?["sdk"], "ios")

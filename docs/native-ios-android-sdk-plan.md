@@ -133,8 +133,8 @@ Match option behavior:
 - Retention clamped to 60-3600 seconds.
 - Additional channels cannot use reserved channel IDs.
 - Session JPEG capture disabled unless explicitly enabled.
-- Session JPEG option defaults: 2000 ms interval, quality 60, max width 720.
-- All-in-one developer preset should use the .NET all-in-one defaults: 400 ms sample frequency, 120 second retention, FPS enabled, host auto-probe enabled, and JPEG capture at 2000 ms, quality 60, max width 600.
+- Session JPEG option defaults: 2000 ms interval, quality 60, max width 480.
+- All-in-one developer preset should use the .NET all-in-one defaults: 400 ms sample frequency, 120 second retention, FPS enabled, host auto-probe enabled, and JPEG capture at 2000 ms, quality 60, max width 480.
 
 ### Channels And Telemetry
 
