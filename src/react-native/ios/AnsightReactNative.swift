@@ -9,6 +9,111 @@ final class AnsightReactNative: RCTEventEmitter {
         var result: AnsightToolExecutionResult?
     }
 
+    private final class ReactNativeMemorySamplerBox: @unchecked Sendable {
+        private let sampler: NSObject
+
+        init(sampler: NSObject) {
+            self.sampler = sampler
+        }
+
+        func attach(to bridge: RCTBridge?) {
+            guard let bridge else {
+                return
+            }
+
+            let selector = NSSelectorFromString("attachToBridge:")
+            guard sampler.responds(to: selector) else {
+                return
+            }
+            _ = sampler.perform(selector, with: bridge)
+        }
+
+        func sample(selectorName: String) -> Int64? {
+            let selector = NSSelectorFromString(selectorName)
+            guard sampler.responds(to: selector),
+                  let result = sampler.perform(selector)?.takeUnretainedValue() as? NSNumber else {
+                return nil
+            }
+            return result.int64Value
+        }
+    }
+
+    private struct ReactNativeMemoryProfilingOptions {
+        var enabled = true
+        var jsHeapUsed = true
+        var jsHeapTotal = true
+
+        static let defaults = ReactNativeMemoryProfilingOptions()
+        static let disabled = ReactNativeMemoryProfilingOptions(enabled: false, jsHeapUsed: false, jsHeapTotal: false)
+
+        init(enabled: Bool = true, jsHeapUsed: Bool = true, jsHeapTotal: Bool = true) {
+            self.enabled = enabled
+            self.jsHeapUsed = jsHeapUsed
+            self.jsHeapTotal = jsHeapTotal
+        }
+
+        init(dictionary: NSDictionary?) {
+            guard let raw = dictionary?["reactNativeMemory"], !(raw is NSNull) else {
+                if dictionary?.object(forKey: "reactNativeMemory") is NSNull {
+                    self = .disabled
+                } else {
+                    self = .defaults
+                }
+                return
+            }
+
+            if let enabled = raw as? NSNumber {
+                self = enabled.boolValue ? .defaults : .disabled
+                return
+            }
+
+            guard let options = raw as? NSDictionary else {
+                self = .defaults
+                return
+            }
+
+            let enabled = boolValue(options, "enabled", defaultValue: true)
+            let jsHeap = boolValue(options, "jsHeap", defaultValue: true)
+            self.init(
+                enabled: enabled,
+                jsHeapUsed: boolValue(options, "jsHeapUsed", defaultValue: jsHeap),
+                jsHeapTotal: boolValue(options, "jsHeapTotal", defaultValue: jsHeap)
+            )
+        }
+
+        var dictionary: [String: Any] {
+            [
+                "enabled": enabled,
+                "jsHeapUsed": jsHeapUsed,
+                "jsHeapTotal": jsHeapTotal,
+            ]
+        }
+    }
+
+    private enum ReactNativeMemoryChannels {
+        static let jsHeapUsed = AnsightChannel(
+            id: 32,
+            name: "React Native JS heap used",
+            colorHex: "#61DAFB",
+            unit: "bytes",
+            type: "memory",
+            source: "reactNative",
+            group: "React Native",
+            kind: "react_native_js_heap_used"
+        )
+
+        static let jsHeapTotal = AnsightChannel(
+            id: 33,
+            name: "React Native JS heap total",
+            colorHex: "#0A84FF",
+            unit: "bytes",
+            type: "memory",
+            source: "reactNative",
+            group: "React Native",
+            kind: "react_native_js_heap_total"
+        )
+    }
+
     private final class ReactNativeTool: AnsightTool, @unchecked Sendable {
         let descriptor: AnsightToolDescriptor
         private weak var module: AnsightReactNative?
@@ -36,6 +141,8 @@ final class AnsightReactNative: RCTEventEmitter {
     private var hasListeners = false
     private var activeCustomToolIds: Set<String> = []
     private var pendingToolCalls: [String: PendingToolCall] = [:]
+    private var reactNativeMemorySampler: ReactNativeMemorySamplerBox?
+    private var currentReactNativeMemoryOptions = ReactNativeMemoryProfilingOptions.defaults
     private lazy var logCallback = AnsightClosureLogCallback { [weak self] level, message, error in
         self?.emitLogEvent(level: level, message: message, error: error)
     }
@@ -78,6 +185,7 @@ final class AnsightReactNative: RCTEventEmitter {
         do {
             let toolOptions = remoteToolOptions(options)
             try AnsightRuntime.shared.initialize(options: buildOptions(options))
+            try configureReactNativeMemoryProfiling(options)
             try AnsightRuntime.shared.registerAnsightRemoteTools(options: toolOptions)
             resolve(snapshotDictionary())
         } catch {
@@ -96,6 +204,7 @@ final class AnsightReactNative: RCTEventEmitter {
                 options: buildOptions(options),
                 remoteToolOptions: remoteToolOptions(options)
             )
+            try configureReactNativeMemoryProfiling(options)
             resolve(snapshotDictionary())
         } catch {
             reject("ansight_error", error.localizedDescription, error)
@@ -137,7 +246,10 @@ final class AnsightReactNative: RCTEventEmitter {
                     name: stringValue(channel, "name") ?? "",
                     colorHex: stringValue(channel, "colorHex"),
                     unit: stringValue(channel, "unit"),
-                    type: stringValue(channel, "type") ?? "custom"
+                    type: stringValue(channel, "type") ?? "custom",
+                    source: stringValue(channel, "source"),
+                    group: stringValue(channel, "group"),
+                    kind: stringValue(channel, "kind")
                 )
             )
             resolve(snapshotDictionary())
@@ -704,6 +816,45 @@ final class AnsightReactNative: RCTEventEmitter {
         }
     }
 
+    private func configureReactNativeMemoryProfiling(_ dictionary: NSDictionary?) throws {
+        let options = ReactNativeMemoryProfilingOptions(dictionary: dictionary)
+        currentReactNativeMemoryOptions = options
+
+        guard options.enabled, let sampler = reactNativeMemorySamplerBox() else {
+            return
+        }
+
+        sampler.attach(to: bridge)
+        if options.jsHeapUsed {
+            try AnsightRuntime.shared.registerMetricStream(
+                AnsightMetricStream(channel: ReactNativeMemoryChannels.jsHeapUsed) {
+                    sampler.sample(selectorName: "jsHeapUsedBytes")
+                }
+            )
+        }
+        if options.jsHeapTotal {
+            try AnsightRuntime.shared.registerMetricStream(
+                AnsightMetricStream(channel: ReactNativeMemoryChannels.jsHeapTotal) {
+                    sampler.sample(selectorName: "jsHeapTotalBytes")
+                }
+            )
+        }
+    }
+
+    private func reactNativeMemorySamplerBox() -> ReactNativeMemorySamplerBox? {
+        if let reactNativeMemorySampler {
+            return reactNativeMemorySampler
+        }
+
+        guard let samplerType = NSClassFromString("AnsightReactNativeMemorySampler") as? NSObject.Type else {
+            return nil
+        }
+
+        let sampler = ReactNativeMemorySamplerBox(sampler: samplerType.init())
+        reactNativeMemorySampler = sampler
+        return sampler
+    }
+
     private func buildOptions(_ dictionary: NSDictionary?) throws -> AnsightOptions {
         let developerMode = boolValue(dictionary, "developerMode", defaultValue: true)
         var options = developerMode ? AnsightOptions.ansightDeveloperDefaults : AnsightOptions()
@@ -753,7 +904,10 @@ final class AnsightReactNative: RCTEventEmitter {
                     name: stringValue($0, "name") ?? "",
                     colorHex: stringValue($0, "colorHex"),
                     unit: stringValue($0, "unit"),
-                    type: stringValue($0, "type") ?? "custom"
+                    type: stringValue($0, "type") ?? "custom",
+                    source: stringValue($0, "source"),
+                    group: stringValue($0, "group"),
+                    kind: stringValue($0, "kind")
                 )
             }
         }
@@ -1083,6 +1237,7 @@ final class AnsightReactNative: RCTEventEmitter {
                 "rss": options.defaultMemoryChannels.contains(.residentSetSize),
                 "physicalFootprint": options.defaultMemoryChannels.contains(.physicalFootprint),
             ],
+            "reactNativeMemory": currentReactNativeMemoryOptions.dictionary,
             "additionalChannels": options.additionalChannels.map(channelDictionary),
             "toolGuard": toolGuardName(options.toolGuard),
             "customProperties": options.customProperties,
@@ -1149,6 +1304,15 @@ final class AnsightReactNative: RCTEventEmitter {
         }
         if let color = channel.colorHex {
             dictionary["colorHex"] = color
+        }
+        if let source = channel.source {
+            dictionary["source"] = source
+        }
+        if let group = channel.group {
+            dictionary["group"] = group
+        }
+        if let kind = channel.kind {
+            dictionary["kind"] = kind
         }
         return dictionary
     }

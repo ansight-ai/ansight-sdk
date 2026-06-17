@@ -38,11 +38,22 @@ data class AnsightChannel(
     val colorHex: String? = null,
     val unit: String? = null,
     val type: String = "custom",
+    val source: String? = null,
+    val group: String? = null,
+    val kind: String? = null,
 ) {
     fun validated(): AnsightChannel {
         require(id in 0..255) { "Channel ids must be between 0 and 255." }
         require(name.isNotBlank()) { "Channel names must not be blank." }
-        return copy(name = name.trim(), colorHex = colorHex?.trim()?.ifBlank { null })
+        return copy(
+            name = name.trim(),
+            colorHex = colorHex?.trim()?.ifBlank { null },
+            unit = unit?.trim()?.ifBlank { null },
+            type = type.trim().ifBlank { "custom" },
+            source = source?.trim()?.ifBlank { null },
+            group = group?.trim()?.ifBlank { null },
+            kind = kind?.trim()?.ifBlank { null },
+        )
     }
 }
 

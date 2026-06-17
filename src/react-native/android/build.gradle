@@ -16,13 +16,26 @@ def safeExtGet(prop, fallback) {
   return rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
 }
 
+def reactNativeDir = rootProject.file("../node_modules/react-native")
+if (!reactNativeDir.exists()) {
+  reactNativeDir = file("../../node_modules/react-native")
+}
+
 android {
   namespace "ai.ansight.reactnative"
   compileSdkVersion safeExtGet("compileSdkVersion", 35)
+  ndkVersion safeExtGet("ndkVersion", "27.1.12297006")
 
   defaultConfig {
     minSdkVersion safeExtGet("minSdkVersion", 23)
     targetSdkVersion safeExtGet("targetSdkVersion", 35)
+
+    externalNativeBuild {
+      cmake {
+        arguments "-DREACT_NATIVE_DIR=${reactNativeDir.absolutePath}"
+        cppFlags "-std=c++17 -fexceptions -frtti"
+      }
+    }
   }
 
   sourceSets {
@@ -36,6 +49,12 @@ android {
 
   kotlinOptions {
     jvmTarget = "17"
+  }
+
+  externalNativeBuild {
+    cmake {
+      path "src/main/cpp/CMakeLists.txt"
+    }
   }
 }
 

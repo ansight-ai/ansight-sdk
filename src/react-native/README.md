@@ -69,6 +69,7 @@ The TypeScript `AnsightOptions` surface mirrors Android `AnsightOptions`, iOS
 | `enableFramesPerSecond` | Enables native FPS sampling. |
 | `enableBatteryLevel` | Enables battery sampling where available. |
 | `defaultMemoryChannels` | Selects built-in memory channels. Prefer `managedHeap`, `nativeHeap`, `residentSetSize`, and `physicalFootprint`; `javaHeap` and `rss` are accepted as Android/RN compatibility aliases. |
+| `reactNativeMemory` | Controls native React Native runtime memory channels. Enabled by default; set to `false` to disable, or use `{ jsHeapUsed, jsHeapTotal }`. |
 | `additionalChannels` | Registers custom metric channels. |
 | `sessionJpegCapture` | Object to enable/configure capture, or `false` to disable. |
 | `touchCapture` | Object to enable/configure capture, or `false` to disable. |

@@ -20,6 +20,16 @@ export interface AnsightChannel {
   unit?: string;
   type?: string;
   colorHex?: string;
+  source?: string;
+  group?: string;
+  kind?: string;
+}
+
+export interface AnsightReactNativeMemoryOptions {
+  enabled?: boolean;
+  jsHeap?: boolean;
+  jsHeapUsed?: boolean;
+  jsHeapTotal?: boolean;
 }
 
 export interface AnsightSessionJpegCaptureOptions {
@@ -96,6 +106,7 @@ export interface AnsightOptions {
     nativeHeap?: boolean;
     rss?: boolean;
   };
+  reactNativeMemory?: false | AnsightReactNativeMemoryOptions;
   sessionJpegCapture?: false | AnsightSessionJpegCaptureOptions;
   touchCapture?: false | AnsightTouchCaptureOptions;
   lifecycleCapture?: {
@@ -233,6 +244,8 @@ export class AnsightOptionsBuilder {
   addAdditionalChannel(additionalChannel: AnsightChannel): this;
   withDefaultMemoryChannels(defaultMemoryChannels: NonNullable<AnsightOptions["defaultMemoryChannels"]>): this;
   withoutDefaultMemoryChannels(defaultMemoryChannels: NonNullable<AnsightOptions["defaultMemoryChannels"]>): this;
+  withReactNativeMemoryProfiling(options?: AnsightReactNativeMemoryOptions): this;
+  withoutReactNativeMemoryProfiling(): this;
   withSessionJpegCapture(options?: AnsightSessionJpegCaptureOptions): this;
   withSessionJpegCapture(intervalMilliseconds: number, quality?: number, maxWidth?: number | null): this;
   withoutSessionJpegCapture(): this;

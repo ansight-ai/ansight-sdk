@@ -95,6 +95,8 @@ class AnsightReactNativeModule(
     private val customToolRegistrations = ConcurrentHashMap<String, CustomToolRegistration>()
     private val activeCustomToolIds = ConcurrentHashMap.newKeySet<String>()
     private val listenerCount = AtomicInteger(0)
+    private val reactNativeMemoryProfiler = ReactNativeMemoryProfiler(reactContext)
+    private var currentReactNativeMemoryOptions = ReactNativeMemoryProfilingOptions.Defaults
     private val logCallback = AnsightLogCallback { level, message, throwable ->
         emitLogEvent(level, message, throwable)
     }
@@ -133,7 +135,9 @@ class AnsightReactNativeModule(
     @ReactMethod
     fun initialize(options: ReadableMap?, promise: Promise) {
         runCatching {
-            Ansight.initialize(application(), buildOptions(options))
+            val runtimeOptions = buildOptions(options)
+            Ansight.initialize(application(), runtimeOptions)
+            configureReactNativeMemoryProfiling(options)
             installRegisteredCustomTools()
             snapshotMap()
         }.resolve(promise)
@@ -142,7 +146,9 @@ class AnsightReactNativeModule(
     @ReactMethod
     fun initializeAndActivate(options: ReadableMap?, promise: Promise) {
         runCatching {
-            Ansight.initializeAndActivate(application(), buildOptions(options))
+            val runtimeOptions = buildOptions(options)
+            Ansight.initializeAndActivate(application(), runtimeOptions)
+            configureReactNativeMemoryProfiling(options)
             bindCurrentActivity()
             installRegisteredCustomTools()
             snapshotMap()
@@ -184,6 +190,9 @@ class AnsightReactNativeModule(
                     unit = channel.stringValue("unit"),
                     type = channel.stringValue("type") ?: "custom",
                     colorHex = channel.stringValue("colorHex"),
+                    source = channel.stringValue("source"),
+                    group = channel.stringValue("group"),
+                    kind = channel.stringValue("kind"),
                 ),
             )
             snapshotMap()
@@ -599,6 +608,12 @@ class AnsightReactNativeModule(
         }
     }
 
+    private fun configureReactNativeMemoryProfiling(map: ReadableMap?) {
+        val options = reactNativeMemoryProfilingOptions(map)
+        currentReactNativeMemoryOptions = options
+        reactNativeMemoryProfiler.register(options)
+    }
+
     private fun buildOptions(map: ReadableMap?): AnsightOptions {
         val developerMode = map.booleanValue("developerMode", true)
         val pairingConfigJson = map.stringValue("pairingConfigJson")
@@ -663,6 +678,9 @@ class AnsightReactNativeModule(
                         unit = channel.stringValue("unit"),
                         type = channel.stringValue("type") ?: "custom",
                         colorHex = channel.stringValue("colorHex"),
+                        source = channel.stringValue("source"),
+                        group = channel.stringValue("group"),
+                        kind = channel.stringValue("kind"),
                     )
                 }
             }
@@ -1022,6 +1040,7 @@ class AnsightReactNativeModule(
                 "rss" to options.defaultMemoryChannels.rss,
                 "physicalFootprint" to false,
             ).toWritableMap())
+            putMap("reactNativeMemory", currentReactNativeMemoryOptions.toMap().toWritableMap())
             putArray("additionalChannels", channelsArray(options.additionalChannels))
             options.sessionJpegCapture?.let { capture ->
                 putMap("sessionJpegCapture", mapOf(
@@ -1066,6 +1085,9 @@ class AnsightReactNativeModule(
             putString("unit", channel.unit)
             putString("type", channel.type)
             putString("colorHex", channel.colorHex)
+            putString("source", channel.source)
+            putString("group", channel.group)
+            putString("kind", channel.kind)
         }
 
     private fun channelsArray(channels: List<AnsightChannel>): WritableArray =

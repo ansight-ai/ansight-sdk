@@ -50,6 +50,9 @@ function cloneOptions(options = {}) {
   if (options.defaultMemoryChannels) {
     clone.defaultMemoryChannels = { ...options.defaultMemoryChannels };
   }
+  if (options.reactNativeMemory && typeof options.reactNativeMemory === "object") {
+    clone.reactNativeMemory = { ...options.reactNativeMemory };
+  }
   if (options.sessionJpegCapture && typeof options.sessionJpegCapture === "object") {
     clone.sessionJpegCapture = { ...options.sessionJpegCapture };
   }
@@ -222,6 +225,19 @@ class AnsightOptionsBuilder {
       }
     });
     this._options.defaultMemoryChannels = current;
+    return this;
+  }
+
+  withReactNativeMemoryProfiling(options = {}) {
+    this._options.reactNativeMemory = {
+      ...(options || {}),
+      enabled: true,
+    };
+    return this;
+  }
+
+  withoutReactNativeMemoryProfiling() {
+    this._options.reactNativeMemory = false;
     return this;
   }
 

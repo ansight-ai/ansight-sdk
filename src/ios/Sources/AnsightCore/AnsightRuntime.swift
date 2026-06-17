@@ -2465,6 +2465,9 @@ public final class AnsightRuntime: @unchecked Sendable {
                         "unit": channel.unit.map(JSONValue.string) ?? .null,
                         "type": .string(channel.type),
                         "color": channel.color.map(JSONValue.string) ?? .null,
+                        "source": channel.source.map(JSONValue.string) ?? .null,
+                        "group": channel.group.map(JSONValue.string) ?? .null,
+                        "kind": channel.kind.map(JSONValue.string) ?? .null,
                     ])
                 }),
             ])
@@ -3189,13 +3192,19 @@ public final class AnsightRuntime: @unchecked Sendable {
         let color = channel.color?.trimmingCharacters(in: .whitespacesAndNewlines)
         let unit = channel.unit?.trimmingCharacters(in: .whitespacesAndNewlines)
         let type = channel.type.trimmingCharacters(in: .whitespacesAndNewlines)
+        let source = channel.source?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let group = channel.group?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let kind = channel.kind?.trimmingCharacters(in: .whitespacesAndNewlines)
 
         return AnsightChannel(
             id: channel.id,
             name: name,
             color: color?.isEmpty == true ? nil : color,
             unit: unit?.isEmpty == true ? nil : unit,
-            type: type.isEmpty ? "custom" : type
+            type: type.isEmpty ? "custom" : type,
+            source: source?.isEmpty == true ? nil : source,
+            group: group?.isEmpty == true ? nil : group,
+            kind: kind?.isEmpty == true ? nil : kind
         )
     }
 

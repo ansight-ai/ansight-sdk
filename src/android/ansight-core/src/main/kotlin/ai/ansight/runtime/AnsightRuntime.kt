@@ -1327,6 +1327,9 @@ object AnsightRuntime {
                             .putNullable("unit", channel.unit)
                             .put("type", channel.type)
                             .putNullable("color", channel.colorHex)
+                            .putNullable("source", channel.source)
+                            .putNullable("group", channel.group)
+                            .putNullable("kind", channel.kind)
                     }),
                 )
             selected.map { it.id }.toSet() to payload
