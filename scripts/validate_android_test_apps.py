@@ -19,6 +19,7 @@ import subprocess
 import sys
 import time
 import xml.etree.ElementTree as ET
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -31,6 +32,12 @@ DEFAULT_STUDIO_DAEMON = Path("/Applications/Ansight.app/Contents/Helpers/ansight
 DEFAULT_ANDROID_SDK_ARTIFACT = "ai.ansight:ansight-android:0.1.0-pre1"
 DEFAULT_COMPILE_SDK = 35
 DEFAULT_MIN_SDK = 23
+JDK_HOME_BY_MAJOR = {
+    8: Path("/Library/Java/JavaVirtualMachines/temurin-8.jdk/Contents/Home"),
+    11: Path("/Library/Java/JavaVirtualMachines/legacy - microsoft-11.jdk/Contents/Home"),
+    17: Path("/Library/Java/JavaVirtualMachines/microsoft-17.jdk/Contents/Home"),
+    21: Path("/Library/Java/JavaVirtualMachines/microsoft-21.jdk.disabled/Contents/Home"),
+}
 BUILD_TIMEOUT_SECONDS = 900
 SDK_PUBLISH_TIMEOUT_SECONDS = 900
 VALIDATION_PROVIDER_CLASS = "ai.ansight.validation.AnsightValidationProvider"
@@ -483,6 +490,45 @@ def copy_ignore(directory: str, names: list[str]) -> set[str]:
     return {name for name in names if name in EXCLUDED_COPY_NAMES or name.endswith(".iml")}
 
 
+def normalize_gradle_wrappers(project_root: Path) -> None:
+    for wrapper in project_root.rglob("gradlew"):
+        if any(part in EXCLUDED_COPY_NAMES for part in wrapper.parts):
+            continue
+        data = wrapper.read_bytes()
+        if data.startswith(b"\xef\xbb\xbf"):
+            data = data[3:]
+        text = data.decode("utf-8", errors="replace")
+        wrapper_jar = wrapper.parent / "gradle/wrapper/gradle-wrapper.jar"
+        if wrapper_jar.exists() and not jar_manifest_has_main_class(wrapper_jar):
+            text = text.replace(
+                '-jar "$APP_HOME/gradle/wrapper/gradle-wrapper.jar"',
+                '-classpath "$APP_HOME/gradle/wrapper/gradle-wrapper.jar" org.gradle.wrapper.GradleWrapperMain',
+            )
+            data = text.encode("utf-8")
+        wrapper.write_bytes(data)
+        wrapper.chmod(wrapper.stat().st_mode | 0o755)
+
+
+def jar_manifest_has_main_class(jar_path: Path) -> bool:
+    try:
+        with zipfile.ZipFile(jar_path) as archive:
+            with archive.open("META-INF/MANIFEST.MF") as manifest:
+                return b"Main-Class:" in manifest.read()
+    except (KeyError, OSError, zipfile.BadZipFile):
+        return False
+
+
+def disable_dependency_verification(project_root: Path) -> None:
+    verification_dir = project_root / "gradle"
+    for name in ("verification-metadata.xml", "verification-keyring.keys"):
+        path = verification_dir / name
+        if path.exists():
+            disabled = path.with_name(path.name + ".ansight-validation-disabled")
+            if disabled.exists():
+                disabled.unlink()
+            path.rename(disabled)
+
+
 def prepare_project(
     project: AndroidAppProject,
     work_root: Path,
@@ -493,6 +539,8 @@ def prepare_project(
 ) -> tuple[Path, AndroidAppProject, dict[str, bool]]:
     worktree_path = work_root / project.slug
     copy_project(project.source_root, worktree_path, keep_workdirs)
+    normalize_gradle_wrappers(worktree_path)
+    disable_dependency_verification(worktree_path)
 
     module_rel = project.module_rel
     manifest_rel = project.manifest_rel
@@ -510,7 +558,12 @@ def prepare_project(
     prepared_project.namespace = parse_namespace(module_root)
 
     ensure_local_properties(worktree_path)
-    sdk_changes = patch_android_sdk_versions(module_root, compile_sdk=compile_sdk, min_sdk=min_sdk)
+    sdk_changes = patch_android_sdk_versions(
+        worktree_path,
+        module_root,
+        compile_sdk=compatible_compile_sdk(worktree_path, module_root, compile_sdk),
+        min_sdk=min_sdk,
+    )
     inject_validation_provider(worktree_path / manifest_rel, module_root, pairing_config_json, project.slug)
     return worktree_path, prepared_project, {
         "compile_sdk_raised": sdk_changes["compile_sdk_raised"],
@@ -553,7 +606,7 @@ def android_sdk_path() -> Path | None:
     return candidate if candidate.exists() else None
 
 
-def patch_android_sdk_versions(module_root: Path, compile_sdk: int, min_sdk: int) -> dict[str, bool]:
+def patch_android_sdk_versions(project_root: Path, module_root: Path, compile_sdk: int, min_sdk: int) -> dict[str, bool]:
     build_file = find_build_file(module_root)
     if build_file is None:
         raise ValidationError("prepare", f"No Gradle build file found for module {module_root}")
@@ -580,10 +633,49 @@ def patch_android_sdk_versions(module_root: Path, compile_sdk: int, min_sdk: int
         min_sdk,
     )
     build_file.write_text(text, encoding="utf-8")
+    catalog_compile_raised, catalog_min_raised = patch_version_catalog_sdk_versions(
+        project_root,
+        compile_sdk=compile_sdk,
+        min_sdk=min_sdk,
+    )
     return {
-        "compile_sdk_raised": compile_raised,
-        "min_sdk_raised": min_raised,
+        "compile_sdk_raised": compile_raised or catalog_compile_raised,
+        "min_sdk_raised": min_raised or catalog_min_raised,
     }
+
+
+def compatible_compile_sdk(project_root: Path, module_root: Path, requested_compile_sdk: int) -> int:
+    version = gradle_wrapper_version(project_root, module_root)
+    if version is None:
+        return requested_compile_sdk
+    major, minor = version
+    if major < 7:
+        return min(requested_compile_sdk, 30)
+    if major == 7 and minor < 3:
+        return min(requested_compile_sdk, 31)
+    return requested_compile_sdk
+
+
+def patch_version_catalog_sdk_versions(project_root: Path, compile_sdk: int, min_sdk: int) -> tuple[bool, bool]:
+    compile_raised = False
+    min_raised = False
+    for catalog in project_root.glob("gradle/*.versions.toml"):
+        text = read_text(catalog)
+        text, catalog_compile_raised = raise_toml_version_value(
+            text,
+            [r"(\bcompile[-_.]sdk[-_.]version\s*=\s*\")(\d+)(\")"],
+            compile_sdk,
+        )
+        text, catalog_min_raised = raise_toml_version_value(
+            text,
+            [r"(\bmin[-_.]sdk[-_.]version\s*=\s*\")(\d+)(\")"],
+            min_sdk,
+        )
+        if catalog_compile_raised or catalog_min_raised:
+            catalog.write_text(text, encoding="utf-8")
+        compile_raised = compile_raised or catalog_compile_raised
+        min_raised = min_raised or catalog_min_raised
+    return compile_raised, min_raised
 
 
 def raise_numeric_gradle_value(text: str, patterns: list[str], minimum: int) -> tuple[str, bool]:
@@ -599,6 +691,22 @@ def raise_numeric_gradle_value(text: str, patterns: list[str], minimum: int) -> 
         prefix = match.group(1)
         suffix = match.group(3) if match.lastindex and match.lastindex >= 3 else ""
         return f"{prefix}{minimum}{suffix}"
+
+    for pattern in patterns:
+        text = re.sub(pattern, replace, text)
+    return text, changed
+
+
+def raise_toml_version_value(text: str, patterns: list[str], minimum: int) -> tuple[str, bool]:
+    changed = False
+
+    def replace(match: re.Match[str]) -> str:
+        nonlocal changed
+        value = int(match.group(2))
+        if value >= minimum:
+            return match.group(0)
+        changed = True
+        return f"{match.group(1)}{minimum}{match.group(3)}"
 
     for pattern in patterns:
         text = re.sub(pattern, replace, text)
@@ -839,19 +947,109 @@ def publish_sdk(sdk_root: Path, timeout: int) -> CommandResult:
     return result
 
 
-def gradle_command(project_root: Path) -> list[str]:
-    wrapper = project_root / "gradlew"
-    if wrapper.exists():
+def gradle_command(project_root: Path, module_root: Path | None = None) -> list[str]:
+    wrapper = find_gradle_wrapper(project_root, module_root)
+    if wrapper is not None:
         if not os.access(wrapper, os.X_OK):
             return ["sh", str(wrapper)]
         return [str(wrapper)]
     return ["gradle"]
 
 
+def find_gradle_wrapper(project_root: Path, module_root: Path | None = None) -> Path | None:
+    search_roots: list[Path] = []
+    if module_root is not None:
+        current = module_root
+        while True:
+            search_roots.append(current)
+            if current == project_root or current.parent == current:
+                break
+            current = current.parent
+    search_roots.append(project_root)
+
+    seen: set[Path] = set()
+    for root in search_roots:
+        wrapper = root / "gradlew"
+        if wrapper in seen:
+            continue
+        seen.add(wrapper)
+        if wrapper.exists():
+            return wrapper
+    return None
+
+
+def gradle_wrapper_version(project_root: Path, module_root: Path | None = None) -> tuple[int, int] | None:
+    wrapper = find_gradle_wrapper(project_root, module_root)
+    if wrapper is None:
+        return None
+    properties = wrapper.parent / "gradle/wrapper/gradle-wrapper.properties"
+    if not properties.exists():
+        return None
+    match = re.search(r"gradle-(\d+)\.(\d+)(?:\.|\-)", read_text(properties))
+    if not match:
+        return None
+    return int(match.group(1)), int(match.group(2))
+
+
+def gradle_root(project_root: Path, module_root: Path | None = None) -> Path:
+    wrapper = find_gradle_wrapper(project_root, module_root)
+    return wrapper.parent if wrapper is not None else project_root
+
+
+def project_requires_java_21(project_root: Path) -> bool:
+    patterns = ("VERSION_21", "jvmTarget = \"21\"", "jvmTarget.set(\"21\")", "languageVersion.set(JavaLanguageVersion.of(21))")
+    for path in project_root.rglob("*gradle*"):
+        if any(part in EXCLUDED_COPY_NAMES for part in path.parts) or not path.is_file():
+            continue
+        text = read_text(path)
+        if any(pattern in text for pattern in patterns):
+            return True
+    return False
+
+
+def select_java_home(project_root: Path, module_root: Path | None = None) -> Path | None:
+    if project_requires_java_21(project_root):
+        return existing_jdk_home(21)
+
+    version = gradle_wrapper_version(project_root, module_root)
+    if version is None:
+        return None
+
+    major, minor = version
+    if major < 6:
+        return existing_jdk_home(8)
+    if major < 7 or (major == 7 and minor < 3):
+        return existing_jdk_home(11)
+    return None
+
+
+def existing_jdk_home(major: int) -> Path | None:
+    path = JDK_HOME_BY_MAJOR.get(major)
+    return path if path is not None and path.exists() else None
+
+
+def gradle_environment(project_root: Path, module_root: Path | None = None) -> dict[str, str]:
+    env = os.environ.copy()
+    java_home = select_java_home(project_root, module_root)
+    if java_home is not None:
+        env["JAVA_HOME"] = str(java_home)
+        env["PATH"] = f"{java_home / 'bin'}{os.pathsep}{env.get('PATH', '')}"
+    return env
+
+
 def gradle_module_path(module_rel: Path) -> str:
     if str(module_rel) in ("", "."):
         return ":assembleDebug"
     return ":" + ":".join(module_rel.parts) + ":assembleDebug"
+
+
+def gradle_task_path(project_root: Path, module_root: Path) -> str:
+    root = gradle_root(project_root, module_root)
+    try:
+        module_rel = module_root.relative_to(root)
+    except ValueError:
+        module_rel = module_root.relative_to(project_root)
+    return gradle_module_path(module_rel)
 
 
 def build_project(
@@ -861,17 +1059,19 @@ def build_project(
     timeout: int,
     extra_gradle_args: list[str],
 ) -> CommandResult:
+    module_root = worktree_path / module_rel
+    root = gradle_root(worktree_path, module_root)
     command = (
-        gradle_command(worktree_path)
+        gradle_command(worktree_path, module_root)
         + [
             "--init-script",
             str(init_script),
             "--no-daemon",
-            gradle_module_path(module_rel),
+            gradle_task_path(worktree_path, module_root),
         ]
         + extra_gradle_args
     )
-    return run_command(command, cwd=worktree_path, timeout=timeout)
+    return run_command(command, cwd=root, timeout=timeout, env=gradle_environment(worktree_path, module_root))
 
 
 def find_debug_apk(module_root: Path) -> Path | None:
@@ -1088,7 +1288,7 @@ def validate_project(
             result.status = "prepared"
             return result
 
-        result.gradle_task = gradle_module_path(prepared_project.module_rel)
+        result.gradle_task = gradle_task_path(worktree_path, module_root)
         last_command = build_project(
             worktree_path,
             prepared_project.module_rel,

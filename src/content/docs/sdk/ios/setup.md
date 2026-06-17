@@ -233,6 +233,7 @@ import AnsightKit
 import AnsightToolsDatabase
 import AnsightToolsFileSystem
 import AnsightToolsPreferences
+import AnsightToolsReflection
 import AnsightToolsSecureStorage
 import AnsightToolsVisualTree
 
@@ -256,6 +257,7 @@ try AnsightRuntime.shared.initializeAndActivate(
 try AnsightRuntime.shared.registerPreferencesTools()
 try AnsightRuntime.shared.registerFileSystemTools()
 try AnsightRuntime.shared.registerDatabaseTools()
+try AnsightRuntime.shared.registerReflectionTools()
 try AnsightRuntime.shared.registerSecureStorageTools(
     options: AnsightSecureStorageToolsOptions(
         allowedKeyPrefixes: ["ansight.debug."]

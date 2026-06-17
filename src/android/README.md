@@ -1,76 +1,358 @@
-# Ansight Android
+# Ansight Android SDK
 
-The native Android SDK plan lives in [../../docs/native-ios-android-sdk-plan.md](../../docs/native-ios-android-sdk-plan.md).
+The Android SDK mirrors the .NET runtime concepts with Kotlin/Java-friendly
+APIs. Use `ai.ansight:ansight-android` for the all-in-one developer setup, or
+compose `ansight-core-android`, `ansight-pairing-android`, and individual tool
+packages when you need a smaller runtime surface.
 
 The native harness app lives in `harness/`.
 
-## Current first pass
+## Install
 
-The first native Android runtime pass covers SDK goals 00 through 06:
-
-- runtime/options/lifecycle/screen-view integration
-- pairing config parsing and ECDSA signature verification
-- structured host connection status/results
-- UDP bootstrap plus WebSocket control transport
-- Android device/app profile collection
-- bounded built-in/custom telemetry capture
-
-See [../../docs/android-sdk-gap-analysis.md](../../docs/android-sdk-gap-analysis.md)
-for validation evidence and remaining gaps.
-
-## License
-
-The Ansight SDK is source-available software under the
-[Ansight SDK Source-Available License](https://github.com/ansight-ai/ansight-sdk/blob/main/LICENSE).
-It is not open-source software. Production use is licensed only for use with
-Ansight Services.
-
-## Packages
-
-The Android SDK mirrors the .NET package split:
-
-- `ai.ansight:ansight-core-android` contains the core runtime, telemetry, events, host connection, and transport concepts.
-- `ai.ansight:ansight-pairing-android` contains native QR pairing acquisition and the Android bottom-sheet pairing UI.
-- `ai.ansight:ansight-tools-visualtree-android`
-- `ai.ansight:ansight-tools-filesystem-android`
-- `ai.ansight:ansight-tools-preferences-android`
-- `ai.ansight:ansight-tools-securestorage-android`
-- `ai.ansight:ansight-tools-database-android`
-- `ai.ansight:ansight-tools-reflection-android`
-- `ai.ansight:ansight-android` is the all-in-one package that references core, pairing, and all standard tool suites.
-
-Each tool suite exposes a `*ToolIds` constants object, matching the .NET `*ToolIds` pattern.
-
-## Custom session properties
-
-Apps can provide grouped string custom properties in `AnsightOptions.customProperties` before initialization, then update them while the runtime is active:
+Use the all-in-one package for development builds:
 
 ```kotlin
-Ansight.initializeAndActivate(
+dependencies {
+    implementation("ai.ansight:ansight-android:0.1.0-pre1")
+}
+```
+
+Minimal integrations can depend on only the packages they need:
+
+```kotlin
+dependencies {
+    implementation("ai.ansight:ansight-core-android:0.1.0-pre1")
+    implementation("ai.ansight:ansight-pairing-android:0.1.0-pre1")
+    implementation("ai.ansight:ansight-tools-visualtree-android:0.1.0-pre1")
+}
+```
+
+## Quickstart
+
+Initialize from your `Application`:
+
+```kotlin
+import ai.ansight.Ansight
+import android.app.Application
+
+class MyApplication : Application() {
+    override fun onCreate() {
+        super.onCreate()
+
+        Ansight.initializeAndActivate(
+            application = this,
+            options = Ansight.developerOptions(
+                bundledDeveloperConfigJson = BuildConfig.ANSIGHT_DEVELOPER_PAIRING_JSON,
+                clientName = "Android App",
+            ),
+        )
+    }
+}
+```
+
+`Ansight.developerOptions(...)` applies the all-in-one developer preset:
+
+- 400 ms sampling
+- 120 second retention
+- FPS enabled
+- battery disabled
+- JPEG capture every 2000 ms at quality 60 and max width 480
+- touch capture enabled
+- host auto-probe enabled
+- full tool access
+- all standard native tool suites registered
+
+Use the core runtime directly when you do not want aggregate defaults:
+
+```kotlin
+import ai.ansight.runtime.AnsightOptions
+import ai.ansight.runtime.AnsightRuntime
+
+AnsightRuntime.initializeAndActivate(
     application = application,
-    options = Ansight.developerOptions().copy(
-        customProperties = mapOf("app" to mapOf("tenant" to "acme")),
+    options = AnsightOptions(
+        sampleFrequencyMilliseconds = 500,
+        retentionPeriodSeconds = 600,
+    ),
+)
+```
+
+## Options
+
+`AnsightOptions` is the Android equivalent of .NET `Options`.
+
+| Option | Purpose |
+| --- | --- |
+| `sampleFrequencyMilliseconds` | Built-in telemetry sampling interval. Clamped to 200-2000 ms. |
+| `retentionPeriodSeconds` | Local metric/event retention window. Clamped to 60-3600 seconds. |
+| `enableFramesPerSecond` | Enables `Choreographer` FPS sampling. |
+| `enableBatteryLevel` | Enables battery sampling where available. |
+| `defaultMemoryChannels` | Selects Java heap, native heap, and RSS channels. |
+| `additionalChannels` | Registers custom metric channels. Reserved ids are rejected. |
+| `sessionJpegCapture` | Configures live JPEG screen-frame streaming. `null` disables it. |
+| `touchCapture` | Configures app-local touch capture. `null` disables it. |
+| `toolGuard` | Controls remote-tool discovery and execution. |
+| `customProperties` | Grouped string properties sent with `session.open`. |
+| `hostAutoProbe` | Controls automatic host reconnect attempts. |
+| `hostConnection` | Configures saved, bundled, and developer pairing sources. |
+| `secureStorage` | Defines secure-storage allow-lists for the secure storage tools. |
+| `initialTools` | Adds custom or package-provided tools at initialization. |
+
+## Host Connection
+
+Runtime-owned host connection APIs live on `AnsightRuntime`.
+
+```kotlin
+val result = AnsightRuntime.connect(
+    HostConnectionRequest(
+        kind = HostConnectionRequestKind.Auto,
+        clientName = "Android App",
+    ),
+)
+```
+
+Automatic connection tries:
+
+1. `hostConnection.bundledDeveloperConfigJson`
+2. cached host session profiles
+3. saved pairing config
+4. `hostConnection.bundledConfigJson`
+
+Use explicit requests for override flows:
+
+```kotlin
+AnsightRuntime.connect(
+    HostConnectionRequest(
+        kind = HostConnectionRequestKind.Payload,
+        payload = pairingJson,
+        clientName = "Android App",
+        expectedAppId = application.packageName,
     ),
 )
 
+AnsightRuntime.savePairingConfig(pairingJson, expectedAppId = application.packageName)
+AnsightRuntime.clearSavedPairingConfig()
+AnsightRuntime.clearCachedSession()
+AnsightRuntime.disconnect()
+```
+
+The all-in-one package also exposes the Android pairing sheet:
+
+```kotlin
+Ansight.showPairingSheet(
+    activity = activity,
+    clientName = "Android App",
+    expectedAppId = activity.packageName,
+    onResult = { result ->
+        // Inspect HostConnectionResult.
+    },
+)
+```
+
+Developer pairing JSON must not be shipped in release, CI, Play Store, or other
+distributable builds.
+
+## Telemetry
+
+Register channels and record custom telemetry:
+
+```kotlin
+Ansight.registerMetricChannel(
+    AnsightChannel(
+        id = 42,
+        name = "Cache",
+        colorHex = "#FF9500",
+        unit = "items",
+        type = "cache",
+    ),
+)
+
+AnsightRuntime.metric(12, channel = 42)
+AnsightRuntime.event("cache_hit", AnsightEventType.Info, details = "warm=true", channel = 42)
+AnsightRuntime.screenViewed("Orders", mapOf("route" to "/orders"))
+AnsightRuntime.setAppLifecycleState(AppLifecycleState.Foreground)
+```
+
+For sampled custom values, register a metric stream:
+
+```kotlin
+Ansight.registerMetricStream(
+    AnsightMetricStream(
+        channel = AnsightChannel(43, "Queue Depth", unit = "items", type = "queue"),
+        sampler = AnsightMetricSampler { queue.depth.toLong() },
+    ),
+)
+```
+
+## Logs And Session Properties
+
+`sendClientLog` sends an app-provided line over the active live session:
+
+```kotlin
+val logResult = AnsightRuntime.sendClientLog("Checkout loaded cartId=debug-42")
+```
+
+SDK-internal logs can be observed with `AnsightLogger`:
+
+```kotlin
+val callback = AnsightLogCallback { level, message, throwable ->
+    Log.d("Ansight", "[$level] $message", throwable)
+}
+
+AnsightLogger.registerCallback(callback)
+AnsightLogger.removeCallback(callback)
+```
+
+Custom/session properties are grouped string values. They are included in the
+next `session.open`; when a live session is connected, mutations are also sent
+immediately with the `session.properties` control action.
+
+```kotlin
 Ansight.registerCustomProperty("app", "region", "au")
-Ansight.removeCustomProperty("app", "tenant")
+Ansight.removeCustomProperty("app", "region")
 Ansight.clearCustomProperties()
 ```
 
-When a live pairing session is connected, mutations are sent immediately with the `session.properties` control action. When disconnected, mutations are retained locally and included in the next `session.open`.
+## Tool Guards
 
-## Local publication
+| Guard | Allowed scopes |
+| --- | --- |
+| `AnsightToolGuard.Disabled` | None |
+| `AnsightToolGuard.ReadOnly` | `Read` |
+| `AnsightToolGuard.ReadWrite` | `Read`, `Write` |
+| `AnsightToolGuard.FullAccess` | `Read`, `Write`, `Delete` |
 
-1. Create `local.properties` in this directory with your Android SDK path when
-   `ANDROID_HOME` or `ANDROID_SDK_ROOT` is not already configured.
-2. Publish the release AARs to your local Maven cache:
+`ReadWrite` intentionally hides delete-scoped tools such as
+`files.delete_file`, `prefs.remove_key`, `secure.remove_key`, and overlay
+removal tools.
+
+## Runtime Toggles
+
+FPS sampling can be changed after initialization:
+
+```kotlin
+if (!Ansight.isFramesPerSecondEnabled()) {
+    Ansight.enableFramesPerSecond()
+}
+
+Ansight.disableFramesPerSecond()
+```
+
+Touch capture can be guarded by app state:
+
+```kotlin
+Ansight.setTouchCaptureGuard {
+    sessionManager.isDebugSessionAllowed
+}
+```
+
+## Standard Tool Packages
+
+The aggregate `Ansight` package registers all standard tools unless the same
+tool id is already present in `initialTools`.
+
+| Package | Factory | Tool ids |
+| --- | --- | --- |
+| `ansight-tools-visualtree-android` | `AndroidVisualTreeTools.create()` | `ui.*` visual tree, screenshot, and overlay tools |
+| `ansight-tools-filesystem-android` | `AndroidFileSystemTools.create()` | `files.*` sandbox file tools |
+| `ansight-tools-preferences-android` | `AndroidPreferencesTools.create()` | `prefs.*` SharedPreferences tools |
+| `ansight-tools-securestorage-android` | `AndroidSecureStorageTools.create()` | `secure.*` allow-listed secure storage tools |
+| `ansight-tools-database-android` | `AndroidDatabaseTools.create()` | `data.*` SQLite tools |
+| `ansight-tools-reflection-android` | `AndroidReflectionTools.create()` | `reflect.*` registered-root reflection tools |
+
+Each tool package exposes a `*ToolIds` object that matches the .NET constants.
+
+Tool packages also expose .NET-style `AnsightOptionsBuilder` extensions:
+
+```kotlin
+import ai.ansight.withAnsightSdk
+import ai.ansight.tools.filesystem.withFileSystemTools
+import ai.ansight.tools.preferences.withPreferencesTools
+
+val options = AnsightOptions.createBuilder()
+    .withAnsightSdk {
+        withFileSystemTools {
+            addRoot("exports", application.filesDir.resolve("exports"))
+        }
+        withPreferencesTools {
+            withDefaultStore("${application.packageName}_preferences")
+            allowKeyPrefix("debug.")
+        }
+    }
+    .build()
+```
+
+## Custom Tools
+
+Register custom tools before or after initialization:
+
+```kotlin
+import ai.ansight.runtime.AndroidToolResult
+import ai.ansight.runtime.FunctionAndroidTool
+import ai.ansight.runtime.ToolDefinition
+import ai.ansight.runtime.ToolScope
+import org.json.JSONObject
+
+AnsightRuntime.registerTool(
+    FunctionAndroidTool(
+        definition = ToolDefinition(
+            id = "app.state.snapshot",
+            name = "State Snapshot",
+            description = "Returns current app state.",
+            category = "app",
+            scope = ToolScope.Read,
+            keywords = "state snapshot",
+        ),
+    ) { _, _ ->
+        AndroidToolResult.success(JSONObject().put("state", "ready"))
+    },
+)
+```
+
+Use `replaceExisting = true` only for deliberate handler refreshes:
+
+```kotlin
+AnsightRuntime.registerTool(tool, replaceExisting = true)
+```
+
+## Visual Tree Providers
+
+The visual tree tools route by source. The native provider is registered by the
+standard Android tool suite. Apps can add additional sources:
+
+```kotlin
+AndroidVisualTreeProviderRegistry.register(myProvider, replaceExisting = true)
+```
+
+React Native registers a `react` provider through `@ansight/react-native`.
+
+## Status And Debugging
+
+Use these APIs for diagnostics:
+
+```kotlin
+val runtimeSnapshot = AnsightRuntime.snapshot()
+val status = AnsightRuntime.hostConnectionStatus()
+val options = AnsightRuntime.options()
+val metrics = AnsightRuntime.recordedMetrics()
+val events = AnsightRuntime.recordedEvents()
+```
+
+`HostConnectionResult` and `OperationResult` return `success`, `message`, and
+machine-readable context where available.
+
+## Local Publication
+
+Create `local.properties` in this directory with your Android SDK path when
+`ANDROID_HOME` or `ANDROID_SDK_ROOT` is not already configured.
+
+Publish release AARs to Maven local:
 
 ```bash
 ./gradlew publishReleasePublicationToMavenLocal
 ```
 
-You can override the publication coordinates with Gradle properties:
+You can override publication coordinates:
 
 ```bash
 ./gradlew :ansight:publishReleasePublicationToMavenLocal \
@@ -79,11 +361,25 @@ You can override the publication coordinates with Gradle properties:
   -PansightAndroidVersion=1.0.0-local
 ```
 
-## Validation commands
+## Validation
+
+Run the SDK unit tests and native harness build:
 
 ```bash
-./gradlew :ansight-core:testDebugUnitTest
-./gradlew :ansight:testDebugUnitTest
+./gradlew :ansight-core:test
+./gradlew :ansight:test
 ./gradlew :harness:assembleDebug
-./gradlew :ansight:publishReleasePublicationToMavenLocal
 ```
+
+The broader Android corpus validator lives at:
+
+```bash
+python ../../scripts/validate_android_test_apps.py --help
+```
+
+## License
+
+The Ansight SDK is source-available software under the
+[Ansight SDK Source-Available License](https://github.com/ansight-ai/ansight-sdk/blob/main/LICENSE).
+It is not open-source software. Production use is licensed only for use with
+Ansight Services.

@@ -127,6 +127,27 @@ var recentMetrics = sink.GetMetricsForChannelInRange(42, DateTime.UtcNow.AddMinu
 var recentEvents = sink.GetEventsForChannelInRange(42, DateTime.UtcNow.AddMinutes(-1), DateTime.UtcNow);
 ```
 
+## Session properties and client logs
+
+Runtime custom properties are grouped values sent with `session.open` and
+streamed as `session.properties` updates while a live session is connected:
+
+```csharp
+Runtime.RegisterCustomProperty("app", "region", "au");
+Runtime.RemoveCustomProperty("app", "region");
+Runtime.ClearCustomProperties();
+```
+
+Low-level `PairingSessionClient` integrations can send explicit app log lines
+over the live session:
+
+```csharp
+await sessionClient.SendClientLogAsync(
+    "Checkout loaded cartId=debug-42",
+    progress: null,
+    CancellationToken.None);
+```
+
 ## FPS sampling
 
 FPS is disabled by default unless enabled via options:

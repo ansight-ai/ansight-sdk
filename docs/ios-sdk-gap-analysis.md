@@ -18,6 +18,7 @@ Date: 2026-06-14
   - `AnsightToolsFileSystem`
   - `AnsightToolsDatabase`
   - `AnsightToolsSecureStorage`
+  - `AnsightToolsReflection`
   - `AnsightToolsVisualTree`
 - SwiftPM build plugin and CocoaPods `AnsightCore` script phase for developer pairing artifacts and bundled remote-tool policy enforcement; UIKit file/QR pairing UI is isolated in `AnsightPairingQR`.
 - Native iOS test-app validator that can issue fresh Ansight Studio pairing configs through the Studio MCP daemon, prefer iOS targets/schemes in multi-platform projects, optionally run `pod install` for CocoaPods apps, force x86_64 simulator destinations with an arm64 exclusion override for older binary pods, relax warning-heavy legacy dependency builds when requested, override the simulator deployment target for apps that require newer APIs, optionally skip unavailable Xcode scheme actions and trusted package-plugin/macro validation prompts, install/launch simulator apps, inject deterministic validation app icons, inject route resolver validation hooks, inject validation-only synthetic touch probes and picker-style input overlays with first-responder retry/fallback handling, seed deterministic validation files, tear down timed-out Xcode command process groups, verify live Studio session evidence for metrics, FPS, screenshots, remote-tool catalog, session-recorded app-icon sync status, custom automatic screen-view routes, captured touch input, input-overlay screenshot pixels, and `files.begin_binary_download` metadata for a chunked validation payload, write an aggregate summary artifact for corpus-level gate/failure triage, and merge/skip prior verified rows for resumable full-corpus validation.
@@ -48,8 +49,8 @@ Date: 2026-06-14
    - Remaining tool infrastructure validation is a live Studio large-binary reassembly run once the host bridge exposes the completed artifact path for generic `files.begin_binary_download` transfers.
 
 5. Reflection tools:
-   - Still intentionally blocked pending native security and object-model design approval.
-   - Do not port .NET reflection directly.
+   - `AnsightToolsReflection` now exposes the shared `reflect.*` tool ids, registered roots, `Mirror`-based inspection, and opt-in write/invoke hooks through `AnsightReflectionMutableRoot` and `AnsightReflectionInvokableRoot`.
+   - Remaining work is live Studio validation against real app roots and any additional native object-model review before broad sample injection.
 
 6. Distribution:
    - Local CocoaPods podspecs now mirror the SwiftPM product set, `AnsightPairingQR` carries the UIKit/AVFoundation pairing UI, the `AnsightCore` pod runs the developer build-artifact generator before compile, and local aggregate lint passes.
