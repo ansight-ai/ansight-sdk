@@ -1,0 +1,14 @@
+# Dependencies
+node_modules/
+
+# React Native package build output
+android/.gradle/
+android/.kotlin/
+android/build/
+ios/Pods/
+ios/build/
+
+# Local editor and tool output
+*.log
+*.tmp
+.DS_Store
