@@ -326,7 +326,8 @@ reloads can refresh handlers.
 `installReactTools` registers React Native specific remote tools backed by the
 current React Fiber runtime:
 
-- `react.get_visual_tree`
+- `react.get_component_tree`
+- `react.get_shadow_tree`
 - `react.find_components`
 - `react.get_component`
 - `react.get_navigation_state`
@@ -347,8 +348,10 @@ const reactTools = Ansight.installReactTools({
 await reactTools.ready;
 ```
 
-The React tree payload redacts sensitive prop and state keys and includes native
-view bounds when React Native exposes a measurable native tag.
+The component tree payload redacts sensitive prop and state keys and includes
+native view bounds when React Native exposes a measurable native tag. The shadow
+tree payload flattens composite components and returns the committed React
+Native host/text/root nodes for layout-oriented inspection.
 
 Action invocation is intentionally opt-in. Only function props listed in
 `allowedActionProps` can be invoked, and the tool remains subject to the native

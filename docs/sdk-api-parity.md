@@ -201,7 +201,7 @@ The protocol tool ids are shared by .NET, Android, and iOS:
 | Secure storage | `secure.get_value`, `secure.set_value`, `secure.remove_key` |
 | Database | `data.list_databases`, `data.describe_schema`, `data.query` |
 | Reflection | `reflect.list_roots`, `reflect.inspect_object`, `reflect.describe_type`, `reflect.set_member_value`, `reflect.invoke_method` |
-| React Native | `react.get_visual_tree`, `react.find_components`, `react.get_component`, `react.get_navigation_state`, `react.invoke_component_action` |
+| React Native | `react.get_component_tree`, `react.get_shadow_tree`, `react.find_components`, `react.get_component`, `react.get_navigation_state`, `react.invoke_component_action` |
 
 Swift reflection inspection uses `Mirror`. Unlike .NET and Android/JVM,
 arbitrary Swift property writes and method invocation are not available through

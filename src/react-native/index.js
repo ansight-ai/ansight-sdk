@@ -24,6 +24,8 @@ const hostConnectionStatusListeners = new Set();
 let lastHostConnectionStatusKey = null;
 const logListeners = new Set();
 let logEventSubscription = null;
+const REACT_COMPONENT_TREE_TOOL_ID = "react.get_component_tree";
+const REACT_SHADOW_TREE_TOOL_ID = "react.get_shadow_tree";
 
 function normalizePairingPayload(payload) {
   if (payload == null) {
@@ -1495,6 +1497,89 @@ function serializeFiber(fiber, context, depth) {
   return node;
 }
 
+function isShadowTreeFiber(fiber) {
+  return fiber && (fiber.tag === 3 || fiber.tag === 5 || fiber.tag === 6);
+}
+
+function createShadowTreeNode(fiber, context, depth) {
+  const props = fiber.memoizedProps || fiber.pendingProps || {};
+  const node = {
+    id: reactFiberId(fiber),
+    type: reactFiberTypeName(fiber),
+    kind: fiber.tag === 3 ? "root" : fiber.tag === 6 ? "text" : "host",
+    tag: fiber.tag,
+    key: fiber.key == null ? null : String(fiber.key),
+    depth,
+    children: [],
+  };
+
+  const nativeTag = nativeTagForFiber(fiber);
+  if (nativeTag != null) {
+    node.nativeTag = nativeTag;
+    context.nodesWithNativeTags.push(node);
+  }
+
+  if (fiber.tag === 6) {
+    node.label = sanitizeString(String(fiber.memoizedProps || fiber.pendingProps || ""), context.maxStringLength);
+  } else if (props && typeof props === "object") {
+    const propSummary = summarizeProps(props);
+    if (Object.keys(propSummary).length > 0) {
+      node.propsSummary = propSummary;
+      if (propSummary.testID || propSummary.nativeID) {
+        node.automationId = propSummary.testID || propSummary.nativeID;
+      }
+      if (!node.label && (propSummary.accessibilityLabel || typeof propSummary.children === "string")) {
+        node.label = propSummary.accessibilityLabel || propSummary.children;
+      }
+    }
+    if (context.includeProps) {
+      node.props = sanitizeValue(props, context);
+    }
+  }
+
+  return node;
+}
+
+function serializeShadowFiber(fiber, context, depth) {
+  if (!fiber || context.visited.has(fiber)) {
+    return [];
+  }
+  if (context.count >= context.maxNodes) {
+    context.truncated = true;
+    return [];
+  }
+  context.visited.add(fiber);
+
+  const materialize = isShadowTreeFiber(fiber);
+  const nodeDepth = materialize ? depth : depth - 1;
+  let node = null;
+  if (materialize) {
+    context.count += 1;
+    node = createShadowTreeNode(fiber, context, nodeDepth);
+  }
+
+  const childNodes = [];
+  const childDepth = materialize ? nodeDepth + 1 : depth;
+  if (!materialize || nodeDepth < context.maxDepth) {
+    let child = fiber.child;
+    while (child) {
+      const serializedChildren = serializeShadowFiber(child, context, childDepth);
+      serializedChildren.forEach((childNode) => childNodes.push(childNode));
+      child = child.sibling;
+    }
+  } else if (fiber.child) {
+    context.truncated = true;
+  }
+
+  if (!node) {
+    return childNodes;
+  }
+
+  node.children = childNodes;
+  node.childCount = node.children.length;
+  return [node];
+}
+
 async function captureReactVisualTree(rawOptions = {}) {
   reactFiberById = new Map();
   const includeBounds = rawOptions.includeBounds !== false;
@@ -1535,12 +1620,70 @@ async function captureReactVisualTree(rawOptions = {}) {
     platform: Platform.OS,
     source: "react",
     adapter: "react.fiber",
+    treeKind: "component",
     capturedAtUtc: new Date().toISOString(),
     hookAvailable: roots.hookAvailable,
     renderers: roots.renderers,
     root: {
       id: "react:roots",
       type: "ReactRoots",
+      kind: "container",
+      children: rootNodes,
+    },
+    roots: rootNodes,
+    nodeCount: context.count,
+    truncated: context.truncated,
+    unavailableReason: roots.hookAvailable ? undefined : "React DevTools global hook is not available in this runtime.",
+  };
+}
+
+async function captureReactShadowTree(rawOptions = {}) {
+  reactFiberById = new Map();
+  const includeBounds = rawOptions.includeBounds !== false;
+  const context = {
+    includeProps: !!rawOptions.includeProps,
+    includeState: false,
+    maxArrayLength: rawOptions.maxArrayLength || 8,
+    maxDepth: rawOptions.maxDepth || 30,
+    maxNodes: rawOptions.maxNodes || 1500,
+    maxObjectKeys: rawOptions.maxObjectKeys || 24,
+    maxStringLength: rawOptions.maxStringLength || 180,
+    maxValueDepth: rawOptions.maxValueDepth || 2,
+    nodesWithNativeTags: [],
+    count: 0,
+    truncated: false,
+    visited: new Set(),
+  };
+  const roots = getReactRoots();
+  const rootNodes = roots.roots.flatMap((root, index) => {
+    const nodes = serializeShadowFiber(root.fiber, context, 0);
+    nodes.forEach((node) => {
+      node.rendererId = root.rendererId;
+      node.rootIndex = index;
+    });
+    return nodes;
+  });
+
+  if (includeBounds && context.nodesWithNativeTags.length > 0) {
+    await Promise.all(context.nodesWithNativeTags.slice(0, 300).map(async (node) => {
+      const bounds = await measureNativeTag(node.nativeTag);
+      if (bounds && bounds.width > 0 && bounds.height > 0) {
+        node.bounds = bounds;
+      }
+    }));
+  }
+
+  return {
+    platform: Platform.OS,
+    source: "react-native",
+    adapter: "react-native.host-fiber",
+    treeKind: "shadow",
+    capturedAtUtc: new Date().toISOString(),
+    hookAvailable: roots.hookAvailable,
+    renderers: roots.renderers,
+    root: {
+      id: "react:shadow-roots",
+      type: "ReactNativeShadowRoots",
       kind: "container",
       children: rootNodes,
     },
@@ -1628,12 +1771,12 @@ function reactToolOptions(baseOptions, args) {
 function reactToolDefinitions(enableActions) {
   const tools = [
     {
-      id: "react.get_visual_tree",
-      name: "Get React Visual Tree",
+      id: REACT_COMPONENT_TREE_TOOL_ID,
+      name: "Get React Component Tree",
       description: "Captures the live React Fiber component tree for the current React Native runtime.",
       category: "react",
       scope: "read",
-      keywords: ["react", "react-native", "fiber", "component", "visual-tree"],
+      keywords: ["react", "react-native", "fiber", "component", "component-tree"],
       argumentsSchema: {
         type: "object",
         properties: {
@@ -1648,6 +1791,29 @@ function reactToolDefinitions(enableActions) {
       security: {
         level: "high",
         summary: "Inspects the React component tree and optionally sanitized props/state.",
+        implications: ["inspects_runtime_state", "metadata_disclosure"],
+      },
+    },
+    {
+      id: REACT_SHADOW_TREE_TOOL_ID,
+      name: "Get React Shadow Tree",
+      description: "Captures the committed React Native host tree with composite components flattened out.",
+      category: "react",
+      scope: "read",
+      keywords: ["react", "react-native", "host", "shadow", "shadow-tree", "layout"],
+      argumentsSchema: {
+        type: "object",
+        properties: {
+          maxDepth: { type: "integer" },
+          maxNodes: { type: "integer" },
+          includeBounds: { type: "boolean" },
+          includeProps: { type: "boolean" },
+        },
+      },
+      resultSchema: { type: "object", additionalProperties: true },
+      security: {
+        level: "high",
+        summary: "Inspects the React Native host tree and optionally sanitized host props.",
         implications: ["inspects_runtime_state", "metadata_disclosure"],
       },
     },
@@ -1753,11 +1919,20 @@ function installReactTools(options = {}) {
 
   reactToolDefinitions(enableActions).forEach((definition) => {
     const registration = registerTool(definition, async (args = {}) => {
-      if (definition.id === "react.get_visual_tree") {
+      if (definition.id === REACT_COMPONENT_TREE_TOOL_ID) {
         const tree = await captureReactVisualTree(reactToolOptions(options, args));
         return {
           success: tree.hookAvailable && tree.nodeCount > 0,
-          message: tree.hookAvailable ? "React visual tree captured." : tree.unavailableReason,
+          message: tree.hookAvailable ? "React component tree captured." : tree.unavailableReason,
+          result: tree,
+        };
+      }
+
+      if (definition.id === REACT_SHADOW_TREE_TOOL_ID) {
+        const tree = await captureReactShadowTree(reactToolOptions(options, args));
+        return {
+          success: tree.hookAvailable && tree.nodeCount > 0,
+          message: tree.hookAvailable ? "React shadow tree captured." : tree.unavailableReason,
           result: tree,
         };
       }
