@@ -1,3 +1,4 @@
+using Ansight.Pairing;
 using Ansight.Pairing.Models;
 
 namespace Ansight;
@@ -28,6 +29,11 @@ internal interface IHostSessionConnection
 
     Task<HostSessionActionResult> ConnectUsingCachedProfileAsync(
         string? clientName = null,
+        IProgress<HostConnectionProgressUpdate>? progress = null,
+        CancellationToken cancellationToken = default);
+
+    Task<OperationResult> SendClientLogAsync(
+        string logLine,
         IProgress<HostConnectionProgressUpdate>? progress = null,
         CancellationToken cancellationToken = default);
 

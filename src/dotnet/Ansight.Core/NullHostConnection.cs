@@ -1,3 +1,4 @@
+using Ansight.Pairing;
 using Ansight.Pairing.Models;
 
 namespace Ansight;
@@ -65,6 +66,12 @@ internal sealed class NullHostConnection : IHostConnection
 
     public Task<HostConnectionResult> DisconnectAsync(CancellationToken cancellationToken = default)
         => Task.FromResult(HostConnectionResult.FromFailure(StatusSummary, HostConnectionActionKind.Disconnect));
+
+    public Task<OperationResult> SendClientLogAsync(
+        string logLine,
+        IProgress<HostConnectionProgressUpdate>? progress = null,
+        CancellationToken cancellationToken = default)
+        => Task.FromResult(OperationResult.FromFailure(StatusSummary));
 
     public HostConnectionResult ClearSavedConfigs()
         => HostConnectionResult.FromFailure(StatusSummary, HostConnectionActionKind.ClearSavedConfigs);

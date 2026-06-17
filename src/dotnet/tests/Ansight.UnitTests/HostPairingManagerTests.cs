@@ -463,6 +463,21 @@ public sealed class HostPairingManagerTests
     }
 
     [Fact]
+    public async Task SendClientLogAsync_ForwardsToHostConnection()
+    {
+        var savedConfigPath = CreateTempFilePath();
+        using var hostConnection = new FakeHostConnection();
+        hostConnection.SendClientLogResult = OperationResult.FromSuccess("Log sent.");
+        using var manager = CreateManager(hostConnection, savedConfigPath);
+
+        var result = await manager.SendClientLogAsync("custom app log");
+
+        Assert.True(result.Success);
+        Assert.Equal(1, hostConnection.SendClientLogCallCount);
+        Assert.Equal("custom app log", hostConnection.LastClientLogLine);
+    }
+
+    [Fact]
     public async Task RefreshCapabilitiesAsync_WhenBundledConfigProbeSucceeds_UpdatesStatusSnapshot()
     {
         var savedConfigPath = CreateTempFilePath();
@@ -739,9 +754,15 @@ public sealed class HostPairingManagerTests
 
         public int ClearCachedProfileCallCount { get; private set; }
 
+        public int SendClientLogCallCount { get; private set; }
+
+        public string? LastClientLogLine { get; private set; }
+
         public PairingConnectionOptions? LastConnectionOptions { get; private set; }
 
         public Func<string, ParsedPairingDocument?>? ParseDocumentOverride { get; set; }
+
+        public OperationResult SendClientLogResult { get; set; } = OperationResult.FromFailure("WebSocket session is not open.");
 
         public event EventHandler<HostSessionStatusChangedEventArgs>? StatusChanged;
 
@@ -784,6 +805,16 @@ public sealed class HostPairingManagerTests
                 : HostSessionActionResult.FromFailure("No cached profile.");
             ApplyState(result);
             return Task.FromResult(result);
+        }
+
+        public Task<OperationResult> SendClientLogAsync(
+            string logLine,
+            IProgress<HostConnectionProgressUpdate>? progress = null,
+            CancellationToken cancellationToken = default)
+        {
+            SendClientLogCallCount++;
+            LastClientLogLine = logLine;
+            return Task.FromResult(SendClientLogResult);
         }
 
         public Task<HostSessionActionResult> DisconnectAsync(CancellationToken cancellationToken = default)

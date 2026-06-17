@@ -187,6 +187,14 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
         };
     }
 
+    public Task<OperationResult> SendClientLogAsync(
+        string logLine,
+        IProgress<HostConnectionProgressUpdate>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        return hostConnection.SendClientLogAsync(logLine, progress, cancellationToken);
+    }
+
     private async Task<HostConnectionResult> ConnectAutoAsync(
         string? clientName,
         IProgress<HostConnectionProgressUpdate>? progress,

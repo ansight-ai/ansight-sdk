@@ -116,6 +116,14 @@ internal sealed class HostSessionManager : IHostSessionConnection, IHostAutoProb
         CancellationToken cancellationToken)
         => ConnectUsingCachedProfileCoreAsync(clientName, progress, cancellationToken);
 
+    public Task<OperationResult> SendClientLogAsync(
+        string logLine,
+        IProgress<HostConnectionProgressUpdate>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        return sessionClient.SendClientLogAsync(logLine, progress, cancellationToken);
+    }
+
     public async Task<HostSessionActionResult> DisconnectAsync(CancellationToken cancellationToken = default)
     {
         await operationGate.WaitAsync(cancellationToken);

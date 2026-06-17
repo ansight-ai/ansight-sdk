@@ -35,6 +35,11 @@ internal interface IHostConnectionSessionClient : IDisposable
         IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken);
 
+    Task<OperationResult> SendClientLogAsync(
+        string logLine,
+        IProgress<HostConnectionProgressUpdate>? progress,
+        CancellationToken cancellationToken);
+
     Task<OperationResult> CloseSessionAsync(CancellationToken cancellationToken);
 
     void ClearCachedPairingProfile();

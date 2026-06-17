@@ -1,3 +1,4 @@
+using Ansight.Pairing;
 using Ansight.Pairing.Models;
 
 namespace Ansight;
@@ -57,6 +58,14 @@ internal sealed class NullHostSessionConnection : IHostSessionConnection
             StatusSummary,
             kind: HostConnectionActionKind.Disconnect,
             source: HostConnectionSource.HostConnection));
+    }
+
+    public Task<OperationResult> SendClientLogAsync(
+        string logLine,
+        IProgress<HostConnectionProgressUpdate>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(OperationResult.FromFailure(StatusSummary));
     }
 
     public HostSessionActionResult ClearCachedProfile()

@@ -119,6 +119,21 @@ public sealed class HostConnectionManagerTests
         Assert.Equal("No Ansight host session is connected.", manager.StatusSummary);
     }
 
+    [Fact]
+    public async Task SendClientLogAsync_ForwardsToSessionClient()
+    {
+        var runtime = CreateRuntime();
+        using var client = new FakeHostConnectionSessionClient();
+        client.SendClientLogResult = OperationResult.FromSuccess("Log sent.");
+        using var manager = new HostSessionManager(runtime, HostAutoProbeOptions.DisabledDefault, client);
+
+        var result = await manager.SendClientLogAsync("hello from app code");
+
+        Assert.True(result.Success);
+        Assert.Equal(1, client.SendClientLogCallCount);
+        Assert.Equal("hello from app code", client.LastClientLogLine);
+    }
+
     private static RuntimeImpl CreateRuntime(Action<Options.OptionsBuilder>? configure = null)
     {
         var builder = Options.CreateBuilder()
@@ -208,6 +223,10 @@ public sealed class HostConnectionManagerTests
 
         public int StartTouchCaptureStreamingCallCount { get; private set; }
 
+        public int SendClientLogCallCount { get; private set; }
+
+        public string? LastClientLogLine { get; private set; }
+
         public PairingConnectionOptions? LastOpenSessionOptions { get; private set; }
 
         public PairingConnectionOptions? LastOpenCachedSessionOptions { get; private set; }
@@ -217,6 +236,8 @@ public sealed class HostConnectionManagerTests
         public OpenSessionResult OpenCachedSessionResult { get; set; } = OpenSessionResult.FromFailure("no cached session result queued");
 
         public OperationResult MetricsStreamingResult { get; set; } = OperationResult.FromSuccess("streaming");
+
+        public OperationResult SendClientLogResult { get; set; } = OperationResult.FromFailure("WebSocket session is not open.");
 
         public bool TryParseAndValidateDocument(string configJson, out ParsedPairingDocument? document, out string error)
         {
@@ -271,6 +292,16 @@ public sealed class HostConnectionManagerTests
         {
             StartTouchCaptureStreamingCallCount++;
             return Task.FromResult(OperationResult.FromSuccess("touch capture streaming"));
+        }
+
+        public Task<OperationResult> SendClientLogAsync(
+            string logLine,
+            IProgress<HostConnectionProgressUpdate>? progress,
+            CancellationToken cancellationToken)
+        {
+            SendClientLogCallCount++;
+            LastClientLogLine = logLine;
+            return Task.FromResult(SendClientLogResult);
         }
 
         public Task<OperationResult> CloseSessionAsync(CancellationToken cancellationToken)

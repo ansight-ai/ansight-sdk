@@ -1,3 +1,4 @@
+using Ansight.Pairing;
 using Ansight.Pairing.Models;
 
 namespace Ansight;
@@ -55,6 +56,14 @@ public interface IHostConnection
     Task<HostConnectionResult> ConnectAsync(
         HostConnectionRequest? request = null,
         string? clientName = null,
+        IProgress<HostConnectionProgressUpdate>? progress = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Sends a single client log line to the connected host over the live pairing session.
+    /// </summary>
+    Task<OperationResult> SendClientLogAsync(
+        string logLine,
         IProgress<HostConnectionProgressUpdate>? progress = null,
         CancellationToken cancellationToken = default);
 

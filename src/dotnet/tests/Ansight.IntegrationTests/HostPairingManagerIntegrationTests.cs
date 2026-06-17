@@ -269,6 +269,14 @@ public sealed class HostPairingManagerIntegrationTests
             return Task.FromResult(OperationResult.FromSuccess("touch capture streaming"));
         }
 
+        public Task<OperationResult> SendClientLogAsync(
+            string logLine,
+            IProgress<HostConnectionProgressUpdate>? progress,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(OperationResult.FromSuccess("log sent"));
+        }
+
         public Task<OperationResult> CloseSessionAsync(CancellationToken cancellationToken)
         {
             var wasOpen = IsSessionOpen;

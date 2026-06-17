@@ -1,5 +1,6 @@
 namespace Ansight;
 
+using Ansight.Pairing;
 using Ansight.Platforms;
 using Ansight.Tools;
 
@@ -162,6 +163,17 @@ public static class Runtime
         }
 
         Instance.Clear();
+    }
+
+    /// <summary>
+    /// Sends a single client log line to the connected host over the live pairing session.
+    /// </summary>
+    public static Task<OperationResult> SendClientLogAsync(
+        string logLine,
+        IProgress<HostConnectionProgressUpdate>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        return HostConnection.SendClientLogAsync(logLine, progress, cancellationToken);
     }
 
     /// <summary>
