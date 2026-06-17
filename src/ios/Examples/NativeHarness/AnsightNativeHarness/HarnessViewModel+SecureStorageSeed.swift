@@ -16,6 +16,15 @@ extension HarnessViewModel {
         item[kSecValueData as String] = data
         item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
         let status = SecItemAdd(item as CFDictionary, nil)
+        #if targetEnvironment(simulator)
+        if status == errSecMissingEntitlement {
+            UserDefaults.standard.set(
+                "Secure storage seed skipped: OSStatus \(status).",
+                forKey: "\(HarnessConstants.preferencePrefix)secureStorageSeedStatus"
+            )
+            return
+        }
+        #endif
         guard status == errSecSuccess else {
             throw harnessError("Unable to seed harness secure storage: OSStatus \(status).")
         }
