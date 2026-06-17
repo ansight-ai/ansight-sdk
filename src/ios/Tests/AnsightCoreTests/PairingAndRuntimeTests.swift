@@ -771,6 +771,26 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertEqual(channel?.type, "flutter")
     }
 
+    func testRuntimeSamplesPhysicalFootprintByDefault() throws {
+        try AnsightRuntime.shared.initialize(
+            options: AnsightOptions(
+                enableFramesPerSecond: false,
+                hostAutoProbe: .disabledDefault
+            )
+        )
+        defer {
+            AnsightRuntime.shared.deactivate()
+        }
+        try AnsightRuntime.shared.activate()
+
+        AnsightRuntime.shared.captureBuiltInTelemetrySample()
+
+        let memoryMetric = AnsightRuntime.shared.recordedMetrics()
+            .first { $0.channel == AnsightChannels.physicalFootprint }
+        XCTAssertNotNil(memoryMetric)
+        XCTAssertGreaterThan(memoryMetric?.value ?? 0, 0)
+    }
+
     func testScreenRouteResolverOverridesDefaultDescriptor() {
         let defaultDescriptor = AnsightScreenDescriptor(
             name: "GameView",

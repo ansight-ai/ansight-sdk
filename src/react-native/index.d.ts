@@ -89,6 +89,9 @@ export interface AnsightOptions {
   enableFramesPerSecond?: boolean;
   enableBatteryLevel?: boolean;
   defaultMemoryChannels?: {
+    managedHeap?: boolean;
+    physicalFootprint?: boolean;
+    residentSetSize?: boolean;
     javaHeap?: boolean;
     nativeHeap?: boolean;
     rss?: boolean;

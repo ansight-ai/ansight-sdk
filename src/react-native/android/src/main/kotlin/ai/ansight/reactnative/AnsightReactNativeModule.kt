@@ -633,11 +633,21 @@ class AnsightReactNativeModule(
         }
         if (map.hasMap("defaultMemoryChannels")) {
             val memory = map.getMapOrNull("defaultMemoryChannels")
+            val managedHeap = if (memory.hasBoolean("managedHeap")) {
+                memory.booleanValue("managedHeap", options.defaultMemoryChannels.javaHeap)
+            } else {
+                memory.booleanValue("javaHeap", options.defaultMemoryChannels.javaHeap)
+            }
+            val residentSetSize = if (memory.hasBoolean("residentSetSize")) {
+                memory.booleanValue("residentSetSize", options.defaultMemoryChannels.rss)
+            } else {
+                memory.booleanValue("rss", options.defaultMemoryChannels.rss)
+            }
             options = options.copy(
                 defaultMemoryChannels = DefaultMemoryChannels(
-                    javaHeap = memory.booleanValue("javaHeap", options.defaultMemoryChannels.javaHeap),
+                    javaHeap = managedHeap,
                     nativeHeap = memory.booleanValue("nativeHeap", options.defaultMemoryChannels.nativeHeap),
-                    rss = memory.booleanValue("rss", options.defaultMemoryChannels.rss),
+                    rss = residentSetSize,
                 ),
             )
         }
@@ -1005,9 +1015,12 @@ class AnsightReactNativeModule(
             putBoolean("enableFramesPerSecond", options.enableFramesPerSecond)
             putBoolean("enableBatteryLevel", options.enableBatteryLevel)
             putMap("defaultMemoryChannels", mapOf(
+                "managedHeap" to options.defaultMemoryChannels.javaHeap,
                 "javaHeap" to options.defaultMemoryChannels.javaHeap,
                 "nativeHeap" to options.defaultMemoryChannels.nativeHeap,
+                "residentSetSize" to options.defaultMemoryChannels.rss,
                 "rss" to options.defaultMemoryChannels.rss,
+                "physicalFootprint" to false,
             ).toWritableMap())
             putArray("additionalChannels", channelsArray(options.additionalChannels))
             options.sessionJpegCapture?.let { capture ->

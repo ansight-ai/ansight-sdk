@@ -732,14 +732,17 @@ final class AnsightReactNative: RCTEventEmitter {
         }
         if let memory = dictionary?["defaultMemoryChannels"] as? NSDictionary {
             var channels: DefaultMemoryChannels = []
-            if boolValue(memory, "javaHeap", defaultValue: false) {
+            if boolValue(memory, "managedHeap", defaultValue: boolValue(memory, "javaHeap", defaultValue: false)) {
                 channels.insert(.managedHeap)
             }
             if boolValue(memory, "nativeHeap", defaultValue: false) {
                 channels.insert(.nativeHeap)
             }
-            if boolValue(memory, "rss", defaultValue: false) {
+            if boolValue(memory, "residentSetSize", defaultValue: boolValue(memory, "rss", defaultValue: false)) {
                 channels.insert(.residentSetSize)
+            }
+            if boolValue(memory, "physicalFootprint", defaultValue: boolValue(memory, "rss", defaultValue: false)) {
+                channels.insert(.physicalFootprint)
             }
             options.defaultMemoryChannels = channels
         }
@@ -1073,8 +1076,10 @@ final class AnsightReactNative: RCTEventEmitter {
             "enableFramesPerSecond": options.enableFramesPerSecond,
             "enableBatteryLevel": options.enableBatteryLevel,
             "defaultMemoryChannels": [
+                "managedHeap": options.defaultMemoryChannels.contains(.managedHeap),
                 "javaHeap": options.defaultMemoryChannels.contains(.managedHeap),
                 "nativeHeap": options.defaultMemoryChannels.contains(.nativeHeap),
+                "residentSetSize": options.defaultMemoryChannels.contains(.residentSetSize),
                 "rss": options.defaultMemoryChannels.contains(.residentSetSize),
                 "physicalFootprint": options.defaultMemoryChannels.contains(.physicalFootprint),
             ],

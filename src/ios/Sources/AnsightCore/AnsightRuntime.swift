@@ -1552,7 +1552,7 @@ public final class AnsightRuntime: @unchecked Sendable {
 
         let configuredChannels = lock.withLock { Set(channels.keys) }
         if configuredChannels.contains(AnsightChannels.physicalFootprint),
-           let bytes = Self.currentResidentMemoryBytes() {
+           let bytes = Self.currentPhysicalFootprintBytes() {
             try? metric(bytes, channel: AnsightChannels.physicalFootprint)
         }
 
@@ -3266,6 +3266,24 @@ public final class AnsightRuntime: @unchecked Sendable {
             result[channel.id] = channel
         }
         return result
+    }
+
+    private static func currentPhysicalFootprintBytes() -> Int64? {
+        #if canImport(Darwin)
+        var info = task_vm_info_data_t()
+        var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.stride / MemoryLayout<natural_t>.stride)
+        let result = withUnsafeMutablePointer(to: &info) { pointer in
+            pointer.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { rebound in
+                task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), rebound, &count)
+            }
+        }
+        guard result == KERN_SUCCESS else {
+            return currentResidentMemoryBytes()
+        }
+        return Int64(info.phys_footprint)
+        #else
+        return nil
+        #endif
     }
 
     private static func currentResidentMemoryBytes() -> Int64? {

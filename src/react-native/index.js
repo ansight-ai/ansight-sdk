@@ -208,9 +208,12 @@ class AnsightOptionsBuilder {
 
   withoutDefaultMemoryChannels(defaultMemoryChannels) {
     const current = {
+      managedHeap: true,
       javaHeap: true,
       nativeHeap: true,
+      residentSetSize: true,
       rss: true,
+      physicalFootprint: true,
       ...(this._options.defaultMemoryChannels || {}),
     };
     Object.keys(defaultMemoryChannels || {}).forEach((key) => {

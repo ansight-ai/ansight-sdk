@@ -68,7 +68,7 @@ The TypeScript `AnsightOptions` surface mirrors Android `AnsightOptions`, iOS
 | `retentionPeriodSeconds` | Local metric/event retention window. |
 | `enableFramesPerSecond` | Enables native FPS sampling. |
 | `enableBatteryLevel` | Enables battery sampling where available. |
-| `defaultMemoryChannels` | Selects memory channels. |
+| `defaultMemoryChannels` | Selects built-in memory channels. Prefer `managedHeap`, `nativeHeap`, `residentSetSize`, and `physicalFootprint`; `javaHeap` and `rss` are accepted as Android/RN compatibility aliases. |
 | `additionalChannels` | Registers custom metric channels. |
 | `sessionJpegCapture` | Object to enable/configure capture, or `false` to disable. |
 | `touchCapture` | Object to enable/configure capture, or `false` to disable. |
@@ -399,6 +399,12 @@ await Ansight.captureScreenFrame({ quality: 70, maxWidth: 960 });
 await Ansight.enableTouchCapture();
 await Ansight.disableTouchCapture();
 ```
+
+Process memory is sampled by the native runtime. On iOS, `physicalFootprint`
+is the supported process-memory default and reflects the memory footprint used
+by Jetsam, including the React Native runtime inside the app process. On
+Android, `managedHeap`/`javaHeap`, `nativeHeap`, and `residentSetSize`/`rss`
+map to the platform heap and process memory counters.
 
 ## Validation
 
