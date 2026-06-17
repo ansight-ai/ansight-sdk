@@ -640,23 +640,19 @@ internal enum AnsightVisualTreeOverlaySupport {
 
         let workItem = DispatchWorkItem {
             #if canImport(UIKit)
-            DispatchQueue.main.async {
-                MainActor.assumeIsolated {
-                    guard let current = AnsightVisualTreeOverlayStore.shared.get(overlay.id),
-                          current === overlay,
-                          overlay.isExpired(Date())
-                    else {
-                        return
-                    }
-
-                    _ = AnsightVisualTreeOverlayStore.shared.remove(overlay.id)
-                    removePlatformOverlay(overlay)
-                }
+            guard let current = AnsightVisualTreeOverlayStore.shared.get(overlay.id),
+                  current === overlay,
+                  overlay.isExpired(Date())
+            else {
+                return
             }
+
+            _ = AnsightVisualTreeOverlayStore.shared.remove(overlay.id)
+            removePlatformOverlay(overlay)
             #endif
         }
         overlay.timeoutWorkItem = workItem
-        DispatchQueue.global(qos: .utility).asyncAfter(
+        DispatchQueue.main.asyncAfter(
             deadline: .now() + .milliseconds(overlay.durationMilliseconds),
             execute: workItem
         )
