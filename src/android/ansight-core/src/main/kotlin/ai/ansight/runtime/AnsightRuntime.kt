@@ -50,6 +50,9 @@ object AnsightRuntime {
     private var sessionJpegTask: ScheduledFuture<*>? = null
     private var autoProbeExecutor: ScheduledExecutorService? = null
     private var autoProbeTask: ScheduledFuture<*>? = null
+    private val sessionPropertiesExecutor = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "AnsightSessionProperties").apply { isDaemon = true }
+    }
     private var lifecycleCallbacks: Application.ActivityLifecycleCallbacks? = null
     private var startedActivityCount = 0
     private val frameRateSampler = AndroidFrameRateSampler()
@@ -1150,11 +1153,16 @@ object AnsightRuntime {
             return OperationResult.success("Session properties updated locally.")
         }
 
-        val result = sendSessionProperties()
-        synchronized(lock) {
-            sessionMessage = if (result.success) "Session properties updated." else result.message
+        sessionPropertiesExecutor.execute {
+            val result = sendSessionProperties()
+            synchronized(lock) {
+                sessionMessage = if (result.success) "Session properties updated." else result.message
+            }
+            if (!result.success) {
+                AnsightLogger.warning(result.message)
+            }
         }
-        return if (result.success) OperationResult.success("Session properties updated.") else result
+        return OperationResult.success("Session properties updated.")
     }
 
     private fun mutableCustomPropertiesLocked(): MutableMap<String, MutableMap<String, String>> {

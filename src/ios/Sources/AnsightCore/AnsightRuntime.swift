@@ -1251,25 +1251,33 @@ public final class AnsightRuntime: @unchecked Sendable {
         let normalized = Self.normalizedCustomProperties(customProperties)
         lock.withLock {
             options.customProperties = normalized
+            sessionMessage = "Session properties updated locally."
         }
 
         guard liveTransport.isOpen else {
-            lock.withLock {
-                sessionMessage = "Session properties updated locally."
-            }
             return .success("Session properties updated locally.")
         }
 
-        let result = await liveTransport.sendControlRequest(
-            action: PairingControlActions.sessionProperties,
-            payload: Self.makeSessionPropertiesPayload(normalized),
-            acknowledgementTimeoutSeconds: 10
-        )
+        let payload = Self.makeSessionPropertiesPayload(normalized)
+        let transport = liveTransport
+        Task { [weak self] in
+            let result = await transport.sendControlRequest(
+                action: PairingControlActions.sessionProperties,
+                payload: payload,
+                acknowledgementTimeoutSeconds: 10
+            )
 
-        lock.withLock {
-            sessionMessage = result.success ? "Session properties updated." : result.message
+            guard let self else {
+                return
+            }
+            self.lock.withLock {
+                self.sessionMessage = result.success ? "Session properties updated." : result.message
+            }
+            if !result.success {
+                AnsightLogger.warning(result.message)
+            }
         }
-        return result.success ? .success("Session properties updated.") : result
+        return .success("Session properties updated.")
     }
 
     public func clearSessionProperties() async -> OperationResult {
