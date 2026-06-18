@@ -32,6 +32,7 @@ android {
     publishing {
         singleVariant("release") {
             withSourcesJar()
+            withJavadocJar()
         }
     }
 }
@@ -57,13 +58,6 @@ afterEvaluate {
                     name.set("Ansight Android Core")
                     description.set("Core native Android runtime concepts for the Ansight protocol.")
                     url.set("https://github.com/ansight-ai/ansight-sdk")
-                    licenses {
-                        license {
-                            name.set("Ansight SDK Source-Available License")
-                            url.set("https://github.com/ansight-ai/ansight-sdk/blob/main/LICENSE")
-                            distribution.set("repo")
-                        }
-                    }
                 }
             }
         }

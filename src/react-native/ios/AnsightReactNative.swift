@@ -856,15 +856,18 @@ final class AnsightReactNative: RCTEventEmitter {
     }
 
     private func buildOptions(_ dictionary: NSDictionary?) throws -> AnsightOptions {
-        let developerMode = boolValue(dictionary, "developerMode", defaultValue: true)
-        var options = developerMode ? AnsightOptions.ansightDeveloperDefaults : AnsightOptions()
+        let useNativeAllInOneDefaults = boolValue(dictionary, "useNativeAllInOneDefaults", defaultValue: false)
+        var options = useNativeAllInOneDefaults ? AnsightOptions.ansightDeveloperDefaults : AnsightOptions()
 
         if let value = stringValue(dictionary, "pairingConfigJson") {
-            if developerMode {
+            if useNativeAllInOneDefaults {
                 options.hostConnection.bundledDeveloperConfigJson = value
             } else {
                 options.hostConnection.bundledConfigJson = value
             }
+        }
+        if useNativeAllInOneDefaults && stringValue(dictionary, "toolGuard") == nil {
+            options.toolGuard = .readOnly
         }
         if let value = stringValue(dictionary, "clientName") {
             options.hostAutoProbe.clientName = value

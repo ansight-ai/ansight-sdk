@@ -94,7 +94,15 @@ export interface AnsightRemoteToolsOptions {
 }
 
 export interface AnsightOptions {
-  developerMode?: boolean;
+  /**
+   * Applies the native iOS/Android all-in-one defaults when true.
+   *
+   * This is not a master SDK enable switch and does not inspect the app's
+   * runtime environment. Use your app's own condition, such as
+   * React Native's `__DEV__`, and configure `toolGuard`, capture options,
+   * `hostAutoProbe`, and `hostConnection` explicitly for the workflow.
+   */
+  useNativeAllInOneDefaults?: boolean;
   pairingConfig?: string | object;
   bundledPairingConfig?: string | object;
   pairingConfigJson?: string;
@@ -237,6 +245,7 @@ export type AnsightCurrentOptions = AnsightOptions & Record<string, unknown>;
 
 export class AnsightOptionsBuilder {
   constructor(options?: AnsightOptions);
+  withNativeAllInOneDefaults(): this;
   withAnsightDefaults(): this;
   withAnsightSdk(configure?: (builder: this) => void): this;
   withSampleFrequencyMilliseconds(sampleFrequencyMilliseconds: number): this;

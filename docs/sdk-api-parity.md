@@ -32,13 +32,15 @@ Android, and iOS:
 | JPEG capture | Enabled, 2000 ms, quality 60, max width 480 |
 | Touch capture | Enabled |
 | Host auto-probe | Enabled |
-| Tool guard | Full access |
+| Tool guard | Full access in native all-in-one presets |
 | Bundled developer config | Preferred over saved and plain bundled configs |
 | Standard tools | Registered by aggregate/all-in-one packages |
 
-React Native defaults to native developer mode unless `developerMode: false` is
-passed. Explicit `sessionJpegCapture`, `touchCapture`, `toolGuard`, and
-`hostConnection` values override the native preset.
+React Native defaults to core mode unless `useNativeAllInOneDefaults: true` is
+passed or `withAnsightDefaults()` / `withAnsightSdk(...)` is used. That option
+only applies the native all-in-one defaults; it is not build-type detection and
+does not enable the entire feature set. `toolGuard`, capture options, host
+auto-probe, and host connection remain separate controls.
 
 ## Quickstart Equivalents
 
@@ -85,13 +87,15 @@ React Native:
 ```ts
 import Ansight from "@ansight/react-native";
 
+const isDevelopmentOnly = __DEV__;
+
 await Ansight.initializeAndActivate({
-  developerMode: true,
+  useNativeAllInOneDefaults: isDevelopmentOnly,
   clientName: "React Native App",
-  hostConnection: {
+  hostConnection: isDevelopmentOnly ? {
     bundledDeveloperConfigJson: process.env.EXPO_PUBLIC_ANSIGHT_PAIRING_CONFIG_JSON,
-  },
-  toolGuard: "fullAccess",
+  } : undefined,
+  toolGuard: isDevelopmentOnly ? "readOnly" : "disabled",
 });
 
 await Ansight.connect(null, { clientName: "React Native App" });

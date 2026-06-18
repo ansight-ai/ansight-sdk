@@ -13,6 +13,8 @@
 
 # Local Ansight SDK validation output
 .ansight-validation/
+build/
+tmp/
 src/ios/Examples/NativeHarness/Build/
 
 # Python validation tooling cache

@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+publish=false
+skip_install=false
+skip_check=false
+
+usage() {
+  cat <<'EOF'
+Usage: scripts/publish-react-native.sh [options]
+
+Default mode installs package dev dependencies if needed, runs checks, and
+executes npm pack --dry-run. Use --publish to publish to npm.
+
+Options:
+  --publish       Run npm publish --access public
+  --skip-install  Do not install missing node_modules
+  --skip-check    Skip npm run check
+
+Environment:
+  NPM_TOKEN or npm login must be configured for --publish.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --publish)
+      publish=true
+      shift
+      ;;
+    --skip-install)
+      skip_install=true
+      shift
+      ;;
+    --skip-check)
+      skip_check=true
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "error: unknown argument '$1'" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+done
+
+if ! command -v npm >/dev/null 2>&1; then
+  echo "error: npm is required" >&2
+  exit 1
+fi
+
+cd "${repo_root}/src/react-native"
+
+if [[ "${skip_install}" != "true" && ! -d node_modules ]]; then
+  npm install --no-package-lock
+fi
+
+if [[ "${skip_check}" != "true" ]]; then
+  npm run check
+fi
+
+npm pack --dry-run
+
+if [[ "${publish}" == "true" ]]; then
+  npm publish --access public
+fi

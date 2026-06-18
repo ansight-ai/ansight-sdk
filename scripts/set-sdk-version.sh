@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+usage() {
+  cat <<'EOF'
+Usage: scripts/set-sdk-version.sh <version>
+
+Updates SDK package metadata for .NET, Android, iOS CocoaPods, and React Native.
+The script does not create commits, tags, or publish artifacts.
+EOF
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  usage
+  exit 0
+fi
+
+version="${1:-}"
+
+if [[ -z "${version}" ]]; then
+  usage >&2
+  exit 1
+fi
+
+if [[ ! "${version}" =~ ^[0-9]+[.][0-9]+[.][0-9]+([-.+][0-9A-Za-z.-]+)?$ ]]; then
+  echo "error: '${version}' is not a SemVer-like SDK version" >&2
+  exit 1
+fi
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "error: node is required to update src/react-native/package.json" >&2
+  exit 1
+fi
+
+export VERSION="${version}"
+
+perl -0pi -e 's/(<AnsightPackageVersion>).*?(<\/AnsightPackageVersion>)/$1$ENV{VERSION}$2/s' \
+  "${repo_root}/src/dotnet/Directory.Build.props"
+
+perl -0pi -e 's/^ansightAndroidVersion=.*/ansightAndroidVersion=$ENV{VERSION}/m' \
+  "${repo_root}/src/android/gradle.properties"
+
+for podspec in "${repo_root}"/src/ios/*.podspec; do
+  perl -0pi -e 's/(s\.version\s*=\s*")[^"]+(")/$1$ENV{VERSION}$2/g' "${podspec}"
+done
+
+PACKAGE_JSON="${repo_root}/src/react-native/package.json" node <<'NODE'
+const fs = require("fs");
+
+const packageJson = process.env.PACKAGE_JSON;
+const version = process.env.VERSION;
+const pkg = JSON.parse(fs.readFileSync(packageJson, "utf8"));
+pkg.version = version;
+fs.writeFileSync(packageJson, `${JSON.stringify(pkg, null, 2)}\n`);
+NODE
+
+perl -0pi -e 's/(ai\.ansight:ansight-android:)[^")]+/$1$ENV{VERSION}/g' \
+  "${repo_root}/src/react-native/android/build.gradle"
+
+perl -0pi -e 's/(CocoaPods: `Ansight`, `AnsightObjC` version `)[^`]+(`)/$1$ENV{VERSION}$2/g; s/(ai\.ansight:ansight-android:)[^`]+/$1$ENV{VERSION}/g' \
+  "${repo_root}/src/react-native/README.md"
+
+"${repo_root}/scripts/check-sdk-versions.sh"

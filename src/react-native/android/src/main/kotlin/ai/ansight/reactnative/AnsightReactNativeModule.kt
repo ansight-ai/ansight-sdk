@@ -615,10 +615,10 @@ class AnsightReactNativeModule(
     }
 
     private fun buildOptions(map: ReadableMap?): AnsightOptions {
-        val developerMode = map.booleanValue("developerMode", true)
+        val useNativeAllInOneDefaults = map.booleanValue("useNativeAllInOneDefaults", false)
         val pairingConfigJson = map.stringValue("pairingConfigJson")
         val clientName = map.stringValue("clientName")
-        var options = if (developerMode) {
+        var options = if (useNativeAllInOneDefaults) {
             AnsightDeveloperMode.options(
                 bundledDeveloperConfigJson = pairingConfigJson,
                 clientName = clientName,
@@ -626,12 +626,15 @@ class AnsightReactNativeModule(
         } else {
             AnsightOptions()
         }
-        if (!developerMode && !pairingConfigJson.isNullOrBlank()) {
+        if (!useNativeAllInOneDefaults && !pairingConfigJson.isNullOrBlank()) {
             options = options.copy(
                 hostConnection = options.hostConnection.copy(
                     bundledConfigJson = pairingConfigJson,
                 ),
             )
+        }
+        if (useNativeAllInOneDefaults && !map.hasString("toolGuard")) {
+            options = options.copy(toolGuard = AnsightToolGuard.ReadOnly)
         }
 
         if (map.hasNumber("sampleFrequencyMilliseconds")) {

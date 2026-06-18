@@ -20,6 +20,7 @@ remote-tool protocol used by the .NET SDK.
 - [Android SDK Guide](src/android/README.md)
 - [iOS SDK Guide](src/ios/README.md)
 - [React Native SDK Guide](src/react-native/README.md)
+- [SDK Publishing](docs/sdk-publishing.md)
 - [Remote Tool Protocol](docs/protocol/tools.md)
 
 ## License

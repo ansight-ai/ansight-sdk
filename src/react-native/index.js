@@ -152,7 +152,7 @@ class AnsightOptionsBuilder {
   withAnsightDefaults() {
     this._options = {
       ...this._options,
-      developerMode: true,
+      useNativeAllInOneDefaults: true,
       sampleFrequencyMilliseconds: 400,
       retentionPeriodSeconds: 120,
       enableFramesPerSecond: true,
@@ -163,13 +163,17 @@ class AnsightOptionsBuilder {
         maxWidth: 480,
       },
       touchCapture: {},
-      toolGuard: "fullAccess",
+      toolGuard: "readOnly",
       hostAutoProbe: {
         ...(this._options.hostAutoProbe || {}),
         enabled: true,
       },
     };
     return this;
+  }
+
+  withNativeAllInOneDefaults() {
+    return this.withAnsightDefaults();
   }
 
   withAnsightSdk(configure) {

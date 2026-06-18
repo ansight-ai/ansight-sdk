@@ -25,21 +25,23 @@ npx react-native run-android
 
 This package version expects matching native SDK packages:
 
-- CocoaPods: `Ansight`, `AnsightObjC` version `0.1.0-pre1`
-- Maven: `ai.ansight:ansight-android:0.1.0-pre1`
+- CocoaPods: `Ansight`, `AnsightObjC` version `1.0.0-preview.1`
+- Maven: `ai.ansight:ansight-android:1.0.0-preview.1`
 
 ## Quickstart
 
 ```ts
 import Ansight from "@ansight/react-native";
 
+const isDevelopmentOnly = __DEV__;
+
 await Ansight.initializeAndActivate({
-  developerMode: true,
+  useNativeAllInOneDefaults: isDevelopmentOnly,
   clientName: "My React Native App",
-  hostConnection: {
+  hostConnection: isDevelopmentOnly ? {
     bundledDeveloperConfigJson: process.env.EXPO_PUBLIC_ANSIGHT_PAIRING_CONFIG_JSON,
-  },
-  toolGuard: "fullAccess",
+  } : undefined,
+  toolGuard: isDevelopmentOnly ? "readOnly" : "disabled",
   lifecycle: true,
 });
 
@@ -49,10 +51,13 @@ await Ansight.connect(null, {
 });
 ```
 
-`developerMode: true` uses the native all-in-one developer preset: 400 ms
-sampling, 120 second retention, FPS, touch capture, 2000 ms JPEG capture at
-quality 60 and max width 480, host auto-probe, full tool access, and standard
-native tools.
+`useNativeAllInOneDefaults` defaults to `false`. It only applies the native
+iOS/Android all-in-one defaults: 400 ms sampling, 120 second retention, FPS,
+touch capture, 2000 ms JPEG capture at quality 60 and max width 480, host
+auto-probe, and standard native tools. It is not a master SDK enable switch and
+does not infer whether the app is a debug build. Gate it with the app's own
+condition, such as React Native's `__DEV__`, and configure `toolGuard`, capture
+options, host auto-probe, and host connection separately.
 
 ## Options
 
@@ -61,7 +66,7 @@ The TypeScript `AnsightOptions` surface mirrors Android `AnsightOptions`, iOS
 
 | Option | Purpose |
 | --- | --- |
-| `developerMode` | Uses native developer/all-in-one defaults when true. Defaults to true. |
+| `useNativeAllInOneDefaults` | Applies native iOS/Android all-in-one defaults when true. Defaults to false. This is not a master enable switch; configure `toolGuard`, capture options, and `hostConnection` separately. |
 | `pairingConfigJson` | Legacy top-level pairing JSON. Prefer `hostConnection.*`. |
 | `clientName` | Default client name for host auto-probe and connections. |
 | `sampleFrequencyMilliseconds` | Built-in telemetry sampling interval. |
@@ -86,7 +91,8 @@ Example:
 
 ```ts
 await Ansight.initializeAndActivate({
-  developerMode: true,
+  useNativeAllInOneDefaults: true,
+  toolGuard: "readOnly",
   sessionJpegCapture: {
     intervalMilliseconds: 2000,
     quality: 60,
@@ -112,7 +118,7 @@ await Ansight.initializeAndActivate({
 ```ts
 await Ansight.initializeAndActivate(
   Ansight.createOptionsBuilder()
-    .withAllToolAccess()
+    .withReadOnlyToolAccess()
     .withVisualTreeTools()
     .withFileSystemTools({
       additionalRoots: [{ alias: "exports", path: "/tmp/app-exports" }],
