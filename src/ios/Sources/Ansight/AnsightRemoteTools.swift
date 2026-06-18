@@ -12,11 +12,17 @@ public enum AnsightRemoteTools {
         options: AnsightRemoteToolOptions = .default,
         runtime: AnsightRuntime = .shared
     ) -> [any AnsightTool] {
+        let visualTreeTools: [any AnsightTool]
+        if options.visualTree {
+            visualTreeTools = AnsightVisualTreeTools.tools(runtime: runtime)
+        } else {
+            visualTreeTools = []
+        }
         let artifactTools = options.artifactProviders.isEmpty
             ? []
             : AnsightArtifactTools.tools(providers: options.artifactProviders, runtime: runtime)
 
-        return AnsightVisualTreeTools.tools(runtime: runtime)
+        return visualTreeTools
             + AnsightDatabaseTools.tools(options: options.database)
             + AnsightFileSystemTools.tools(options: options.fileSystem)
             + AnsightPreferencesTools.tools(options: options.preferences)

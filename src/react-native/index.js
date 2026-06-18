@@ -104,9 +104,23 @@ function cloneSecureStorageToolsOptions(options = {}) {
   };
 }
 
+function cloneVisualTreeToolsOptions(options) {
+  if (options == null) {
+    return undefined;
+  }
+  if (typeof options === "boolean") {
+    return options;
+  }
+  if (typeof options === "object") {
+    return { ...options };
+  }
+  return undefined;
+}
+
 function cloneRemoteToolsOptions(remoteTools = {}) {
   return {
     ...remoteTools,
+    visualTree: cloneVisualTreeToolsOptions(remoteTools.visualTree),
     fileSystem: remoteTools.fileSystem ? {
       ...remoteTools.fileSystem,
       additionalRoots: cloneRoots(remoteTools.fileSystem.additionalRoots),
@@ -397,6 +411,25 @@ class AnsightOptionsBuilder {
 
   withRemoteTools(remoteTools = {}) {
     this._options.remoteTools = cloneRemoteToolsOptions(remoteTools);
+    return this;
+  }
+
+  withVisualTreeTools(options = {}) {
+    this._options.remoteTools = {
+      ...(this._options.remoteTools || {}),
+      visualTree: typeof options === "boolean" ? options : {
+        ...(options || {}),
+        enabled: !options || options.enabled !== false,
+      },
+    };
+    return this;
+  }
+
+  withoutVisualTreeTools() {
+    this._options.remoteTools = {
+      ...(this._options.remoteTools || {}),
+      visualTree: false,
+    };
     return this;
   }
 

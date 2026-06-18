@@ -80,7 +80,12 @@ export interface AnsightSecureStorageToolsOptions {
   allowedPrefixes?: string[];
 }
 
+export interface AnsightVisualTreeToolsOptions {
+  enabled?: boolean;
+}
+
 export interface AnsightRemoteToolsOptions {
+  visualTree?: boolean | AnsightVisualTreeToolsOptions;
   fileSystem?: AnsightFileSystemToolsOptions;
   database?: AnsightDatabaseToolsOptions;
   preferences?: AnsightPreferencesToolsOptions;
@@ -276,6 +281,8 @@ export class AnsightOptionsBuilder {
   withHostConnectionProfileRetentionSeconds(connectionProfileRetentionSeconds: number): this;
   withSecureStorage(secureStorage?: NonNullable<AnsightOptions["secureStorage"]>): this;
   withRemoteTools(remoteTools?: AnsightRemoteToolsOptions): this;
+  withVisualTreeTools(options?: boolean | AnsightVisualTreeToolsOptions): this;
+  withoutVisualTreeTools(): this;
   withFileSystemTools(options?: AnsightFileSystemToolsOptions): this;
   withDatabaseTools(options?: AnsightDatabaseToolsOptions): this;
   withPreferencesTools(options?: AnsightPreferencesToolsOptions): this;

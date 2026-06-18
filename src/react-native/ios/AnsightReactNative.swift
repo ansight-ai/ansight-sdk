@@ -980,6 +980,7 @@ final class AnsightReactNative: RCTEventEmitter {
     private func remoteToolOptions(_ dictionary: NSDictionary?) -> AnsightRemoteToolOptions {
         let remoteTools = dictionary?["remoteTools"] as? NSDictionary
         return AnsightRemoteToolOptions(
+            visualTree: toolSuiteEnabled(remoteTools?["visualTree"]),
             database: databaseToolsOptions(remoteTools?["database"] as? NSDictionary),
             fileSystem: fileSystemToolsOptions(remoteTools?["fileSystem"] as? NSDictionary),
             preferences: preferencesToolsOptions(remoteTools?["preferences"] as? NSDictionary),
@@ -988,6 +989,16 @@ final class AnsightReactNative: RCTEventEmitter {
                 remoteTools?["secureStorage"] as? NSDictionary ?? dictionary?["secureStorage"] as? NSDictionary
             )
         )
+    }
+
+    private func toolSuiteEnabled(_ value: Any?) -> Bool {
+        if let enabled = value as? Bool {
+            return enabled
+        }
+        if let dictionary = value as? NSDictionary {
+            return boolValue(dictionary, "enabled", defaultValue: true)
+        }
+        return false
     }
 
     private func fileSystemToolsOptions(_ dictionary: NSDictionary?) -> AnsightFileSystemToolsOptions {

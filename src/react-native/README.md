@@ -79,7 +79,7 @@ The TypeScript `AnsightOptions` surface mirrors Android `AnsightOptions`, iOS
 | `hostAutoProbe` | Automatic host reconnect loop settings. |
 | `hostConnection` | Saved, bundled, and developer pairing settings. |
 | `secureStorage` | Compatibility alias for native secure-storage allow-list settings. |
-| `remoteTools` | Native file, database, preferences, reflection, and secure-storage tool options. |
+| `remoteTools` | Native visual tree, file, database, preferences, reflection, and secure-storage tool options. |
 | `lifecycle` | JS AppState tracking toggle. Defaults to true. |
 
 Example:
@@ -107,12 +107,13 @@ await Ansight.initializeAndActivate({
 
 ## Native Tool Options
 
-`remoteTools` configures the native tool suites registered by the bridge:
+`remoteTools` configures the native tool suites registered by the bridge. Visual tree tools are opt-in:
 
 ```ts
 await Ansight.initializeAndActivate(
   Ansight.createOptionsBuilder()
     .withAllToolAccess()
+    .withVisualTreeTools()
     .withFileSystemTools({
       additionalRoots: [{ alias: "exports", path: "/tmp/app-exports" }],
     })

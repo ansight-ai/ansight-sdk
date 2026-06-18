@@ -67,6 +67,17 @@ final class AnsightAggregateTests: XCTestCase {
         )
     }
 
+    func testAggregateRemoteToolsCanDisableVisualTreeSuite() {
+        let toolIds = AnsightRemoteTools.tools(
+            options: AnsightRemoteToolOptions(visualTree: false)
+        )
+        .map(\.descriptor.id)
+
+        XCTAssertFalse(toolIds.contains(AnsightVisualTreeToolIds.getVisualTree))
+        XCTAssertFalse(toolIds.contains(AnsightVisualTreeToolIds.getScreenshot))
+        XCTAssertTrue(toolIds.contains(AnsightDatabaseToolIds.listDatabases))
+    }
+
     func testObjCFacadeInitializesAndSamplesMetricStream() throws {
         try ANSAnsight.initializeAndActivate(pairingConfigJson: nil, clientName: "ObjC Unit Test")
         defer {

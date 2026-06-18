@@ -765,7 +765,9 @@ class AnsightReactNativeModule(
     private fun AnsightOptions.withNativeToolOptions(map: ReadableMap?): AnsightOptions {
         val remoteTools = map.getMapOrNull("remoteTools")
         val builder = AnsightOptions.createBuilder(this)
-        builder.withVisualTreeTools()
+        if (remoteTools.toolSuiteEnabled("visualTree")) {
+            builder.withVisualTreeTools()
+        }
         builder.withDatabaseTools(databaseToolsOptions(remoteTools.getMapOrNull("database")))
         builder.withFileSystemTools(fileSystemToolsOptions(remoteTools.getMapOrNull("fileSystem")))
         builder.withPreferencesTools(preferencesToolsOptions(remoteTools.getMapOrNull("preferences")))
@@ -1201,6 +1203,17 @@ private fun ReadableMap?.hasBoolean(name: String): Boolean = this?.hasKey(name) 
 private fun ReadableMap?.hasMap(name: String): Boolean = this?.hasKey(name) == true && this.getType(name) == ReadableType.Map
 private fun ReadableMap?.hasArray(name: String): Boolean = this?.hasKey(name) == true && this.getType(name) == ReadableType.Array
 private fun ReadableMap?.isFalse(name: String): Boolean = this?.hasBoolean(name) == true && !this.getBoolean(name)
+private fun ReadableMap?.toolSuiteEnabled(name: String): Boolean {
+    val map = this ?: return false
+    if (!map.hasKey(name) || map.isNull(name)) {
+        return false
+    }
+    return when (map.getType(name)) {
+        ReadableType.Boolean -> map.getBoolean(name)
+        ReadableType.Map -> map.getMap(name).booleanValue("enabled", true)
+        else -> false
+    }
+}
 private fun ReadableMap?.stringValue(name: String): String? =
     if (this?.hasKey(name) == true && !isNull(name) && getType(name) == ReadableType.String) getString(name)?.trim()?.ifBlank { null } else null
 private fun ReadableMap?.booleanValue(name: String, default: Boolean): Boolean =

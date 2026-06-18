@@ -9,6 +9,7 @@ import Foundation
 public struct AnsightRemoteToolOptions: Sendable, Equatable {
     public static let `default` = AnsightRemoteToolOptions()
 
+    public var visualTree: Bool
     public var database: AnsightDatabaseToolsOptions
     public var fileSystem: AnsightFileSystemToolsOptions
     public var preferences: AnsightPreferencesToolOptions
@@ -17,6 +18,7 @@ public struct AnsightRemoteToolOptions: Sendable, Equatable {
     public var artifactProviders: [any AnsightArtifactProvider]
 
     public init(
+        visualTree: Bool = true,
         database: AnsightDatabaseToolsOptions = .default,
         fileSystem: AnsightFileSystemToolsOptions = .default,
         preferences: AnsightPreferencesToolOptions = .default,
@@ -24,6 +26,7 @@ public struct AnsightRemoteToolOptions: Sendable, Equatable {
         secureStorage: AnsightSecureStorageToolsOptions = .default,
         artifactProviders: [any AnsightArtifactProvider] = []
     ) {
+        self.visualTree = visualTree
         self.database = database
         self.fileSystem = fileSystem
         self.preferences = preferences
@@ -33,12 +36,13 @@ public struct AnsightRemoteToolOptions: Sendable, Equatable {
     }
 
     public static func == (lhs: AnsightRemoteToolOptions, rhs: AnsightRemoteToolOptions) -> Bool {
-            lhs.database == rhs.database &&
-            lhs.fileSystem == rhs.fileSystem &&
-            lhs.preferences == rhs.preferences &&
-            lhs.reflection == rhs.reflection &&
-            lhs.secureStorage == rhs.secureStorage &&
-            providerIds(lhs.artifactProviders) == providerIds(rhs.artifactProviders)
+        lhs.visualTree == rhs.visualTree &&
+        lhs.database == rhs.database &&
+        lhs.fileSystem == rhs.fileSystem &&
+        lhs.preferences == rhs.preferences &&
+        lhs.reflection == rhs.reflection &&
+        lhs.secureStorage == rhs.secureStorage &&
+        providerIds(lhs.artifactProviders) == providerIds(rhs.artifactProviders)
     }
 
     private static func providerIds(_ providers: [any AnsightArtifactProvider]) -> [String] {
