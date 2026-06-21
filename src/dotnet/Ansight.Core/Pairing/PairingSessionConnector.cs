@@ -29,13 +29,10 @@ internal sealed class PairingSessionConnector
         ArgumentNullException.ThrowIfNull(document);
 
         var config = document.Config;
-        var configuredHostAddress = options?.HostAddressOverride;
-        if (string.IsNullOrWhiteSpace(configuredHostAddress))
-        {
-            configuredHostAddress = PairingDiscoveryHintHostAddresses.ResolvePrimary(document.DiscoveryHint);
-        }
-
-        if (!TryResolveHostAddress(configuredHostAddress, out var hostAddress))
+        var hostAddressCandidates = PairingDiscoveryHintHostAddresses.ResolveCandidates(
+            document.DiscoveryHint,
+            options?.HostAddressOverride);
+        if (hostAddressCandidates.Length == 0)
         {
             return PairingConnectionAttempt.FromFailure(
                 "A current host address is required. Import a fresh pairing config or compact pairing config code.",
@@ -61,109 +58,142 @@ internal sealed class PairingSessionConnector
         }
 
         var discoveryPort = PairingDiscoveryPortResolver.Resolve(document, options?.DiscoveryPort);
+        var usingHostOverride = !string.IsNullOrWhiteSpace(options?.HostAddressOverride);
         HostPairingProgressReporter.Report(
             progress,
             HostConnectionProgressKind.Connection,
-            string.IsNullOrWhiteSpace(options?.HostAddressOverride)
-                ? $"Using pairing config host address: {hostAddress}"
-                : $"Using host override address: {hostAddress}",
-            source: HostConnectionSource.HostConnection);
-        HostPairingProgressReporter.Report(
-            progress,
-            HostConnectionProgressKind.Connection,
-            $"Connecting to host at {hostAddress}:{discoveryPort}",
+            usingHostOverride
+                ? $"Using host override address: {hostAddressCandidates[0]}"
+                : $"Using pairing config host address candidates: {string.Join(", ", hostAddressCandidates)}",
             source: HostConnectionSource.HostConnection);
 
-        using var connectTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        connectTimeout.CancelAfter(TimeSpan.FromSeconds(5));
+        PairingConnectionAttempt? lastFailure = null;
+        for (var index = 0; index < hostAddressCandidates.Length; index++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
 
-        ConnectResponse? connectResponse;
-        try
-        {
-            connectResponse = await SendConnectRequestAsync(
-                config,
-                clientName,
-                hostAddress!,
-                discoveryPort,
-                connectTimeout.Token);
-        }
-        catch (SocketException ex)
-        {
-            return PairingConnectionAttempt.FromFailure(
-                $"UDP connect failed: {ex.Message}",
-                PairingFailureCodes.UdpBootstrapFailed);
-        }
+            var hostAddressCandidate = hostAddressCandidates[index];
+            if (!TryResolveHostAddress(hostAddressCandidate, out var hostAddress))
+            {
+                var invalidAddressMessage = $"Pairing host address '{hostAddressCandidate}' is not a valid IP address.";
+                HostPairingProgressReporter.Report(
+                    progress,
+                    HostConnectionProgressKind.Connection,
+                    invalidAddressMessage,
+                    source: HostConnectionSource.HostConnection,
+                    reasonCode: PairingFailureCodes.HostAddressRequired);
 
-        if (connectResponse is null)
-        {
-            return PairingConnectionAttempt.FromFailure(
-                $"No connect response from host. {hostNetworkCheckMessage} The remembered host address may be stale. Import a fresh pairing QR code or enter the host IP manually.",
-                PairingFailureCodes.UdpBootstrapTimeout);
-        }
+                lastFailure = PairingConnectionAttempt.FromFailure(
+                    invalidAddressMessage,
+                    PairingFailureCodes.HostAddressRequired);
+                continue;
+            }
 
-        HostPairingProgressReporter.Report(
-            progress,
-            HostConnectionProgressKind.Connection,
-            $"Host response: {connectResponse.Message}",
-            source: HostConnectionSource.HostConnection,
-            reasonCode: connectResponse.Reason);
-        if (!string.IsNullOrWhiteSpace(connectResponse.ReasonMessage))
-        {
             HostPairingProgressReporter.Report(
                 progress,
                 HostConnectionProgressKind.Connection,
-                $"Reason: {connectResponse.ReasonMessage}",
+                hostAddressCandidates.Length == 1
+                    ? $"Connecting to host at {hostAddress}:{discoveryPort}"
+                    : $"Connecting to host at {hostAddress}:{discoveryPort} ({index + 1}/{hostAddressCandidates.Length})",
+                source: HostConnectionSource.HostConnection);
+
+            using var connectTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            connectTimeout.CancelAfter(TimeSpan.FromSeconds(5));
+
+            ConnectResponse? connectResponse;
+            try
+            {
+                connectResponse = await SendConnectRequestAsync(
+                    config,
+                    clientName,
+                    hostAddress!,
+                    discoveryPort,
+                    connectTimeout.Token);
+            }
+            catch (SocketException ex)
+            {
+                lastFailure = PairingConnectionAttempt.FromFailure(
+                    $"UDP connect failed for {hostAddress}: {ex.Message}",
+                    PairingFailureCodes.UdpBootstrapFailed);
+                continue;
+            }
+
+            if (connectResponse is null)
+            {
+                lastFailure = PairingConnectionAttempt.FromFailure(
+                    $"No connect response from host at {hostAddress}. {hostNetworkCheckMessage} The remembered host address may be stale. Import a fresh pairing QR code or enter the host IP manually.",
+                    PairingFailureCodes.UdpBootstrapTimeout);
+                continue;
+            }
+
+            HostPairingProgressReporter.Report(
+                progress,
+                HostConnectionProgressKind.Connection,
+                $"Host response: {connectResponse.Message}",
                 source: HostConnectionSource.HostConnection,
                 reasonCode: connectResponse.Reason);
+            if (!string.IsNullOrWhiteSpace(connectResponse.ReasonMessage))
+            {
+                HostPairingProgressReporter.Report(
+                    progress,
+                    HostConnectionProgressKind.Connection,
+                    $"Reason: {connectResponse.ReasonMessage}",
+                    source: HostConnectionSource.HostConnection,
+                    reasonCode: connectResponse.Reason);
+            }
+
+            HostPairingProgressReporter.Report(
+                progress,
+                HostConnectionProgressKind.Connection,
+                $"Reason code: {connectResponse.Reason}",
+                source: HostConnectionSource.HostConnection,
+                reasonCode: connectResponse.Reason);
+            HostPairingProgressReporter.Report(
+                progress,
+                HostConnectionProgressKind.Connection,
+                $"Accepted: {connectResponse.Accepted}",
+                source: HostConnectionSource.HostConnection,
+                reasonCode: connectResponse.Reason);
+
+            if (!connectResponse.Accepted)
+            {
+                return PairingConnectionAttempt.FromRejected(hostAddress!, connectResponse);
+            }
+
+            if (connectResponse.WebSocketPort is null ||
+                string.IsNullOrWhiteSpace(connectResponse.WebSocketPath) ||
+                string.IsNullOrWhiteSpace(connectResponse.WebSocketToken))
+            {
+                return PairingConnectionAttempt.FromFailure(
+                    "Host did not provide a WebSocket handoff.",
+                    PairingFailureCodes.WebSocketHandoffUnavailable);
+            }
+
+            var wsUri = BuildWebSocketUri(
+                hostAddress!,
+                connectResponse.WebSocketPort.Value,
+                connectResponse.WebSocketPath,
+                connectResponse.WebSocketToken);
+            HostPairingProgressReporter.Report(
+                progress,
+                HostConnectionProgressKind.Connection,
+                $"Opening WebSocket: {wsUri}",
+                source: HostConnectionSource.Transport);
+
+            var connectedSocket = await ConnectWebSocketWithRetryAsync(wsUri, cancellationToken);
+            if (connectedSocket is null)
+            {
+                return PairingConnectionAttempt.FromFailure(
+                    "WebSocket endpoint did not become reachable in time.",
+                    PairingFailureCodes.WebSocketEndpointUnreachable);
+            }
+
+            return PairingConnectionAttempt.FromSuccess(hostAddress!, connectResponse, connectedSocket);
         }
 
-        HostPairingProgressReporter.Report(
-            progress,
-            HostConnectionProgressKind.Connection,
-            $"Reason code: {connectResponse.Reason}",
-            source: HostConnectionSource.HostConnection,
-            reasonCode: connectResponse.Reason);
-        HostPairingProgressReporter.Report(
-            progress,
-            HostConnectionProgressKind.Connection,
-            $"Accepted: {connectResponse.Accepted}",
-            source: HostConnectionSource.HostConnection,
-            reasonCode: connectResponse.Reason);
-
-        if (!connectResponse.Accepted)
-        {
-            return PairingConnectionAttempt.FromRejected(hostAddress!, connectResponse);
-        }
-
-        if (connectResponse.WebSocketPort is null ||
-            string.IsNullOrWhiteSpace(connectResponse.WebSocketPath) ||
-            string.IsNullOrWhiteSpace(connectResponse.WebSocketToken))
-        {
-            return PairingConnectionAttempt.FromFailure(
-                "Host did not provide a WebSocket handoff.",
-                PairingFailureCodes.WebSocketHandoffUnavailable);
-        }
-
-        var wsUri = BuildWebSocketUri(
-            hostAddress!,
-            connectResponse.WebSocketPort.Value,
-            connectResponse.WebSocketPath,
-            connectResponse.WebSocketToken);
-        HostPairingProgressReporter.Report(
-            progress,
-            HostConnectionProgressKind.Connection,
-            $"Opening WebSocket: {wsUri}",
-            source: HostConnectionSource.Transport);
-
-        var connectedSocket = await ConnectWebSocketWithRetryAsync(wsUri, cancellationToken);
-        if (connectedSocket is null)
-        {
-            return PairingConnectionAttempt.FromFailure(
-                "WebSocket endpoint did not become reachable in time.",
-                PairingFailureCodes.WebSocketEndpointUnreachable);
-        }
-
-        return PairingConnectionAttempt.FromSuccess(hostAddress!, connectResponse, connectedSocket);
+        return lastFailure ?? PairingConnectionAttempt.FromFailure(
+            "A current host address is required. Import a fresh pairing config or compact pairing config code.",
+            PairingFailureCodes.HostAddressRequired);
     }
 
     private static async Task<ClientWebSocket?> ConnectWebSocketWithRetryAsync(Uri wsUri, CancellationToken cancellationToken)

@@ -185,6 +185,45 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertEqual(datagramClient.requestCount, 1)
     }
 
+    func testPairingConnectorTriesNextDiscoveryAddressWhenFirstTimesOut() async throws {
+        let response = ConnectResponse(
+            type: "CONNECT_RESP",
+            ver: 1,
+            accepted: false,
+            reason: "pairing-required",
+            reasonMessage: "Need WebSocket handoff",
+            hostId: "host-1",
+            hostName: "Host",
+            hostWifiName: nil,
+            message: "Rejected",
+            webSocketPort: nil,
+            webSocketPath: nil,
+            webSocketToken: nil
+        )
+        let responseData = try JSONEncoder.ansightEncoder.encode(response)
+        let datagramClient = FakePairingDatagramClient(responseProvider: { host, _ in
+            host == "127.0.0.1" ? responseData : nil
+        })
+        let connector = PairingSessionConnector(
+            datagramClient: datagramClient,
+            wifiStatusProvider: { .connected }
+        )
+        let document = ParsedPairingDocument(
+            config: TestPairingFactory.signedConfig(configId: "cfg-multi-address"),
+            discoveryHint: PairingDiscoveryHint(
+                hostAddresses: ["192.0.2.1", "127.0.0.1"],
+                discoveryPort: 45123,
+                wifiName: "Studio Wi-Fi"
+            )
+        )
+
+        let attempt = await connector.connect(document: document, clientName: "Unit Test", options: nil)
+
+        XCTAssertFalse(attempt.success)
+        XCTAssertEqual(attempt.hostAddress, "127.0.0.1")
+        XCTAssertEqual(datagramClient.requestedHosts, ["192.0.2.1", "127.0.0.1"])
+    }
+
     func testSessionJpegWireProtocolEncodesHostHeader() {
         let jpegData = Data([0xFF, 0xD8, 0xFF, 0xD9])
         let frame = AnsightCapturedScreenFrame(

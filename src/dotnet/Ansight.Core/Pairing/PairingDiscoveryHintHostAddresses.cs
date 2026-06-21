@@ -42,6 +42,16 @@ internal static class PairingDiscoveryHintHostAddresses
         return Normalize(discoveryHint).FirstOrDefault();
     }
 
+    public static string[] ResolveCandidates(PairingDiscoveryHint? discoveryHint, string? hostAddressOverride)
+    {
+        if (!string.IsNullOrWhiteSpace(hostAddressOverride))
+        {
+            return [hostAddressOverride.Trim()];
+        }
+
+        return Normalize(discoveryHint);
+    }
+
     public static PairingDiscoveryHint NormalizeInPlace(PairingDiscoveryHint discoveryHint)
     {
         ArgumentNullException.ThrowIfNull(discoveryHint);

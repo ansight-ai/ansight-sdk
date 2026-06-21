@@ -3,21 +3,31 @@ import Foundation
 
 final class FakePairingDatagramClient: PairingDatagramClient, @unchecked Sendable {
     private let lock = NSLock()
-    private let responseData: Data?
+    private let responseProvider: @Sendable (String, Int) -> Data?
     private var requestCounter = 0
+    private var hosts: [String] = []
 
     init(responseData: Data? = nil) {
-        self.responseData = responseData
+        self.responseProvider = { _, _ in responseData }
+    }
+
+    init(responseProvider: @escaping @Sendable (String, Int) -> Data?) {
+        self.responseProvider = responseProvider
     }
 
     var requestCount: Int {
         lock.withLock { requestCounter }
     }
 
+    var requestedHosts: [String] {
+        lock.withLock { hosts }
+    }
+
     func sendConnectRequest(_ data: Data, host: String, port: Int, timeoutSeconds: TimeInterval) async throws -> Data? {
         lock.withLock {
             requestCounter += 1
+            hosts.append(host)
         }
-        return responseData
+        return responseProvider(host, port)
     }
 }

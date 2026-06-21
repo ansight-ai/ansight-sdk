@@ -22,12 +22,8 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
         clientName: String,
         options: PairingConnectionOptions?
     ) async -> PairingConnectionAttempt {
-        let configuredHostAddress = options?.hostAddressOverride?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let hintedHostAddress = configuredHostAddress?.isEmpty == false
-            ? configuredHostAddress
-            : document.discoveryHint?.hostAddress?.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard let hostAddress = hintedHostAddress, !hostAddress.isEmpty else {
+        let hostAddressCandidates = Self.hostAddressCandidates(document: document, options: options)
+        guard !hostAddressCandidates.isEmpty else {
             return .failure(
                 "A current host address is required. Import a fresh pairing config or compact pairing config code.",
                 code: PairingFailureCodes.hostAddressRequired
@@ -64,60 +60,88 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
             return .failure("Failed to encode connect request: \(error.localizedDescription)", code: PairingFailureCodes.udpBootstrapFailed)
         }
 
-        let responseData: Data?
-        do {
-            responseData = try await datagramClient.sendConnectRequest(
-                requestData,
-                host: hostAddress,
-                port: discoveryPort,
-                timeoutSeconds: 5
-            )
-        } catch {
-            return .failure("UDP connect failed: \(error.localizedDescription)", code: PairingFailureCodes.udpBootstrapFailed)
+        var lastFailure: PairingConnectionAttempt?
+        for hostAddress in hostAddressCandidates {
+            let responseData: Data?
+            do {
+                responseData = try await datagramClient.sendConnectRequest(
+                    requestData,
+                    host: hostAddress,
+                    port: discoveryPort,
+                    timeoutSeconds: 5
+                )
+            } catch {
+                lastFailure = .failure("UDP connect failed for \(hostAddress): \(error.localizedDescription)", code: PairingFailureCodes.udpBootstrapFailed)
+                continue
+            }
+
+            guard let responseData else {
+                lastFailure = .failure(
+                    "No connect response from host at \(hostAddress). \(hostNetworkCheckMessage) The remembered host address may be stale. Import a fresh pairing QR code or enter the host IP manually.",
+                    code: PairingFailureCodes.udpBootstrapTimeout
+                )
+                continue
+            }
+
+            let response: ConnectResponse
+            do {
+                response = try JSONDecoder.ansightDecoder.decode(ConnectResponse.self, from: responseData)
+            } catch {
+                return .failure("Host connect response was malformed: \(error.localizedDescription)", code: PairingFailureCodes.udpBootstrapFailed)
+            }
+
+            guard response.type == "CONNECT_RESP" else {
+                return .failure("Host connect response had unexpected type '\(response.type)'.", code: PairingFailureCodes.udpBootstrapFailed)
+            }
+
+            guard response.accepted else {
+                return .rejected(hostAddress: hostAddress, response: response)
+            }
+
+            guard let webSocketPort = response.webSocketPort,
+                  let webSocketPath = response.webSocketPath,
+                  let webSocketToken = response.webSocketToken,
+                  !webSocketPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  !webSocketToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            else {
+                return .failure("Host did not provide a WebSocket handoff.", code: PairingFailureCodes.webSocketHandoffUnavailable)
+            }
+
+            var components = URLComponents()
+            components.scheme = "ws"
+            components.host = hostAddress
+            components.port = webSocketPort
+            components.path = webSocketPath.hasPrefix("/") ? webSocketPath : "/\(webSocketPath)"
+            components.queryItems = [URLQueryItem(name: "token", value: webSocketToken)]
+            guard let url = components.url else {
+                return .failure("Host WebSocket handoff was not a valid URL.", code: PairingFailureCodes.webSocketHandoffUnavailable)
+            }
+
+            return .success(hostAddress: hostAddress, response: response, webSocketURL: url)
         }
 
-        guard let responseData else {
-            return .failure(
-                "No connect response from host. \(hostNetworkCheckMessage) The remembered host address may be stale. Import a fresh pairing QR code or enter the host IP manually.",
-                code: PairingFailureCodes.udpBootstrapTimeout
-            )
+        return lastFailure ?? .failure(
+            "A current host address is required. Import a fresh pairing config or compact pairing config code.",
+            code: PairingFailureCodes.hostAddressRequired
+        )
+    }
+
+    private static func hostAddressCandidates(document: ParsedPairingDocument, options: PairingConnectionOptions?) -> [String] {
+        if let hostAddressOverride = options?.hostAddressOverride?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !hostAddressOverride.isEmpty {
+            return [hostAddressOverride]
         }
 
-        let response: ConnectResponse
-        do {
-            response = try JSONDecoder.ansightDecoder.decode(ConnectResponse.self, from: responseData)
-        } catch {
-            return .failure("Host connect response was malformed: \(error.localizedDescription)", code: PairingFailureCodes.udpBootstrapFailed)
+        var seen = Set<String>()
+        var candidates: [String] = []
+        for address in document.discoveryHint?.hostAddresses ?? [] {
+            let candidate = address.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !candidate.isEmpty && seen.insert(candidate).inserted {
+                candidates.append(candidate)
+            }
         }
 
-        guard response.type == "CONNECT_RESP" else {
-            return .failure("Host connect response had unexpected type '\(response.type)'.", code: PairingFailureCodes.udpBootstrapFailed)
-        }
-
-        guard response.accepted else {
-            return .rejected(hostAddress: hostAddress, response: response)
-        }
-
-        guard let webSocketPort = response.webSocketPort,
-              let webSocketPath = response.webSocketPath,
-              let webSocketToken = response.webSocketToken,
-              !webSocketPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              !webSocketToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        else {
-            return .failure("Host did not provide a WebSocket handoff.", code: PairingFailureCodes.webSocketHandoffUnavailable)
-        }
-
-        var components = URLComponents()
-        components.scheme = "ws"
-        components.host = hostAddress
-        components.port = webSocketPort
-        components.path = webSocketPath.hasPrefix("/") ? webSocketPath : "/\(webSocketPath)"
-        components.queryItems = [URLQueryItem(name: "token", value: webSocketToken)]
-        guard let url = components.url else {
-            return .failure("Host WebSocket handoff was not a valid URL.", code: PairingFailureCodes.webSocketHandoffUnavailable)
-        }
-
-        return .success(hostAddress: hostAddress, response: response, webSocketURL: url)
+        return candidates
     }
 
     private static func hostNetworkCheckMessage(discoveryHint: PairingDiscoveryHint?) -> String {

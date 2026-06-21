@@ -110,7 +110,12 @@ data class PairingDiscoveryHint(
     val capturedAt: String? = null,
 ) {
     val hostAddress: String?
-        get() = hostAddresses.firstOrNull { it.isNotBlank() }
+        get() = hostAddressCandidates.firstOrNull()
+
+    val hostAddressCandidates: List<String>
+        get() = hostAddresses.mapNotNull { address ->
+            address.trim().ifBlank { null }
+        }.distinct()
 
     companion object {
         fun fromJson(json: JSONObject?): PairingDiscoveryHint? {
@@ -480,12 +485,15 @@ class PairingSessionConnector {
         clientName: String,
         options: PairingConnectionOptions = PairingConnectionOptions(),
     ): PairingConnectionAttempt {
-        val hostAddress = options.hostAddressOverride?.trim()?.ifBlank { null }
-            ?: document.discoveryHint?.hostAddress?.trim()?.ifBlank { null }
-            ?: return PairingConnectionAttempt.failure(
+        val hostAddressCandidates = options.hostAddressOverride?.trim()?.ifBlank { null }?.let { listOf(it) }
+            ?: document.discoveryHint?.hostAddressCandidates.orEmpty()
+        if (hostAddressCandidates.isEmpty()) {
+            return PairingConnectionAttempt.failure(
                 "A current host address is required. Import a fresh pairing config or compact pairing config code.",
                 PairingFailureCodes.HostAddressRequired,
             )
+        }
+
         val discoveryPort = options.discoveryPort
             ?: document.discoveryHint?.discoveryPort
             ?: document.config.host.discoveryPort
@@ -494,38 +502,52 @@ class PairingSessionConnector {
             return PairingConnectionAttempt.failure("Pairing discovery port must be between 1 and 65535.", PairingFailureCodes.HostAddressRequired)
         }
 
-        val connectResponse = try {
-            sendConnectRequest(document.config, clientName, hostAddress, discoveryPort)
-        } catch (ex: Exception) {
-            return PairingConnectionAttempt.failure("UDP connect failed: ${ex.message}", PairingFailureCodes.UdpBootstrapFailed)
-        } ?: return PairingConnectionAttempt.failure(
-            "No connect response from host. Check that this device is on the same Wi-Fi network as the Ansight host.",
-            PairingFailureCodes.UdpBootstrapTimeout,
+        var lastFailure: PairingConnectionAttempt? = null
+        for (hostAddress in hostAddressCandidates) {
+            val connectResponse = try {
+                sendConnectRequest(document.config, clientName, hostAddress, discoveryPort)
+            } catch (ex: Exception) {
+                lastFailure = PairingConnectionAttempt.failure("UDP connect failed for $hostAddress: ${ex.message}", PairingFailureCodes.UdpBootstrapFailed)
+                continue
+            }
+
+            if (connectResponse == null) {
+                lastFailure = PairingConnectionAttempt.failure(
+                    "No connect response from host at $hostAddress. Check that this device is on the same Wi-Fi network as the Ansight host.",
+                    PairingFailureCodes.UdpBootstrapTimeout,
+                )
+                continue
+            }
+
+            if (connectResponse.type != "CONNECT_RESP") {
+                return PairingConnectionAttempt.failure("Host connect response had unexpected type '${connectResponse.type}'.", PairingFailureCodes.UdpBootstrapFailed)
+            }
+
+            if (!connectResponse.accepted) {
+                return PairingConnectionAttempt.rejected(hostAddress, connectResponse)
+            }
+
+            val webSocketPort = connectResponse.webSocketPort
+            val webSocketPath = connectResponse.webSocketPath?.trim()
+            val webSocketToken = connectResponse.webSocketToken?.trim()
+            if (webSocketPort == null || webSocketPath.isNullOrBlank() || webSocketToken.isNullOrBlank()) {
+                return PairingConnectionAttempt.failure("Host did not provide a WebSocket handoff.", PairingFailureCodes.WebSocketHandoffUnavailable)
+            }
+
+            val url = buildWebSocketUrl(hostAddress, webSocketPort, webSocketPath, webSocketToken)
+            val transport = PairingLiveSessionTransport()
+            val openResult = transport.open(url)
+            if (!openResult.success) {
+                return PairingConnectionAttempt.failure(openResult.message, PairingFailureCodes.WebSocketEndpointUnreachable)
+            }
+
+            return PairingConnectionAttempt.success(hostAddress, connectResponse, transport)
+        }
+
+        return lastFailure ?: PairingConnectionAttempt.failure(
+            "A current host address is required. Import a fresh pairing config or compact pairing config code.",
+            PairingFailureCodes.HostAddressRequired,
         )
-
-        if (connectResponse.type != "CONNECT_RESP") {
-            return PairingConnectionAttempt.failure("Host connect response had unexpected type '${connectResponse.type}'.", PairingFailureCodes.UdpBootstrapFailed)
-        }
-
-        if (!connectResponse.accepted) {
-            return PairingConnectionAttempt.rejected(hostAddress, connectResponse)
-        }
-
-        val webSocketPort = connectResponse.webSocketPort
-        val webSocketPath = connectResponse.webSocketPath?.trim()
-        val webSocketToken = connectResponse.webSocketToken?.trim()
-        if (webSocketPort == null || webSocketPath.isNullOrBlank() || webSocketToken.isNullOrBlank()) {
-            return PairingConnectionAttempt.failure("Host did not provide a WebSocket handoff.", PairingFailureCodes.WebSocketHandoffUnavailable)
-        }
-
-        val url = buildWebSocketUrl(hostAddress, webSocketPort, webSocketPath, webSocketToken)
-        val transport = PairingLiveSessionTransport()
-        val openResult = transport.open(url)
-        if (!openResult.success) {
-            return PairingConnectionAttempt.failure(openResult.message, PairingFailureCodes.WebSocketEndpointUnreachable)
-        }
-
-        return PairingConnectionAttempt.success(hostAddress, connectResponse, transport)
     }
 
     private fun sendConnectRequest(
