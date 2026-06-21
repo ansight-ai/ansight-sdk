@@ -10,6 +10,7 @@
 *.userosscache
 *.sln.docstates
 *.env
+.env.publishing.local
 
 # Local Ansight SDK validation output
 .ansight-validation/

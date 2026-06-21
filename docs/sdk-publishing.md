@@ -75,6 +75,12 @@ time after a failed partial release.
 
 ## Credentials
 
+Publish scripts automatically load ignored local credentials from:
+
+```bash
+.env.publishing.local
+```
+
 NuGet:
 
 ```bash

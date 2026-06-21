@@ -2,6 +2,9 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "${repo_root}/scripts/load-publishing-env.sh"
+load_publishing_env "${repo_root}"
+
 publishing_type="${SONATYPE_CENTRAL_PUBLISHING_TYPE:-USER_MANAGED}"
 deployment_name="${SONATYPE_CENTRAL_DEPLOYMENT_NAME:-}"
 upload_url="${SONATYPE_CENTRAL_UPLOAD_URL:-https://central.sonatype.com/api/v1/publisher/upload}"

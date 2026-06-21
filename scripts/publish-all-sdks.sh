@@ -2,6 +2,9 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "${repo_root}/scripts/load-publishing-env.sh"
+load_publishing_env "${repo_root}"
+
 publish=false
 skip_tests=false
 skip_dotnet=false

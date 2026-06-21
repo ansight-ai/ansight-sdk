@@ -2,6 +2,9 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "${repo_root}/scripts/load-publishing-env.sh"
+load_publishing_env "${repo_root}"
+
 publish=false
 skip_install=false
 skip_check=false
@@ -52,6 +55,13 @@ done
 if ! command -v npm >/dev/null 2>&1; then
   echo "error: npm is required" >&2
   exit 1
+fi
+
+if [[ -n "${NPM_TOKEN:-}" ]]; then
+  npm_config_userconfig="$(mktemp)"
+  export npm_config_userconfig
+  printf '//registry.npmjs.org/:_authToken=%s\n' "${NPM_TOKEN}" > "${npm_config_userconfig}"
+  trap 'rm -f "${npm_config_userconfig}"' EXIT
 fi
 
 cd "${repo_root}/src/react-native"
