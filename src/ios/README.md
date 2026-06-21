@@ -1,7 +1,5 @@
 # Ansight iOS
 
-The native iOS SDK plan lives in [../../docs/native-ios-android-sdk-plan.md](../../docs/native-ios-android-sdk-plan.md).
-
 The native harness app lives in `Examples/NativeHarness/`.
 
 Import `AnsightCore` plus individual pairing/tool products for a minimal integration, or import the aggregate `Ansight` product for developer defaults, QR/file pairing UI, and the current native remote-tool suites.
