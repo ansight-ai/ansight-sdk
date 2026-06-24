@@ -25,12 +25,39 @@ internal static class PairingCanonicalJson
                 alg = config.Challenge.Alg,
                 challengePubKey = config.Challenge.ChallengePubKey,
                 requireProofOnFirstPair = config.Challenge.RequireProofOnFirstPair
+            }
+        };
+
+        return JsonSerializer.Serialize(signable, PairingJson.Compact);
+    }
+
+    public static string SerializePairingConfigWithLegacyTrustForSignature(PairingConfig config)
+    {
+        var signable = new
+        {
+            schema = config.Schema,
+            configId = config.ConfigId,
+            appId = config.AppId,
+            appName = config.AppName,
+            issuedAt = config.IssuedAt,
+            expiresAt = config.ExpiresAt,
+            oneTimeToken = config.OneTimeToken,
+            host = new
+            {
+                hostPubKey = config.Host.HostPubKey,
+                hostPubKeyFingerprint = config.Host.HostPubKeyFingerprint
+            },
+            challenge = new
+            {
+                alg = config.Challenge.Alg,
+                challengePubKey = config.Challenge.ChallengePubKey,
+                requireProofOnFirstPair = config.Challenge.RequireProofOnFirstPair
             },
             trust = new
             {
-                mode = config.Trust.Mode,
-                requireTokenOnFirstPair = config.Trust.RequireTokenOnFirstPair,
-                allowLanDiscovery = config.Trust.AllowLanDiscovery
+                mode = "pinned-key+token+challenge",
+                requireTokenOnFirstPair = true,
+                allowLanDiscovery = false
             }
         };
 

@@ -105,16 +105,21 @@ public struct PairingConfigDocumentService: Sendable {
             return false
         }
 
-        let data = Data(PairingCanonicalJSON.serializePairingConfigForSignature(config).utf8)
+        for signable in [
+            PairingCanonicalJSON.serializePairingConfigForSignature(config),
+            PairingCanonicalJSON.serializePairingConfigWithLegacyTrustForSignature(config),
+        ] {
+            let data = Data(signable.utf8)
 
-        if let rawSignature = try? P256.Signing.ECDSASignature(rawRepresentation: signatureData),
-           publicKey.isValidSignature(rawSignature, for: data) {
-            return true
-        }
+            if let rawSignature = try? P256.Signing.ECDSASignature(rawRepresentation: signatureData),
+               publicKey.isValidSignature(rawSignature, for: data) {
+                return true
+            }
 
-        if let derSignature = try? P256.Signing.ECDSASignature(derRepresentation: signatureData),
-           publicKey.isValidSignature(derSignature, for: data) {
-            return true
+            if let derSignature = try? P256.Signing.ECDSASignature(derRepresentation: signatureData),
+               publicKey.isValidSignature(derSignature, for: data) {
+                return true
+            }
         }
 
         return false

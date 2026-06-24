@@ -32,7 +32,6 @@ data class PairingConfig(
     val oneTimeToken: String,
     val host: PairingHost,
     val challenge: PairingChallenge,
-    val trust: PairingTrust,
     val signature: String,
 ) {
     companion object {
@@ -48,7 +47,6 @@ data class PairingConfig(
             oneTimeToken = json.requiredString("oneTimeToken"),
             host = PairingHost.fromJson(json.getJSONObject("host")),
             challenge = PairingChallenge.fromJson(json.getJSONObject("challenge")),
-            trust = PairingTrust.fromJson(json.getJSONObject("trust")),
             signature = json.requiredString("signature"),
         )
     }
@@ -82,20 +80,6 @@ data class PairingChallenge(
             alg = json.requiredString("alg"),
             challengePubKey = json.requiredString("challengePubKey"),
             requireProofOnFirstPair = json.optionalBoolean("requireProofOnFirstPair") ?: false,
-        )
-    }
-}
-
-data class PairingTrust(
-    val mode: String,
-    val requireTokenOnFirstPair: Boolean,
-    val allowLanDiscovery: Boolean,
-) {
-    companion object {
-        fun fromJson(json: JSONObject): PairingTrust = PairingTrust(
-            mode = json.requiredString("mode"),
-            requireTokenOnFirstPair = json.optionalBoolean("requireTokenOnFirstPair") ?: false,
-            allowLanDiscovery = json.optionalBoolean("allowLanDiscovery") ?: false,
         )
     }
 }
@@ -226,10 +210,16 @@ object PairingConfigDocumentService {
             val publicKeyBytes = Base64.getDecoder().decode(config.host.hostPubKey)
             val signatureBytes = Base64.getDecoder().decode(config.signature)
             val publicKey = KeyFactory.getInstance("EC").generatePublic(X509EncodedKeySpec(publicKeyBytes))
-            val verifier = Signature.getInstance("SHA256withECDSA")
-            verifier.initVerify(publicKey)
-            verifier.update(PairingCanonicalJson.serializePairingConfigForSignature(config).toByteArray(StandardCharsets.UTF_8))
-            verifier.verify(ensureDerSignature(signatureBytes))
+            val derSignature = ensureDerSignature(signatureBytes)
+            listOf(
+                PairingCanonicalJson.serializePairingConfigForSignature(config),
+                PairingCanonicalJson.serializePairingConfigWithLegacyTrustForSignature(config),
+            ).any { signable ->
+                val verifier = Signature.getInstance("SHA256withECDSA")
+                verifier.initVerify(publicKey)
+                verifier.update(signable.toByteArray(StandardCharsets.UTF_8))
+                verifier.verify(derSignature)
+            }
         } catch (_: Exception) {
             false
         }
@@ -316,8 +306,16 @@ internal object PairingConfigCodeGenerator {
 
 internal object PairingCanonicalJson {
     fun serializePairingConfigForSignature(config: PairingConfig): String {
+        return serializePairingConfig(config, includeLegacyTrust = false)
+    }
+
+    fun serializePairingConfigWithLegacyTrustForSignature(config: PairingConfig): String {
+        return serializePairingConfig(config, includeLegacyTrust = true)
+    }
+
+    private fun serializePairingConfig(config: PairingConfig, includeLegacyTrust: Boolean): String {
         val hostJson = serializeHost(config.host.hostPubKey, config.host.hostPubKeyFingerprint)
-        return listOf(
+        val fields = mutableListOf(
             jsonStringField("schema", config.schema, escapePlus = true),
             jsonStringField("configId", config.configId, escapePlus = true),
             jsonStringField("appId", config.appId, escapePlus = true),
@@ -327,8 +325,12 @@ internal object PairingCanonicalJson {
             jsonStringField("oneTimeToken", config.oneTimeToken, escapePlus = true),
             "\"host\":$hostJson",
             "\"challenge\":${serializeChallenge(config.challenge)}",
-            "\"trust\":${serializeTrust(config.trust)}",
-        ).joinToString(prefix = "{", postfix = "}", separator = ",")
+        )
+        if (includeLegacyTrust) {
+            fields.add("\"trust\":${serializeLegacyTrust()}")
+        }
+
+        return fields.joinToString(prefix = "{", postfix = "}", separator = ",")
     }
 
     private fun serializeHost(hostPubKey: String, hostPubKeyFingerprint: String): String {
@@ -346,11 +348,11 @@ internal object PairingCanonicalJson {
         ).joinToString(prefix = "{", postfix = "}", separator = ",")
     }
 
-    private fun serializeTrust(trust: PairingTrust): String {
+    private fun serializeLegacyTrust(): String {
         return listOf(
-            jsonStringField("mode", trust.mode, escapePlus = true),
-            "\"requireTokenOnFirstPair\":${trust.requireTokenOnFirstPair}",
-            "\"allowLanDiscovery\":${trust.allowLanDiscovery}",
+            jsonStringField("mode", "pinned-key+token+challenge", escapePlus = true),
+            "\"requireTokenOnFirstPair\":true",
+            "\"allowLanDiscovery\":false",
         ).joinToString(prefix = "{", postfix = "}", separator = ",")
     }
 

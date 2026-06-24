@@ -46,12 +46,6 @@ internal static class PairingTestDocumentFactory
                 ChallengePubKey = challengePubKey,
                 RequireProofOnFirstPair = true
             },
-            Trust = new PairingTrust
-            {
-                Mode = "developer",
-                RequireTokenOnFirstPair = true,
-                AllowLanDiscovery = true
-            },
             Signature = string.Empty
         };
 

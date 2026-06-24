@@ -128,12 +128,6 @@ public sealed class HostPairingManagerIntegrationTests
                 ChallengePubKey = $"{configId}-challenge",
                 RequireProofOnFirstPair = true
             },
-            Trust = new PairingTrust
-            {
-                Mode = "developer",
-                RequireTokenOnFirstPair = true,
-                AllowLanDiscovery = true
-            },
             Signature = string.Empty
         };
 

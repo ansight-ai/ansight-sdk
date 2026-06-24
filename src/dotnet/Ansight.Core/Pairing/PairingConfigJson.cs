@@ -33,7 +33,6 @@ internal static class PairingConfigJson
                 HostPubKeyFingerprint = config.Host.HostPubKeyFingerprint
             },
             Challenge = config.Challenge,
-            Trust = config.Trust,
             Signature = config.Signature
         };
     }
@@ -57,8 +56,6 @@ internal static class PairingConfigJson
         public required PairingHostJsonModel Host { get; init; }
 
         public required PairingChallenge Challenge { get; init; }
-
-        public required PairingTrust Trust { get; init; }
 
         public required string Signature { get; init; }
     }

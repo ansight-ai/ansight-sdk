@@ -170,12 +170,6 @@ public sealed class HostConnectionManagerTests
                     ChallengePubKey = "challenge-pub",
                     RequireProofOnFirstPair = false
                 },
-                Trust = new PairingTrust
-                {
-                    Mode = "developer",
-                    RequireTokenOnFirstPair = false,
-                    AllowLanDiscovery = true
-                },
                 Signature = "signature"
             },
             DiscoveryHint = new PairingDiscoveryHint

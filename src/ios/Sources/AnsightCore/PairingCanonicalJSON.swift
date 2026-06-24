@@ -13,12 +13,29 @@ enum PairingCanonicalJSON {
                 discoveryPort: nil,
                 hostPubKey: config.host.hostPubKey,
                 hostPubKeyFingerprint: config.host.hostPubKeyFingerprint
-            )
+            ),
+            includeLegacyTrust: false
         )
     }
 
-    private static func serializeConfig(config: PairingConfig, hostJson: String) -> String {
-        [
+    static func serializePairingConfigWithLegacyTrustForSignature(_ config: PairingConfig) -> String {
+        serializeConfig(
+            config: config,
+            hostJson: serializeHost(
+                hostId: nil,
+                hostName: nil,
+                wsPort: nil,
+                wsPath: nil,
+                discoveryPort: nil,
+                hostPubKey: config.host.hostPubKey,
+                hostPubKeyFingerprint: config.host.hostPubKeyFingerprint
+            ),
+            includeLegacyTrust: true
+        )
+    }
+
+    private static func serializeConfig(config: PairingConfig, hostJson: String, includeLegacyTrust: Bool) -> String {
+        var fields = [
             jsonStringField("schema", config.schema),
             jsonStringField("configId", config.configId),
             jsonStringField("appId", config.appId),
@@ -28,8 +45,12 @@ enum PairingCanonicalJSON {
             jsonStringField("oneTimeToken", config.oneTimeToken),
             #""host":\#(hostJson)"#,
             #""challenge":\#(serializeChallenge(config.challenge))"#,
-            #""trust":\#(serializeTrust(config.trust))"#,
-        ].joined(prefix: "{", suffix: "}")
+        ]
+        if includeLegacyTrust {
+            fields.append(#""trust":\#(serializeLegacyTrust())"#)
+        }
+
+        return fields.joined(prefix: "{", suffix: "}")
     }
 
     private static func serializeHost(
@@ -75,11 +96,11 @@ enum PairingCanonicalJSON {
         ].joined(prefix: "{", suffix: "}")
     }
 
-    private static func serializeTrust(_ trust: PairingTrust) -> String {
+    private static func serializeLegacyTrust() -> String {
         [
-            jsonStringField("mode", trust.mode),
-            #""requireTokenOnFirstPair":\#(trust.requireTokenOnFirstPair ? "true" : "false")"#,
-            #""allowLanDiscovery":\#(trust.allowLanDiscovery ? "true" : "false")"#,
+            jsonStringField("mode", "pinned-key+token+challenge"),
+            #""requireTokenOnFirstPair":true"#,
+            #""allowLanDiscovery":false"#,
         ].joined(prefix: "{", suffix: "}")
     }
 

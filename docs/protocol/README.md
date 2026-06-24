@@ -56,7 +56,6 @@ The base config is defined by:
 - [PairingConfig.cs](../../src/dotnet/Ansight.Core/Pairing/Models/PairingConfig.cs)
 - [PairingHost.cs](../../src/dotnet/Ansight.Core/Pairing/Models/PairingHost.cs)
 - [PairingChallenge.cs](../../src/dotnet/Ansight.Core/Pairing/Models/PairingChallenge.cs)
-- [PairingTrust.cs](../../src/dotnet/Ansight.Core/Pairing/Models/PairingTrust.cs)
 
 Important fields are:
 
@@ -69,7 +68,6 @@ Important fields are:
 - `oneTimeToken`
 - `host`
 - `challenge`
-- `trust`
 - `signature`
 
 ### Pairing tickets

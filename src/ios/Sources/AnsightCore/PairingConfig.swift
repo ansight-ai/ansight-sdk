@@ -13,7 +13,6 @@ public struct PairingConfig: Sendable, Codable, Equatable {
     public var oneTimeToken: String
     public var host: PairingHost
     public var challenge: PairingChallenge
-    public var trust: PairingTrust
     public var signature: String
 
     public init(
@@ -26,7 +25,6 @@ public struct PairingConfig: Sendable, Codable, Equatable {
         oneTimeToken: String,
         host: PairingHost,
         challenge: PairingChallenge,
-        trust: PairingTrust,
         signature: String
     ) {
         self.schema = schema
@@ -38,7 +36,6 @@ public struct PairingConfig: Sendable, Codable, Equatable {
         self.oneTimeToken = oneTimeToken
         self.host = host
         self.challenge = challenge
-        self.trust = trust
         self.signature = signature
     }
 }

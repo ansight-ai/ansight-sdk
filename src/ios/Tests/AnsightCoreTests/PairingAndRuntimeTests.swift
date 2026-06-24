@@ -125,7 +125,6 @@ final class PairingAndRuntimeTests: XCTestCase {
         )
         config.issuedAt = "2026-06-14T00:31:47.473808+00:00"
         config.expiresAt = "2026-06-15T00:31:47.473808+00:00"
-        config.trust.mode = "pinned-key+token+challenge"
 
         let signable = PairingCanonicalJSON.serializePairingConfigForSignature(config)
 
@@ -133,7 +132,7 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertTrue(signable.contains(#""expiresAt":"2026-06-15T00:31:47.473808+00:00""#))
         XCTAssertTrue(signable.contains(#""oneTimeToken":"token\u002Bvalue""#))
         XCTAssertTrue(signable.contains(#""challengePubKey":"challenge\u002Bkey""#))
-        XCTAssertTrue(signable.contains(#""mode":"pinned-key\u002Btoken\u002Bchallenge""#))
+        XCTAssertFalse(signable.contains(#""trust":"#))
         XCTAssertFalse(signable.contains(#""issuedAt":"2026-06-14T00:31:47.473808\u002B00:00""#))
     }
 
@@ -1331,11 +1330,6 @@ private enum TestPairingFactory {
                 challengePubKey: challengePubKey,
                 requireProofOnFirstPair: true
             ),
-            trust: PairingTrust(
-                mode: "developer",
-                requireTokenOnFirstPair: true,
-                allowLanDiscovery: true
-            ),
             signature: ""
         )
 
@@ -1381,11 +1375,6 @@ private enum TestPairingFactory {
                 "alg": config.challenge.alg,
                 "challengePubKey": config.challenge.challengePubKey,
                 "requireProofOnFirstPair": config.challenge.requireProofOnFirstPair,
-            ],
-            "trust": [
-                "mode": config.trust.mode,
-                "requireTokenOnFirstPair": config.trust.requireTokenOnFirstPair,
-                "allowLanDiscovery": config.trust.allowLanDiscovery,
             ],
             "signature": config.signature,
         ]

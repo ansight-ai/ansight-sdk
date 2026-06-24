@@ -15,10 +15,5 @@
     "challengePubKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEwcbeq2tDZdXRgZg+XelYhz13MyiIugHRa4MtCV/nUJm0uZUlo/TsK6s+bu45EuDk52B5+S+WG4ifX7xIox2e/g==",
     "requireProofOnFirstPair": true
   },
-  "trust": {
-    "mode": "pinned-key+token+challenge",
-    "requireTokenOnFirstPair": true,
-    "allowLanDiscovery": false
-  },
   "signature": "04eSSErVPuAff3yqGPPd5asIcRHJj/JyELfZbXJH7TBwBhLmNcu+XF42XaJNb4cX0JX+X1KHcgLsiCb6YHR7Lw=="
 }

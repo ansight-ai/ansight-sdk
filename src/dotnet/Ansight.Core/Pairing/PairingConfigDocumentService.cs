@@ -294,13 +294,18 @@ internal sealed class PairingConfigDocumentService
             using var hostKey = ECDsa.Create();
             hostKey.ImportSubjectPublicKeyInfo(publicKey, out _);
 
-            var signable = PairingCanonicalJson.SerializePairingConfigForSignature(config);
-            return hostKey.VerifyData(Encoding.UTF8.GetBytes(signable), signature, HashAlgorithmName.SHA256);
+            return VerifySignature(hostKey, signature, PairingCanonicalJson.SerializePairingConfigForSignature(config))
+                   || VerifySignature(hostKey, signature, PairingCanonicalJson.SerializePairingConfigWithLegacyTrustForSignature(config));
         }
         catch
         {
             return false;
         }
+    }
+
+    private static bool VerifySignature(ECDsa hostKey, byte[] signature, string signable)
+    {
+        return hostKey.VerifyData(Encoding.UTF8.GetBytes(signable), signature, HashAlgorithmName.SHA256);
     }
 
     private static bool ValidateAppId(PairingConfig config, string? expectedAppId, out string error)

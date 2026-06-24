@@ -84,11 +84,6 @@ class PairingSessionConnectorTest {
             challengePubKey = "challenge",
             requireProofOnFirstPair = true,
         ),
-        trust = PairingTrust(
-            mode = "pinned-key+token+challenge",
-            requireTokenOnFirstPair = true,
-            allowLanDiscovery = false,
-        ),
         signature = "signature",
     )
 }

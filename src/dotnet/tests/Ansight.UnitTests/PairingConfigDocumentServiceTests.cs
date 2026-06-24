@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Ansight.Pairing;
 
@@ -108,6 +109,29 @@ public sealed class PairingConfigDocumentServiceTests
 
         Assert.True(success, error);
         Assert.Equal(string.Empty, error);
+    }
+
+    [Fact]
+    public void TryParseAndValidateConfig_AcceptsLegacyStudioTrustSignature()
+    {
+        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var config = PairingTestDocumentFactory.CreateSignedConfig(signingKey, appId: "com.ansight.test");
+        var signable = PairingCanonicalJson.SerializePairingConfigWithLegacyTrustForSignature(config);
+        var signature = signingKey.SignData(Encoding.UTF8.GetBytes(signable), HashAlgorithmName.SHA256);
+        config.Signature = Convert.ToBase64String(signature);
+        var json = PairingConfigJson.Serialize(config)
+            .Replace(
+                ",\"signature\"",
+                ",\"trust\":{\"mode\":\"pinned-key+token+challenge\",\"requireTokenOnFirstPair\":true,\"allowLanDiscovery\":false},\"signature\"",
+                StringComparison.Ordinal);
+
+        var sut = new PairingConfigDocumentService();
+
+        var success = sut.TryParseAndValidateConfig(json, "com.ansight.test", out var parsedConfig, out var error);
+
+        Assert.True(success, error);
+        Assert.NotNull(parsedConfig);
+        Assert.Equal(config.ConfigId, parsedConfig!.ConfigId);
     }
 
     [Fact]

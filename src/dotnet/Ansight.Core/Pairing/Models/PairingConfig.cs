@@ -56,11 +56,6 @@ public sealed class PairingConfig
     public required PairingChallenge Challenge { get; set; }
 
     /// <summary>
-    /// Trust-policy metadata associated with the config.
-    /// </summary>
-    public required PairingTrust Trust { get; set; }
-
-    /// <summary>
     /// Host signature covering the canonical pairing config payload.
     /// </summary>
     public required string Signature { get; set; }
