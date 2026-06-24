@@ -302,4 +302,4 @@ Use `Allowed` only when the build intentionally includes remote tools and you do
 
 - Ansight is best-effort telemetry and has observer overhead.
 - Use platform profilers for authoritative measurements.
-- Pairing requires a config document with a current discovery hint or an explicit `HostAddressOverride`.
+- Pairing requires a config document with a current discovery hint, an explicit `HostAddressOverride`, or a known simulator/emulator where the SDK can fall back to the host machine address.

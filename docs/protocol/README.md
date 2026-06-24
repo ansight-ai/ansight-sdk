@@ -16,7 +16,7 @@ The current `.NET` SDK always behaves as the initiating client.
 The implemented session flow is:
 
 1. Parse and validate a pairing document.
-2. Resolve a host IP address from the pairing ticket discovery hint or `PairingConnectionOptions.HostAddressOverride`.
+2. Resolve a host IP address from `PairingConnectionOptions.HostAddressOverride`, the pairing ticket discovery hint, or the SDK simulator-local fallback when the app is running in a known simulator or emulator.
 3. Send a UDP `CONNECT_REQ` JSON packet to the host discovery port.
 4. Receive a UDP `CONNECT_RESP` JSON packet with a WebSocket handoff.
 5. Open a WebSocket using the returned `token` query string.
@@ -99,6 +99,7 @@ The current `.NET` connector is ticket-driven.
 
 - `ParsedPairingDocument.DiscoveryHint` is the primary source of the target host address
 - `PairingConnectionOptions.HostAddressOverride` is an explicit escape hatch for advanced recovery scenarios
+- known simulators and emulators prefer a local host address before ticket addresses when no explicit override is supplied
 - there is no LAN discovery implementation in the current base `.NET` SDK beyond the hint already embedded in the ticket
 
 ## UDP connect handoff

@@ -531,7 +531,10 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         foreach (var profile in profiles)
         {
             var document = profile.Document;
-            if (string.IsNullOrWhiteSpace(PairingDiscoveryHintHostAddresses.ResolvePrimary(document.DiscoveryHint)))
+            if (PairingDiscoveryHintHostAddresses.ResolveCandidates(
+                    document.DiscoveryHint,
+                    options?.HostAddressOverride,
+                    PairingSimulatorLocalHostAddress.Resolve()).Length == 0)
             {
                 storedPairingDocumentCache.ClearProfile(profile);
                 lastResult = OpenSessionResult.FromFailure(

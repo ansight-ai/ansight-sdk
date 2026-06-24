@@ -314,6 +314,28 @@ public sealed class HostPairingManagerTests
     }
 
     [Fact]
+    public async Task ConnectFromPayloadAsync_WhenPayloadHasNoHostAddressButSimulatorFallbackExists_Connects()
+    {
+        var savedConfigPath = CreateTempFilePath();
+        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var payloadDocument = CreateDocumentWithoutHostAddress(signingKey, configId: "cfg-simulator");
+
+        using var hostConnection = new FakeHostConnection();
+        hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult());
+        using var manager = CreateManager(
+            hostConnection,
+            savedConfigPath,
+            simulatorLocalHostAddressProvider: () => IPAddress.Loopback.ToString());
+
+        var result = await manager.ConnectAsync(
+            HostConnectionRequest.PayloadText(CreateConfigDocumentJson(payloadDocument), "pairing config"));
+
+        Assert.True(result.Success);
+        var connectedDocument = Assert.Single(hostConnection.ConnectDocuments);
+        Assert.Equal("cfg-simulator", connectedDocument.Config.ConfigId);
+    }
+
+    [Fact]
     public async Task ConnectUsingSavedConfigAsync_WhenNoSavedConfigExists_DoesNotFallbackToBundledConfig()
     {
         var savedConfigPath = CreateTempFilePath();
@@ -631,7 +653,8 @@ public sealed class HostPairingManagerTests
     private static HostPairingManager CreateManager(
         FakeHostConnection hostConnection,
         string savedConfigPath,
-        HostConnectionOptions? options = null)
+        HostConnectionOptions? options = null,
+        Func<string?>? simulatorLocalHostAddressProvider = null)
     {
         var configuredOptions = options ?? new HostConnectionOptions();
         configuredOptions.SavedConfigPath = savedConfigPath;
@@ -640,7 +663,8 @@ public sealed class HostPairingManagerTests
             hostConnection,
             configuredOptions,
             new StoredHostPairingConfigStore("unit-test", savedConfigPath),
-            isRuntimeActive: () => true);
+            isRuntimeActive: () => true,
+            simulatorLocalHostAddressProvider: simulatorLocalHostAddressProvider);
     }
 
     private static ParsedPairingDocument CreateDocument(

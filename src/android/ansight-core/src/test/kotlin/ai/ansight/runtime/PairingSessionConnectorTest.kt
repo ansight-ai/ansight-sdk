@@ -11,6 +11,51 @@ import kotlin.concurrent.thread
 
 class PairingSessionConnectorTest {
     @Test
+    fun connectUsesSimulatorLocalHostWhenDiscoveryAddressIsMissing() {
+        val loopback = InetAddress.getByName("127.0.0.1")
+        val listener = DatagramSocket(0, loopback)
+        val responder = thread {
+            val buffer = ByteArray(16 * 1024)
+            val request = DatagramPacket(buffer, buffer.size)
+            listener.receive(request)
+
+            val response = JSONObject()
+                .put("type", "CONNECT_RESP")
+                .put("ver", 1)
+                .put("accepted", false)
+                .put("reason", "pairing-required")
+                .put("reasonMessage", "Need WebSocket handoff")
+                .put("hostId", "host-1")
+                .put("hostName", "Host")
+                .put("message", "Rejected")
+                .toString()
+                .toByteArray(Charsets.UTF_8)
+            listener.send(DatagramPacket(response, response.size, request.address, request.port))
+        }
+
+        try {
+            val result = PairingSessionConnector(
+                simulatorLocalHostAddressProvider = { "127.0.0.1" },
+            ).connect(
+                document = ParsedPairingDocument(
+                    config = pairingConfig(listener.localPort),
+                    discoveryHint = PairingDiscoveryHint(
+                        discoveryPort = listener.localPort,
+                    ),
+                ),
+                clientName = "Unit Test App",
+            )
+
+            assertFalse(result.success)
+            assertEquals("127.0.0.1", result.hostAddress)
+            assertEquals("Need WebSocket handoff", result.message)
+        } finally {
+            listener.close()
+            responder.join(1_000)
+        }
+    }
+
+    @Test
     fun connectTriesNextDiscoveryAddressWhenFirstFails() {
         val loopback = InetAddress.getByName("127.0.0.1")
         val listener = DatagramSocket(0, loopback)
@@ -62,6 +107,20 @@ class PairingSessionConnectorTest {
 
         assertEquals(listOf("10.0.0.8", "192.168.1.20"), hint.hostAddressCandidates)
         assertEquals("10.0.0.8", hint.hostAddress)
+    }
+
+    @Test
+    fun pairingHostAddressCandidatesPreferSimulatorLocalHostUnlessOverrideIsProvided() {
+        val hint = PairingDiscoveryHint(hostAddresses = listOf("192.168.1.20", "127.0.0.1"))
+
+        assertEquals(
+            listOf("127.0.0.1", "192.168.1.20"),
+            PairingHostAddressCandidates.resolve(hint, hostAddressOverride = null, simulatorLocalHostAddress = "127.0.0.1"),
+        )
+        assertEquals(
+            listOf("10.0.0.20"),
+            PairingHostAddressCandidates.resolve(hint, hostAddressOverride = "10.0.0.20", simulatorLocalHostAddress = "127.0.0.1"),
+        )
     }
 
     private fun pairingConfig(discoveryPort: Int): PairingConfig = PairingConfig(

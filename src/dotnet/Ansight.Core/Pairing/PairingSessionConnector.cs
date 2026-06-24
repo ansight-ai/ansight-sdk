@@ -8,15 +8,25 @@ namespace Ansight.Pairing;
 internal sealed class PairingSessionConnector
 {
     private readonly Func<PairingWifiPreflightStatus> wifiStatusProvider;
+    private readonly Func<string?> simulatorLocalHostAddressProvider;
 
     public PairingSessionConnector()
-        : this(PairingWifiPreflight.GetStatus)
+        : this(PairingWifiPreflight.GetStatus, PairingSimulatorLocalHostAddress.Resolve)
     {
     }
 
     internal PairingSessionConnector(Func<PairingWifiPreflightStatus> wifiStatusProvider)
+        : this(wifiStatusProvider, PairingSimulatorLocalHostAddress.Resolve)
+    {
+    }
+
+    internal PairingSessionConnector(
+        Func<PairingWifiPreflightStatus> wifiStatusProvider,
+        Func<string?> simulatorLocalHostAddressProvider)
     {
         this.wifiStatusProvider = wifiStatusProvider ?? throw new ArgumentNullException(nameof(wifiStatusProvider));
+        this.simulatorLocalHostAddressProvider = simulatorLocalHostAddressProvider
+                                                 ?? throw new ArgumentNullException(nameof(simulatorLocalHostAddressProvider));
     }
 
     public async Task<PairingConnectionAttempt> ConnectAsync(
@@ -28,10 +38,12 @@ internal sealed class PairingSessionConnector
     {
         ArgumentNullException.ThrowIfNull(document);
 
+        var simulatorLocalHostAddress = ResolveSimulatorLocalHostAddress();
         var config = document.Config;
         var hostAddressCandidates = PairingDiscoveryHintHostAddresses.ResolveCandidates(
             document.DiscoveryHint,
-            options?.HostAddressOverride);
+            options?.HostAddressOverride,
+            simulatorLocalHostAddress);
         if (hostAddressCandidates.Length == 0)
         {
             return PairingConnectionAttempt.FromFailure(
@@ -40,7 +52,8 @@ internal sealed class PairingSessionConnector
         }
 
         var hostNetworkCheckMessage = BuildHostNetworkCheckMessage(document.DiscoveryHint);
-        if (wifiStatusProvider() == PairingWifiPreflightStatus.NotConnected)
+        if (!HasSimulatorLocalHostCandidate(hostAddressCandidates, simulatorLocalHostAddress) &&
+            wifiStatusProvider() == PairingWifiPreflightStatus.NotConnected)
         {
             var wifiRequiredMessage =
                 $"Ansight is unavailable because this device is not connected to Wi-Fi. {hostNetworkCheckMessage}";
@@ -312,6 +325,30 @@ internal sealed class PairingSessionConnector
         }
 
         return IPAddress.TryParse(hostAddressText.Trim(), out hostAddress);
+    }
+
+    private string? ResolveSimulatorLocalHostAddress()
+    {
+        try
+        {
+            var address = simulatorLocalHostAddressProvider();
+            return string.IsNullOrWhiteSpace(address) ? null : address.Trim();
+        }
+        catch (Exception ex)
+        {
+            Logger.Info($"Simulator host-address detection failed: {ex.Message}");
+            return null;
+        }
+    }
+
+    private static bool HasSimulatorLocalHostCandidate(string[] candidates, string? simulatorLocalHostAddress)
+    {
+        if (string.IsNullOrWhiteSpace(simulatorLocalHostAddress))
+        {
+            return false;
+        }
+
+        return candidates.Contains(simulatorLocalHostAddress.Trim(), StringComparer.OrdinalIgnoreCase);
     }
 
     internal static string BuildHostNetworkCheckMessage(PairingDiscoveryHint? discoveryHint)

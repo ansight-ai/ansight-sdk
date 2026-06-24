@@ -1,5 +1,6 @@
 package ai.ansight.runtime
 
+import android.os.Build
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.DatagramPacket
@@ -447,6 +448,54 @@ object ProcessSessionIdentity {
     val current: String = "android.${java.util.UUID.randomUUID().toString().replace("-", "")}"
 }
 
+internal object PairingSimulatorLocalHostAddress {
+    fun resolve(): String? = runCatching {
+        if (isAndroidEmulator()) {
+            androidHostAddress()
+        } else {
+            null
+        }
+    }.getOrNull()
+
+    private fun androidHostAddress(): String =
+        if (Build.MANUFACTURER.orEmpty().contains("Genymotion", ignoreCase = true)) {
+            "10.0.3.2"
+        } else {
+            "10.0.2.2"
+        }
+
+    private fun isAndroidEmulator(): Boolean {
+        val fingerprint = Build.FINGERPRINT.orEmpty()
+        val model = Build.MODEL.orEmpty()
+        val product = Build.PRODUCT.orEmpty()
+        val manufacturer = Build.MANUFACTURER.orEmpty()
+        val brand = Build.BRAND.orEmpty()
+        val device = Build.DEVICE.orEmpty()
+
+        return fingerprint.contains("generic", ignoreCase = true) ||
+            fingerprint.contains("emulator", ignoreCase = true) ||
+            model.contains("Emulator", ignoreCase = true) ||
+            model.contains("Android SDK built for", ignoreCase = true) ||
+            manufacturer.contains("Genymotion", ignoreCase = true) ||
+            (brand.startsWith("generic", ignoreCase = true) && device.startsWith("generic", ignoreCase = true)) ||
+            product.contains("sdk", ignoreCase = true)
+    }
+}
+
+internal object PairingHostAddressCandidates {
+    fun resolve(
+        discoveryHint: PairingDiscoveryHint?,
+        hostAddressOverride: String?,
+        simulatorLocalHostAddress: String?,
+    ): List<String> {
+        hostAddressOverride?.trim()?.ifBlank { null }?.let { return listOf(it) }
+
+        return (listOf(simulatorLocalHostAddress) + discoveryHint?.hostAddressCandidates.orEmpty())
+            .mapNotNull { address -> address?.trim()?.ifBlank { null } }
+            .distinct()
+    }
+}
+
 data class PairingConnectionOptions(
     val hostAddressOverride: String? = null,
     val discoveryPort: Int? = null,
@@ -481,14 +530,19 @@ data class PairingConnectionAttempt(
     }
 }
 
-class PairingSessionConnector {
+class PairingSessionConnector(
+    private val simulatorLocalHostAddressProvider: () -> String? = { PairingSimulatorLocalHostAddress.resolve() },
+) {
     fun connect(
         document: ParsedPairingDocument,
         clientName: String,
         options: PairingConnectionOptions = PairingConnectionOptions(),
     ): PairingConnectionAttempt {
-        val hostAddressCandidates = options.hostAddressOverride?.trim()?.ifBlank { null }?.let { listOf(it) }
-            ?: document.discoveryHint?.hostAddressCandidates.orEmpty()
+        val hostAddressCandidates = PairingHostAddressCandidates.resolve(
+            document.discoveryHint,
+            options.hostAddressOverride,
+            resolveSimulatorLocalHostAddress(),
+        )
         if (hostAddressCandidates.isEmpty()) {
             return PairingConnectionAttempt.failure(
                 "A current host address is required. Import a fresh pairing config or compact pairing config code.",
@@ -551,6 +605,9 @@ class PairingSessionConnector {
             PairingFailureCodes.HostAddressRequired,
         )
     }
+
+    private fun resolveSimulatorLocalHostAddress(): String? =
+        runCatching { simulatorLocalHostAddressProvider()?.trim()?.ifBlank { null } }.getOrNull()
 
     private fun sendConnectRequest(
         config: PairingConfig,

@@ -1187,9 +1187,11 @@ public final class AnsightRuntime: @unchecked Sendable {
                 expectedAppId: options.expectedAppId
             )
 
-            let hintedHostAddress = options.hostAddressOverride?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
-                ? options.hostAddressOverride?.trimmingCharacters(in: .whitespacesAndNewlines)
-                : document.discoveryHint?.hostAddress?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let hintedHostAddress = PairingHostAddressCandidates.resolve(
+                discoveryHint: document.discoveryHint,
+                hostAddressOverride: options.hostAddressOverride,
+                simulatorLocalHostAddress: PairingSimulatorLocalHostAddress.resolve()
+            ).first
             guard let hintedHostAddress, !hintedHostAddress.isEmpty else {
                 return OpenSessionResult(
                     success: false,

@@ -160,6 +160,65 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertEqual(datagramClient.requestCount, 0)
     }
 
+    func testPairingHostAddressCandidatesPreferSimulatorLocalHostUnlessOverrideIsProvided() {
+        let hint = PairingDiscoveryHint(hostAddresses: ["192.168.1.20", "127.0.0.1"])
+
+        XCTAssertEqual(
+            PairingHostAddressCandidates.resolve(
+                discoveryHint: hint,
+                hostAddressOverride: nil,
+                simulatorLocalHostAddress: "127.0.0.1"
+            ),
+            ["127.0.0.1", "192.168.1.20"]
+        )
+        XCTAssertEqual(
+            PairingHostAddressCandidates.resolve(
+                discoveryHint: hint,
+                hostAddressOverride: "10.0.0.20",
+                simulatorLocalHostAddress: "127.0.0.1"
+            ),
+            ["10.0.0.20"]
+        )
+    }
+
+    func testPairingConnectorUsesSimulatorLocalHostWhenWifiPreflightReportsNotConnected() async throws {
+        let response = ConnectResponse(
+            type: "CONNECT_RESP",
+            ver: 1,
+            accepted: false,
+            reason: "pairing-required",
+            reasonMessage: "Need WebSocket handoff",
+            hostId: "host-1",
+            hostName: "Host",
+            hostWifiName: nil,
+            message: "Rejected",
+            webSocketPort: nil,
+            webSocketPath: nil,
+            webSocketToken: nil
+        )
+        let responseData = try JSONEncoder.ansightEncoder.encode(response)
+        let datagramClient = FakePairingDatagramClient(responseData: responseData)
+        let connector = PairingSessionConnector(
+            datagramClient: datagramClient,
+            wifiStatusProvider: { .notConnected },
+            simulatorLocalHostAddressProvider: { "127.0.0.1" }
+        )
+        let document = ParsedPairingDocument(
+            config: TestPairingFactory.signedConfig(configId: "cfg-simulator-localhost"),
+            discoveryHint: PairingDiscoveryHint(
+                discoveryPort: 45123,
+                wifiName: "Studio Wi-Fi"
+            )
+        )
+
+        let attempt = await connector.connect(document: document, clientName: "Unit Test", options: nil)
+
+        XCTAssertFalse(attempt.success)
+        XCTAssertEqual(attempt.hostAddress, "127.0.0.1")
+        XCTAssertEqual(datagramClient.requestedHosts, ["127.0.0.1"])
+        XCTAssertNotEqual(attempt.failureCode, PairingFailureCodes.wifiRequired)
+    }
+
     func testPairingConnectorUdpTimeoutMessageIncludesHostNetworkHint() async {
         let datagramClient = FakePairingDatagramClient(responseData: nil)
         let connector = PairingSessionConnector(

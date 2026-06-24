@@ -166,6 +166,7 @@ that default order and use the requested source.
 | Plain bundled config | `ansight.json` | `bundledConfigJson` | `bundledConfigJson` | `hostConnection.bundledConfigJson` |
 | Expected app id | Request option | `expectedAppId` on save/open paths | request option | `expectedAppId` |
 | Host override | Request option | `hostAddressOverride` | request option | `hostAddressOverride` |
+| Simulator host fallback | yes | Android emulator host address | iOS Simulator localhost | inherited from native runtime |
 
 Use developer pairing only for local development. Release, CI, TestFlight, App
 Store, Play Store, and other distributable builds should not embed developer

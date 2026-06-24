@@ -4,6 +4,7 @@ import Network
 public final class PairingSessionConnector: PairingSessionConnecting, @unchecked Sendable {
     private let datagramClient: any PairingDatagramClient
     private let wifiStatusProvider: @Sendable () -> PairingWifiPreflightStatus
+    private let simulatorLocalHostAddressProvider: @Sendable () -> String?
 
     public convenience init() {
         self.init(datagramClient: NetworkPairingDatagramClient())
@@ -11,10 +12,12 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
 
     init(
         datagramClient: any PairingDatagramClient,
-        wifiStatusProvider: @escaping @Sendable () -> PairingWifiPreflightStatus = PairingWifiPreflight.getStatus
+        wifiStatusProvider: @escaping @Sendable () -> PairingWifiPreflightStatus = PairingWifiPreflight.getStatus,
+        simulatorLocalHostAddressProvider: @escaping @Sendable () -> String? = PairingSimulatorLocalHostAddress.resolve
     ) {
         self.datagramClient = datagramClient
         self.wifiStatusProvider = wifiStatusProvider
+        self.simulatorLocalHostAddressProvider = simulatorLocalHostAddressProvider
     }
 
     func connect(
@@ -22,7 +25,12 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
         clientName: String,
         options: PairingConnectionOptions?
     ) async -> PairingConnectionAttempt {
-        let hostAddressCandidates = Self.hostAddressCandidates(document: document, options: options)
+        let simulatorLocalHostAddress = normalizedHostAddress(simulatorLocalHostAddressProvider())
+        let hostAddressCandidates = PairingHostAddressCandidates.resolve(
+            discoveryHint: document.discoveryHint,
+            hostAddressOverride: options?.hostAddressOverride,
+            simulatorLocalHostAddress: simulatorLocalHostAddress
+        )
         guard !hostAddressCandidates.isEmpty else {
             return .failure(
                 "A current host address is required. Import a fresh pairing config or compact pairing config code.",
@@ -39,7 +47,8 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
         }
 
         let hostNetworkCheckMessage = Self.hostNetworkCheckMessage(discoveryHint: document.discoveryHint)
-        if wifiStatusProvider() == .notConnected {
+        if !Self.hasSimulatorLocalHostCandidate(hostAddressCandidates, simulatorLocalHostAddress: simulatorLocalHostAddress),
+           wifiStatusProvider() == .notConnected {
             return .failure(
                 "Ansight is unavailable because this device is not connected to Wi-Fi. \(hostNetworkCheckMessage)",
                 code: PairingFailureCodes.wifiRequired
@@ -126,22 +135,25 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
         )
     }
 
-    private static func hostAddressCandidates(document: ParsedPairingDocument, options: PairingConnectionOptions?) -> [String] {
-        if let hostAddressOverride = options?.hostAddressOverride?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !hostAddressOverride.isEmpty {
-            return [hostAddressOverride]
+    private func normalizedHostAddress(_ address: String?) -> String? {
+        guard let candidate = address?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !candidate.isEmpty
+        else {
+            return nil
         }
 
-        var seen = Set<String>()
-        var candidates: [String] = []
-        for address in document.discoveryHint?.hostAddresses ?? [] {
-            let candidate = address.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !candidate.isEmpty && seen.insert(candidate).inserted {
-                candidates.append(candidate)
-            }
+        return candidate
+    }
+
+    private static func hasSimulatorLocalHostCandidate(
+        _ candidates: [String],
+        simulatorLocalHostAddress: String?
+    ) -> Bool {
+        guard let simulatorLocalHostAddress else {
+            return false
         }
 
-        return candidates
+        return candidates.contains { $0.caseInsensitiveCompare(simulatorLocalHostAddress) == .orderedSame }
     }
 
     private static func hostNetworkCheckMessage(discoveryHint: PairingDiscoveryHint?) -> String {

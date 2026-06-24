@@ -42,14 +42,19 @@ internal static class PairingDiscoveryHintHostAddresses
         return Normalize(discoveryHint).FirstOrDefault();
     }
 
-    public static string[] ResolveCandidates(PairingDiscoveryHint? discoveryHint, string? hostAddressOverride)
+    public static string[] ResolveCandidates(
+        PairingDiscoveryHint? discoveryHint,
+        string? hostAddressOverride,
+        string? simulatorLocalHostAddress = null)
     {
         if (!string.IsNullOrWhiteSpace(hostAddressOverride))
         {
             return [hostAddressOverride.Trim()];
         }
 
-        return Normalize(discoveryHint);
+        var candidates = new List<string?> { simulatorLocalHostAddress };
+        candidates.AddRange(Normalize(discoveryHint));
+        return Normalize(candidates);
     }
 
     public static PairingDiscoveryHint NormalizeInPlace(PairingDiscoveryHint discoveryHint)

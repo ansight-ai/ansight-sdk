@@ -22,6 +22,7 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
     private readonly StoredHostPairingConfigStore savedConfigStore;
     private readonly PairingConfigDocumentService pairingDocumentService = new();
     private readonly Func<bool> isRuntimeActive;
+    private readonly Func<string?> simulatorLocalHostAddressProvider;
     private readonly SemaphoreSlim operationGate = new(1, 1);
     private readonly Lock statusGate = new();
     private HostConnectionStatus status;
@@ -34,7 +35,8 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
         IHostSessionConnection hostConnection,
         HostConnectionOptions options,
         StoredHostPairingConfigStore? savedConfigStore = null,
-        Func<bool>? isRuntimeActive = null)
+        Func<bool>? isRuntimeActive = null,
+        Func<string?>? simulatorLocalHostAddressProvider = null)
     {
         this.hostConnection = hostConnection ?? throw new ArgumentNullException(nameof(hostConnection));
         this.options = options?.Clone() ?? throw new ArgumentNullException(nameof(options));
@@ -43,6 +45,7 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
                                          StoredPairingDocumentCache.ResolveCacheKey(AutomaticDeviceAppProfileProvider.Instance),
                                          this.options.SavedConfigPath);
         this.isRuntimeActive = isRuntimeActive ?? (() => Runtime.IsActive);
+        this.simulatorLocalHostAddressProvider = simulatorLocalHostAddressProvider ?? PairingSimulatorLocalHostAddress.Resolve;
         hasBundledConfig = false;
         status = BuildStatusSnapshot(hasBundledConfig);
         capabilities = BuildCapabilities(hasBundledConfig);
@@ -799,7 +802,10 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
         var discoveryPort = PairingDiscoveryPortResolver.Resolve(resolvedDocument.Document, options.DiscoveryPort);
         LogPairingExpectation(resolvedDocument.Document, discoveryPort);
 
-        if (string.IsNullOrWhiteSpace(PairingDiscoveryHintHostAddresses.ResolvePrimary(resolvedDocument.Document.DiscoveryHint)))
+        if (PairingDiscoveryHintHostAddresses.ResolveCandidates(
+                resolvedDocument.Document.DiscoveryHint,
+                hostAddressOverride: null,
+                ResolveSimulatorLocalHostAddress()).Length == 0)
         {
             return HostSessionActionResult.FromFailure(
                 "A current Ansight host address is required. Import a fresh pairing config or compact pairing config code.",
@@ -845,6 +851,20 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
         }
 
         return connectResult;
+    }
+
+    private string? ResolveSimulatorLocalHostAddress()
+    {
+        try
+        {
+            var address = simulatorLocalHostAddressProvider();
+            return string.IsNullOrWhiteSpace(address) ? null : address.Trim();
+        }
+        catch (Exception ex)
+        {
+            Logger.Info($"Simulator host-address detection failed: {ex.Message}");
+            return null;
+        }
     }
 
     private static HostConnectionResult ToPairingResult(
