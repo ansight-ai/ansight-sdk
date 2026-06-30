@@ -34,6 +34,25 @@ internal static partial class SessionJpegCaptureSupport
         return SendSurfaceCoreAsync(surface, options, transport, cancellationToken);
     }
 
+    internal static async Task<SessionJpegFrame?> CaptureJpegFrameAsync(
+        SessionJpegCaptureOptions options,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var surface = await CaptureSurfaceAsync(options, cancellationToken);
+        if (surface is null)
+        {
+            return null;
+        }
+
+        using (surface)
+        {
+            return await EncodeSurfaceCoreAsync(surface, options, cancellationToken);
+        }
+    }
+
     private static int ResolveTargetWidth(int sourceWidth, int? maxWidth)
     {
         if (sourceWidth <= 0)
@@ -99,23 +118,54 @@ internal static partial class SessionJpegCaptureSupport
         SessionJpegCaptureOptions options,
         PairingSessionTransport transport,
         CancellationToken cancellationToken);
+
+    private static partial Task<SessionJpegFrame?> EncodeSurfaceCoreAsync(
+        ISessionJpegCaptureSurface surface,
+        SessionJpegCaptureOptions options,
+        CancellationToken cancellationToken);
 }
 
 internal sealed class SessionJpegFrame : IDisposable
 {
     private byte[]? buffer;
 
-    public SessionJpegFrame(byte[] buffer, int length)
+    public SessionJpegFrame(
+        byte[] buffer,
+        int length,
+        DateTimeOffset capturedAtUtc,
+        int width,
+        int height,
+        int quality,
+        int jpegByteCount)
     {
         this.buffer = buffer ?? throw new ArgumentNullException(nameof(buffer));
         Length = length;
+        CapturedAtUtc = capturedAtUtc.ToUniversalTime();
+        Width = width;
+        Height = height;
+        Quality = quality;
+        JpegByteCount = jpegByteCount;
     }
 
     public int Length { get; }
 
+    public DateTimeOffset CapturedAtUtc { get; }
+
+    public int Width { get; }
+
+    public int Height { get; }
+
+    public int Quality { get; }
+
+    public int JpegByteCount { get; }
+
     public ReadOnlyMemory<byte> Payload => buffer is null
         ? ReadOnlyMemory<byte>.Empty
         : buffer.AsMemory(0, Length);
+
+    public ReadOnlyMemory<byte> JpegPayload => Payload.Length <= SessionJpegWireProtocol.HeaderSize
+        ? ReadOnlyMemory<byte>.Empty
+        : Payload[SessionJpegWireProtocol.HeaderSize..];
 
     public void Dispose()
     {
@@ -170,14 +220,26 @@ internal sealed class PooledBufferStream : Stream
         return buffer.AsSpan(0, byteCount);
     }
 
-    public SessionJpegFrame DetachFrame()
+    public SessionJpegFrame DetachFrame(
+        DateTimeOffset capturedAtUtc,
+        int width,
+        int height,
+        int quality,
+        int jpegByteCount)
     {
         var detachedBuffer = buffer;
         var detachedLength = length;
         buffer = Array.Empty<byte>();
         length = 0;
         detached = true;
-        return new SessionJpegFrame(detachedBuffer, detachedLength);
+        return new SessionJpegFrame(
+            detachedBuffer,
+            detachedLength,
+            capturedAtUtc,
+            width,
+            height,
+            quality,
+            jpegByteCount);
     }
 
     public override void Flush()

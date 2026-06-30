@@ -7,6 +7,7 @@ configuration="${1:-Release}"
 products_dir="$(pwd)/products"
 projects=(
   "Ansight.Core/Ansight.Core.csproj"
+  "Ansight.OfflineCapture/Ansight.OfflineCapture.csproj"
   "Ansight.Pairing/Ansight.Pairing.csproj"
   "Ansight.Tools.Database/Ansight.Tools.Database.csproj"
   "Ansight.Tools.FileSystem/Ansight.Tools.FileSystem.csproj"

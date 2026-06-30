@@ -32,6 +32,17 @@ internal static partial class SessionJpegCaptureSupport
             : Task.FromResult(OperationResult.FromFailure("Session JPEG capture surface type mismatch."));
     }
 
+    private static partial Task<SessionJpegFrame?> EncodeSurfaceCoreAsync(
+        ISessionJpegCaptureSurface surface,
+        SessionJpegCaptureOptions options,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return surface is SessionJpegCaptureSurface androidSurface
+            ? Task.FromResult(EncodeSurface(androidSurface, options))
+            : Task.FromResult<SessionJpegFrame?>(null);
+    }
+
     private static Task<T?> InvokeOnUiThreadAsync<T>(Func<T?> capture)
     {
         var taskCompletionSource = new TaskCompletionSource<T?>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -144,7 +155,12 @@ internal static partial class SessionJpegCaptureSupport
             jpegLength);
 
         RecordEncodedJpegByteCount(jpegLength);
-        return stream.DetachFrame();
+        return stream.DetachFrame(
+            surface.CapturedAtUtc,
+            surface.Width,
+            surface.Height,
+            options.Quality,
+            jpegLength);
     }
 
     private static CaptureBitmapState AcquireCaptureState(int width, int height)

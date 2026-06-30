@@ -33,6 +33,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Ansight\Ansight.csproj" />
+    <ProjectReference Include="..\Ansight.OfflineCapture\Ansight.OfflineCapture.csproj" />
     <ProjectReference Include="..\Ansight.Tools.Maui\Ansight.Tools.Maui.csproj" />
   </ItemGroup>
 

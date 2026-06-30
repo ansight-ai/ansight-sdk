@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage x:Class="Ansight.OfflineCapture.MauiSample.CaptureExplorerPage"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:local="clr-namespace:Ansight.OfflineCapture.MauiSample"
+             Title="Files">
+    <Grid RowDefinitions="Auto,*"
+          Padding="20,16"
+          RowSpacing="12">
+        <Border Stroke="{StaticResource BorderColor}"
+                BackgroundColor="{StaticResource PanelBackground}"
+                Padding="14">
+            <Border.StrokeShape>
+                <RoundRectangle CornerRadius="8" />
+            </Border.StrokeShape>
+            <VerticalStackLayout Spacing="10">
+                <Label Text="Capture Files"
+                       Style="{StaticResource TitleLabel}" />
+                <Label x:Name="SummaryLabel"
+                       Style="{StaticResource MutedLabel}" />
+                <FlexLayout Direction="Row"
+                            Wrap="Wrap">
+                    <Button Text="Refresh"
+                            Clicked="HandleRefreshClicked"
+                            Margin="0,0,8,8" />
+                    <Button Text="Export ZIP"
+                            Clicked="HandleExportClicked"
+                            Margin="0,0,8,8" />
+                    <Button Text="Share ZIP"
+                            Clicked="HandleShareClicked"
+                            Margin="0,0,8,8"
+                            Style="{StaticResource SecondaryButton}" />
+                </FlexLayout>
+            </VerticalStackLayout>
+        </Border>
+
+        <CollectionView x:Name="FilesCollectionView"
+                        Grid.Row="1"
+                        SelectionMode="None">
+            <CollectionView.EmptyView>
+                <Grid Padding="24">
+                    <Label Text="No capture files"
+                           HorizontalTextAlignment="Center"
+                           VerticalTextAlignment="Center"
+                           Style="{StaticResource MutedLabel}" />
+                </Grid>
+            </CollectionView.EmptyView>
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="local:CaptureFileItem">
+                    <Border Stroke="{StaticResource BorderColor}"
+                            BackgroundColor="{StaticResource PanelBackground}"
+                            Padding="12"
+                            Margin="0,0,0,8">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="8" />
+                        </Border.StrokeShape>
+                        <Grid ColumnDefinitions="*,Auto"
+                              RowDefinitions="Auto,Auto"
+                              ColumnSpacing="12">
+                            <Label Text="{Binding RelativePath}"
+                                   FontAttributes="Bold" />
+                            <Label Grid.Row="1"
+                                   Text="{Binding UpdatedText}"
+                                   Style="{StaticResource MutedLabel}" />
+                            <Label Grid.Column="1"
+                                   Grid.RowSpan="2"
+                                   Text="{Binding LengthText}"
+                                   VerticalOptions="Center"
+                                   Style="{StaticResource MutedLabel}" />
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+    </Grid>
+</ContentPage>

@@ -25,8 +25,8 @@ npx react-native run-android
 
 This package version expects matching native SDK packages:
 
-- CocoaPods: `Ansight`, `AnsightObjC` version `1.0.1`
-- Maven: `ai.ansight:ansight-android:1.0.1`
+- CocoaPods: `Ansight`, `AnsightObjC` version `1.0.2-preview.1`
+- Maven: `ai.ansight:ansight-android:1.0.2-preview.1`
 
 ## Quickstart
 

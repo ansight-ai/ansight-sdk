@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell x:Class="Ansight.OfflineCapture.MauiSample.AppShell"
+       xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+       xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+       xmlns:local="clr-namespace:Ansight.OfflineCapture.MauiSample"
+       Title="Offline Capture">
+    <TabBar>
+        <ShellContent
+            Title="Capture"
+            ContentTemplate="{DataTemplate local:MainPage}"
+            Route="capture" />
+        <ShellContent
+            Title="Files"
+            ContentTemplate="{DataTemplate local:CaptureExplorerPage}"
+            Route="files" />
+    </TabBar>
+</Shell>

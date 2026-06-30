@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+    <Style TargetType="ContentPage">
+        <Setter Property="BackgroundColor" Value="{StaticResource PageBackground}" />
+    </Style>
+
+    <Style TargetType="Label">
+        <Setter Property="TextColor" Value="{StaticResource Ink}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="LineBreakMode" Value="WordWrap" />
+    </Style>
+
+    <Style x:Key="TitleLabel" TargetType="Label">
+        <Setter Property="TextColor" Value="{StaticResource Ink}" />
+        <Setter Property="FontSize" Value="24" />
+        <Setter Property="FontAttributes" Value="Bold" />
+    </Style>
+
+    <Style x:Key="SectionTitleLabel" TargetType="Label">
+        <Setter Property="TextColor" Value="{StaticResource Ink}" />
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="FontAttributes" Value="Bold" />
+    </Style>
+
+    <Style x:Key="MutedLabel" TargetType="Label">
+        <Setter Property="TextColor" Value="{StaticResource MutedInk}" />
+        <Setter Property="FontSize" Value="13" />
+    </Style>
+
+    <Style TargetType="Button">
+        <Setter Property="TextColor" Value="{StaticResource White}" />
+        <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="14,10" />
+        <Setter Property="MinimumHeightRequest" Value="42" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal" />
+                    <VisualState x:Name="Pressed">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{StaticResource PrimaryPressed}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{StaticResource Quiet}" />
+                            <Setter Property="TextColor" Value="{StaticResource MutedInk}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SecondaryButton" TargetType="Button">
+        <Setter Property="TextColor" Value="{StaticResource White}" />
+        <Setter Property="BackgroundColor" Value="{StaticResource Accent}" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="14,10" />
+        <Setter Property="MinimumHeightRequest" Value="42" />
+    </Style>
+
+    <Style TargetType="Entry">
+        <Setter Property="TextColor" Value="{StaticResource Ink}" />
+        <Setter Property="PlaceholderColor" Value="{StaticResource SubtleInk}" />
+        <Setter Property="BackgroundColor" Value="{StaticResource White}" />
+        <Setter Property="MinimumHeightRequest" Value="42" />
+    </Style>
+
+    <Style TargetType="Switch">
+        <Setter Property="OnColor" Value="{StaticResource Primary}" />
+        <Setter Property="ThumbColor" Value="{StaticResource White}" />
+    </Style>
+</ResourceDictionary>

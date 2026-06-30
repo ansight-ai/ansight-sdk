@@ -20,5 +20,13 @@ internal static partial class SessionJpegCaptureSupport
     {
         return Task.FromResult(OperationResult.FromFailure("Session JPEG capture is unavailable on this platform."));
     }
+
+    private static partial Task<SessionJpegFrame?> EncodeSurfaceCoreAsync(
+        ISessionJpegCaptureSurface surface,
+        SessionJpegCaptureOptions options,
+        CancellationToken cancellationToken)
+    {
+        return Task.FromResult<SessionJpegFrame?>(null);
+    }
 }
 #endif

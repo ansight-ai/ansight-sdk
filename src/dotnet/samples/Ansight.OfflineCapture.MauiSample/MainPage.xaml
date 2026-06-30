@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage x:Class="Ansight.OfflineCapture.MauiSample.MainPage"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             Title="Capture">
+    <ScrollView>
+        <VerticalStackLayout Padding="20,16" Spacing="14">
+            <Label Text="Offline Capture"
+                   Style="{StaticResource TitleLabel}" />
+
+            <Border Stroke="{StaticResource BorderColor}"
+                    BackgroundColor="{StaticResource PanelBackground}"
+                    Padding="14">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="8" />
+                </Border.StrokeShape>
+                <VerticalStackLayout Spacing="8">
+                    <Label x:Name="CaptureStatusLabel"
+                           FontAttributes="Bold" />
+                    <Label x:Name="SessionStatusLabel"
+                           Style="{StaticResource MutedLabel}" />
+                    <Label x:Name="CaptureRootLabel"
+                           Style="{StaticResource MutedLabel}" />
+                    <Label x:Name="RecordCountsLabel"
+                           Style="{StaticResource MutedLabel}" />
+                    <Label x:Name="LastExportLabel"
+                           Style="{StaticResource MutedLabel}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Stroke="{StaticResource BorderColor}"
+                    BackgroundColor="{StaticResource PanelBackground}"
+                    Padding="14">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="8" />
+                </Border.StrokeShape>
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Capture session"
+                           Style="{StaticResource SectionTitleLabel}" />
+                    <FlexLayout Direction="Row"
+                                Wrap="Wrap">
+                        <Button Text="Initialize"
+                                Clicked="HandleInitializeClicked"
+                                Margin="0,0,8,8" />
+                        <Button Text="Start"
+                                Clicked="HandleStartClicked"
+                                Margin="0,0,8,8" />
+                        <Button Text="Stop"
+                                Clicked="HandleStopClicked"
+                                Margin="0,0,8,8" />
+                        <Button Text="Next session"
+                                Clicked="HandleNextSessionClicked"
+                                Margin="0,0,8,8" />
+                        <Button Text="Always on"
+                                Clicked="HandleAlwaysOnClicked"
+                                Margin="0,0,8,8" />
+                        <Button Text="Disable auto"
+                                Clicked="HandleDisableActivationClicked"
+                                Margin="0,0,8,8" />
+                    </FlexLayout>
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Stroke="{StaticResource BorderColor}"
+                    BackgroundColor="{StaticResource PanelBackground}"
+                    Padding="14">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="8" />
+                </Border.StrokeShape>
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Mutable options"
+                           Style="{StaticResource SectionTitleLabel}" />
+
+                    <Label x:Name="RetentionValueLabel"
+                           Style="{StaticResource MutedLabel}" />
+                    <Slider x:Name="RetentionSlider"
+                            Minimum="5"
+                            Maximum="180"
+                            Value="30"
+                            ValueChanged="HandleOptionSliderChanged" />
+
+                    <Label x:Name="MaximumSessionValueLabel"
+                           Style="{StaticResource MutedLabel}" />
+                    <Slider x:Name="MaximumSessionSlider"
+                            Minimum="8"
+                            Maximum="256"
+                            Value="64"
+                            ValueChanged="HandleOptionSliderChanged" />
+
+                    <Label x:Name="SegmentValueLabel"
+                           Style="{StaticResource MutedLabel}" />
+                    <Slider x:Name="SegmentSlider"
+                            Minimum="1"
+                            Maximum="20"
+                            Value="5"
+                            ValueChanged="HandleOptionSliderChanged" />
+
+                    <Grid ColumnDefinitions="*,Auto"
+                          RowDefinitions="Auto,Auto"
+                          ColumnSpacing="12"
+                          RowSpacing="8">
+                        <Label Text="Use JPEG override"
+                               VerticalOptions="Center" />
+                        <Switch x:Name="UseJpegOverrideSwitch"
+                                Grid.Column="1"
+                                IsToggled="False" />
+                        <Label Grid.Row="1"
+                               Text="JPEG enabled"
+                               VerticalOptions="Center" />
+                        <Switch x:Name="JpegEnabledSwitch"
+                                Grid.Row="1"
+                                Grid.Column="1"
+                                IsToggled="True" />
+                    </Grid>
+
+                    <Label x:Name="JpegIntervalValueLabel"
+                           Style="{StaticResource MutedLabel}" />
+                    <Slider x:Name="JpegIntervalSlider"
+                            Minimum="250"
+                            Maximum="3000"
+                            Value="1000"
+                            ValueChanged="HandleOptionSliderChanged" />
+
+                    <Label x:Name="JpegQualityValueLabel"
+                           Style="{StaticResource MutedLabel}" />
+                    <Slider x:Name="JpegQualitySlider"
+                            Minimum="20"
+                            Maximum="90"
+                            Value="55"
+                            ValueChanged="HandleOptionSliderChanged" />
+
+                    <Label x:Name="JpegMaxWidthValueLabel"
+                           Style="{StaticResource MutedLabel}" />
+                    <Slider x:Name="JpegMaxWidthSlider"
+                            Minimum="240"
+                            Maximum="1080"
+                            Value="540"
+                            ValueChanged="HandleOptionSliderChanged" />
+
+                    <Button Text="Apply while capturing"
+                            Clicked="HandleApplyOptionsClicked" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Stroke="{StaticResource BorderColor}"
+                    BackgroundColor="{StaticResource PanelBackground}"
+                    Padding="14">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="8" />
+                </Border.StrokeShape>
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Runtime data"
+                           Style="{StaticResource SectionTitleLabel}" />
+                    <FlexLayout Direction="Row"
+                                Wrap="Wrap">
+                        <Button Text="Metric"
+                                Clicked="HandleMetricClicked"
+                                Margin="0,0,8,8" />
+                        <Button Text="Event"
+                                Clicked="HandleEventClicked"
+                                Margin="0,0,8,8" />
+                        <Button Text="Burst"
+                                Clicked="HandleBurstClicked"
+                                Margin="0,0,8,8" />
+                        <Button Text="Screen view"
+                                Clicked="HandleScreenViewClicked"
+                                Margin="0,0,8,8" />
+                        <Button Text="Custom property"
+                                Clicked="HandleCustomPropertyClicked"
+                                Margin="0,0,8,8" />
+                        <Button Text="Clear properties"
+                                Clicked="HandleClearPropertiesClicked"
+                                Margin="0,0,8,8" />
+                    </FlexLayout>
+
+                    <FlexLayout Direction="Row"
+                                Wrap="Wrap">
+                        <Button Text="Foreground"
+                                Clicked="HandleForegroundClicked"
+                                Margin="0,0,8,8" />
+                        <Button Text="Background"
+                                Clicked="HandleBackgroundClicked"
+                                Margin="0,0,8,8" />
+                        <Button Text="Add 16 MB"
+                                Clicked="HandleAddMemoryClicked"
+                                Margin="0,0,8,8" />
+                        <Button Text="Release memory"
+                                Clicked="HandleReleaseMemoryClicked"
+                                Margin="0,0,8,8" />
+                    </FlexLayout>
+                </VerticalStackLayout>
+            </Border>
+
+            <Border x:Name="TouchPad"
+                    Stroke="{StaticResource Primary}"
+                    BackgroundColor="{StaticResource Quiet}"
+                    Padding="18"
+                    MinimumHeightRequest="150">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="8" />
+                </Border.StrokeShape>
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="HandleTouchPadTapped" />
+                    <PanGestureRecognizer PanUpdated="HandleTouchPadPanUpdated" />
+                </Border.GestureRecognizers>
+                <VerticalStackLayout Spacing="8"
+                                     VerticalOptions="Center">
+                    <Label Text="Touch target"
+                           HorizontalTextAlignment="Center"
+                           FontAttributes="Bold" />
+                    <Label x:Name="TouchStatusLabel"
+                           Text="Tap or pan inside this area"
+                           HorizontalTextAlignment="Center"
+                           Style="{StaticResource MutedLabel}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Stroke="{StaticResource BorderColor}"
+                    BackgroundColor="{StaticResource PanelBackground}"
+                    Padding="14">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="8" />
+                </Border.StrokeShape>
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Export"
+                           Style="{StaticResource SectionTitleLabel}" />
+                    <Entry x:Name="PasswordEntry"
+                           Placeholder="Optional ZIP password"
+                           IsPassword="True" />
+                    <FlexLayout Direction="Row"
+                                Wrap="Wrap">
+                        <Button Text="Export ZIP"
+                                Clicked="HandleExportClicked"
+                                Margin="0,0,8,8" />
+                        <Button Text="Share ZIP"
+                                Clicked="HandleShareClicked"
+                                Margin="0,0,8,8"
+                                Style="{StaticResource SecondaryButton}" />
+                        <Button Text="Refresh"
+                                Clicked="HandleRefreshClicked"
+                                Margin="0,0,8,8" />
+                    </FlexLayout>
+                </VerticalStackLayout>
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

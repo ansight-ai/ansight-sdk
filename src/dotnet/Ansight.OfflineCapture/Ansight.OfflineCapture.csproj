@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net9.0;net9.0-android;net9.0-ios;net9.0-maccatalyst</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <AssemblyName>Ansight.OfflineCapture</AssemblyName>
+    <RootNamespace>Ansight.OfflineCapture</RootNamespace>
+
+    <IsPackable>true</IsPackable>
+    <PackageId>Ansight.OfflineCapture</PackageId>
+    <Description>Offline Ansight capture storage, retention, and export support for .NET apps.</Description>
+    <PackageTags>ansight;offline-capture;telemetry;debugging;zip;mobile;android;ios;maccatalyst</PackageTags>
+    <NoWarn>$(NoWarn);NU5110;NU5111</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Ansight.Core\Ansight.Core.csproj" />
+    <PackageReference Include="SharpZipLib" Version="1.4.2" />
+  </ItemGroup>
+
+</Project>

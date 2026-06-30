@@ -36,6 +36,17 @@ internal static partial class SessionJpegCaptureSupport
             : Task.FromResult(OperationResult.FromFailure("Session JPEG capture surface type mismatch."));
     }
 
+    private static partial Task<SessionJpegFrame?> EncodeSurfaceCoreAsync(
+        ISessionJpegCaptureSurface surface,
+        SessionJpegCaptureOptions options,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return surface is SessionJpegCaptureSurface appleSurface
+            ? Task.FromResult(EncodeSurface(appleSurface, options))
+            : Task.FromResult<SessionJpegFrame?>(null);
+    }
+
     private static Task<T?> InvokeOnUiThreadAsync<T>(Func<T?> capture)
     {
         var taskCompletionSource = new TaskCompletionSource<T?>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -139,6 +150,52 @@ internal static partial class SessionJpegCaptureSupport
         {
             ArrayPool<byte>.Shared.Return(headerBuffer);
         }
+    }
+
+    private static SessionJpegFrame? EncodeSurface(SessionJpegCaptureSurface surface, SessionJpegCaptureOptions options)
+    {
+        using var imageData = surface.Image.AsJPEG((nfloat)(options.Quality / 100d));
+        if (imageData is null)
+        {
+            return null;
+        }
+
+        var jpegByteCount = checked((int)imageData.Length);
+        using var stream = new PooledBufferStream(SessionJpegWireProtocol.HeaderSize + jpegByteCount);
+        stream.ReservePrefix(SessionJpegWireProtocol.HeaderSize);
+
+        var payloadOffset = 0;
+        while (payloadOffset < jpegByteCount)
+        {
+            var bytesToCopy = Math.Min(JpegChunkByteCount, jpegByteCount - payloadOffset);
+            var chunkBuffer = ArrayPool<byte>.Shared.Rent(bytesToCopy);
+            try
+            {
+                Marshal.Copy(IntPtr.Add(imageData.Bytes, payloadOffset), chunkBuffer, 0, bytesToCopy);
+                stream.Write(chunkBuffer, 0, bytesToCopy);
+                payloadOffset += bytesToCopy;
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(chunkBuffer);
+            }
+        }
+
+        SessionJpegWireProtocol.WriteHeader(
+            stream.GetWrittenSpan(SessionJpegWireProtocol.HeaderSize),
+            surface.CapturedAtUtc,
+            surface.Width,
+            surface.Height,
+            options.Quality,
+            jpegByteCount);
+
+        RecordEncodedJpegByteCount(jpegByteCount);
+        return stream.DetachFrame(
+            surface.CapturedAtUtc,
+            surface.Width,
+            surface.Height,
+            options.Quality,
+            jpegByteCount);
     }
 
     private static async Task WriteEncodedJpegPayloadAsync(
