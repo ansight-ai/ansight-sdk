@@ -65,19 +65,6 @@ internal static class OfflineCaptureZipExporter
         OfflineCaptureExportOptions options,
         CancellationToken cancellationToken)
     {
-        if (options.IncludeStudioSessionArchive)
-        {
-            await OfflineCaptureStudioArchiveWriter.WriteAsync(
-                sourceDirectory,
-                writer,
-                cancellationToken);
-        }
-
-        if (!options.IncludeRawCaptureFiles)
-        {
-            return;
-        }
-
         foreach (var filePath in EnumerateFiles(sourceDirectory))
         {
             cancellationToken.ThrowIfCancellationRequested();

@@ -196,19 +196,12 @@ The SDK supports both file and stream export.
 - `ExportToStreamAsync(stream, options)` writes a ZIP to a caller-provided stream.
 - `OfflineCaptureExportOptions.Password` enables AES-256 entry encryption through SharpZipLib on `net9.0`.
 - Without a password, export uses `System.IO.Compression.ZipArchive`.
-- `IncludeStudioSessionArchive` defaults to `true` and writes Studio-native session entries.
-- `IncludeRawCaptureFiles` defaults to `true` and includes the raw `.ansight` session files.
+- Export streams the raw `.ansight` session files directly.
+- `IncludeStudioSessionArchive` and `IncludeRawCaptureFiles` are retained for source compatibility, but export no longer expands JSONL capture files into Studio-native aggregate JSON.
 
 Default ZIP layout:
 
 ```text
-session.json
-session-data/
-  logs.json
-  telemetry.json
-  touches.json
-session-images/
-  {frameId}.jpg
 .ansight/
   sessions/
     {sessionId}/
@@ -219,15 +212,7 @@ session-images/
       screenshots/
 ```
 
-The top-level entries match Ansight Studio's existing session archive importer:
-
-- `session.json`: `ansight.session-capture.v1` session shell, device profile, custom properties, app lifecycle state, image frame list, and required session metadata.
-- `session-data/telemetry.json`: `ansight.session-archive-telemetry.v1` metric channels and metric samples.
-- `session-data/logs.json`: `ansight.session-archive-logs.v1` projection of offline app events into Studio logs.
-- `session-data/touches.json`: `ansight.touches.v1` packed touch batches.
-- `session-images/*.jpg`: screenshot JPEGs referenced by `session.json`.
-
-All generated Studio JSON is compact. App events remain in raw `.ansight/telemetry/events/*.jsonl`; they are projected into `logs.json` because Studio's archive format does not currently define a separate app-event stream.
+Studio import reads the minified JSONL and metadata files from the raw `.ansight` session layout. App events remain in `.ansight/telemetry/events/*.jsonl`, metrics remain in `.ansight/telemetry/metrics/*.jsonl`, touches remain in `.ansight/input/touches/*.jsonl`, and screenshot references remain in `.ansight/screenshots/index/*.jsonl`.
 
 ## Samples
 
@@ -271,6 +256,6 @@ The console sample starts Ansight, starts offline capture, records sample metric
 - Retention is enforced by time and size without large file reload/rewrite.
 - Export supports file-path and stream destinations.
 - Export supports optional password protection.
-- Default exports are importable by Ansight Studio for replay and analysis.
+- Default exports preserve the raw `.ansight` session layout for Studio ingestion, replay, and analysis.
 - A sample app demonstrates the SDK.
-- Unit tests cover minified data, runtime mutation, activation mode, Studio archive entries, and ZIP export.
+- Unit tests cover minified data, runtime mutation, activation mode, raw archive entries, and ZIP export.

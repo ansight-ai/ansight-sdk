@@ -21,12 +21,12 @@ public sealed class OfflineCaptureExportOptions
     public bool IncludeRootDirectory { get; set; } = true;
 
     /// <summary>
-    /// Includes the top-level Ansight Studio session archive entries required for import, replay, and analysis.
+    /// Retained for source compatibility. Offline capture exports no longer generate expanded Studio session entries.
     /// </summary>
     public bool IncludeStudioSessionArchive { get; set; } = true;
 
     /// <summary>
-    /// Includes the raw append-only .ansight capture files alongside the Studio import entries.
+    /// Retained for source compatibility. Raw append-only .ansight capture files are always included.
     /// </summary>
     public bool IncludeRawCaptureFiles { get; set; } = true;
 

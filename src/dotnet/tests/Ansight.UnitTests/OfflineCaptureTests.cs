@@ -141,52 +141,39 @@ public sealed class OfflineCaptureTests
 
         Assert.True(File.Exists(archivePath));
         using var archive = ZipFile.OpenRead(archivePath);
-        Assert.Contains(archive.Entries, entry => entry.FullName == "session.json");
-        Assert.Contains(archive.Entries, entry => entry.FullName == "session-data/logs.json");
-        Assert.Contains(archive.Entries, entry => entry.FullName == "session-data/telemetry.json");
-        Assert.Contains(archive.Entries, entry => entry.FullName == "session-data/touches.json");
-        Assert.Contains(archive.Entries, entry =>
-            entry.FullName.StartsWith($".ansight/sessions/{session.SessionId}/", StringComparison.Ordinal)
+        Assert.DoesNotContain(archive.Entries, entry => entry.FullName == "session.json");
+        Assert.DoesNotContain(archive.Entries, entry => entry.FullName.StartsWith("session-data/", StringComparison.Ordinal));
+        Assert.DoesNotContain(archive.Entries, entry => entry.FullName.StartsWith("session-images/", StringComparison.Ordinal));
+
+        var archiveRoot = $".ansight/sessions/{session.SessionId}/";
+        Assert.Contains(archive.Entries, entry => entry.FullName == $"{archiveRoot}manifest.json");
+        Assert.Contains(archive.Entries, entry => entry.FullName == $"{archiveRoot}metadata/channels.json");
+        Assert.Contains(archive.Entries, entry => entry.FullName == $"{archiveRoot}metadata/custom-properties.json");
+
+        var metricEntry = Assert.Single(archive.Entries, entry =>
+            entry.FullName.StartsWith($"{archiveRoot}telemetry/metrics/m-", StringComparison.Ordinal)
+            && entry.FullName.EndsWith(".jsonl", StringComparison.OrdinalIgnoreCase));
+        var eventEntry = Assert.Single(archive.Entries, entry =>
+            entry.FullName.StartsWith($"{archiveRoot}telemetry/events/e-", StringComparison.Ordinal)
+            && entry.FullName.EndsWith(".jsonl", StringComparison.OrdinalIgnoreCase));
+        var touchEntry = Assert.Single(archive.Entries, entry =>
+            entry.FullName.StartsWith($"{archiveRoot}input/touches/t-", StringComparison.Ordinal)
             && entry.FullName.EndsWith(".jsonl", StringComparison.OrdinalIgnoreCase));
 
-        var sessionJson = await ReadArchiveEntryTextAsync(archive, "session.json");
-        Assert.DoesNotContain('\n', sessionJson);
-        using (var sessionDocument = JsonDocument.Parse(sessionJson))
-        {
-            var sessionElement = sessionDocument.RootElement.GetProperty("session");
-            Assert.Equal("ansight.session-capture.v1", sessionDocument.RootElement.GetProperty("schema").GetString());
-            Assert.Equal(session.SessionId, sessionElement.GetProperty("sessionId").GetString());
-            Assert.Equal("Imported", sessionElement.GetProperty("status").GetString());
-            Assert.True(sessionElement.TryGetProperty("deviceProfile", out _));
-            Assert.Equal("offline", sessionElement
-                .GetProperty("customProperties")
-                .GetProperty("scenario")
-                .GetProperty("mode")
-                .GetString());
-        }
+        var metricLine = Assert.Single((await ReadArchiveEntryTextAsync(metricEntry)).Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries));
+        Assert.DoesNotContain("capturedAtUtc", metricLine);
+        Assert.Contains("\"c\":3", metricLine);
+        Assert.Contains("\"v\":99", metricLine);
 
-        var telemetryJson = await ReadArchiveEntryTextAsync(archive, "session-data/telemetry.json");
-        Assert.DoesNotContain('\n', telemetryJson);
-        using (var telemetryDocument = JsonDocument.Parse(telemetryJson))
-        {
-            Assert.Equal(
-                "ansight.session-archive-telemetry.v1",
-                telemetryDocument.RootElement.GetProperty("schema").GetString());
-            Assert.Contains(
-                telemetryDocument.RootElement.GetProperty("metrics").EnumerateArray(),
-                metric => metric.GetProperty("value").GetInt64() == 99
-                          && metric.GetProperty("channelId").GetByte() == Constants.ReservedChannels.FramesPerSecond_Id);
-        }
+        var eventLine = Assert.Single((await ReadArchiveEntryTextAsync(eventEntry)).Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries));
+        Assert.DoesNotContain("message", eventLine);
+        Assert.Contains("\"l\":\"export_warning\"", eventLine);
+        Assert.Contains("\"d\":\"needs-review\"", eventLine);
 
-        var logsJson = await ReadArchiveEntryTextAsync(archive, "session-data/logs.json");
-        Assert.DoesNotContain('\n', logsJson);
-        Assert.Contains("\"tag\":\"Warning\"", logsJson);
-        Assert.Contains("\"message\":\"export_warning:needs-review\"", logsJson);
-
-        var touchesJson = await ReadArchiveEntryTextAsync(archive, "session-data/touches.json");
-        Assert.DoesNotContain('\n', touchesJson);
-        Assert.Contains("\"schema\":\"ansight.touches.v1\"", touchesJson);
-        Assert.Contains("\"rows\":[[0,0,1,10,20]]", touchesJson);
+        var touchLine = Assert.Single((await ReadArchiveEntryTextAsync(touchEntry)).Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries));
+        Assert.DoesNotContain("rows", touchLine);
+        Assert.Contains("\"a\":0", touchLine);
+        Assert.Contains("\"p\":1", touchLine);
     }
 
     [Fact]
@@ -257,10 +244,8 @@ public sealed class OfflineCaptureTests
         return await JsonDocument.ParseAsync(stream);
     }
 
-    private static async Task<string> ReadArchiveEntryTextAsync(ZipArchive archive, string entryName)
+    private static async Task<string> ReadArchiveEntryTextAsync(ZipArchiveEntry entry)
     {
-        var entry = archive.GetEntry(entryName);
-        Assert.NotNull(entry);
         await using var stream = entry.Open();
         using var reader = new StreamReader(stream);
         return await reader.ReadToEndAsync();

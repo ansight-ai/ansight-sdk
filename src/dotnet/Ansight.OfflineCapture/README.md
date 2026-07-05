@@ -28,9 +28,9 @@ await offlineCapture.ExportToFileAsync("capture.zip", new OfflineCaptureExportOp
 await offlineCapture.StopAsync();
 ```
 
-High-volume data is written as compact JSONL in `.ansight/sessions/{sessionId}` with minified property names and append-only segment files.
+Data is written as compact JSONL in `.ansight/sessions/{sessionId}` with minified property names and append-only segment files.
 
-ZIP exports include Ansight Studio session archive entries by default (`session.json`, `session-data/*.json`, and `session-images/*`) plus the raw `.ansight` files, so the exported capture can be imported into Studio for replay and analysis.
+ZIP exports stream the raw `.ansight` session files directly. Export does not expand the captured JSONL into Studio archive JSON; Studio ingests the minified JSONL capture format directly.
 
 Offline capture uses the runtime retention period and `SessionJpegCapture` settings by default. Use the override properties only when offline capture needs behavior different from the active runtime configuration.
 
