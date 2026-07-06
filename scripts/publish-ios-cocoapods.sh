@@ -96,6 +96,7 @@ for podspec in "${native_podspecs[@]}"; do
     s!:file => "LICENSE"!:file => "src/ios/LICENSE"!g;
     s!"Sources/!"src/ios/Sources/!g;
     s!"Generated/!"src/ios/Generated/!g;
+    s!"Plugins/!"src/ios/Plugins/!g;
     s!\$\{PODS_TARGET_SRCROOT\}/Generated/!\${PODS_TARGET_SRCROOT}/src/ios/Generated/!g;
     s!\$\{PODS_TARGET_SRCROOT\}/Plugins/!\${PODS_TARGET_SRCROOT}/src/ios/Plugins/!g;
     s!\$\{PODS_TARGET_SRCROOT\}/Sources/!\${PODS_TARGET_SRCROOT}/src/ios/Sources/!g;
