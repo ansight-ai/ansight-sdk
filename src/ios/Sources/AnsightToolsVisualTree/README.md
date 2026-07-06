@@ -17,6 +17,11 @@ UIKit visual tree, screenshot, and diagnostic overlay tools.
 Read tools are available with `.readOnly`. Overlay mutation requires
 `.readWrite`; overlay removal and clearing require `.fullAccess`.
 
+> **Important:** Calling screenshot tools will result in an FPS drop while the
+> current frame is captured, encoded, and transferred. Avoid screenshot-heavy
+> investigations during performance measurements unless visual evidence is
+> required.
+
 ## Usage
 
 ```swift

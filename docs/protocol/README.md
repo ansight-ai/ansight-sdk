@@ -1,22 +1,22 @@
 # Ansight Connection Protocol
 
-This document describes the protocol behavior currently implemented by the `.NET` SDK under [src/dotnet/Ansight](../../src/dotnet/Ansight).
+This document describes the protocol behavior currently implemented by the Ansight SDKs. Linked implementation paths point at the .NET SDK where it is the clearest reference.
 
-It is intentionally descriptive rather than aspirational. If this file and the SDK disagree, the SDK is the source of truth and this document should be updated.
+It is intentionally descriptive rather than aspirational. If this file and the SDKs disagree, the SDKs are the source of truth and this document should be updated.
 
 ## Roles
 
 - `app client`: the SDK running inside the target app
 - `host`: the machine accepting the pairing session
 
-The current `.NET` SDK always behaves as the initiating client.
+The SDK behaves as the initiating client.
 
 ## Current connection flow
 
 The implemented session flow is:
 
 1. Parse and validate a pairing document.
-2. Resolve a host IP address from `PairingConnectionOptions.HostAddressOverride`, the pairing ticket discovery hint, or the SDK simulator-local fallback when the app is running in a known simulator or emulator.
+2. Resolve a host IP address from `PairingConnectionOptions.HostAddressOverride`, the pairing document discovery hint, or the SDK simulator-local fallback when the app is running in a known simulator or emulator.
 3. Send a UDP `CONNECT_REQ` JSON packet to the host discovery port.
 4. Receive a UDP `CONNECT_RESP` JSON packet with a WebSocket handoff.
 5. Open a WebSocket using the returned `token` query string.
@@ -47,7 +47,7 @@ Only the discovery port is directly consumed by the current client. For the WebS
 
 ## Pairing documents
 
-The app-facing SDK flow accepts pairing tickets or compact pairing ticket codes. The low-level client also accepts a plain `PairingConfig` as a direct input.
+The app-facing SDK flow accepts pairing config documents or compact pairing config codes. The low-level client also accepts a plain `PairingConfig` as a direct input.
 
 ### `PairingConfig`
 
@@ -70,16 +70,16 @@ Important fields are:
 - `challenge`
 - `signature`
 
-### Pairing tickets
+### Pairing config documents
 
-The ticket wrapper is defined by:
+The config document wrapper is defined by:
 
-- [PairingTicket.cs](../../src/dotnet/Ansight.Core/Pairing/Models/PairingTicket.cs)
-- [PairingTicketJson.cs](../../src/dotnet/Ansight.Core/Pairing/PairingTicketJson.cs)
-- [PairingTicketCodeGenerator.cs](../../src/dotnet/Ansight.Core/Pairing/PairingTicketCodeGenerator.cs)
+- [PairingConfigDocument.cs](../../src/dotnet/Ansight.Core/Pairing/Models/PairingConfigDocument.cs)
+- [PairingConfigDocumentJson.cs](../../src/dotnet/Ansight.Core/Pairing/PairingConfigDocumentJson.cs)
+- [PairingConfigCodeGenerator.cs](../../src/dotnet/Ansight.Core/Pairing/PairingConfigCodeGenerator.cs)
 - [PairingDiscoveryHint.cs](../../src/dotnet/Ansight.Core/Pairing/Models/PairingDiscoveryHint.cs)
 
-`ansight.pairing-ticket.v1` carries the signed `PairingConfig` plus the discovery metadata needed to reach the host. Legacy bootstrap and QR payload shapes are no longer accepted by the runtime-owned connection surface.
+`ansight.pairing-config-document.v1` carries the signed `PairingConfig` plus the discovery metadata needed to reach the host. `ansight.pairing-ticket.v1` is accepted as a legacy schema name for compatibility. Legacy bootstrap payload shapes are no longer accepted by the runtime-owned connection surface.
 
 ## Validation and trust
 
@@ -95,7 +95,7 @@ Important current limitation: the UDP connect request and UDP connect response a
 
 ## Host address resolution
 
-The current `.NET` connector is ticket-driven.
+The current connector is pairing-document-driven.
 
 - `ParsedPairingDocument.DiscoveryHint` is the primary source of the target host address
 - `PairingConnectionOptions.HostAddressOverride` is an explicit escape hatch for advanced recovery scenarios
@@ -445,7 +445,6 @@ Important boundary:
 The implementation lives in:
 
 - [BeginBinaryDownloadTool.cs](../../src/dotnet/Ansight.Tools.FileSystem/BeginBinaryDownloadTool.cs)
-- [BinaryFileDownloadManager.cs](../../src/dotnet/Ansight.Host/BinaryFileDownloadManager.cs)
 - [PairingBinaryTransferHub.cs](../../src/dotnet/Ansight.Core/Pairing/PairingBinaryTransferHub.cs)
 - [PairingFileTransferWireProtocol.cs](../../src/dotnet/Ansight.Core/Pairing/PairingFileTransferWireProtocol.cs)
 
@@ -476,6 +475,11 @@ Frame types:
 ## Screenshot binary stream
 
 If the runtime is initialized and `Options.SessionJpegCapture` is configured, the client starts automatic screenshot streaming after the session opens.
+
+> **Important:** Screenshot streaming will result in an FPS drop in the app
+> while frames are captured, encoded, and sent. Clients should expose explicit
+> configuration to disable it for performance-focused runs unless visual evidence
+> is required.
 
 The implementation lives in:
 

@@ -13,10 +13,15 @@ The Android, iOS, and React Native SDKs are pre-release packages that mirror the
 same native runtime, host connection, telemetry, screenshot, touch capture, and
 remote-tool protocol used by the .NET SDK.
 
+> **Important:** Screen capture is not free. Periodic or manual screenshot/JPEG
+> capture will result in an FPS drop while frames are being rendered, encoded,
+> and transported. Keep it scoped to local development or QA runs, and disable it
+> for performance measurements unless visual evidence is required.
+
 ## Docs
 
 - [Cross-SDK API Parity](docs/sdk-api-parity.md)
-- [.NET SDK Guide](src/dotnet/docs.md)
+- [.NET SDK Guide](src/dotnet/README.md)
 - [Android SDK Guide](src/android/README.md)
 - [iOS SDK Guide](src/ios/README.md)
 - [React Native SDK Guide](src/react-native/README.md)

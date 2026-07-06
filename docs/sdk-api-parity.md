@@ -29,7 +29,7 @@ Android, and iOS:
 | Retention | 120 seconds |
 | FPS | Enabled |
 | Battery | Disabled |
-| JPEG capture | Enabled, 2000 ms, quality 60, max width 480 |
+| JPEG capture | Enabled, 2000 ms, quality 60, max width 480; iOS GPU-backed surface capture defaults to enabled |
 | Touch capture | Enabled |
 | Host auto-probe | Enabled |
 | Tool guard | Full access in native all-in-one presets |
@@ -41,6 +41,11 @@ passed or `withAnsightDefaults()` / `withAnsightSdk(...)` is used. That option
 only applies the native all-in-one defaults; it is not build-type detection and
 does not enable the entire feature set. `toolGuard`, capture options, host
 auto-probe, and host connection remain separate controls.
+
+> **Important:** Screen capture will result in an FPS drop while frames are
+> rendered or captured, encoded, and transported. Keep periodic JPEG capture
+> scoped to development or QA sessions, and disable it for performance-focused
+> runs unless visual evidence is required.
 
 ## Quickstart Equivalents
 
@@ -135,7 +140,7 @@ await Ansight.connect(null, { clientName: "React Native App" });
 | Battery | `WithBatteryLevel()` | `enableBatteryLevel` | `enableBatteryLevel` | `enableBatteryLevel` |
 | Memory channels | `DefaultMemoryChannels` | `defaultMemoryChannels` | `defaultMemoryChannels` | `defaultMemoryChannels` |
 | Custom channels | `AddAdditionalChannel(...)` | `additionalChannels` | `additionalChannels` | `additionalChannels` |
-| JPEG capture | `WithSessionJpegCapture(...)` | `sessionJpegCapture` | `sessionJpegCapture` | `sessionJpegCapture` |
+| JPEG capture | `WithSessionJpegCapture(...)` | `sessionJpegCapture` with `captureGpuBackedSurfaces` parity flag | `sessionJpegCapture.captureGpuBackedSurfaces` | `sessionJpegCapture.captureGpuBackedSurfaces` |
 | Touch capture | `WithTouchCapture(...)` | `touchCapture` | `touchCapture` | `touchCapture` |
 | Tool guard | `WithReadOnlyToolAccess()` etc. | `toolGuard` | `toolGuard` | `toolGuard` |
 | Custom properties | `WithCustomProperties(...)` / runtime mutations | `customProperties` | `customProperties` | `customProperties` |

@@ -16,8 +16,13 @@ await AnsightRuntime.shared.connect(.auto(clientName: "iOS App"))
 
 `initializeAndActivateAnsightSdk(...)` applies the aligned all-in-one defaults:
 400 ms sampling, 120 second retention, FPS, UIKit lifecycle capture, touch
-capture, 2000 ms JPEG capture at quality 60 and max width 480, host auto-probe,
-full tool access, platform file/QR pairing, and all native tool suites.
+capture, 2000 ms JPEG capture at quality 60 and max width 480 with
+GPU-backed surface capture enabled, host auto-probe, full tool access, platform
+file/QR pairing, and all native tool suites.
+
+> **Important:** Screen capture will result in an FPS drop while frames are
+> rendered, encoded, and sent. Disable session JPEG capture when a run is
+> measuring performance rather than collecting visual evidence.
 
 Customize registered tool suites with `AnsightRemoteToolOptions`.
 

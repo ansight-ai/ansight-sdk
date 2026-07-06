@@ -28,6 +28,11 @@ public static MauiApp CreateMauiApp()
 
 Use `UseAnsight<App>()` to initialize and activate the runtime from the MAUI builder. It also automatically records foreground/background lifecycle transitions and records a screen-view event whenever a MAUI page appears. No `AppDelegate`, Android `Application`, or page `OnAppearing` calls are required for the default telemetry.
 
+> **Important:** The MAUI all-in-one defaults include session JPEG capture.
+> Screen capture will result in an FPS drop while frames are captured, encoded,
+> and transported. Disable session JPEG capture for performance-focused runs
+> unless visual evidence is required.
+
 ```csharp
 using Ansight.Maui;
 using Ansight.Tools.SecureStorage;

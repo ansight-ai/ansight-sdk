@@ -93,7 +93,7 @@ The aggregate preset mirrors the .NET all-in-one defaults:
 - FPS enabled
 - battery disabled
 - UIKit lifecycle capture enabled
-- JPEG capture every 2000 ms at quality 60 and max width 480
+- JPEG capture every 2000 ms at quality 60, max width 480, and GPU-backed surface capture enabled
 - touch capture enabled
 - host auto-probe enabled
 - full tool access
@@ -126,7 +126,7 @@ try AnsightRuntime.shared.initializeAndActivate(options: options)
 | `enableFramesPerSecond` | Enables CADisplayLink FPS sampling. |
 | `enableBatteryLevel` | Enables battery sampling where available. |
 | `lifecycleCapture` | Controls automatic UIKit app lifecycle and screen-view capture. |
-| `sessionJpegCapture` | Configures live JPEG screen-frame streaming. `nil` disables it. |
+| `sessionJpegCapture` | Configures live JPEG screen-frame streaming. `nil` disables it. `captureGpuBackedSurfaces` defaults to `true` so Metal, SceneKit, and similar GPU-backed views are included. |
 | `touchCapture` | Configures app-local touch capture. `nil` disables it. |
 | `toolGuard` | Controls remote-tool discovery and execution. |
 | `customProperties` | Grouped string properties sent with `session.open`. |
@@ -278,6 +278,11 @@ AnsightRuntime.shared.setTouchCaptureGuard {
 
 ## Screen capture
 
+> **Important:** Screen capture will result in an FPS drop while the SDK renders,
+> encodes, and sends frames. Use conservative interval, quality, and max-width
+> settings, and disable `sessionJpegCapture` for performance-focused runs unless
+> visual evidence is required.
+
 Configure `AnsightOptions.sessionJpegCapture` before connecting to Studio:
 
 ```swift
@@ -286,12 +291,17 @@ try AnsightRuntime.shared.initializeAndActivate(
         sessionJpegCapture: AnsightSessionJpegCaptureOptions(
             intervalMilliseconds: 2_000,
             quality: 60,
-            maxWidth: 480
+            maxWidth: 480,
+            captureGpuBackedSurfaces: true
         )
     )
 )
 await AnsightRuntime.shared.connect(.auto(clientName: "iOS Native Harness"))
 ```
+
+`captureGpuBackedSurfaces` defaults to `true` so Metal, SceneKit, and similar
+GPU-backed views are included. Set it to `false` to use a lower-overhead capture
+path when those surfaces are not needed.
 
 ## Tool Suite Options
 
@@ -450,7 +460,7 @@ import Ansight
 try AnsightRuntime.shared.initializeAndActivateAnsightSdk()
 ```
 
-That preset keeps the core package tool-free by default, sets telemetry to 400 ms / 120 s retention, enables FPS, touch capture, 2-second JPEG capture at quality 60 and max width 480, enables full tool access, and registers the current native tool suites. Reflection is intentionally excluded until the native security and object model are designed.
+That preset keeps the core package tool-free by default, sets telemetry to 400 ms / 120 s retention, enables FPS, touch capture, 2-second JPEG capture at quality 60 and max width 480 with GPU-backed surface capture enabled, enables full tool access, and registers the current native tool suites. Reflection is intentionally excluded until the native security and object model are designed.
 
 ## Custom Tools
 

@@ -28,6 +28,15 @@ class MyApplication : Application() {
 Core defaults keep remote tools disabled. Register tool packages explicitly and
 set `toolGuard` to allow discovery/execution.
 
+Session JPEG capture is configured with `AnsightSessionJpegCaptureOptions`.
+`captureGpuBackedSurfaces` is accepted for cross-platform configuration parity
+and defaults to `true`; the capture-mode tradeoff is currently meaningful on
+iOS.
+
+> **Important:** Screen capture will result in an FPS drop while frames are
+> captured, encoded, and sent. Disable session JPEG capture for
+> performance-focused runs unless visual evidence is required.
+
 ## Main APIs
 
 - `AnsightRuntime.initialize`, `initializeAndActivate`, `activate`, `deactivate`, `clear`
@@ -38,5 +47,5 @@ set `toolGuard` to allow discovery/execution.
 - `registerTool`, `isToolRegistered`
 - `snapshot`, `hostConnectionStatus`, `recordedMetrics`, `recordedEvents`
 
-See [../../docs/sdk-api-parity.md](../../docs/sdk-api-parity.md) for the
+See [../../../docs/sdk-api-parity.md](../../../docs/sdk-api-parity.md) for the
 cross-SDK API map.

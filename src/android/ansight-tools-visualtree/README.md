@@ -17,6 +17,11 @@ Android visual tree, screenshot, and diagnostic overlay tools.
 Read tools are available with `AnsightToolGuard.ReadOnly`. Overlay mutation
 requires `ReadWrite`; overlay removal and clearing require `FullAccess`.
 
+> **Important:** Calling screenshot tools will result in an FPS drop while the
+> current frame is captured, encoded, and transferred. Avoid screenshot-heavy
+> investigations during performance measurements unless visual evidence is
+> required.
+
 ## Usage
 
 ```kotlin

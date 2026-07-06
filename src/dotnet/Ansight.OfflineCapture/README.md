@@ -28,12 +28,77 @@ await offlineCapture.ExportToFileAsync("capture.zip", new OfflineCaptureExportOp
 await offlineCapture.StopAsync();
 ```
 
-Data is written as compact JSONL in `.ansight/sessions/{sessionId}` with minified property names and append-only segment files.
+Data is written as compact JSONL in `.ansight/sessions/{sessionId}` with minified property names and append-only segment files. Offline capture uses the runtime retention period and `SessionJpegCapture` settings by default. Use the override properties only when offline capture needs behavior different from the active runtime configuration.
 
-ZIP exports stream the raw `.ansight` session files directly. Export does not expand the captured JSONL into Studio archive JSON; Studio ingests the minified JSONL capture format directly.
+> **Important:** Offline screenshot capture will result in an FPS drop while
+> frames are captured and encoded. Disable `SessionJpegCapture` or set
+> `SessionJpegCaptureEnabledOverride = false` for performance-focused runs
+> unless visual evidence is required.
 
-Offline capture uses the runtime retention period and `SessionJpegCapture` settings by default. Use the override properties only when offline capture needs behavior different from the active runtime configuration.
+## Activation
+
+- `Disabled`: no automatic start.
+- `Immediate`: starts capture now and persists `Disabled` for future sessions.
+- `NextSessionOnly`: persists a future one-shot start. During `InitializeAsync`, capture starts and the persisted mode is cleared without stopping the active capture.
+- `AlwaysOn`: starts capture for every app session until disabled.
+
+The controller supports runtime mutation through `UpdateOptionsAsync(Action<OfflineCaptureOptions>)`. `ActivationMode`, retention limits, segment duration, and session JPEG overrides are mutable while capture is active. `RootDirectory` and `MaximumQueuedRecords` affect active writer ownership and queue construction, so changing either requires stopping capture first.
+
+## Storage Layout
+
+```text
+.ansight/
+  settings.json
+  sessions/
+    {sessionId}/
+      manifest.json
+      metadata/
+        channels.json
+        device-profile.json
+        custom-properties.json
+      telemetry/
+        metrics/
+          m-{utc}.jsonl
+        events/
+          e-{utc}.jsonl
+      input/
+        touches/
+          t-{utc}.jsonl
+      screenshots/
+        {utc}.jpg
+        index/
+          s-{utc}.jsonl
+```
+
+`settings.json`, `manifest.json`, and `metadata/*.json` are compact metadata files. High-volume data files are append-only JSONL segments. Metric, event, touch, and screenshot index records use minified JSON with short property names and no formatted whitespace.
+
+Retention is enforced during startup, active writes, runtime option updates, and export preparation. Time retention deletes closed files older than the effective retention window; active writer files are never deleted. `MaximumSessionBytes` trims old closed files inside the active session, and `MaximumRetainedBytes` trims old closed files across `.ansight`.
+
+## Export
+
+The SDK supports both file and stream export:
+
+- `ExportToFileAsync(path, options)` writes a ZIP file and returns the file path.
+- `ExportToStreamAsync(stream, options)` writes a ZIP to a caller-provided stream.
+- `OfflineCaptureExportOptions.Password` enables AES-256 entry encryption through SharpZipLib on current `net9.0` targets.
+- Without a password, export uses `System.IO.Compression.ZipArchive`.
+
+ZIP exports stream the raw `.ansight` session files directly. Export does not expand the captured JSONL into Studio archive JSON; Studio ingests the minified JSONL capture format directly. `IncludeStudioSessionArchive` and `IncludeRawCaptureFiles` are retained for source compatibility, but export no longer expands JSONL capture files into Studio-native aggregate JSON.
+
+## Samples
 
 The primary manual test app is `src/dotnet/samples/Ansight.OfflineCapture.MauiSample`. It exercises capture activation, runtime mutation, touch/screenshot capture, lifecycle events, custom session properties, and ZIP export from a real .NET MAUI app.
 
-See `docs/specs/dotnet-offline-capture-sdk.md` for the full storage and API spec.
+Run the local desktop target with:
+
+```bash
+dotnet build src/dotnet/samples/Ansight.OfflineCapture.MauiSample -f net9.0-maccatalyst
+dotnet run --project src/dotnet/samples/Ansight.OfflineCapture.MauiSample -f net9.0-maccatalyst
+```
+
+A console smoke sample is also available at `src/dotnet/samples/Ansight.OfflineCapture.Sample`:
+
+```bash
+dotnet run --project src/dotnet/samples/Ansight.OfflineCapture.Sample
+dotnet run --project src/dotnet/samples/Ansight.OfflineCapture.Sample -- --password=secret
+```

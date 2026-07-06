@@ -20,7 +20,8 @@ var options = Options.CreateBuilder()
     .WithFramesPerSecond()
     // Battery level is opt-in and only emits on platforms that expose a battery API.
     .WithBatteryLevel()
-    // JPEG session capture can affect runtime performance. Use conservative settings unless you need richer review snapshots.
+    // JPEG session capture will reduce FPS while frames are captured, encoded, and sent.
+    // Use conservative settings unless you need richer review snapshots.
     .WithSessionJpegCapture(intervalMilliseconds: 2000, quality: 60, maxWidth: 720)
     .Build();
 
@@ -33,7 +34,11 @@ Runtime.ScreenViewed("CheckoutPage");
 
 `Runtime.ScreenViewed(...)` is the manual screen-view API for core and non-MAUI integrations. The `Ansight.Maui` all-in-one package records default MAUI page views automatically from `Application.PageAppearing` when the app is configured through `builder.UseAnsight(...)`.
 
-When `WithSessionJpegCapture(...)` is enabled, the pairing client will capture the app's own root window/view as a JPEG and stream it over live Ansight pairing sessions. Capture remains client-driven, but the next interval is delayed until the previous frame has finished encoding and sending so the stream self-throttles under load. Connected tooling can inspect the latest live frame or correlate historical frames with the telemetry timeline. This feature adds extra rendering, encoding, and transport work and can negatively affect runtime performance while it is active.
+When `WithSessionJpegCapture(...)` is enabled, the pairing client will capture the app's own root window/view as a JPEG and stream it over live Ansight pairing sessions. Capture remains client-driven, but the next interval is delayed until the previous frame has finished encoding and sending so the stream self-throttles under load. Connected tooling can inspect the latest live frame or correlate historical frames with the telemetry timeline.
+
+> **Important:** Screen capture will result in an FPS drop while frames are
+> captured, encoded, and transported. Disable session JPEG capture for
+> performance-focused runs unless visual evidence is required.
 
 Host auto-probe is enabled by default. While `Runtime` is active, Ansight will periodically try to reconnect to remembered host connection profiles, pause probing while a session stays open, and resume after a reconnect delay if the session closes. Remembered profiles are keyed by the Wi-Fi network reported by the host, store the latest host/LAN address, host name, discovery metadata, and signed pairing config for that network, and expire after 14 days by default. Disable auto-probe with `WithoutHostAutoProbe()`, customize the probing loop with `WithHostAutoProbe(new HostAutoProbeOptions { ... })`, or change profile expiry with `WithHostConnectionProfileRetention(...)`.
 

@@ -29,6 +29,10 @@ Runtime.InitializeAndActivate(options);
 
 `WithAnsightSdk(...)` configures FPS sampling, 400ms sampling, 120s retention, 2000ms/quality-60/max-width-480 JPEG capture, host auto-probe, bundled host connection, all non-MAUI tools, and full tool access. Host auto-probe remembers successful host sessions per host-reported Wi-Fi network, refreshes each profile after successful reconnects, and expires profiles after 14 days by default. Its callback receives the existing `Options.OptionsBuilder` after runtime defaults and before default tool-suite registration:
 
+> **Important:** Screen capture will result in an FPS drop while frames are
+> captured, encoded, and transported. Disable session JPEG capture for
+> performance-focused runs unless visual evidence is required.
+
 ```csharp
 using Ansight;
 using Ansight.Tools.SecureStorage;

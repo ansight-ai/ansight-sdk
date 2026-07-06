@@ -24,4 +24,8 @@ Ansight.initializeAndActivate(
 at quality 60 and max width 480, host auto-probe, full tool access, and all
 standard native tools.
 
+> **Important:** Screen capture will result in an FPS drop while frames are
+> captured, encoded, and sent. Disable session JPEG capture for
+> performance-focused runs unless visual evidence is required.
+
 See [../README.md](../README.md) for the full Android guide.

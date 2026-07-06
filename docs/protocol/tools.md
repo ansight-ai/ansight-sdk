@@ -174,9 +174,7 @@ Tool results remain ordinary JSON payloads. A tool can either keep the entire tr
 - `deliveryMode = websocket_binary`
 - `wireProtocol = ansight.file-transfer.v1`
 
-After that `tool.result` is sent, the SDK starts emitting binary WebSocket frames for the requested file. That path is intended for MCP bridges that want to write directly into a caller-chosen temp directory and then return the local path to the agent.
-
-The host-side reference implementation for that flow lives in `Ansight.Host` as `BinaryFileDownloadManager`.
+After that `tool.result` is sent, the SDK starts emitting binary WebSocket frames for the requested file. That path is intended for bridges that want to write directly into a caller-chosen temp directory and then return the local path to the agent.
 
 File management tools are also surfaced through ordinary `tool.call` / `tool.result` payloads:
 
