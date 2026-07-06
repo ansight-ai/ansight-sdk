@@ -1287,9 +1287,16 @@ final class PairingAndRuntimeTests: XCTestCase {
 
     func testBundledToolScanReportDefaultsToNoDetectedTools() {
         let report = AnsightDeveloperMode.bundledToolScanReport
+        let expectedAllowBundledTools: Bool
+        switch ProcessInfo.processInfo.environment["ANSIGHT_ALLOW_REMOTE_TOOLS"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "1", "true", "yes", "on":
+            expectedAllowBundledTools = true
+        default:
+            expectedAllowBundledTools = false
+        }
 
         XCTAssertTrue(report.detectedToolTypes.isEmpty)
-        XCTAssertFalse(report.allowBundledTools)
+        XCTAssertEqual(report.allowBundledTools, expectedAllowBundledTools)
     }
 
     func testEmbeddedDeveloperPairingIsAvailableWhenExpected() throws {
