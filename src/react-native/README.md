@@ -25,8 +25,8 @@ npx react-native run-android
 
 This package version expects matching native SDK packages:
 
-- CocoaPods: `Ansight`, `AnsightObjC` version `1.0.2-preview.1`
-- Maven: `ai.ansight:ansight-android:1.0.2-preview.1`
+- CocoaPods: `Ansight`, `AnsightObjC` version `1.0.2-preview.2`
+- Maven: `ai.ansight:ansight-android:1.0.2-preview.2`
 
 ## Quickstart
 
@@ -59,6 +59,11 @@ does not infer whether the app is a debug build. Gate it with the app's own
 condition, such as React Native's `__DEV__`, and configure `toolGuard`, capture
 options, host auto-probe, and host connection separately.
 
+> **Important:** Screen capture will result in an FPS drop while native frames
+> are rendered, encoded, and sent. Use conservative interval, quality, and
+> max-width settings, and disable `sessionJpegCapture` for performance-focused
+> runs unless visual evidence is required.
+
 ## Options
 
 The TypeScript `AnsightOptions` surface mirrors Android `AnsightOptions`, iOS
@@ -66,7 +71,7 @@ The TypeScript `AnsightOptions` surface mirrors Android `AnsightOptions`, iOS
 
 | Option | Purpose |
 | --- | --- |
-| `useNativeAllInOneDefaults` | Applies native iOS/Android all-in-one defaults when true. Defaults to false. This is not a master enable switch; configure `toolGuard`, capture options, and `hostConnection` separately. |
+| `useNativeAllInOneDefaults` | Applies native iOS/Android all-in-one defaults when true. Defaults to false. This enables the native visual-tree/screenshot tools required by Studio visual tree inspection unless `remoteTools.visualTree` is explicitly false. Configure `toolGuard`, capture options, and `hostConnection` separately. |
 | `pairingConfigJson` | Legacy top-level pairing JSON. Prefer `hostConnection.*`. |
 | `clientName` | Default client name for host auto-probe and connections. |
 | `sampleFrequencyMilliseconds` | Built-in telemetry sampling interval. |
@@ -76,7 +81,7 @@ The TypeScript `AnsightOptions` surface mirrors Android `AnsightOptions`, iOS
 | `defaultMemoryChannels` | Selects built-in memory channels. Prefer `managedHeap`, `nativeHeap`, `residentSetSize`, and `physicalFootprint`; `javaHeap` and `rss` are accepted as Android/RN compatibility aliases. |
 | `reactNativeMemory` | Controls native React Native runtime memory channels. Enabled by default; set to `false` to disable, or use `{ jsHeapUsed, jsHeapTotal }`. |
 | `additionalChannels` | Registers custom metric channels. |
-| `sessionJpegCapture` | Object to enable/configure capture, or `false` to disable. |
+| `sessionJpegCapture` | Object to enable/configure capture, or `false` to disable. Supports `captureGpuBackedSurfaces`; on iOS it defaults to `true` so Metal, SceneKit, and similar GPU-backed views are included. |
 | `touchCapture` | Object to enable/configure capture, or `false` to disable. |
 | `lifecycleCapture` | Native lifecycle and screen-view capture options. |
 | `toolGuard` | `"disabled"`, `"readOnly"`, `"readWrite"`, or `"fullAccess"`. |
@@ -97,6 +102,7 @@ await Ansight.initializeAndActivate({
     intervalMilliseconds: 2000,
     quality: 60,
     maxWidth: 480,
+    captureGpuBackedSurfaces: true,
   },
   touchCapture: {
     captureMoveEvents: true,
@@ -111,9 +117,13 @@ await Ansight.initializeAndActivate({
 });
 ```
 
+On iOS, `captureGpuBackedSurfaces` defaults to `true` so Metal, SceneKit, and
+similar GPU-backed views are included. Set it to `false` to use a lower-overhead
+capture path when those surfaces are not needed.
+
 ## Native Tool Options
 
-`remoteTools` configures the native tool suites registered by the bridge. Visual tree tools are opt-in:
+`remoteTools` configures the native tool suites registered by the bridge. `useNativeAllInOneDefaults: true` enables visual tree tools by default so Studio can pair `ui.get_visual_tree` data with `ui.get_screenshot` frames. Apps that do not use all-in-one defaults can opt in explicitly:
 
 ```ts
 await Ansight.initializeAndActivate(
@@ -406,7 +416,11 @@ const snapshot = await Ansight.snapshot();
 const options = await Ansight.currentOptions();
 
 await Ansight.captureBuiltInTelemetrySample();
-await Ansight.captureScreenFrame({ quality: 60, maxWidth: 480 });
+await Ansight.captureScreenFrame({
+  quality: 60,
+  maxWidth: 480,
+  captureGpuBackedSurfaces: true,
+});
 await Ansight.enableTouchCapture();
 await Ansight.disableTouchCapture();
 ```

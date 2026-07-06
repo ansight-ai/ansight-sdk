@@ -67,6 +67,7 @@ fi
 
 if [[ "${skip_tests}" != "true" ]]; then
   (cd "${repo_root}/src/ios" && ANSIGHT_ALLOW_REMOTE_TOOLS="${ANSIGHT_ALLOW_REMOTE_TOOLS:-true}" swift test)
+  swift package --package-path "${repo_root}" describe >/dev/null
 fi
 
 if [[ "${create_tag}" == "true" ]]; then

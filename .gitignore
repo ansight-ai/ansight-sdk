@@ -14,9 +14,12 @@
 
 # Local Ansight SDK validation output
 .ansight-validation/
+.build/
+.swiftpm/
 build/
 tmp/
 src/ios/Examples/NativeHarness/Build/
+src/ios/Examples/NativeHarness/AnsightNativeHarnessPublished.xcodeproj/
 
 # Python validation tooling cache
 __pycache__/

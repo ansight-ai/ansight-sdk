@@ -13,7 +13,7 @@ Use the all-in-one package for development builds:
 
 ```kotlin
 dependencies {
-    implementation("ai.ansight:ansight-android:0.1.0-pre1")
+    implementation("ai.ansight:ansight-android:1.0.2-preview.2")
 }
 ```
 
@@ -21,9 +21,9 @@ Minimal integrations can depend on only the packages they need:
 
 ```kotlin
 dependencies {
-    implementation("ai.ansight:ansight-core-android:0.1.0-pre1")
-    implementation("ai.ansight:ansight-pairing-android:0.1.0-pre1")
-    implementation("ai.ansight:ansight-tools-visualtree-android:0.1.0-pre1")
+    implementation("ai.ansight:ansight-core-android:1.0.2-preview.2")
+    implementation("ai.ansight:ansight-pairing-android:1.0.2-preview.2")
+    implementation("ai.ansight:ansight-tools-visualtree-android:1.0.2-preview.2")
 }
 ```
 
@@ -89,7 +89,7 @@ AnsightRuntime.initializeAndActivate(
 | `enableBatteryLevel` | Enables battery sampling where available. |
 | `defaultMemoryChannels` | Selects Java heap, native heap, and RSS channels. |
 | `additionalChannels` | Registers custom metric channels. Reserved ids are rejected. |
-| `sessionJpegCapture` | Configures live JPEG screen-frame streaming. `null` disables it. |
+| `sessionJpegCapture` | Configures live JPEG screen-frame streaming. `null` disables it. Includes `captureGpuBackedSurfaces` for cross-platform configuration parity. |
 | `touchCapture` | Configures app-local touch capture. `null` disables it. |
 | `toolGuard` | Controls remote-tool discovery and execution. |
 | `customProperties` | Grouped string properties sent with `session.open`. |
@@ -97,6 +97,16 @@ AnsightRuntime.initializeAndActivate(
 | `hostConnection` | Configures saved, bundled, and developer pairing sources. |
 | `secureStorage` | Defines secure-storage allow-lists for the secure storage tools. |
 | `initialTools` | Adds custom or package-provided tools at initialization. |
+
+`AnsightSessionJpegCaptureOptions.captureGpuBackedSurfaces` is accepted for
+cross-platform configuration parity. It defaults to `true`; the capture-mode
+tradeoff is currently meaningful on iOS, where setting it to `false` selects a
+lower-overhead path that may miss GPU-backed surfaces.
+
+> **Important:** Screen capture will result in an FPS drop while the SDK
+> captures, encodes, and sends frames. Use conservative interval, quality, and
+> max-width settings, and disable `sessionJpegCapture` for performance-focused
+> runs unless visual evidence is required.
 
 ## Host Connection
 

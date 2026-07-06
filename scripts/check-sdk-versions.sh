@@ -39,11 +39,28 @@ add_version \
   "android:gradle.properties" \
   "$(sed -n 's/^ansightAndroidVersion=//p' "${repo_root}/src/android/gradle.properties" | head -n 1)"
 
+for gradle_file in "${repo_root}"/src/android/*/build.gradle.kts; do
+  android_fallback_version="$(extract_first 'providers\.gradleProperty\("ansightAndroidVersion"\)\.orElse\("([^"]+)"\)' "${gradle_file}")"
+  if [[ -n "${android_fallback_version}" ]]; then
+    add_version \
+      "android:$(basename "$(dirname "${gradle_file}")") fallback" \
+      "${android_fallback_version}"
+  fi
+done
+
+add_version \
+  "android:test-app validation default" \
+  "$(extract_first 'DEFAULT_ANDROID_SDK_ARTIFACT = "ai\.ansight:ansight-android:([^"]+)"' "${repo_root}/scripts/validate_android_test_apps.py")"
+
 for podspec in "${repo_root}"/src/ios/*.podspec; do
   add_version \
     "ios:$(basename "${podspec}")" \
     "$(extract_first 's\.version\s*=\s*"([^"]+)"' "${podspec}")"
 done
+
+add_version \
+  "ios:runtime SDK metadata" \
+  "$(extract_first 'public static let version = "([^"]+)"' "${repo_root}/src/ios/Sources/AnsightCore/AnsightSDKInfo.swift")"
 
 add_version \
   "react-native:package.json" \
@@ -60,6 +77,10 @@ add_version \
 add_version \
   "react-native:README Maven" \
   "$(extract_first 'ai\.ansight:ansight-android:([^`]+)' "${repo_root}/src/react-native/README.md")"
+
+add_version \
+  "ios-native-harness:published SwiftPM" \
+  "$(extract_first 'exactVersion:\s*([0-9A-Za-z.+-]+)' "${repo_root}/src/ios/Examples/NativeHarness/project.published.yml")"
 
 printf '%-42s %s\n' "Surface" "Version"
 printf '%-42s %s\n' "-------" "-------"

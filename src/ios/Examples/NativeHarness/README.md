@@ -19,6 +19,26 @@ open AnsightNativeHarness.xcodeproj
 
 Run the `AnsightNativeHarness` scheme on an iOS simulator or device.
 
+## Package Source
+
+The default project uses the local SwiftPM package at `src/ios`:
+
+```sh
+xcodegen generate --spec project.yml
+open AnsightNativeHarness.xcodeproj
+```
+
+To validate the published SwiftPM package for the current SDK version:
+
+```sh
+xcodegen generate --spec project.published.yml
+open AnsightNativeHarnessPublished.xcodeproj
+```
+
+Published SwiftPM validation requires tags created after the repository root
+`Package.swift` was added. Older tags that only contain `src/ios/Package.swift`
+cannot be resolved by SwiftPM from the Git repository URL.
+
 ## Pairing
 
 The app initializes the SDK on launch and registers the aggregate remote tools through:
@@ -52,6 +72,10 @@ After pairing with Ansight Studio, validate:
 - Database tools: `documents/ansight-harness/sample.sqlite`, tables `harness_events`, `harness_orders`, `harness_inventory`, and `harness_navigation_events`.
 - Secure-storage tools: service `ai.ansight.ios.native-harness.secure`, key `ansight.harness.token`.
 - Custom tools: `harness.state.snapshot`, `harness.reflection_roots.list`, and `harness.reflection_root.inspect`.
+
+> **Important:** Screen capture will result in an FPS drop while frames are
+> rendered, encoded, and sent. Use this harness to validate capture fidelity, not
+> to measure baseline rendering performance with capture enabled.
 
 The `Re-seed Harness Data` button rewrites the sample Preferences, Documents, SQLite, and Keychain data without reinstalling the app.
 

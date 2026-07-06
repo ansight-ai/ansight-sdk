@@ -5,7 +5,7 @@ plugins {
 }
 
 group = providers.gradleProperty("ansightAndroidGroup").orElse("ai.ansight").get()
-version = providers.gradleProperty("ansightAndroidVersion").orElse("0.1.0-pre1").get()
+version = providers.gradleProperty("ansightAndroidVersion").orElse("1.0.2-preview.2").get()
 
 val ansightAndroidArtifactId = providers
     .gradleProperty("ansightAndroidCoreArtifactId")
@@ -15,9 +15,14 @@ android {
     namespace = "ai.ansight.runtime"
     compileSdk = 35
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     defaultConfig {
         minSdk = 16
         consumerProguardFiles("consumer-rules.pro")
+        buildConfigField("String", "ANSIGHT_SDK_VERSION", "\"${project.version}\"")
     }
 
     compileOptions {

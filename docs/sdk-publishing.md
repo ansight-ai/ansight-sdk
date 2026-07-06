@@ -29,9 +29,15 @@ The version script updates:
 
 - `src/dotnet/Directory.Build.props`
 - `src/android/gradle.properties`
+- Android Gradle module fallback versions and Android validation defaults
 - native iOS podspec versions
+- iOS runtime SDK metadata reported to Ansight Studio
 - `src/react-native/package.json`
 - the React Native Android dependency and README version references
+
+`scripts/check-sdk-versions.sh` verifies both package metadata and
+runtime-reported SDK metadata, so the version shown inside Ansight Studio stays
+aligned with the published package version.
 
 ## Dry Run
 
@@ -150,6 +156,17 @@ at the repository Git tag and prefix source paths with `src/ios/`.
 React Native publishes only the JS/native bridge package to npm. The package
 expects the matching native Maven and CocoaPods versions to be available before
 app consumers install it.
+
+## Validation
+
+After publishing, validate package availability and harness consumption with:
+
+```bash
+scripts/validate-published-sdk-packages.sh --version <version>
+```
+
+Harness commands for local versus published package validation are documented in
+[SDK Package Validation](sdk-package-validation.md).
 
 ## References
 

@@ -235,7 +235,6 @@ data class DeviceNetworkProfile(
 }
 
 object DeviceAppProfileCollector {
-    private const val sdkVersion = "0.1.0-pre1"
     private const val androidRuntimeCode = 1
     private const val kotlinRuntimeCode = 250
     private const val javaRuntimeCode = 251
@@ -250,7 +249,7 @@ object DeviceAppProfileCollector {
             sdk = DeviceSdkProfile(
                 name = "Ansight Android",
                 packageId = "ai.ansight.runtime",
-                version = sdkVersion,
+                version = BuildConfig.ANSIGHT_SDK_VERSION,
                 language = "kotlin",
                 platformFamily = "android",
                 capabilities = listOf(

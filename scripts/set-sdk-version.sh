@@ -42,9 +42,16 @@ perl -0pi -e 's/(<AnsightPackageVersion>).*?(<\/AnsightPackageVersion>)/$1$ENV{V
 perl -0pi -e 's/^ansightAndroidVersion=.*/ansightAndroidVersion=$ENV{VERSION}/m' \
   "${repo_root}/src/android/gradle.properties"
 
+for gradle_file in "${repo_root}"/src/android/*/build.gradle.kts; do
+  perl -0pi -e 's/(providers\.gradleProperty\("ansightAndroidVersion"\)\.orElse\(")[^"]+("\)\.get\(\))/$1$ENV{VERSION}$2/g' "${gradle_file}"
+done
+
 for podspec in "${repo_root}"/src/ios/*.podspec; do
   perl -0pi -e 's/(s\.version\s*=\s*")[^"]+(")/$1$ENV{VERSION}$2/g' "${podspec}"
 done
+
+perl -0pi -e 's/(public static let version = ")[^"]+(")/$1$ENV{VERSION}$2/g' \
+  "${repo_root}/src/ios/Sources/AnsightCore/AnsightSDKInfo.swift"
 
 PACKAGE_JSON="${repo_root}/src/react-native/package.json" node <<'NODE'
 const fs = require("fs");
@@ -58,6 +65,15 @@ NODE
 
 perl -0pi -e 's/(ai\.ansight:ansight-android:)[^")]+/$1$ENV{VERSION}/g' \
   "${repo_root}/src/react-native/android/build.gradle"
+
+perl -0pi -e 's/(ai\.ansight:[A-Za-z0-9_.-]+:)[0-9][0-9A-Za-z.+-]*/$1$ENV{VERSION}/g' \
+  "${repo_root}/src/android/README.md"
+
+perl -0pi -e 's/(DEFAULT_ANDROID_SDK_ARTIFACT = "ai\.ansight:ansight-android:)[^"]+(")/$1$ENV{VERSION}$2/g' \
+  "${repo_root}/scripts/validate_android_test_apps.py"
+
+perl -0pi -e 's/(exactVersion:\s*)[0-9A-Za-z.+-]+/$1$ENV{VERSION}/g' \
+  "${repo_root}/src/ios/Examples/NativeHarness/project.published.yml"
 
 perl -0pi -e 's/(CocoaPods: `Ansight`, `AnsightObjC` version `)[^`]+(`)/$1$ENV{VERSION}$2/g; s/(ai\.ansight:ansight-android:)[^`]+/$1$ENV{VERSION}/g' \
   "${repo_root}/src/react-native/README.md"
