@@ -36,6 +36,7 @@ export interface AnsightSessionJpegCaptureOptions {
   intervalMilliseconds?: number;
   quality?: number;
   maxWidth?: number;
+  captureGpuBackedSurfaces?: boolean;
 }
 
 export interface AnsightTouchCaptureOptions {
@@ -261,7 +262,12 @@ export class AnsightOptionsBuilder {
   withReactNativeMemoryProfiling(options?: AnsightReactNativeMemoryOptions): this;
   withoutReactNativeMemoryProfiling(): this;
   withSessionJpegCapture(options?: AnsightSessionJpegCaptureOptions): this;
-  withSessionJpegCapture(intervalMilliseconds: number, quality?: number, maxWidth?: number | null): this;
+  withSessionJpegCapture(
+    intervalMilliseconds: number,
+    quality?: number,
+    maxWidth?: number | null,
+    captureGpuBackedSurfaces?: boolean
+  ): this;
   withoutSessionJpegCapture(): this;
   withTouchCapture(touchCapture?: AnsightTouchCaptureOptions): this;
   withoutTouchCapture(): this;

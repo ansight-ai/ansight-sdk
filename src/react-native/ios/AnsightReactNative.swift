@@ -925,7 +925,12 @@ final class AnsightReactNative: RCTEventEmitter {
                         defaultValue: AnsightSessionJpegCaptureOptions.defaultIntervalMilliseconds
                     ),
                     quality: intValue(jpeg, "quality", defaultValue: AnsightSessionJpegCaptureOptions.defaultQuality),
-                    maxWidth: optionalInt(jpeg, "maxWidth") ?? AnsightSessionJpegCaptureOptions.defaultMaxWidth
+                    maxWidth: optionalInt(jpeg, "maxWidth") ?? AnsightSessionJpegCaptureOptions.defaultMaxWidth,
+                    captureGpuBackedSurfaces: boolValue(
+                        jpeg,
+                        "captureGpuBackedSurfaces",
+                        defaultValue: AnsightSessionJpegCaptureOptions.defaultCaptureGpuBackedSurfaces
+                    )
                 )
             }
         }
@@ -982,8 +987,12 @@ final class AnsightReactNative: RCTEventEmitter {
 
     private func remoteToolOptions(_ dictionary: NSDictionary?) -> AnsightRemoteToolOptions {
         let remoteTools = dictionary?["remoteTools"] as? NSDictionary
+        let useNativeAllInOneDefaults = boolValue(dictionary, "useNativeAllInOneDefaults", defaultValue: false)
         return AnsightRemoteToolOptions(
-            visualTree: toolSuiteEnabled(remoteTools?["visualTree"]),
+            visualTree: toolSuiteEnabled(
+                remoteTools?["visualTree"],
+                defaultValue: useNativeAllInOneDefaults
+            ),
             database: databaseToolsOptions(remoteTools?["database"] as? NSDictionary),
             fileSystem: fileSystemToolsOptions(remoteTools?["fileSystem"] as? NSDictionary),
             preferences: preferencesToolsOptions(remoteTools?["preferences"] as? NSDictionary),
@@ -994,14 +1003,14 @@ final class AnsightReactNative: RCTEventEmitter {
         )
     }
 
-    private func toolSuiteEnabled(_ value: Any?) -> Bool {
+    private func toolSuiteEnabled(_ value: Any?, defaultValue: Bool = false) -> Bool {
         if let enabled = value as? Bool {
             return enabled
         }
         if let dictionary = value as? NSDictionary {
             return boolValue(dictionary, "enabled", defaultValue: true)
         }
-        return false
+        return defaultValue
     }
 
     private func fileSystemToolsOptions(_ dictionary: NSDictionary?) -> AnsightFileSystemToolsOptions {
@@ -1241,7 +1250,12 @@ final class AnsightReactNative: RCTEventEmitter {
                 defaultValue: AnsightSessionJpegCaptureOptions.defaultIntervalMilliseconds
             ),
             quality: intValue(dictionary, "quality", defaultValue: AnsightSessionJpegCaptureOptions.defaultQuality),
-            maxWidth: optionalInt(dictionary, "maxWidth") ?? AnsightSessionJpegCaptureOptions.defaultMaxWidth
+            maxWidth: optionalInt(dictionary, "maxWidth") ?? AnsightSessionJpegCaptureOptions.defaultMaxWidth,
+            captureGpuBackedSurfaces: boolValue(
+                dictionary,
+                "captureGpuBackedSurfaces",
+                defaultValue: AnsightSessionJpegCaptureOptions.defaultCaptureGpuBackedSurfaces
+            )
         )
     }
 
@@ -1289,6 +1303,7 @@ final class AnsightReactNative: RCTEventEmitter {
                 "intervalMilliseconds": capture.intervalMilliseconds,
                 "quality": capture.quality,
                 "maxWidth": capture.maxWidth as Any,
+                "captureGpuBackedSurfaces": capture.captureGpuBackedSurfaces,
             ]
         } else {
             dictionary["sessionJpegCapture"] = NSNull()

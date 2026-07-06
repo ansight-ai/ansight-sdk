@@ -21,6 +21,7 @@ final class AnsightAggregateTests: XCTestCase {
         XCTAssertEqual(options.sessionJpegCapture?.intervalMilliseconds, 2_000)
         XCTAssertEqual(options.sessionJpegCapture?.quality, 60)
         XCTAssertEqual(options.sessionJpegCapture?.maxWidth, 480)
+        XCTAssertEqual(options.sessionJpegCapture?.captureGpuBackedSurfaces, true)
         XCTAssertNotNil(options.touchCapture)
     }
 

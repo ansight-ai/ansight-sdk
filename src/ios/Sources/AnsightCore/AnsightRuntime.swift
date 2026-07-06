@@ -28,6 +28,9 @@ public final class AnsightRuntime: @unchecked Sendable {
         PairingFailureCodes.pairingProofInvalid,
     ]
 
+    private static let screenCaptureRenderBudgetMilliseconds = 14
+    private static let screenCaptureMinimumAdaptiveMaxWidth = 720
+
     private let lock = NSLock()
     private let pairingDocumentService = PairingConfigDocumentService()
     private var connector: any PairingSessionConnecting = PairingSessionConnector()
@@ -80,6 +83,10 @@ public final class AnsightRuntime: @unchecked Sendable {
     private var screenFramesCaptured = 0
     private var screenFramesSent = 0
     private var lastScreenCaptureMessage: String?
+    private var lastScreenCaptureRenderMilliseconds: Int?
+    private var lastScreenCaptureEncodeMilliseconds: Int?
+    private var lastScreenCaptureSendMilliseconds: Int?
+    private var lastScreenCaptureTotalMilliseconds: Int?
     private var lastFrameRate: Int?
     private var touchCaptureRuntimeEnabled = true
     private var touchCaptureGuard: (@Sendable () -> Bool)?
@@ -140,6 +147,10 @@ public final class AnsightRuntime: @unchecked Sendable {
             screenFramesCaptured = 0
             screenFramesSent = 0
             lastScreenCaptureMessage = nil
+            lastScreenCaptureRenderMilliseconds = nil
+            lastScreenCaptureEncodeMilliseconds = nil
+            lastScreenCaptureSendMilliseconds = nil
+            lastScreenCaptureTotalMilliseconds = nil
             lastFrameRate = nil
             frameRateTrackingEnabled = validatedOptions.enableFramesPerSecond
             touchCaptureRuntimeEnabled = validatedOptions.touchCapture != nil
@@ -254,6 +265,10 @@ public final class AnsightRuntime: @unchecked Sendable {
             screenFramesCaptured = 0
             screenFramesSent = 0
             lastScreenCaptureMessage = nil
+            lastScreenCaptureRenderMilliseconds = nil
+            lastScreenCaptureEncodeMilliseconds = nil
+            lastScreenCaptureSendMilliseconds = nil
+            lastScreenCaptureTotalMilliseconds = nil
             lastFrameRate = nil
             touchesCaptured = 0
             touchesSent = 0
@@ -459,6 +474,10 @@ public final class AnsightRuntime: @unchecked Sendable {
         var captureOptions = overrideOptions ?? lock.withLock { options.sessionJpegCapture } ?? AnsightSessionJpegCaptureOptions()
         captureOptions.validate()
 
+        return await captureAndSendScreenFrame(options: captureOptions).operationResult
+    }
+
+    private func captureAndSendScreenFrame(options captureOptions: AnsightSessionJpegCaptureOptions) async -> ScreenCaptureSendResult {
         guard lock.withLock({ initialized && active && sessionOpen && connectionState == .connected }),
               liveTransport.isOpen
         else {
@@ -466,15 +485,20 @@ public final class AnsightRuntime: @unchecked Sendable {
             lock.withLock {
                 lastScreenCaptureMessage = message
             }
-            return .failure(message)
+            return ScreenCaptureSendResult(operationResult: .failure(message))
         }
 
         do {
-            let frame = try await AnsightScreenCapture.capture(options: captureOptions)
+            let captureStarted = AnsightTiming.now()
+            let capture = try await AnsightScreenCapture.capture(options: captureOptions)
+            let frame = capture.frame
             let payload = SessionJpegWireProtocol.encode(frame)
+            let sendStarted = AnsightTiming.now()
             let result = await liveTransport.sendData(payload)
+            let sendMilliseconds = AnsightTiming.elapsedMilliseconds(since: sendStarted)
+            let totalMilliseconds = AnsightTiming.elapsedMilliseconds(since: captureStarted)
             let message = result.success
-                ? "Captured and sent screen frame \(frame.width)x\(frame.height) (\(frame.jpegData.count) bytes)."
+                ? "Captured and sent screen frame \(frame.width)x\(frame.height) (\(frame.jpegData.count) bytes, render \(capture.renderMilliseconds) ms, encode \(capture.encodeMilliseconds) ms, send \(sendMilliseconds) ms)."
                 : result.message
 
             lock.withLock {
@@ -483,17 +507,29 @@ public final class AnsightRuntime: @unchecked Sendable {
                     screenFramesSent += 1
                 }
                 lastScreenCaptureMessage = message
+                lastScreenCaptureRenderMilliseconds = capture.renderMilliseconds
+                lastScreenCaptureEncodeMilliseconds = capture.encodeMilliseconds
+                lastScreenCaptureSendMilliseconds = sendMilliseconds
+                lastScreenCaptureTotalMilliseconds = totalMilliseconds
                 sessionMessage = message
             }
 
-            return OperationResult(success: result.success, message: message)
+            return ScreenCaptureSendResult(
+                operationResult: OperationResult(success: result.success, message: message),
+                renderMilliseconds: capture.renderMilliseconds,
+                frameWidth: frame.width
+            )
         } catch {
             let message = "Failed to capture screen frame: \(error.localizedDescription)"
             lock.withLock {
                 lastScreenCaptureMessage = message
+                lastScreenCaptureRenderMilliseconds = nil
+                lastScreenCaptureEncodeMilliseconds = nil
+                lastScreenCaptureSendMilliseconds = nil
+                lastScreenCaptureTotalMilliseconds = nil
                 sessionMessage = message
             }
-            return .failure(message)
+            return ScreenCaptureSendResult(operationResult: .failure(message))
         }
     }
 
@@ -1674,6 +1710,10 @@ public final class AnsightRuntime: @unchecked Sendable {
                 screenFramesCaptured: screenFramesCaptured,
                 screenFramesSent: screenFramesSent,
                 lastScreenCaptureMessage: lastScreenCaptureMessage,
+                lastScreenCaptureRenderMilliseconds: lastScreenCaptureRenderMilliseconds,
+                lastScreenCaptureEncodeMilliseconds: lastScreenCaptureEncodeMilliseconds,
+                lastScreenCaptureSendMilliseconds: lastScreenCaptureSendMilliseconds,
+                lastScreenCaptureTotalMilliseconds: lastScreenCaptureTotalMilliseconds,
                 frameRateCaptureActive: frameRateSampler != nil,
                 lastFrameRate: lastFrameRate,
                 touchCaptureEnabled: touchCaptureRuntimeEnabled && options.touchCapture != nil,
@@ -2320,6 +2360,8 @@ public final class AnsightRuntime: @unchecked Sendable {
     }
 
     private func runScreenCaptureLoop(options: AnsightSessionJpegCaptureOptions, generation: Int) async {
+        var captureOptions = options
+
         while !Task.isCancelled {
             guard liveTransport.isOpen,
                   lock.withLock({ active && sessionOpen && screenCaptureGeneration == generation })
@@ -2327,12 +2369,21 @@ public final class AnsightRuntime: @unchecked Sendable {
                 break
             }
 
-            let result = await captureScreenFrame(options: options)
-            if !result.success && !liveTransport.isOpen {
+            let result = await captureAndSendScreenFrame(options: captureOptions)
+            if !result.operationResult.success && !liveTransport.isOpen {
                 break
             }
 
-            try? await Task.sleep(nanoseconds: UInt64(options.intervalMilliseconds) * 1_000_000)
+            if let adjustedMaxWidth = Self.adaptiveScreenCaptureMaxWidth(
+                configuredMaxWidth: options.maxWidth,
+                currentMaxWidth: captureOptions.maxWidth,
+                frameWidth: result.frameWidth,
+                renderMilliseconds: result.renderMilliseconds
+            ) {
+                captureOptions.maxWidth = adjustedMaxWidth
+            }
+
+            try? await Task.sleep(nanoseconds: UInt64(captureOptions.intervalMilliseconds) * 1_000_000)
         }
 
         lock.withLock {
@@ -2341,6 +2392,33 @@ public final class AnsightRuntime: @unchecked Sendable {
                 lastScreenCaptureMessage = "Screen capture stopped."
             }
         }
+    }
+
+    static func adaptiveScreenCaptureMaxWidth(
+        configuredMaxWidth: Int?,
+        currentMaxWidth: Int?,
+        frameWidth: Int?,
+        renderMilliseconds: Int?
+    ) -> Int? {
+        guard let renderMilliseconds,
+              renderMilliseconds > screenCaptureRenderBudgetMilliseconds
+        else {
+            return currentMaxWidth
+        }
+
+        let currentWidth = currentMaxWidth ?? frameWidth ?? configuredMaxWidth
+        guard let currentWidth,
+              currentWidth > screenCaptureMinimumAdaptiveMaxWidth
+        else {
+            return currentMaxWidth
+        }
+
+        let downshiftedWidth = Int((Double(currentWidth) * 0.85).rounded(.down))
+        let nextWidth = max(screenCaptureMinimumAdaptiveMaxWidth, downshiftedWidth)
+        guard nextWidth < currentWidth else {
+            return currentMaxWidth
+        }
+        return nextWidth
     }
 
     private func openLiveTransportSession(url: URL, config: PairingConfig, clientName: String) async -> LiveSessionOpenAttempt {
@@ -2976,6 +3054,22 @@ public final class AnsightRuntime: @unchecked Sendable {
         let listeners: [HostConnectionStatusListener]
         let status: HostConnectionStatus
         let capabilities: HostConnectionCapabilities
+    }
+
+    private struct ScreenCaptureSendResult {
+        let operationResult: OperationResult
+        let renderMilliseconds: Int?
+        let frameWidth: Int?
+
+        init(
+            operationResult: OperationResult,
+            renderMilliseconds: Int? = nil,
+            frameWidth: Int? = nil
+        ) {
+            self.operationResult = operationResult
+            self.renderMilliseconds = renderMilliseconds
+            self.frameWidth = frameWidth
+        }
     }
 
     private func cachedPairingProfile() -> ResolvedConnectionRequest? {

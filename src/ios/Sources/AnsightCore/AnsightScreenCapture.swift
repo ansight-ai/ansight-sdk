@@ -5,27 +5,50 @@ import UIKit
 #endif
 
 enum AnsightScreenCapture {
-    @MainActor
-    static func capture(options: AnsightSessionJpegCaptureOptions) throws -> AnsightCapturedScreenFrame {
+    static func capture(options: AnsightSessionJpegCaptureOptions) async throws -> AnsightScreenCaptureResult {
         #if canImport(UIKit)
         let capturedAtUtc = AnsightClock.isoNow()
-        let snapshot = try AnsightScreenSnapshotRenderer.capture(
-            format: .jpeg,
-            quality: options.quality,
-            maxWidth: options.maxWidth,
-            afterScreenUpdates: false
-        )
+        let renderStarted = AnsightTiming.now()
+        let renderedImage = try await MainActor.run {
+            try AnsightScreenSnapshotRenderer.renderTargetImage(
+                maxWidth: options.maxWidth,
+                afterScreenUpdates: false,
+                opaque: true,
+                renderMode: options.captureGpuBackedSurfaces ? .hierarchy : .layer
+            )
+        }
+        let renderMilliseconds = AnsightTiming.elapsedMilliseconds(since: renderStarted)
 
-        return AnsightCapturedScreenFrame(
+        let encodeStarted = AnsightTiming.now()
+        let jpegData = try AnsightScreenSnapshotRenderer.encode(
+            renderedImage,
+            format: .jpeg,
+            quality: options.quality
+        )
+        let encodeMilliseconds = AnsightTiming.elapsedMilliseconds(since: encodeStarted)
+
+        let frame = AnsightCapturedScreenFrame(
             capturedAtUtc: capturedAtUtc,
             capturedAtEpochMilliseconds: AnsightClock.epochMilliseconds(fromISO8601: capturedAtUtc),
-            width: snapshot.width,
-            height: snapshot.height,
+            width: renderedImage.width,
+            height: renderedImage.height,
             quality: options.quality,
-            jpegData: snapshot.data
+            jpegData: jpegData
+        )
+
+        return AnsightScreenCaptureResult(
+            frame: frame,
+            renderMilliseconds: renderMilliseconds,
+            encodeMilliseconds: encodeMilliseconds
         )
         #else
         throw AnsightScreenCaptureError.unavailable
         #endif
     }
+}
+
+struct AnsightScreenCaptureResult: Sendable, Equatable {
+    let frame: AnsightCapturedScreenFrame
+    let renderMilliseconds: Int
+    let encodeMilliseconds: Int
 }

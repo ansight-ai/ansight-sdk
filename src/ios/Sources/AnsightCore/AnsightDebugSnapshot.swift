@@ -25,6 +25,10 @@ public struct AnsightDebugSnapshot: Sendable, Codable {
     public let screenFramesCaptured: Int
     public let screenFramesSent: Int
     public let lastScreenCaptureMessage: String?
+    public let lastScreenCaptureRenderMilliseconds: Int?
+    public let lastScreenCaptureEncodeMilliseconds: Int?
+    public let lastScreenCaptureSendMilliseconds: Int?
+    public let lastScreenCaptureTotalMilliseconds: Int?
     public let frameRateCaptureActive: Bool
     public let lastFrameRate: Int?
     public let touchCaptureEnabled: Bool

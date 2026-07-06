@@ -72,11 +72,13 @@ data class AnsightSessionJpegCaptureOptions(
     val intervalMilliseconds: Int = DefaultIntervalMilliseconds,
     val quality: Int = DefaultQuality,
     val maxWidth: Int? = DefaultMaxWidth,
+    val captureGpuBackedSurfaces: Boolean = DefaultCaptureGpuBackedSurfaces,
 ) {
     companion object {
         const val DefaultIntervalMilliseconds = 2_000
         const val DefaultQuality = 60
         const val DefaultMaxWidth = 480
+        const val DefaultCaptureGpuBackedSurfaces = true
     }
 
     fun validated(): AnsightSessionJpegCaptureOptions {

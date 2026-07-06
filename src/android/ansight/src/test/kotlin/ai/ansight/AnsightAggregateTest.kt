@@ -83,6 +83,7 @@ class AnsightAggregateTest {
         assertEquals(1_500, options.sessionJpegCapture?.intervalMilliseconds)
         assertEquals(65, options.sessionJpegCapture?.quality)
         assertEquals(600, options.sessionJpegCapture?.maxWidth)
+        assertEquals(true, options.sessionJpegCapture?.captureGpuBackedSurfaces)
     }
 
     @Test

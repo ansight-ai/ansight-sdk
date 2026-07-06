@@ -7,18 +7,50 @@ enum SessionJpegWireProtocol {
 
     static func encode(_ frame: AnsightCapturedScreenFrame) -> Data {
         var payload = Data(count: headerSize + frame.jpegData.count)
-        payload[0] = UInt8(ascii: "A")
-        payload[1] = UInt8(ascii: "S")
-        payload[2] = UInt8(ascii: "J")
-        payload[3] = UInt8(ascii: "P")
-        payload[4] = version
-        payload[5] = formatJpeg
-        payload[6] = UInt8(max(1, min(frame.quality, 100)))
-        payload.writeLittleEndian(frame.capturedAtEpochMilliseconds, at: 8)
-        payload.writeLittleEndian(Int32(max(0, frame.width)), at: 16)
-        payload.writeLittleEndian(Int32(max(0, frame.height)), at: 20)
-        payload.writeLittleEndian(Int32(frame.jpegData.count), at: 24)
-        payload.replaceSubrange(headerSize..<payload.count, with: frame.jpegData)
+        payload.withUnsafeMutableBytes { buffer in
+            guard let baseAddress = buffer.baseAddress else {
+                return
+            }
+
+            let bytes = baseAddress.assumingMemoryBound(to: UInt8.self)
+            bytes[0] = UInt8(ascii: "A")
+            bytes[1] = UInt8(ascii: "S")
+            bytes[2] = UInt8(ascii: "J")
+            bytes[3] = UInt8(ascii: "P")
+            bytes[4] = version
+            bytes[5] = formatJpeg
+            bytes[6] = UInt8(max(1, min(frame.quality, 100)))
+            bytes[7] = 0
+            writeLittleEndian(frame.capturedAtEpochMilliseconds, to: baseAddress, at: 8)
+            writeLittleEndian(Int32(max(0, frame.width)), to: baseAddress, at: 16)
+            writeLittleEndian(Int32(max(0, frame.height)), to: baseAddress, at: 20)
+            writeLittleEndian(Int32(frame.jpegData.count), to: baseAddress, at: 24)
+
+            frame.jpegData.withUnsafeBytes { jpegBuffer in
+                guard let jpegBaseAddress = jpegBuffer.baseAddress else {
+                    return
+                }
+
+                baseAddress.advanced(by: headerSize).copyMemory(
+                    from: jpegBaseAddress,
+                    byteCount: frame.jpegData.count
+                )
+            }
+        }
         return payload
+    }
+
+    private static func writeLittleEndian(_ value: Int32, to baseAddress: UnsafeMutableRawPointer, at offset: Int) {
+        var littleEndian = value.littleEndian
+        Swift.withUnsafeBytes(of: &littleEndian) { bytes in
+            baseAddress.advanced(by: offset).copyMemory(from: bytes.baseAddress!, byteCount: bytes.count)
+        }
+    }
+
+    private static func writeLittleEndian(_ value: Int64, to baseAddress: UnsafeMutableRawPointer, at offset: Int) {
+        var littleEndian = value.littleEndian
+        Swift.withUnsafeBytes(of: &littleEndian) { bytes in
+            baseAddress.advanced(by: offset).copyMemory(from: bytes.baseAddress!, byteCount: bytes.count)
+        }
     }
 }

@@ -101,6 +101,7 @@ class AnsightOptionsTest {
         assertEquals(2_000, options.sessionJpegCapture?.intervalMilliseconds)
         assertEquals(60, options.sessionJpegCapture?.quality)
         assertEquals(480, options.sessionJpegCapture?.maxWidth)
+        assertEquals(true, options.sessionJpegCapture?.captureGpuBackedSurfaces)
         assertNotNull(options.touchCapture)
     }
 
@@ -140,6 +141,7 @@ class AnsightOptionsTest {
         assertEquals(2_000, options.sessionJpegCapture?.intervalMilliseconds)
         assertEquals(60, options.sessionJpegCapture?.quality)
         assertEquals(480, options.sessionJpegCapture?.maxWidth)
+        assertEquals(true, options.sessionJpegCapture?.captureGpuBackedSurfaces)
         assertEquals(12, options.touchCapture?.moveCaptureFramesPerSecond)
         assertEquals(AnsightToolGuard.ReadWrite, options.toolGuard)
         assertEquals("android", options.customProperties["runtime"]?.get("sdk"))
@@ -149,6 +151,15 @@ class AnsightOptionsTest {
         assertEquals(60, options.hostConnection.connectionProfileRetentionSeconds)
         assertTrue(options.initialTools.any { it.definition.id == "app.echo" })
         assertTrue(options.artifactProviders.any { it.descriptor.id == "app.report" })
+    }
+
+    @Test
+    fun builderCanDisableGpuBackedSurfaceCapture() {
+        val options = AnsightOptions.createBuilder()
+            .withSessionJpegCapture(captureGpuBackedSurfaces = false)
+            .build()
+
+        assertEquals(false, options.sessionJpegCapture?.captureGpuBackedSurfaces)
     }
 
     private class TestArtifactProvider : AndroidArtifactProvider {

@@ -28,6 +28,7 @@ final class AnsightOptionsBuilderTests: XCTestCase {
         XCTAssertEqual(options.sessionJpegCapture?.intervalMilliseconds, 2_000)
         XCTAssertEqual(options.sessionJpegCapture?.quality, 60)
         XCTAssertEqual(options.sessionJpegCapture?.maxWidth, 480)
+        XCTAssertEqual(options.sessionJpegCapture?.captureGpuBackedSurfaces, true)
         XCTAssertEqual(options.touchCapture?.moveCaptureFramesPerSecond, 12)
         XCTAssertEqual(options.toolGuard, .readWrite)
         XCTAssertEqual(options.customProperties["runtime"]?["sdk"], "ios")
@@ -51,5 +52,35 @@ final class AnsightOptionsBuilderTests: XCTestCase {
         XCTAssertEqual(options.sampleFrequencyMilliseconds, 600)
         XCTAssertEqual(options.retentionPeriodSeconds, 180)
         XCTAssertEqual(options.toolGuard, .fullAccess)
+    }
+
+    func testBuilderCanDisableGpuBackedSurfaceCapture() throws {
+        let options = try AnsightOptions.createBuilder()
+            .withSessionJpegCapture(captureGpuBackedSurfaces: false)
+            .build()
+
+        XCTAssertEqual(options.sessionJpegCapture?.captureGpuBackedSurfaces, false)
+    }
+
+    func testSessionJpegCaptureDecodeDefaultsGpuBackedSurfaceCapture() throws {
+        let json = #"{"intervalMilliseconds":1000,"quality":70,"maxWidth":null}"#
+        let data = try XCTUnwrap(json.data(using: .utf8))
+
+        let options = try JSONDecoder().decode(AnsightSessionJpegCaptureOptions.self, from: data)
+
+        XCTAssertNil(options.maxWidth)
+        XCTAssertEqual(options.captureGpuBackedSurfaces, true)
+    }
+
+    func testSessionJpegCaptureDecodePreservesGpuBackedSurfaceCapture() throws {
+        let json = #"{"captureGpuBackedSurfaces":false}"#
+        let data = try XCTUnwrap(json.data(using: .utf8))
+
+        let options = try JSONDecoder().decode(AnsightSessionJpegCaptureOptions.self, from: data)
+
+        XCTAssertEqual(options.intervalMilliseconds, 2_000)
+        XCTAssertEqual(options.quality, 60)
+        XCTAssertEqual(options.maxWidth, 480)
+        XCTAssertEqual(options.captureGpuBackedSurfaces, false)
     }
 }

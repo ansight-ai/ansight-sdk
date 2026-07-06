@@ -267,6 +267,7 @@ class AnsightOptionsBuilder {
         intervalMilliseconds: optionsOrIntervalMilliseconds,
         quality: arguments.length > 1 ? arguments[1] : 60,
         maxWidth: arguments.length > 2 ? arguments[2] : 480,
+        captureGpuBackedSurfaces: arguments.length > 3 ? arguments[3] : true,
       };
       return this;
     }

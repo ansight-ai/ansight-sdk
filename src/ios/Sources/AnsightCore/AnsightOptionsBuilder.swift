@@ -77,12 +77,14 @@ public final class AnsightOptionsBuilder {
     public func withSessionJpegCapture(
         intervalMilliseconds: Int = AnsightSessionJpegCaptureOptions.defaultIntervalMilliseconds,
         quality: Int = AnsightSessionJpegCaptureOptions.defaultQuality,
-        maxWidth: Int? = AnsightSessionJpegCaptureOptions.defaultMaxWidth
+        maxWidth: Int? = AnsightSessionJpegCaptureOptions.defaultMaxWidth,
+        captureGpuBackedSurfaces: Bool = AnsightSessionJpegCaptureOptions.defaultCaptureGpuBackedSurfaces
     ) -> AnsightOptionsBuilder {
         options.sessionJpegCapture = AnsightSessionJpegCaptureOptions(
             intervalMilliseconds: intervalMilliseconds,
             quality: quality,
-            maxWidth: maxWidth
+            maxWidth: maxWidth,
+            captureGpuBackedSurfaces: captureGpuBackedSurfaces
         )
         return self
     }

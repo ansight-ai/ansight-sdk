@@ -969,6 +969,48 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertEqual(AnsightRuntime.shared.snapshot().lastFrameRate, 59)
     }
 
+    func testAdaptiveScreenCaptureMaxWidthDownshiftsSlowRenders() {
+        XCTAssertEqual(
+            AnsightRuntime.adaptiveScreenCaptureMaxWidth(
+                configuredMaxWidth: 960,
+                currentMaxWidth: 960,
+                frameWidth: 960,
+                renderMilliseconds: 18
+            ),
+            816
+        )
+
+        XCTAssertEqual(
+            AnsightRuntime.adaptiveScreenCaptureMaxWidth(
+                configuredMaxWidth: nil,
+                currentMaxWidth: nil,
+                frameWidth: 480,
+                renderMilliseconds: 18
+            ),
+            nil
+        )
+
+        XCTAssertEqual(
+            AnsightRuntime.adaptiveScreenCaptureMaxWidth(
+                configuredMaxWidth: 960,
+                currentMaxWidth: 960,
+                frameWidth: 960,
+                renderMilliseconds: 12
+            ),
+            960
+        )
+
+        XCTAssertEqual(
+            AnsightRuntime.adaptiveScreenCaptureMaxWidth(
+                configuredMaxWidth: 720,
+                currentMaxWidth: 720,
+                frameWidth: 720,
+                renderMilliseconds: 18
+            ),
+            720
+        )
+    }
+
     func testTelemetrySequencesContinueAfterRetentionTrim() throws {
         try AnsightRuntime.shared.initialize(
             options: AnsightOptions(

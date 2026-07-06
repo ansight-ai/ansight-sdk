@@ -702,6 +702,10 @@ class AnsightReactNativeModule(
                         ),
                         quality = jpeg.intValue("quality", AnsightSessionJpegCaptureOptions.DefaultQuality),
                         maxWidth = jpeg.optionalInt("maxWidth") ?: AnsightSessionJpegCaptureOptions.DefaultMaxWidth,
+                        captureGpuBackedSurfaces = jpeg.booleanValue(
+                            "captureGpuBackedSurfaces",
+                            AnsightSessionJpegCaptureOptions.DefaultCaptureGpuBackedSurfaces,
+                        ),
                     )
                 },
             )
@@ -762,13 +766,19 @@ class AnsightReactNativeModule(
                 ),
             )
         }
-        return options.withNativeToolOptions(map)
+        return options.withNativeToolOptions(
+            map,
+            enableVisualTreeToolsByDefault = useNativeAllInOneDefaults,
+        )
     }
 
-    private fun AnsightOptions.withNativeToolOptions(map: ReadableMap?): AnsightOptions {
+    private fun AnsightOptions.withNativeToolOptions(
+        map: ReadableMap?,
+        enableVisualTreeToolsByDefault: Boolean,
+    ): AnsightOptions {
         val remoteTools = map.getMapOrNull("remoteTools")
         val builder = AnsightOptions.createBuilder(this)
-        if (remoteTools.toolSuiteEnabled("visualTree")) {
+        if (remoteTools.toolSuiteEnabled("visualTree", enableVisualTreeToolsByDefault)) {
             builder.withVisualTreeTools()
         }
         builder.withDatabaseTools(databaseToolsOptions(remoteTools.getMapOrNull("database")))
@@ -868,6 +878,10 @@ class AnsightReactNativeModule(
             ),
             quality = map.intValue("quality", AnsightSessionJpegCaptureOptions.DefaultQuality),
             maxWidth = map.optionalInt("maxWidth") ?: AnsightSessionJpegCaptureOptions.DefaultMaxWidth,
+            captureGpuBackedSurfaces = map.booleanValue(
+                "captureGpuBackedSurfaces",
+                AnsightSessionJpegCaptureOptions.DefaultCaptureGpuBackedSurfaces,
+            ),
         )
     }
 
@@ -1058,6 +1072,7 @@ class AnsightReactNativeModule(
                     "intervalMilliseconds" to capture.intervalMilliseconds,
                     "quality" to capture.quality,
                     "maxWidth" to capture.maxWidth,
+                    "captureGpuBackedSurfaces" to capture.captureGpuBackedSurfaces,
                 ).toWritableMap())
             } ?: putNull("sessionJpegCapture")
             options.touchCapture?.let { touch ->
@@ -1206,9 +1221,12 @@ private fun ReadableMap?.hasBoolean(name: String): Boolean = this?.hasKey(name) 
 private fun ReadableMap?.hasMap(name: String): Boolean = this?.hasKey(name) == true && this.getType(name) == ReadableType.Map
 private fun ReadableMap?.hasArray(name: String): Boolean = this?.hasKey(name) == true && this.getType(name) == ReadableType.Array
 private fun ReadableMap?.isFalse(name: String): Boolean = this?.hasBoolean(name) == true && !this.getBoolean(name)
-private fun ReadableMap?.toolSuiteEnabled(name: String): Boolean {
-    val map = this ?: return false
-    if (!map.hasKey(name) || map.isNull(name)) {
+private fun ReadableMap?.toolSuiteEnabled(name: String, defaultValue: Boolean = false): Boolean {
+    val map = this ?: return defaultValue
+    if (!map.hasKey(name)) {
+        return defaultValue
+    }
+    if (map.isNull(name)) {
         return false
     }
     return when (map.getType(name)) {

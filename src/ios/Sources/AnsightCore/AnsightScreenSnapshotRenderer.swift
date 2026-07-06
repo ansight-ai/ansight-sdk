@@ -1,6 +1,7 @@
 import Foundation
 
 #if canImport(UIKit)
+import ImageIO
 import UIKit
 #endif
 
@@ -13,28 +14,14 @@ public enum AnsightScreenSnapshotRenderer {
         afterScreenUpdates: Bool = false
     ) throws -> AnsightScreenSnapshot {
         #if canImport(UIKit)
-        guard let image = renderVisibleWindows(afterScreenUpdates: afterScreenUpdates) else {
-            throw AnsightScreenCaptureError.noWindow
-        }
-
-        let scaledImage = scaleIfNeeded(image, maxWidth: maxWidth)
-        guard let cgImage = scaledImage.cgImage else {
-            throw AnsightScreenCaptureError.encodingFailed
-        }
-
-        let data: Data?
-        switch format {
-        case .jpeg:
-            data = scaledImage.jpegData(compressionQuality: CGFloat(max(1, min(quality, 100))) / 100.0)
-        case .png:
-            data = scaledImage.pngData()
-        }
-
-        guard let data, !data.isEmpty else {
-            throw AnsightScreenCaptureError.encodingFailed
-        }
-
-        return AnsightScreenSnapshot(width: cgImage.width, height: cgImage.height, data: data)
+        let renderedImage = try renderTargetImage(
+            maxWidth: maxWidth,
+            afterScreenUpdates: afterScreenUpdates,
+            opaque: format == .jpeg,
+            renderMode: .hierarchy
+        )
+        let data = try encode(renderedImage, format: format, quality: quality)
+        return AnsightScreenSnapshot(width: renderedImage.width, height: renderedImage.height, data: data)
         #else
         throw AnsightScreenCaptureError.unavailable
         #endif
@@ -42,7 +29,52 @@ public enum AnsightScreenSnapshotRenderer {
 
     #if canImport(UIKit)
     @MainActor
-    private static func renderVisibleWindows(afterScreenUpdates: Bool) -> UIImage? {
+    static func renderTargetImage(
+        maxWidth: Int?,
+        afterScreenUpdates: Bool,
+        opaque: Bool,
+        renderMode: AnsightScreenSnapshotRenderMode = .hierarchy
+    ) throws -> AnsightRenderedScreenImage {
+        guard let image = renderVisibleWindows(
+            maxWidth: maxWidth,
+            afterScreenUpdates: afterScreenUpdates,
+            opaque: opaque,
+            renderMode: renderMode
+        ),
+              let cgImage = image.cgImage
+        else {
+            throw AnsightScreenCaptureError.noWindow
+        }
+
+        return AnsightRenderedScreenImage(cgImage: cgImage, width: cgImage.width, height: cgImage.height)
+    }
+
+    static func encode(
+        _ image: AnsightRenderedScreenImage,
+        format: AnsightScreenSnapshotFormat,
+        quality: Int
+    ) throws -> Data {
+        switch format {
+        case .jpeg:
+            return try encodeImage(
+                image.cgImage,
+                typeIdentifier: "public.jpeg" as CFString,
+                properties: [
+                    kCGImageDestinationLossyCompressionQuality as String: CGFloat(max(1, min(quality, 100))) / 100.0,
+                ] as CFDictionary
+            )
+        case .png:
+            return try encodeImage(image.cgImage, typeIdentifier: "public.png" as CFString, properties: nil)
+        }
+    }
+
+    @MainActor
+    private static func renderVisibleWindows(
+        maxWidth: Int?,
+        afterScreenUpdates: Bool,
+        opaque: Bool,
+        renderMode: AnsightScreenSnapshotRenderMode
+    ) -> UIImage? {
         let windows = foregroundWindows()
         guard let referenceWindow = referenceWindow(from: windows) else {
             return nil
@@ -53,14 +85,21 @@ public enum AnsightScreenSnapshotRenderer {
             return nil
         }
 
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = referenceWindow.screen.scale > 0 ? referenceWindow.screen.scale : UIScreen.main.scale
-        format.opaque = false
+        let geometry = renderGeometry(for: referenceWindow, maxWidth: maxWidth)
+        let outputBounds = CGRect(origin: .zero, size: geometry.targetSize)
+        let format = rendererFormat(opaque: opaque)
 
-        let windowSnapshot = UIGraphicsImageRenderer(bounds: bounds, format: format).image { context in
-            context.cgContext.clear(bounds)
+        let windowSnapshot = imageRenderer(size: geometry.targetSize, format: format).image { context in
+            prepareOutput(in: context.cgContext, bounds: outputBounds, opaque: opaque)
+            context.cgContext.scaleBy(x: geometry.scaleX, y: geometry.scaleY)
             for window in windows where window.screen === referenceWindow.screen {
-                draw(window: window, relativeTo: referenceWindow, afterScreenUpdates: afterScreenUpdates, context: context.cgContext)
+                draw(
+                    window: window,
+                    relativeTo: referenceWindow,
+                    afterScreenUpdates: afterScreenUpdates,
+                    renderMode: renderMode,
+                    context: context.cgContext
+                )
             }
         }
 
@@ -68,24 +107,32 @@ public enum AnsightScreenSnapshotRenderer {
             return windowSnapshot
         }
 
-        return renderScreenSnapshot(screen: referenceWindow.screen, bounds: bounds)
+        return renderScreenSnapshot(
+            screen: referenceWindow.screen,
+            bounds: bounds,
+            targetSize: geometry.targetSize,
+            opaque: opaque
+        )
     }
 
     @MainActor
     private static func renderScreenSnapshot(
         screen: UIScreen,
-        bounds: CGRect
+        bounds: CGRect,
+        targetSize: CGSize,
+        opaque: Bool
     ) -> UIImage? {
         // System input surfaces such as keyboards and date pickers are composited
         // outside app windows and only render reliably after a screen update pass.
         let snapshotView = screen.snapshotView(afterScreenUpdates: true)
         snapshotView.frame = bounds
 
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = screen.scale > 0 ? screen.scale : UIScreen.main.scale
-        format.opaque = false
+        let outputBounds = CGRect(origin: .zero, size: targetSize)
+        let format = rendererFormat(opaque: opaque)
 
-        return UIGraphicsImageRenderer(bounds: bounds, format: format).image { context in
+        return imageRenderer(size: targetSize, format: format).image { context in
+            prepareOutput(in: context.cgContext, bounds: outputBounds, opaque: opaque)
+            context.cgContext.scaleBy(x: targetSize.width / bounds.width, y: targetSize.height / bounds.height)
             if !snapshotView.drawHierarchy(in: bounds, afterScreenUpdates: true) {
                 snapshotView.layer.render(in: context.cgContext)
             }
@@ -160,6 +207,7 @@ public enum AnsightScreenSnapshotRenderer {
         window: UIWindow,
         relativeTo referenceWindow: UIWindow,
         afterScreenUpdates: Bool,
+        renderMode: AnsightScreenSnapshotRenderMode,
         context: CGContext
     ) {
         let frame = window === referenceWindow
@@ -174,33 +222,122 @@ public enum AnsightScreenSnapshotRenderer {
         context.translateBy(x: frame.origin.x, y: frame.origin.y)
         context.setAlpha(window.alpha)
 
-        if !window.drawHierarchy(in: CGRect(origin: .zero, size: frame.size), afterScreenUpdates: afterScreenUpdates) {
+        switch renderMode {
+        case .layer:
             window.layer.render(in: context)
+        case .hierarchy:
+            if !window.drawHierarchy(in: CGRect(origin: .zero, size: frame.size), afterScreenUpdates: afterScreenUpdates) {
+                window.layer.render(in: context)
+            }
         }
 
         context.restoreGState()
     }
 
-    private static func scaleIfNeeded(_ image: UIImage, maxWidth: Int?) -> UIImage {
-        guard let maxWidth,
-              let cgImage = image.cgImage,
-              cgImage.width > maxWidth
-        else {
-            return image
+    @MainActor
+    private static var cachedRenderer: CachedImageRenderer?
+
+    @MainActor
+    private static func imageRenderer(size: CGSize, format: UIGraphicsImageRendererFormat) -> UIGraphicsImageRenderer {
+        let width = max(1, Int(size.width.rounded()))
+        let height = max(1, Int(size.height.rounded()))
+        let opaque = format.opaque
+        if let cachedRenderer, cachedRenderer.matches(width: width, height: height, opaque: opaque) {
+            return cachedRenderer.renderer
         }
 
-        let targetWidth = maxWidth
-        let targetHeight = max(1, Int((Double(cgImage.height) * Double(targetWidth) / Double(cgImage.width)).rounded()))
+        let renderer = UIGraphicsImageRenderer(size: size, format: format)
+        cachedRenderer = CachedImageRenderer(width: width, height: height, opaque: opaque, renderer: renderer)
+        return renderer
+    }
+
+    private static func rendererFormat(opaque: Bool) -> UIGraphicsImageRendererFormat {
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
-        format.opaque = false
+        format.opaque = opaque
+        return format
+    }
 
-        return UIGraphicsImageRenderer(
-            size: CGSize(width: targetWidth, height: targetHeight),
-            format: format
-        ).image { _ in
-            image.draw(in: CGRect(x: 0, y: 0, width: targetWidth, height: targetHeight))
+    private static func renderGeometry(for window: UIWindow, maxWidth: Int?) -> RenderGeometry {
+        let bounds = window.bounds
+        let scale = window.screen.scale > 0 ? window.screen.scale : UIScreen.main.scale
+        let sourcePixelWidth = max(1, Int((bounds.width * scale).rounded()))
+        let sourcePixelHeight = max(1, Int((bounds.height * scale).rounded()))
+        let targetWidth = targetWidth(sourcePixelWidth: sourcePixelWidth, maxWidth: maxWidth)
+        let targetHeight = max(1, Int((Double(sourcePixelHeight) * Double(targetWidth) / Double(sourcePixelWidth)).rounded()))
+        let targetSize = CGSize(width: targetWidth, height: targetHeight)
+        return RenderGeometry(
+            targetSize: targetSize,
+            scaleX: targetSize.width / bounds.width,
+            scaleY: targetSize.height / bounds.height
+        )
+    }
+
+    private static func targetWidth(sourcePixelWidth: Int, maxWidth: Int?) -> Int {
+        guard let maxWidth,
+              maxWidth > 0,
+              sourcePixelWidth > maxWidth
+        else {
+            return sourcePixelWidth
+        }
+        return maxWidth
+    }
+
+    private static func prepareOutput(in context: CGContext, bounds: CGRect, opaque: Bool) {
+        if opaque {
+            context.setFillColor(CGColor(gray: 0, alpha: 1))
+            context.fill(bounds)
+        } else {
+            context.clear(bounds)
+        }
+    }
+
+    private static func encodeImage(
+        _ image: CGImage,
+        typeIdentifier: CFString,
+        properties: CFDictionary?
+    ) throws -> Data {
+        let data = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(data, typeIdentifier, 1, nil) else {
+            throw AnsightScreenCaptureError.encodingFailed
+        }
+
+        CGImageDestinationAddImage(destination, image, properties)
+        guard CGImageDestinationFinalize(destination), data.length > 0 else {
+            throw AnsightScreenCaptureError.encodingFailed
+        }
+
+        return data as Data
+    }
+
+    private struct RenderGeometry {
+        let targetSize: CGSize
+        let scaleX: CGFloat
+        let scaleY: CGFloat
+    }
+
+    private struct CachedImageRenderer {
+        let width: Int
+        let height: Int
+        let opaque: Bool
+        let renderer: UIGraphicsImageRenderer
+
+        func matches(width: Int, height: Int, opaque: Bool) -> Bool {
+            self.width == width && self.height == height && self.opaque == opaque
         }
     }
     #endif
 }
+
+#if canImport(UIKit)
+struct AnsightRenderedScreenImage: @unchecked Sendable {
+    let cgImage: CGImage
+    let width: Int
+    let height: Int
+}
+
+enum AnsightScreenSnapshotRenderMode: Sendable {
+    case hierarchy
+    case layer
+}
+#endif

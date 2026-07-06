@@ -66,12 +66,14 @@ class AnsightOptionsBuilder @JvmOverloads constructor(
         intervalMilliseconds: Int = AnsightSessionJpegCaptureOptions.DefaultIntervalMilliseconds,
         quality: Int = AnsightSessionJpegCaptureOptions.DefaultQuality,
         maxWidth: Int? = AnsightSessionJpegCaptureOptions.DefaultMaxWidth,
+        captureGpuBackedSurfaces: Boolean = AnsightSessionJpegCaptureOptions.DefaultCaptureGpuBackedSurfaces,
     ): AnsightOptionsBuilder {
         options = options.copy(
             sessionJpegCapture = AnsightSessionJpegCaptureOptions(
                 intervalMilliseconds = intervalMilliseconds,
                 quality = quality,
                 maxWidth = maxWidth,
+                captureGpuBackedSurfaces = captureGpuBackedSurfaces,
             ),
         )
         return this
