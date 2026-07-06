@@ -77,5 +77,11 @@ fi
 npm pack --dry-run
 
 if [[ "${publish}" == "true" ]]; then
-  npm publish --access public
+  package_version="$(node -p 'require("./package.json").version')"
+  npm_tag="${NPM_TAG:-latest}"
+  if [[ "${package_version}" == *-* && -z "${NPM_TAG:-}" ]]; then
+    npm_tag="preview"
+  fi
+
+  npm publish --access public --tag "${npm_tag}"
 fi
