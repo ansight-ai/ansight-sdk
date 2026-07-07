@@ -1,0 +1,4 @@
+interface:
+  display_name: "SDK Package Validation"
+  short_description: "Validate published Ansight SDK packages"
+  default_prompt: "Use $sdk-package-validation to verify a published Ansight SDK release."

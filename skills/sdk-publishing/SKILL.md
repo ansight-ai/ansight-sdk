@@ -1,17 +1,31 @@
+---
+name: sdk-publishing
+description: >-
+  Publish Ansight SDK package releases. Use when preparing, dry-running, or
+  publishing SDK versions across NuGet, Android Maven/Central, iOS
+  SwiftPM/CocoaPods, and React Native npm packages; when checking version
+  alignment; or when recovering from partial SDK release failures.
+---
+
 # SDK Publishing
 
-This repo ships four package surfaces:
+Use this workflow to release the Ansight SDK package surfaces. Run commands from
+the repository root unless a command explicitly changes directory.
 
-- .NET / MAUI packages to NuGet.
-- Android AARs to a Maven repository, usually Maven Central.
+## Release Surfaces
+
+The repository publishes:
+
+- .NET and MAUI packages to NuGet.
+- Android AARs to Maven, usually Maven Central.
 - iOS SwiftPM through Git tags, with optional CocoaPods specs.
 - React Native to npm.
 
 Run publishing from a committed release branch or tag. Public package registries
-generally do not allow replacing a published version, so version alignment is
-the first release gate.
+generally do not allow replacing an already-published version, so version
+alignment is the first release gate.
 
-## Versioning
+## Version Gate
 
 Check current package metadata:
 
@@ -22,7 +36,7 @@ scripts/check-sdk-versions.sh
 Set a new version across package metadata:
 
 ```bash
-scripts/set-sdk-version.sh 0.2.0-preview.2
+scripts/set-sdk-version.sh <version>
 ```
 
 The version script updates:
@@ -35,9 +49,8 @@ The version script updates:
 - `src/react-native/package.json`
 - the React Native Android dependency and README version references
 
-`scripts/check-sdk-versions.sh` verifies both package metadata and
-runtime-reported SDK metadata, so the version shown inside Ansight Studio stays
-aligned with the published package version.
+Run `scripts/check-sdk-versions.sh` again after version changes. It verifies
+package metadata and runtime-reported SDK metadata.
 
 ## Dry Run
 
@@ -47,7 +60,7 @@ Prepare all artifacts without publishing:
 scripts/publish-all-sdks.sh
 ```
 
-The all-SDK script stops if versions are not aligned. By default it publishes
+The all-SDK script stops when versions are not aligned. By default it publishes
 Android to Maven local, generates release CocoaPods podspecs under
 `build/cocoapods-release-specs`, packs NuGet packages, validates SwiftPM, and
 runs the React Native npm dry-run pack.
@@ -70,18 +83,22 @@ scripts/publish-all-sdks.sh --publish --android-central
 ```
 
 The publish command requires a clean worktree and an explicit Android target:
-`--android-central` or `--android-remote`. It creates and pushes the
-SwiftPM release tag, publishes NuGet packages, uploads Android artifacts to the
+`--android-central` or `--android-remote`. It creates and pushes the SwiftPM
+release tag, publishes NuGet packages, uploads Android artifacts to the
 Sonatype Central Portal, pushes CocoaPods specs, and publishes the React Native
 npm package.
 
-Use `--skip-dotnet`, `--skip-android`, `--skip-ios-swiftpm`,
-`--skip-ios-cocoapods`, or `--skip-react-native` to publish one surface at a
-time after a failed partial release.
+Use these flags to publish one surface at a time after a failed partial release:
+
+- `--skip-dotnet`
+- `--skip-android`
+- `--skip-ios-swiftpm`
+- `--skip-ios-cocoapods`
+- `--skip-react-native`
 
 ## Credentials
 
-Publish scripts automatically load ignored local credentials from:
+Publishing scripts automatically load ignored local credentials from:
 
 ```bash
 .env.publishing.local
@@ -94,7 +111,7 @@ export ANSIGHT_NUGET_API_KEY=...
 export NUGET_SOURCE=https://api.nuget.org/v3/index.json
 ```
 
-Android / Maven Central:
+Android and Maven Central:
 
 ```bash
 export ANSIGHT_GPG_SIGNING_KEY="$(cat private-key.asc)"
@@ -103,7 +120,7 @@ export SONATYPE_CENTRAL_USERNAME=...
 export SONATYPE_CENTRAL_PASSWORD=...
 ```
 
-For a private Maven repository instead of Central:
+Private Maven repository:
 
 ```bash
 export ANSIGHT_MAVEN_URL=https://maven.example.com/releases
@@ -120,7 +137,7 @@ export ANSIGHT_POD_SOURCE_GIT=https://github.com/ansight-ai/ansight-sdk.git
 export ANSIGHT_POD_SOURCE_TAG=v<version>
 ```
 
-For a private specs repo:
+Private CocoaPods specs repository:
 
 ```bash
 export ANSIGHT_COCOAPODS_REPO=ansight-specs
@@ -134,45 +151,34 @@ npm login
 scripts/publish-react-native.sh --publish
 ```
 
-or configure `NPM_TOKEN` in CI.
+CI may use `NPM_TOKEN` instead of `npm login`.
 
 ## Platform Notes
 
-NuGet publishing uses `dotnet nuget push` through the existing
-`src/dotnet/upload-nugets.sh` wrapper.
+NuGet publishing uses `dotnet nuget push` through
+`src/dotnet/upload-nugets.sh`.
 
-Android uses Gradle `maven-publish` for local/private Maven publication. Maven
-Central publication is a two-step flow: publish signed artifacts into a local
-Maven repository directory, then upload that directory as one Central Portal
-bundle.
+Android uses Gradle `maven-publish` for local or private Maven publication.
+Maven Central publication is a two-step flow: publish signed artifacts into a
+local Maven repository directory, then upload that directory as one Central
+Portal bundle.
 
-SwiftPM publication is just the pushed Git tag. The package must be buildable
-at that tag.
+SwiftPM publication is the pushed Git tag. The package must be buildable at
+that tag.
 
 CocoaPods uses generated release podspecs because the checked-in podspecs are
 optimized for local `:path` development under `src/ios`. Generated specs point
 at the repository Git tag and prefix source paths with `src/ios/`.
 
-React Native publishes only the JS/native bridge package to npm. The package
-expects the matching native Maven and CocoaPods versions to be available before
-app consumers install it.
+React Native publishes only the JavaScript/native bridge package to npm. The
+package expects matching native Maven and CocoaPods versions to be available
+before app consumers install it.
 
-## Validation
+## Post-Publish Validation
 
-After publishing, validate package availability and harness consumption with:
+After publishing, invoke the `sdk-package-validation` skill and validate package
+availability plus harness consumption:
 
 ```bash
 scripts/validate-published-sdk-packages.sh --version <version>
 ```
-
-Harness commands for local versus published package validation are documented in
-[SDK Package Validation](sdk-package-validation.md).
-
-## References
-
-- [NuGet package publishing](https://learn.microsoft.com/en-us/nuget/nuget-org/publish-a-package)
-- [dotnet nuget push](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-nuget-push)
-- [Gradle Maven Publish Plugin](https://docs.gradle.org/current/userguide/publishing_maven.html)
-- [Sonatype Central Portal API](https://central.sonatype.org/publish/publish-portal-api/)
-- [CocoaPods Trunk setup](https://guides.cocoapods.org/making/getting-setup-with-trunk.html)
-- [npm scoped public package publishing](https://docs.npmjs.com/creating-and-publishing-scoped-public-packages/)

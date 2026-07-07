@@ -1,0 +1,4 @@
+interface:
+  display_name: "SDK Publishing"
+  short_description: "Publish Ansight SDK package surfaces"
+  default_prompt: "Use $sdk-publishing to prepare and publish an Ansight SDK release."

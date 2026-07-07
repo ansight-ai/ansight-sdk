@@ -228,7 +228,7 @@ runtime reflection; iOS roots opt in to `reflect.set_member_value` and
 
 Each SDK emits the same `tool.query`, `tool.catalog`, `tool.call`,
 `tool.result`, and `tool.error` protocol shapes described in
-[Remote Tool Protocol](protocol/tools.md).
+[Protocol](protocol.md#remote-tool-protocol).
 
 Tool-suite registration follows the same app-code convention:
 
