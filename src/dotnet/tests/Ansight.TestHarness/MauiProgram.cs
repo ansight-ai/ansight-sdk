@@ -21,6 +21,13 @@ public static class MauiProgram
             {
                 ansight.WithAdditionalLogger(new CustomAnsightLogCallback());
                 ansight.WithAdditionalChannels(CustomAnsightConfiguration.AdditionalChannels);
+                ansight.WithHostAutoProbe(new HostAutoProbeOptions
+                {
+                    InitialDelay = TimeSpan.FromSeconds(1),
+                    ProbeInterval = TimeSpan.FromSeconds(5),
+                    ReconnectDelay = TimeSpan.FromSeconds(10),
+                    ClientName = CustomAnsightConfiguration.ClientName
+                });
                 ansight.WithPreferencesTools(preferences =>
                 {
                     preferences.WithDefaultStore(preferencesStore);

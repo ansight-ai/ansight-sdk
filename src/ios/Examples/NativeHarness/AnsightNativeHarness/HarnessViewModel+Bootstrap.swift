@@ -109,7 +109,7 @@ extension HarnessViewModel {
             ],
             hostAutoProbe: AnsightHostAutoProbeOptions(
                 enabled: true,
-                initialDelayMilliseconds: 750,
+                initialDelayMilliseconds: 1_000,
                 probeIntervalMilliseconds: 5_000,
                 reconnectDelayMilliseconds: 10_000,
                 clientName: HarnessConstants.clientName

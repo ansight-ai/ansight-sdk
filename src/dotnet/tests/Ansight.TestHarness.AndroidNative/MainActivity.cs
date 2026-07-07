@@ -13,6 +13,13 @@ public class MainActivity : Activity
 
         var options = Options.CreateBuilder()
             .WithFramesPerSecond()
+            .WithHostAutoProbe(new HostAutoProbeOptions
+            {
+                InitialDelay = TimeSpan.FromSeconds(1),
+                ProbeInterval = TimeSpan.FromSeconds(5),
+                ReconnectDelay = TimeSpan.FromSeconds(10),
+                ClientName = "Ansight .NET Android Native Harness"
+            })
             .Build();
         EnsureRuntimeStarted(options);
 

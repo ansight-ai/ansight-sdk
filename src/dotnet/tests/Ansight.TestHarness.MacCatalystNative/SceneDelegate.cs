@@ -24,6 +24,17 @@ public class SceneDelegate : UIResponder, IUIWindowSceneDelegate
 
         Window = window;
 
-        Runtime.InitializeAndActivate();
+        var options = Options.CreateBuilder()
+            .WithFramesPerSecond()
+            .WithHostAutoProbe(new HostAutoProbeOptions
+            {
+                InitialDelay = TimeSpan.FromSeconds(1),
+                ProbeInterval = TimeSpan.FromSeconds(5),
+                ReconnectDelay = TimeSpan.FromSeconds(10),
+                ClientName = "Ansight .NET Mac Catalyst Native Harness"
+            })
+            .Build();
+
+        Runtime.InitializeAndActivate(options);
     }
 }

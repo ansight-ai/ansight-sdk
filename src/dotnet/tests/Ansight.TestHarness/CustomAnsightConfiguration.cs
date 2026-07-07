@@ -2,6 +2,8 @@ namespace Ansight.TestHarness;
 
 public static class CustomAnsightConfiguration
 {
+    public const string ClientName = "Ansight .NET MAUI Harness";
+
     public const byte CustomMetricChannelId = 96;
     
     public const byte CustomEventChannelId = 128;

@@ -119,6 +119,13 @@ class MainActivity : AppCompatActivity() {
                 quality = 70,
                 maxWidth = 720,
             ),
+            hostAutoProbe = baseOptions.hostAutoProbe.copy(
+                enabled = true,
+                initialDelayMilliseconds = 1_000,
+                probeIntervalMilliseconds = 5_000,
+                reconnectDelayMilliseconds = 10_000,
+                clientName = "Ansight Android Harness",
+            ),
             customProperties = baseOptions.customProperties + mapOf(
                 "harness" to mapOf(
                     "platform" to "android",
