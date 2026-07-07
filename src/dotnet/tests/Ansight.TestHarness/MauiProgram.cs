@@ -12,6 +12,7 @@ public static class MauiProgram
     {
         var builder = MauiApp.CreateBuilder();
         var preferencesStore = GetPreferencesStoreName();
+        HarnessReflectionRoots.Register();
 
         builder
             .UseMauiApp<App>()

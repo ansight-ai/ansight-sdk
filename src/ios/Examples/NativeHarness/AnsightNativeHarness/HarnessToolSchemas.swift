@@ -13,6 +13,33 @@ enum HarnessToolSchemas {
             "roots": .object([
                 "type": .string("array"),
                 "description": .string("Registered harness reflection roots."),
+                "items": .object([
+                    "type": .string("object"),
+                    "properties": .object([
+                        "rootId": .object(["type": .string("string")]),
+                        "name": .object(["type": .string("string")]),
+                        "kind": .object(["type": .string("string")]),
+                        "description": .object(["type": .string("string")]),
+                        "hostRuntime": .object([
+                            "type": .string("object"),
+                            "description": .string("Runtime that owns and resolves the harness reflection root."),
+                            "properties": .object([
+                                "kind": .object(["type": .string("string")]),
+                                "displayName": .object(["type": .string("string")]),
+                                "platform": .object(["type": .string("string")]),
+                                "engine": .object(["type": .string("string")]),
+                            ]),
+                            "required": .array([.string("kind"), .string("displayName")]),
+                        ]),
+                    ]),
+                    "required": .array([
+                        .string("rootId"),
+                        .string("name"),
+                        .string("kind"),
+                        .string("description"),
+                        .string("hostRuntime"),
+                    ]),
+                ]),
             ]),
         ]),
     ]))

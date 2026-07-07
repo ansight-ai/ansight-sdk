@@ -78,12 +78,14 @@ extension HarnessViewModel {
         return roots.compactMap { root -> String? in
             guard case .object(let object) = root,
                   case .string(let id)? = object["rootId"],
-                  case .string(let name)? = object["name"]
+                  case .string(let name)? = object["name"],
+                  case .object(let hostRuntime)? = object["hostRuntime"],
+                  case .string(let hostKind)? = hostRuntime["kind"]
             else {
                 return nil
             }
 
-            return "\(id) - \(name)"
+            return "\(id) - \(name) [\(hostKind)]"
         }
         .joined(separator: "\n")
     }

@@ -103,6 +103,24 @@
                         <RoundRectangle CornerRadius="12"/>
                     </Border.StrokeShape>
                     <VerticalStackLayout Spacing="10">
+                        <Label Text="Reflection roots"
+                               FontAttributes="Bold"
+                               FontSize="16"
+                               TextColor="#111111"/>
+                        <Label Text="reflect.list_roots exposes harness.runtime and harness.configuration with hostRuntime.kind=dotnet."
+                               FontSize="12"
+                               TextColor="#666666"/>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Stroke="#dcdcdc"
+                        StrokeThickness="1"
+                        BackgroundColor="#ffffff"
+                        Padding="14,12">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="12"/>
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="10">
                         <Label Text="FPS controls"
                                FontAttributes="Bold"
                                FontSize="16"

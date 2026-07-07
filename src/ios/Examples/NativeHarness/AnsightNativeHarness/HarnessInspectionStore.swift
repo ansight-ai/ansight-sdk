@@ -46,6 +46,7 @@ final class HarnessInspectionStore: @unchecked Sendable {
                 "name": .string(descriptor.name),
                 "kind": .string(descriptor.kind),
                 "description": .string(descriptor.description),
+                "hostRuntime": hostRuntimeJSON(descriptor.hostRuntime),
             ])
         })
     }
@@ -129,37 +130,51 @@ final class HarnessInspectionStore: @unchecked Sendable {
         ])
     }
 
+    private func hostRuntimeJSON(_ descriptor: HarnessReflectionHostRuntimeDescriptor) -> JSONValue {
+        .object([
+            "kind": .string(descriptor.kind),
+            "displayName": .string(descriptor.displayName),
+            "platform": .string(descriptor.platform),
+            "engine": .string(descriptor.engine),
+        ])
+    }
+
     private var rootDescriptors: [HarnessReflectionRootDescriptor] {
         [
             HarnessReflectionRootDescriptor(
                 id: "ui.orderDraft",
                 name: "Order Draft UI State",
                 kind: "swiftui-state",
-                description: "Bound form state for text input, picker overlay, toggle, and slider controls."
+                description: "Bound form state for text input, picker overlay, toggle, and slider controls.",
+                hostRuntime: .nativeSwift
             ),
             HarnessReflectionRootDescriptor(
                 id: "navigation.flow",
                 name: "Navigation Flow State",
                 kind: "navigation",
-                description: "Current tab, pushed depth, modal state, flyout selection, and recent navigation events."
+                description: "Current tab, pushed depth, modal state, flyout selection, and recent navigation events.",
+                hostRuntime: .nativeSwift
             ),
             HarnessReflectionRootDescriptor(
                 id: "scene.inline3d",
                 name: "Inline 3D Scene",
                 kind: "scenekit",
-                description: "Scene material, rotation settings, and selected SceneKit node."
+                description: "Scene material, rotation settings, and selected SceneKit node.",
+                hostRuntime: .nativeSwift
             ),
             HarnessReflectionRootDescriptor(
                 id: "data.seededStore",
                 name: "Seeded Data Store",
                 kind: "storage",
-                description: "Harness file, database, preferences, and secure storage seed metadata."
+                description: "Harness file, database, preferences, and secure storage seed metadata.",
+                hostRuntime: .nativeSwift
             ),
             HarnessReflectionRootDescriptor(
                 id: "runtime.snapshot",
                 name: "Ansight Runtime Snapshot",
                 kind: "runtime",
-                description: "Current Ansight runtime counters and capture status."
+                description: "Current Ansight runtime counters and capture status.",
+                hostRuntime: .nativeSwift
             ),
         ]
     }

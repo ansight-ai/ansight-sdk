@@ -88,3 +88,7 @@ The harness registers custom inspection roots for manual Studio validation:
 - `scene.inline3d`: SceneKit material, rotation state, spin speed, and selected node.
 - `data.seededStore`: seeded file/database/preferences/keychain metadata.
 - `runtime.snapshot`: current Ansight runtime counters and capture status.
+
+`harness.reflection_roots.list` includes `hostRuntime` on every root. The
+native iOS harness reports `kind: "swift"` for roots owned by the Swift and
+Objective-C runtime.

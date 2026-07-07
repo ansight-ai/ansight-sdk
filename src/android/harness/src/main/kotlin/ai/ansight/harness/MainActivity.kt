@@ -510,7 +510,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun renderTools() {
         addSectionTitle(contentHost, "Reflection Roots")
-        addBodyText(contentHost, "Registered roots: harness.state, harness.database, and harness.activity.")
+        addBodyText(contentHost, "Registered roots: harness.state, harness.database, and harness.activity. reflect.list_roots reports hostRuntime.kind=jvm for these Android roots.")
         addListItem(contentHost, "harness.state", "Mutable navigation, data, scene, and custom tool state.")
         addListItem(contentHost, "harness.database", "SQLite helper with a live summary and database path.")
         addListItem(contentHost, "harness.activity", "Current MainActivity instance.")
