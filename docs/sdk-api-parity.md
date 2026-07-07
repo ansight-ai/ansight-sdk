@@ -47,6 +47,24 @@ auto-probe, and host connection remain separate controls.
 > scoped to development or QA sessions, and disable it for performance-focused
 > runs unless visual evidence is required.
 
+## Host Auto-Probe Parity
+
+Host auto-probe is the SDK-owned remembered-host retry behavior. While the
+runtime is active, it retries previous host connections so an app can reconnect
+after the host disappears and later reappears. Probing pauses while a live
+session is connected and waits for the retry delay before trying again after a
+session is lost. It is enabled by the default runtime options and by each
+all-in-one/developer preset.
+
+| Concept | .NET | Android | iOS | React Native |
+| --- | --- | --- | --- | --- |
+| Enable | `WithHostAutoProbe(...)` | `hostAutoProbe.enabled` / `withHostAutoProbe(...)` | `hostAutoProbe.enabled` / `withHostAutoProbe(...)` | `hostAutoProbe.enabled` / `withHostAutoProbe(...)` |
+| Disable | `WithoutHostAutoProbe()` | `withoutHostAutoProbe()` | `withoutHostAutoProbe()` | `withoutHostAutoProbe()` |
+| Initial delay | `InitialDelay`, default `1s` | `initialDelayMilliseconds`, default `1000` | `initialDelayMilliseconds`, default `1000` | `initialDelayMilliseconds`, default `1000` |
+| Probe interval | `ProbeInterval`, default `5s` | `probeIntervalMilliseconds`, default `5000` | `probeIntervalMilliseconds`, default `5000` | `probeIntervalMilliseconds`, default `5000` |
+| Retry delay after lost session | `ReconnectDelay`, default `10s` | `reconnectDelayMilliseconds`, default `10000` | `reconnectDelayMilliseconds`, default `10000` | `reconnectDelayMilliseconds`, default `10000` |
+| Client name | `ClientName` | `clientName` | `clientName` | `clientName` |
+
 ## Quickstart Equivalents
 
 .NET:
@@ -153,7 +171,7 @@ await Ansight.connect(null, { clientName: "React Native App" });
 Automatic connection resolves candidate configs in this order:
 
 1. Bundled developer config.
-2. Remembered cached host profiles where implemented.
+2. Remembered host profiles, newest first.
 3. Saved config.
 4. Plain bundled config.
 

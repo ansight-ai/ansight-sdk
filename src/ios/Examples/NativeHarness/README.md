@@ -53,7 +53,7 @@ Use one of the pairing buttons in the app:
 - `Pairing File` opens the native document picker for an Ansight Studio pairing config.
 - `Scan QR` opens the native QR pairing scanner.
 
-The harness bundles `src/ios/ansight.json` as an app resource and passes it to `AnsightHostConnectionOptions.bundledConfigJson`. Host auto-probe is enabled and mirrors the .NET SDK behavior: it only reconnects a cached session while the runtime is active. Public bundled configs do not contain LAN routing metadata, so first pairing still needs a QR/file/config-document payload with discovery host addresses.
+The harness bundles `src/ios/ansight.json` as an app resource and passes it to `AnsightHostConnectionOptions.bundledConfigJson`. Host auto-probe is enabled and mirrors the .NET SDK behavior: it retries remembered host profiles while the runtime is active so the app can reconnect after the host disappears and later reappears. Public bundled configs do not contain LAN routing metadata, so first pairing still needs a QR/file/config-document payload with discovery host addresses.
 
 ## Validation Checklist
 

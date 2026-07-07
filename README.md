@@ -13,6 +13,13 @@ The Android, iOS, and React Native SDKs are pre-release packages that mirror the
 same native runtime, host connection, telemetry, screenshot, touch capture, and
 remote-tool protocol used by the .NET SDK.
 
+All SDKs expose the host auto-probe options used by the .NET runtime. Host
+auto-probe remembers previous host connections and retries them while the
+runtime is active, so an app can reconnect after the host disappears and later
+reappears. The shared options control enable/disable, initial probe delay,
+disconnected probe interval, retry delay after a lost session, and the optional
+client name used for retry attempts.
+
 > **Important:** Screen capture is not free. Periodic or manual screenshot/JPEG
 > capture will result in an FPS drop while frames are being rendered, encoded,
 > and transported. Keep it scoped to local development or QA runs, and disable it

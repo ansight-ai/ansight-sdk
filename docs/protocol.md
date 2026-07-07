@@ -943,6 +943,19 @@ Current cache behavior:
 - profiles are cleared after pairing, token, proof, UDP bootstrap, or stale
   cached-address failures
 
+Host auto-probe is also current local client behavior, not a wire message.
+While the SDK runtime is active, the client remembers previous host
+connections and retries those profiles when the host disappears and later
+reappears. Probing pauses while a live session is connected and resumes after a
+retry delay when that session is lost. The shared SDK option surface is enabled
+by default and exposes:
+
+- enabled/disabled
+- initial delay before the first probe, default 1000 ms
+- probe interval while disconnected, default 5000 ms
+- retry delay after a lost session, default 10000 ms
+- optional client name used for retry attempts
+
 ### Out of Scope
 
 The current implementation does not define:

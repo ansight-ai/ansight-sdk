@@ -38,6 +38,13 @@ const isDevelopmentOnly = __DEV__;
 await Ansight.initializeAndActivate({
   useNativeAllInOneDefaults: isDevelopmentOnly,
   clientName: "My React Native App",
+  hostAutoProbe: {
+    enabled: isDevelopmentOnly,
+    initialDelayMilliseconds: 1000,
+    probeIntervalMilliseconds: 5000,
+    reconnectDelayMilliseconds: 10000,
+    clientName: "My React Native App",
+  },
   hostConnection: isDevelopmentOnly ? {
     bundledDeveloperConfigJson: process.env.EXPO_PUBLIC_ANSIGHT_PAIRING_CONFIG_JSON,
   } : undefined,
@@ -58,6 +65,14 @@ auto-probe, and standard native tools. It is not a master SDK enable switch and
 does not infer whether the app is a debug build. Gate it with the app's own
 condition, such as React Native's `__DEV__`, and configure `toolGuard`, capture
 options, host auto-probe, and host connection separately.
+
+Host auto-probe uses the native iOS/Android remembered-host retry behavior.
+When enabled and the runtime is active, it retries previous host connections so
+the app can reconnect after the host disappears and later reappears. Probing
+pauses while a live session is connected and resumes after
+`reconnectDelayMilliseconds` when that session is lost. Use
+`withoutHostAutoProbe()` or set `hostAutoProbe.enabled` to `false` for flows
+where reconnects should only happen after an explicit app action.
 
 > **Important:** Screen capture will result in an FPS drop while native frames
 > are rendered, encoded, and sent. Use conservative interval, quality, and
@@ -86,7 +101,7 @@ The TypeScript `AnsightOptions` surface mirrors Android `AnsightOptions`, iOS
 | `lifecycleCapture` | Native lifecycle and screen-view capture options. |
 | `toolGuard` | `"disabled"`, `"readOnly"`, `"readWrite"`, or `"fullAccess"`. |
 | `customProperties` | Grouped string properties sent with `session.open`. |
-| `hostAutoProbe` | Automatic host reconnect loop settings. |
+| `hostAutoProbe` | Remembered-host retry settings for reconnecting after the host disappears and later reappears. |
 | `hostConnection` | Saved, bundled, and developer pairing settings. |
 | `secureStorage` | Compatibility alias for native secure-storage allow-list settings. |
 | `remoteTools` | Native visual tree, file, database, preferences, reflection, and secure-storage tool options. |
@@ -112,6 +127,9 @@ await Ansight.initializeAndActivate({
   },
   hostAutoProbe: {
     enabled: true,
+    initialDelayMilliseconds: 1000,
+    probeIntervalMilliseconds: 5000,
+    reconnectDelayMilliseconds: 10000,
     clientName: "My React Native App",
   },
 });
@@ -181,7 +199,7 @@ await Ansight.connect(null, {
 Automatic connection tries:
 
 1. `hostConnection.bundledDeveloperConfigJson`
-2. native cached host profiles where implemented
+2. native remembered host profiles, newest first
 3. saved pairing config
 4. `hostConnection.bundledConfigJson`
 

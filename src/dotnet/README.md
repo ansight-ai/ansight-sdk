@@ -207,7 +207,23 @@ var options = Options.CreateBuilder()
     .Build();
 ```
 
-On startup and during host auto-probe, `HostConnectionRequest.Auto()` prefers embedded developer pairing when present, then cycles through each remembered connection profile newest-first, then tries saved config and bundled `ansight.json` fallback configs. Explicit `QrCode`, `PayloadText`, and `ConfigValue` requests still override the current host session and update the remembered profile after a successful connection.
+For explicit automatic connection, `HostConnectionRequest.Auto()` prefers embedded developer pairing when present, then cycles through each remembered connection profile newest-first, then tries saved config and bundled `ansight.json` fallback configs. Background host auto-probe uses the remembered-profile retry path while the runtime is active. Explicit `QrCode`, `PayloadText`, and `ConfigValue` requests still override the current host session and update the remembered profile after a successful connection.
+
+Host auto-probe is enabled by default while the runtime is active. It remembers previous host connections and retries them so the app can reconnect after the host disappears and later reappears. Customize the retry behavior when you need a different client name or cadence:
+
+```csharp
+var options = Options.CreateBuilder()
+    .WithHostAutoProbe(new HostAutoProbeOptions
+    {
+        InitialDelay = TimeSpan.FromSeconds(1),
+        ProbeInterval = TimeSpan.FromSeconds(5),
+        ReconnectDelay = TimeSpan.FromSeconds(10),
+        ClientName = "My .NET App"
+    })
+    .Build();
+```
+
+Use `WithoutHostAutoProbe()` for flows where reconnects should only happen after an explicit app action.
 
 ## Developer Pairing
 

@@ -93,7 +93,7 @@ AnsightRuntime.initializeAndActivate(
 | `touchCapture` | Configures app-local touch capture. `null` disables it. |
 | `toolGuard` | Controls remote-tool discovery and execution. |
 | `customProperties` | Grouped string properties sent with `session.open`. |
-| `hostAutoProbe` | Controls automatic host reconnect attempts. |
+| `hostAutoProbe` | Controls remembered-host retries after the host disappears and later reappears. |
 | `hostConnection` | Configures saved, bundled, and developer pairing sources. |
 | `secureStorage` | Defines secure-storage allow-lists for the secure storage tools. |
 | `initialTools` | Adds custom or package-provided tools at initialization. |
@@ -124,9 +124,31 @@ val result = AnsightRuntime.connect(
 Automatic connection tries:
 
 1. `hostConnection.bundledDeveloperConfigJson`
-2. cached host session profiles
+2. remembered host profiles, newest first
 3. saved pairing config
 4. `hostConnection.bundledConfigJson`
+
+Host auto-probe is enabled by default while the runtime is active. It remembers
+previous host connections and retries them so the app can reconnect after the
+host disappears and later reappears. Probing pauses while a live session is
+connected and resumes after the retry delay when that session is lost:
+
+```kotlin
+val options = AnsightOptions.createBuilder()
+    .withHostAutoProbe(
+        AnsightHostAutoProbeOptions(
+            enabled = true,
+            initialDelayMilliseconds = 1_000,
+            probeIntervalMilliseconds = 5_000,
+            reconnectDelayMilliseconds = 10_000,
+            clientName = "Android App",
+        ),
+    )
+    .build()
+```
+
+Use `withoutHostAutoProbe()` for flows where reconnects should only happen
+after an explicit app action.
 
 Use explicit requests for override flows:
 
