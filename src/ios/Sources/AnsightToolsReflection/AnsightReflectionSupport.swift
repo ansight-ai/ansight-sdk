@@ -157,12 +157,22 @@ internal enum AnsightReflectionSupport {
                 "description": root.metadata.description.map(JSONValue.string) ?? .null,
                 "hints": .array(root.metadata.hints.map(JSONValue.string)),
             ]),
+            "hostRuntime": hostRuntimeDescriptor(),
             "referenceType": .string(root.referenceType.rawValue),
             "available": .bool(root.value != nil),
             "runtimeType": root.value.map { .string(typeName(of: $0)) } ?? .null,
             "type": root.value.map { .string(typeName(of: $0)) } ?? .null,
             "memberVisibility": .string("PublicOnly"),
             "resolutionError": root.resolutionError.map(JSONValue.string) ?? .null,
+        ])
+    }
+
+    private static func hostRuntimeDescriptor() -> JSONValue {
+        .object([
+            "kind": .string("swift"),
+            "displayName": .string("Swift/Objective-C runtime"),
+            "platform": .string("ios"),
+            "engine": .string("Swift"),
         ])
     }
 

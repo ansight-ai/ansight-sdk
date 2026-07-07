@@ -22,20 +22,8 @@ final class ReflectionToolTests: XCTestCase {
 
         let list = try resultObject(ListReflectionRootsTool().execute(arguments: [:]))
         let roots = try jsonArray(list["roots"])
-        XCTAssertTrue(roots.contains { root in
-            guard case .object(let object) = root,
-                  case .string("session")? = object["id"] else {
-                return false
-            }
-            return true
-        })
-        XCTAssertTrue(roots.contains { root in
-            guard case .object(let object) = root,
-                  case .string("runtime.snapshot")? = object["id"] else {
-                return false
-            }
-            return true
-        })
+        try assertSwiftHostRuntime(rootObject(roots, id: "session"))
+        try assertSwiftHostRuntime(rootObject(roots, id: "runtime.snapshot"))
 
         let inspected = try resultObject(InspectObjectTool().execute(arguments: [
             "root": "session",
@@ -107,13 +95,7 @@ final class ReflectionToolTests: XCTestCase {
         let list = try resultObject(ListReflectionRootsTool(options: options).execute(arguments: [:]))
         let roots = try jsonArray(list["roots"])
         XCTAssertEqual(roots.count, 1)
-        XCTAssertTrue(roots.contains { root in
-            guard case .object(let object) = root,
-                  case .string("session")? = object["id"] else {
-                return false
-            }
-            return true
-        })
+        try assertSwiftHostRuntime(rootObject(roots, id: "session"))
 
         let deniedRoot = try InspectObjectTool(options: options).execute(arguments: [
             "root": "runtime.snapshot",
@@ -147,6 +129,26 @@ final class ReflectionToolTests: XCTestCase {
         }
         return array
     }
+
+    private func rootObject(_ roots: [JSONValue], id: String) throws -> [String: JSONValue] {
+        for root in roots {
+            guard case .object(let object) = root else {
+                continue
+            }
+            if case .string(let rootId)? = object["id"], rootId == id {
+                return object
+            }
+        }
+        throw ReflectionTestError.missingRoot
+    }
+
+    private func assertSwiftHostRuntime(_ root: [String: JSONValue]) throws {
+        let hostRuntime = try jsonObject(root["hostRuntime"])
+        XCTAssertEqual(hostRuntime["kind"], .string("swift"))
+        XCTAssertEqual(hostRuntime["displayName"], .string("Swift/Objective-C runtime"))
+        XCTAssertEqual(hostRuntime["platform"], .string("ios"))
+        XCTAssertEqual(hostRuntime["engine"], .string("Swift"))
+    }
 }
 
 private final class TestReflectionRoot: AnsightReflectionMutableRoot, AnsightReflectionInvokableRoot {
@@ -177,6 +179,7 @@ private final class TestReflectionChild {
 private enum ReflectionTestError: LocalizedError {
     case expectedObject
     case expectedArray
+    case missingRoot
     case unsupported
 
     var errorDescription: String? {
@@ -185,6 +188,8 @@ private enum ReflectionTestError: LocalizedError {
             return "Expected JSON object."
         case .expectedArray:
             return "Expected JSON array."
+        case .missingRoot:
+            return "Expected reflection root."
         case .unsupported:
             return "Unsupported test reflection operation."
         }

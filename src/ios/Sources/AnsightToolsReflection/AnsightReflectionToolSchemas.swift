@@ -7,7 +7,7 @@ internal enum AnsightReflectionToolSchemas {
     static let listRootsResult = object(
         description: "Registered reflection roots.",
         properties: [
-            "roots": array(genericObject, "Registered roots."),
+            "roots": array(rootDescriptor, "Registered roots."),
             "count": integer("Number of roots."),
             "capturedAtUtc": string("UTC timestamp for capture.", format: "date-time"),
         ],
@@ -118,6 +118,57 @@ internal enum AnsightReflectionToolSchemas {
         "type": .string("object"),
         "additionalProperties": .bool(true),
         "description": .string("Arbitrary object with implementation-specific fields."),
+    ])
+
+    private static let rootMetadataDescriptor: JSONValue = .object([
+        "type": .string("object"),
+        "additionalProperties": .bool(false),
+        "description": .string("Registered root metadata."),
+        "properties": .object([
+            "displayName": string("Human-readable root name."),
+            "description": string("Optional root description.", nullable: true),
+            "hints": array(string("Root hint."), "Optional metadata hints."),
+        ]),
+        "required": .array([.string("displayName")]),
+    ])
+
+    private static let hostRuntimeDescriptor: JSONValue = .object([
+        "type": .string("object"),
+        "additionalProperties": .bool(true),
+        "description": .string("Runtime that owns and resolves the reflection root."),
+        "properties": .object([
+            "kind": string("Stable runtime host kind, such as dotnet, jvm, swift, or javascript."),
+            "displayName": string("Human-readable runtime host name."),
+            "platform": string("Platform or SDK surface that exposes the runtime.", nullable: true),
+            "engine": string("Runtime engine name when known.", nullable: true),
+            "bridge": string("Optional bridge used to reach the runtime.", nullable: true),
+        ]),
+        "required": .array([.string("kind"), .string("displayName")]),
+    ])
+
+    private static let rootDescriptor: JSONValue = .object([
+        "type": .string("object"),
+        "additionalProperties": .bool(true),
+        "description": .string("Registered reflection root descriptor."),
+        "properties": .object([
+            "id": string("Stable root identifier."),
+            "metadata": rootMetadataDescriptor,
+            "hostRuntime": hostRuntimeDescriptor,
+            "referenceType": string("Reference type for the root."),
+            "available": boolean("Whether the root currently resolves to a live object."),
+            "runtimeType": string("Resolved runtime type name when available.", nullable: true),
+            "type": string("Compatibility alias for runtimeType.", nullable: true),
+            "memberVisibility": string("Effective member visibility."),
+            "resolutionError": string("Safe error summary when resolution failed.", nullable: true),
+        ]),
+        "required": .array([
+            .string("id"),
+            .string("metadata"),
+            .string("hostRuntime"),
+            .string("referenceType"),
+            .string("available"),
+            .string("memberVisibility"),
+        ]),
     ])
 
     private static func object(

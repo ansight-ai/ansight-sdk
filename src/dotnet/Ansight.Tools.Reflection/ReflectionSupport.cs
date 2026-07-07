@@ -23,6 +23,7 @@ internal static class ReflectionSupport
             {
                 ["id"] = root.Id,
                 ["metadata"] = ToJson(root.Metadata),
+                ["hostRuntime"] = HostRuntimeJson(),
                 ["referenceType"] = root.Kind switch
                 {
                     ReflectionRootRegistrationKind.WeakReference => "weak",
@@ -288,6 +289,17 @@ internal static class ReflectionSupport
             ["displayName"] = metadata.DisplayName,
             ["description"] = metadata.Description,
             ["hints"] = hints
+        };
+    }
+
+    private static JsonObject HostRuntimeJson()
+    {
+        return new JsonObject
+        {
+            ["kind"] = "dotnet",
+            ["displayName"] = ".NET managed runtime",
+            ["platform"] = "dotnet",
+            ["engine"] = ".NET"
         };
     }
 

@@ -78,6 +78,7 @@ public sealed class ReflectionToolsTests
         Assert.Equal("session", root["id"]?.GetValue<string>());
         Assert.Equal("weak", root["referenceType"]?.GetValue<string>());
         Assert.True(root["available"]!.GetValue<bool>());
+        AssertDotNetHostRuntime(root);
         Assert.Equal("Current Session", metadata["displayName"]?.GetValue<string>());
         Assert.Contains(hints.Select(node => node!.GetValue<string>()), value => value == "debug");
         Assert.Equal(
@@ -501,6 +502,7 @@ public sealed class ReflectionToolsTests
         var hints = Assert.IsType<JsonArray>(metadata["hints"]);
 
         Assert.Equal("Current Session", metadata["displayName"]?.GetValue<string>());
+        AssertDotNetHostRuntime(root);
         Assert.Contains(hints.Select(node => node!.GetValue<string>()), value => value == "session");
         Assert.Equal(
             ["description", "displayName", "hints"],
@@ -538,6 +540,7 @@ public sealed class ReflectionToolsTests
         Assert.Equal("runtime", root["id"]?.GetValue<string>());
         Assert.Equal("strong", root["referenceType"]?.GetValue<string>());
         Assert.True(root["available"]!.GetValue<bool>());
+        AssertDotNetHostRuntime(root);
 
         var writeResult = await new SetMemberValueTool(options).Execute(new Dictionary<string, string>
         {
@@ -697,6 +700,15 @@ public sealed class ReflectionToolsTests
         var reference = new WeakReference<object>(target);
         ReflectionRootRegistry.Register("runtime-weak", target, new ReflectionRootMetadata("Runtime Weak Root"));
         return reference;
+    }
+
+    private static void AssertDotNetHostRuntime(JsonObject root)
+    {
+        var hostRuntime = Assert.IsType<JsonObject>(root["hostRuntime"]);
+        Assert.Equal("dotnet", hostRuntime["kind"]?.GetValue<string>());
+        Assert.Equal(".NET managed runtime", hostRuntime["displayName"]?.GetValue<string>());
+        Assert.Equal("dotnet", hostRuntime["platform"]?.GetValue<string>());
+        Assert.Equal(".NET", hostRuntime["engine"]?.GetValue<string>());
     }
 
     public sealed class ReflectionRootModel

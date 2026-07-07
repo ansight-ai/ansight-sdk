@@ -18,19 +18,33 @@ internal static class ReflectionToolSchemas
         },
         required: new[] { "displayName" });
 
+    private static readonly ToolSchema HostRuntimeSchema = ToolSchema.Object(
+        description: "Runtime that owns and resolves the reflection root.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["kind"] = ToolSchema.String("Stable runtime host kind, such as dotnet, jvm, swift, or javascript."),
+            ["displayName"] = ToolSchema.String("Human-readable runtime host name."),
+            ["platform"] = ToolSchema.String("Platform or SDK surface that exposes the runtime.", nullable: true),
+            ["engine"] = ToolSchema.String("Runtime engine name when known.", nullable: true),
+            ["bridge"] = ToolSchema.String("Optional bridge used to reach the runtime.", nullable: true)
+        },
+        additionalProperties: true,
+        required: new[] { "kind", "displayName" });
+
     private static readonly ToolSchema RootDescriptorSchema = ToolSchema.Object(
         description: "Registered reflection root descriptor.",
         properties: new Dictionary<string, ToolSchema>
         {
             ["id"] = ToolSchema.String("Stable root identifier."),
             ["metadata"] = MetadataSchema,
+            ["hostRuntime"] = HostRuntimeSchema,
             ["referenceType"] = ToolSchema.String("Reference type for the root.", enumValues: new[] { "weak", "strong", "getter" }),
             ["available"] = ToolSchema.Boolean("Whether the root currently resolves to a live object."),
             ["runtimeType"] = ToolSchema.String("Resolved runtime type name when available.", nullable: true),
             ["memberVisibility"] = ToolSchema.String("Effective member visibility.", enumValues: new[] { "PublicOnly", "PublicAndNonPublic" }),
             ["resolutionError"] = ToolSchema.String("Safe error summary when resolution failed.", nullable: true)
         },
-        required: new[] { "id", "metadata", "referenceType", "available", "memberVisibility" });
+        required: new[] { "id", "metadata", "hostRuntime", "referenceType", "available", "memberVisibility" });
 
     private static readonly ToolSchema TypeMemberSchema = ToolSchema.Object(
         description: "Field or property descriptor.",
