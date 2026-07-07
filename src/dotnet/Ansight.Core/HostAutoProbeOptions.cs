@@ -35,17 +35,17 @@ public sealed class HostAutoProbeOptions
     /// <summary>
     /// Delay applied after runtime activation before the first probe attempt.
     /// </summary>
-    public TimeSpan InitialDelay { get; set; } = TimeSpan.FromSeconds(2);
+    public TimeSpan InitialDelay { get; set; } = TimeSpan.FromSeconds(1);
 
     /// <summary>
     /// Delay between probe attempts while no active session is connected.
     /// </summary>
-    public TimeSpan ProbeInterval { get; set; } = TimeSpan.FromSeconds(10);
+    public TimeSpan ProbeInterval { get; set; } = TimeSpan.FromSeconds(5);
 
     /// <summary>
     /// Delay before probing resumes after an established session disconnects.
     /// </summary>
-    public TimeSpan ReconnectDelay { get; set; } = TimeSpan.FromSeconds(15);
+    public TimeSpan ReconnectDelay { get; set; } = TimeSpan.FromSeconds(10);
 
     /// <summary>
     /// Optional client name override used for automatic host connections.

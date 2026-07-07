@@ -84,6 +84,9 @@ public sealed class HostAutoProbeCoordinatorTests
         var options = Options.CreateBuilder().Build();
 
         Assert.True(options.HostAutoProbe.Enabled);
+        Assert.Equal(TimeSpan.FromSeconds(1), options.HostAutoProbe.InitialDelay);
+        Assert.Equal(TimeSpan.FromSeconds(5), options.HostAutoProbe.ProbeInterval);
+        Assert.Equal(TimeSpan.FromSeconds(10), options.HostAutoProbe.ReconnectDelay);
     }
 
     private static HostAutoProbeOptions CreateAutoProbeOptions(

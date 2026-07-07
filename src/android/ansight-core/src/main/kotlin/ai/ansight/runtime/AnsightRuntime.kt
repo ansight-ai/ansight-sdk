@@ -859,7 +859,7 @@ object AnsightRuntime {
                 candidate.source == HostConnectionSource.CachedSession &&
                 shouldClearCachedPairingProfile(result.reasonCode)
             ) {
-                clearCachedPairingProfile(app)
+                clearCachedPairingProfile(app, candidate.networkKey)
             }
             lastResult = result
             if (request.kind != HostConnectionRequestKind.Auto) {
@@ -1024,7 +1024,7 @@ object AnsightRuntime {
         if (candidate.shouldSaveOnSuccess) {
             savePairingConfigLocked(app, candidate.payload)
         }
-        saveCachedPairingProfile(app, candidate.payload, attempt.hostAddress)
+        saveCachedPairingProfile(app, candidate.payload, attempt.hostAddress, document)
 
         val open = OpenSessionResult(
             success = true,
@@ -1050,7 +1050,7 @@ object AnsightRuntime {
 
     private fun resolveConnectionCandidates(app: Application, request: HostConnectionRequest): List<ResolvedConnectionCandidate> {
         val saved = { loadSavedPairingConfig(app) }
-        val cached = { loadCachedPairingProfile(app) }
+        val cached = { loadCachedPairingProfiles(app) }
         return when (request.kind) {
             HostConnectionRequestKind.Payload,
             HostConnectionRequestKind.Config -> listOfNotNull(
@@ -1087,7 +1087,7 @@ object AnsightRuntime {
                 options.hostConnection.bundledDeveloperConfigJson?.let {
                     ResolvedConnectionCandidate(it, HostConnectionSource.BundledDeveloperConfig, usedEmbeddedDeveloperPairing = true)
                 },
-                cached(),
+            ) + cached() + listOfNotNull(
                 saved()?.let { ResolvedConnectionCandidate(it, HostConnectionSource.SavedConfig) },
                 options.hostConnection.bundledConfigJson?.let { ResolvedConnectionCandidate(it, HostConnectionSource.BundledConfig) },
             )
@@ -1740,7 +1740,7 @@ object AnsightRuntime {
         val app = application
         val connected = sessionOpen && liveTransport?.isOpen == true && connectionState == HostConnectionState.Connected
         val hasSaved = app?.let { loadSavedPairingConfig(it) != null } ?: false
-        val hasCached = app?.let { loadCachedPairingProfile(it) != null } ?: false
+        val hasCached = app?.let { loadCachedPairingProfiles(it).isNotEmpty() } ?: false
         val hasBundled = options.hostConnection.bundledConfigJson != null || options.hostConnection.bundledDeveloperConfigJson != null
         return HostConnectionStatus(
             isRuntimeActive = active,
@@ -1791,10 +1791,7 @@ object AnsightRuntime {
             if (!initialized || !active || !options.hostAutoProbe.enabled || autoProbeTask != null) {
                 return
             }
-            if (loadSavedPairingConfig(app) == null &&
-                options.hostConnection.bundledDeveloperConfigJson == null &&
-                options.hostConnection.bundledConfigJson == null
-            ) {
+            if (loadCachedPairingProfiles(app).isEmpty()) {
                 return
             }
 
@@ -1829,13 +1826,13 @@ object AnsightRuntime {
                 continue
             }
 
+            val app = synchronized(lock) { application } ?: return
+            val request = HostConnectionRequest(
+                kind = HostConnectionRequestKind.Auto,
+                clientName = options.hostAutoProbe.clientName,
+            )
             val result = try {
-                connectInternal(
-                    HostConnectionRequest(
-                        kind = HostConnectionRequestKind.Auto,
-                        clientName = options.hostAutoProbe.clientName,
-                    ),
-                )
+                connectUsingCachedProfilesForAutoProbe(app, request)
             } catch (ex: Exception) {
                 synchronized(lock) {
                     sessionMessage = ex.message ?: "Host auto-probe failed."
@@ -1852,6 +1849,40 @@ object AnsightRuntime {
                 },
             )
         }
+    }
+
+    private fun connectUsingCachedProfilesForAutoProbe(
+        app: Application,
+        request: HostConnectionRequest,
+    ): HostConnectionResult {
+        val candidates = loadCachedPairingProfiles(app)
+        if (candidates.isEmpty()) {
+            return HostConnectionResult.failure(
+                "No remembered Ansight host profile is available.",
+                kind = HostConnectionActionKind.Connect,
+                source = HostConnectionSource.CachedSession,
+                reasonCode = PairingFailureCodes.PairingRequired,
+            )
+        }
+
+        var lastResult: HostConnectionResult? = null
+        for (candidate in candidates) {
+            val result = connectCandidate(app, request, candidate)
+            if (result.success) {
+                return result
+            }
+            if (shouldClearCachedPairingProfile(result.reasonCode)) {
+                clearCachedPairingProfile(app, candidate.networkKey)
+            }
+            lastResult = result
+        }
+
+        return lastResult ?: HostConnectionResult.failure(
+            "No remembered Ansight host profile is available.",
+            kind = HostConnectionActionKind.Connect,
+            source = HostConnectionSource.CachedSession,
+            reasonCode = PairingFailureCodes.PairingRequired,
+        )
     }
 
     private fun sleepAutoProbe(milliseconds: Long) {
@@ -2012,35 +2043,56 @@ object AnsightRuntime {
             .apply()
     }
 
-    private fun loadCachedPairingProfile(app: Application): ResolvedConnectionCandidate? {
+    private fun loadCachedPairingProfileEntries(app: Application): List<CachedPairingProfile> {
         val preferences = app.getSharedPreferences(cachedPairingProfileKey(), Application.MODE_PRIVATE)
-        val payload = preferences.getString("payload", null)?.trim()?.ifBlank { null }
-        val expiresAtEpochMs = preferences.getLong("expiresAtEpochMs", 0L)
-        if (payload == null || expiresAtEpochMs <= System.currentTimeMillis()) {
-            preferences.edit().clear().apply()
-            return null
+        val loadResult = CachedPairingProfilesCodec.load(
+            profilesJson = preferences.getString("profiles", null),
+            legacyPayload = preferences.getString("payload", null),
+            legacyHostAddress = preferences.getString("hostAddress", null),
+            legacyCachedAtEpochMs = preferences.getLong("cachedAtEpochMs", 0L),
+            legacyExpiresAtEpochMs = preferences.getLong("expiresAtEpochMs", 0L),
+            nowEpochMs = System.currentTimeMillis(),
+        )
+        if (loadResult.shouldRewrite) {
+            writeCachedPairingProfiles(app, loadResult.profiles)
         }
 
-        return ResolvedConnectionCandidate(
-            payload = payload,
-            source = HostConnectionSource.CachedSession,
-            hostAddressOverride = preferences.getString("hostAddress", null)?.trim()?.ifBlank { null },
-        )
+        return loadResult.profiles
     }
 
-    private fun saveCachedPairingProfile(app: Application, payload: String, hostAddress: String?) {
+    private fun loadCachedPairingProfiles(app: Application): List<ResolvedConnectionCandidate> {
+        return loadCachedPairingProfileEntries(app).map { profile ->
+            ResolvedConnectionCandidate(
+                payload = profile.payload,
+                source = HostConnectionSource.CachedSession,
+                hostAddressOverride = profile.hostAddress,
+                networkKey = profile.networkKey,
+            )
+        }
+    }
+
+    private fun saveCachedPairingProfile(
+        app: Application,
+        payload: String,
+        hostAddress: String?,
+        document: ParsedPairingDocument,
+    ) {
         val normalizedPayload = payload.trim().ifBlank { return }
         val now = System.currentTimeMillis()
         val retentionMillis = synchronized(lock) {
             options.hostConnection.connectionProfileRetentionSeconds.coerceAtLeast(1) * 1_000L
         }
-        app.getSharedPreferences(cachedPairingProfileKey(), Application.MODE_PRIVATE)
-            .edit()
-            .putString("payload", normalizedPayload)
-            .putString("hostAddress", hostAddress?.trim()?.ifBlank { null })
-            .putLong("cachedAtEpochMs", now)
-            .putLong("expiresAtEpochMs", now + retentionMillis)
-            .apply()
+        val existing = loadCachedPairingProfileEntries(app)
+        val updated = CachedPairingProfilesCodec.upsert(
+            existingProfiles = existing,
+            payload = normalizedPayload,
+            hostAddress = hostAddress,
+            document = document,
+            nowEpochMs = now,
+            retentionMillis = retentionMillis,
+        )
+        writeCachedPairingProfiles(app, updated)
+        startAutoProbeIfNeeded(app)
     }
 
     private fun clearCachedPairingProfile(app: Application) {
@@ -2048,6 +2100,26 @@ object AnsightRuntime {
             .edit()
             .clear()
             .apply()
+    }
+
+    private fun clearCachedPairingProfile(app: Application, networkKey: String?) {
+        val key = networkKey?.trim()?.ifBlank { null }
+        if (key == null) {
+            clearCachedPairingProfile(app)
+            return
+        }
+
+        writeCachedPairingProfiles(app, CachedPairingProfilesCodec.remove(loadCachedPairingProfileEntries(app), key))
+    }
+
+    private fun writeCachedPairingProfiles(app: Application, profiles: List<CachedPairingProfile>) {
+        val preferences = app.getSharedPreferences(cachedPairingProfileKey(), Application.MODE_PRIVATE)
+        val json = CachedPairingProfilesCodec.serialize(profiles)
+        val editor = preferences.edit().clear()
+        if (json != null) {
+            editor.putString("profiles", json)
+        }
+        editor.apply()
     }
 
     private fun cachedPairingProfileKey(): String = "${options.hostConnection.savedConfigKey}.cached-profile"
@@ -2086,6 +2158,7 @@ object AnsightRuntime {
         val shouldSaveOnSuccess: Boolean = false,
         val usedEmbeddedDeveloperPairing: Boolean = false,
         val hostAddressOverride: String? = null,
+        val networkKey: String? = null,
     )
 
     private data class TelemetryBatch(
