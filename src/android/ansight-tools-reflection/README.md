@@ -37,3 +37,8 @@ val options = AnsightOptions(
 Reflection roots are the access boundary. Register only objects that are safe to
 inspect or mutate, and close the returned registration when the root should no
 longer be exposed.
+
+`reflect.list_roots` includes a `hostRuntime` descriptor on each root. Android
+roots report `kind: "jvm"` so Studio and agent bridges can distinguish
+JVM/ART-hosted roots from CLR, Swift, or future React Native JavaScript
+reflection roots.

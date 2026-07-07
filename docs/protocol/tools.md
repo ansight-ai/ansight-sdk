@@ -261,6 +261,13 @@ The actual tool ids available on a given session are implementation-defined and 
 - which tool packages the app registered
 - the current `ToolGuard`
 
+Reflection root descriptors returned by `reflect.list_roots` include
+`hostRuntime` when the SDK can identify the runtime that owns the root. Current
+SDKs use `kind: "dotnet"` for CLR roots, `kind: "jvm"` for Android JVM/ART
+roots, and `kind: "swift"` for iOS Swift/Objective-C roots. Bridges should use
+this descriptor rather than overloading root ids or metadata hints when routing
+reflection operations across multiple runtimes.
+
 ## Current limitations
 
 The current `.NET` implementation does not add:

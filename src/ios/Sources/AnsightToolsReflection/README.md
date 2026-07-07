@@ -55,3 +55,8 @@ try AnsightReflectionRootRegistry.register(
 Reflection roots are the access boundary. Register only objects that are safe to
 inspect or mutate, and deregister the returned handle when the root should no
 longer be exposed.
+
+`reflect.list_roots` includes a `hostRuntime` descriptor on each root. iOS roots
+report `kind: "swift"` so Studio and agent bridges can distinguish
+Swift/Objective-C hosted roots from CLR, JVM, or future React Native JavaScript
+reflection roots.

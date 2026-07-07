@@ -213,6 +213,13 @@ The protocol tool ids are shared by .NET, Android, and iOS:
 | Reflection | `reflect.list_roots`, `reflect.inspect_object`, `reflect.describe_type`, `reflect.set_member_value`, `reflect.invoke_method` |
 | React Native | `react.get_component_tree`, `react.get_shadow_tree`, `react.find_components`, `react.get_component`, `react.get_navigation_state`, `react.invoke_component_action` |
 
+`reflect.list_roots` includes a `hostRuntime` descriptor for every root so
+Studio and agent bridges can distinguish which runtime owns the object graph.
+Current SDK roots report `kind: "dotnet"` for CLR roots, `kind: "jvm"` for
+Android JVM/ART roots, and `kind: "swift"` for iOS Swift/Objective-C roots.
+Future React Native JavaScript reflection roots can use the same field with
+`kind: "javascript"` and `bridge: "react-native"`.
+
 Swift reflection inspection uses `Mirror`. Unlike .NET and Android/JVM,
 arbitrary Swift property writes and method invocation are not available through
 runtime reflection; iOS roots opt in to `reflect.set_member_value` and

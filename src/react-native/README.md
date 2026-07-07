@@ -157,6 +157,12 @@ await Ansight.initializeAndActivate(
 );
 ```
 
+`reflect.list_roots` reports a `hostRuntime` descriptor on each root. Current
+React Native reflection roots are hosted by the native iOS or Android runtime;
+future JavaScript reflection roots should report `kind: "javascript"` and
+`bridge: "react-native"` so callers can route reflection requests to the
+correct runtime boundary.
+
 `secureStorage.preferencesName` is Android-specific. `secureStorage.appleService`
 is iOS-specific. The top-level `secureStorage` option is still accepted as a
 compatibility alias for `remoteTools.secureStorage`.

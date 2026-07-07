@@ -422,7 +422,8 @@ try AnsightRuntime.shared.registerVisualTreeTools()
 `AnsightToolsReflection` exposes the shared `reflect.*` tool ids. Swift object
 inspection uses `Mirror`; writes and method invocation require roots that
 explicitly conform to `AnsightReflectionMutableRoot` and
-`AnsightReflectionInvokableRoot`.
+`AnsightReflectionInvokableRoot`. `reflect.list_roots` includes `hostRuntime`
+metadata with `kind: "swift"` for Swift/Objective-C hosted roots.
 
 Tool-suite options mirror the .NET allow-list/root concepts:
 

@@ -270,6 +270,9 @@ tool id is already present in `initialTools`.
 | `ansight-tools-database-android` | `AndroidDatabaseTools.create()` | `data.*` SQLite tools |
 | `ansight-tools-reflection-android` | `AndroidReflectionTools.create()` | `reflect.*` registered-root reflection tools |
 
+`reflect.list_roots` includes `hostRuntime` metadata with `kind: "jvm"` for
+Android JVM/ART hosted roots.
+
 Each tool package exposes a `*ToolIds` object that matches the .NET constants.
 
 Tool packages also expose .NET-style `AnsightOptionsBuilder` extensions:
