@@ -8,6 +8,7 @@ public struct PairingHost: Sendable, Codable, Equatable {
         case discoveryPort
         case hostPubKey
         case hostPubKeyFingerprint
+        case tlsPins
     }
 
     public var hostId: String?
@@ -15,19 +16,22 @@ public struct PairingHost: Sendable, Codable, Equatable {
     public var discoveryPort: Int = PairingProtocolDefaults.discoveryPort
     public var hostPubKey: String
     public var hostPubKeyFingerprint: String
+    public var tlsPins: [PairingTlsPin]?
 
     public init(
         hostId: String? = nil,
         hostName: String? = nil,
         discoveryPort: Int = PairingProtocolDefaults.discoveryPort,
         hostPubKey: String,
-        hostPubKeyFingerprint: String
+        hostPubKeyFingerprint: String,
+        tlsPins: [PairingTlsPin]? = nil
     ) {
         self.hostId = hostId
         self.hostName = hostName
         self.discoveryPort = discoveryPort
         self.hostPubKey = hostPubKey
         self.hostPubKeyFingerprint = hostPubKeyFingerprint
+        self.tlsPins = tlsPins
     }
 
     public init(from decoder: Decoder) throws {
@@ -38,5 +42,6 @@ public struct PairingHost: Sendable, Codable, Equatable {
             ?? PairingProtocolDefaults.discoveryPort
         hostPubKey = try container.decode(String.self, forKey: .hostPubKey)
         hostPubKeyFingerprint = try container.decode(String.self, forKey: .hostPubKeyFingerprint)
+        tlsPins = try container.decodeIfPresent([PairingTlsPin].self, forKey: .tlsPins)
     }
 }

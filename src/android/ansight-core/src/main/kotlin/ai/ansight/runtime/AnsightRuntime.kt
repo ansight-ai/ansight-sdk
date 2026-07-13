@@ -26,6 +26,8 @@ object AnsightRuntime {
     private var active = false
     private var sessionOpen = false
     private var sessionId: String? = null
+    private var authenticatedGrantV2: PairingGrantV2? = null
+    private var insecureV1Session = false
     private var connectionState = HostConnectionState.Disconnected
     private var sessionMessage: String? = null
     private var liveTransport: PairingLiveSessionTransport? = null
@@ -98,6 +100,8 @@ object AnsightRuntime {
             active = false
             sessionOpen = false
             sessionId = null
+            authenticatedGrantV2 = null
+            insecureV1Session = false
             connectionState = HostConnectionState.Disconnected
             currentLifecycleState = AppLifecycleState.Unknown
             currentLifecycleChangedAtUtc = null
@@ -408,6 +412,8 @@ object AnsightRuntime {
                 liveTransport = null
                 sessionOpen = false
                 sessionId = null
+                authenticatedGrantV2 = null
+                insecureV1Session = false
                 connectionState = HostConnectionState.Disconnected
                 sessionMessage = "Disconnected from Ansight host."
             }
@@ -500,7 +506,8 @@ object AnsightRuntime {
 
         return try {
             val normalizedExpectedAppId = expectedAppId?.trim()?.ifBlank { null } ?: app.packageName
-            PairingConfigDocumentService.parseAndValidateDocument(pairingJson, normalizedExpectedAppId)
+            val document = PairingConfigDocumentService.parseAndValidateDocument(pairingJson, normalizedExpectedAppId)
+            requirePairingProtocolAllowed(document)
             savePairingConfigLocked(app, pairingJson)
             startAutoProbeIfNeeded(app)
             val result = HostConnectionResult.success("Saved pairing config.", source = HostConnectionSource.SavedConfig)
@@ -855,6 +862,9 @@ object AnsightRuntime {
             if (result.success) {
                 return result
             }
+            if (PairingV2DowngradePolicy.claimsV2(candidate.payload)) {
+                return result
+            }
             if (request.kind == HostConnectionRequestKind.Auto &&
                 candidate.source == HostConnectionSource.CachedSession &&
                 shouldClearCachedPairingProfile(result.reasonCode)
@@ -903,10 +913,23 @@ object AnsightRuntime {
             )
         }
 
+        try {
+            requirePairingProtocolAllowed(document)
+        } catch (ex: Exception) {
+            return HostConnectionResult.failure(
+                ex.message ?: "Pairing protocol is disabled.",
+                kind = HostConnectionActionKind.Connect,
+                source = candidate.source,
+                reasonCode = PairingFailureCodes.InsecureV1Disabled,
+            )
+        }
+
         synchronized(lock) {
             connectionState = HostConnectionState.Connecting
             sessionOpen = false
             sessionId = null
+            authenticatedGrantV2 = null
+            insecureV1Session = false
             sessionMessage = "Connecting to Ansight host."
         }
         publishHostConnectionStatusIfChanged()
@@ -918,6 +941,9 @@ object AnsightRuntime {
                 hostAddressOverride = originalRequest.hostAddressOverride?.trim()?.ifBlank { null }
                     ?: candidate.hostAddressOverride,
                 discoveryPort = options.hostConnection.discoveryPort,
+                allowInsecureV1 = options.hostConnection.allowInsecureV1,
+                requestedScopes = requestedScopesForGuard(options.toolGuard),
+                requestCritical = options.toolGuard == AnsightToolGuard.FullAccess,
             ),
         )
 
@@ -926,6 +952,8 @@ object AnsightRuntime {
                 connectionState = HostConnectionState.Disconnected
                 sessionOpen = false
                 sessionId = null
+                authenticatedGrantV2 = null
+                insecureV1Session = false
                 sessionMessage = attempt.message
             }
             publishHostConnectionStatusIfChanged()
@@ -1001,7 +1029,9 @@ object AnsightRuntime {
             liveTransport = transport
             connectionState = HostConnectionState.Connected
             sessionOpen = true
-            sessionId = ProcessSessionIdentity.current
+            sessionId = attempt.authenticationV2?.sessionId ?: ProcessSessionIdentity.current
+            authenticatedGrantV2 = attempt.authenticationV2?.grant
+            insecureV1Session = document.config.schema == PairingConfig.SchemaName
             hostId = attempt.connectResponse.hostId
             hostName = attempt.connectResponse.hostName
             resolvedHostAddress = attempt.hostAddress
@@ -1021,16 +1051,24 @@ object AnsightRuntime {
         startSessionJpegCaptureIfNeeded()
         streamPendingTelemetry()
 
-        if (candidate.shouldSaveOnSuccess) {
-            savePairingConfigLocked(app, candidate.payload)
+        val persistedPayload = attempt.authenticationV2?.let { authentication ->
+            PairingRememberedProfileV2.create(document, authentication.clientKeyId, authentication.grant).toJson()
+        } ?: candidate.payload
+        if (candidate.shouldSaveOnSuccess || attempt.authenticationV2 != null) {
+            savePairingConfigLocked(app, persistedPayload)
         }
-        saveCachedPairingProfile(app, candidate.payload, attempt.hostAddress, document)
+        val persistedDocument = if (attempt.authenticationV2 != null) {
+            PairingConfigDocumentService.parseAndValidateDocument(persistedPayload, expectedAppId)
+        } else {
+            document
+        }
+        saveCachedPairingProfile(app, persistedPayload, attempt.hostAddress, persistedDocument)
 
         val open = OpenSessionResult(
             success = true,
             accepted = true,
             message = "Connected to Ansight host.",
-            sessionId = ProcessSessionIdentity.current,
+            sessionId = attempt.authenticationV2?.sessionId ?: ProcessSessionIdentity.current,
             configId = document.config.configId,
             appId = document.config.appId,
             resolvedHostAddress = attempt.hostAddress,
@@ -1204,7 +1242,9 @@ object AnsightRuntime {
             if (!options.toolGuard.canDiscover(ToolScope.Read)) {
                 return@synchronized toolErrorEnvelope(request, "tool_discovery_disabled", "Tool discovery is disabled by the current guard policy.")
             }
-            val visibleTools = toolRegistry.visible(options.toolGuard).map { it.definition.toJson() }
+            val visibleTools = toolRegistry.visible(options.toolGuard)
+                .filter { tool -> authenticatedGrantAllows(tool.definition) }
+                .map { it.definition.toJson() }
             toolEnvelope(
                 type = ToolProtocol.CatalogType,
                 request = request,
@@ -1244,6 +1284,9 @@ object AnsightRuntime {
         val guard = synchronized(lock) { options.toolGuard }
         if (!guard.canExecute(tool.definition.scope)) {
             return toolErrorEnvelope(request, "tool_execution_denied", "Tool scope '${tool.definition.scope}' is not enabled by the current guard policy.")
+        }
+        if (!synchronized(lock) { authenticatedGrantAllows(tool.definition) }) {
+            return toolErrorEnvelope(request, "tool_grant_denied", "The authenticated session grant does not permit this tool.")
         }
 
         val args = mutableMapOf<String, String>()
@@ -1684,6 +1727,8 @@ object AnsightRuntime {
         active = false
         sessionOpen = false
         sessionId = null
+        authenticatedGrantV2 = null
+        insecureV1Session = false
         connectionState = HostConnectionState.Disconnected
         stopLifecycleCaptureLocked()
         telemetryTask?.cancel(false)
@@ -2029,10 +2074,16 @@ object AnsightRuntime {
             reasonCode == PairingFailureCodes.HostAddressRequired
 
     private fun loadSavedPairingConfig(app: Application): String? {
-        return app.getSharedPreferences(options.hostConnection.savedConfigKey, Application.MODE_PRIVATE)
+        val preferences = app.getSharedPreferences(options.hostConnection.savedConfigKey, Application.MODE_PRIVATE)
+        val payload = preferences
             .getString("payload", null)
             ?.trim()
             ?.ifBlank { null }
+        if (payload != null && !options.hostConnection.allowInsecureV1 && isLegacyV1Payload(payload)) {
+            preferences.edit().clear().apply()
+            return null
+        }
+        return payload
     }
 
     private fun savePairingConfigLocked(app: Application, payload: String) {
@@ -2053,11 +2104,16 @@ object AnsightRuntime {
             legacyExpiresAtEpochMs = preferences.getLong("expiresAtEpochMs", 0L),
             nowEpochMs = System.currentTimeMillis(),
         )
-        if (loadResult.shouldRewrite) {
-            writeCachedPairingProfiles(app, loadResult.profiles)
+        val profiles = if (options.hostConnection.allowInsecureV1) {
+            loadResult.profiles
+        } else {
+            loadResult.profiles.filterNot { profile -> isLegacyV1Payload(profile.payload) }
+        }
+        if (loadResult.shouldRewrite || profiles.size != loadResult.profiles.size) {
+            writeCachedPairingProfiles(app, profiles)
         }
 
-        return loadResult.profiles
+        return profiles
     }
 
     private fun loadCachedPairingProfiles(app: Application): List<ResolvedConnectionCandidate> {
@@ -2123,6 +2179,31 @@ object AnsightRuntime {
     }
 
     private fun cachedPairingProfileKey(): String = "${options.hostConnection.savedConfigKey}.cached-profile"
+
+    private fun authenticatedGrantAllows(definition: ToolDefinition): Boolean {
+        if (insecureV1Session) {
+            return definition.scope == ToolScope.Read && definition.security.level != ToolSecurityLevel.Critical
+        }
+        val grant = authenticatedGrantV2 ?: return true
+        return PairingV2Authorization.allows(grant, definition)
+    }
+
+    private fun requirePairingProtocolAllowed(document: ParsedPairingDocument) {
+        require(document.config.schema == PairingConfig.SecureSchemaName || options.hostConnection.allowInsecureV1) {
+            "Protocol v1 pairing is insecure and disabled. Enable AllowInsecureV1 only for an explicit development connection."
+        }
+    }
+
+    private fun isLegacyV1Payload(payload: String): Boolean = runCatching {
+        PairingConfigDocumentService.parseDocument(payload).config.schema == PairingConfig.SchemaName
+    }.getOrDefault(false)
+
+    private fun requestedScopesForGuard(guard: AnsightToolGuard): List<String> = when (guard) {
+        AnsightToolGuard.Disabled -> emptyList()
+        AnsightToolGuard.ReadOnly -> listOf("Read")
+        AnsightToolGuard.ReadWrite -> listOf("Read", "Write")
+        AnsightToolGuard.FullAccess -> listOf("Read", "Write", "Delete")
+    }
 
     private fun runConnectionOffCallingThread(block: () -> HostConnectionResult): HostConnectionResult {
         val result = arrayOfNulls<HostConnectionResult>(1)

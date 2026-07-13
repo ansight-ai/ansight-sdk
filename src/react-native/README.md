@@ -102,7 +102,7 @@ The TypeScript `AnsightOptions` surface mirrors Android `AnsightOptions`, iOS
 | `toolGuard` | `"disabled"`, `"readOnly"`, `"readWrite"`, or `"fullAccess"`. |
 | `customProperties` | Grouped string properties sent with `session.open`. |
 | `hostAutoProbe` | Remembered-host retry settings for reconnecting after the host disappears and later reappears. |
-| `hostConnection` | Saved, bundled, and developer pairing settings. |
+| `hostConnection` | Saved, bundled, and developer pairing settings. Protocol v1 is rejected unless `allowInsecureV1: true` is explicitly set for a controlled local development workflow. |
 | `secureStorage` | Compatibility alias for native secure-storage allow-list settings. |
 | `remoteTools` | Native visual tree, file, database, preferences, reflection, and secure-storage tool options. |
 | `lifecycle` | JS AppState tracking toggle. Defaults to true. |

@@ -6,6 +6,13 @@ namespace Ansight.Pairing;
 
 internal sealed class PairingConfigDocumentService
 {
+    private readonly PairingV2Validator v2Validator;
+
+    public PairingConfigDocumentService(PairingV2ValidationPolicy? v2Policy = null)
+    {
+        v2Validator = new PairingV2Validator(v2Policy);
+    }
+
     public bool TryParseAndValidateConfigDocument(string payload, string? expectedAppId, out PairingConfigDocument? configDocument, out string error)
     {
         configDocument = null;
@@ -182,6 +189,26 @@ internal sealed class PairingConfigDocumentService
     {
         ArgumentNullException.ThrowIfNull(document);
 
+        if (document.SecureConfig is not null)
+        {
+            if (document.IsRememberedSecureV2)
+            {
+                return v2Validator.TryValidateReconnectConfig(
+                    document.SecureConfig,
+                    expectedAppId ?? document.SecureConfig.AppId,
+                    DateTimeOffset.UtcNow,
+                    out error);
+            }
+
+            return v2Validator.TryValidateConfig(document.SecureConfig, expectedAppId, DateTimeOffset.UtcNow, out error);
+        }
+
+        if (document.Config is null)
+        {
+            error = "Pairing document did not contain a pairing config.";
+            return false;
+        }
+
         return TryValidateConfig(document.Config, expectedAppId, out error);
     }
 
@@ -234,6 +261,39 @@ internal sealed class PairingConfigDocumentService
                 return true;
             }
 
+            if (IsSupportedSecureConfigSchema(schema))
+            {
+                var parsedConfig = JsonSerializer.Deserialize<PairingConfigV2>(configJson, PairingJson.Compact);
+                if (parsedConfig is null)
+                {
+                    error = "Secure pairing config payload could not be parsed.";
+                    return false;
+                }
+
+                document = CreateDocument(parsedConfig);
+                error = string.Empty;
+                return true;
+            }
+
+            if (IsSupportedSecureConfigDocumentSchema(schema))
+            {
+                var secureDocument = JsonSerializer.Deserialize<PairingConfigDocumentV2>(configJson, PairingJson.Compact);
+                if (secureDocument?.Config is null)
+                {
+                    error = "Secure pairing config document did not contain a pairing config.";
+                    return false;
+                }
+
+                if (secureDocument.Discovery is not null)
+                {
+                    PairingDiscoveryHintHostAddresses.NormalizeInPlace(secureDocument.Discovery);
+                }
+
+                document = CreateDocument(secureDocument);
+                error = string.Empty;
+                return true;
+            }
+
             if (!IsSupportedConfigDocumentSchema(schema))
             {
                 error = string.IsNullOrWhiteSpace(schema)
@@ -277,6 +337,12 @@ internal sealed class PairingConfigDocumentService
     {
         return string.Equals(schema, PairingConfig.SchemaName, StringComparison.Ordinal);
     }
+
+    private static bool IsSupportedSecureConfigSchema(string? schema)
+        => string.Equals(schema, PairingConfigV2.SchemaName, StringComparison.Ordinal);
+
+    private static bool IsSupportedSecureConfigDocumentSchema(string? schema)
+        => string.Equals(schema, PairingConfigDocumentV2.SchemaName, StringComparison.Ordinal);
 
     private static bool IsSupportedConfigDocumentSchema(string? schema)
     {
@@ -350,6 +416,27 @@ internal sealed class PairingConfigDocumentService
         };
     }
 
+    internal static ParsedPairingDocument CreateDocument(PairingConfigV2 config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+
+        return new ParsedPairingDocument
+        {
+            SecureConfig = config
+        };
+    }
+
+    internal static ParsedPairingDocument CreateDocument(PairingConfigDocumentV2 configDocument)
+    {
+        ArgumentNullException.ThrowIfNull(configDocument);
+
+        return new ParsedPairingDocument
+        {
+            SecureConfig = configDocument.Config,
+            DiscoveryHint = configDocument.Discovery is null ? null : CloneDiscovery(configDocument.Discovery)
+        };
+    }
+
     internal static PairingConfigDocument CreateConfigDocument(PairingConfig config)
     {
         ArgumentNullException.ThrowIfNull(config);
@@ -364,6 +451,10 @@ internal sealed class PairingConfigDocumentService
     internal static PairingConfigDocument CreateConfigDocument(ParsedPairingDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);
+        if (document.Config is null)
+        {
+            throw new InvalidOperationException("Protocol-v2 documents cannot be written to the legacy config store.");
+        }
 
         return new PairingConfigDocument
         {

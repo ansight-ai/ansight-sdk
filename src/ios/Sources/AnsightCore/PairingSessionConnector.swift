@@ -55,9 +55,32 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
             )
         }
 
+        if document.config.isSecureV2 {
+            return await connectSecure(
+                document: document,
+                hostAddressCandidates: hostAddressCandidates,
+                discoveryPort: discoveryPort,
+                hostNetworkCheckMessage: hostNetworkCheckMessage,
+                requestedScopes: options?.requestedScopes ?? [],
+                requestCritical: options?.requestCritical ?? false
+            )
+        }
+
+        guard options?.allowInsecureV1 == true else {
+            return .failure(
+                "This pairing document uses insecure protocol v1. Re-pair with Studio for WSS, or explicitly enable legacy v1 for a controlled local development environment.",
+                code: PairingFailureCodes.transportNegotiationFailed
+            )
+        }
+
+        let oneTimeToken = document.config.oneTimeToken
+        guard !oneTimeToken.isEmpty else {
+            return .failure("Legacy pairing config did not contain a token.", code: PairingFailureCodes.pairingTokenInvalid)
+        }
+
         let request = ConnectRequest(
             configId: document.config.configId,
-            oneTimeToken: document.config.oneTimeToken,
+            oneTimeToken: oneTimeToken,
             appId: document.config.appId,
             clientName: clientName
         )
@@ -131,6 +154,78 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
 
         return lastFailure ?? .failure(
             "A current host address is required. Import a fresh pairing config or compact pairing config code.",
+            code: PairingFailureCodes.hostAddressRequired
+        )
+    }
+
+    private func connectSecure(
+        document: ParsedPairingDocument,
+        hostAddressCandidates: [String],
+        discoveryPort: Int,
+        hostNetworkCheckMessage: String,
+        requestedScopes: [String],
+        requestCritical: Bool
+    ) async -> PairingConnectionAttempt {
+        let request: ConnectInitV2
+        let requestData: Data
+        do {
+            request = try SecurePairingProtocol.makeConnectInit(config: document.config)
+            requestData = try JSONEncoder.ansightEncoder.encode(request)
+        } catch {
+            return .failure("Failed to create secure connect request: \(error.localizedDescription)", code: PairingFailureCodes.udpBootstrapFailed)
+        }
+
+        var lastFailure: PairingConnectionAttempt?
+        for hostAddress in hostAddressCandidates {
+            let responseData: Data?
+            do {
+                responseData = try await datagramClient.sendConnectRequest(
+                    requestData,
+                    host: hostAddress,
+                    port: discoveryPort,
+                    timeoutSeconds: 5
+                )
+            } catch {
+                lastFailure = .failure("Secure UDP connect failed for \(hostAddress): \(error.localizedDescription)", code: PairingFailureCodes.udpBootstrapFailed)
+                continue
+            }
+
+            guard let responseData else {
+                lastFailure = .failure(
+                    "No secure connect offer from host at \(hostAddress). \(hostNetworkCheckMessage)",
+                    code: PairingFailureCodes.udpBootstrapTimeout
+                )
+                continue
+            }
+
+            do {
+                let offer = try JSONDecoder.ansightDecoder.decode(ConnectOfferV2.self, from: responseData)
+                try SecurePairingProtocol.validateOffer(offer, request: request, config: document.config)
+
+                var components = URLComponents()
+                components.scheme = "wss"
+                components.host = hostAddress
+                components.port = offer.webSocketPort
+                components.path = offer.webSocketPath
+                guard let url = components.url else {
+                    throw PairingDocumentError.invalidDocument("Secure WebSocket offer URL is invalid.")
+                }
+                return .secureSuccess(
+                    hostAddress: hostAddress,
+                    config: document.config,
+                    request: request,
+                    offer: offer,
+                    requestedScopes: SecurePairingProtocol.canonicalScopes(requestedScopes),
+                    requestCritical: requestCritical,
+                    webSocketURL: url
+                )
+            } catch {
+                lastFailure = .failure("Secure host offer was rejected: \(error.localizedDescription)", code: PairingFailureCodes.pairingProofInvalid)
+            }
+        }
+
+        return lastFailure ?? .failure(
+            "A current secure host address is required.",
             code: PairingFailureCodes.hostAddressRequired
         )
     }

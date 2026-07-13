@@ -29,4 +29,5 @@ public sealed class PairingHost
     /// Fingerprint for <see cref="HostPubKey"/>.
     /// </summary>
     public required string HostPubKeyFingerprint { get; set; }
+
 }

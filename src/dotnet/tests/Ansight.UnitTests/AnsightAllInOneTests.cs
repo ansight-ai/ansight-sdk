@@ -33,7 +33,7 @@ public sealed class AnsightAllInOneTests
         Assert.True(options.HostAutoProbe.Enabled);
         Assert.Equal(bundledConfigAssembly, options.HostConnection.BundledConfigAssembly);
         Assert.Equal(
-            [ToolScope.Read, ToolScope.Write, ToolScope.Delete],
+            [ToolScope.Read],
             options.ToolGuard.AllowedScopes.OrderBy(scope => scope));
 
         Assert.Equal(expectedRemoteToolIds, options.Tools.Select(tool => tool.Id));
@@ -103,7 +103,7 @@ public sealed class AnsightAllInOneTests
             expectedRemoteToolIds.Concat(expectedMauiToolIds),
             options.Tools.Select(tool => tool.Id));
         Assert.Equal(
-            [ToolScope.Read, ToolScope.Write, ToolScope.Delete],
+            [ToolScope.Read],
             options.ToolGuard.AllowedScopes.OrderBy(scope => scope));
     }
 

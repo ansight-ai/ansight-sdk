@@ -46,6 +46,12 @@ public sealed class HostConnectionOptions
     public int? DiscoveryPort { get; set; }
 
     /// <summary>
+    /// Explicitly permits the insecure protocol-v1 UDP and WebSocket transport.
+    /// This should be enabled only for local development migration.
+    /// </summary>
+    public bool AllowInsecureV1 { get; set; }
+
+    /// <summary>
     /// Optional assembly containing embedded bundled config resources.
     /// When supplied, the SDK looks for embedded resources whose logical names are exactly
     /// <c>ansight.developer-pairing.json</c> and <c>ansight.json</c>.
@@ -137,6 +143,15 @@ public sealed class HostConnectionOptions
         return this;
     }
 
+    /// <summary>
+    /// Enables insecure protocol-v1 compatibility for local development.
+    /// </summary>
+    public HostConnectionOptions AllowInsecureProtocolV1()
+    {
+        AllowInsecureV1 = true;
+        return this;
+    }
+
     internal HostConnectionOptions Clone()
     {
         return new HostConnectionOptions
@@ -144,6 +159,7 @@ public sealed class HostConnectionOptions
             SavedConfigPath = SavedConfigPath,
             ConnectionProfileRetention = ConnectionProfileRetention,
             DiscoveryPort = DiscoveryPort,
+            AllowInsecureV1 = AllowInsecureV1,
             BundledConfigAssembly = BundledConfigAssembly,
             BundledDeveloperConfigLoader = BundledDeveloperConfigLoader,
             BundledConfigLoader = BundledConfigLoader,

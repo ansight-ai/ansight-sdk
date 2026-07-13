@@ -1,6 +1,9 @@
 # Ansight Protocol
 
-This file contains the current Ansight connection, transport, and remote-tool protocol.
+This file documents legacy protocol v1 and the shared post-connection tool and
+stream messages. New pairing uses the secure protocol-v2 contract in
+[`protocol-v2.md`](protocol-v2.md). Protocol v1 requires an explicit
+`AllowInsecureV1` development opt-in and is never a fallback for a v2 config.
 
 ## Connection Protocol
 

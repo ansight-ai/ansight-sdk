@@ -8,6 +8,7 @@ struct PairingConnectionAttempt: Sendable {
     let hostAddress: String?
     let connectResponse: ConnectResponse?
     let webSocketURL: URL?
+    let secureContext: SecurePairingContext?
     let failureCode: String?
 
     static func failure(_ message: String, code: String? = nil) -> PairingConnectionAttempt {
@@ -18,6 +19,7 @@ struct PairingConnectionAttempt: Sendable {
             hostAddress: nil,
             connectResponse: nil,
             webSocketURL: nil,
+            secureContext: nil,
             failureCode: code
         )
     }
@@ -30,6 +32,7 @@ struct PairingConnectionAttempt: Sendable {
             hostAddress: hostAddress,
             connectResponse: response,
             webSocketURL: nil,
+            secureContext: nil,
             failureCode: nil
         )
     }
@@ -42,6 +45,48 @@ struct PairingConnectionAttempt: Sendable {
             hostAddress: hostAddress,
             connectResponse: response,
             webSocketURL: webSocketURL,
+            secureContext: nil,
+            failureCode: nil
+        )
+    }
+
+    static func secureSuccess(
+        hostAddress: String,
+        config: PairingConfig,
+        request: ConnectInitV2,
+        offer: ConnectOfferV2,
+        requestedScopes: [String],
+        requestCritical: Bool,
+        webSocketURL: URL
+    ) -> PairingConnectionAttempt {
+        let response = ConnectResponse(
+            type: "CONNECT_OFFER_V2",
+            ver: 2,
+            accepted: true,
+            reason: "ok",
+            reasonMessage: nil,
+            hostId: offer.hostId,
+            hostName: config.host.hostName ?? offer.hostId,
+            hostWifiName: nil,
+            message: "Secure connection offer accepted.",
+            webSocketPort: offer.webSocketPort,
+            webSocketPath: offer.webSocketPath,
+            webSocketToken: nil
+        )
+        return PairingConnectionAttempt(
+            success: true,
+            accepted: true,
+            message: "Authenticated secure host offer is ready.",
+            hostAddress: hostAddress,
+            connectResponse: response,
+            webSocketURL: webSocketURL,
+            secureContext: SecurePairingContext(
+                config: config,
+                request: request,
+                offer: offer,
+                requestedScopes: requestedScopes,
+                requestCritical: requestCritical
+            ),
             failureCode: nil
         )
     }

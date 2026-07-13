@@ -29,12 +29,31 @@ public sealed class PairingConnectionOptions
     /// </summary>
     public SessionCustomProperties? CustomProperties { get; set; }
 
+    /// <summary>
+    /// Explicitly permits cleartext protocol v1 for local development.
+    /// </summary>
+    public bool AllowInsecureV1 { get; set; }
+
+    /// <summary>
+    /// Protocol-v2 scopes requested during first-use enrollment.
+    /// </summary>
+    public string[] RequestedScopes { get; set; } = ["Read"];
+
+    /// <summary>
+    /// Requests critical protocol-v2 capabilities. The ticket, SDK guard, and
+    /// Studio session approval must also allow them.
+    /// </summary>
+    public bool RequestCritical { get; set; }
+
     internal PairingConnectionOptions Clone()
         => new()
         {
             HostAddressOverride = HostAddressOverride,
             DiscoveryPort = DiscoveryPort,
             DeviceAppProfile = DeviceAppProfile,
-            CustomProperties = CustomProperties?.Clone()
+            CustomProperties = CustomProperties?.Clone(),
+            AllowInsecureV1 = AllowInsecureV1,
+            RequestedScopes = [.. RequestedScopes],
+            RequestCritical = RequestCritical
         };
 }

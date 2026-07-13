@@ -10,7 +10,7 @@ internal static class PairingDiscoveryPortResolver
         {
             configuredDiscoveryPort,
             document.DiscoveryHint?.DiscoveryPort,
-            document.Config.Host.DiscoveryPort
+            document.HostDiscoveryPort
         };
 
         foreach (var candidate in candidates)

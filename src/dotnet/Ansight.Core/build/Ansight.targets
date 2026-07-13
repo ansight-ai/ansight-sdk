@@ -8,6 +8,7 @@
     <_AnsightAllowRemoteToolsNormalized Condition="'$(AnsightAllowRemoteTools)' != ''">$([System.String]::Copy('$(AnsightAllowRemoteTools)').ToLowerInvariant())</_AnsightAllowRemoteToolsNormalized>
     <AnsightRemoteToolsPolicy Condition="'$(AnsightRemoteToolsPolicy)' == '' and '$(_AnsightAllowRemoteToolsNormalized)' == 'true'">Allowed</AnsightRemoteToolsPolicy>
     <AnsightRemoteToolsPolicy Condition="'$(AnsightRemoteToolsPolicy)' == '' and '$(_AnsightAllowRemoteToolsNormalized)' == 'false'">Disallowed</AnsightRemoteToolsPolicy>
+    <AnsightRemoteToolsPolicy Condition="'$(AnsightRemoteToolsPolicy)' == '' and '$(Configuration)' == 'Release'">Disallowed</AnsightRemoteToolsPolicy>
     <AnsightRemoteToolsPolicy Condition="'$(AnsightRemoteToolsPolicy)' == ''">AllowedWithWarnings</AnsightRemoteToolsPolicy>
     <AnsightLogRemoteTools Condition="'$(AnsightLogRemoteTools)' == ''">true</AnsightLogRemoteTools>
     <_AnsightRemoteToolsPolicyNormalized>$([System.String]::Copy('$(AnsightRemoteToolsPolicy)').ToLowerInvariant())</_AnsightRemoteToolsPolicyNormalized>
@@ -62,6 +63,15 @@
            Text="AnsightRemoteToolsPolicy must be one of 'Allowed', 'AllowedWithWarnings', or 'Disallowed'." />
     <Error Condition="'$(_AnsightLogRemoteToolsNormalized)' != 'true' and '$(_AnsightLogRemoteToolsNormalized)' != 'false'"
            Text="AnsightLogRemoteTools must be either 'true' or 'false'." />
+  </Target>
+
+  <Target Name="RejectInsecureAnsightReleaseConfiguration"
+          BeforeTargets="PrepareForBuild"
+          Condition="'$(Configuration)' == 'Release' and '$(DesignTimeBuild)' != 'true' and '$(IsCrossTargetingBuild)' != 'true'">
+    <Error Condition="'$(AnsightDeveloperPairingEnabled)' == 'true'"
+           Text="Release builds cannot embed Ansight developer pairing material." />
+    <Error Condition="'$(AnsightRemoteToolsPolicy)' != 'Disallowed' and '$(_AnsightRemoteToolsPolicyNormalized)' != 'disallowed'"
+           Text="Release builds require AnsightRemoteToolsPolicy=Disallowed." />
   </Target>
 
   <Target Name="GenerateAnsightDeveloperPairing"

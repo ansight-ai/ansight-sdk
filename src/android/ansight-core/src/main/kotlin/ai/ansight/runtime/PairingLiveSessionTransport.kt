@@ -10,14 +10,17 @@ import org.json.JSONObject
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
 class PairingLiveSessionTransport {
-    private val client = OkHttpClient.Builder()
+    private val maximumAuthenticationMessageBytes = 64 * 1024
+    private val defaultClient = OkHttpClient.Builder()
         .readTimeout(0, TimeUnit.MILLISECONDS)
         .build()
     private val pendingResponses = ConcurrentHashMap<String, PendingControlResponse>()
+    private val pendingTextMessages = LinkedBlockingQueue<String>()
     private val lock = Any()
     private var webSocket: WebSocket? = null
     private var lastCloseReason: String? = null
@@ -28,7 +31,26 @@ class PairingLiveSessionTransport {
         get() = synchronized(lock) { webSocket != null }
 
     fun open(url: String, timeoutMilliseconds: Long = 5_000): OperationResult {
+        return open(url, defaultClient, timeoutMilliseconds)
+    }
+
+    internal fun openPinnedWss(url: String, tlsSpkiSha256: String, timeoutMilliseconds: Long = 5_000): OperationResult {
+        if (!url.startsWith("wss://", ignoreCase = true)) {
+            return OperationResult.failure("Protocol v2 requires a wss:// endpoint.")
+        }
+        return runCatching {
+            open(url, PairingV2Tls.createClient(tlsSpkiSha256), timeoutMilliseconds)
+        }.getOrElse { error ->
+            OperationResult.failure(PairingRedaction.redact("WSS endpoint did not become reachable: ${error.message}"))
+        }
+    }
+
+    internal fun awaitTextMessage(timeoutMilliseconds: Long): String? =
+        pendingTextMessages.poll(timeoutMilliseconds, TimeUnit.MILLISECONDS)
+
+    private fun open(url: String, client: OkHttpClient, timeoutMilliseconds: Long): OperationResult {
         close(notify = false)
+        pendingTextMessages.clear()
 
         val opened = CountDownLatch(1)
         val failed = AtomicReference<String?>(null)
@@ -43,7 +65,24 @@ class PairingLiveSessionTransport {
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
-                handleIncomingText(text)
+                if (textMessageHandler == null) {
+                    if (text.toByteArray(Charsets.UTF_8).size > maximumAuthenticationMessageBytes) {
+                        pendingTextMessages.offer(
+                            JSONObject()
+                                .put("type", PairingV2Constants.AuthErrorType)
+                                .put("ver", 2)
+                                .put("code", "authentication_message_too_large")
+                                .put("message", "Protocol v2 authentication message exceeded the size limit.")
+                                .put("retryable", false)
+                                .toString(),
+                        )
+                        close(reason = "Protocol v2 authentication message exceeded the size limit.", notify = true)
+                    } else {
+                        pendingTextMessages.offer(text)
+                    }
+                } else {
+                    handleIncomingText(text)
+                }
             }
 
             override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
@@ -59,7 +98,7 @@ class PairingLiveSessionTransport {
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                failed.set(t.message ?: "WebSocket failed.")
+                failed.set(PairingRedaction.redact(t.message ?: "WebSocket failed."))
                 close(reason = failed.get() ?: "WebSocket failed.", notify = true)
                 opened.countDown()
             }

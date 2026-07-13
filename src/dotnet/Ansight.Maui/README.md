@@ -48,7 +48,7 @@ builder.UseAnsight<App>(ansight =>
 });
 ```
 
-The callback runs before default tool-suite registration. If it registers secure storage, preferences, MAUI tools, or another suite, the all-in-one setup skips the default registration for that suite and keeps the configured version. Full tool access is applied before the callback, so the callback can also narrow the guard.
+The callback runs before default tool-suite registration. If it registers secure storage, preferences, MAUI tools, or another suite, the all-in-one setup skips the default registration for that suite and keeps the configured version. Read-only access is applied before the callback; broader access requires both an explicit guard override and a matching authenticated protocol-v2 grant.
 
 Host auto-probe is enabled by the all-in-one defaults. Ansight remembers successful host sessions per Wi-Fi network reported by the connected host, stores the latest host/LAN address for that network, and retries those profiles so the app can reconnect after the host disappears and later reappears. Profiles expire after 14 days by default, and a successful reconnect refreshes the matching Wi-Fi profile. Configure retention in the same callback:
 
@@ -73,4 +73,4 @@ builder
 
 `WithAnsightMaui(...)` configures runtime defaults and MAUI tools only. `UseAnsight(...)` is the API that registers automatic foreground/background and `Application.PageAppearing` telemetry.
 
-Remote tool scanning is controlled by `AnsightRemoteToolsPolicy`. The default `AllowedWithWarnings` policy logs detected tool type and assembly details and emits a build warning when tool packages are included. Because this all-in-one package intentionally includes remote tools, `Disallowed` will fail builds that reference it. Use `Ansight.Core` plus fine-grained `Ansight.Tools.*` references when you need protected Release or CI builds that exercise `Disallowed`. Set `AnsightLogRemoteTools=false` to suppress the detected-tool list.
+Remote tool scanning is controlled by `AnsightRemoteToolsPolicy`. Debug defaults to `AllowedWithWarnings`; Release defaults to `Disallowed` and also rejects developer pairing resources. Because this all-in-one package intentionally includes remote tools, protected Release builds should use `Ansight.Core` plus Debug-conditional fine-grained `Ansight.Tools.*` references.

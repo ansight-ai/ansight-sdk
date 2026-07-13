@@ -16,6 +16,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         PairingFailureCodes.PairingTokenInvalid,
         PairingFailureCodes.PairingTokenExpired,
         PairingFailureCodes.PairingProofInvalid,
+        PairingFailureCodes.InsecureV1Disabled,
         PairingFailureCodes.UdpBootstrapFailed,
         PairingFailureCodes.UdpBootstrapTimeout
     };
@@ -29,6 +30,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
     private readonly PairingSessionTouchCaptureStreamer touchCaptureStreamer;
     private readonly PairingSessionJpegStreamer jpegStreamer;
     private readonly StoredPairingDocumentCache storedPairingDocumentCache;
+    private readonly PairingV2CredentialStore v2CredentialStore;
     private readonly Lock runtimeCustomPropertiesLock = new();
     private readonly SemaphoreSlim customPropertiesSendLock = new(1, 1);
     private RuntimeImpl? subscribedRuntime;
@@ -75,12 +77,17 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
     internal PairingSessionClient(
         IDeviceAppProfileProvider? deviceAppProfileProvider,
         StoredPairingDocumentCache? storedPairingDocumentCache,
-        TimeSpan? cachedProfileRetention = null)
+        TimeSpan? cachedProfileRetention = null,
+        PairingV2CredentialStore? v2CredentialStore = null)
     {
         var profileProvider = deviceAppProfileProvider ?? AutomaticDeviceAppProfileProvider.Instance;
 
         deviceAppProfileResolver = new DeviceAppProfileResolver(profileProvider);
-        connector = new PairingSessionConnector();
+        this.v2CredentialStore = v2CredentialStore ?? new PairingV2CredentialStore();
+        connector = new PairingSessionConnector(
+            PairingWifiPreflight.GetStatus,
+            PairingSimulatorLocalHostAddress.Resolve,
+            new PairingV2SessionConnector(credentialStore: this.v2CredentialStore));
         transport = new PairingSessionTransport();
         appStateStreamer = new PairingSessionAppStateStreamer(transport);
         telemetryStreamer = new TelemetryStreamer(transport);
@@ -103,7 +110,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
 
     internal bool IsSessionOpen => transport.IsOpen;
 
-    internal bool HasCachedPairingProfile => storedPairingDocumentCache.HasCachedDocument;
+    internal bool HasCachedPairingProfile => v2CredentialStore.HasCredential || storedPairingDocumentCache.HasCachedDocument;
 
     event EventHandler? IHostConnectionSessionClient.SessionClosed
     {
@@ -268,12 +275,11 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
             return OpenSessionResult.FromFailure(validationError);
         }
 
-        var config = sessionDocument.Config;
         var discoveryPort = PairingDiscoveryPortResolver.Resolve(sessionDocument, options?.DiscoveryPort);
         HostPairingProgressReporter.Report(
             progress,
             HostConnectionProgressKind.Validation,
-            $"Config validated. ConfigId: {config.ConfigId}",
+            $"Config validated. ConfigId: {sessionDocument.ConfigId}",
             source: HostConnectionSource.Payload);
 
         var connectionAttempt = await connector.ConnectAsync(sessionDocument, clientName, options, progress, cancellationToken);
@@ -288,7 +294,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
 
         try
         {
-            transport.Attach(connectionAttempt.WebSocket!);
+            transport.Attach(connectionAttempt.WebSocket!, connectionAttempt.SecureContext);
             if (Runtime.IsInitialized)
             {
                 Runtime.MutableInstance.BinaryTransferHub.AttachTransport(transport);
@@ -296,7 +302,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
 
             sessionConnectionCustomProperties = options?.CustomProperties?.Clone();
             var sessionOpenResult = await SendSessionOpenAsync(
-                config,
+                sessionDocument,
                 clientName,
                 CreateEffectiveCustomProperties(sessionConnectionCustomProperties),
                 progress,
@@ -328,21 +334,30 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
             await jpegStreamer.StartAsync(progress);
             try
             {
-                storedPairingDocumentCache.Save(CreateCachedDocument(
-                    sessionDocument,
-                    connectionAttempt.HostAddress,
-                    connectionAttempt.ConnectResponse,
-                    discoveryPort));
+                if (!sessionDocument.IsSecureV2)
+                {
+                    storedPairingDocumentCache.Save(CreateCachedDocument(
+                        sessionDocument,
+                        connectionAttempt.HostAddress,
+                        connectionAttempt.ConnectResponse,
+                        discoveryPort));
+                }
             }
             catch (Exception ex)
             {
                 Logger.Warning($"Failed to cache the host session for auto-probe: {ex.Message}");
             }
 
-            return OpenSessionResult.FromSuccess(
-                connectionAttempt.Message,
-                connectionAttempt.HostAddress!,
-                connectionAttempt.ConnectResponse!);
+            return connectionAttempt.SecureOffer is null
+                ? OpenSessionResult.FromSuccess(
+                    connectionAttempt.Message,
+                    connectionAttempt.HostAddress!,
+                    connectionAttempt.ConnectResponse!)
+                : OpenSessionResult.FromSecureSuccess(
+                    connectionAttempt.Message,
+                    connectionAttempt.HostAddress!,
+                    connectionAttempt.SecureOffer,
+                    connectionAttempt.SecureContext!.SessionId);
         }
         catch
         {
@@ -521,6 +536,34 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
     {
         var baselineProfile = deviceAppProfileResolver.Resolve(options?.DeviceAppProfile);
         var expectedAppId = deviceAppProfileResolver.ResolveExpectedAppId(baselineProfile);
+        var hasSecureCredential = string.IsNullOrWhiteSpace(expectedAppId)
+            ? v2CredentialStore.TryLoadLast(DateTimeOffset.UtcNow, out var secureCredential)
+            : v2CredentialStore.TryLoadForApp(expectedAppId, DateTimeOffset.UtcNow, out secureCredential);
+        if (hasSecureCredential && secureCredential is not null && !string.IsNullOrWhiteSpace(secureCredential.LastHostAddress))
+        {
+            var secureDocument = new ParsedPairingDocument
+            {
+                SecureConfig = secureCredential.ReconnectConfig,
+                IsRememberedSecureV2 = true,
+                DiscoveryHint = new PairingDiscoveryHint
+                {
+                    Schema = PairingDiscoveryHint.SchemaName,
+                    Source = "secure-v2-credential",
+                    HostAddresses = [secureCredential.LastHostAddress],
+                    DiscoveryPort = secureCredential.DiscoveryPort,
+                    HostName = secureCredential.ReconnectConfig.Host.HostName
+                }
+            };
+            var secureOptions = options?.Clone() ?? new PairingConnectionOptions();
+            secureOptions.DiscoveryPort = secureCredential.DiscoveryPort;
+            return await OpenSessionAsync(
+                secureDocument,
+                ResolveClientName(clientName, baselineProfile),
+                secureOptions,
+                progress,
+                cancellationToken);
+        }
+
         if (!storedPairingDocumentCache.TryLoadValidatedProfiles(expectedAppId, out var profiles, out var error) ||
             profiles.Count == 0)
         {
@@ -732,13 +775,13 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
     }
 
     private Task<OperationResult> SendSessionOpenAsync(
-        PairingConfig config,
+        ParsedPairingDocument document,
         string clientName,
         SessionCustomProperties? customProperties,
         IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
-        var payload = CreateSessionOpenPayload(config, clientName, customProperties);
+        var payload = CreateSessionOpenPayload(document.ConfigId, document.AppId, clientName, customProperties);
 
         return transport.SendControlRequestAsync(
             PairingControlActions.SessionOpen,
@@ -757,12 +800,19 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         PairingConfig config,
         string clientName,
         SessionCustomProperties? customProperties)
+        => CreateSessionOpenPayload(config.ConfigId, config.AppId, clientName, customProperties);
+
+    private static JsonObject CreateSessionOpenPayload(
+        string configId,
+        string appId,
+        string clientName,
+        SessionCustomProperties? customProperties)
     {
         var payload = new JsonObject
         {
             ["clientName"] = clientName,
-            ["configId"] = config.ConfigId,
-            ["appId"] = config.AppId,
+            ["configId"] = configId,
+            ["appId"] = appId,
             ["openedAtUtc"] = DateTimeOffset.UtcNow
         };
 
@@ -917,7 +967,9 @@ public sealed record OpenSessionResult(
     string Message,
     IPAddress? HostAddress,
     ConnectResponse? ConnectResponse,
-    string? FailureCode = null)
+    string? FailureCode = null,
+    ConnectOfferV2? SecureOffer = null,
+    string? SecureSessionId = null)
 {
     /// <summary>
     /// Creates a failed session result.
@@ -960,6 +1012,16 @@ public sealed record OpenSessionResult(
         IPAddress hostAddress,
         ConnectResponse connectResponse) =>
         new(true, true, message, hostAddress, connectResponse, null);
+
+    /// <summary>
+    /// Creates a successful authenticated protocol-v2 session result.
+    /// </summary>
+    public static OpenSessionResult FromSecureSuccess(
+        string message,
+        IPAddress hostAddress,
+        ConnectOfferV2 offer,
+        string sessionId) =>
+        new(true, true, message, hostAddress, null, null, offer, sessionId);
 
     private static string FirstNonEmpty(params string?[] values)
     {

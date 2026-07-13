@@ -14,7 +14,8 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
         PairingFailureCodes.PairingRequired,
         PairingFailureCodes.PairingTokenInvalid,
         PairingFailureCodes.PairingTokenExpired,
-        PairingFailureCodes.PairingProofInvalid
+        PairingFailureCodes.PairingProofInvalid,
+        PairingFailureCodes.InsecureV1Disabled
     };
 
     private readonly IHostSessionConnection hostConnection;
@@ -671,7 +672,7 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
                 $"Loaded {sourceDescription ?? "pairing config code"}."));
         }
 
-        if (!pairingDocumentService.TryParseConfigDocument(payload, out var configDocument, out var error) || configDocument is null)
+        if (!hostConnection.TryParseAndValidateDocument(payload, out var parsedDocument, out var error) || parsedDocument is null)
         {
             return Task.FromResult(ResolvedPairingDocument.FromFailure(
                 string.IsNullOrWhiteSpace(error)
@@ -679,10 +680,10 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
                     : error));
         }
 
-        return Task.FromResult(ResolveConfigDocument(
-            configDocument,
-            HostConnectionSource.Payload,
-            $"Loaded {sourceDescription ?? "pairing config"}."));
+        return Task.FromResult(ResolvedPairingDocument.FromSuccess(
+            parsedDocument,
+            $"Loaded {sourceDescription ?? "pairing config"}.",
+            HostConnectionSource.Payload));
     }
 
     private Task<ResolvedPairingDocument> TryResolveSavedPairingDocumentAsync()
@@ -819,7 +820,8 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
             clientName,
             new PairingConnectionOptions
             {
-                DiscoveryPort = discoveryPort
+                DiscoveryPort = discoveryPort,
+                AllowInsecureV1 = options.AllowInsecureV1
             },
             progress,
             cancellationToken);
@@ -829,7 +831,7 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
             Source = resolvedDocument.Source,
             ReasonCode = connectResult.ReasonCode ?? connectResult.SessionResult?.RejectionCode
         };
-        if (connectResult.Success)
+        if (connectResult.Success && !resolvedDocument.Document.IsSecureV2)
         {
             try
             {
@@ -1057,7 +1059,10 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
     {
         var expectedHostAddress = PairingDiscoveryHintHostAddresses.ResolvePrimary(document.DiscoveryHint);
         var expectedWifiName = FirstNonEmpty(document.DiscoveryHint?.WifiName);
-        var expectedHostName = FirstNonEmpty(document.DiscoveryHint?.HostName, document.Config.Host.HostName);
+        var expectedHostName = FirstNonEmpty(
+            document.DiscoveryHint?.HostName,
+            document.SecureConfig?.Host.HostName,
+            document.Config?.Host.HostName);
 
         Logger.Info(
             $"Ansight pairing expectation: wifi={expectedWifiName ?? "Unknown"} " +
@@ -1332,8 +1337,17 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
 
         private static string CreateFingerprint(ParsedPairingDocument document)
         {
-            var configDocument = PairingConfigDocumentService.CreateConfigDocument(document);
-            var json = PairingConfigDocumentJson.Serialize(configDocument, indented: false);
+            var json = document.SecureConfig is null
+                ? PairingConfigDocumentJson.Serialize(
+                    PairingConfigDocumentService.CreateConfigDocument(document),
+                    indented: false)
+                : JsonSerializer.Serialize(
+                    new PairingConfigDocumentV2
+                    {
+                        Config = document.SecureConfig,
+                        Discovery = document.DiscoveryHint
+                    },
+                    PairingJson.Compact);
             return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)));
         }
     }

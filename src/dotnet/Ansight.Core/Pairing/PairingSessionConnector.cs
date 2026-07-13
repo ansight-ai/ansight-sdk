@@ -9,24 +9,27 @@ internal sealed class PairingSessionConnector
 {
     private readonly Func<PairingWifiPreflightStatus> wifiStatusProvider;
     private readonly Func<string?> simulatorLocalHostAddressProvider;
+    private readonly PairingV2SessionConnector v2Connector;
 
     public PairingSessionConnector()
-        : this(PairingWifiPreflight.GetStatus, PairingSimulatorLocalHostAddress.Resolve)
+        : this(PairingWifiPreflight.GetStatus, PairingSimulatorLocalHostAddress.Resolve, null)
     {
     }
 
     internal PairingSessionConnector(Func<PairingWifiPreflightStatus> wifiStatusProvider)
-        : this(wifiStatusProvider, PairingSimulatorLocalHostAddress.Resolve)
+        : this(wifiStatusProvider, PairingSimulatorLocalHostAddress.Resolve, null)
     {
     }
 
     internal PairingSessionConnector(
         Func<PairingWifiPreflightStatus> wifiStatusProvider,
-        Func<string?> simulatorLocalHostAddressProvider)
+        Func<string?> simulatorLocalHostAddressProvider,
+        PairingV2SessionConnector? v2Connector = null)
     {
         this.wifiStatusProvider = wifiStatusProvider ?? throw new ArgumentNullException(nameof(wifiStatusProvider));
         this.simulatorLocalHostAddressProvider = simulatorLocalHostAddressProvider
                                                  ?? throw new ArgumentNullException(nameof(simulatorLocalHostAddressProvider));
+        this.v2Connector = v2Connector ?? new PairingV2SessionConnector();
     }
 
     public async Task<PairingConnectionAttempt> ConnectAsync(
@@ -39,7 +42,6 @@ internal sealed class PairingSessionConnector
         ArgumentNullException.ThrowIfNull(document);
 
         var simulatorLocalHostAddress = ResolveSimulatorLocalHostAddress();
-        var config = document.Config;
         var hostAddressCandidates = PairingDiscoveryHintHostAddresses.ResolveCandidates(
             document.DiscoveryHint,
             options?.HostAddressOverride,
@@ -79,6 +81,35 @@ internal sealed class PairingSessionConnector
                 ? $"Using host override address: {hostAddressCandidates[0]}"
                 : $"Using pairing config host address candidates: {string.Join(", ", hostAddressCandidates)}",
             source: HostConnectionSource.HostConnection);
+
+        if (document.SecureConfig is not null)
+        {
+            var secureResult = await v2Connector.ConnectAsync(
+                document.SecureConfig,
+                hostAddressCandidates,
+                discoveryPort,
+                options?.RequestedScopes ?? ["Read"],
+                options?.RequestCritical ?? false,
+                progress,
+                cancellationToken);
+            return secureResult.Success
+                ? PairingConnectionAttempt.FromSecureSuccess(secureResult)
+                : PairingConnectionAttempt.FromFailure(secureResult.Message, secureResult.FailureCode);
+        }
+
+        if (document.Config is null)
+        {
+            return PairingConnectionAttempt.FromFailure("Pairing document did not contain a config.");
+        }
+
+        if (options?.AllowInsecureV1 != true)
+        {
+            return PairingConnectionAttempt.FromFailure(
+                "Protocol v1 is insecure and disabled. Explicitly enable AllowInsecureV1 for local development.",
+                PairingFailureCodes.InsecureV1Disabled);
+        }
+
+        var config = document.Config;
 
         PairingConnectionAttempt? lastFailure = null;
         for (var index = 0; index < hostAddressCandidates.Length; index++)
@@ -190,7 +221,7 @@ internal sealed class PairingSessionConnector
             HostPairingProgressReporter.Report(
                 progress,
                 HostConnectionProgressKind.Connection,
-                $"Opening WebSocket: {wsUri}",
+                $"Opening insecure WebSocket at {wsUri.Scheme}://{wsUri.Host}:{wsUri.Port}{wsUri.AbsolutePath}.",
                 source: HostConnectionSource.Transport);
 
             var connectedSocket = await ConnectWebSocketWithRetryAsync(wsUri, cancellationToken);
@@ -370,17 +401,31 @@ internal sealed record PairingConnectionAttempt(
     IPAddress? HostAddress,
     ConnectResponse? ConnectResponse,
     ClientWebSocket? WebSocket,
-    string? FailureCode)
+    string? FailureCode,
+    ConnectOfferV2? SecureOffer,
+    PairingV2SessionContext? SecureContext)
 {
     public static PairingConnectionAttempt FromFailure(string message, string? failureCode = null)
-        => new(false, false, message, null, null, null, failureCode);
+        => new(false, false, message, null, null, null, failureCode, null, null);
 
     public static PairingConnectionAttempt FromRejected(IPAddress hostAddress, ConnectResponse connectResponse)
-        => new(false, false, connectResponse.ReasonMessage ?? connectResponse.Message, hostAddress, connectResponse, null, null);
+        => new(false, false, connectResponse.ReasonMessage ?? connectResponse.Message, hostAddress, connectResponse, null, null, null, null);
 
     public static PairingConnectionAttempt FromSuccess(
         IPAddress hostAddress,
         ConnectResponse connectResponse,
         ClientWebSocket webSocket)
-        => new(true, true, "Connected to host and WebSocket session is ready.", hostAddress, connectResponse, webSocket, null);
+        => new(true, true, "Connected to host and WebSocket session is ready.", hostAddress, connectResponse, webSocket, null, null, null);
+
+    public static PairingConnectionAttempt FromSecureSuccess(PairingV2ConnectionResult result)
+        => new(
+            true,
+            true,
+            result.Message,
+            result.HostAddress,
+            null,
+            result.WebSocket,
+            null,
+            result.Offer,
+            result.Context);
 }

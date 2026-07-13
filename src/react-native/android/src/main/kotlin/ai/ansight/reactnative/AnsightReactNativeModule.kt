@@ -753,6 +753,10 @@ class AnsightReactNativeModule(
                         "connectionProfileRetentionSeconds",
                         options.hostConnection.connectionProfileRetentionSeconds,
                     ),
+                    allowInsecureV1 = host.booleanValue(
+                        "allowInsecureV1",
+                        options.hostConnection.allowInsecureV1,
+                    ),
                 ),
             )
         }
@@ -1096,6 +1100,7 @@ class AnsightReactNativeModule(
                 "hasBundledDeveloperConfigJson" to (options.hostConnection.bundledDeveloperConfigJson != null),
                 "discoveryPort" to options.hostConnection.discoveryPort,
                 "connectionProfileRetentionSeconds" to options.hostConnection.connectionProfileRetentionSeconds,
+                "allowInsecureV1" to options.hostConnection.allowInsecureV1,
             ).toWritableMap())
             putMap("secureStorage", mapOf(
                 "preferencesName" to options.secureStorage.preferencesName,

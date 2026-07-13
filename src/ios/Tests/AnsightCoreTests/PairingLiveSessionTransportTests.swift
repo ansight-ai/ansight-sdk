@@ -7,7 +7,7 @@ final class PairingLiveSessionTransportTests: XCTestCase {
         let socket = TestPairingWebSocket(sendBehavior: .hangUntilCancelled)
         let transport = PairingLiveSessionTransport(
             sendTimeoutSeconds: 0.2,
-            webSocketFactory: { _ in socket }
+            webSocketFactory: { _, _ in socket }
         )
         try await transport.attach(url: try XCTUnwrap(URL(string: "ws://127.0.0.1/ansight-test")))
 
@@ -26,7 +26,7 @@ final class PairingLiveSessionTransportTests: XCTestCase {
         let socket = TestPairingWebSocket(sendBehavior: .complete)
         let transport = PairingLiveSessionTransport(
             sendTimeoutSeconds: 0.2,
-            webSocketFactory: { _ in socket }
+            webSocketFactory: { _, _ in socket }
         )
         try await transport.attach(url: try XCTUnwrap(URL(string: "ws://127.0.0.1/ansight-test")))
 
@@ -50,7 +50,7 @@ final class PairingLiveSessionTransportTests: XCTestCase {
         let factory = TestPairingWebSocketFactory(sockets: [firstSocket, secondSocket])
         let transport = PairingLiveSessionTransport(
             sendTimeoutSeconds: 0.2,
-            webSocketFactory: factory.makeSocket
+            webSocketFactory: { url, _ in factory.makeSocket(url: url) }
         )
         let url = try XCTUnwrap(URL(string: "ws://127.0.0.1/ansight-test"))
 

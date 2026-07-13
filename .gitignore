@@ -12,6 +12,12 @@
 *.env
 .env.publishing.local
 
+# Ansight pairing and developer-enrollment credentials
+ansight.json
+ansight.developer-pairing.json
+*.ans.json
+!*.example.ans.json
+
 # Local Ansight SDK validation output
 .ansight-validation/
 .build/

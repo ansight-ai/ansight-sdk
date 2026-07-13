@@ -78,3 +78,21 @@ internal fun JSONObject.optionalBoolean(name: String): Boolean? {
 
     return optBoolean(name)
 }
+
+internal fun JSONObject.stringList(name: String): List<String> {
+    val values = optJSONArray(name) ?: return emptyList()
+    return buildList {
+        for (index in 0 until values.length()) {
+            values.optString(index).trim().ifBlank { null }?.let(::add)
+        }
+    }
+}
+
+internal fun <T> JSONObject.objectList(name: String, parse: (JSONObject) -> T): List<T> {
+    val values = optJSONArray(name) ?: return emptyList()
+    return buildList {
+        for (index in 0 until values.length()) {
+            values.optJSONObject(index)?.let(parse)?.let(::add)
+        }
+    }
+}

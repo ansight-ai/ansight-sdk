@@ -6,19 +6,22 @@ public struct AnsightHostConnectionOptions: Sendable, Codable, Equatable {
     public var discoveryPort: Int?
     public var bundledDeveloperConfigJson: String?
     public var bundledConfigJson: String?
+    public var allowInsecureV1: Bool
 
     public init(
         savedConfigKey: String = "ai.ansight.ios.saved-pairing",
         connectionProfileRetentionSeconds: Int = 14 * 24 * 60 * 60,
         discoveryPort: Int? = nil,
         bundledDeveloperConfigJson: String? = nil,
-        bundledConfigJson: String? = nil
+        bundledConfigJson: String? = nil,
+        allowInsecureV1: Bool = false
     ) {
         self.savedConfigKey = savedConfigKey
         self.connectionProfileRetentionSeconds = connectionProfileRetentionSeconds
         self.discoveryPort = discoveryPort
         self.bundledDeveloperConfigJson = bundledDeveloperConfigJson
         self.bundledConfigJson = bundledConfigJson
+        self.allowInsecureV1 = allowInsecureV1
     }
 
     public mutating func validate() throws {

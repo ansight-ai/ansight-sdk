@@ -16,7 +16,7 @@ final class AnsightAggregateTests: XCTestCase {
         XCTAssertEqual(options.sampleFrequencyMilliseconds, 400)
         XCTAssertEqual(options.retentionPeriodSeconds, 120)
         XCTAssertEqual(options.enableFramesPerSecond, true)
-        XCTAssertEqual(options.toolGuard, .fullAccess)
+        XCTAssertEqual(options.toolGuard, .readOnly)
         XCTAssertEqual(options.hostAutoProbe.enabled, true)
         XCTAssertEqual(options.sessionJpegCapture?.intervalMilliseconds, 2_000)
         XCTAssertEqual(options.sessionJpegCapture?.quality, 60)

@@ -28,6 +28,19 @@ class MyApplication : Application() {
 Core defaults keep remote tools disabled. Register tool packages explicitly and
 set `toolGuard` to allow discovery/execution.
 
+## Secure pairing
+
+Protocol v2 uses a secret-free signed UDP offer, an exactly pinned `wss://`
+connection, and a per-install P-256 client key. Android 6.0 (API 23) or newer is
+required because the client private key is generated as a non-exportable
+Android Keystore key. Secure v2 pairing fails closed on older releases.
+
+Insecure protocol v1 is disabled by default. A development-only v1 connection
+must opt in explicitly with
+`AnsightOptionsBuilder().withInsecureV1PairingCompatibility()`. V1 sessions are
+locally restricted to non-critical read tools and are never used as a fallback
+after a v2 config or v2 connection failure.
+
 Session JPEG capture is configured with `AnsightSessionJpegCaptureOptions`.
 `captureGpuBackedSurfaces` is accepted for cross-platform configuration parity
 and defaults to `true`; the capture-mode tradeoff is currently meaningful on

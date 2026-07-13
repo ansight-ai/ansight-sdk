@@ -151,7 +151,11 @@ final class PairingAndRuntimeTests: XCTestCase {
             )
         )
 
-        let attempt = await connector.connect(document: document, clientName: "Unit Test", options: nil)
+        let attempt = await connector.connect(
+            document: document,
+            clientName: "Unit Test",
+            options: PairingConnectionOptions(allowInsecureV1: true)
+        )
 
         XCTAssertFalse(attempt.success)
         XCTAssertEqual(attempt.failureCode, PairingFailureCodes.wifiRequired)
@@ -211,7 +215,11 @@ final class PairingAndRuntimeTests: XCTestCase {
             )
         )
 
-        let attempt = await connector.connect(document: document, clientName: "Unit Test", options: nil)
+        let attempt = await connector.connect(
+            document: document,
+            clientName: "Unit Test",
+            options: PairingConnectionOptions(allowInsecureV1: true)
+        )
 
         XCTAssertFalse(attempt.success)
         XCTAssertEqual(attempt.hostAddress, "127.0.0.1")
@@ -234,7 +242,11 @@ final class PairingAndRuntimeTests: XCTestCase {
             )
         )
 
-        let attempt = await connector.connect(document: document, clientName: "Unit Test", options: nil)
+        let attempt = await connector.connect(
+            document: document,
+            clientName: "Unit Test",
+            options: PairingConnectionOptions(allowInsecureV1: true)
+        )
 
         XCTAssertFalse(attempt.success)
         XCTAssertEqual(attempt.failureCode, PairingFailureCodes.udpBootstrapTimeout)
@@ -275,7 +287,11 @@ final class PairingAndRuntimeTests: XCTestCase {
             )
         )
 
-        let attempt = await connector.connect(document: document, clientName: "Unit Test", options: nil)
+        let attempt = await connector.connect(
+            document: document,
+            clientName: "Unit Test",
+            options: PairingConnectionOptions(allowInsecureV1: true)
+        )
 
         XCTAssertFalse(attempt.success)
         XCTAssertEqual(attempt.hostAddress, "127.0.0.1")

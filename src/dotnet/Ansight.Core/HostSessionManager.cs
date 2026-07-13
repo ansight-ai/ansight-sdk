@@ -448,7 +448,7 @@ internal sealed class HostSessionManager : IHostSessionConnection, IHostAutoProb
             return hostName;
         }
 
-        hostName = document.Config.Host.HostName?.Trim();
+        hostName = (document.SecureConfig?.Host.HostName ?? document.Config?.Host.HostName)?.Trim();
         if (!string.IsNullOrWhiteSpace(hostName))
         {
             return hostName;

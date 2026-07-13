@@ -44,6 +44,10 @@ internal sealed class StoredHostPairingConfigStore
     public void Save(ParsedPairingDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);
+        if (document.IsSecureV2)
+        {
+            throw new InvalidOperationException("Protocol-v2 enrollment secrets must not be written to the legacy config store.");
+        }
 
         var directoryPath = Path.GetDirectoryName(filePath);
         if (!string.IsNullOrWhiteSpace(directoryPath))

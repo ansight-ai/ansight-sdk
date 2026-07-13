@@ -19,6 +19,7 @@ internal sealed class PairingSessionTransport : IDisposable
     private readonly Dictionary<string, TaskCompletionSource<PairingControlEnvelope>> pendingResponses = new(StringComparer.Ordinal);
     private CancellationTokenSource? receivePumpCts;
     private Task? receivePumpTask;
+    private PairingV2SessionGate? secureSessionGate;
     private int closeNotificationState;
     private bool disposed;
 
@@ -26,11 +27,12 @@ internal sealed class PairingSessionTransport : IDisposable
 
     internal event EventHandler? Closed;
 
-    public void Attach(ClientWebSocket webSocket)
+    public void Attach(ClientWebSocket webSocket, PairingV2SessionContext? secureContext = null)
     {
         ArgumentNullException.ThrowIfNull(webSocket);
 
         this.webSocket = webSocket;
+        secureSessionGate = secureContext is null ? null : new PairingV2SessionGate(secureContext);
         Interlocked.Exchange(ref closeNotificationState, 0);
         StartReceivePump(webSocket);
     }
@@ -215,6 +217,7 @@ internal sealed class PairingSessionTransport : IDisposable
         this.webSocket = null;
         this.receivePumpCts = null;
         this.receivePumpTask = null;
+        secureSessionGate = null;
 
         receivePumpCts?.Cancel();
         FailPendingResponses("WebSocket session closed.");
@@ -358,7 +361,8 @@ internal sealed class PairingSessionTransport : IDisposable
                     webSocket,
                     message,
                     SendPayloadAsync,
-                    cancellationToken))
+                    cancellationToken,
+                    secureSessionGate))
             {
                 continue;
             }
@@ -368,7 +372,7 @@ internal sealed class PairingSessionTransport : IDisposable
                 continue;
             }
 
-            Logger.Warning($"Ignoring unexpected pairing socket message: {message}");
+            Logger.Warning("Ignoring an unexpected pairing socket message.");
         }
     }
 

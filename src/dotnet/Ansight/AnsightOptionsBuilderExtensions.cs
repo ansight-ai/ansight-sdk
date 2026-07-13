@@ -51,7 +51,7 @@ public static class AnsightOptionsBuilderExtensions
 
         builder = builder
             .WithAnsightDefaults()
-            .WithAllToolAccess();
+            .WithReadOnlyToolAccess();
         configure(builder);
         return builder.WithAnsightRemoteTools();
     }

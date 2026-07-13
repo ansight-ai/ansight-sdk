@@ -64,4 +64,14 @@ public static class PairingFailureCodes
     /// The WebSocket handshake failed after reaching the advertised endpoint.
     /// </summary>
     public const string WebSocketHandshakeFailed = "WebSocketHandshakeFailed";
+
+    /// <summary>
+    /// Protocol v1 was rejected because insecure compatibility was not explicitly enabled.
+    /// </summary>
+    public const string InsecureV1Disabled = "InsecureV1Disabled";
+
+    /// <summary>
+    /// A protocol-v2 offer, TLS pin, authentication proof, or grant failed validation.
+    /// </summary>
+    public const string SecureAuthenticationFailed = "SecureAuthenticationFailed";
 }

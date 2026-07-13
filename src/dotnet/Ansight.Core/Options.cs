@@ -735,6 +735,14 @@ public class Options
         }
 
         /// <summary>
+        /// Explicitly enables insecure protocol-v1 compatibility for local development migration.
+        /// </summary>
+        public OptionsBuilder WithInsecureV1Compatibility()
+        {
+            return ConfigureHostConnection(hostConnection => hostConnection.AllowInsecureProtocolV1());
+        }
+
+        /// <summary>
         /// Configures the UDP discovery port used for runtime-owned host connections.
         /// </summary>
         /// <param name="discoveryPort">UDP discovery port to use for initial host discovery.</param>

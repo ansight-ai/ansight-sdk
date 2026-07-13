@@ -133,6 +133,7 @@ data class AnsightHostConnectionOptions(
     val discoveryPort: Int? = null,
     val connectionProfileRetentionSeconds: Long = 14L * 24L * 60L * 60L,
     val configReader: HostConnectionConfigReader? = null,
+    val allowInsecureV1: Boolean = false,
 ) {
     fun validated(): AnsightHostConnectionOptions {
         if (discoveryPort != null) {
@@ -567,4 +568,8 @@ object PairingFailureCodes {
     const val WebSocketHandoffUnavailable = "WebSocketHandoffUnavailable"
     const val WebSocketEndpointUnreachable = "WebSocketEndpointUnreachable"
     const val WebSocketHandshakeFailed = "WebSocketHandshakeFailed"
+    const val InsecureV1Disabled = "InsecureV1Disabled"
+    const val OfferValidationFailed = "OfferValidationFailed"
+    const val TlsValidationFailed = "TlsValidationFailed"
+    const val PlatformSecurityUnavailable = "PlatformSecurityUnavailable"
 }

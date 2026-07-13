@@ -28,7 +28,8 @@ internal static class PairingToolProtocolProcessor
         ClientWebSocket webSocket,
         string messageJson,
         Func<ClientWebSocket, string, CancellationToken, Task> sendAsync,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        PairingV2SessionGate? secureSessionGate = null)
     {
         if (!TryParseToolProtocolRequest(messageJson, out var envelope, out var error, out var isToolProtocolMessage))
         {
@@ -50,7 +51,20 @@ internal static class PairingToolProtocolProcessor
         }
 
         ToolProtocolEnvelope response;
-        if (!Runtime.IsInitialized)
+        var requestAccepted = true;
+        if (secureSessionGate is not null &&
+            !secureSessionGate.TryAccept(envelope!, out var gateCode, out var gateMessage))
+        {
+            requestAccepted = false;
+            response = CreateToolProtocolErrorEnvelope(
+                envelope!.Id,
+                envelope.SessionId,
+                envelope.Id,
+                gateCode,
+                gateMessage,
+                retryable: false);
+        }
+        else if (!Runtime.IsInitialized)
         {
             response = CreateToolProtocolErrorEnvelope(
                 envelope!.Id,
@@ -62,11 +76,17 @@ internal static class PairingToolProtocolProcessor
         }
         else
         {
-            response = await Runtime.ToolBridge.HandleAsync(envelope!, cancellationToken);
+            Func<ITool, bool>? sessionAuthorization = secureSessionGate is null
+                ? null
+                : secureSessionGate.CanUseTool;
+            response = await Runtime.ToolBridge.HandleAsync(
+                envelope!,
+                cancellationToken,
+                sessionAuthorization);
         }
 
         await sendAsync(webSocket, SerializeToolEnvelope(response), cancellationToken);
-        if (Runtime.IsInitialized &&
+        if (requestAccepted && Runtime.IsInitialized &&
             string.Equals(envelope!.Type, ToolProtocolBridge.CallType, StringComparison.Ordinal))
         {
             Runtime.MutableInstance.BinaryTransferHub.TryStartQueuedTransfer(envelope.Id);

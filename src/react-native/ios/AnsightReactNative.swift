@@ -979,7 +979,8 @@ final class AnsightReactNative: RCTEventEmitter {
                 connectionProfileRetentionSeconds: intValue(host, "connectionProfileRetentionSeconds", defaultValue: options.hostConnection.connectionProfileRetentionSeconds),
                 discoveryPort: optionalInt(host, "discoveryPort") ?? options.hostConnection.discoveryPort,
                 bundledDeveloperConfigJson: stringValue(host, "bundledDeveloperConfigJson") ?? options.hostConnection.bundledDeveloperConfigJson,
-                bundledConfigJson: stringValue(host, "bundledConfigJson") ?? options.hostConnection.bundledConfigJson
+                bundledConfigJson: stringValue(host, "bundledConfigJson") ?? options.hostConnection.bundledConfigJson,
+                allowInsecureV1: boolValue(host, "allowInsecureV1", defaultValue: options.hostConnection.allowInsecureV1)
             )
         }
         return try options.validated()
@@ -1296,6 +1297,7 @@ final class AnsightReactNative: RCTEventEmitter {
                 "discoveryPort": options.hostConnection.discoveryPort as Any,
                 "hasBundledDeveloperConfigJson": options.hostConnection.bundledDeveloperConfigJson != nil,
                 "hasBundledConfigJson": options.hostConnection.bundledConfigJson != nil,
+                "allowInsecureV1": options.hostConnection.allowInsecureV1,
             ],
         ]
         if let capture = options.sessionJpegCapture {

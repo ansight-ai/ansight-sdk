@@ -9,12 +9,17 @@ final class TestPairingWebSocket: PairingWebSocket, @unchecked Sendable {
 
     private let lock = NSLock()
     private let sendBehavior: SendBehavior
+    private var incomingMessages: [URLSessionWebSocketTask.Message]
     private var sentMessages: [URLSessionWebSocketTask.Message] = []
     private var resumeCount = 0
     private var cancelCount = 0
 
-    init(sendBehavior: SendBehavior) {
+    init(
+        sendBehavior: SendBehavior,
+        incomingMessages: [URLSessionWebSocketTask.Message] = []
+    ) {
         self.sendBehavior = sendBehavior
+        self.incomingMessages = incomingMessages
     }
 
     func resume() {
@@ -46,12 +51,24 @@ final class TestPairingWebSocket: PairingWebSocket, @unchecked Sendable {
 
     func receive() async throws -> URLSessionWebSocketTask.Message {
         while true {
+            if let message = lock.withLock({ incomingMessages.isEmpty ? nil : incomingMessages.removeFirst() }) {
+                return message
+            }
             try await Task.sleep(nanoseconds: 10_000_000)
         }
     }
 
     func sentMessageCount() -> Int {
         lock.withLock { sentMessages.count }
+    }
+
+    func sentTextMessages() -> [String] {
+        lock.withLock {
+            sentMessages.compactMap { message in
+                guard case .string(let text) = message else { return nil }
+                return text
+            }
+        }
     }
 
     func didResume() -> Bool {

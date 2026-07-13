@@ -36,7 +36,7 @@ public struct PairingConfigDocumentService: Sendable {
             )
         }
 
-        if schema == PairingConfig.schemaName {
+        if schema == PairingConfig.schemaName || schema == PairingConfig.secureSchemaName {
             let config = try JSONDecoder.ansightDecoder.decode(PairingConfig.self, from: data)
             return ParsedPairingDocument(config: config)
         }
@@ -60,7 +60,24 @@ public struct PairingConfigDocumentService: Sendable {
     }
 
     public func validateDocument(_ document: ParsedPairingDocument, expectedAppId: String? = nil) throws {
-        guard verifyPairingConfigSignature(document.config) else {
+        if document.config.isSecureRememberedProfile {
+            throw PairingDocumentError.invalidDocument(
+                "Remembered secure pairing profiles are accepted only from the SDK's protected internal store."
+            )
+        } else if document.config.isSecureV2 {
+            try SecurePairingProtocol.validateConfigShape(document.config)
+            guard SecurePairingProtocol.verifyConfigSignature(document.config) else {
+                throw PairingDocumentError.invalidDocument("Secure pairing config signature is invalid.")
+            }
+
+            guard let issuedAt = parseTimestamp(document.config.issuedAt),
+                  issuedAt <= Date().addingTimeInterval(5 * 60),
+                  let expiresAt = parseTimestamp(document.config.expiresAt),
+                  expiresAt.timeIntervalSince(issuedAt) <= 24 * 60 * 60
+            else {
+                throw PairingDocumentError.invalidDocument("Secure pairing config lifetime is invalid.")
+            }
+        } else if !verifyPairingConfigSignature(document.config) {
             throw PairingDocumentError.invalidDocument("Pairing ticket config signature is invalid.")
         }
 

@@ -144,6 +144,8 @@ export interface AnsightOptions {
     bundledDeveloperConfigJson?: string;
     discoveryPort?: number;
     connectionProfileRetentionSeconds?: number;
+    /** Enables plaintext protocol v1 only for an explicitly controlled development environment. */
+    allowInsecureV1?: boolean;
   };
   secureStorage?: {
     preferencesName?: string;

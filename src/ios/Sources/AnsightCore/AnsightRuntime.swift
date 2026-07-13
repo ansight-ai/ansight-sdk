@@ -44,6 +44,8 @@ public final class AnsightRuntime: @unchecked Sendable {
     private var active = false
     private var sessionOpen = false
     private var sessionId: String?
+    private var authenticatedGrant: PairingGrantV2?
+    private var sessionUsesSecureTransport = false
     private var sessionMessage: String?
     private var metrics: [RecordedMetric] = []
     private var events: [RecordedEvent] = []
@@ -825,7 +827,15 @@ public final class AnsightRuntime: @unchecked Sendable {
     ) async -> HostConnectionResult {
         let expectedAppId = requestExpectedAppId(for: resolvedRequest.document, request: request)
         do {
-            try pairingDocumentService.validateDocument(resolvedRequest.document, expectedAppId: expectedAppId)
+            if resolvedRequest.document.config.isSecureRememberedProfile,
+               resolvedRequest.source == .savedConfig || resolvedRequest.source == .cachedSession {
+                try SecurePairingProtocol.validateRememberedProfile(
+                    resolvedRequest.document.config,
+                    expectedAppId: expectedAppId
+                )
+            } else {
+                try pairingDocumentService.validateDocument(resolvedRequest.document, expectedAppId: expectedAppId)
+            }
             try validatePinnedHostIdentity(for: resolvedRequest.document, source: resolvedRequest.source)
         } catch {
             return HostConnectionResult(
@@ -847,7 +857,10 @@ public final class AnsightRuntime: @unchecked Sendable {
             hostAddressOverride: request.hostAddressOverride,
             discoveryPort: options.hostConnection.discoveryPort,
             deviceAppProfile: nextDeviceProfile(),
-            customProperties: options.customProperties
+            customProperties: options.customProperties,
+            requestedScopes: options.toolGuard.allowedScopes.map(\.rawValue),
+            requestCritical: options.toolGuard.allowCritical,
+            allowInsecureV1: options.hostConnection.allowInsecureV1
         )
         let connector = lock.withLock { self.connector }
         let attempt = await connector.connect(
@@ -861,6 +874,8 @@ public final class AnsightRuntime: @unchecked Sendable {
                 connectionState = .disconnected
                 sessionOpen = false
                 sessionId = nil
+                authenticatedGrant = nil
+                sessionUsesSecureTransport = false
                 lastStreamedMetricSequence = 0
                 lastStreamedEventSequence = 0
                 sessionMessage = attempt.message
@@ -894,13 +909,16 @@ public final class AnsightRuntime: @unchecked Sendable {
         let sessionOpenAttempt = await openLiveTransportSession(
             url: webSocketURL,
             config: resolvedRequest.document.config,
-            clientName: clientName
+            clientName: clientName,
+            secureContext: attempt.secureContext
         )
         guard sessionOpenAttempt.result.success else {
             lock.withLock {
                 connectionState = .disconnected
                 sessionOpen = false
                 sessionId = nil
+                authenticatedGrant = nil
+                sessionUsesSecureTransport = false
                 lastStreamedMetricSequence = 0
                 lastStreamedEventSequence = 0
                 sessionMessage = sessionOpenAttempt.result.message
@@ -915,6 +933,11 @@ public final class AnsightRuntime: @unchecked Sendable {
             )
         }
 
+        lock.withLock {
+            authenticatedGrant = sessionOpenAttempt.grant
+            sessionUsesSecureTransport = attempt.secureContext != nil
+        }
+
         let profile = connectionOptions.deviceAppProfile ?? nextDeviceProfile()
         let profileResult = await sendDeviceProfile(profile)
         if !profileResult.success {
@@ -923,6 +946,8 @@ public final class AnsightRuntime: @unchecked Sendable {
                 connectionState = .disconnected
                 sessionOpen = false
                 sessionId = nil
+                authenticatedGrant = nil
+                sessionUsesSecureTransport = false
                 lastStreamedMetricSequence = 0
                 lastStreamedEventSequence = 0
                 sessionMessage = profileResult.message
@@ -952,6 +977,8 @@ public final class AnsightRuntime: @unchecked Sendable {
                 connectionState = .disconnected
                 sessionOpen = false
                 sessionId = nil
+                authenticatedGrant = nil
+                sessionUsesSecureTransport = false
                 lastStreamedMetricSequence = 0
                 lastStreamedEventSequence = 0
                 sessionMessage = touchCaptureResult.message
@@ -965,12 +992,16 @@ public final class AnsightRuntime: @unchecked Sendable {
                 reasonCode: PairingFailureCodes.webSocketHandshakeFailed
             )
         }
-        let newSessionId = ProcessSessionIdentity.current
+        let newSessionId = sessionOpenAttempt.authenticatedSessionId ?? ProcessSessionIdentity.current
+        let persistableDocument = PairingRememberedProfile.replacingEnrollment(
+            in: resolvedRequest.document,
+            with: sessionOpenAttempt.grant
+        )
         lock.withLock {
             connectionState = .connected
             sessionOpen = true
             sessionId = newSessionId
-            lastPairingDocument = resolvedRequest.document
+            lastPairingDocument = persistableDocument
             resolvedHostAddress = attempt.hostAddress
             hostId = connectResponse.hostId
             hostName = connectResponse.hostName
@@ -981,7 +1012,7 @@ public final class AnsightRuntime: @unchecked Sendable {
         streamPendingTelemetry()
 
         startScreenCaptureIfNeeded()
-        savePairingDocument(resolvedRequest.document, connectedHostAddress: attempt.hostAddress, connectResponse: connectResponse)
+        savePairingDocument(persistableDocument, connectedHostAddress: attempt.hostAddress, connectResponse: connectResponse)
 
         let open = OpenSessionResult(
             success: true,
@@ -1127,6 +1158,8 @@ public final class AnsightRuntime: @unchecked Sendable {
             connectionState = .disconnected
             sessionOpen = false
             sessionId = nil
+            authenticatedGrant = nil
+            sessionUsesSecureTransport = false
             lastStreamedMetricSequence = 0
             lastStreamedEventSequence = 0
             announcedMetricChannelIds = []
@@ -1160,6 +1193,8 @@ public final class AnsightRuntime: @unchecked Sendable {
             connectionState = .disconnected
             sessionOpen = false
             sessionId = nil
+            authenticatedGrant = nil
+            sessionUsesSecureTransport = false
             lastStreamedMetricSequence = 0
             lastStreamedEventSequence = 0
             announcedMetricChannelIds = []
@@ -1541,7 +1576,21 @@ public final class AnsightRuntime: @unchecked Sendable {
 
     public func handleToolProtocolMessage(_ json: String) throws -> String? {
         let bridge = lock.withLock {
-            AnsightToolProtocolBridge(registry: tools, guardPolicy: options.toolGuard)
+            let effectiveGuard: AnsightToolGuard
+            if !sessionOpen {
+                effectiveGuard = .disabled
+            } else if sessionUsesSecureTransport, let authenticatedGrant {
+                effectiveGuard = options.toolGuard.constrained(
+                    allowedScopes: authenticatedGrant.allowedScopes,
+                    allowCritical: authenticatedGrant.allowCritical
+                )
+            } else {
+                effectiveGuard = options.toolGuard.constrained(
+                    allowedScopes: [AnsightToolScope.read.rawValue],
+                    allowCritical: false
+                )
+            }
+            return AnsightToolProtocolBridge(registry: tools, guardPolicy: effectiveGuard)
         }
 
         guard initialized else {
@@ -2421,15 +2470,22 @@ public final class AnsightRuntime: @unchecked Sendable {
         return nextWidth
     }
 
-    private func openLiveTransportSession(url: URL, config: PairingConfig, clientName: String) async -> LiveSessionOpenAttempt {
-        let maxAttempts = 12
+    private func openLiveTransportSession(
+        url: URL,
+        config: PairingConfig,
+        clientName: String,
+        secureContext: SecurePairingContext? = nil
+    ) async -> LiveSessionOpenAttempt {
+        let maxAttempts = secureContext == nil ? 12 : 1
         let retryDelayNanoseconds: UInt64 = 250_000_000
         var lastResult = OperationResult.failure("WebSocket endpoint did not become reachable in time.")
 
         for attempt in 1...maxAttempts {
             do {
-                try await liveTransport.attach(
+                let authentication = try await liveTransport.attach(
                     url: url,
+                    tlsSpkiSha256: secureContext?.offer.tlsSpkiSha256,
+                    secureContext: secureContext,
                     toolMessageHandler: { [weak self] message in
                         try? self?.handleToolProtocolMessage(message)
                     },
@@ -2440,6 +2496,21 @@ public final class AnsightRuntime: @unchecked Sendable {
                         self?.handleLiveTransportClosed(reason: reason)
                     }
                 )
+
+                let sessionOpenResult = await sendSessionOpen(
+                    config: config,
+                    clientName: clientName,
+                    authenticatedSessionId: authentication?.sessionId
+                )
+                if sessionOpenResult.success {
+                    return LiveSessionOpenAttempt(
+                        result: sessionOpenResult,
+                        reasonCode: nil,
+                        authenticatedSessionId: authentication?.sessionId,
+                        grant: authentication?.grant
+                    )
+                }
+                lastResult = sessionOpenResult
             } catch {
                 lastResult = .failure("WebSocket endpoint did not become reachable: \(error.localizedDescription)")
                 await liveTransport.close(notify: false)
@@ -2454,16 +2525,10 @@ public final class AnsightRuntime: @unchecked Sendable {
                 )
             }
 
-            let sessionOpenResult = await sendSessionOpen(config: config, clientName: clientName)
-            if sessionOpenResult.success {
-                return LiveSessionOpenAttempt(result: sessionOpenResult, reasonCode: nil)
-            }
-
-            lastResult = sessionOpenResult
             await liveTransport.close(notify: false)
-            guard Self.isRetryableSessionOpenFailure(sessionOpenResult) else {
+            guard Self.isRetryableSessionOpenFailure(lastResult), secureContext == nil else {
                 return LiveSessionOpenAttempt(
-                    result: sessionOpenResult,
+                    result: lastResult,
                     reasonCode: PairingFailureCodes.webSocketHandshakeFailed
                 )
             }
@@ -2483,13 +2548,21 @@ public final class AnsightRuntime: @unchecked Sendable {
         result.message.hasPrefix("Failed to send \(PairingControlActions.sessionOpen):")
     }
 
-    private func sendSessionOpen(config: PairingConfig, clientName: String) async -> OperationResult {
+    private func sendSessionOpen(
+        config: PairingConfig,
+        clientName: String,
+        authenticatedSessionId: String? = nil
+    ) async -> OperationResult {
         var payload: [String: JSONValue] = [
             "clientName": .string(clientName),
             "configId": .string(config.configId),
             "appId": .string(config.appId),
             "openedAtUtc": .string(AnsightClock.isoNow()),
         ]
+
+        if let authenticatedSessionId {
+            payload["authenticatedSessionId"] = .string(authenticatedSessionId)
+        }
 
         let customProperties = lock.withLock { options.customProperties }
         if !customProperties.isEmpty {

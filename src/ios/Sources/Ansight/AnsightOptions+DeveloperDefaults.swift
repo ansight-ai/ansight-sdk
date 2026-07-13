@@ -15,7 +15,7 @@ public extension AnsightOptions {
                 maxWidth: 480
             ),
             touchCapture: AnsightTouchCaptureOptions(),
-            toolGuard: .fullAccess,
+            toolGuard: .readOnly,
             hostAutoProbe: .enabledDefault,
             hostConnection: AnsightHostConnectionOptions(
                 bundledDeveloperConfigJson: AnsightDeveloperMode.embeddedPairingJson

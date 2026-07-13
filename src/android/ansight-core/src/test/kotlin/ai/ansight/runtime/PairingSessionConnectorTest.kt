@@ -44,6 +44,7 @@ class PairingSessionConnectorTest {
                     ),
                 ),
                 clientName = "Unit Test App",
+                options = PairingConnectionOptions(allowInsecureV1 = true),
             )
 
             assertFalse(result.success)
@@ -88,6 +89,7 @@ class PairingSessionConnectorTest {
                     ),
                 ),
                 clientName = "Unit Test App",
+                options = PairingConnectionOptions(allowInsecureV1 = true),
             )
 
             assertFalse(result.success)

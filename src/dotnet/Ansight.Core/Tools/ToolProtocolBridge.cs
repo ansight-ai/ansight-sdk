@@ -71,13 +71,19 @@ public sealed class ToolProtocolBridge
     /// <param name="cancellationToken">Cancellation token for tool execution.</param>
     /// <returns>Response envelope produced by the bridge.</returns>
     public async Task<ToolProtocolEnvelope> HandleAsync(ToolProtocolEnvelope envelope, CancellationToken cancellationToken = default)
+        => await HandleAsync(envelope, cancellationToken, sessionAuthorization: null);
+
+    internal async Task<ToolProtocolEnvelope> HandleAsync(
+        ToolProtocolEnvelope envelope,
+        CancellationToken cancellationToken,
+        Func<ITool, bool>? sessionAuthorization)
     {
         ArgumentNullException.ThrowIfNull(envelope);
 
         return envelope.Type switch
         {
-            QueryType => CreateCatalogEnvelope(envelope),
-            CallType => await ExecuteEnvelopeAsync(envelope, cancellationToken),
+            QueryType => CreateCatalogEnvelope(envelope, sessionAuthorization),
+            CallType => await ExecuteEnvelopeAsync(envelope, cancellationToken, sessionAuthorization),
             _ => CreateErrorEnvelope(envelope, "tool_protocol_unknown_type", $"Unsupported tool protocol message type '{envelope.Type}'.", retryable: false)
         };
     }
@@ -125,7 +131,9 @@ public sealed class ToolProtocolBridge
         return JsonSerializer.Serialize(envelope, indented ? Pairing.PairingJson.Pretty : Pairing.PairingJson.Compact);
     }
 
-    private ToolProtocolEnvelope CreateCatalogEnvelope(ToolProtocolEnvelope request)
+    private ToolProtocolEnvelope CreateCatalogEnvelope(
+        ToolProtocolEnvelope request,
+        Func<ITool, bool>? sessionAuthorization)
     {
         if (!guard.DiscoveryEnabled)
         {
@@ -135,7 +143,7 @@ public sealed class ToolProtocolBridge
         var tools = new JsonArray();
         foreach (var tool in registry)
         {
-            if (!guard.IsToolVisible(tool))
+            if (!guard.IsToolVisible(tool) || sessionAuthorization?.Invoke(tool) == false)
             {
                 continue;
             }
@@ -160,7 +168,10 @@ public sealed class ToolProtocolBridge
         };
     }
 
-    private async Task<ToolProtocolEnvelope> ExecuteEnvelopeAsync(ToolProtocolEnvelope request, CancellationToken cancellationToken)
+    private async Task<ToolProtocolEnvelope> ExecuteEnvelopeAsync(
+        ToolProtocolEnvelope request,
+        CancellationToken cancellationToken,
+        Func<ITool, bool>? sessionAuthorization)
     {
         if (request.Payload is not JsonObject payload)
         {
@@ -181,6 +192,15 @@ public sealed class ToolProtocolBridge
         if (!guard.CanExecute(tool, out var denialReason))
         {
             return CreateErrorEnvelope(request, "tool_execution_denied", denialReason ?? "Tool execution is denied by the current guard policy.", retryable: false);
+        }
+
+        if (sessionAuthorization?.Invoke(tool) == false)
+        {
+            return CreateErrorEnvelope(
+                request,
+                "tool_grant_denied",
+                "The authenticated session grant does not permit this tool.",
+                retryable: false);
         }
 
         var arguments = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);

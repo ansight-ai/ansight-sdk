@@ -45,7 +45,7 @@ Runtime.InitializeAndActivate(options);
 - host auto-probe enabled
 - bundled host connection configured from the entry assembly, or overridden through `WithBundledHostConnection(...)`
 - all non-MAUI remote tools registered
-- full tool access enabled
+- read-only tool access enabled; broader scopes require explicit local and authenticated-grant opt-in
 
 > **Important:** Screen capture will result in an FPS drop while frames are
 > captured, encoded, and transported. Disable session JPEG capture for
@@ -69,7 +69,7 @@ var options = Options.CreateBuilder()
     .Build();
 ```
 
-When a callback registers a suite with `WithSecureStorageTools(...)`, `WithPreferencesTools(...)`, or another tool builder, the all-in-one skips its default registration for that suite. The all-in-one applies full tool access before the callback, so the callback can also override the guard with `WithReadOnlyToolAccess()`, `WithReadWriteToolAccess()`, or `WithToolGuard(...)`.
+When a callback registers a suite with `WithSecureStorageTools(...)`, `WithPreferencesTools(...)`, or another tool builder, the all-in-one skips its default registration for that suite. The all-in-one applies read-only access before the callback. Broader scopes require both an explicit local guard and a matching authenticated protocol-v2 grant.
 
 Use `WithAnsightDefaults()` when you want the runtime defaults without remote tools, or `WithAnsightRemoteTools()` when you only want the non-MAUI tool registrations.
 
@@ -262,7 +262,7 @@ Ansight scans builds for concrete `Ansight.Tools.ITool` implementations unless r
 Control build-time remote tool handling with `AnsightRemoteToolsPolicy`:
 
 - `Allowed`: bypasses remote tool scanning, warnings, and detected-tool logging.
-- `AllowedWithWarnings`: scans for remote tools, logs detected tool type and assembly details, emits a build warning when tools are present, and allows the build to continue. This is the default.
+- `AllowedWithWarnings`: scans for remote tools, logs detected tool type and assembly details, emits a build warning when tools are present, and allows the build to continue. This is the Debug default; Release defaults to `Disallowed`.
 - `Disallowed`: scans for remote tools, logs detected tool type and assembly details, and fails the build when tools are present.
 
 When the resolved policy is `Allowed` or `AllowedWithWarnings`, Ansight sets `AnsightRemoteToolsEnabled=true` and adds the `ANSIGHT_REMOTE_TOOLS` compile-time symbol. `Disallowed` sets `AnsightRemoteToolsEnabled=false` and omits that symbol.

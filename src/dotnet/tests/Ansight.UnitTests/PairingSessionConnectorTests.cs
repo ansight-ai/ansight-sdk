@@ -10,6 +10,8 @@ namespace Ansight.UnitTests;
 
 public sealed class PairingSessionConnectorTests
 {
+    private static PairingConnectionOptions InsecureV1Options => new() { AllowInsecureV1 = true };
+
     [Fact]
     public async Task ConnectAsync_WhenWifiIsUnavailable_ReturnsSpecificFailure()
     {
@@ -81,7 +83,7 @@ public sealed class PairingSessionConnectorTests
         var connectTask = connector.ConnectAsync(
             document,
             "Unit Test App",
-            options: null,
+            options: InsecureV1Options,
             progress: null,
             CancellationToken.None);
 
@@ -197,7 +199,8 @@ public sealed class PairingSessionConnectorTests
             "Unit Test App",
             new PairingConnectionOptions
             {
-                DiscoveryPort = listenerEndPoint.Port
+                DiscoveryPort = listenerEndPoint.Port,
+                AllowInsecureV1 = true
             },
             progress: null,
             CancellationToken.None);
@@ -246,7 +249,7 @@ public sealed class PairingSessionConnectorTests
         var connectTask = connector.ConnectAsync(
             document,
             "Unit Test App",
-            options: null,
+            options: InsecureV1Options,
             progress: null,
             CancellationToken.None);
 
@@ -296,7 +299,7 @@ public sealed class PairingSessionConnectorTests
         var connectTask = connector.ConnectAsync(
             document,
             "Unit Test App",
-            options: null,
+            options: InsecureV1Options,
             progress: null,
             CancellationToken.None);
 
@@ -344,7 +347,7 @@ public sealed class PairingSessionConnectorTests
         var connectTask = connector.ConnectAsync(
             document,
             "Unit Test App",
-            options: null,
+            options: InsecureV1Options,
             progress: null,
             CancellationToken.None);
 

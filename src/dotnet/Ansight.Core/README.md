@@ -4,6 +4,8 @@
 
 The runtime namespace remains `Ansight`. This package supports direct/manual pairing, the Ansight UDP pairing handshake, tool abstractions, and the build-time safety targets. Use the `Ansight` package for the all-in-one app setup, or `Ansight.Maui` for the MAUI all-in-one setup.
 
+Secure pairing uses protocol v2: secret-free UDP discovery, a host-signed nonce-bound offer, normal TLS validation plus a signed SPKI pin, one-use enrollment, and per-install client-key reconnect proofs. Protocol v1 is disabled by default. Local migration builds can opt in explicitly with `WithInsecureV1Compatibility()`; a v2 failure never falls back to v1.
+
 ## License
 
 The Ansight SDK is source-available software under the
@@ -271,7 +273,7 @@ The core package can scan build outputs for bundled and custom remote tools. The
 Control build-time remote tool handling with `AnsightRemoteToolsPolicy`:
 
 - `Allowed`: bypasses remote tool scanning, warnings, and detected-tool logging.
-- `AllowedWithWarnings`: scans for remote tools, logs detected tool type and assembly details, emits a build warning when tools are present, and allows the build to continue. This is the default.
+- `AllowedWithWarnings`: scans for remote tools, logs detected tool type and assembly details, emits a build warning when tools are present, and allows the build to continue. This is the Debug default; Release defaults to `Disallowed`.
 - `Disallowed`: scans for remote tools, logs detected tool type and assembly details, and fails the build when tools are present.
 
 When the resolved policy is `Allowed` or `AllowedWithWarnings`, Ansight sets `AnsightRemoteToolsEnabled=true` and adds the `ANSIGHT_REMOTE_TOOLS` compile-time symbol. `Disallowed` sets `AnsightRemoteToolsEnabled=false` and omits that symbol.

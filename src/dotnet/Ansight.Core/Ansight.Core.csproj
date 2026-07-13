@@ -35,4 +35,8 @@
     <None Include="build\generate-ansight-developer-pairing.ps1" Pack="true" PackagePath="buildTransitive\generate-ansight-developer-pairing.ps1" />
   </ItemGroup>
 
+  <ItemGroup Condition="'$(TargetFramework)' == 'net9.0-android35.0'">
+    <PackageReference Include="Xamarin.AndroidX.Security.SecurityCrypto" Version="1.1.0.4-alpha07" />
+  </ItemGroup>
+
 </Project>

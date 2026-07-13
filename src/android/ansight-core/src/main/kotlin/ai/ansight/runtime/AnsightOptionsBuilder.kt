@@ -211,6 +211,18 @@ class AnsightOptionsBuilder @JvmOverloads constructor(
         }
     }
 
+    fun withInsecureV1PairingCompatibility(): AnsightOptionsBuilder {
+        return configureHostConnection { hostConnection ->
+            hostConnection.copy(allowInsecureV1 = true)
+        }
+    }
+
+    fun withoutInsecureV1PairingCompatibility(): AnsightOptionsBuilder {
+        return configureHostConnection { hostConnection ->
+            hostConnection.copy(allowInsecureV1 = false)
+        }
+    }
+
     fun withSecureStorage(secureStorage: AnsightSecureStorageOptions): AnsightOptionsBuilder {
         options = options.copy(secureStorage = secureStorage)
         return this

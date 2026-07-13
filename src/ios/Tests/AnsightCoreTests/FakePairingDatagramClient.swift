@@ -3,16 +3,20 @@ import Foundation
 
 final class FakePairingDatagramClient: PairingDatagramClient, @unchecked Sendable {
     private let lock = NSLock()
-    private let responseProvider: @Sendable (String, Int) -> Data?
+    private let responseProvider: @Sendable (Data, String, Int) -> Data?
     private var requestCounter = 0
     private var hosts: [String] = []
 
     init(responseData: Data? = nil) {
-        self.responseProvider = { _, _ in responseData }
+        self.responseProvider = { _, _, _ in responseData }
     }
 
     init(responseProvider: @escaping @Sendable (String, Int) -> Data?) {
-        self.responseProvider = responseProvider
+        self.responseProvider = { _, host, port in responseProvider(host, port) }
+    }
+
+    init(requestAwareResponseProvider: @escaping @Sendable (Data, String, Int) -> Data?) {
+        responseProvider = requestAwareResponseProvider
     }
 
     var requestCount: Int {
@@ -28,6 +32,6 @@ final class FakePairingDatagramClient: PairingDatagramClient, @unchecked Sendabl
             requestCounter += 1
             hosts.append(host)
         }
-        return responseProvider(host, port)
+        return responseProvider(data, host, port)
     }
 }
