@@ -19,6 +19,7 @@ rootProject.name = "ansight-android"
 include(":ansight-core")
 include(":ansight-tools-visualtree")
 include(":ansight-tools-filesystem")
+include(":ansight-tools-file-descriptor-diagnostics")
 include(":ansight-tools-preferences")
 include(":ansight-tools-securestorage")
 include(":ansight-tools-database")

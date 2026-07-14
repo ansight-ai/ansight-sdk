@@ -11,6 +11,7 @@ Pod::Spec.new do |s|
   s.dependency "AnsightCore", s.version.to_s
   s.dependency "AnsightPairingQR", s.version.to_s
   s.dependency "AnsightToolsDatabase", s.version.to_s
+  s.dependency "AnsightToolsFileDescriptorDiagnostics", s.version.to_s
   s.dependency "AnsightToolsFileSystem", s.version.to_s
   s.dependency "AnsightToolsPreferences", s.version.to_s
   s.dependency "AnsightToolsReflection", s.version.to_s

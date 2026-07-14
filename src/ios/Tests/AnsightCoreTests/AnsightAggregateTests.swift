@@ -3,6 +3,7 @@ import XCTest
 @testable import AnsightCore
 @testable import AnsightObjC
 @testable import AnsightToolsDatabase
+@testable import AnsightToolsFileDescriptorDiagnostics
 @testable import AnsightToolsFileSystem
 @testable import AnsightToolsPreferences
 @testable import AnsightToolsReflection
@@ -34,6 +35,10 @@ final class AnsightAggregateTests: XCTestCase {
                 AnsightDatabaseToolIds.describeSchema,
                 AnsightDatabaseToolIds.listDatabases,
                 AnsightDatabaseToolIds.query,
+                AnsightFileDescriptorDiagnosticsToolIds.countOpen,
+                AnsightFileDescriptorDiagnosticsToolIds.getUsage,
+                AnsightFileDescriptorDiagnosticsToolIds.inspect,
+                AnsightFileDescriptorDiagnosticsToolIds.listOpen,
                 AnsightFileSystemToolIds.beginBinaryDownload,
                 AnsightFileSystemToolIds.copyFile,
                 AnsightFileSystemToolIds.deleteFile,

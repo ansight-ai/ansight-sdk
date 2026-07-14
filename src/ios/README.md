@@ -31,6 +31,7 @@ Ansight Services.
 - executable tool registration, tool guard policy, tool security metadata, reserved tool call context arguments, and `tool.query` / `tool.call` protocol handling
 - `AnsightToolsPreferences` SwiftPM product with `prefs.list_keys`, `prefs.get_value`, `prefs.set_value`, and `prefs.remove_key` for sandboxed `UserDefaults` access
 - `AnsightToolsFileSystem` SwiftPM product with sandboxed directory listing, file read/checksum/download, live binary download, push/copy/move/delete tools
+- `AnsightToolsFileDescriptorDiagnostics` SwiftPM product with open descriptor listing, counting, inspection, and usage/limit diagnostics
 - `AnsightToolsDatabase` SwiftPM product with SQLite discovery, schema inspection, and constrained read-only query tools: `data.list_databases`, `data.describe_schema`, and `data.query`
 - `AnsightToolsSecureStorage` SwiftPM product with allow-listed Keychain `secure.get_value`, `secure.set_value`, and `secure.remove_key` tools
 - `AnsightToolsReflection` SwiftPM product with registered-root `reflect.*` inspection tools and opt-in write/invoke hooks
@@ -65,12 +66,13 @@ For minimal integrations, depend on only the modules you need:
 ```ruby
 pod 'AnsightCore', :path => '/path/to/ansight-sdk/src/ios'
 pod 'AnsightPairingQR', :path => '/path/to/ansight-sdk/src/ios'
+pod 'AnsightToolsFileDescriptorDiagnostics', :path => '/path/to/ansight-sdk/src/ios'
 pod 'AnsightToolsFileSystem', :path => '/path/to/ansight-sdk/src/ios'
 pod 'AnsightToolsReflection', :path => '/path/to/ansight-sdk/src/ios'
 pod 'AnsightToolsVisualTree', :path => '/path/to/ansight-sdk/src/ios'
 ```
 
-The aggregate `Ansight` pod depends on `AnsightCore`, `AnsightPairingQR`, `AnsightToolsDatabase`, `AnsightToolsFileSystem`, `AnsightToolsPreferences`, `AnsightToolsReflection`, `AnsightToolsSecureStorage`, and `AnsightToolsVisualTree`.
+The aggregate `Ansight` pod depends on `AnsightCore`, `AnsightPairingQR`, `AnsightToolsDatabase`, `AnsightToolsFileDescriptorDiagnostics`, `AnsightToolsFileSystem`, `AnsightToolsPreferences`, `AnsightToolsReflection`, `AnsightToolsSecureStorage`, and `AnsightToolsVisualTree`.
 
 The `AnsightCore` pod runs the same developer build-artifact generator before compile. It honors `ANSIGHT_DEVELOPER_PAIRING_ENABLED`, `ANSIGHT_DEVELOPER_PAIRING_SOURCE_FILE`, and `ANSIGHT_ALLOW_REMOTE_TOOLS`, then writes the pod-only `AnsightGeneratedBuildArtifactsProvider` used by `AnsightDeveloperMode`.
 
@@ -425,6 +427,7 @@ Tool products are opt-in. Register only the surfaces you want exposed to Studio:
 ```swift
 import AnsightCore
 import AnsightToolsDatabase
+import AnsightToolsFileDescriptorDiagnostics
 import AnsightToolsFileSystem
 import AnsightToolsPreferences
 import AnsightToolsReflection
@@ -432,6 +435,7 @@ import AnsightToolsSecureStorage
 import AnsightToolsVisualTree
 
 try AnsightRuntime.shared.registerPreferencesTools()
+try AnsightRuntime.shared.registerFileDescriptorDiagnosticsTools()
 try AnsightRuntime.shared.registerFileSystemTools()
 try AnsightRuntime.shared.registerDatabaseTools()
 try AnsightRuntime.shared.registerReflectionTools()
@@ -440,6 +444,11 @@ try AnsightRuntime.shared.registerVisualTreeTools()
 ```
 
 `AnsightToolsDatabase` opens SQLite files read-only inside approved app sandbox roots. `data.query` accepts one read-only SQL statement, clamps `maxRows` to `1...1000`, returns stable duplicate-column keys, and preserves ordered `rowValues` with SQLite storage types.
+
+`AnsightToolsFileDescriptorDiagnostics` uses public process APIs to enumerate
+open descriptors. Targets can be suppressed with
+`AnsightFileDescriptorDiagnosticsOptions(includeTargets: false)` when paths or
+socket identifiers should not be exposed.
 
 `AnsightToolsReflection` exposes the shared `reflect.*` tool ids. Swift object
 inspection uses `Mirror`; writes and method invocation require roots that

@@ -112,6 +112,7 @@ for artifact in \
   ansight-core-android \
   ansight-pairing-android \
   ansight-tools-visualtree-android \
+  ansight-tools-filedescriptordiagnostics-android \
   ansight-tools-filesystem-android \
   ansight-tools-preferences-android \
   ansight-tools-securestorage-android \
@@ -129,6 +130,7 @@ if [[ "${skip_cocoapods}" != "true" ]]; then
       AnsightCore \
       AnsightPairingQR \
       AnsightToolsPreferences \
+      AnsightToolsFileDescriptorDiagnostics \
       AnsightToolsFileSystem \
       AnsightToolsDatabase \
       AnsightToolsReflection \

@@ -3,6 +3,8 @@ package ai.ansight
 import ai.ansight.runtime.AnsightOptionsBuilder
 import ai.ansight.tools.database.DatabaseToolIds
 import ai.ansight.tools.database.withDatabaseTools
+import ai.ansight.tools.filedescriptordiagnostics.FileDescriptorDiagnosticsToolIds
+import ai.ansight.tools.filedescriptordiagnostics.withFileDescriptorDiagnosticsTools
 import ai.ansight.tools.filesystem.FileSystemToolIds
 import ai.ansight.tools.filesystem.withFileSystemTools
 import ai.ansight.tools.preferences.PreferencesToolIds
@@ -50,6 +52,9 @@ fun AnsightOptionsBuilder.withAnsightRemoteTools(): AnsightOptionsBuilder {
     if (!containsAnyTool(fileSystemSuiteToolIds)) {
         withFileSystemTools()
     }
+    if (!containsAnyTool(fileDescriptorDiagnosticsSuiteToolIds)) {
+        withFileDescriptorDiagnosticsTools()
+    }
     if (!containsAnyTool(preferencesSuiteToolIds)) {
         withPreferencesTools()
     }
@@ -95,6 +100,13 @@ private val fileSystemSuiteToolIds = listOf(
     FileSystemToolIds.CopyFile,
     FileSystemToolIds.MoveFile,
     FileSystemToolIds.DeleteFile,
+)
+
+private val fileDescriptorDiagnosticsSuiteToolIds = listOf(
+    FileDescriptorDiagnosticsToolIds.ListOpen,
+    FileDescriptorDiagnosticsToolIds.CountOpen,
+    FileDescriptorDiagnosticsToolIds.Inspect,
+    FileDescriptorDiagnosticsToolIds.GetUsage,
 )
 
 private val preferencesSuiteToolIds = listOf(

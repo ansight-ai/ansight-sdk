@@ -2,6 +2,7 @@ package ai.ansight
 
 import ai.ansight.runtime.AndroidStandardTools
 import ai.ansight.tools.database.DatabaseToolIds
+import ai.ansight.tools.filedescriptordiagnostics.FileDescriptorDiagnosticsToolIds
 import ai.ansight.tools.filesystem.FileSystemToolIds
 import ai.ansight.tools.preferences.PreferencesToolIds
 import ai.ansight.tools.reflection.ReflectionToolIds
@@ -34,6 +35,10 @@ class AnsightAggregateTest {
             VisualTreeToolIds.UpdateOverlay,
             VisualTreeToolIds.RemoveOverlay,
             VisualTreeToolIds.ClearOverlays,
+            FileDescriptorDiagnosticsToolIds.ListOpen,
+            FileDescriptorDiagnosticsToolIds.CountOpen,
+            FileDescriptorDiagnosticsToolIds.Inspect,
+            FileDescriptorDiagnosticsToolIds.GetUsage,
             FileSystemToolIds.ListDirectory,
             FileSystemToolIds.ReadFile,
             FileSystemToolIds.GetFileChecksum,
@@ -68,7 +73,7 @@ class AnsightAggregateTest {
 
     @Test
     fun developerOptionsWireAllStandardTools() {
-        assertEquals(33, Ansight.developerOptions().initialTools.size)
+        assertEquals(37, Ansight.developerOptions().initialTools.size)
     }
 
     @Test
@@ -78,7 +83,7 @@ class AnsightAggregateTest {
             withSessionJpegCapture(intervalMilliseconds = 1_500, quality = 65, maxWidth = 600)
         }
 
-        assertEquals(33, options.initialTools.size)
+        assertEquals(37, options.initialTools.size)
         assertEquals(AnsightToolGuard.ReadOnly, options.toolGuard)
         assertEquals(1_500, options.sessionJpegCapture?.intervalMilliseconds)
         assertEquals(65, options.sessionJpegCapture?.quality)
@@ -97,8 +102,8 @@ class AnsightAggregateTest {
             .build()
         val toolIds = options.initialTools.map { it.definition.id }
 
-        assertEquals(33, toolIds.size)
-        assertEquals(33, toolIds.toSet().size)
+        assertEquals(37, toolIds.size)
+        assertEquals(37, toolIds.toSet().size)
         assertEquals(AnsightToolGuard.FullAccess, options.toolGuard)
         assertTrue(toolIds.contains(FileSystemToolIds.ListDirectory))
         assertTrue(toolIds.contains(VisualTreeToolIds.GetVisualTree))

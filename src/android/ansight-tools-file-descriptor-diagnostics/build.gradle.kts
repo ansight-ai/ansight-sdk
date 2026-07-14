@@ -8,11 +8,11 @@ group = providers.gradleProperty("ansightAndroidGroup").orElse("ai.ansight").get
 version = providers.gradleProperty("ansightAndroidVersion").orElse("1.0.2-preview.3").get()
 
 android {
-    namespace = "ai.ansight"
+    namespace = "ai.ansight.tools.filedescriptordiagnostics"
     compileSdk = 35
 
     defaultConfig {
-        minSdk = 23
+        minSdk = 21
     }
 
     compileOptions {
@@ -34,15 +34,6 @@ android {
 
 dependencies {
     api(project(":ansight-core"))
-    api(project(":ansight-pairing"))
-    api(project(":ansight-tools-visualtree"))
-    api(project(":ansight-tools-filesystem"))
-    api(project(":ansight-tools-file-descriptor-diagnostics"))
-    api(project(":ansight-tools-preferences"))
-    api(project(":ansight-tools-securestorage"))
-    api(project(":ansight-tools-database"))
-    api(project(":ansight-tools-reflection"))
-
     testImplementation("junit:junit:4.13.2")
 }
 
@@ -52,7 +43,9 @@ afterEvaluate {
             create<MavenPublication>("release") {
                 from(components["release"])
                 groupId = project.group.toString()
-                artifactId = providers.gradleProperty("ansightAndroidArtifactId").orElse("ansight-android").get()
+                artifactId = providers.gradleProperty("ansightAndroidFileDescriptorDiagnosticsArtifactId")
+                    .orElse("ansight-tools-filedescriptordiagnostics-android")
+                    .get()
                 version = project.version.toString()
             }
         }

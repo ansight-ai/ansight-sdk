@@ -23,6 +23,7 @@ Minimal integrations can depend on only the packages they need:
 dependencies {
     implementation("ai.ansight:ansight-core-android:1.0.2-preview.3")
     implementation("ai.ansight:ansight-pairing-android:1.0.2-preview.3")
+    implementation("ai.ansight:ansight-tools-filedescriptordiagnostics-android:1.0.2-preview.3")
     implementation("ai.ansight:ansight-tools-visualtree-android:1.0.2-preview.3")
 }
 ```
@@ -286,6 +287,7 @@ tool id is already present in `initialTools`.
 | Package | Factory | Tool ids |
 | --- | --- | --- |
 | `ansight-tools-visualtree-android` | `AndroidVisualTreeTools.create()` | `ui.*` visual tree, screenshot, and overlay tools |
+| `ansight-tools-filedescriptordiagnostics-android` | `AndroidFileDescriptorDiagnosticsTools.create()` | `file_descriptors.*` open descriptor diagnostics |
 | `ansight-tools-filesystem-android` | `AndroidFileSystemTools.create()` | `files.*` sandbox file tools |
 | `ansight-tools-preferences-android` | `AndroidPreferencesTools.create()` | `prefs.*` SharedPreferences tools |
 | `ansight-tools-securestorage-android` | `AndroidSecureStorageTools.create()` | `secure.*` allow-listed secure storage tools |

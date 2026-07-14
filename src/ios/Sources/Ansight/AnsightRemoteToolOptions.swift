@@ -1,5 +1,6 @@
 import AnsightCore
 import AnsightToolsDatabase
+import AnsightToolsFileDescriptorDiagnostics
 import AnsightToolsFileSystem
 import AnsightToolsPreferences
 import AnsightToolsReflection
@@ -11,6 +12,7 @@ public struct AnsightRemoteToolOptions: Sendable, Equatable {
 
     public var visualTree: Bool
     public var database: AnsightDatabaseToolsOptions
+    public var fileDescriptorDiagnostics: AnsightFileDescriptorDiagnosticsOptions
     public var fileSystem: AnsightFileSystemToolsOptions
     public var preferences: AnsightPreferencesToolOptions
     public var reflection: AnsightReflectionToolsOptions
@@ -20,6 +22,7 @@ public struct AnsightRemoteToolOptions: Sendable, Equatable {
     public init(
         visualTree: Bool = true,
         database: AnsightDatabaseToolsOptions = .default,
+        fileDescriptorDiagnostics: AnsightFileDescriptorDiagnosticsOptions = .default,
         fileSystem: AnsightFileSystemToolsOptions = .default,
         preferences: AnsightPreferencesToolOptions = .default,
         reflection: AnsightReflectionToolsOptions = .default,
@@ -28,6 +31,7 @@ public struct AnsightRemoteToolOptions: Sendable, Equatable {
     ) {
         self.visualTree = visualTree
         self.database = database
+        self.fileDescriptorDiagnostics = fileDescriptorDiagnostics
         self.fileSystem = fileSystem
         self.preferences = preferences
         self.reflection = reflection
@@ -38,6 +42,7 @@ public struct AnsightRemoteToolOptions: Sendable, Equatable {
     public static func == (lhs: AnsightRemoteToolOptions, rhs: AnsightRemoteToolOptions) -> Bool {
         lhs.visualTree == rhs.visualTree &&
         lhs.database == rhs.database &&
+        lhs.fileDescriptorDiagnostics == rhs.fileDescriptorDiagnostics &&
         lhs.fileSystem == rhs.fileSystem &&
         lhs.preferences == rhs.preferences &&
         lhs.reflection == rhs.reflection &&

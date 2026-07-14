@@ -13,10 +13,15 @@ should expose the same concepts with platform-native conventions.
 | Pairing UI | `Ansight.Pairing` | `ai.ansight:ansight-pairing-android` | `AnsightPairingQR` | Native bridge |
 | Visual tree tools | `Ansight.Tools.VisualTree` | `ai.ansight:ansight-tools-visualtree-android` | `AnsightToolsVisualTree` | Native tools plus React tools |
 | File tools | `Ansight.Tools.FileSystem` | `ai.ansight:ansight-tools-filesystem-android` | `AnsightToolsFileSystem` | Native bridge |
+| File descriptor diagnostics | `Ansight.Tools.FileDescriptorDiagnostics` | `ai.ansight:ansight-tools-filedescriptordiagnostics-android` | `AnsightToolsFileDescriptorDiagnostics` | Native bridge |
 | Preferences tools | `Ansight.Tools.Preferences` | `ai.ansight:ansight-tools-preferences-android` | `AnsightToolsPreferences` | Native bridge |
 | Secure storage tools | `Ansight.Tools.SecureStorage` | `ai.ansight:ansight-tools-securestorage-android` | `AnsightToolsSecureStorage` | Native bridge |
 | Database tools | `Ansight.Tools.Database` | `ai.ansight:ansight-tools-database-android` | `AnsightToolsDatabase` | Native bridge |
 | Reflection tools | `Ansight.Tools.Reflection` | `ai.ansight:ansight-tools-reflection-android` | `AnsightToolsReflection` | Native bridge |
+
+`Ansight.Tools.FileDescriptorDiagnostics` is the canonical .NET-style name for
+the native-first file descriptor suite. The implementation in this release is
+packaged for Android and iOS.
 
 ## All-In-One Defaults
 
@@ -219,12 +224,15 @@ Delete-scoped tools, such as `files.delete_file`, `prefs.remove_key`,
 
 ## Tool Suites
 
-The protocol tool ids are shared by .NET, Android, and iOS:
+The protocol tool ids are shared across implementations. The native file
+descriptor suite uses the canonical .NET-style package name
+`Ansight.Tools.FileDescriptorDiagnostics` as its naming baseline.
 
 | Suite | Tool ids |
 | --- | --- |
 | Visual tree | `ui.get_visual_tree`, `ui.get_screenshot`, `ui.inspect_node`, `ui.show_overlay`, `ui.get_overlay`, `ui.query_overlays`, `ui.update_overlay`, `ui.remove_overlay`, `ui.clear_overlays` |
 | Files | `files.list_directory`, `files.read_file`, `files.get_file_checksum`, `files.download_file`, `files.begin_binary_download`, `files.push_file`, `files.copy_file`, `files.move_file`, `files.delete_file` |
+| File descriptor diagnostics | `file_descriptors.list_open`, `file_descriptors.count_open`, `file_descriptors.inspect`, `file_descriptors.get_usage` |
 | Preferences | `prefs.list_keys`, `prefs.get_value`, `prefs.set_value`, `prefs.remove_key` |
 | Secure storage | `secure.get_value`, `secure.set_value`, `secure.remove_key` |
 | Database | `data.list_databases`, `data.describe_schema`, `data.query` |
@@ -256,6 +264,7 @@ Tool-suite registration follows the same app-code convention:
 | Developer defaults and tools | `WithAnsightSdk(...)` | `withAnsightSdk { ... }` or `Ansight.developerOptions(...)` | `initializeAndActivateAnsightSdk(...)` | `withAnsightSdk(...)` |
 | Visual tree | `WithVisualTreeTools()` | `withVisualTreeTools()` | `registerVisualTreeTools()` | native default plus `installReactTools(...)` |
 | Files | `WithFileSystemTools(...)` | `withFileSystemTools { addRoot(...) }` | `AnsightFileSystemToolsOptions.createBuilder()` | `remoteTools.fileSystem` |
+| File descriptor diagnostics | — | `withFileDescriptorDiagnosticsTools { includeTargets(...) }` | `registerFileDescriptorDiagnosticsTools(options:)` | Native bridge |
 | Preferences | `WithPreferencesTools(...)` | `withPreferencesTools { allowKey(...) }` | `AnsightPreferencesToolOptions.createBuilder()` | `remoteTools.preferences` |
 | Secure storage | `WithSecureStorageTools(...)` | `withSecureStorageTools { allowKey(...) }` | `AnsightSecureStorageToolsOptions.createBuilder()` | `remoteTools.secureStorage` |
 | Database | `WithDatabaseTools()` | `withDatabaseTools { includePlatformRoots(...) }` | `AnsightDatabaseToolsOptions.createBuilder()` | `remoteTools.database` |

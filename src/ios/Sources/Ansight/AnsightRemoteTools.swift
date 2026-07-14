@@ -1,5 +1,6 @@
 import AnsightCore
 import AnsightToolsDatabase
+import AnsightToolsFileDescriptorDiagnostics
 import AnsightToolsFileSystem
 import AnsightToolsPreferences
 import AnsightToolsReflection
@@ -24,6 +25,7 @@ public enum AnsightRemoteTools {
 
         return visualTreeTools
             + AnsightDatabaseTools.tools(options: options.database)
+            + AnsightFileDescriptorDiagnosticsTools.tools(options: options.fileDescriptorDiagnostics)
             + AnsightFileSystemTools.tools(options: options.fileSystem)
             + AnsightPreferencesTools.tools(options: options.preferences)
             + AnsightReflectionTools.tools(options: options.reflection, runtime: runtime)

@@ -123,6 +123,7 @@ if (fs.existsSync(podfilePath)) {
     "AnsightToolsPreferences",
     "AnsightToolsFileSystem",
     "AnsightToolsDatabase",
+    "AnsightToolsFileDescriptorDiagnostics",
     "AnsightToolsReflection",
     "AnsightToolsSecureStorage",
     "AnsightToolsVisualTree",

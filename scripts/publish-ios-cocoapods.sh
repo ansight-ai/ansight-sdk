@@ -17,6 +17,7 @@ native_podspecs=(
   "AnsightCore.podspec"
   "AnsightPairingQR.podspec"
   "AnsightToolsDatabase.podspec"
+  "AnsightToolsFileDescriptorDiagnostics.podspec"
   "AnsightToolsFileSystem.podspec"
   "AnsightToolsPreferences.podspec"
   "AnsightToolsReflection.podspec"

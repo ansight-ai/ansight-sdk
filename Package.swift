@@ -29,6 +29,10 @@ let package = Package(
             targets: ["AnsightToolsFileSystem"]
         ),
         .library(
+            name: "AnsightToolsFileDescriptorDiagnostics",
+            targets: ["AnsightToolsFileDescriptorDiagnostics"]
+        ),
+        .library(
             name: "AnsightToolsDatabase",
             targets: ["AnsightToolsDatabase"]
         ),
@@ -56,6 +60,7 @@ let package = Package(
                 "AnsightCore",
                 "AnsightPairingQR",
                 "AnsightToolsDatabase",
+                "AnsightToolsFileDescriptorDiagnostics",
                 "AnsightToolsFileSystem",
                 "AnsightToolsPreferences",
                 "AnsightToolsReflection",
@@ -98,6 +103,20 @@ let package = Package(
                 "AnsightCore",
             ],
             path: "src/ios/Sources/AnsightToolsFileSystem",
+            exclude: ["README.md"]
+        ),
+        .target(
+            name: "CAnsightFileDescriptorDiagnostics",
+            path: "src/ios/Sources/CAnsightFileDescriptorDiagnostics",
+            publicHeadersPath: "include"
+        ),
+        .target(
+            name: "AnsightToolsFileDescriptorDiagnostics",
+            dependencies: [
+                "AnsightCore",
+                "CAnsightFileDescriptorDiagnostics",
+            ],
+            path: "src/ios/Sources/AnsightToolsFileDescriptorDiagnostics",
             exclude: ["README.md"]
         ),
         .target(
@@ -162,6 +181,7 @@ let package = Package(
                 "AnsightCore",
                 "AnsightPairingQR",
                 "AnsightToolsDatabase",
+                "AnsightToolsFileDescriptorDiagnostics",
                 "AnsightToolsFileSystem",
                 "AnsightToolsPreferences",
                 "AnsightToolsReflection",
