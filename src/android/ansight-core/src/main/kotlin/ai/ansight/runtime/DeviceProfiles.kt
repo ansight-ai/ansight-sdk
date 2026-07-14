@@ -100,8 +100,10 @@ data class DeviceProfile(
     val battery: DeviceBatteryProfile?,
     val display: DeviceDisplayProfile?,
     val network: DeviceNetworkProfile?,
+    val nativeDeviceId: String? = null,
 ) {
     fun toJson(): JSONObject = JSONObject()
+        .putIfNotNull("nativeDeviceId", nativeDeviceId)
         .putIfNotNull("manufacturer", manufacturer)
         .putIfNotNull("brand", brand)
         .putIfNotNull("model", model)

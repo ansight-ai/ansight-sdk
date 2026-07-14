@@ -62,6 +62,7 @@ public enum AnsightDeviceAppProfileCollector {
     private static func collectDeviceProfile() -> DeviceProfile {
         let storage = storageCapacity()
         return DeviceProfile(
+            nativeDeviceId: simulatorUdid,
             manufacturer: "Apple",
             brand: "Apple",
             model: hardwareModel(),
@@ -90,6 +91,11 @@ public enum AnsightDeviceAppProfileCollector {
             network: networkProfile(),
             thermal: thermalProfile()
         )
+    }
+
+    private static var simulatorUdid: String? {
+        let value = ProcessInfo.processInfo.environment["SIMULATOR_UDID"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return value?.isEmpty == false ? value : nil
     }
 
     private static func collectRuntimeProfile() -> DeviceRuntimeProfile {

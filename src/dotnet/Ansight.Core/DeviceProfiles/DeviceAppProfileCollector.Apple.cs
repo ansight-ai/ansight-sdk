@@ -8,6 +8,7 @@ internal static partial class DeviceAppProfileCollector
 {
     private static void PopulateAppleDeviceProfile(DeviceProfile profile, bool isDesktop, string osName)
     {
+        profile.NativeDeviceId = ResolveSimulatorEnvironmentValue("SIMULATOR_UDID");
         profile.Manufacturer = "Apple";
         profile.Brand = "Apple";
         profile.Model = NullIfWhiteSpace(UIDevice.CurrentDevice.Model);
@@ -70,9 +71,12 @@ internal static partial class DeviceAppProfileCollector
 
     private static bool HasSimulatorEnvironmentValue(string name)
     {
-        return !string.IsNullOrWhiteSpace(global::System.Environment.GetEnvironmentVariable(name))
-               || !string.IsNullOrWhiteSpace(NSProcessInfo.ProcessInfo.Environment[name]?.ToString());
+        return ResolveSimulatorEnvironmentValue(name) is not null;
     }
+
+    private static string? ResolveSimulatorEnvironmentValue(string name)
+        => NullIfWhiteSpace(global::System.Environment.GetEnvironmentVariable(name))
+           ?? NullIfWhiteSpace(NSProcessInfo.ProcessInfo.Environment[name]?.ToString());
 
     private static DeviceDisplayProfile? CreateAppleDisplayProfile()
     {

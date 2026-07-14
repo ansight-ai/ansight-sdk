@@ -9,6 +9,7 @@ import UIKit
 #endif
 
 public struct DeviceProfile: Sendable, Codable, Equatable {
+    public var nativeDeviceId: String? = nil
     public var manufacturer: String?
     public var brand: String?
     public var model: String?

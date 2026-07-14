@@ -6,6 +6,11 @@ namespace Ansight.Pairing.Models;
 public sealed class DeviceProfile
 {
     /// <summary>
+    /// Native tool device identifier, such as a simulator UDID, when the runtime can expose it safely.
+    /// </summary>
+    public string? NativeDeviceId { get; set; }
+
+    /// <summary>
     /// Device manufacturer name.
     /// </summary>
     public string? Manufacturer { get; set; }
