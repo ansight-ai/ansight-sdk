@@ -90,9 +90,11 @@ internal static class VisualTreeToolSchemas
         description: "Arguments for retrieving the current visual tree.",
         properties: new Dictionary<string, ToolSchema>
         {
+            ["source"] = ToolSchema.String("Optional visual tree provider source. Defaults to native.", nullable: true),
             ["includeBounds"] = ToolSchema.Boolean("Include node bounds in the result."),
             ["includeComputedStyles"] = ToolSchema.Boolean("Include implementation-specific node properties."),
             ["maxDepth"] = ToolSchema.Integer("Maximum child depth to include."),
+            ["maxNodes"] = ToolSchema.Integer("Maximum number of nodes to capture."),
             ["rootNodeId"] = ToolSchema.String("Optional node id to use as the subtree root.", nullable: true)
         });
 
@@ -100,7 +102,10 @@ internal static class VisualTreeToolSchemas
         description: "Visual tree payload.",
         properties: new Dictionary<string, ToolSchema>
         {
+            ["format"] = ToolSchema.String("Versioned visual-tree payload format.", nullable: true),
             ["platform"] = ToolSchema.String("Current runtime platform."),
+            ["source"] = ToolSchema.String("Visual-tree provider source.", nullable: true),
+            ["adapter"] = ToolSchema.String("Provider adapter identifier.", nullable: true),
             ["capturedAtUtc"] = ToolSchema.String("UTC timestamp for capture.", format: "date-time"),
             ["root"] = VisualNodeSchema
         },
@@ -110,6 +115,7 @@ internal static class VisualTreeToolSchemas
         description: "Arguments for inspecting a specific node.",
         properties: new Dictionary<string, ToolSchema>
         {
+            ["source"] = ToolSchema.String("Optional visual tree provider source. Defaults to native.", nullable: true),
             ["nodeId"] = ToolSchema.String("Identifier of the node to inspect."),
             ["includeAncestors"] = ToolSchema.Boolean("Include ancestor nodes in the response."),
             ["includeDescendants"] = ToolSchema.Boolean("Include descendant nodes in the response."),
@@ -122,6 +128,8 @@ internal static class VisualTreeToolSchemas
         properties: new Dictionary<string, ToolSchema>
         {
             ["platform"] = ToolSchema.String("Current runtime platform."),
+            ["source"] = ToolSchema.String("Visual-tree provider source.", nullable: true),
+            ["adapter"] = ToolSchema.String("Provider adapter identifier.", nullable: true),
             ["capturedAtUtc"] = ToolSchema.String("UTC timestamp for capture.", format: "date-time"),
             ["node"] = VisualNodeSchema,
             ["ancestors"] = ToolSchema.Array(VisualNodeSchema, "Optional ancestor chain.", nullable: true),

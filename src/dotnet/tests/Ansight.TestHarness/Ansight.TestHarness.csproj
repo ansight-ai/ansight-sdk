@@ -14,7 +14,7 @@
         <ApplicationTitle>Ansight.TestHarness</ApplicationTitle>
 
         <!-- App Identifier -->
-        <ApplicationId>com.companyname.ansight.testharness</ApplicationId>
+        <ApplicationId>ai.ansight.dotnet.maui-harness</ApplicationId>
 
         <!-- Versions -->
         <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
@@ -27,6 +27,7 @@
         <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
         <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
         <AnsightRemoteToolsPolicy>Allowed</AnsightRemoteToolsPolicy>
+        <AnsightDeveloperPairingEnabled Condition="'$(Configuration)' == 'Debug'">true</AnsightDeveloperPairingEnabled>
     </PropertyGroup>
 
     <ItemGroup>
@@ -60,5 +61,8 @@
     <ItemGroup>
       <ProjectReference Include="..\..\Ansight.Maui\Ansight.Maui.csproj" />
     </ItemGroup>
+
+    <!-- Source project references do not import Ansight.Maui's packaged buildTransitive assets. -->
+    <Import Project="..\..\Ansight.Core\build\Ansight.targets" />
 
 </Project>

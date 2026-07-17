@@ -35,4 +35,8 @@ internal sealed class OfflineCaptureSessionManifest
     public int? SessionJpegCaptureQuality { get; set; }
 
     public int? SessionJpegCaptureMaxWidth { get; set; }
+
+    public long DroppedRecordCount { get; set; }
+
+    public long AnnotationCount { get; set; }
 }

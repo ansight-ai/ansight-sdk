@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using System.Threading;
+using Ansight.Annotations;
 using Microsoft.Maui.ApplicationModel.DataTransfer;
 using SkiaSharp;
 
@@ -20,6 +21,9 @@ public partial class MainPage : ContentPage
     {
         InitializeComponent();
         UpdateRuntimeStatus();
+        AnnotationStatusLabel.Text = Feedback.IsEnabled
+            ? "Enabled for this Debug build."
+            : "Disabled. This is expected outside Debug builds.";
     }
 
     protected override void OnAppearing()
@@ -61,6 +65,29 @@ public partial class MainPage : ContentPage
 
         Runtime.Event("Manual GC", CustomAnsightConfiguration.CustomEventChannelId);
         UpdateRuntimeStatus();
+    }
+
+    private async void OnAnnotatedFeedbackClicked(object? sender, EventArgs e)
+    {
+        AnnotationStatusLabel.Text = "Opening annotated feedback…";
+
+        try
+        {
+            var result = await Feedback.PresentAsync();
+            var annotation = result.AnnotationId is Guid annotationId
+                ? $" • annotation {annotationId}"
+                : string.Empty;
+            var message = string.IsNullOrWhiteSpace(result.Message)
+                ? string.Empty
+                : $" • {result.Message}";
+
+            AnnotationStatusLabel.Text =
+                $"Last result: {result.Status}{annotation} • evidence {result.Evidence.Count} • destinations {result.Sinks.Count}{message}";
+        }
+        catch (Exception exception)
+        {
+            AnnotationStatusLabel.Text = $"Annotated feedback threw unexpectedly: {exception.Message}";
+        }
     }
 
     private void OnEnableFpsClicked(object? sender, EventArgs e)

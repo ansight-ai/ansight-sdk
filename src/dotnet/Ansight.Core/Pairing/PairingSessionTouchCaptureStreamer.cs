@@ -19,9 +19,9 @@ internal sealed class PairingSessionTouchCaptureStreamer : IDisposable
     private const int ActionUnknown = 4;
 
     private readonly PairingSessionTransport transport;
-    private readonly SemaphoreSlim signal = new(0);
+    private readonly SemaphoreSlim signal = new(0, 1);
     private readonly Lock touchLock = new();
-    private readonly List<CapturedTouch> pendingTouches = [];
+    private readonly Queue<CapturedTouch> pendingTouches = new();
     private TouchCaptureHub? touchCaptureHub;
     private EventHandler<TouchCapturedEventArgs>? touchCapturedHandler;
     private CancellationTokenSource? pumpCts;
@@ -62,14 +62,14 @@ internal sealed class PairingSessionTouchCaptureStreamer : IDisposable
         {
             lock (touchLock)
             {
-                pendingTouches.Add(args.Touch);
-                if (pendingTouches.Count > MaxPendingTouches)
+                pendingTouches.Enqueue(args.Touch);
+                while (pendingTouches.Count > MaxPendingTouches)
                 {
-                    pendingTouches.RemoveRange(0, pendingTouches.Count - MaxPendingTouches);
+                    pendingTouches.Dequeue();
                 }
             }
 
-            signal.Release();
+            Signal();
         };
 
         touchCaptureHub.TouchCaptured += touchCapturedHandler;
@@ -186,8 +186,11 @@ internal sealed class PairingSessionTouchCaptureStreamer : IDisposable
                     }
 
                     var batchSize = Math.Min(pendingTouches.Count, MaxBatchSize);
-                    batch = pendingTouches.Take(batchSize).ToArray();
-                    pendingTouches.RemoveRange(0, batchSize);
+                    batch = new CapturedTouch[batchSize];
+                    for (var index = 0; index < batchSize; index++)
+                    {
+                        batch[index] = pendingTouches.Dequeue();
+                    }
                 }
 
                 if (batch.Length == 0)
@@ -342,6 +345,23 @@ internal sealed class PairingSessionTouchCaptureStreamer : IDisposable
             CapturedTouchAction.Cancel => ActionCancel,
             _ => ActionUnknown
         };
+    }
+
+    private void Signal()
+    {
+        if (signal.CurrentCount != 0)
+        {
+            return;
+        }
+
+        try
+        {
+            signal.Release();
+        }
+        catch (SemaphoreFullException)
+        {
+            // Another producer signalled concurrently.
+        }
     }
 
 }

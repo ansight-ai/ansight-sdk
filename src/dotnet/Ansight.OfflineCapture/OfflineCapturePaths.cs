@@ -41,4 +41,10 @@ internal static class OfflineCapturePaths
 
     public static string ScreenshotIndexDirectory(string sessionDirectory)
         => Path.Combine(sessionDirectory, "screenshots", "index");
+
+    public static string AnnotationBundlesDirectory(string sessionDirectory)
+        => Path.Combine(sessionDirectory, "annotations", "bundles");
+
+    public static string AnnotationIndexPath(string sessionDirectory)
+        => Path.Combine(sessionDirectory, "annotations", "index.jsonl");
 }

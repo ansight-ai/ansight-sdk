@@ -68,9 +68,15 @@ The controller supports runtime mutation through `UpdateOptionsAsync(Action<Offl
         {utc}.jpg
         index/
           s-{utc}.jsonl
+      annotations/
+        bundles/
+          {annotationId}.ansightannotation
+        index.jsonl
 ```
 
 `settings.json`, `manifest.json`, and `metadata/*.json` are compact metadata files. High-volume data files are append-only JSONL segments. Metric, event, touch, and screenshot index records use minified JSON with short property names and no formatted whitespace.
+
+When the Debug-only `Ansight.Annotations` feature is explicitly enabled, an active offline capture automatically registers as an annotation destination. Completed feedback bundles are written directly to `annotations/bundles`, indexed in `annotations/index.jsonl`, and included in ZIP export. Annotation writes are isolated from the bounded telemetry queue, so telemetry backpressure does not drop a submitted feedback bundle.
 
 Retention is enforced during startup, active writes, runtime option updates, and export preparation. Time retention deletes closed files older than the effective retention window; active writer files are never deleted. `MaximumSessionBytes` trims old closed files inside the active session, and `MaximumRetainedBytes` trims old closed files across `.ansight`.
 

@@ -1,5 +1,6 @@
 using Ansight.Pairing;
 using Ansight.Pairing.Models;
+using System.Text.Json.Nodes;
 
 namespace Ansight;
 
@@ -122,6 +123,29 @@ internal sealed class HostSessionManager : IHostSessionConnection, IHostAutoProb
         CancellationToken cancellationToken = default)
     {
         return sessionClient.SendClientLogAsync(logLine, progress, cancellationToken);
+    }
+
+    internal Task<OperationResult> SendBinaryExtensionAsync(
+        string action,
+        JsonObject payload,
+        string fileName,
+        string mimeType,
+        ReadOnlyMemory<byte> content,
+        CancellationToken cancellationToken)
+    {
+        if (sessionClient is not IHostConnectionBinaryExtensionClient binaryExtensionClient)
+        {
+            return Task.FromResult(OperationResult.FromFailure(
+                "The active host session does not support binary extension payloads."));
+        }
+
+        return binaryExtensionClient.SendBinaryExtensionAsync(
+            action,
+            payload,
+            fileName,
+            mimeType,
+            content,
+            cancellationToken);
     }
 
     public async Task<HostSessionActionResult> DisconnectAsync(CancellationToken cancellationToken = default)

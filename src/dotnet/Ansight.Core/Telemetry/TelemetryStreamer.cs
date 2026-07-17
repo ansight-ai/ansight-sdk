@@ -8,14 +8,15 @@ internal sealed class TelemetryStreamer : IDisposable
     private const int MaxMetricsBatchSize = 160;
     private const int MaxPendingMetrics = 2000;
     private const int MaxEventsBatchSize = 160;
+    private const int MaxPendingEvents = 2000;
 
     private readonly PairingSessionTransport transport;
-    private readonly SemaphoreSlim metricsSignal = new(0);
-    private readonly SemaphoreSlim eventsSignal = new(0);
+    private readonly SemaphoreSlim metricsSignal = new(0, 1);
+    private readonly SemaphoreSlim eventsSignal = new(0, 1);
     private readonly Lock metricsLock = new();
     private readonly Lock eventsLock = new();
-    private readonly List<Metric> pendingMetrics = [];
-    private readonly List<AppEvent> pendingEvents = [];
+    private readonly Queue<Metric> pendingMetrics = new();
+    private readonly Queue<AppEvent> pendingEvents = new();
     private readonly HashSet<byte> announcedMetricChannels = [];
     private readonly HashSet<Guid> pendingEventIds = [];
     private IDataSink? metricsDataSink;
@@ -79,7 +80,15 @@ internal sealed class TelemetryStreamer : IDisposable
 
         lock (metricsLock)
         {
-            pendingMetrics.AddRange(seedMetrics);
+            foreach (var metric in seedMetrics)
+            {
+                pendingMetrics.Enqueue(metric);
+            }
+
+            while (pendingMetrics.Count > MaxPendingMetrics)
+            {
+                pendingMetrics.Dequeue();
+            }
         }
 
         metricsUpdatedHandler = (_, args) =>
@@ -91,14 +100,18 @@ internal sealed class TelemetryStreamer : IDisposable
 
             lock (metricsLock)
             {
-                pendingMetrics.AddRange(args.Added);
-                if (pendingMetrics.Count > MaxPendingMetrics)
+                foreach (var metric in args.Added)
                 {
-                    pendingMetrics.RemoveRange(0, pendingMetrics.Count - MaxPendingMetrics);
+                    pendingMetrics.Enqueue(metric);
+                }
+
+                while (pendingMetrics.Count > MaxPendingMetrics)
+                {
+                    pendingMetrics.Dequeue();
                 }
             }
 
-            metricsSignal.Release();
+            Signal(metricsSignal);
         };
 
         dataSink.OnMetricsUpdated += metricsUpdatedHandler;
@@ -123,14 +136,19 @@ internal sealed class TelemetryStreamer : IDisposable
                         continue;
                     }
 
-                    pendingEvents.Add(@event);
+                    pendingEvents.Enqueue(@event);
                     didAddAny = true;
+                }
+
+                while (pendingEvents.Count > MaxPendingEvents)
+                {
+                    pendingEventIds.Remove(pendingEvents.Dequeue().Id);
                 }
             }
 
             if (didAddAny)
             {
-                eventsSignal.Release();
+                Signal(eventsSignal);
             }
         };
 
@@ -159,20 +177,25 @@ internal sealed class TelemetryStreamer : IDisposable
                         continue;
                     }
 
-                    pendingEvents.Add(@event);
+                    pendingEvents.Enqueue(@event);
                     didSeedEvents = true;
+                }
+
+                while (pendingEvents.Count > MaxPendingEvents)
+                {
+                    pendingEventIds.Remove(pendingEvents.Dequeue().Id);
                 }
             }
         }
 
         if (seedMetrics.Length > 0)
         {
-            metricsSignal.Release();
+            Signal(metricsSignal);
         }
 
         if (didSeedEvents)
         {
-            eventsSignal.Release();
+            Signal(eventsSignal);
         }
 
         HostPairingProgressReporter.Report(
@@ -342,8 +365,11 @@ internal sealed class TelemetryStreamer : IDisposable
                     }
 
                     var batchSize = Math.Min(pendingMetrics.Count, MaxMetricsBatchSize);
-                    batch = pendingMetrics.Take(batchSize).ToArray();
-                    pendingMetrics.RemoveRange(0, batchSize);
+                    batch = new Metric[batchSize];
+                    for (var index = 0; index < batchSize; index++)
+                    {
+                        batch[index] = pendingMetrics.Dequeue();
+                    }
                     dataSink = metricsDataSink;
                 }
 
@@ -434,10 +460,8 @@ internal sealed class TelemetryStreamer : IDisposable
                     var removeCount = Math.Min(batch.Length, pendingEvents.Count);
                     for (var i = 0; i < removeCount; i++)
                     {
-                        pendingEventIds.Remove(pendingEvents[i].Id);
+                        pendingEventIds.Remove(pendingEvents.Dequeue().Id);
                     }
-
-                    pendingEvents.RemoveRange(0, removeCount);
                 }
             }
         }
@@ -560,4 +584,21 @@ internal sealed class TelemetryStreamer : IDisposable
     }
 
     private static string ToColorHex(System.Drawing.Color color) => $"#{color.R:X2}{color.G:X2}{color.B:X2}";
+
+    private static void Signal(SemaphoreSlim signal)
+    {
+        if (signal.CurrentCount != 0)
+        {
+            return;
+        }
+
+        try
+        {
+            signal.Release();
+        }
+        catch (SemaphoreFullException)
+        {
+            // Another producer signalled concurrently.
+        }
+    }
 }

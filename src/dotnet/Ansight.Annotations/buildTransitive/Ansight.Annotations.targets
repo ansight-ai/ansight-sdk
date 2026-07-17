@@ -1,0 +1,8 @@
+<Project>
+  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <AssemblyMetadata Include="Ansight.Annotations.DebugBuild" Value="true" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(Configuration)' != 'Debug'">
+    <AssemblyMetadata Include="Ansight.Annotations.DebugBuild" Value="false" />
+  </ItemGroup>
+</Project>

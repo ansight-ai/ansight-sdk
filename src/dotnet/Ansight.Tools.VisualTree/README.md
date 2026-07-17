@@ -23,6 +23,8 @@ var options = Options.CreateBuilder()
 
 `WithReadOnlyToolAccess()` exposes inspection tools such as `ui.get_visual_tree`, `ui.inspect_node`, `ui.get_screenshot`, `ui.get_overlay`, and `ui.query_overlays`.
 
+Visual-tree capture is provider-based. `VisualTreeProviderRegistry` always exposes the platform hierarchy as the `native` source, and additional UI frameworks can register independent sources. `Ansight.Tools.Maui` registers `maui`. Pass `source` to `ui.get_visual_tree` or `ui.inspect_node` to select one; omitting it preserves the native behavior. Local features such as `Ansight.Annotations` query the same registry and can capture every registered source without invoking remote tools.
+
 > **Important:** Calling screenshot tools will result in an FPS drop while the
 > current frame is captured, encoded, and transferred. Avoid screenshot-heavy
 > investigations during performance measurements unless visual evidence is

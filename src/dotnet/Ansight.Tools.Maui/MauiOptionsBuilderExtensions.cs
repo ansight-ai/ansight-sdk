@@ -1,12 +1,15 @@
 namespace Ansight.Tools.Maui;
 
 using System;
+using Ansight.Tools.VisualTree;
 
 public static class MauiOptionsBuilderExtensions
 {
     public static Options.OptionsBuilder WithMauiTools(this Options.OptionsBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
+
+        VisualTreeProviderRegistry.Register(MauiVisualTreeProvider.Instance);
 
         return builder.AddTools(new ITool[]
         {

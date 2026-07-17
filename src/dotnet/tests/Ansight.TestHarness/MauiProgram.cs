@@ -1,4 +1,5 @@
-﻿using Ansight.Maui;
+﻿using Ansight.Annotations;
+using Ansight.Maui;
 using Ansight.Tools.Preferences;
 using Ansight.Tools.SecureStorage;
 using Microsoft.Extensions.Logging;
@@ -28,6 +29,12 @@ public static class MauiProgram
                     ReconnectDelay = TimeSpan.FromSeconds(10),
                     ClientName = CustomAnsightConfiguration.ClientName
                 });
+#if DEBUG
+                ansight.WithAnnotatedFeedback(annotations =>
+                {
+                    annotations.AddHook(new HarnessAnnotationCaptureHook());
+                });
+#endif
                 ansight.WithPreferencesTools(preferences =>
                 {
                     preferences.WithDefaultStore(preferencesStore);

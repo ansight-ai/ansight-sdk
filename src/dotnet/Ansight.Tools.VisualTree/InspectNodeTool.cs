@@ -20,9 +20,18 @@ public sealed class InspectNodeTool : ITool
 
     public ToolSecurity Security => VisualTreeToolSecurityProfiles.InspectNode;
 
-    public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
+    public async Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {
         ArgumentNullException.ThrowIfNull(arguments);
-        return VisualTreeSupport.InspectNodeAsync(arguments);
+        arguments.TryGetValue("source", out var source);
+        if (!VisualTreeProviderRegistry.TryGet(source, out var provider) || provider is null)
+        {
+            var normalizedSource = VisualTreeProviderRegistry.NormalizeSourceOrDefault(source);
+            return ToolResult.Failure(
+                $"No visual tree provider is registered for source '{normalizedSource}'.",
+                errorCode: "visual_tree_provider_not_found");
+        }
+
+        return await provider.InspectNodeAsync(arguments);
     }
 }

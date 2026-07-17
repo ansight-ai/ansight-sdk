@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net9.0;net9.0-android;net9.0-ios;net9.0-maccatalyst</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <AssemblyName>Ansight.Annotations</AssemblyName>
+    <RootNamespace>Ansight.Annotations</RootNamespace>
+
+    <IsPackable>true</IsPackable>
+    <PackageId>Ansight.Annotations</PackageId>
+    <Description>Opt-in, debug-only in-app feedback annotations for the Ansight SDK.</Description>
+    <PackageTags>ansight;annotations;feedback;visual-tree;debug;android;ios;maccatalyst</PackageTags>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Ansight.Core\Ansight.Core.csproj" />
+    <ProjectReference Include="..\Ansight.Tools.VisualTree\Ansight.Tools.VisualTree.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="buildTransitive\Ansight.Annotations.targets" Pack="true" PackagePath="buildTransitive\Ansight.Annotations.targets" />
+  </ItemGroup>
+
+</Project>

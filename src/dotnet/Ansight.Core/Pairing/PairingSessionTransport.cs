@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
@@ -408,9 +409,21 @@ internal sealed class PairingSessionTransport : IDisposable
 
     private static async Task SendTextAsync(ClientWebSocket webSocket, string payload, CancellationToken cancellationToken)
     {
-        var bytes = Encoding.UTF8.GetBytes(payload);
-        var segment = new ArraySegment<byte>(bytes);
-        await webSocket.SendAsync(segment, WebSocketMessageType.Text, true, cancellationToken);
+        var byteCount = Encoding.UTF8.GetByteCount(payload);
+        var buffer = ArrayPool<byte>.Shared.Rent(Math.Max(1, byteCount));
+        try
+        {
+            var bytesWritten = Encoding.UTF8.GetBytes(payload, 0, payload.Length, buffer, 0);
+            await webSocket.SendAsync(
+                new ArraySegment<byte>(buffer, 0, bytesWritten),
+                WebSocketMessageType.Text,
+                true,
+                cancellationToken);
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
     }
 
     private static async Task SendBinaryFragmentAsync(

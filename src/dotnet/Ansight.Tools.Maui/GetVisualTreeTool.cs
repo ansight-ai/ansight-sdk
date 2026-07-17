@@ -26,6 +26,9 @@ public sealed class GetVisualTreeTool : ITool
     public ToolSecurity Security => MauiToolSecurityProfiles.GetVisualTree;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
+        => CaptureAsync(arguments);
+
+    internal static Task<ToolResult> CaptureAsync(IReadOnlyDictionary<string, string> arguments)
     {
         ArgumentNullException.ThrowIfNull(arguments);
 

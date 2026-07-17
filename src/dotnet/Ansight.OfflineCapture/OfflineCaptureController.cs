@@ -1,16 +1,18 @@
 namespace Ansight.OfflineCapture;
 
 using System.Threading.Channels;
+using Ansight.Annotations;
 using TelemetryChannel = Ansight.Telemetry.Channels.Channel;
 
 /// <summary>
 /// Starts, stops, mutates, persists, and exports Ansight offline capture sessions.
 /// </summary>
-public sealed class OfflineCaptureController : IAsyncDisposable
+public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
 {
     private readonly Lock stateLock = new();
     private readonly IRuntime runtime;
     private readonly TouchCaptureHub? touchCaptureHub;
+    private readonly SemaphoreSlim annotationWriteGate = new(1, 1);
     private OfflineCaptureOptions options;
     private Channel<OfflineCaptureWriteRecord>? recordChannel;
     private CancellationTokenSource? writerCts;
@@ -24,6 +26,8 @@ public sealed class OfflineCaptureController : IAsyncDisposable
     private EventHandler<MetricsUpdatedEventArgs>? metricsUpdatedHandler;
     private EventHandler<AppEventsUpdatedEventArgs>? eventsUpdatedHandler;
     private EventHandler<TouchCapturedEventArgs>? touchCapturedHandler;
+    private IDisposable? annotationSinkRegistration;
+    private long droppedRecordCount;
     private string? activeSessionDirectory;
     private string? activeSessionId;
     private OfflineCaptureSessionManifest? activeManifest;
@@ -80,6 +84,11 @@ public sealed class OfflineCaptureController : IAsyncDisposable
             }
         }
     }
+
+    /// <summary>
+    /// Stable annotation sink identifier.
+    /// </summary>
+    public string Id => "offline.capture";
 
     /// <summary>
     /// Loads persisted activation settings and starts capture when configured for next-session or always-on capture.
@@ -139,6 +148,7 @@ public sealed class OfflineCaptureController : IAsyncDisposable
         Directory.CreateDirectory(OfflineCapturePaths.TouchesDirectory(sessionDirectory));
         Directory.CreateDirectory(OfflineCapturePaths.ScreenshotsDirectory(sessionDirectory));
         Directory.CreateDirectory(OfflineCapturePaths.ScreenshotIndexDirectory(sessionDirectory));
+        Directory.CreateDirectory(OfflineCapturePaths.AnnotationBundlesDirectory(sessionDirectory));
 
         var manifest = new OfflineCaptureSessionManifest
         {
@@ -153,13 +163,15 @@ public sealed class OfflineCaptureController : IAsyncDisposable
         await WriteDeviceProfileAsync(sessionDirectory, deviceProfile, cancellationToken);
         await WriteCustomPropertiesAsync(sessionDirectory, cancellationToken);
 
+        Interlocked.Exchange(ref droppedRecordCount, 0);
         var channel = System.Threading.Channels.Channel.CreateBounded<OfflineCaptureWriteRecord>(
             new BoundedChannelOptions(effectiveOptions.MaximumQueuedRecords)
             {
                 FullMode = BoundedChannelFullMode.DropOldest,
                 SingleReader = true,
                 SingleWriter = false
-            });
+            },
+            _ => Interlocked.Increment(ref droppedRecordCount));
 
         var writerCancellation = new CancellationTokenSource();
         var screenshotCancellation = new CancellationTokenSource();
@@ -193,11 +205,20 @@ public sealed class OfflineCaptureController : IAsyncDisposable
             eventWriter = eventSegmentWriter;
             touchWriter = touchSegmentWriter;
             screenshotIndexWriter = screenshotIndexSegmentWriter;
-            writerTask = Task.Run(() => RunWriterAsync(writerCancellation.Token), CancellationToken.None);
+            writerTask = Task.Run(
+                () => RunWriterAsync(
+                    channel,
+                    metricSegmentWriter,
+                    eventSegmentWriter,
+                    touchSegmentWriter,
+                    screenshotIndexSegmentWriter,
+                    writerCancellation.Token),
+                CancellationToken.None);
             screenshotTask = Task.Run(() => RunScreenshotPumpAsync(screenshotCancellation.Token), CancellationToken.None);
         }
 
         AttachRuntimeFeeds();
+        annotationSinkRegistration = Feedback.RegisterSinkForRuntime(runtime, this);
         await ApplyRetentionAsync(cancellationToken);
         return CreateSessionInfo(sessionDirectory, isActive: true);
     }
@@ -379,6 +400,98 @@ public sealed class OfflineCaptureController : IAsyncDisposable
 
         disposed = true;
         await StopInternalAsync(CancellationToken.None);
+        annotationWriteGate.Dispose();
+    }
+
+    /// <summary>
+    /// Writes a sealed annotation bundle directly into the active offline session.
+    /// </summary>
+    public async ValueTask<AnnotationSinkResult> SubmitAsync(
+        AnnotationBundle bundle,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(bundle);
+        await annotationWriteGate.WaitAsync(cancellationToken);
+        try
+        {
+            string? sessionDirectory;
+            OfflineCaptureSessionManifest? manifest;
+            lock (stateLock)
+            {
+                sessionDirectory = activeSessionDirectory;
+                manifest = activeManifest;
+            }
+
+            if (sessionDirectory is null || manifest is null)
+            {
+                return AnnotationSinkResult.Failure(Id, "Offline Capture is not currently active.");
+            }
+
+            var bundlesDirectory = OfflineCapturePaths.AnnotationBundlesDirectory(sessionDirectory);
+            Directory.CreateDirectory(bundlesDirectory);
+            var destinationPath = Path.Combine(bundlesDirectory, bundle.FileName);
+            var temporaryPath = Path.Combine(bundlesDirectory, $".{bundle.AnnotationId:N}.{Guid.NewGuid():N}.tmp");
+            try
+            {
+                await using (var stream = new FileStream(
+                    temporaryPath,
+                    FileMode.CreateNew,
+                    FileAccess.Write,
+                    FileShare.None,
+                    64 * 1024,
+                    FileOptions.Asynchronous | FileOptions.SequentialScan))
+                {
+                    await stream.WriteAsync(bundle.Bytes, cancellationToken);
+                    await stream.FlushAsync(cancellationToken);
+                }
+
+                File.Move(temporaryPath, destinationPath, overwrite: true);
+            }
+            finally
+            {
+                if (File.Exists(temporaryPath))
+                {
+                    File.Delete(temporaryPath);
+                }
+            }
+
+            var relativePath = Path.GetRelativePath(sessionDirectory, destinationPath).Replace('\\', '/');
+            var indexLine = JsonSerializer.Serialize(new
+            {
+                id = bundle.AnnotationId.ToString("N"),
+                t = bundle.CapturedAtUtc.ToUnixTimeMilliseconds(),
+                p = relativePath,
+                b = bundle.Bytes.Length
+            }, OfflineCaptureJson.Data);
+            var indexPath = OfflineCapturePaths.AnnotationIndexPath(sessionDirectory);
+            await using (var indexStream = new FileStream(
+                indexPath,
+                FileMode.Append,
+                FileAccess.Write,
+                FileShare.Read,
+                16 * 1024,
+                FileOptions.Asynchronous | FileOptions.SequentialScan))
+            await using (var writer = new StreamWriter(indexStream))
+            {
+                await writer.WriteLineAsync(indexLine);
+                await writer.FlushAsync(cancellationToken);
+            }
+
+            lock (stateLock)
+            {
+                manifest.AnnotationCount++;
+            }
+            await WriteManifestAsync(sessionDirectory, manifest, cancellationToken);
+            return AnnotationSinkResult.Success(Id, "Annotation stored in the active offline capture session.");
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            return AnnotationSinkResult.Failure(Id, exception.Message);
+        }
+        finally
+        {
+            annotationWriteGate.Release();
+        }
     }
 
     private async Task StopInternalAsync(CancellationToken cancellationToken)
@@ -394,6 +507,7 @@ public sealed class OfflineCaptureController : IAsyncDisposable
         SegmentedJsonLineWriter? currentScreenshotIndexWriter;
         string? sessionDirectory;
         OfflineCaptureSessionManifest? manifest;
+        IDisposable? currentAnnotationSinkRegistration;
 
         lock (stateLock)
         {
@@ -414,6 +528,7 @@ public sealed class OfflineCaptureController : IAsyncDisposable
             currentScreenshotIndexWriter = screenshotIndexWriter;
             sessionDirectory = activeSessionDirectory;
             manifest = activeManifest;
+            currentAnnotationSinkRegistration = annotationSinkRegistration;
 
             recordChannel = null;
             writerCts = null;
@@ -427,8 +542,10 @@ public sealed class OfflineCaptureController : IAsyncDisposable
             activeSessionDirectory = null;
             activeSessionId = null;
             activeManifest = null;
+            annotationSinkRegistration = null;
         }
 
+        currentAnnotationSinkRegistration?.Dispose();
         currentScreenshotCts?.Cancel();
         channel?.Writer.TryComplete();
 
@@ -467,10 +584,23 @@ public sealed class OfflineCaptureController : IAsyncDisposable
 
         if (sessionDirectory is not null && manifest is not null)
         {
-            manifest.StoppedAtUtc = DateTimeOffset.UtcNow;
-            ApplyRuntimeSessionMetadataToManifest(manifest);
-            await WriteManifestAsync(sessionDirectory, manifest, cancellationToken);
-            await WriteCustomPropertiesAsync(sessionDirectory, cancellationToken);
+            await annotationWriteGate.WaitAsync(cancellationToken);
+            try
+            {
+                manifest.StoppedAtUtc = DateTimeOffset.UtcNow;
+                manifest.DroppedRecordCount = Interlocked.Read(ref droppedRecordCount);
+                ApplyRuntimeSessionMetadataToManifest(manifest);
+                await WriteManifestAsync(sessionDirectory, manifest, cancellationToken);
+                await WriteCustomPropertiesAsync(sessionDirectory, cancellationToken);
+                if (manifest.DroppedRecordCount > 0)
+                {
+                    Logger.Warning($"Offline capture dropped {manifest.DroppedRecordCount:N0} queued record(s) because the writer could not keep up.");
+                }
+            }
+            finally
+            {
+                annotationWriteGate.Release();
+            }
         }
     }
 
@@ -543,14 +673,14 @@ public sealed class OfflineCaptureController : IAsyncDisposable
         }
     }
 
-    private async Task RunWriterAsync(CancellationToken cancellationToken)
+    private async Task RunWriterAsync(
+        Channel<OfflineCaptureWriteRecord> channel,
+        SegmentedJsonLineWriter metricSegmentWriter,
+        SegmentedJsonLineWriter eventSegmentWriter,
+        SegmentedJsonLineWriter touchSegmentWriter,
+        SegmentedJsonLineWriter screenshotIndexSegmentWriter,
+        CancellationToken cancellationToken)
     {
-        var channel = recordChannel;
-        if (channel is null)
-        {
-            return;
-        }
-
         while (await channel.Reader.WaitToReadAsync(cancellationToken))
         {
             var wroteAny = false;
@@ -558,18 +688,34 @@ public sealed class OfflineCaptureController : IAsyncDisposable
             {
                 if (record.Kind == OfflineCaptureWriteKind.Flush)
                 {
-                    await FlushWritersAsync(cancellationToken);
+                    await FlushWritersAsync(
+                        metricSegmentWriter,
+                        eventSegmentWriter,
+                        touchSegmentWriter,
+                        screenshotIndexSegmentWriter,
+                        cancellationToken);
                     record.FlushCompletion?.TrySetResult();
                     continue;
                 }
 
-                await WriteRecordAsync(record, cancellationToken);
+                await WriteRecordAsync(
+                    record,
+                    metricSegmentWriter,
+                    eventSegmentWriter,
+                    touchSegmentWriter,
+                    screenshotIndexSegmentWriter,
+                    cancellationToken);
                 wroteAny = true;
             }
 
             if (wroteAny)
             {
-                await FlushWritersAsync(cancellationToken);
+                await FlushWritersAsync(
+                    metricSegmentWriter,
+                    eventSegmentWriter,
+                    touchSegmentWriter,
+                    screenshotIndexSegmentWriter,
+                    cancellationToken);
             }
 
             if (DateTimeOffset.UtcNow - lastRetentionRunUtc > TimeSpan.FromSeconds(5))
@@ -579,14 +725,20 @@ public sealed class OfflineCaptureController : IAsyncDisposable
         }
     }
 
-    private async Task WriteRecordAsync(OfflineCaptureWriteRecord record, CancellationToken cancellationToken)
+    private static async Task WriteRecordAsync(
+        OfflineCaptureWriteRecord record,
+        SegmentedJsonLineWriter metricSegmentWriter,
+        SegmentedJsonLineWriter eventSegmentWriter,
+        SegmentedJsonLineWriter touchSegmentWriter,
+        SegmentedJsonLineWriter screenshotIndexSegmentWriter,
+        CancellationToken cancellationToken)
     {
-        SegmentedJsonLineWriter? writer = record.Kind switch
+        var writer = record.Kind switch
         {
-            OfflineCaptureWriteKind.Metric => metricWriter,
-            OfflineCaptureWriteKind.Event => eventWriter,
-            OfflineCaptureWriteKind.Touch => touchWriter,
-            OfflineCaptureWriteKind.Screenshot => screenshotIndexWriter,
+            OfflineCaptureWriteKind.Metric => metricSegmentWriter,
+            OfflineCaptureWriteKind.Event => eventSegmentWriter,
+            OfflineCaptureWriteKind.Touch => touchSegmentWriter,
+            OfflineCaptureWriteKind.Screenshot => screenshotIndexSegmentWriter,
             _ => null
         };
 
@@ -596,6 +748,19 @@ public sealed class OfflineCaptureController : IAsyncDisposable
         }
 
         await writer.WriteLineAsync(record.CapturedAtUtc, record.JsonLine, cancellationToken);
+    }
+
+    private static async Task FlushWritersAsync(
+        SegmentedJsonLineWriter metricSegmentWriter,
+        SegmentedJsonLineWriter eventSegmentWriter,
+        SegmentedJsonLineWriter touchSegmentWriter,
+        SegmentedJsonLineWriter screenshotIndexSegmentWriter,
+        CancellationToken cancellationToken)
+    {
+        await metricSegmentWriter.FlushAsync(cancellationToken);
+        await eventSegmentWriter.FlushAsync(cancellationToken);
+        await touchSegmentWriter.FlushAsync(cancellationToken);
+        await screenshotIndexSegmentWriter.FlushAsync(cancellationToken);
     }
 
     private async Task RunScreenshotPumpAsync(CancellationToken cancellationToken)

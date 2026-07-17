@@ -12,8 +12,9 @@ Ansight Services.
 ## Package Model
 
 - `Ansight.Core`: core runtime, telemetry, host pairing protocol, tool abstractions, and build-time safety targets.
-- `Ansight`: all-in-one package for non-MAUI .NET apps. It depends on `Ansight.Core`, native pairing where supported, and all non-MAUI remote tool packages.
-- `Ansight.Maui`: all-in-one package for .NET MAUI apps. It depends on `Ansight` and adds MAUI inspection/mutation tools plus `MauiAppBuilder` setup helpers with automatic lifecycle and page-view telemetry.
+- `Ansight.Annotations`: opt-in, Debug-only in-app feedback, screenshot, visual-tree, hook, artifact, and bundle delivery support.
+- `Ansight`: all-in-one package for non-MAUI .NET apps. It depends on `Ansight.Core`, bundles annotations without enabling them, includes native pairing where supported, and includes all non-MAUI remote tool packages.
+- `Ansight.Maui`: all-in-one package for .NET MAUI apps. It depends on `Ansight`, bundles annotations without enabling them, and adds MAUI inspection/mutation tools plus `MauiAppBuilder` setup helpers with automatic lifecycle and page-view telemetry.
 - `Ansight.Tools.*`: individual tool packages for apps that want explicit package-by-package control.
 
 The runtime namespace remains `Ansight` even when the NuGet package is `Ansight.Core`.
@@ -34,6 +35,19 @@ var options = Options.CreateBuilder()
     .Build();
 
 Runtime.InitializeAndActivate(options);
+```
+
+The all-in-one packages include annotations but do not enable them by default. To expose an in-app feedback action, opt in explicitly; the runtime activates it only for a Debug application build:
+
+```csharp
+using Ansight.Annotations;
+
+var options = Options.CreateBuilder()
+    .WithAnsightSdk(ansight => ansight.WithAnnotatedFeedback())
+    .Build();
+
+Runtime.InitializeAndActivate(options);
+await Feedback.PresentAsync();
 ```
 
 `WithAnsightSdk(...)` applies the same practical defaults that Redpoint has been using:
@@ -347,6 +361,7 @@ For file inspection, `Ansight.Tools.FileSystem` exposes `files.get_file_checksum
 
 ## Individual Tool Packages
 
+- `Ansight.Annotations`
 - `Ansight.Pairing`
 - `Ansight.Tools.Maui`
 - `Ansight.Tools.VisualTree`

@@ -3,6 +3,7 @@ using Ansight.Pairing;
 using Ansight.Telemetry.Battery;
 using Ansight.Telemetry.Memory;
 using Ansight.Tools;
+using System.Text.Json.Nodes;
 
 namespace Ansight;
 
@@ -53,6 +54,7 @@ internal class RuntimeImpl : IRuntime
             options.HostAutoProbe,
             cachedProfileRetention: options.HostConnection.ConnectionProfileRetention);
         hostPairing = new HostPairingManager(hostConnection, options.HostConnection);
+        InitializeRuntimeFeatures();
     }
 
     public bool IsActive { get; private set; }
@@ -65,7 +67,39 @@ internal class RuntimeImpl : IRuntime
 
     public event EventHandler? OnDeactivated;
 
+    private void InitializeRuntimeFeatures()
+    {
+        foreach (var feature in options.RuntimeFeatures ?? Array.Empty<IRuntimeFeature>())
+        {
+            try
+            {
+                feature.Initialize(this);
+            }
+            catch (Exception exception)
+            {
+                Logger.Warning($"Runtime feature '{feature.Id}' could not be initialized: {exception.Message}");
+            }
+        }
+    }
+
     internal event EventHandler? CustomPropertiesChanged;
+
+    internal Task<OperationResult> SendBinaryExtensionAsync(
+        string action,
+        JsonObject payload,
+        string fileName,
+        string mimeType,
+        ReadOnlyMemory<byte> content,
+        CancellationToken cancellationToken)
+    {
+        return hostConnection.SendBinaryExtensionAsync(
+            action,
+            payload,
+            fileName,
+            mimeType,
+            content,
+            cancellationToken);
+    }
 
     public void Activate()
     {

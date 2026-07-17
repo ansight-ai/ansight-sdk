@@ -2,7 +2,7 @@
 
 All-in-one Ansight package for .NET apps.
 
-This package references `Ansight.Core`, native pairing where supported, and all non-MAUI remote tool packages. The runtime namespace remains `Ansight`.
+This package references `Ansight.Core`, `Ansight.Annotations`, native pairing where supported, and all non-MAUI remote tool packages. The runtime namespace remains `Ansight`.
 
 ## License
 
@@ -26,6 +26,21 @@ var options = Options.CreateBuilder()
 
 Runtime.InitializeAndActivate(options);
 ```
+
+In-app annotations are bundled but deliberately not enabled by the all-in-one defaults. Opt in explicitly from a Debug application build:
+
+```csharp
+using Ansight.Annotations;
+
+var options = Options.CreateBuilder()
+    .WithAnsightSdk(ansight => ansight.WithAnnotatedFeedback())
+    .Build();
+
+Runtime.InitializeAndActivate(options);
+await Feedback.PresentAsync();
+```
+
+`WithAnnotatedFeedback()` remains disabled in Release builds. It captures the screenshot and all registered visual-tree sources, supports custom data/artifact hooks, submits to a connected Studio session, and participates in an active offline capture. See the `Ansight.Annotations` package documentation for configuration and native Android activity handling.
 
 `WithAnsightSdk(...)` configures FPS sampling, 400ms sampling, 120s retention, 2000ms/quality-60/max-width-480 JPEG capture, host auto-probe, bundled host connection, all non-MAUI tools, and full tool access. Host auto-probe remembers successful host sessions per host-reported Wi-Fi network and retries those profiles so the app can reconnect after the host disappears and later reappears. Successful reconnects refresh the matching profile, and profiles expire after 14 days by default. Its callback receives the existing `Options.OptionsBuilder` after runtime defaults and before default tool-suite registration:
 

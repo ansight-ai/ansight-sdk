@@ -103,6 +103,31 @@
                         <RoundRectangle CornerRadius="12"/>
                     </Border.StrokeShape>
                     <VerticalStackLayout Spacing="10">
+                        <Label Text="Annotated feedback"
+                               FontAttributes="Bold"
+                               FontSize="16"
+                               TextColor="#111111"/>
+                        <Label Text="Capture the current screen and visual trees, draw annotations, and submit the feedback to Studio or the offline outbox."
+                               FontSize="12"
+                               TextColor="#666666"/>
+                        <Label x:Name="AnnotationStatusLabel"
+                               FontSize="12"
+                               TextColor="#666666"/>
+
+                        <Button Text="Open annotated feedback"
+                                Clicked="OnAnnotatedFeedbackClicked"
+                                Margin="0,0,10,10"/>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Stroke="#dcdcdc"
+                        StrokeThickness="1"
+                        BackgroundColor="#ffffff"
+                        Padding="14,12">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="12"/>
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="10">
                         <Label Text="Reflection roots"
                                FontAttributes="Bold"
                                FontSize="16"

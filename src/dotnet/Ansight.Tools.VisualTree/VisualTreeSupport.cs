@@ -22,16 +22,25 @@ internal static partial class VisualTreeSupport
 {
     private static int lastEncodedScreenshotBytes = 32 * 1024;
 
-    internal static Task<ToolResult> GetVisualTreeAsync(IReadOnlyDictionary<string, string> arguments)
+    internal static Task<ToolResult> GetNativeVisualTreeAsync(IReadOnlyDictionary<string, string> arguments)
     {
         var includeBounds = GetBoolean(arguments, "includeBounds", defaultValue: true);
         var includeProperties = GetBoolean(arguments, "includeComputedStyles", defaultValue: false);
         var maxDepth = GetInt(arguments, "maxDepth", defaultValue: 8, minimum: 1, maximum: 64);
+        var maxNodes = GetInt(arguments, "maxNodes", defaultValue: 2000, minimum: 1, maximum: 100_000);
         var rootNodeId = GetString(arguments, "rootNodeId");
 
         return RunOnUiThreadAsync(() =>
         {
-            if (!TryCaptureTree(includeProperties, out var rootNode, out var error))
+            var captureDepth = string.IsNullOrWhiteSpace(rootNodeId) ? maxDepth : 64;
+            if (!TryCaptureTree(
+                includeProperties,
+                captureDepth,
+                maxNodes,
+                out var rootNode,
+                out var nodeCount,
+                out var truncated,
+                out var error))
             {
                 return ToolResult.Failure(error ?? "Unable to capture the current visual tree.", errorCode: "visual_tree_unavailable");
             }
@@ -44,16 +53,21 @@ internal static partial class VisualTreeSupport
 
             var payload = new JsonObject
             {
+                ["format"] = "ansight.native.visual-tree.v1",
                 ["platform"] = CurrentPlatform,
+                ["source"] = VisualTreeProviderRegistry.NativeSource,
+                ["adapter"] = CurrentPlatform == "android" ? "android.views" : "apple.uikit",
                 ["capturedAtUtc"] = DateTime.UtcNow.ToString("O"),
-                ["root"] = selectedRoot.ToJson(includeBounds, includeProperties, maxDepth)
+                ["root"] = selectedRoot.ToJson(includeBounds, includeProperties, maxDepth),
+                ["nodeCount"] = nodeCount,
+                ["truncated"] = truncated
             };
 
             return ToolResult.Success(payload);
         });
     }
 
-    internal static Task<ToolResult> InspectNodeAsync(IReadOnlyDictionary<string, string> arguments)
+    internal static Task<ToolResult> InspectNativeNodeAsync(IReadOnlyDictionary<string, string> arguments)
     {
         var nodeId = GetRequiredString(arguments, "nodeId");
         var includeAncestors = GetBoolean(arguments, "includeAncestors", defaultValue: false);
@@ -62,7 +76,14 @@ internal static partial class VisualTreeSupport
 
         return RunOnUiThreadAsync(() =>
         {
-            if (!TryCaptureTree(includeProperties, out var rootNode, out var error))
+            if (!TryCaptureTree(
+                includeProperties,
+                maxDepth: 64,
+                maxNodes: 100_000,
+                out var rootNode,
+                out _,
+                out _,
+                out var error))
             {
                 return ToolResult.Failure(error ?? "Unable to inspect the current visual tree.", errorCode: "visual_tree_unavailable");
             }
@@ -77,6 +98,8 @@ internal static partial class VisualTreeSupport
             var payload = new JsonObject
             {
                 ["platform"] = CurrentPlatform,
+                ["source"] = VisualTreeProviderRegistry.NativeSource,
+                ["adapter"] = CurrentPlatform == "android" ? "android.views" : "apple.uikit",
                 ["capturedAtUtc"] = DateTime.UtcNow.ToString("O"),
                 ["node"] = node.ToJson(includeBounds: true, includeProperties, maxDepth: 32)
             };
@@ -229,6 +252,7 @@ internal static partial class VisualTreeSupport
             bool isFocusable,
             JsonObject? bounds,
             JsonObject? properties,
+            int childCount,
             List<VisualNode> children)
         {
             Id = id;
@@ -239,6 +263,7 @@ internal static partial class VisualTreeSupport
             IsFocusable = isFocusable;
             Bounds = bounds;
             Properties = properties;
+            ChildCount = childCount;
             Children = children;
         }
 
@@ -250,6 +275,7 @@ internal static partial class VisualTreeSupport
         internal bool IsFocusable { get; }
         internal JsonObject? Bounds { get; }
         internal JsonObject? Properties { get; }
+        internal int ChildCount { get; }
         internal List<VisualNode> Children { get; }
 
         internal VisualNode? Find(string nodeId)
@@ -316,7 +342,7 @@ internal static partial class VisualTreeSupport
                 ["visible"] = IsVisible,
                 ["enabled"] = IsEnabled,
                 ["focusable"] = IsFocusable,
-                ["childCount"] = Children.Count
+                ["childCount"] = ChildCount
             };
 
             if (includeBounds && Bounds != null)
@@ -341,6 +367,32 @@ internal static partial class VisualTreeSupport
             }
 
             return json;
+        }
+    }
+
+    private sealed class VisualTreeCaptureState(int maxNodes)
+    {
+        internal int MaxNodes { get; } = maxNodes;
+
+        internal int NodeCount { get; private set; }
+
+        internal bool Truncated { get; private set; }
+
+        internal bool TryAddNode()
+        {
+            if (NodeCount >= MaxNodes)
+            {
+                Truncated = true;
+                return false;
+            }
+
+            NodeCount++;
+            return true;
+        }
+
+        internal void MarkTruncated()
+        {
+            Truncated = true;
         }
     }
 
@@ -562,24 +614,42 @@ internal static partial class VisualTreeSupport
         return completion.Task;
     }
 
-    private static bool TryCaptureTree(bool includeProperties, out VisualNode? rootNode, out string? error)
+    private static bool TryCaptureTree(
+        bool includeProperties,
+        int maxDepth,
+        int maxNodes,
+        out VisualNode? rootNode,
+        out int nodeCount,
+        out bool truncated,
+        out string? error)
     {
         var activity = AndroidActivityTracker.GetCurrentActivity();
         var rootView = activity?.Window?.DecorView?.RootView;
         if (rootView == null)
         {
             rootNode = null;
+            nodeCount = 0;
+            truncated = false;
             error = "No Android root view is currently available.";
             return false;
         }
 
-        rootNode = BuildAndroidNode(rootView, rootView, includeProperties);
+        var state = new VisualTreeCaptureState(maxNodes);
+        rootNode = BuildAndroidNode(rootView, rootView, includeProperties, maxDepth, state);
+        nodeCount = state.NodeCount;
+        truncated = state.Truncated;
         error = null;
         return true;
     }
 
-    private static VisualNode BuildAndroidNode(View view, View rootView, bool includeProperties)
+    private static VisualNode BuildAndroidNode(
+        View view,
+        View rootView,
+        bool includeProperties,
+        int remainingDepth,
+        VisualTreeCaptureState state)
     {
+        state.TryAddNode();
         var location = new int[2];
         view.GetLocationOnScreen(location);
 
@@ -595,14 +665,27 @@ internal static partial class VisualTreeSupport
             : null;
 
         var children = new List<VisualNode>();
+        var childCount = 0;
         if (view is ViewGroup group)
         {
-            for (var index = 0; index < group.ChildCount; index++)
+            childCount = group.ChildCount;
+            if (remainingDepth <= 0 && childCount > 0)
             {
+                state.MarkTruncated();
+            }
+
+            for (var index = 0; remainingDepth > 0 && index < childCount; index++)
+            {
+                if (state.NodeCount >= state.MaxNodes)
+                {
+                    state.MarkTruncated();
+                    break;
+                }
+
                 var child = group.GetChildAt(index);
                 if (child != null)
                 {
-                    children.Add(BuildAndroidNode(child, rootView, includeProperties));
+                    children.Add(BuildAndroidNode(child, rootView, includeProperties, remainingDepth - 1, state));
                 }
             }
         }
@@ -622,6 +705,7 @@ internal static partial class VisualTreeSupport
                 ["height"] = view.Height
             },
             properties: properties,
+            childCount: childCount,
             children: children);
     }
 
@@ -824,23 +908,41 @@ internal static partial class VisualTreeSupport
         return completion.Task;
     }
 
-    private static bool TryCaptureTree(bool includeProperties, out VisualNode? rootNode, out string? error)
+    private static bool TryCaptureTree(
+        bool includeProperties,
+        int maxDepth,
+        int maxNodes,
+        out VisualNode? rootNode,
+        out int nodeCount,
+        out bool truncated,
+        out string? error)
     {
         var window = GetActiveWindow();
         if (window == null)
         {
             rootNode = null;
+            nodeCount = 0;
+            truncated = false;
             error = "No active UIWindow is available.";
             return false;
         }
 
-        rootNode = BuildAppleNode(window, window, includeProperties);
+        var state = new VisualTreeCaptureState(maxNodes);
+        rootNode = BuildAppleNode(window, window, includeProperties, maxDepth, state);
+        nodeCount = state.NodeCount;
+        truncated = state.Truncated;
         error = null;
         return true;
     }
 
-    private static VisualNode BuildAppleNode(UIView view, UIWindow window, bool includeProperties)
+    private static VisualNode BuildAppleNode(
+        UIView view,
+        UIWindow window,
+        bool includeProperties,
+        int remainingDepth,
+        VisualTreeCaptureState state)
     {
+        state.TryAddNode();
         var frame = view.ConvertRectToView(view.Bounds, window);
         var properties = includeProperties
             ? new JsonObject
@@ -853,10 +955,26 @@ internal static partial class VisualTreeSupport
             }
             : null;
 
-        var children = new List<VisualNode>(view.Subviews.Length);
-        foreach (var child in view.Subviews)
+        var subviews = view.Subviews;
+        var children = new List<VisualNode>(subviews.Length);
+        if (remainingDepth <= 0 && subviews.Length > 0)
         {
-            children.Add(BuildAppleNode(child, window, includeProperties));
+            state.MarkTruncated();
+        }
+
+        foreach (var child in subviews)
+        {
+            if (remainingDepth <= 0 || state.NodeCount >= state.MaxNodes)
+            {
+                if (state.NodeCount >= state.MaxNodes)
+                {
+                    state.MarkTruncated();
+                }
+
+                break;
+            }
+
+            children.Add(BuildAppleNode(child, window, includeProperties, remainingDepth - 1, state));
         }
 
         return new VisualNode(
@@ -874,6 +992,7 @@ internal static partial class VisualTreeSupport
                 ["height"] = (double)frame.Height
             },
             properties: properties,
+            childCount: subviews.Length,
             children: children);
     }
 
@@ -982,8 +1101,7 @@ internal static partial class VisualTreeSupport
             }
         }
 
-        return UIApplication.SharedApplication.Windows.FirstOrDefault(window => window.IsKeyWindow)
-            ?? UIApplication.SharedApplication.Windows.FirstOrDefault(window => !window.Hidden);
+        return null;
     }
 
     private static nfloat GetRenderScale(UIWindow window)
@@ -993,9 +1111,18 @@ internal static partial class VisualTreeSupport
     }
 #else
     private static Task<ToolResult> RunOnUiThreadAsync(Func<ToolResult> action) => Task.FromResult(ToolResult.Failure("Visual tree tools are only supported on Android, iOS, and Mac Catalyst.", errorCode: "visual_tree_platform_unsupported"));
-    private static bool TryCaptureTree(bool includeProperties, out VisualNode? rootNode, out string? error)
+    private static bool TryCaptureTree(
+        bool includeProperties,
+        int maxDepth,
+        int maxNodes,
+        out VisualNode? rootNode,
+        out int nodeCount,
+        out bool truncated,
+        out string? error)
     {
         rootNode = null;
+        nodeCount = 0;
+        truncated = false;
         error = "Visual tree capture is not available on this platform.";
         return false;
     }

@@ -2,7 +2,7 @@
 
 All-in-one Ansight package for .NET MAUI apps.
 
-This package references `Ansight`, adds the MAUI remote tools, and provides `MauiAppBuilder` setup helpers with automatic MAUI telemetry wiring.
+This package references `Ansight`, adds the MAUI remote tools, and provides `MauiAppBuilder` setup helpers with automatic MAUI telemetry wiring. `Ansight.Annotations` is included transitively but remains opt-in.
 
 ## License
 
@@ -27,6 +27,22 @@ public static MauiApp CreateMauiApp()
 ```
 
 Use `UseAnsight<App>()` to initialize and activate the runtime from the MAUI builder. It also automatically records foreground/background lifecycle transitions and records a screen-view event whenever a MAUI page appears. No `AppDelegate`, Android `Application`, or page `OnAppearing` calls are required for the default telemetry.
+
+Enable the in-app feedback overlay explicitly in Debug builds:
+
+```csharp
+using Ansight.Annotations;
+
+builder.UseAnsight<App>(ansight =>
+{
+    ansight.WithAnnotatedFeedback();
+});
+
+// From a button or other in-app action:
+await Feedback.PresentAsync();
+```
+
+Annotated feedback is not enabled by `UseAnsight` or `WithAnsightMaui`, and `WithAnnotatedFeedback()` remains disabled when the consuming app is built in Release. A capture includes both the native and MAUI visual trees, even when a source is unavailable or disallowed.
 
 > **Important:** The MAUI all-in-one defaults include session JPEG capture.
 > Screen capture will result in an FPS drop while frames are captured, encoded,

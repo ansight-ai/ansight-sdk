@@ -33,6 +33,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Ansight\Ansight.csproj" />
+    <ProjectReference Include="..\Ansight.Annotations\Ansight.Annotations.csproj" />
     <ProjectReference Include="..\Ansight.OfflineCapture\Ansight.OfflineCapture.csproj" />
     <ProjectReference Include="..\Ansight.Tools.Maui\Ansight.Tools.Maui.csproj" />
   </ItemGroup>
@@ -48,6 +49,7 @@
                       SetTargetFramework="TargetFramework=netstandard2.0"
                       GlobalPropertiesToRemove="TargetFramework;RuntimeIdentifier;RuntimeIdentifiers" />
     <None Include="..\Ansight.Core\build\Ansight.targets" Pack="true" PackagePath="buildTransitive\Ansight.Maui.targets" />
+    <None Include="..\Ansight.Annotations\buildTransitive\Ansight.Annotations.targets" Pack="true" PackagePath="buildTransitive\Ansight.Annotations.targets" />
     <None Include="..\Ansight.Build\bin\$(Configuration)\netstandard2.0\Ansight.Build.dll"
           Pack="true"
           PackagePath="buildTransitive"

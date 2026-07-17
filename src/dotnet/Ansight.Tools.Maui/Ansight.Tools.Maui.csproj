@@ -31,6 +31,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Ansight.Core\Ansight.Core.csproj" />
+    <ProjectReference Include="..\Ansight.Tools.VisualTree\Ansight.Tools.VisualTree.csproj" />
   </ItemGroup>
 
   <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' Or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' Or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">

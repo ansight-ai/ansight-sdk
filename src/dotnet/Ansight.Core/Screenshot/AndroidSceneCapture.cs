@@ -20,6 +20,12 @@ internal sealed record AndroidSceneCaptureResult(bool Success, string? Error)
 
 internal static class AndroidSceneCapture
 {
+    internal static void SetCurrentActivity(Activity activity)
+    {
+        ArgumentNullException.ThrowIfNull(activity);
+        AndroidActivityTracker.SetCurrentActivity(activity);
+    }
+
     internal static AndroidSceneCaptureRoot? GetCurrentRoot()
     {
         var activity = AndroidActivityTracker.GetCurrentActivity();
@@ -774,6 +780,19 @@ internal static class AndroidSceneCapture
                 }
 
                 return resolvedActivity;
+            }
+        }
+
+        internal static void SetCurrentActivity(Activity activity)
+        {
+            ArgumentNullException.ThrowIfNull(activity);
+            EnsureRegistered();
+            lock (sync)
+            {
+                if (instance != null)
+                {
+                    instance.currentActivity = activity;
+                }
             }
         }
 

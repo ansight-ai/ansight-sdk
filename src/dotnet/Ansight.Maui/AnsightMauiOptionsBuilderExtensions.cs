@@ -1,6 +1,7 @@
 namespace Ansight.Maui;
 
 using Ansight.Tools.Maui;
+using Ansight.Tools.VisualTree;
 
 /// <summary>
 /// Provides all-in-one Ansight extensions for .NET MAUI apps.
@@ -40,6 +41,8 @@ public static class AnsightMauiOptionsBuilderExtensions
         ArgumentNullException.ThrowIfNull(configure);
 
         builder = builder.WithAnsightSdk(configure);
+
+        VisualTreeProviderRegistry.Register(MauiVisualTreeProvider.Instance);
 
         if (!ContainsAnyTool(builder, mauiSuiteToolIds))
         {

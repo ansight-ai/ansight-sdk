@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Ansight.Core\Ansight.Core.csproj" />
+    <ProjectReference Include="..\Ansight.Annotations\Ansight.Annotations.csproj" />
     <ProjectReference Include="..\Ansight.OfflineCapture\Ansight.OfflineCapture.csproj" />
     <ProjectReference Include="..\Ansight.Tools.Database\Ansight.Tools.Database.csproj" />
     <ProjectReference Include="..\Ansight.Tools.FileSystem\Ansight.Tools.FileSystem.csproj" />
@@ -37,6 +38,7 @@
                       SetTargetFramework="TargetFramework=netstandard2.0"
                       GlobalPropertiesToRemove="TargetFramework;RuntimeIdentifier;RuntimeIdentifiers" />
     <None Include="..\Ansight.Core\build\Ansight.targets" Pack="true" PackagePath="buildTransitive\Ansight.targets" />
+    <None Include="..\Ansight.Annotations\buildTransitive\Ansight.Annotations.targets" Pack="true" PackagePath="buildTransitive\Ansight.Annotations.targets" />
     <None Include="..\Ansight.Build\bin\$(Configuration)\netstandard2.0\Ansight.Build.dll"
           Pack="true"
           PackagePath="buildTransitive"

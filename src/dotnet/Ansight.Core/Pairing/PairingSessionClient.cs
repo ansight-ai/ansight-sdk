@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.WebSockets;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -8,7 +9,7 @@ namespace Ansight.Pairing;
 /// <summary>
 /// High-level client for validating pairing payloads, opening live host sessions, and sending session metadata over the pairing transport.
 /// </summary>
-public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionClient
+public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionClient, IHostConnectionBinaryExtensionClient
 {
     private static readonly HashSet<string> CachedProfileResetCodes = new(StringComparer.Ordinal)
     {
@@ -382,6 +383,98 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
             HostConnectionSource.Transport,
             HostConnectionProgressKind.Transport);
     }
+
+    internal async Task<OperationResult> SendBinaryExtensionAsync(
+        string action,
+        JsonObject payload,
+        string fileName,
+        string mimeType,
+        ReadOnlyMemory<byte> content,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(action);
+        ArgumentNullException.ThrowIfNull(payload);
+        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(mimeType);
+
+        if (!transport.IsOpen)
+        {
+            return OperationResult.FromFailure("A live Ansight host session is not connected.");
+        }
+
+        const int chunkBytes = 64 * 1024;
+        var transferId = Guid.NewGuid();
+        var requestPayload = payload.DeepClone().AsObject();
+        requestPayload["transfer"] = new JsonObject
+        {
+            ["transferId"] = transferId.ToString("N"),
+            ["fileName"] = fileName,
+            ["mimeType"] = mimeType,
+            ["sizeBytes"] = content.Length,
+            ["chunkBytes"] = chunkBytes,
+            ["wireProtocol"] = PairingFileTransferWireProtocol.ProtocolName
+        };
+
+        var readyResult = await transport.SendControlRequestAsync(
+            action.Trim(),
+            requestPayload,
+            $"WS -> {action.Trim()}",
+            "Extension transfer accepted.",
+            "Extension transfer was rejected",
+            progress: null,
+            TimeSpan.FromSeconds(15),
+            cancellationToken,
+            HostConnectionSource.Transport,
+            HostConnectionProgressKind.Transport);
+        if (!readyResult.Success)
+        {
+            return readyResult;
+        }
+
+        var sequence = 0;
+        var offset = 0;
+        while (offset < content.Length)
+        {
+            var length = Math.Min(chunkBytes, content.Length - offset);
+            var frame = PairingFileTransferWireProtocol.CreateFrame(
+                transferId,
+                PairingFileTransferFrameType.Chunk,
+                sequence,
+                offset,
+                content.Span.Slice(offset, length));
+            var sendResult = await transport.SendBinaryAsync(frame, WebSocketMessageType.Binary, cancellationToken);
+            if (!sendResult.Success)
+            {
+                return sendResult;
+            }
+
+            sequence++;
+            offset += length;
+        }
+
+        var completeFrame = PairingFileTransferWireProtocol.CreateFrame(
+            transferId,
+            PairingFileTransferFrameType.Complete,
+            sequence,
+            offset,
+            ReadOnlySpan<byte>.Empty);
+        var completeResult = await transport.SendBinaryAsync(
+            completeFrame,
+            WebSocketMessageType.Binary,
+            cancellationToken);
+        return completeResult.Success
+            ? OperationResult.FromSuccess("Extension payload sent.")
+            : completeResult;
+    }
+
+    Task<OperationResult> IHostConnectionBinaryExtensionClient.SendBinaryExtensionAsync(
+        string action,
+        JsonObject payload,
+        string fileName,
+        string mimeType,
+        ReadOnlyMemory<byte> content,
+        CancellationToken cancellationToken)
+        => SendBinaryExtensionAsync(action, payload, fileName, mimeType, content, cancellationToken);
 
     /// <summary>
     /// Sends a device app profile payload to the connected host.

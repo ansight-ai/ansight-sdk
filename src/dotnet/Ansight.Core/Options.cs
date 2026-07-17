@@ -25,6 +25,7 @@ public class Options
         EnableFramesPerSecond = true,
         Tools = ToolRegistry.Empty,
         ArtifactProviders = ArtifactRegistry.Empty,
+        RuntimeFeatures = Array.Empty<IRuntimeFeature>(),
         ToolGuard = ToolGuard.Disabled,
         CustomProperties = new SessionCustomProperties(),
         HostAutoProbe = HostAutoProbeOptions.EnabledDefault.Clone(),
@@ -80,6 +81,11 @@ public class Options
     /// Registered app artifact providers available to paired hosts through the core artifact tools.
     /// </summary>
     public ArtifactRegistry ArtifactProviders { get; private set; } = ArtifactRegistry.Empty;
+
+    /// <summary>
+    /// Optional package-owned features initialized with the runtime.
+    /// </summary>
+    public IReadOnlyList<IRuntimeFeature> RuntimeFeatures { get; private set; } = Array.Empty<IRuntimeFeature>();
 
     /// <summary>
     /// Optional periodic JPEG capture streamed over live pairing sessions.
@@ -258,6 +264,7 @@ public class Options
                 EnableBatteryLevel = initialOptions.EnableBatteryLevel,
                 Tools = initialOptions.Tools ?? ToolRegistry.Empty,
                 ArtifactProviders = initialOptions.ArtifactProviders ?? ArtifactRegistry.Empty,
+                RuntimeFeatures = initialOptions.RuntimeFeatures?.ToArray() ?? Array.Empty<IRuntimeFeature>(),
                 SessionJpegCapture = initialOptions.SessionJpegCapture is null
                     ? null
                     : new SessionJpegCaptureOptions
@@ -430,6 +437,31 @@ public class Options
         {
             ArgumentException.ThrowIfNullOrEmpty(toolId);
             return (options.Tools ?? ToolRegistry.Empty).Contains(toolId);
+        }
+
+        /// <summary>
+        /// Adds or replaces a package-owned runtime feature with the same id.
+        /// </summary>
+        public OptionsBuilder AddRuntimeFeature(IRuntimeFeature feature)
+        {
+            ArgumentNullException.ThrowIfNull(feature);
+            ArgumentException.ThrowIfNullOrWhiteSpace(feature.Id);
+
+            var features = (options.RuntimeFeatures ?? Array.Empty<IRuntimeFeature>()).ToList();
+            features.RemoveAll(existing => string.Equals(existing.Id, feature.Id, StringComparison.OrdinalIgnoreCase));
+            features.Add(feature);
+            options.RuntimeFeatures = features;
+            return this;
+        }
+
+        /// <summary>
+        /// Determines whether a package-owned runtime feature is registered.
+        /// </summary>
+        public bool ContainsRuntimeFeature(string featureId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(featureId);
+            return (options.RuntimeFeatures ?? Array.Empty<IRuntimeFeature>())
+                .Any(feature => string.Equals(feature.Id, featureId, StringComparison.OrdinalIgnoreCase));
         }
 
         /// <summary>

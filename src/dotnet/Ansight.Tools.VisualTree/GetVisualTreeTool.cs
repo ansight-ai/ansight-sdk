@@ -10,7 +10,7 @@ public sealed class GetVisualTreeTool : ITool
 
     public string Name => "Get Visual Tree";
 
-    public string Description => "Returns the current UI hierarchy for the foreground scene.";
+    public string Description => "Returns the current UI hierarchy for the requested visual-tree source.";
 
     public string Keywords => "ui visual tree hierarchy layout";
 
@@ -20,9 +20,18 @@ public sealed class GetVisualTreeTool : ITool
 
     public ToolSecurity Security => VisualTreeToolSecurityProfiles.GetVisualTree;
 
-    public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
+    public async Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {
         ArgumentNullException.ThrowIfNull(arguments);
-        return VisualTreeSupport.GetVisualTreeAsync(arguments);
+        arguments.TryGetValue("source", out var source);
+        if (!VisualTreeProviderRegistry.TryGet(source, out var provider) || provider is null)
+        {
+            var normalizedSource = VisualTreeProviderRegistry.NormalizeSourceOrDefault(source);
+            return ToolResult.Failure(
+                $"No visual tree provider is registered for source '{normalizedSource}'.",
+                errorCode: "visual_tree_provider_not_found");
+        }
+
+        return await provider.GetVisualTreeAsync(arguments);
     }
 }
