@@ -29,6 +29,7 @@ Ansight Services.
 - Keychain-backed saved pairing config storage and remembered host profiles with explicit clearing
 - queued `ansight.file-transfer.v1` binary artifact transfers for screenshot and file-download tools during live Studio sessions
 - executable tool registration, tool guard policy, tool security metadata, reserved tool call context arguments, and `tool.query` / `tool.call` protocol handling
+- app artifact providers with `artifacts.query`, `artifacts.request`, and live binary export
 - `AnsightToolsPreferences` SwiftPM product with `prefs.list_keys`, `prefs.get_value`, `prefs.set_value`, and `prefs.remove_key` for sandboxed `UserDefaults` access
 - `AnsightToolsFileSystem` SwiftPM product with sandboxed directory listing, file read/checksum/download, live binary download, push/copy/move/delete tools
 - `AnsightToolsFileDescriptorDiagnostics` SwiftPM product with open descriptor listing, counting, inspection, and usage/limit diagnostics
@@ -353,6 +354,11 @@ try AnsightRuntime.shared.initializeAndActivateAnsightSdk(
 
 When the WebSocket session opens, the SDK captures the foreground UIKit window on the main actor, encodes it as JPEG, and sends binary frames to Studio. Apps can also trigger a single frame with `await AnsightRuntime.shared.captureScreenFrame()`.
 
+For Simulator sessions, Studio can acknowledge `device.profile` with host
+screenshot mode. The SDK then suspends periodic in-app JPEG capture for that
+session so Studio can use a host-side source such as `simctl`. If the host does
+not request that mode, the configured app capture loop continues.
+
 ## Screen route naming
 
 Automatic screen capture uses the UIKit title, SwiftUI hosting root view type, or view-controller class name by default. Apps with custom routers can provide a resolver before activation to replace those names with semantic routes:
@@ -456,6 +462,11 @@ explicitly conform to `AnsightReflectionMutableRoot` and
 `AnsightReflectionInvokableRoot`. `reflect.list_roots` includes `hostRuntime`
 metadata with `kind: "swift"` for Swift/Objective-C hosted roots.
 
+The visual-tree suite routes requests by source. Apps can register another
+`AnsightVisualTreeProvider` with
+`AnsightVisualTreeProviderRegistry.register(_:replaceExisting:)`; the built-in
+UIKit source remains `native`.
+
 Tool-suite options mirror the .NET allow-list/root concepts:
 
 ```swift
@@ -492,7 +503,70 @@ import Ansight
 try AnsightRuntime.shared.initializeAndActivateAnsightSdk()
 ```
 
-That preset keeps the core package tool-free by default, sets telemetry to 400 ms / 120 s retention, enables FPS, touch capture, 2-second JPEG capture at quality 60 and max width 480 with GPU-backed surface capture enabled, enables full tool access, and registers the current native tool suites. Reflection is intentionally excluded until the native security and object model are designed.
+That preset keeps the core package tool-free by default, sets telemetry to
+400 ms / 120 s retention, enables FPS, touch capture, 2-second JPEG capture at
+quality 60 and max width 480 with GPU-backed surface capture enabled, enables
+full tool access, and registers the current native tool suites, including
+reflection. Reflection roots remain an explicit app registration boundary;
+Swift writes and invocation require the opt-in root protocols described above.
+
+## App Artifacts
+
+Artifact providers expose requestable app snapshots such as reports, logs,
+traces, or images:
+
+```swift
+struct ReportArtifactProvider: AnsightArtifactProvider {
+    let descriptor = AnsightArtifactProviderDescriptor(
+        id: "app.reports",
+        name: "App Reports",
+        category: "diagnostics"
+    )
+
+    func query(
+        context: AnsightArtifactQueryContext
+    ) throws -> [AnsightArtifactDefinition] {
+        [
+            AnsightArtifactDefinition(
+                id: "current",
+                name: "Current Report",
+                description: "Exports the current diagnostic report.",
+                kind: "report",
+                category: "diagnostics",
+                content: AnsightArtifactContentDescriptor(
+                    supportedMimeTypes: ["text/plain"],
+                    defaultMimeType: "text/plain",
+                    suggestedFileName: "report.txt",
+                    supportsText: true,
+                    supportsBinary: true
+                )
+            ),
+        ]
+    }
+
+    func create(request: AnsightArtifactRequest) throws -> AnsightArtifactResult {
+        let text = buildCurrentReport()
+        return AnsightArtifactResult(
+            metadata: AnsightArtifactMetadata(
+                artifactId: request.artifactId,
+                providerId: request.providerId,
+                name: "Current Report",
+                kind: "report",
+                mimeType: "text/plain",
+                fileName: "report.txt"
+            ),
+            payload: .fromText(text)
+        )
+    }
+}
+
+try AnsightRuntime.shared.registerArtifactProvider(ReportArtifactProvider())
+```
+
+Registering the first provider adds the read-scoped `artifacts.query` and
+`artifacts.request` tools automatically. Providers can also be passed through
+`AnsightRemoteToolOptions.artifactProviders`. Requests require a live Studio
+tool call; returned data is queued on the native binary-transfer channel.
 
 ## Custom Tools
 

@@ -45,6 +45,7 @@ iOS.
 - `connect`, `disconnect`, `savePairingConfig`, `clearSavedPairingConfig`
 - `sendClientLog`, `updateCustomProperties`
 - `registerTool`, `isToolRegistered`
+- `addArtifactProvider`, `artifacts.query`, `artifacts.request`
 - `snapshot`, `hostConnectionStatus`, `recordedMetrics`, `recordedEvents`
 
 See [../../../docs/sdk-api-parity.md](../../../docs/sdk-api-parity.md) for the

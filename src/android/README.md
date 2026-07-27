@@ -98,6 +98,7 @@ AnsightRuntime.initializeAndActivate(
 | `hostConnection` | Configures saved, bundled, and developer pairing sources. |
 | `secureStorage` | Defines secure-storage allow-lists for the secure storage tools. |
 | `initialTools` | Adds custom or package-provided tools at initialization. |
+| `artifactProviders` | Adds app-defined artifact catalogs and binary exports. |
 
 `AnsightSessionJpegCaptureOptions.captureGpuBackedSurfaces` is accepted for
 cross-platform configuration parity. It defaults to `true`; the capture-mode
@@ -108,6 +109,11 @@ lower-overhead path that may miss GPU-backed surfaces.
 > captures, encodes, and sends frames. Use conservative interval, quality, and
 > max-width settings, and disable `sessionJpegCapture` for performance-focused
 > runs unless visual evidence is required.
+
+For simulator/emulator sessions, Studio can acknowledge `device.profile` with
+host screenshot mode. The SDK then suspends periodic in-app JPEG capture for
+that session so Studio can use a host-side source such as `adb`. If the host
+does not request that mode, the configured app capture loop continues.
 
 ## Host Connection
 
@@ -351,6 +357,61 @@ Use `replaceExisting = true` only for deliberate handler refreshes:
 ```kotlin
 AnsightRuntime.registerTool(tool, replaceExisting = true)
 ```
+
+## App Artifacts
+
+Artifact providers expose requestable app snapshots such as reports, logs,
+traces, or images. Add providers to the core options builder:
+
+```kotlin
+class ReportArtifactProvider : AndroidArtifactProvider {
+    override val descriptor = AndroidArtifactProviderDescriptor(
+        id = "app.reports",
+        name = "App Reports",
+        category = "diagnostics",
+    )
+
+    override fun query(
+        context: AndroidArtifactQueryContext,
+    ): List<AndroidArtifactDefinition> = listOf(
+        AndroidArtifactDefinition(
+            id = "current",
+            name = "Current Report",
+            description = "Exports the current diagnostic report.",
+            kind = "report",
+            category = "diagnostics",
+            mimeType = "text/plain",
+            fileName = "report.txt",
+        ),
+    )
+
+    override fun create(request: AndroidArtifactRequest): AndroidArtifactResult {
+        val bytes = buildCurrentReport().toByteArray()
+        return AndroidArtifactResult(
+            metadata = AndroidArtifactMetadata(
+                providerId = descriptor.id,
+                artifactId = request.artifactId,
+                name = "Current Report",
+                kind = "report",
+                mimeType = "text/plain",
+                fileName = "report.txt",
+                sizeBytes = bytes.size.toLong(),
+            ),
+            bytes = bytes,
+        )
+    }
+}
+
+val options = AnsightOptions.createBuilder()
+    .addArtifactProvider(ReportArtifactProvider())
+    .withReadOnlyToolAccess()
+    .build()
+```
+
+Configuring at least one provider automatically adds the read-scoped
+`artifacts.query` and `artifacts.request` tools. Requests require a live Studio
+tool call; returned bytes are sent over the native binary-transfer channel.
+Provider query failures are isolated in the artifact catalog.
 
 ## Visual Tree Providers
 

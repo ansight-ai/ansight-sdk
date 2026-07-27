@@ -1,6 +1,8 @@
 # Ansight.Core
 
-`Ansight.Core` captures in-process telemetry for .NET Android, iOS, and Mac Catalyst apps and includes the core pairing client used to open live sessions from a mobile app.
+`Ansight.Core` captures in-process telemetry for .NET 9, Android, iOS, and Mac
+Catalyst apps and includes the core pairing client used to open live sessions
+from an app process.
 
 The runtime namespace remains `Ansight`. This package supports direct/manual pairing, the Ansight UDP pairing handshake, tool abstractions, and the build-time safety targets. Use the `Ansight` package for the all-in-one app setup, or `Ansight.Maui` for the MAUI all-in-one setup.
 
@@ -212,6 +214,38 @@ When a pairing session is open, inbound `tool.query` and `tool.call` protocol me
 
 For local temp-file workflows, `Ansight.Tools.FileSystem` exposes `files.begin_binary_download`, which returns transfer metadata and then streams `ASFT` binary frames over the pairing WebSocket. A bridge can map that `transferId` to its own temp directory and write the incoming bytes there. The same package can push base64 or UTF-8 content into an approved sandbox folder with `files.push_file`, copy files with `files.copy_file`, move or rename files with `files.move_file`, and delete files with `files.delete_file`.
 
+## App artifact providers
+
+App artifact providers expose dynamically available exports such as reports,
+logs, traces, images, or state snapshots:
+
+```csharp
+using Ansight.Artifacts;
+
+var options = Options.CreateBuilder()
+    .AddArtifactProvider(new CurrentReportArtifactProvider())
+    .WithReadOnlyToolAccess()
+    .Build();
+```
+
+Implement `IArtifactProvider.QueryAsync(...)` to advertise
+`ArtifactDefinition` values and `CreateAsync(...)` to return an
+`ArtifactResult`. `ArtifactPayload` can read from text, bytes, a stream factory,
+or an app-local file.
+
+The first configured provider automatically registers `artifacts.query` and
+`artifacts.request`. Both tools are read-scoped, but their providers can export
+sensitive app data, so definitions should include accurate `ToolSecurity`
+metadata and remain protected by an appropriate `ToolGuard`. Requested bytes
+use the live pairing binary-transfer channel and are unavailable without an
+active Studio tool request.
+
+Separate packages can also initialize an SDK extension with
+`OptionsBuilder.AddRuntimeFeature(...)`. An `IRuntimeFeature` has a stable id
+and receives the newly created `IRuntime` once. Initialization failures are
+logged and isolated from core runtime startup. `Ansight.Annotations` uses this
+extension point for its opt-in feedback service.
+
 ## Embedded developer pairing target
 
 The core package ships an optional MSBuild target that can embed a signed local-development pairing config during build.
@@ -295,7 +329,10 @@ Use `Allowed` only when the build intentionally includes remote tools and you do
 - `Ansight`: all-in-one package for non-MAUI apps
 - `Ansight.Maui`: all-in-one package for MAUI apps
 - `Ansight.Core`: core runtime package
+- `Ansight.Annotations`: opt-in Debug-only annotated feedback
+- `Ansight.OfflineCapture`: retained offline sessions, export, and team upload
 - `Ansight.Pairing`: native QR pairing acquisition for runtime-owned host connections
+- `Ansight.Tools.Maui`: MAUI inspection and mutation tools
 - `Ansight.Tools.VisualTree`: UI hierarchy and screenshot tools
 - `Ansight.Tools.Reflection`: live object reflection and guarded runtime mutation tools
 - `Ansight.Tools.Database`: database inspection tools

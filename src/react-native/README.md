@@ -79,6 +79,11 @@ where reconnects should only happen after an explicit app action.
 > max-width settings, and disable `sessionJpegCapture` for performance-focused
 > runs unless visual evidence is required.
 
+For simulator/emulator sessions, Studio can acknowledge the native
+`device.profile` with host screenshot mode. The native SDK then suspends
+periodic in-app JPEG capture for that session so Studio can use a host-side
+source such as `simctl` or `adb`.
+
 ## Options
 
 The TypeScript `AnsightOptions` surface mirrors Android `AnsightOptions`, iOS
@@ -245,6 +250,8 @@ The bridge exposes the native SDK runtime surface:
 | `enableTouchCapture`, `disableTouchCapture` | Runtime touch-capture toggle. |
 | `updateSessionProperties`, `clearSessionProperties` | Grouped session property mutations. |
 | `registerCustomProperty`, `removeCustomProperty`, `clearCustomProperties` | Convenience property mutations. |
+| `registerArtifactProvider`, `registerArtifactProviders` | App-defined artifact catalogs and binary exports. |
+| `unregisterArtifactProvider`, `listRegisteredArtifactProviders`, `clearArtifactProviders` | Artifact-provider lifecycle. |
 
 Native methods resolve to plain objects. Operation-like methods return
 `{ success, message }`. Host connection methods return a richer result with
@@ -361,6 +368,54 @@ await registration.unregister();
 
 The native bridge registers JavaScript tools with `replaceExisting` semantics so
 reloads can refresh handlers.
+
+## App Artifacts
+
+Artifact providers expose requestable app snapshots such as reports, logs,
+traces, or images:
+
+```ts
+const reportProvider = Ansight.registerArtifactProvider({
+  descriptor: {
+    id: "app.reports",
+    name: "App Reports",
+    category: "diagnostics",
+  },
+  query: async () => [{
+    id: "current",
+    name: "Current Report",
+    description: "Exports the current diagnostic report.",
+    kind: "report",
+    category: "diagnostics",
+    content: {
+      supportedMimeTypes: ["application/json"],
+      defaultMimeType: "application/json",
+      suggestedFileName: "report.json",
+      supportsText: true,
+    },
+  }],
+  create: async (request) => ({
+    metadata: {
+      artifactId: request.artifactId,
+      providerId: request.providerId,
+      name: "Current Report",
+      kind: "report",
+      mimeType: "application/json",
+      fileName: "report.json",
+    },
+    payload: JSON.stringify(buildCurrentReport()),
+  }),
+});
+
+await reportProvider.ready;
+```
+
+The first provider installs the read-scoped `artifacts.query` and
+`artifacts.request` JavaScript tools in the native registry. A provider can
+return text, base64, byte arrays, `ArrayBuffer`, or `Uint8Array`. Artifact
+requests require a live Studio tool call; the bridge forwards the returned
+bytes through the native binary-transfer channel. Call
+`reportProvider.unregister()` during teardown or hot-reload cleanup.
 
 ## React Tools
 

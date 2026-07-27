@@ -13,8 +13,9 @@ Ansight Services.
 
 - `Ansight.Core`: core runtime, telemetry, host pairing protocol, tool abstractions, and build-time safety targets.
 - `Ansight.Annotations`: opt-in, Debug-only in-app feedback, screenshot, visual-tree, hook, artifact, and bundle delivery support.
-- `Ansight`: all-in-one package for non-MAUI .NET apps. It depends on `Ansight.Core`, bundles annotations without enabling them, includes native pairing where supported, and includes all non-MAUI remote tool packages.
-- `Ansight.Maui`: all-in-one package for .NET MAUI apps. It depends on `Ansight`, bundles annotations without enabling them, and adds MAUI inspection/mutation tools plus `MauiAppBuilder` setup helpers with automatic lifecycle and page-view telemetry.
+- `Ansight.OfflineCapture`: offline telemetry, event, touch, screenshot, and annotation storage with retention, ZIP/AES export, and team upload.
+- `Ansight`: all-in-one package for non-MAUI .NET apps. It depends on `Ansight.Core`, bundles annotations and offline capture without enabling either workflow, includes native pairing where supported, and includes all non-MAUI remote tool packages.
+- `Ansight.Maui`: all-in-one package for .NET MAUI apps. It depends on `Ansight`, bundles annotations and offline capture without enabling either workflow, and adds MAUI inspection/mutation tools plus `MauiAppBuilder` setup helpers with automatic lifecycle and page-view telemetry.
 - `Ansight.Tools.*`: individual tool packages for apps that want explicit package-by-package control.
 
 The runtime namespace remains `Ansight` even when the NuGet package is `Ansight.Core`.
@@ -49,6 +50,12 @@ var options = Options.CreateBuilder()
 Runtime.InitializeAndActivate(options);
 await Feedback.PresentAsync();
 ```
+
+The all-in-one packages also reference `Ansight.OfflineCapture`, but capture
+does not start until the app calls `OfflineCapture.Configure(...)`,
+`InitializeAsync()`, and an explicit or persisted activation path. See
+[Ansight.OfflineCapture](Ansight.OfflineCapture/README.md) for retention,
+encrypted export, annotation-bundle storage, and team upload.
 
 `WithAnsightSdk(...)` applies the same practical defaults that Redpoint has been using:
 
@@ -209,6 +216,30 @@ Runtime.RegisterCustomProperty("app", "region", "au");
 
 Calling `RegisterCustomProperty(group, key, value)` again replaces the existing value. Use `RemoveCustomProperty(...)` or `ClearCustomProperties()` when a property should not be sent on future sessions.
 
+### App artifact providers
+
+`Ansight.Core` can expose app-defined snapshots such as logs, reports, traces,
+images, or state exports. Implement `IArtifactProvider` and register it while
+building options:
+
+```csharp
+using Ansight.Artifacts;
+
+var options = Options.CreateBuilder()
+    .AddArtifactProvider(new CurrentReportArtifactProvider())
+    .WithReadOnlyToolAccess()
+    .Build();
+```
+
+The provider describes its currently available exports from `QueryAsync(...)`
+and creates one requested snapshot from `CreateAsync(...)`. Use
+`ArtifactPayload.FromText(...)`, `FromBytes(...)`, `FromStream(...)`, or
+`FromFile(...)` for the returned payload. Registering a provider adds the
+read-scoped `artifacts.query` and `artifacts.request` tools automatically.
+Artifact bytes are streamed over the active pairing session, so requests
+require a live Studio connection. The shared result shape and error codes are
+documented in [Artifact Tools](../../docs/protocol.md#artifact-tools).
+
 ## Host Pairing Memory
 
 The runtime-owned host connection remembers successful host sessions by the Wi-Fi network name reported by the connected host. Each remembered profile stores the latest host/LAN address, host name, discovery metadata, and signed pairing config for that network.
@@ -249,7 +280,12 @@ For local development, enable the developer-pairing MSBuild target in Debug buil
 </PropertyGroup>
 ```
 
-When enabled, the build writes and embeds `ansight.developer-pairing.json`. If `ansight.json` exists in the project directory, the generated resource wraps that signed config with current local discovery metadata. If no source file exists, the generated resource is an `ansight.developer-pairing.v1` marker for Studio's development-only pairing path, so no checked-in pairing JSON is required.
+When enabled, the build requires a signed source pairing JSON. The default
+source is `ansight.json` in the project directory; override it with
+`AnsightDeveloperPairingSourceFile`. The generated
+`ansight.developer-pairing.json` wraps that signed config with current local
+discovery metadata and is embedded into the app assembly. The build fails when
+the configured source file is missing.
 
 Configure bundled host connection resources from the app assembly:
 
@@ -359,9 +395,10 @@ When a `PairingSessionClient` WebSocket session is open, inbound `tool.query` an
 
 For file inspection, `Ansight.Tools.FileSystem` exposes `files.get_file_checksum` for sandboxed file fingerprints across `md5`, `sha1`, `sha256`, `sha384`, `sha512`, and `crc32`. For MCP-style extraction, `files.begin_binary_download` returns transfer metadata and then streams `ASFT` binary frames over the pairing WebSocket so the bridge can write bytes into a caller-chosen temp directory. `files.download_file` remains available as a JSON/base64 fallback.
 
-## Individual Tool Packages
+## Individual Packages
 
 - `Ansight.Annotations`
+- `Ansight.OfflineCapture`
 - `Ansight.Pairing`
 - `Ansight.Tools.Maui`
 - `Ansight.Tools.VisualTree`
@@ -373,6 +410,7 @@ For file inspection, `Ansight.Tools.FileSystem` exposes `files.get_file_checksum
 
 ## Supported Target Frameworks
 
+- `net9.0` for platform-neutral runtime, capture/export, and tool composition
 - `net9.0-android`
 - `net9.0-ios`
 - `net9.0-maccatalyst`

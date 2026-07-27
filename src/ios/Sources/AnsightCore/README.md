@@ -31,6 +31,7 @@ set `toolGuard` to allow discovery/execution.
 - `connect`, `disconnect`, `savePairingConfig`, `clearSavedPairing`, `clearCachedSession`
 - `sendClientLog`, `updateSessionProperties`
 - `registerTool`, `isToolRegistered`, `handleToolProtocolMessage`
+- `registerArtifactProvider`, `artifacts.query`, `artifacts.request`
 - `snapshot`, `hostConnectionStatus`, `currentOptions`, `recordedMetrics`, `recordedEvents`
 
 See [../../../../docs/sdk-api-parity.md](../../../../docs/sdk-api-parity.md)

@@ -4,24 +4,35 @@ This guide is the cross-SDK reference for public Ansight runtime APIs. The .NET
 SDK remains the naming and behavior baseline; Android, iOS, and React Native
 should expose the same concepts with platform-native conventions.
 
+See [Current Feature Catalog](features.md) for a higher-level availability
+matrix, including framework-specific and .NET-only workflows.
+
 ## Package Map
 
 | Capability | .NET | Android | iOS | React Native |
 | --- | --- | --- | --- | --- |
 | Core runtime | `Ansight.Core` | `ai.ansight:ansight-core-android` | `AnsightCore` | Native dependency |
 | All-in-one runtime | `Ansight` | `ai.ansight:ansight-android` | `Ansight` | `@ansight/react-native` |
-| Pairing UI | `Ansight.Pairing` | `ai.ansight:ansight-pairing-android` | `AnsightPairingQR` | Native bridge |
+| Pairing UI | `Ansight.Pairing` | `ai.ansight:ansight-pairing-android` | `AnsightPairingQR` | App-owned payload flow |
+| App artifact providers | `Ansight.Core` | `ai.ansight:ansight-core-android` | `AnsightCore` | JavaScript plus native bridge |
 | Visual tree tools | `Ansight.Tools.VisualTree` | `ai.ansight:ansight-tools-visualtree-android` | `AnsightToolsVisualTree` | Native tools plus React tools |
 | File tools | `Ansight.Tools.FileSystem` | `ai.ansight:ansight-tools-filesystem-android` | `AnsightToolsFileSystem` | Native bridge |
-| File descriptor diagnostics | `Ansight.Tools.FileDescriptorDiagnostics` | `ai.ansight:ansight-tools-filedescriptordiagnostics-android` | `AnsightToolsFileDescriptorDiagnostics` | Native bridge |
+| File descriptor diagnostics | — | `ai.ansight:ansight-tools-filedescriptordiagnostics-android` | `AnsightToolsFileDescriptorDiagnostics` | Native aggregate defaults |
 | Preferences tools | `Ansight.Tools.Preferences` | `ai.ansight:ansight-tools-preferences-android` | `AnsightToolsPreferences` | Native bridge |
 | Secure storage tools | `Ansight.Tools.SecureStorage` | `ai.ansight:ansight-tools-securestorage-android` | `AnsightToolsSecureStorage` | Native bridge |
 | Database tools | `Ansight.Tools.Database` | `ai.ansight:ansight-tools-database-android` | `AnsightToolsDatabase` | Native bridge |
 | Reflection tools | `Ansight.Tools.Reflection` | `ai.ansight:ansight-tools-reflection-android` | `AnsightToolsReflection` | Native bridge |
+| MAUI integration | `Ansight.Maui` | — | — | — |
+| MAUI tools | `Ansight.Tools.Maui` | — | — | — |
+| Annotated feedback | `Ansight.Annotations` | — | — | — |
+| Offline capture | `Ansight.OfflineCapture` | — | — | — |
+| Objective-C facade | — | — | `AnsightObjC` | Used by the iOS bridge |
+| React inspection tools | — | — | — | `@ansight/react-native` |
 
-`Ansight.Tools.FileDescriptorDiagnostics` is the canonical .NET-style name for
-the native-first file descriptor suite. The implementation in this release is
-packaged for Android and iOS.
+The file-descriptor suite is currently native-only; there is no
+`Ansight.Tools.FileDescriptorDiagnostics` NuGet package in this repository.
+React Native receives the suite through the native aggregate defaults but does
+not currently expose suite-specific JavaScript options.
 
 ## All-In-One Defaults
 
@@ -142,7 +153,7 @@ await Ansight.connect(null, { clientName: "React Native App" });
 | Event | `Runtime.Event(...)` | `AnsightRuntime.event(...)` | `event(...)` | `Ansight.event(...)` |
 | Screen viewed | `Runtime.ScreenViewed(...)` | `screenViewed(...)` | `screenViewed(...)` | `screenViewed(...)` or `trackRoute(...)` |
 | Lifecycle | `SetAppLifecycleState(...)` | `setAppLifecycleState(...)` | `setAppLifecycleState(...)` | `setAppLifecycleState(...)` |
-| Custom log | `PairingSessionClient.SendClientLogAsync(...)` | `sendClientLog(line)` | `sendClientLog(_:)` | `sendClientLog(line)` |
+| Custom log | `Runtime.SendClientLogAsync(...)` | `sendClientLog(line)` | `sendClientLog(_:)` | `sendClientLog(line)` |
 | Status | `Runtime.HostConnection.Status` | `hostConnectionStatus()` | `hostConnectionStatus()` | `hostConnectionStatus()` |
 | Capabilities | `Runtime.HostConnection.Capabilities` | `hostConnectionCapabilities()` | `hostConnectionCapabilities()` | `hostConnectionCapabilities()` |
 | Config changed | `NotifyConfigChangedAsync()` | `notifyHostConnectionConfigChanged()` | `notifyHostConnectionConfigChanged()` | `notifyHostConnectionConfigChanged()` |
@@ -152,6 +163,11 @@ await Ansight.connect(null, { clientName: "React Native App" });
 | FPS toggle/status | `IsFramesPerSecondEnabled`, `EnableFramesPerSecond()`, `DisableFramesPerSecond()` | `isFramesPerSecondEnabled()`, `enableFramesPerSecond()`, `disableFramesPerSecond()` | `isFramesPerSecondEnabled`, `enableFramesPerSecond()`, `disableFramesPerSecond()` | `isFramesPerSecondEnabled()`, `enableFramesPerSecond()`, `disableFramesPerSecond()` |
 | Touch capture guard/status | `IsTouchCaptureEnabled`, `SetTouchCaptureGuard(...)` | `isTouchCaptureEnabled()`, `setTouchCaptureGuard(...)` | `isTouchCaptureEnabled`, `setTouchCaptureGuard(...)` | Native bridge exposes enable/disable; JS guard is app-owned |
 | SDK log hook | `Logger` callback APIs | `AnsightLogger.registerCallback(...)` | `AnsightLogger.registerCallback(...)` | `addLogListener(...)` |
+| Retained metrics/events | `Runtime.Instance.DataSink` | `recordedMetrics()`, `recordedEvents()` | `recordedMetrics()`, `recordedEvents()` | `recordedMetrics()`, `recordedEvents()` |
+| Custom tool registration | `AddTool(...)` | `registerTool(...)` | `registerTool(...)` | `registerTool(...)` |
+| Artifact providers | `AddArtifactProvider(...)` | `addArtifactProvider(...)` | `registerArtifactProvider(...)` | `registerArtifactProvider(...)` |
+| Manual frame capture | On-demand `ui.get_screenshot` | `captureScreenFrame(...)` | `captureScreenFrame(...)` | `captureScreenFrame(...)` |
+| Sampled app metric stream | Record from app sampler with `Runtime.Metric(...)` | `registerMetricStream(...)` | `registerMetricStream(...)` | No JavaScript sampler API |
 
 ## Option Map
 
@@ -166,10 +182,11 @@ await Ansight.connect(null, { clientName: "React Native App" });
 | JPEG capture | `WithSessionJpegCapture(...)` | `sessionJpegCapture` with `captureGpuBackedSurfaces` parity flag | `sessionJpegCapture.captureGpuBackedSurfaces` | `sessionJpegCapture.captureGpuBackedSurfaces` |
 | Touch capture | `WithTouchCapture(...)` | `touchCapture` | `touchCapture` | `touchCapture` |
 | Tool guard | `WithReadOnlyToolAccess()` etc. | `toolGuard` | `toolGuard` | `toolGuard` |
-| Custom properties | `WithCustomProperties(...)` / runtime mutations | `customProperties` | `customProperties` | `customProperties` |
+| Custom properties | `RegisterCustomProperty(...)` / runtime mutations | `customProperties` | `customProperties` | `customProperties` |
 | Host auto-probe | `WithHostAutoProbe(...)` | `hostAutoProbe` | `hostAutoProbe` | `hostAutoProbe` |
 | Host connection | `ConfigureHostConnection(...)` | `hostConnection` | `hostConnection` | `hostConnection` |
 | Native tool suites | `With...Tools(...)` options | `with...Tools(...)` options | `AnsightRemoteToolOptions` | `remoteTools` |
+| Artifact providers | `AddArtifactProvider(...)` | `artifactProviders` / builder methods | `AnsightRemoteToolOptions.artifactProviders` or runtime registration | Runtime `registerArtifactProvider(...)` |
 
 ## Host Connection
 
@@ -200,6 +217,23 @@ Use developer pairing only for local development. Release, CI, TestFlight, App
 Store, Play Store, and other distributable builds should not embed developer
 pairing resources.
 
+The .NET MSBuild generator requires a signed source pairing JSON (the default
+path is `ansight.json`) whenever `AnsightDeveloperPairingEnabled=true`. The iOS
+build plugin uses `ANSIGHT_DEVELOPER_PAIRING_ENABLED` and the optional
+`ANSIGHT_DEVELOPER_PAIRING_SOURCE_FILE`. Android and React Native accept pairing
+JSON supplied by the app or build configuration; they do not ship an equivalent
+Android source scanner/generator in this repository.
+
+## Screenshot Capture Ownership
+
+Current .NET, Android, and iOS runtimes add
+`sessionJpegCaptureControlVersion: 1` to `device.profile`. Studio may acknowledge
+that profile with `sessionJpegCapture.mode: "host"` and an optional source such
+as `adb` or `simctl`. In host mode, the SDK suspends its periodic in-app JPEG
+loop for that live session. Missing or app mode keeps the configured SDK
+capture behavior. React Native inherits this negotiation from its native
+runtime.
+
 ## Tool Guards
 
 | Guard | Discovery | Execution | Allowed scopes |
@@ -224,12 +258,14 @@ Delete-scoped tools, such as `files.delete_file`, `prefs.remove_key`,
 
 ## Tool Suites
 
-The protocol tool ids are shared across implementations. The native file
-descriptor suite uses the canonical .NET-style package name
-`Ansight.Tools.FileDescriptorDiagnostics` as its naming baseline.
+The protocol tool ids are shared across implementations. Package availability
+still differs: file-descriptor diagnostics are currently implemented only by
+the Android and iOS runtimes, while MAUI and React tool ids are
+framework-specific.
 
 | Suite | Tool ids |
 | --- | --- |
+| App artifacts | `artifacts.query`, `artifacts.request` |
 | Visual tree | `ui.get_visual_tree`, `ui.get_screenshot`, `ui.inspect_node`, `ui.show_overlay`, `ui.get_overlay`, `ui.query_overlays`, `ui.update_overlay`, `ui.remove_overlay`, `ui.clear_overlays` |
 | Files | `files.list_directory`, `files.read_file`, `files.get_file_checksum`, `files.download_file`, `files.begin_binary_download`, `files.push_file`, `files.copy_file`, `files.move_file`, `files.delete_file` |
 | File descriptor diagnostics | `file_descriptors.list_open`, `file_descriptors.count_open`, `file_descriptors.inspect`, `file_descriptors.get_usage` |
@@ -237,6 +273,7 @@ descriptor suite uses the canonical .NET-style package name
 | Secure storage | `secure.get_value`, `secure.set_value`, `secure.remove_key` |
 | Database | `data.list_databases`, `data.describe_schema`, `data.query` |
 | Reflection | `reflect.list_roots`, `reflect.inspect_object`, `reflect.describe_type`, `reflect.set_member_value`, `reflect.invoke_method` |
+| .NET MAUI | `maui.get_current_page`, `maui.get_visual_tree`, `maui.find_elements`, `maui.get_element`, `maui.get_bindable_property`, `maui.set_bindable_property`, `maui.clear_bindable_property`, `maui.inflate_xaml`, `maui.add_element`, `maui.remove_element`, `maui.set_app_theme`, `maui.get_binding_context`, `maui.get_bindings`, `maui.get_resource_state`, `maui.get_navigation_state`, `maui.invoke_element_action`, `maui.wait_for_ui`, `maui.get_layout_diagnostics`, `maui.get_handler_diagnostics`, `maui.invoke_binding_context_command`, `maui.set_binding_context_property` |
 | React Native | `react.get_component_tree`, `react.get_shadow_tree`, `react.find_components`, `react.get_component`, `react.get_navigation_state`, `react.invoke_component_action` |
 
 `reflect.list_roots` includes a `hostRuntime` descriptor for every root so
@@ -260,6 +297,7 @@ Tool-suite registration follows the same app-code convention:
 
 | Suite | .NET | Android | iOS | React Native |
 | --- | --- | --- | --- | --- |
+| App artifacts | `AddArtifactProvider(...)` | `addArtifactProvider(...)` | `registerArtifactProvider(...)` | `registerArtifactProvider(...)` |
 | All current native tools | `WithAnsightRemoteTools()` | `withAnsightRemoteTools()` | `registerAnsightRemoteTools(options:)` | `remoteTools` |
 | Developer defaults and tools | `WithAnsightSdk(...)` | `withAnsightSdk { ... }` or `Ansight.developerOptions(...)` | `initializeAndActivateAnsightSdk(...)` | `withAnsightSdk(...)` |
 | Visual tree | `WithVisualTreeTools()` | `withVisualTreeTools()` | `registerVisualTreeTools()` | native default plus `installReactTools(...)` |
@@ -269,6 +307,46 @@ Tool-suite registration follows the same app-code convention:
 | Secure storage | `WithSecureStorageTools(...)` | `withSecureStorageTools { allowKey(...) }` | `AnsightSecureStorageToolsOptions.createBuilder()` | `remoteTools.secureStorage` |
 | Database | `WithDatabaseTools()` | `withDatabaseTools { includePlatformRoots(...) }` | `AnsightDatabaseToolsOptions.createBuilder()` | `remoteTools.database` |
 | Reflection | `WithReflectionTools(...)` | `withReflectionTools { allowRoot(...) }` | `AnsightReflectionToolsOptions.createBuilder()` | `remoteTools.reflection` |
+| MAUI | `WithMauiTools()` | — | — | — |
+| React | — | — | — | `installReactTools(...)` |
+
+## App Artifacts
+
+Artifact providers are core SDK extensibility, not a separate tool package. A
+provider advertises dynamically available exports and creates a requested
+snapshot. Registering the first provider installs the read-scoped
+`artifacts.query` and `artifacts.request` tools.
+
+| Concept | .NET | Android | iOS | React Native |
+| --- | --- | --- | --- | --- |
+| Provider contract | `IArtifactProvider` | `AndroidArtifactProvider` | `AnsightArtifactProvider` | `AnsightArtifactProvider` |
+| Register at setup | `AddArtifactProvider(...)` | `addArtifactProvider(...)` | `AnsightRemoteToolOptions.artifactProviders` | `registerArtifactProvider(...)` |
+| Register at runtime | Options-owned registry | Reinitialize with options | `registerArtifactProvider(...)` | `registerArtifactProvider(...)` |
+| Text/bytes | `ArtifactPayload.FromText/FromBytes` | `ByteArray` result | `AnsightArtifactPayload.fromText/fromBytes` | string, bytes, `ArrayBuffer`, or `Uint8Array` |
+| Stream/file source | `FromStream/FromFile` | Provider returns bytes | Provider returns payload data | Provider returns JS payload data |
+| Transfer | Live `ASFT` binary frames | Live native binary frames | Live native binary frames | JS provider plus native binary frames |
+
+Artifact requests require a live tool request and pairing transport. Provider
+query failures are isolated in the catalog; request or transfer failures return
+the `artifact_*` error codes documented in
+[Protocol](protocol.md#artifact-tools).
+
+## Framework-Specific Workflows
+
+| Workflow | Availability | Entry point |
+| --- | --- | --- |
+| MAUI initialization plus automatic lifecycle/page views | .NET MAUI | `UseAnsight<App>()` |
+| MAUI inspection and mutation | .NET MAUI | `WithMauiTools()` |
+| Annotated feedback overlay, evidence hooks, bundles, live/offline sinks | .NET Android/iOS/Mac Catalyst Debug app builds | `WithAnnotatedFeedback()` / `Feedback.PresentAsync()` |
+| Offline capture, retention, ZIP/AES export, and team upload | .NET | `OfflineCapture.Configure(...)` |
+| Objective-C runtime facade | iOS | `ANSAnsight` |
+| React component/shadow tree and actions | React Native | `installReactTools(...)` |
+| React Navigation screen tracking | React Native | `createReactNavigationTracker(...)` |
+| JavaScript unhandled-error capture | React Native | `installErrorHandlers(...)` |
+
+`Ansight` and `Ansight.Maui` reference the annotations and offline-capture
+packages, but do not automatically start either workflow. Annotated feedback
+must be explicitly enabled and remains disabled in Release application builds.
 
 ## Custom Tools
 

@@ -2,7 +2,10 @@
 
 All-in-one Ansight package for .NET MAUI apps.
 
-This package references `Ansight`, adds the MAUI remote tools, and provides `MauiAppBuilder` setup helpers with automatic MAUI telemetry wiring. `Ansight.Annotations` is included transitively but remains opt-in.
+This package references `Ansight`, adds the MAUI remote tools, and provides
+`MauiAppBuilder` setup helpers with automatic MAUI telemetry wiring.
+`Ansight.Annotations` and `Ansight.OfflineCapture` are included transitively but
+remain opt-in.
 
 ## License
 

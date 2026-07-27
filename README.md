@@ -13,6 +13,21 @@ The Android, iOS, and React Native SDKs are pre-release packages that mirror the
 same native runtime, host connection, telemetry, screenshot, touch capture, and
 remote-tool protocol used by the .NET SDK.
 
+Current SDK features include:
+
+- live and retained metrics, events, lifecycle, screen-view, memory, FPS, and
+  battery telemetry
+- saved, bundled, explicit, and remembered-host pairing with automatic reconnect
+- live screenshots, host-owned simulator/emulator capture, touch capture,
+  session properties, device profiles, and app-provided logs
+- guarded native tools for UI, files, file descriptors, preferences, secure
+  storage, SQLite, reflection, and framework-specific inspection
+- custom remote tools and requestable app artifact providers on every SDK
+- .NET MAUI automation, Debug-only annotated feedback, and offline capture,
+  export, and team upload workflows
+- React component/shadow-tree inspection, React Navigation tracking, and
+  JavaScript error capture
+
 All SDKs expose the host auto-probe options used by the .NET runtime. Host
 auto-probe remembers previous host connections and retries them while the
 runtime is active, so an app can reconnect after the host disappears and later
@@ -27,6 +42,7 @@ client name used for retry attempts.
 
 ## Docs
 
+- [Current Feature Catalog](docs/features.md)
 - [Cross-SDK API Parity](docs/sdk-api-parity.md)
 - [.NET SDK Guide](src/dotnet/README.md)
 - [Android SDK Guide](src/android/README.md)
