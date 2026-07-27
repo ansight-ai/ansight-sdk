@@ -389,6 +389,133 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
     }
 
     /// <summary>
+    /// Exports and uploads a stopped offline capture session to the team app associated with a capture API key.
+    /// </summary>
+    public Task<OfflineCaptureUploadResult> UploadAsync(
+        OfflineCaptureUploadOptions uploadOptions,
+        IProgress<OfflineCaptureUploadProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        return UploadAsync(
+            uploadOptions,
+            new OfflineCaptureUploader(),
+            progress,
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Exports and uploads a stopped offline capture session using the supplied uploader.
+    /// </summary>
+    public async Task<OfflineCaptureUploadResult> UploadAsync(
+        OfflineCaptureUploadOptions uploadOptions,
+        OfflineCaptureUploader uploader,
+        IProgress<OfflineCaptureUploadProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(uploadOptions);
+        ArgumentNullException.ThrowIfNull(uploader);
+        ThrowIfDisposed();
+
+        var normalizedOptions = uploadOptions.Normalize();
+        string? activeId;
+        lock (stateLock)
+        {
+            activeId = activeSessionId;
+        }
+
+        if (activeId is not null
+            && (normalizedOptions.SessionId is null
+                || string.Equals(activeId, normalizedOptions.SessionId, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException(
+                "Stop the offline capture before uploading it so the archive is immutable.");
+        }
+
+        var sessionDirectory = ResolveExportSessionDirectory(normalizedOptions.SessionId);
+        if (sessionDirectory is null)
+        {
+            throw new InvalidOperationException("No stopped offline capture session is available to upload.");
+        }
+
+        var manifestPath = OfflineCapturePaths.ManifestPath(sessionDirectory);
+        await using var manifestStream = new FileStream(
+            manifestPath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite,
+            bufferSize: 16 * 1024,
+            FileOptions.Asynchronous | FileOptions.SequentialScan);
+        var manifest = await JsonSerializer.DeserializeAsync<OfflineCaptureSessionManifest>(
+            manifestStream,
+            OfflineCaptureJson.Metadata,
+            cancellationToken)
+            ?? throw new InvalidDataException("The offline capture manifest is invalid.");
+
+        var temporaryDirectory = Path.Combine(
+            Path.GetTempPath(),
+            "ansight-offline-upload",
+            Guid.NewGuid().ToString("N"));
+        var temporaryArchivePath = Path.Combine(temporaryDirectory, "capture.zip");
+        Directory.CreateDirectory(temporaryDirectory);
+
+        try
+        {
+            progress?.Report(new OfflineCaptureUploadProgress(
+                OfflineCaptureUploadStage.Exporting,
+                0,
+                0,
+                1));
+            await using (var archiveStream = new FileStream(
+                temporaryArchivePath,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                bufferSize: 128 * 1024,
+                FileOptions.Asynchronous | FileOptions.SequentialScan))
+            {
+                await OfflineCaptureZipExporter.ExportAsync(
+                    sessionDirectory,
+                    archiveStream,
+                    new OfflineCaptureExportOptions
+                    {
+                        SessionId = manifest.SessionId
+                    },
+                    cancellationToken);
+            }
+
+            var archiveByteSize = new FileInfo(temporaryArchivePath).Length;
+            progress?.Report(new OfflineCaptureUploadProgress(
+                OfflineCaptureUploadStage.Exporting,
+                archiveByteSize,
+                archiveByteSize,
+                1));
+
+            return await uploader.UploadArchiveAsync(
+                temporaryArchivePath,
+                new OfflineCaptureUploadMetadata(
+                    manifest.SessionId,
+                    manifest.AppId,
+                    manifest.StartedAtUtc,
+                    manifest.StoppedAtUtc,
+                    manifest.SdkVersion),
+                normalizedOptions,
+                progress,
+                cancellationToken);
+        }
+        finally
+        {
+            if (File.Exists(temporaryArchivePath))
+            {
+                File.Delete(temporaryArchivePath);
+            }
+            if (Directory.Exists(temporaryDirectory))
+            {
+                Directory.Delete(temporaryDirectory);
+            }
+        }
+    }
+
+    /// <summary>
     /// Stops capture, detaches runtime feed subscriptions, and releases writer resources.
     /// </summary>
     public async ValueTask DisposeAsync()

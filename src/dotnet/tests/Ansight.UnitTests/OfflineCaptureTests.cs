@@ -1,4 +1,6 @@
 using System.IO.Compression;
+using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
 using Ansight.Input;
 using Ansight.OfflineCapture;
@@ -221,6 +223,101 @@ public sealed class OfflineCaptureTests
         Assert.Equal((byte)'K', stream.ReadByte());
     }
 
+    [Fact]
+    public void UploadOptions_DefaultEndpoint_UsesBrandedAppRoute()
+    {
+        Assert.Equal(
+            new Uri("https://app.ansight.ai/submit_capture"),
+            new OfflineCaptureUploadOptions().Endpoint);
+    }
+
+    [Fact]
+    public async Task UploadArchiveAsync_UsesScopedKeySignedUploadAndFinalizes()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        var archivePath = Path.Combine(tempDirectory.Path, "capture.zip");
+        var archiveBytes = "PK-test-offline-capture"u8.ToArray();
+        await File.WriteAllBytesAsync(archivePath, archiveBytes);
+        var handler = new CaptureUploadHandler(archiveBytes);
+        using var httpClient = new HttpClient(handler);
+        var uploader = new OfflineCaptureUploader(httpClient);
+        var progress = new UploadProgressCollector();
+
+        var result = await uploader.UploadArchiveAsync(
+            archivePath,
+            new OfflineCaptureUploadMetadata(
+                "session-123",
+                "com.example.app",
+                DateTimeOffset.Parse("2026-07-27T00:00:00Z"),
+                DateTimeOffset.Parse("2026-07-27T00:01:00Z"),
+                "1.2.3"),
+            new OfflineCaptureUploadOptions
+            {
+                ApiKey = "an_cap_test_key_that_is_long_enough",
+                Endpoint = new Uri("https://api.example.test/capture-upload"),
+                Title = "Checkout capture",
+                RetryDelay = TimeSpan.Zero
+            },
+            progress);
+
+        Assert.Equal("upload-123", result.UploadId);
+        Assert.Equal("session-row-123", result.SessionId);
+        Assert.Equal(new Uri("https://app.ansight.ai/session/session-row-123"), result.SessionUrl);
+        Assert.Equal(archiveBytes.Length, result.ArchiveByteSize);
+        Assert.Equal(3, handler.RequestCount);
+        Assert.Equal(archiveBytes, handler.UploadedBytes);
+        Assert.All(handler.ApiRequests, request =>
+            Assert.Equal("an_cap_test_key_that_is_long_enough", request.Authorization));
+        Assert.Contains(progress.Updates, update => update.Stage == OfflineCaptureUploadStage.Hashing);
+        Assert.Contains(progress.Updates, update => update.Stage == OfflineCaptureUploadStage.Uploading);
+        Assert.Equal(OfflineCaptureUploadStage.Completed, progress.Updates[^1].Stage);
+    }
+
+    [Fact]
+    public async Task UploadAsync_RejectsActiveCaptureBeforeNetworkRequest()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        var runtime = CreateRuntime();
+        await using var controller = CreateController(runtime, tempDirectory.Path);
+        var session = await controller.StartAsync();
+        var handler = new RejectUnexpectedRequestHandler();
+        using var httpClient = new HttpClient(handler);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            controller.UploadAsync(
+                new OfflineCaptureUploadOptions
+                {
+                    ApiKey = "an_cap_test_key_that_is_long_enough",
+                    SessionId = session.SessionId
+                },
+                new OfflineCaptureUploader(httpClient)));
+
+        Assert.Contains("Stop the offline capture", error.Message);
+        Assert.Equal(0, handler.RequestCount);
+    }
+
+    [Fact]
+    public async Task UploadArchiveAsync_RequiresCapturePackageId()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        var archivePath = Path.Combine(tempDirectory.Path, "capture.zip");
+        await File.WriteAllBytesAsync(archivePath, "PK-test"u8.ToArray());
+        var handler = new RejectUnexpectedRequestHandler();
+        using var httpClient = new HttpClient(handler);
+
+        var error = await Assert.ThrowsAsync<ArgumentException>(() =>
+            new OfflineCaptureUploader(httpClient).UploadArchiveAsync(
+                archivePath,
+                new OfflineCaptureUploadMetadata("session-123", string.Empty),
+                new OfflineCaptureUploadOptions
+                {
+                    ApiKey = "an_cap_test_key_that_is_long_enough"
+                }));
+
+        Assert.Contains("app ID (package ID)", error.Message);
+        Assert.Equal(0, handler.RequestCount);
+    }
+
     private static RuntimeImpl CreateRuntime()
     {
         return new RuntimeImpl(Options.CreateBuilder()
@@ -286,6 +383,100 @@ public sealed class OfflineCaptureTests
             catch
             {
             }
+        }
+    }
+
+    private sealed class UploadProgressCollector : IProgress<OfflineCaptureUploadProgress>
+    {
+        public List<OfflineCaptureUploadProgress> Updates { get; } = [];
+
+        public void Report(OfflineCaptureUploadProgress value)
+        {
+            Updates.Add(value);
+        }
+    }
+
+    private sealed class CaptureUploadHandler(byte[] expectedArchiveBytes) : HttpMessageHandler
+    {
+        public int RequestCount { get; private set; }
+
+        public byte[]? UploadedBytes { get; private set; }
+
+        public List<(string? Authorization, string Body)> ApiRequests { get; } = [];
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            RequestCount++;
+            if (request.RequestUri == new Uri("https://storage.example.test/signed-upload"))
+            {
+                Assert.Equal(HttpMethod.Put, request.Method);
+                UploadedBytes = await request.Content!.ReadAsByteArrayAsync(cancellationToken);
+                Assert.Equal(expectedArchiveBytes, UploadedBytes);
+                return CreateJsonResponse(HttpStatusCode.OK, new { Key = "capture.zip" });
+            }
+
+            Assert.Equal(new Uri("https://api.example.test/capture-upload"), request.RequestUri);
+            Assert.Equal(HttpMethod.Post, request.Method);
+            var body = await request.Content!.ReadAsStringAsync(cancellationToken);
+            ApiRequests.Add((request.Headers.Authorization?.Parameter, body));
+            using var document = JsonDocument.Parse(body);
+            var action = document.RootElement.GetProperty("action").GetString();
+            if (action == "create")
+            {
+                Assert.Equal(
+                    "com.example.app",
+                    document.RootElement.GetProperty("capture").GetProperty("appId").GetString());
+            }
+            return action switch
+            {
+                "create" => CreateJsonResponse(HttpStatusCode.Created, new
+                {
+                    upload = new
+                    {
+                        id = "upload-123",
+                        status = "pending_upload",
+                        byteSize = expectedArchiveBytes.Length,
+                        expiresAtUtc = "2026-07-27T02:00:00Z"
+                    },
+                    uploadUrl = "https://storage.example.test/signed-upload"
+                }),
+                "complete" => CreateJsonResponse(HttpStatusCode.OK, new
+                {
+                    upload = new
+                    {
+                        id = "upload-123",
+                        status = "completed"
+                    },
+                    sessionId = "session-row-123",
+                    sessionUrl = "https://app.ansight.ai/session/session-row-123"
+                }),
+                _ => throw new InvalidOperationException($"Unexpected action: {action}")
+            };
+        }
+
+        private static HttpResponseMessage CreateJsonResponse(
+            HttpStatusCode statusCode,
+            object body)
+        {
+            return new HttpResponseMessage(statusCode)
+            {
+                Content = JsonContent.Create(body)
+            };
+        }
+    }
+
+    private sealed class RejectUnexpectedRequestHandler : HttpMessageHandler
+    {
+        public int RequestCount { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            RequestCount++;
+            throw new InvalidOperationException("No HTTP request was expected.");
         }
     }
 }
