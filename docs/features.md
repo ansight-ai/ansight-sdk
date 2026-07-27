@@ -49,7 +49,7 @@ plain bundled config.
 | Touch capture and runtime enable/disable | Yes | Yes | Yes | Native |
 | Touch-capture app guard | Yes | Yes | Yes | Native toggle; JS policy is app-owned |
 | Native visual-tree providers | Yes | Yes | Yes | Native plus a React provider |
-| App-provided visual-tree sources | Yes | Yes | Yes | React tools install a `react` source |
+| App-provided visual-tree sources | Yes | Yes | Yes | Native code can register providers; React inspection uses separate `react.*` tools |
 
 During `device.profile`, current runtimes advertise screenshot-control version
 1. Studio can respond with host capture mode for a simulator or emulator. The
