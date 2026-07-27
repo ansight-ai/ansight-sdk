@@ -483,7 +483,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
     /// <param name="progress">Optional progress sink for structured transport updates.</param>
     /// <param name="cancellationToken">Cancellation token for the operation.</param>
     /// <returns>The result of sending the profile.</returns>
-    public Task<OperationResult> SendDeviceAppProfileAsync(
+    public async Task<OperationResult> SendDeviceAppProfileAsync(
         DeviceAppProfile profile,
         IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
@@ -492,8 +492,13 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
 
         deviceAppProfileResolver.NormalizeForSend(profile);
         var payload = JsonSerializer.SerializeToNode(profile, PairingJson.Compact) as JsonObject;
+        if (payload is not null)
+        {
+            payload[HostSessionJpegCapturePolicy.ControlVersionPropertyName] =
+                HostSessionJpegCapturePolicy.ControlVersion;
+        }
 
-        return transport.SendControlRequestAsync(
+        var result = await transport.SendControlRequestWithResponseAsync(
             PairingControlActions.DeviceProfile,
             payload,
             "WS -> device.profile",
@@ -504,6 +509,9 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
             cancellationToken,
             HostConnectionSource.HostConnection,
             HostConnectionProgressKind.Connection);
+        jpegStreamer.SetHostCapturePolicy(
+            HostSessionJpegCapturePolicy.FromPayload(result.Response?.Payload));
+        return result.OperationResult;
     }
 
     /// <summary>
@@ -597,6 +605,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         await telemetryStreamer.StopAsync(progress: null, CancellationToken.None);
         await touchCaptureStreamer.StopAsync(progress: null, CancellationToken.None);
         await jpegStreamer.StopAsync(CancellationToken.None);
+        jpegStreamer.SetHostCapturePolicy(HostSessionJpegCapturePolicy.App);
         var result = await transport.CloseAsync(cancellationToken);
         if (Runtime.IsInitialized)
         {

@@ -48,6 +48,7 @@ object AnsightRuntime {
     private var telemetryTask: ScheduledFuture<*>? = null
     private var sessionJpegExecutor: ScheduledExecutorService? = null
     private var sessionJpegTask: ScheduledFuture<*>? = null
+    private var hostSessionJpegCapturePolicy = HostSessionJpegCapturePolicy.App
     private var autoProbeExecutor: ScheduledExecutorService? = null
     private var autoProbeTask: ScheduledFuture<*>? = null
     private val sessionPropertiesExecutor = Executors.newSingleThreadExecutor { runnable ->
@@ -408,6 +409,7 @@ object AnsightRuntime {
                 liveTransport = null
                 sessionOpen = false
                 sessionId = null
+                hostSessionJpegCapturePolicy = HostSessionJpegCapturePolicy.App
                 connectionState = HostConnectionState.Disconnected
                 sessionMessage = "Disconnected from Ansight host."
             }
@@ -981,7 +983,19 @@ object AnsightRuntime {
         }
 
         val profile = synchronized(lock) { nextDeviceProfileLocked(app, increment = true) }
-        val profileResult = transport.sendControlRequest(PairingControlActions.DeviceProfile, profile.toJson())
+        val profileRequestResult = transport.sendControlRequestWithResponse(
+            PairingControlActions.DeviceProfile,
+            profile.toJson().put(
+                HostSessionJpegCapturePolicy.ControlVersionPropertyName,
+                HostSessionJpegCapturePolicy.ControlVersion,
+            ),
+        )
+        val profileResult = profileRequestResult.operationResult
+        synchronized(lock) {
+            hostSessionJpegCapturePolicy = HostSessionJpegCapturePolicy.fromPayload(
+                profileRequestResult.response?.optJSONObject("payload"),
+            )
+        }
         if (!profileResult.success) {
             transport.close(notify = false)
             synchronized(lock) {
@@ -1684,6 +1698,7 @@ object AnsightRuntime {
         active = false
         sessionOpen = false
         sessionId = null
+        hostSessionJpegCapturePolicy = HostSessionJpegCapturePolicy.App
         connectionState = HostConnectionState.Disconnected
         stopLifecycleCaptureLocked()
         telemetryTask?.cancel(false)
@@ -1903,7 +1918,12 @@ object AnsightRuntime {
     private fun startSessionJpegCaptureIfNeeded() {
         synchronized(lock) {
             val captureOptions = options.sessionJpegCapture ?: return
-            if (!initialized || !active || liveTransport?.isOpen != true || sessionJpegTask != null) {
+            if (!initialized ||
+                !active ||
+                hostSessionJpegCapturePolicy.useHostCapture ||
+                liveTransport?.isOpen != true ||
+                sessionJpegTask != null
+            ) {
                 return
             }
             sessionJpegExecutor = Executors.newSingleThreadScheduledExecutor { runnable ->

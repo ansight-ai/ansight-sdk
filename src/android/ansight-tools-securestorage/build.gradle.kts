@@ -5,7 +5,7 @@ plugins {
 }
 
 group = providers.gradleProperty("ansightAndroidGroup").orElse("ai.ansight").get()
-version = providers.gradleProperty("ansightAndroidVersion").orElse("1.0.2-preview.3").get()
+version = providers.gradleProperty("ansightAndroidVersion").orElse("1.0.2-preview.4").get()
 
 android {
     namespace = "ai.ansight.tools.securestorage"

@@ -13,6 +13,11 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
+internal data class PairingControlRequestResult(
+    val operationResult: OperationResult,
+    val response: JSONObject?,
+)
+
 class PairingLiveSessionTransport {
     private val client = OkHttpClient.Builder()
         .readTimeout(0, TimeUnit.MILLISECONDS)
@@ -84,8 +89,23 @@ class PairingLiveSessionTransport {
         payload: JSONObject?,
         timeoutMilliseconds: Long = 15_000,
     ): OperationResult {
+        return sendControlRequestWithResponse(
+            action,
+            payload,
+            timeoutMilliseconds,
+        ).operationResult
+    }
+
+    internal fun sendControlRequestWithResponse(
+        action: String,
+        payload: JSONObject?,
+        timeoutMilliseconds: Long = 15_000,
+    ): PairingControlRequestResult {
         val socket = synchronized(lock) { webSocket }
-            ?: return OperationResult.failure("WebSocket session is not open.")
+            ?: return PairingControlRequestResult(
+                OperationResult.failure("WebSocket session is not open."),
+                null,
+            )
 
         val requestId = "client.${UUID.randomUUID().toString().replace("-", "")}"
         val envelope = JSONObject()
@@ -99,21 +119,31 @@ class PairingLiveSessionTransport {
         pendingResponses[requestId] = pending
         if (!socket.send(envelope.toString())) {
             pendingResponses.remove(requestId)
-            return OperationResult.failure("Failed to send $action.")
+            return PairingControlRequestResult(
+                OperationResult.failure("Failed to send $action."),
+                null,
+            )
         }
 
         if (!pending.latch.await(timeoutMilliseconds, TimeUnit.MILLISECONDS)) {
             pendingResponses.remove(requestId)
-            return OperationResult.failure("Timed out waiting for $action acknowledgement.")
+            return PairingControlRequestResult(
+                OperationResult.failure("Timed out waiting for $action acknowledgement."),
+                null,
+            )
         }
 
         val response = pending.response
-            ?: return OperationResult.failure(pending.error ?: "No acknowledgement payload received for $action.")
-        return if (response.optBoolean("success", false)) {
+            ?: return PairingControlRequestResult(
+                OperationResult.failure(pending.error ?: "No acknowledgement payload received for $action."),
+                null,
+            )
+        val operationResult = if (response.optBoolean("success", false)) {
             OperationResult.success(response.optionalString("message") ?: "$action acknowledged.")
         } else {
             OperationResult.failure(response.optionalString("message") ?: "$action failed.")
         }
+        return PairingControlRequestResult(operationResult, response)
     }
 
     fun sendText(text: String): OperationResult {

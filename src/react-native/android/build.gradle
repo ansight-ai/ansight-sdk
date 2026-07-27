@@ -66,5 +66,5 @@ repositories {
 
 dependencies {
   implementation("com.facebook.react:react-android")
-  implementation("ai.ansight:ansight-android:1.0.2-preview.3")
+  implementation("ai.ansight:ansight-android:1.0.2-preview.4")
 }

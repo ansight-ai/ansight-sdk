@@ -1,6 +1,11 @@
 import Foundation
 import Network
 
+struct PairingControlRequestResult: Sendable {
+    let operationResult: OperationResult
+    let response: PairingControlEnvelope?
+}
+
 final class PairingLiveSessionTransport: @unchecked Sendable {
     private static let defaultSendTimeoutSeconds: TimeInterval = 10
 
@@ -51,6 +56,18 @@ final class PairingLiveSessionTransport: @unchecked Sendable {
         payload: JSONValue?,
         acknowledgementTimeoutSeconds: TimeInterval = 15
     ) async -> OperationResult {
+        await sendControlRequestWithResponse(
+            action: action,
+            payload: payload,
+            acknowledgementTimeoutSeconds: acknowledgementTimeoutSeconds
+        ).operationResult
+    }
+
+    func sendControlRequestWithResponse(
+        action: String,
+        payload: JSONValue?,
+        acknowledgementTimeoutSeconds: TimeInterval = 15
+    ) async -> PairingControlRequestResult {
         let requestId = "client.\(UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased())"
         let envelope = PairingControlEnvelope(
             type: PairingControlEnvelope.requestType,
@@ -66,12 +83,21 @@ final class PairingLiveSessionTransport: @unchecked Sendable {
                 timeoutSeconds: acknowledgementTimeoutSeconds
             )
             if response.success {
-                return .success(response.message ?? "\(action) acknowledged.")
+                return PairingControlRequestResult(
+                    operationResult: .success(response.message ?? "\(action) acknowledged."),
+                    response: response
+                )
             }
 
-            return .failure(response.message ?? "\(action) failed.")
+            return PairingControlRequestResult(
+                operationResult: .failure(response.message ?? "\(action) failed."),
+                response: response
+            )
         } catch {
-            return .failure("Failed to send \(action): \(error.localizedDescription)")
+            return PairingControlRequestResult(
+                operationResult: .failure("Failed to send \(action): \(error.localizedDescription)"),
+                response: nil
+            )
         }
     }
 

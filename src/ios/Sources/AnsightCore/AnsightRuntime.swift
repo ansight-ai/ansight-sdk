@@ -74,6 +74,7 @@ public final class AnsightRuntime: @unchecked Sendable {
     private var connectionTask: Task<HostConnectionResult, Never>?
     private var connectionTaskId: UUID?
     private var screenCaptureTask: Task<Void, Never>?
+    private var hostSessionJpegCapturePolicy = HostSessionJpegCapturePolicy.app
     private let lifecycleObserver = AnsightLifecycleObserver()
     private var frameRateSampler: AnsightFrameRateSampler?
     private var frameRateTrackingEnabled = false
@@ -144,6 +145,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             lastStreamedEventSequence = 0
             announcedMetricChannelIds = []
             telemetryStreamLoopActive = false
+            hostSessionJpegCapturePolicy = .app
             screenFramesCaptured = 0
             screenFramesSent = 0
             lastScreenCaptureMessage = nil
@@ -283,6 +285,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             lastStreamedEventSequence = 0
             announcedMetricChannelIds = []
             telemetryStreamLoopActive = false
+            hostSessionJpegCapturePolicy = .app
             resolvedHostAddress = nil
             pendingBinaryTransfers.removeAll()
             sessionMessage = "Runtime buffers cleared."
@@ -1131,6 +1134,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             lastStreamedEventSequence = 0
             announcedMetricChannelIds = []
             telemetryStreamLoopActive = false
+            hostSessionJpegCapturePolicy = .app
             resolvedHostAddress = nil
             hostId = nil
             hostName = nil
@@ -2303,6 +2307,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             guard initialized,
                   active,
                   sessionOpen,
+                  !hostSessionJpegCapturePolicy.useHostCapture,
                   screenCaptureTask == nil,
                   var captureOptions = options.sessionJpegCapture
             else {
@@ -2504,11 +2509,25 @@ public final class AnsightRuntime: @unchecked Sendable {
 
     private func sendDeviceProfile(_ profile: DeviceAppProfile) async -> OperationResult {
         do {
-            return await liveTransport.sendControlRequest(
+            guard case .object(var payload) = try JSONValue.fromEncodable(profile) else {
+                return .failure("Failed to encode device profile as a JSON object.")
+            }
+            payload[HostSessionJpegCapturePolicy.controlVersionPropertyName] =
+                .integer(HostSessionJpegCapturePolicy.controlVersion)
+            let result = await liveTransport.sendControlRequestWithResponse(
                 action: PairingControlActions.deviceProfile,
-                payload: try .fromEncodable(profile)
+                payload: .object(payload)
             )
+            lock.withLock {
+                hostSessionJpegCapturePolicy = HostSessionJpegCapturePolicy(
+                    payload: result.response?.payload
+                )
+            }
+            return result.operationResult
         } catch {
+            lock.withLock {
+                hostSessionJpegCapturePolicy = .app
+            }
             return .failure("Failed to encode device profile: \(error.localizedDescription)")
         }
     }

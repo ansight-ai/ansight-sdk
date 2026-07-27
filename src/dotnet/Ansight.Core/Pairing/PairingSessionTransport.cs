@@ -11,6 +11,10 @@ internal delegate Task BinaryFragmentSender(
     bool endOfMessage,
     CancellationToken cancellationToken);
 
+internal sealed record PairingControlRequestResult(
+    OperationResult OperationResult,
+    PairingControlEnvelope? Response);
+
 internal sealed class PairingSessionTransport : IDisposable
 {
     private ClientWebSocket? webSocket;
@@ -48,12 +52,40 @@ internal sealed class PairingSessionTransport : IDisposable
         HostConnectionSource source = HostConnectionSource.Transport,
         HostConnectionProgressKind kind = HostConnectionProgressKind.Transport)
     {
+        var result = await SendControlRequestWithResponseAsync(
+            action,
+            payload,
+            outboundProgressMessage,
+            successMessage,
+            failurePrefix,
+            progress,
+            acknowledgementTimeout,
+            cancellationToken,
+            source,
+            kind);
+        return result.OperationResult;
+    }
+
+    internal async Task<PairingControlRequestResult> SendControlRequestWithResponseAsync(
+        string action,
+        JsonObject? payload,
+        string? outboundProgressMessage,
+        string successMessage,
+        string failurePrefix,
+        IProgress<HostConnectionProgressUpdate>? progress,
+        TimeSpan acknowledgementTimeout,
+        CancellationToken cancellationToken,
+        HostConnectionSource source = HostConnectionSource.Transport,
+        HostConnectionProgressKind kind = HostConnectionProgressKind.Transport)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(action);
 
         var webSocket = this.webSocket;
         if (webSocket is null || webSocket.State != WebSocketState.Open)
         {
-            return OperationResult.FromFailure("WebSocket session is not open.");
+            return new PairingControlRequestResult(
+                OperationResult.FromFailure("WebSocket session is not open."),
+                null);
         }
 
         var requestId = $"client.{Guid.NewGuid():N}";
@@ -101,20 +133,28 @@ internal sealed class PairingSessionTransport : IDisposable
 
             if (!response.Success)
             {
-                return OperationResult.FromFailure($"{failurePrefix}: {response.Message ?? "request failed"}");
+                return new PairingControlRequestResult(
+                    OperationResult.FromFailure($"{failurePrefix}: {response.Message ?? "request failed"}"),
+                    response);
             }
 
-            return OperationResult.FromSuccess(string.IsNullOrWhiteSpace(response.Message) ? successMessage : response.Message!);
+            return new PairingControlRequestResult(
+                OperationResult.FromSuccess(string.IsNullOrWhiteSpace(response.Message) ? successMessage : response.Message!),
+                response);
         }
         catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
         {
             await CloseAsync(CancellationToken.None);
-            return OperationResult.FromFailure($"{failurePrefix}: {ex.Message}");
+            return new PairingControlRequestResult(
+                OperationResult.FromFailure($"{failurePrefix}: {ex.Message}"),
+                null);
         }
         catch (Exception ex)
         {
             await CloseAsync(CancellationToken.None);
-            return OperationResult.FromFailure($"{failurePrefix}: {ex.Message}");
+            return new PairingControlRequestResult(
+                OperationResult.FromFailure($"{failurePrefix}: {ex.Message}"),
+                null);
         }
         finally
         {

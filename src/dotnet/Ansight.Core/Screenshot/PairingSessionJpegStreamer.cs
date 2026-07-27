@@ -7,6 +7,7 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
     private readonly PairingSessionTransport transport;
     private CancellationTokenSource? captureCts;
     private Task? captureTask;
+    private HostSessionJpegCapturePolicy hostCapturePolicy = HostSessionJpegCapturePolicy.App;
     private bool disposed;
 
     public PairingSessionJpegStreamer(PairingSessionTransport transport)
@@ -17,6 +18,16 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
     public async Task StartAsync(IProgress<HostConnectionProgressUpdate>? progress)
     {
         await StopAsync(CancellationToken.None);
+
+        if (hostCapturePolicy.UseHostCapture)
+        {
+            HostPairingProgressReporter.Report(
+                progress,
+                HostConnectionProgressKind.SessionJpegCapture,
+                $"Session JPEG capture delegated to Studio ({hostCapturePolicy.Source ?? "external"}).",
+                source: HostConnectionSource.SessionJpegCapture);
+            return;
+        }
 
         var options = ResolveOptions();
         if (options is null)
@@ -60,6 +71,11 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
         }
 
         captureCts?.Dispose();
+    }
+
+    public void SetHostCapturePolicy(HostSessionJpegCapturePolicy policy)
+    {
+        hostCapturePolicy = policy ?? HostSessionJpegCapturePolicy.App;
     }
 
     public void Dispose()
