@@ -48,5 +48,5 @@ android {
 
 dependencies {
     implementation project(":capacitor-android")
-    implementation "ai.ansight:ansight-android:1.0.2-preview.6"
+    implementation "ai.ansight:ansight-android:1.0.2-preview.7"
 }

@@ -27,6 +27,22 @@ native_podspecs=(
   "AnsightObjC.podspec"
 )
 
+version="$(
+  sed -nE 's/^[[:space:]]*s\.version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' \
+    "${repo_root}/src/ios/AnsightCore.podspec" |
+    head -n 1
+)"
+expected_source_tag="v${version}"
+source_tag="${ANSIGHT_POD_SOURCE_TAG:-${expected_source_tag}}"
+
+if [[ "${source_tag}" != "${expected_source_tag}" ]]; then
+  echo "error: ANSIGHT_POD_SOURCE_TAG is '${source_tag}', expected '${expected_source_tag}'" >&2
+  echo "error: refusing to generate or publish CocoaPods metadata from the wrong Git tag" >&2
+  exit 1
+fi
+
+export ANSIGHT_POD_SOURCE_TAG="${source_tag}"
+
 usage() {
   cat <<'EOF'
 Usage: scripts/publish-ios-cocoapods.sh [options]

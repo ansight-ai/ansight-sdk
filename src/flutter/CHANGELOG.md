@@ -1,3 +1,7 @@
+## 1.0.2-preview.7
+
+- Republish the preview 6 feature set with corrected CocoaPods source metadata.
+
 ## 1.0.2-preview.6
 
 - Add the first complete Ansight Flutter plugin for Android and iOS.
