@@ -1,0 +1,401 @@
+{
+  "schema": "ai.ansight.flutter.corpus-results.v1",
+  "generatedAt": "2026-07-28T10:07:24.508998Z",
+  "sdkPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter",
+  "suiteRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps",
+  "target": "lib/ansight_validation_main.dart",
+  "summary": {
+    "total": 9,
+    "passed": 1,
+    "failed": 8
+  },
+  "apps": [
+    {
+      "repo": "aaronoe/FlutterCinematic",
+      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/aaronoe__FlutterCinematic",
+      "flutter": "3.0.5",
+      "sdkConstraint": "",
+      "legacy": true,
+      "target": "lib/ansight_validation_main.dart",
+      "passed": false,
+      "startedAt": "2026-07-28T10:01:59.201994Z",
+      "finishedAt": "2026-07-28T10:03:06.245948Z",
+      "commands": [
+        {
+          "name": "pub-get",
+          "command": [
+            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "pub",
+            "get"
+          ],
+          "exitCode": 0,
+          "durationMilliseconds": 7310,
+          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/aaronoe__FlutterCinematic/pub-get.log"
+        },
+        {
+          "name": "analyze-target",
+          "command": [
+            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "analyze",
+            "--no-fatal-infos",
+            "--no-fatal-warnings",
+            "lib/ansight_validation_main.dart"
+          ],
+          "exitCode": 0,
+          "durationMilliseconds": 2389,
+          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/aaronoe__FlutterCinematic/analyze-target.log"
+        },
+        {
+          "name": "android-debug-apk",
+          "command": [
+            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "build",
+            "apk",
+            "--debug",
+            "--target=lib/ansight_validation_main.dart",
+            "--target-platform=android-arm64"
+          ],
+          "exitCode": 1,
+          "durationMilliseconds": 57329,
+          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/aaronoe__FlutterCinematic/android-debug-apk.log"
+        }
+      ]
+    },
+    {
+      "repo": "mhmzdev/the-holy-quran-app",
+      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/mhmzdev__the-holy-quran-app",
+      "flutter": "3.38.8",
+      "sdkConstraint": "3.8.1",
+      "legacy": false,
+      "target": "lib/ansight_validation_main.dart",
+      "passed": false,
+      "startedAt": "2026-07-28T10:03:06.246933Z",
+      "finishedAt": "2026-07-28T10:03:09.601616Z",
+      "commands": [
+        {
+          "name": "pub-get",
+          "command": [
+            "/Users/matthewrobbins/fvm/versions/3.38.8/bin/flutter",
+            "pub",
+            "get"
+          ],
+          "exitCode": 1,
+          "durationMilliseconds": 3353,
+          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/mhmzdev__the-holy-quran-app/pub-get.log"
+        }
+      ]
+    },
+    {
+      "repo": "KarimElghamry/chillify",
+      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/KarimElghamry__chillify",
+      "flutter": "3.0.5",
+      "sdkConstraint": ">=2.1.0 <3.0.0",
+      "legacy": true,
+      "target": "lib/ansight_validation_main.dart",
+      "passed": false,
+      "startedAt": "2026-07-28T10:03:09.601717Z",
+      "finishedAt": "2026-07-28T10:04:18.126820Z",
+      "commands": [
+        {
+          "name": "pub-get",
+          "command": [
+            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "pub",
+            "get"
+          ],
+          "exitCode": 0,
+          "durationMilliseconds": 3750,
+          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/KarimElghamry__chillify/pub-get.log"
+        },
+        {
+          "name": "analyze-target",
+          "command": [
+            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "analyze",
+            "--no-fatal-infos",
+            "--no-fatal-warnings",
+            "lib/ansight_validation_main.dart"
+          ],
+          "exitCode": 0,
+          "durationMilliseconds": 2063,
+          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/KarimElghamry__chillify/analyze-target.log"
+        },
+        {
+          "name": "android-debug-apk",
+          "command": [
+            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "build",
+            "apk",
+            "--debug",
+            "--target=lib/ansight_validation_main.dart",
+            "--target-platform=android-arm64"
+          ],
+          "exitCode": 1,
+          "durationMilliseconds": 62702,
+          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/KarimElghamry__chillify/android-debug-apk.log"
+        }
+      ]
+    },
+    {
+      "repo": "CoderMikeHe/flutter_wechat",
+      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/CoderMikeHe__flutter_wechat",
+      "flutter": "3.0.5",
+      "sdkConstraint": ">=2.5.0 <3.0.0",
+      "legacy": true,
+      "target": "lib/ansight_validation_main.dart",
+      "passed": false,
+      "startedAt": "2026-07-28T10:04:18.126860Z",
+      "finishedAt": "2026-07-28T10:04:18.731650Z",
+      "commands": [
+        {
+          "name": "pub-get",
+          "command": [
+            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "pub",
+            "get"
+          ],
+          "exitCode": 1,
+          "durationMilliseconds": 601,
+          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/CoderMikeHe__flutter_wechat/pub-get.log"
+        }
+      ]
+    },
+    {
+      "repo": "designDo/flutter-checkio",
+      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/designDo__flutter-checkio",
+      "flutter": "3.0.5",
+      "sdkConstraint": ">=2.7.0 <3.0.0",
+      "legacy": true,
+      "target": "lib/ansight_validation_main.dart",
+      "passed": false,
+      "startedAt": "2026-07-28T10:04:18.731714Z",
+      "finishedAt": "2026-07-28T10:05:47.171066Z",
+      "commands": [
+        {
+          "name": "pub-get",
+          "command": [
+            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "pub",
+            "get"
+          ],
+          "exitCode": 0,
+          "durationMilliseconds": 1988,
+          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/designDo__flutter-checkio/pub-get.log"
+        },
+        {
+          "name": "analyze-target",
+          "command": [
+            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "analyze",
+            "--no-fatal-infos",
+            "--no-fatal-warnings",
+            "lib/ansight_validation_main.dart"
+          ],
+          "exitCode": 0,
+          "durationMilliseconds": 2710,
+          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/designDo__flutter-checkio/analyze-target.log"
+        },
+        {
+          "name": "android-debug-apk",
+          "command": [
+            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "build",
+            "apk",
+            "--debug",
+            "--target=lib/ansight_validation_main.dart",
+            "--target-platform=android-arm64"
+          ],
+          "exitCode": 1,
+          "durationMilliseconds": 83719,
+          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/designDo__flutter-checkio/android-debug-apk.log"
+        }
+      ]
+    },
+    {
+      "repo": "redsolver/noteless",
+      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/redsolver__noteless",
+      "flutter": "3.0.5",
+      "sdkConstraint": ">=2.5.0 <3.0.0",
+      "legacy": true,
+      "target": "lib/ansight_validation_main.dart",
+      "passed": false,
+      "startedAt": "2026-07-28T10:05:47.171114Z",
+      "finishedAt": "2026-07-28T10:06:32.182256Z",
+      "commands": [
+        {
+          "name": "pub-get",
+          "command": [
+            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "pub",
+            "get"
+          ],
+          "exitCode": 0,
+          "durationMilliseconds": 3761,
+          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/redsolver__noteless/pub-get.log"
+        },
+        {
+          "name": "analyze-target",
+          "command": [
+            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "analyze",
+            "--no-fatal-infos",
+            "--no-fatal-warnings",
+            "lib/ansight_validation_main.dart"
+          ],
+          "exitCode": 0,
+          "durationMilliseconds": 2804,
+          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/redsolver__noteless/analyze-target.log"
+        },
+        {
+          "name": "android-debug-apk",
+          "command": [
+            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "build",
+            "apk",
+            "--debug",
+            "--target=lib/ansight_validation_main.dart",
+            "--target-platform=android-arm64"
+          ],
+          "exitCode": 1,
+          "durationMilliseconds": 38439,
+          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/redsolver__noteless/android-debug-apk.log"
+        }
+      ]
+    },
+    {
+      "repo": "SAGARSURI/MyMovies",
+      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/SAGARSURI__MyMovies",
+      "flutter": "3.0.5",
+      "sdkConstraint": "",
+      "legacy": true,
+      "target": "lib/ansight_validation_main.dart",
+      "passed": false,
+      "startedAt": "2026-07-28T10:06:32.182295Z",
+      "finishedAt": "2026-07-28T10:06:42.731948Z",
+      "commands": [
+        {
+          "name": "pub-get",
+          "command": [
+            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "pub",
+            "get"
+          ],
+          "exitCode": 0,
+          "durationMilliseconds": 990,
+          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/SAGARSURI__MyMovies/pub-get.log"
+        },
+        {
+          "name": "analyze-target",
+          "command": [
+            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "analyze",
+            "--no-fatal-infos",
+            "--no-fatal-warnings",
+            "lib/ansight_validation_main.dart"
+          ],
+          "exitCode": 0,
+          "durationMilliseconds": 2317,
+          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/SAGARSURI__MyMovies/analyze-target.log"
+        },
+        {
+          "name": "android-debug-apk",
+          "command": [
+            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "build",
+            "apk",
+            "--debug",
+            "--target=lib/ansight_validation_main.dart",
+            "--target-platform=android-arm64"
+          ],
+          "exitCode": 1,
+          "durationMilliseconds": 7236,
+          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/SAGARSURI__MyMovies/android-debug-apk.log"
+        }
+      ]
+    },
+    {
+      "repo": "darkmoonight/Zest",
+      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/darkmoonight__Zest",
+      "flutter": "stable",
+      "sdkConstraint": ">=3.11.5 <4.0.0",
+      "legacy": false,
+      "target": "lib/ansight_validation_main.dart",
+      "passed": true,
+      "startedAt": "2026-07-28T10:06:42.731995Z",
+      "finishedAt": "2026-07-28T10:07:23.586654Z",
+      "commands": [
+        {
+          "name": "pub-get",
+          "command": [
+            "/Users/matthewrobbins/fvm/versions/stable/bin/flutter",
+            "pub",
+            "get"
+          ],
+          "exitCode": 0,
+          "durationMilliseconds": 1735,
+          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/darkmoonight__Zest/pub-get.log"
+        },
+        {
+          "name": "analyze-target",
+          "command": [
+            "/Users/matthewrobbins/fvm/versions/stable/bin/flutter",
+            "analyze",
+            "--no-fatal-infos",
+            "--no-fatal-warnings",
+            "lib/ansight_validation_main.dart"
+          ],
+          "exitCode": 0,
+          "durationMilliseconds": 7845,
+          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/darkmoonight__Zest/analyze-target.log"
+        },
+        {
+          "name": "android-debug-apk",
+          "command": [
+            "/Users/matthewrobbins/fvm/versions/stable/bin/flutter",
+            "build",
+            "apk",
+            "--debug",
+            "--target=lib/ansight_validation_main.dart",
+            "--target-platform=android-arm64"
+          ],
+          "exitCode": 0,
+          "durationMilliseconds": 31250,
+          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/darkmoonight__Zest/android-debug-apk.log"
+        },
+        {
+          "name": "apk-evidence",
+          "command": [
+            "verify-fresh-apk-artifact"
+          ],
+          "exitCode": 0,
+          "durationMilliseconds": 1,
+          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/darkmoonight__Zest/apk-evidence.log"
+        }
+      ]
+    },
+    {
+      "repo": "LonelyCpp/flutter_weather",
+      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/LonelyCpp__flutter_weather",
+      "flutter": "3.0.5",
+      "sdkConstraint": ">=2.6.0 <3.0.0",
+      "legacy": true,
+      "target": "lib/ansight_validation_main.dart",
+      "passed": false,
+      "startedAt": "2026-07-28T10:07:23.586706Z",
+      "finishedAt": "2026-07-28T10:07:24.508500Z",
+      "commands": [
+        {
+          "name": "pub-get",
+          "command": [
+            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "pub",
+            "get"
+          ],
+          "exitCode": 1,
+          "durationMilliseconds": 917,
+          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/LonelyCpp__flutter_weather/pub-get.log"
+        }
+      ]
+    }
+  ]
+}

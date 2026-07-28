@@ -87,8 +87,9 @@ check_maven_artifact() {
 }
 
 check_npm_package() {
+  local package_name="$1"
   local resolved_version
-  resolved_version="$(npm view "@ansight/react-native@${version}" version --silent)"
+  resolved_version="$(npm view "${package_name}@${version}" version --silent)"
   [[ "${resolved_version}" == "${version}" ]]
 }
 
@@ -122,7 +123,11 @@ for artifact in \
   check_maven_artifact "${artifact}"
 done
 
-check "npm @ansight/react-native" check_npm_package
+check "npm @ansight/react-native" check_npm_package "@ansight/react-native"
+check "npm @ansight/capacitor" check_npm_package "@ansight/capacitor"
+check \
+  "pub.dev ansight_flutter" \
+  check_url "https://pub.dev/api/packages/ansight_flutter/versions/${version}"
 
 if [[ "${skip_cocoapods}" != "true" ]]; then
   if command -v pod >/dev/null 2>&1; then

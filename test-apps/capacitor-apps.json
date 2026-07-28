@@ -1,0 +1,249 @@
+{
+  "schema": "ai.ansight.capacitor-test-corpus.v1",
+  "generatedAtUtc": "2026-07-28T00:00:00Z",
+  "selection": {
+    "count": 25,
+    "requirements": [
+      "Public, non-fork, non-archived GitHub repository",
+      "OSI-style license reported by the GitHub license API",
+      "Capacitor 8 dependency at the pinned commit",
+      "Root package.json and Capacitor application configuration",
+      "Recent enough to exercise the current Capacitor toolchain"
+    ]
+  },
+  "apps": [
+    {
+      "repository": "aeharding/voyager",
+      "commit": "e102f2b88424cf64ed24d69c6f62dd130a54057e",
+      "branch": "main",
+      "license": "AGPL-3.0",
+      "capacitorCore": "^8.4.1",
+      "category": "community-client",
+      "packageManager": "pnpm"
+    },
+    {
+      "repository": "innonova/mimiri-client",
+      "commit": "c9b1746c3b0a5112249d89a19e1f607031b02879",
+      "branch": "main",
+      "license": "GPL-2.0",
+      "capacitorCore": "^8.3.4",
+      "category": "notes",
+      "packageManager": "npm"
+    },
+    {
+      "repository": "Moltly/moltly",
+      "commit": "5ebcf024613a1a3fcbd51d264cbe325dd2515b53",
+      "branch": "main",
+      "license": "GPL-3.0",
+      "capacitorCore": "^8.4.1",
+      "category": "tracker",
+      "packageManager": "npm"
+    },
+    {
+      "repository": "Aegis-plus/SillyTavern-Android",
+      "commit": "afc4f0844372e6a68aef6761cd930a3e9b5376c4",
+      "branch": "main",
+      "license": "ISC",
+      "capacitorCore": "^8.0.0",
+      "category": "native-webview-launcher",
+      "packageManager": "npm",
+      "staticHtml": "www/index.html"
+    },
+    {
+      "repository": "MultiMote/niimblue",
+      "commit": "0d312bd9eac7276097368bcc0ebb184a08410ad8",
+      "branch": "main",
+      "license": "MIT",
+      "capacitorCore": "^8.4.1",
+      "category": "bluetooth-printing",
+      "packageManager": "npm"
+    },
+    {
+      "repository": "AceDataCloud/Nexior",
+      "commit": "9598a99f9d21db318040210d3c81eb28d064a794",
+      "branch": "main",
+      "license": "MIT",
+      "capacitorCore": "^8.4.0",
+      "category": "ai-client",
+      "packageManager": "npm"
+    },
+    {
+      "repository": "capawesome-team/capacitor-plugin-demo",
+      "commit": "855613b3ed357800679c54bfe5ddc800015dadfd",
+      "branch": "main",
+      "license": "MIT",
+      "capacitorCore": "^8.1.0",
+      "category": "plugin-showcase",
+      "packageManager": "npm"
+    },
+    {
+      "repository": "capawesome-team/capacitor-firebase-plugin-demo",
+      "commit": "a7af49d1f2b0e24422cba29a820518fd6e280d76",
+      "branch": "main",
+      "license": "MIT",
+      "capacitorCore": "8.1.0",
+      "category": "firebase-showcase",
+      "packageManager": "npm"
+    },
+    {
+      "repository": "DHBW-VS/app",
+      "commit": "dac7f3fd762c226cae28f992660b096384ef05c2",
+      "branch": "main",
+      "license": "MIT",
+      "capacitorCore": "8.2.0",
+      "category": "education",
+      "packageManager": "npm"
+    },
+    {
+      "repository": "bmpenuelas/opencode-mobile-client",
+      "commit": "0ffb20ed191c79aab7e84e572b58a0f4f903170c",
+      "branch": "main",
+      "license": "MIT",
+      "capacitorCore": "^8.4.0",
+      "category": "developer-tool",
+      "packageManager": "npm"
+    },
+    {
+      "repository": "ionic-team/oakline-bank-showcase",
+      "commit": "856e8d0fcbebde8a43e697d91f87d3c5a9d2acfa",
+      "branch": "main",
+      "license": "MIT",
+      "capacitorCore": "8.2.0",
+      "category": "banking-showcase",
+      "packageManager": "npm"
+    },
+    {
+      "repository": "silo/familyhub",
+      "commit": "ed779ff80a5496426a62a47a6a9656e05607c3fb",
+      "branch": "main",
+      "license": "MIT",
+      "capacitorCore": "^8.0.0",
+      "category": "household-dashboard",
+      "packageManager": "npm",
+      "entry": "app/app.vue"
+    },
+    {
+      "repository": "xprivo/ai-chat",
+      "commit": "4fe8362a0078a9c515975017cc7c6216efb96b88",
+      "branch": "main",
+      "license": "AGPL-3.0",
+      "capacitorCore": "^8.0.0",
+      "category": "privacy-ai-client",
+      "packageManager": "npm"
+    },
+    {
+      "repository": "aubergine-ux/Kivi-Notes",
+      "commit": "673295466dd5b5ac350687d3be7d42c0ef19cab8",
+      "branch": "main",
+      "license": "GPL-3.0",
+      "capacitorCore": "^8.4.1",
+      "category": "notes",
+      "packageManager": "npm",
+      "staticHtml": "www/index.html"
+    },
+    {
+      "repository": "sKuhLight/Axis",
+      "commit": "6b87bd2472fd88854421fda0dd1d2d7a02d2dd19",
+      "branch": "main",
+      "license": "MIT",
+      "capacitorCore": "8.4.1",
+      "category": "utility",
+      "packageManager": "npm",
+      "entry": "src/routes/+layout.ts"
+    },
+    {
+      "repository": "mapersmusic/BypassNote",
+      "commit": "ec19886320ef703f825e4249c7532f18afde0e55",
+      "branch": "main",
+      "license": "MIT",
+      "capacitorCore": "^8.4.1",
+      "category": "music-productivity",
+      "packageManager": "npm",
+      "staticHtml": "www/BypassNote.html"
+    },
+    {
+      "repository": "abuzucom/time-chime",
+      "commit": "2b658b2a1be2c14eed412f9887e0bee950cc7281",
+      "branch": "main",
+      "license": "MIT",
+      "capacitorCore": "8.4.1",
+      "category": "background-audio",
+      "packageManager": "npm",
+      "entry": "src/routes/__root.tsx"
+    },
+    {
+      "repository": "actually-useful-ai/geepers-chat-demo",
+      "commit": "92028661ba7bc24c01251474be6377def1506e70",
+      "branch": "master",
+      "license": "MIT",
+      "capacitorCore": "^8.4.1",
+      "category": "ai-chat",
+      "packageManager": "npm",
+      "entry": "client/src/main.tsx"
+    },
+    {
+      "repository": "baocommunity/freedom-id",
+      "commit": "a14c260ff1a5377e7bf277194baaaf725d8c03cb",
+      "branch": "main",
+      "license": "MIT",
+      "capacitorCore": "^8.4.0",
+      "category": "identity",
+      "packageManager": "pnpm"
+    },
+    {
+      "repository": "matthew-kissinger/falling-sand-alchemy",
+      "commit": "d44f1cbef521dfc7e875a83ea27261030b319077",
+      "branch": "main",
+      "license": "MIT",
+      "capacitorCore": "^8.4.0",
+      "category": "canvas-game",
+      "packageManager": "npm"
+    },
+    {
+      "repository": "mvh2005/Aqua_Tracker",
+      "commit": "dab86cd545327c196e4eea5edcc522ae3f402b2c",
+      "branch": "main",
+      "license": "MIT",
+      "capacitorCore": "^8.4.1",
+      "category": "health-tracker",
+      "packageManager": "npm"
+    },
+    {
+      "repository": "frostcube/just-rss",
+      "commit": "01087c6c61399aeb5f96bd447c2c4afc793cd943",
+      "branch": "main",
+      "license": "AGPL-3.0",
+      "capacitorCore": "^8.0.0",
+      "category": "rss-reader",
+      "packageManager": "npm"
+    },
+    {
+      "repository": "boldtrn/graphhopper-maps-capacitor",
+      "commit": "40a75318f80e2ae6706bcf7a5ad29b63f0033a69",
+      "branch": "main",
+      "license": "Apache-2.0",
+      "capacitorCore": "8.3.0",
+      "category": "maps-navigation",
+      "packageManager": "npm",
+      "entry": "src/app.js"
+    },
+    {
+      "repository": "asachs01/beacon",
+      "commit": "55fe9dbea77bc46d51b1c4bb93f2f84997393e7f",
+      "branch": "main",
+      "license": "MIT",
+      "capacitorCore": "^8.3.0",
+      "category": "household-dashboard",
+      "packageManager": "npm"
+    },
+    {
+      "repository": "brittytino/podlink",
+      "commit": "958e171bee29668fb00724768e64faa906b1e12a",
+      "branch": "main",
+      "license": "MIT",
+      "capacitorCore": "^8.0.1",
+      "category": "social-accountability",
+      "packageManager": "npm"
+    }
+  ]
+}

@@ -1,0 +1,81 @@
+{
+  "name": "@ansight/capacitor",
+  "version": "1.0.2-preview.6",
+  "description": "Capacitor bridge for the Ansight mobile observability and remote inspection SDK.",
+  "main": "dist/plugin.cjs.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/esm/index.d.ts",
+  "unpkg": "dist/plugin.js",
+  "files": [
+    "android/src/main/",
+    "android/build.gradle",
+    "android/settings.gradle",
+    "dist/",
+    "ios/Sources",
+    "Package.swift",
+    "AnsightCapacitor.podspec"
+  ],
+  "author": "Ansight",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://github.com/ansight-ai/ansight-sdk",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ansight-ai/ansight-sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ansight-ai/ansight-sdk/issues"
+  },
+  "keywords": [
+    "ansight",
+    "capacitor",
+    "ios",
+    "android",
+    "observability",
+    "debugging"
+  ],
+  "scripts": {
+    "build": "npm run clean && tsc && rollup -c",
+    "clean": "rimraf ./dist",
+    "fmt": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "fmt:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
+    "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\"",
+    "test": "vitest run",
+    "verify": "npm run fmt:check && npm run lint && npm test && npm run build",
+    "prepublishOnly": "npm run verify"
+  },
+  "peerDependencies": {
+    "@capacitor/core": ">=8.0.0 <9.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/core": "^8.4.2",
+    "@capacitor/docgen": "^0.3.0",
+    "@eslint/js": "^9.32.0",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^16.0.1",
+    "@rollup/plugin-typescript": "^12.1.4",
+    "@types/node": "^24.1.0",
+    "eslint": "^9.32.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.6.2",
+    "rimraf": "^6.0.1",
+    "rollup": "^4.46.2",
+    "typescript": "~5.9.2",
+    "typescript-eslint": "^8.38.0",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    },
+    "android": {
+      "src": "android"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

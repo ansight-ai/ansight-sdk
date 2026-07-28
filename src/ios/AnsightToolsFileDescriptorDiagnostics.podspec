@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name         = "AnsightToolsFileDescriptorDiagnostics"
-  s.version      = "1.0.2-preview.4"
+  s.version      = "1.0.2-preview.6"
   s.summary      = "Ansight file descriptor diagnostic remote tools for native iOS apps"
   s.homepage     = "https://github.com/ansight-ai/ansight-sdk"
   s.license      = { :type => "Ansight SDK Source-Available License", :file => "LICENSE" }

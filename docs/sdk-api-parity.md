@@ -1,36 +1,42 @@
 # Ansight SDK API Parity
 
 This guide is the cross-SDK reference for public Ansight runtime APIs. The .NET
-SDK remains the naming and behavior baseline; Android, iOS, and React Native
-should expose the same concepts with platform-native conventions.
+SDK remains the naming and behavior baseline; Android, iOS, React Native,
+Capacitor, and Flutter should expose the same concepts with platform-native
+conventions.
 
 See [Current Feature Catalog](features.md) for a higher-level availability
 matrix, including framework-specific and .NET-only workflows.
 
 ## Package Map
 
-| Capability | .NET | Android | iOS | React Native |
-| --- | --- | --- | --- | --- |
-| Core runtime | `Ansight.Core` | `ai.ansight:ansight-core-android` | `AnsightCore` | Native dependency |
-| All-in-one runtime | `Ansight` | `ai.ansight:ansight-android` | `Ansight` | `@ansight/react-native` |
-| Pairing UI | `Ansight.Pairing` | `ai.ansight:ansight-pairing-android` | `AnsightPairingQR` | App-owned payload flow |
-| App artifact providers | `Ansight.Core` | `ai.ansight:ansight-core-android` | `AnsightCore` | JavaScript plus native bridge |
-| Visual tree tools | `Ansight.Tools.VisualTree` | `ai.ansight:ansight-tools-visualtree-android` | `AnsightToolsVisualTree` | Native tools plus React tools |
-| File tools | `Ansight.Tools.FileSystem` | `ai.ansight:ansight-tools-filesystem-android` | `AnsightToolsFileSystem` | Native bridge |
-| File descriptor diagnostics | — | `ai.ansight:ansight-tools-filedescriptordiagnostics-android` | `AnsightToolsFileDescriptorDiagnostics` | Native aggregate defaults |
-| Preferences tools | `Ansight.Tools.Preferences` | `ai.ansight:ansight-tools-preferences-android` | `AnsightToolsPreferences` | Native bridge |
-| Secure storage tools | `Ansight.Tools.SecureStorage` | `ai.ansight:ansight-tools-securestorage-android` | `AnsightToolsSecureStorage` | Native bridge |
-| Database tools | `Ansight.Tools.Database` | `ai.ansight:ansight-tools-database-android` | `AnsightToolsDatabase` | Native bridge |
-| Reflection tools | `Ansight.Tools.Reflection` | `ai.ansight:ansight-tools-reflection-android` | `AnsightToolsReflection` | Native bridge |
-| MAUI integration | `Ansight.Maui` | — | — | — |
-| MAUI tools | `Ansight.Tools.Maui` | — | — | — |
-| Annotated feedback | `Ansight.Annotations` | — | — | — |
-| Offline capture | `Ansight.OfflineCapture` | — | — | — |
-| Objective-C facade | — | — | `AnsightObjC` | Used by the iOS bridge |
-| React inspection tools | — | — | — | `@ansight/react-native` |
+| Capability | .NET | Android | iOS | React Native | Capacitor |
+| --- | --- | --- | --- | --- | --- |
+| Core runtime | `Ansight.Core` | `ai.ansight:ansight-core-android` | `AnsightCore` | Native dependency | Native dependency |
+| All-in-one runtime | `Ansight` | `ai.ansight:ansight-android` | `Ansight` | `@ansight/react-native` | `@ansight/capacitor` |
+| Pairing UI | `Ansight.Pairing` | `ai.ansight:ansight-pairing-android` | `AnsightPairingQR` | App-owned payload flow | App-owned payload flow |
+| App artifact providers | `Ansight.Core` | `ai.ansight:ansight-core-android` | `AnsightCore` | JavaScript plus native bridge | JavaScript plus native bridge |
+| Visual tree tools | `Ansight.Tools.VisualTree` | `ai.ansight:ansight-tools-visualtree-android` | `AnsightToolsVisualTree` | Native tools plus React tools | Native tools plus DOM tools |
+| File tools | `Ansight.Tools.FileSystem` | `ai.ansight:ansight-tools-filesystem-android` | `AnsightToolsFileSystem` | Native bridge | Native bridge |
+| File descriptor diagnostics | — | `ai.ansight:ansight-tools-filedescriptordiagnostics-android` | `AnsightToolsFileDescriptorDiagnostics` | Native aggregate defaults | Native aggregate defaults |
+| Preferences tools | `Ansight.Tools.Preferences` | `ai.ansight:ansight-tools-preferences-android` | `AnsightToolsPreferences` | Native bridge | Native bridge |
+| Secure storage tools | `Ansight.Tools.SecureStorage` | `ai.ansight:ansight-tools-securestorage-android` | `AnsightToolsSecureStorage` | Native bridge | Native bridge |
+| Database tools | `Ansight.Tools.Database` | `ai.ansight:ansight-tools-database-android` | `AnsightToolsDatabase` | Native bridge | Native bridge |
+| Reflection tools | `Ansight.Tools.Reflection` | `ai.ansight:ansight-tools-reflection-android` | `AnsightToolsReflection` | Native bridge | Native bridge |
+| MAUI integration | `Ansight.Maui` | — | — | — | — |
+| MAUI tools | `Ansight.Tools.Maui` | — | — | — | — |
+| Annotated feedback | `Ansight.Annotations` | — | — | — | — |
+| Offline capture | `Ansight.OfflineCapture` | — | — | — | — |
+| Objective-C facade | — | — | `AnsightObjC` | Used by the iOS bridge | Used by the iOS bridge |
+| React inspection tools | — | — | — | `@ansight/react-native` | — |
 
 The file-descriptor suite is currently native-only; there is no
 `Ansight.Tools.FileDescriptorDiagnostics` NuGet package in this repository.
+
+Flutter applications use the `ansight_flutter` package. It consumes the
+`Ansight` iOS product and `ai.ansight:ansight-android` artifact through its
+native plugin bridges, while Dart APIs provide framework instrumentation,
+custom tools, and artifact providers.
 React Native receives the suite through the native aggregate defaults but does
 not currently expose suite-specific JavaScript options.
 
@@ -139,6 +145,51 @@ await Ansight.initializeAndActivate({
 
 await Ansight.connect(null, { clientName: "React Native App" });
 ```
+
+Capacitor:
+
+```ts
+import Ansight from "@ansight/capacitor";
+
+await Ansight.initializeAndActivate(
+  Ansight.createOptionsBuilder()
+    .withAnsightDefaults()
+    .withReadOnlyToolAccess()
+    .withDomTools()
+    .withErrorCapture()
+    .build(),
+);
+
+await Ansight.connect(null, { clientName: "Capacitor App" });
+```
+
+The Capacitor facade intentionally follows the React Native camel-case runtime
+API shown in the maps below, while adding `dom.*` WebView tools and a fluent
+options builder.
+
+Flutter:
+
+```dart
+import 'package:ansight_flutter/ansight.dart';
+import 'package:flutter/widgets.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Ansight.instance.initializeAndActivate(
+    AnsightOptions.developer(
+      clientName: 'Flutter App',
+      toolGuard: AnsightToolGuard.readOnly,
+    ),
+  );
+  await AnsightFlutterInstrumentation.instance.install();
+  runApp(const App());
+}
+```
+
+The `ansight_flutter` package bridges the Android and iOS runtimes and adds
+Flutter lifecycle, frame, error, navigation, Dart tool/artifact, and widget
+inspection support. Its `Ansight.instance` methods follow the same concepts in
+the maps below with idiomatic Dart naming.
 
 ## Runtime API Map
 
@@ -343,6 +394,9 @@ the `artifact_*` error codes documented in
 | React component/shadow tree and actions | React Native | `installReactTools(...)` |
 | React Navigation screen tracking | React Native | `createReactNavigationTracker(...)` |
 | JavaScript unhandled-error capture | React Native | `installErrorHandlers(...)` |
+| Flutter widget-tree inspection and actions | Flutter | `AnsightFlutterInstrumentation.instance.install()` |
+| Flutter route and screen-view tracking | Flutter | `AnsightNavigatorObserver` |
+| Flutter errors, frame timing, and lifecycle capture | Flutter | `AnsightFlutterInstrumentation.instance.install()` |
 
 `Ansight` and `Ansight.Maui` reference the annotations and offline-capture
 packages, but do not automatically start either workflow. Annotated feedback
@@ -410,6 +464,22 @@ const registration = Ansight.registerTool(
 await registration.ready;
 ```
 
+Flutter:
+
+```dart
+final registration = await Ansight.instance.registerTool(
+  const AnsightToolDefinition(
+    id: 'app.state.snapshot',
+    name: 'State Snapshot',
+    category: 'app',
+    scope: AnsightToolScope.read,
+  ),
+  (arguments, context) async => const AnsightToolResult.success(
+    result: <String, Object?>{'state': 'ready'},
+  ),
+);
+```
+
 ## Client Logs
 
 `sendClientLog` sends a line of app-provided text over the active live session.
@@ -435,6 +505,12 @@ iOS example:
 await AnsightRuntime.shared.sendClientLog("Checkout loaded cartId=debug-42")
 ```
 
+Flutter example:
+
+```dart
+await Ansight.instance.sendClientLog('Checkout loaded cartId=debug-42');
+```
+
 ## Validation Commands
 
 Run these checks after changing SDK API docs or examples:
@@ -448,6 +524,11 @@ swift test
 
 cd /Users/matthewrobbins/Development/git/ansight-sdk/src/react-native
 npm run check
+
+cd /Users/matthewrobbins/Development/git/ansight-sdk/src/flutter
+flutter analyze
+flutter test
+dart pub publish --dry-run
 ```
 
 For broader corpus validation, use:
@@ -455,4 +536,5 @@ For broader corpus validation, use:
 ```bash
 python /Users/matthewrobbins/Development/git/ansight-sdk/scripts/validate_android_test_apps.py --help
 python /Users/matthewrobbins/Development/git/ansight-sdk/scripts/validate_ios_test_apps.py --help
+dart run /Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/tool/flutter_corpus.dart --help
 ```

@@ -3,6 +3,9 @@ import Foundation
 #if canImport(UIKit)
 import ImageIO
 import UIKit
+#if canImport(WebKit)
+import WebKit
+#endif
 #endif
 
 public enum AnsightScreenSnapshotRenderer {
@@ -17,8 +20,35 @@ public enum AnsightScreenSnapshotRenderer {
         let renderedImage = try renderTargetImage(
             maxWidth: maxWidth,
             afterScreenUpdates: afterScreenUpdates,
-            opaque: format == .jpeg,
+            // Keep the intermediate bitmap transparent even for JPEG output.
+            // On physical devices, an opaque UIGraphicsImageRenderer can make
+            // drawHierarchy omit CAMetalLayer content such as Flutter/Impeller.
+            // ImageIO removes the alpha channel when the bitmap is encoded.
+            opaque: false,
             renderMode: .hierarchy
+        )
+        let data = try encode(renderedImage, format: format, quality: quality)
+        return AnsightScreenSnapshot(width: renderedImage.width, height: renderedImage.height, data: data)
+        #else
+        throw AnsightScreenCaptureError.unavailable
+        #endif
+    }
+
+    @MainActor
+    public static func captureIncludingGpuBackedSurfaces(
+        format: AnsightScreenSnapshotFormat = .jpeg,
+        quality: Int = AnsightSessionJpegCaptureOptions.defaultQuality,
+        maxWidth: Int? = AnsightSessionJpegCaptureOptions.defaultMaxWidth,
+        afterScreenUpdates: Bool = true
+    ) async throws -> AnsightScreenSnapshot {
+        #if canImport(UIKit)
+        let renderedImage = try await renderTargetImageForCapture(
+            maxWidth: maxWidth,
+            afterScreenUpdates: afterScreenUpdates,
+            // See capture(format:quality:maxWidth:afterScreenUpdates:).
+            opaque: false,
+            renderMode: .hierarchy,
+            captureGpuBackedSurfaces: true
         )
         let data = try encode(renderedImage, format: format, quality: quality)
         return AnsightScreenSnapshot(width: renderedImage.width, height: renderedImage.height, data: data)
@@ -47,6 +77,36 @@ public enum AnsightScreenSnapshotRenderer {
         }
 
         return AnsightRenderedScreenImage(cgImage: cgImage, width: cgImage.width, height: cgImage.height)
+    }
+
+    @MainActor
+    static func renderTargetImageForCapture(
+        maxWidth: Int?,
+        afterScreenUpdates: Bool,
+        opaque: Bool,
+        renderMode: AnsightScreenSnapshotRenderMode = .hierarchy,
+        captureGpuBackedSurfaces: Bool
+    ) async throws -> AnsightRenderedScreenImage {
+        let renderedImage = try renderTargetImage(
+            maxWidth: maxWidth,
+            afterScreenUpdates: afterScreenUpdates,
+            opaque: opaque,
+            renderMode: renderMode
+        )
+
+        guard captureGpuBackedSurfaces else {
+            return renderedImage
+        }
+
+        #if canImport(WebKit)
+        return try await compositeWebViewSnapshots(
+            over: renderedImage,
+            maxWidth: maxWidth,
+            opaque: opaque
+        )
+        #else
+        return renderedImage
+        #endif
     }
 
     static func encode(
@@ -114,6 +174,106 @@ public enum AnsightScreenSnapshotRenderer {
             opaque: opaque
         )
     }
+
+    #if canImport(WebKit)
+    @MainActor
+    private static func compositeWebViewSnapshots(
+        over renderedImage: AnsightRenderedScreenImage,
+        maxWidth: Int?,
+        opaque: Bool
+    ) async throws -> AnsightRenderedScreenImage {
+        let windows = foregroundWindows()
+        guard let referenceWindow = referenceWindow(from: windows) else {
+            return renderedImage
+        }
+
+        let geometry = renderGeometry(for: referenceWindow, maxWidth: maxWidth)
+        var snapshots: [WebViewSnapshot] = []
+
+        for window in windows where window.screen === referenceWindow.screen {
+            for webView in visibleWebViews(in: window) {
+                let frame = webView.convert(webView.bounds, to: referenceWindow)
+                guard frame.width > 0,
+                      frame.height > 0,
+                      frame.intersects(referenceWindow.bounds),
+                      let image = await snapshot(webView: webView)
+                else {
+                    continue
+                }
+
+                snapshots.append(WebViewSnapshot(frame: frame, image: image))
+            }
+        }
+
+        guard !snapshots.isEmpty else {
+            return renderedImage
+        }
+
+        let outputBounds = CGRect(origin: .zero, size: geometry.targetSize)
+        let format = rendererFormat(opaque: opaque)
+        let image = imageRenderer(size: geometry.targetSize, format: format).image { _ in
+            UIImage(cgImage: renderedImage.cgImage).draw(in: outputBounds)
+            for snapshot in snapshots {
+                snapshot.image.draw(
+                    in: CGRect(
+                        x: snapshot.frame.origin.x * geometry.scaleX,
+                        y: snapshot.frame.origin.y * geometry.scaleY,
+                        width: snapshot.frame.width * geometry.scaleX,
+                        height: snapshot.frame.height * geometry.scaleY
+                    )
+                )
+            }
+        }
+
+        guard let cgImage = image.cgImage else {
+            return renderedImage
+        }
+
+        return AnsightRenderedScreenImage(cgImage: cgImage, width: cgImage.width, height: cgImage.height)
+    }
+
+    @MainActor
+    private static func visibleWebViews(in rootView: UIView) -> [WKWebView] {
+        var webViews: [WKWebView] = []
+
+        func visit(_ view: UIView, ancestorsVisible: Bool) {
+            let isVisible = ancestorsVisible
+                && !view.isHidden
+                && view.alpha > 0.01
+                && view.bounds.width > 0
+                && view.bounds.height > 0
+
+            guard isVisible else {
+                return
+            }
+
+            if let webView = view as? WKWebView {
+                webViews.append(webView)
+                return
+            }
+
+            for subview in view.subviews {
+                visit(subview, ancestorsVisible: isVisible)
+            }
+        }
+
+        visit(rootView, ancestorsVisible: true)
+        return webViews
+    }
+
+    @MainActor
+    private static func snapshot(webView: WKWebView) async -> UIImage? {
+        let configuration = WKSnapshotConfiguration()
+        configuration.rect = webView.bounds
+        configuration.afterScreenUpdates = true
+
+        return await withCheckedContinuation { continuation in
+            webView.takeSnapshot(with: configuration) { image, _ in
+                continuation.resume(returning: image)
+            }
+        }
+    }
+    #endif
 
     @MainActor
     private static func renderScreenSnapshot(
@@ -326,6 +486,13 @@ public enum AnsightScreenSnapshotRenderer {
             self.width == width && self.height == height && self.opaque == opaque
         }
     }
+
+    #if canImport(WebKit)
+    private struct WebViewSnapshot {
+        let frame: CGRect
+        let image: UIImage
+    }
+    #endif
     #endif
 }
 

@@ -9,14 +9,18 @@ enum AnsightScreenCapture {
         #if canImport(UIKit)
         let capturedAtUtc = AnsightClock.isoNow()
         let renderStarted = AnsightTiming.now()
-        let renderedImage = try await MainActor.run {
-            try AnsightScreenSnapshotRenderer.renderTargetImage(
-                maxWidth: options.maxWidth,
-                afterScreenUpdates: false,
-                opaque: true,
-                renderMode: options.captureGpuBackedSurfaces ? .hierarchy : .layer
-            )
-        }
+        let renderedImage = try await AnsightScreenSnapshotRenderer.renderTargetImageForCapture(
+            maxWidth: options.maxWidth,
+            // WKWebView content is composited out-of-process. On physical
+            // devices, drawing before the pending screen transaction is
+            // committed produces a valid but entirely black image.
+            afterScreenUpdates: options.captureGpuBackedSurfaces,
+            // Flutter's CAMetalLayer is omitted by drawHierarchy when the
+            // intermediate UIGraphicsImageRenderer is marked opaque.
+            opaque: false,
+            renderMode: options.captureGpuBackedSurfaces ? .hierarchy : .layer,
+            captureGpuBackedSurfaces: options.captureGpuBackedSurfaces
+        )
         let renderMilliseconds = AnsightTiming.elapsedMilliseconds(since: renderStarted)
 
         let encodeStarted = AnsightTiming.now()

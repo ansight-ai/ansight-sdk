@@ -1,0 +1,34 @@
+{
+  "name": "ansight-capacitor-harness",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "native:init": "node scripts/bootstrap-native.mjs",
+    "sync": "npm run build && npm run native:init && cap sync",
+    "open:android": "npm run sync && cap open android",
+    "open:ios": "npm run sync && cap open ios",
+    "run:android": "npm run sync && cap run android",
+    "run:ios": "npm run sync && cap run ios"
+  },
+  "dependencies": {
+    "@ansight/capacitor": "file:..",
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/core": "^8.4.2",
+    "@capacitor/filesystem": "^8.1.2",
+    "@capacitor/ios": "^8.4.2",
+    "@capacitor/preferences": "^8.0.1",
+    "sql.js": "^1.14.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.4.2",
+    "@types/sql.js": "^1.4.11",
+    "typescript": "~5.9.2",
+    "vite": "^7.0.6"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

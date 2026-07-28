@@ -1,0 +1,33 @@
+{
+  "originHash" : "a23ad96d52c85a60dba085b0324eac87ba7688167aaa3aec654fb8b49e27058d",
+  "pins" : [
+    {
+      "identity" : "ansight-sdk",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ansight-ai/ansight-sdk.git",
+      "state" : {
+        "revision" : "2b37933a0a7686ce6e43c8ea4bf5a293b6d5ecd7",
+        "version" : "1.0.2-preview.4"
+      }
+    },
+    {
+      "identity" : "capacitor-swift-pm",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ionic-team/capacitor-swift-pm.git",
+      "state" : {
+        "revision" : "9b9fb0af76b2b653f6e9b999f658adc132b9ab4c",
+        "version" : "8.4.2"
+      }
+    },
+    {
+      "identity" : "ion-ios-filesystem",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ionic-team/ion-ios-filesystem.git",
+      "state" : {
+        "revision" : "0d81e26e828ff9582807e2339112cedf2e0fab85",
+        "version" : "1.1.2"
+      }
+    }
+  ],
+  "version" : 3
+}

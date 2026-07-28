@@ -1,0 +1,200 @@
+Ansight SDK Source-Available License
+Version 1.0
+
+Copyright (c) 2026 Ansight, Inc. All rights reserved.
+
+This license governs the Ansight SDK and associated source code, documentation,
+examples, build files, binaries, and other materials made available with it
+(the "SDK").
+
+The SDK is source-available software. It is not open-source software.
+
+By downloading, installing, copying, modifying, distributing, or using the SDK,
+you accept this license. If you do not accept this license, you may not use the
+SDK.
+
+1. Purpose
+
+Ansight makes the SDK source available so developers, customers, researchers,
+and security reviewers can inspect how the SDK works, evaluate its security,
+debug integrations, report issues, and propose improvements.
+
+Except for the rights expressly granted below, Ansight reserves all rights.
+
+2. Definitions
+
+"Ansight Services" means services, APIs, systems, products, accounts,
+infrastructure, software, development tools, test endpoints, sandbox
+environments, local tools, or other components operated by, provided by,
+authorized by, or on behalf of Ansight, Inc. or its affiliates. This includes
+Ansight-hosted services, Ansight Studio, Ansight APIs, Ansight-issued accounts
+or API keys, and any service or component expressly authorized by Ansight in
+writing.
+
+"Non-Ansight Services" means any service, API, backend, product, infrastructure,
+system, software, or component that is not an Ansight Service.
+
+"Application" means software developed by you that incorporates, links to, or
+uses the SDK.
+
+3. Permitted Uses
+
+Subject to this license, you may:
+
+(a) read, inspect, and analyze the SDK source code;
+
+(b) copy and build the SDK for evaluation, testing, debugging, security review,
+and development of Applications that use Ansight Services;
+
+(c) modify the SDK for your own internal development, testing, debugging,
+security review, or use with Ansight Services;
+
+(d) use and distribute the SDK, including in source, compiled, or object-code
+form, only as part of an Application that connects to or interoperates with
+Ansight Services;
+
+(e) distribute Applications containing the SDK through app stores, package
+managers, enterprise distribution systems, mobile device management systems,
+continuous integration systems, TestFlight, Google Play testing tracks, or
+similar software distribution channels, provided the SDK is used only with
+Ansight Services;
+
+(f) share bug reports, vulnerability reports, patches, pull requests, and other
+proposed improvements with Ansight; and
+
+(g) make public forks or copies of the SDK solely for review, discussion,
+security research, issue reporting, or contribution back to Ansight, provided
+that this license and all copyright, trademark, attribution, and other notices
+remain intact.
+
+4. Restrictions
+
+You may not:
+
+(a) use the SDK with, connect the SDK to, or adapt the SDK for any Non-Ansight
+Services;
+
+(b) use the SDK to develop, operate, enable, or support any service or product
+that replaces, proxies, emulates, competes with, or avoids the need for Ansight
+Services;
+
+(c) sell, sublicense, rent, lease, host, or provide the SDK as a standalone
+product, SDK-as-a-service, managed service, hosted service, or competing SDK
+distribution;
+
+(d) remove, obscure, or alter any copyright, license, trademark, attribution,
+security, telemetry, pairing, provenance, or service-association notices in the
+SDK;
+
+(e) circumvent license checks, authentication, pairing, service association,
+security controls, or technical measures in the SDK or Ansight Services;
+
+(f) use Ansight names, logos, or trademarks except as necessary to accurately
+identify the SDK or Ansight Services;
+
+(g) use the SDK in violation of applicable law, regulation, sanctions,
+export-control rules, privacy rules, app-store policies, or third-party rights;
+or
+
+(h) grant any rights in the SDK to others beyond the rights expressly permitted
+by this license.
+
+5. Contributions
+
+If you submit a patch, pull request, issue comment, vulnerability report, code,
+documentation, suggestion, or other contribution to Ansight relating to the SDK,
+you grant Ansight a perpetual, worldwide, irrevocable, sublicensable,
+transferable, royalty-free license to use, reproduce, modify, distribute,
+perform, display, commercialize, and otherwise exploit that contribution for any
+purpose.
+
+You represent that you have the right to grant this license for your
+contribution.
+
+To the extent permitted by law, you waive and agree not to assert moral rights
+in your contribution against Ansight, its affiliates, its customers, or its
+users.
+
+6. Security Research
+
+Ansight welcomes good-faith security review of the SDK. You may inspect, test,
+and analyze the SDK for security issues and disclose suspected vulnerabilities
+to Ansight through the security reporting process published by Ansight.
+
+This license does not authorize access to systems, services, accounts, devices,
+networks, data, or infrastructure without permission. It does not authorize
+disruption, degradation, data exfiltration, privacy violations, or activity that
+would harm Ansight, its customers, or third parties.
+
+7. Separate Agreements
+
+If you have a separate written agreement with Ansight governing your use of the
+SDK, that agreement controls to the extent of any conflict with this license.
+
+8. Third-Party Software
+
+The SDK may include or depend on third-party software, libraries, tools, or
+materials. Those components are licensed under their own terms. This license
+applies only to the SDK materials provided by Ansight.
+
+9. No Support Obligation
+
+Ansight has no obligation under this license to provide support, maintenance,
+updates, hosted services, compatibility fixes, security fixes, or other
+assistance for the SDK.
+
+10. Trademarks
+
+No trademark rights are granted under this license. You may use Ansight names
+only as necessary to accurately identify the SDK or Ansight Services, and only
+in a way that does not imply endorsement, sponsorship, or affiliation except as
+expressly authorized by Ansight.
+
+11. Termination
+
+If you violate this license, your rights under it terminate automatically. Upon
+termination, you must stop using, copying, modifying, and distributing the SDK.
+
+Sections 4 through 18 survive termination.
+
+12. No Warranty
+
+The SDK is provided "as is" and "as available", without warranties or conditions
+of any kind, whether express, implied, statutory, or otherwise, including
+warranties of merchantability, fitness for a particular purpose, title,
+non-infringement, security, accuracy, availability, or error-free operation.
+
+13. Limitation of Liability
+
+To the maximum extent permitted by law, Ansight will not be liable for any
+indirect, incidental, special, consequential, exemplary, or punitive damages, or
+for lost profits, lost revenues, lost data, loss of goodwill, business
+interruption, security incidents, or service interruption, arising out of or
+relating to the SDK or this license.
+
+14. Assignment
+
+You may not assign or transfer this license without Ansight's prior written
+consent. Ansight may assign or transfer this license without restriction.
+
+15. Waiver
+
+Failure by Ansight to enforce any provision of this license does not waive its
+right to enforce that provision or any other provision later.
+
+16. Severability
+
+If any provision of this license is found unenforceable, the remaining
+provisions remain in effect, and the unenforceable provision will be interpreted
+to the maximum extent permitted by law.
+
+17. Entire Agreement
+
+This license is the entire agreement between you and Ansight regarding the SDK,
+except to the extent you have a separate written agreement with Ansight that
+controls under Section 7.
+
+18. No Other Rights
+
+No rights are granted except as expressly stated in this license. All rights not
+expressly granted are reserved by Ansight.

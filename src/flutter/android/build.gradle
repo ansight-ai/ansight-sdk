@@ -1,0 +1,101 @@
+group = "ai.ansight"
+version = "1.0.2-preview.6"
+
+buildscript {
+    ext.kotlin_version = "1.8.22"
+
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+apply plugin: "com.android.library"
+
+def androidGradlePluginMajor =
+        com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION.tokenize(".")[0].toInteger()
+def usesBuiltInKotlin = androidGradlePluginMajor >= 9 &&
+        providers.gradleProperty("android.builtInKotlin")
+                .map { it.toBoolean() }
+                .orElse(true)
+                .get()
+if (!usesBuiltInKotlin) {
+    apply plugin: "kotlin-android"
+}
+
+android {
+    namespace "ai.ansight.flutter"
+    compileSdkVersion 34
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    if (!usesBuiltInKotlin) {
+        kotlinOptions {
+            jvmTarget = "1.8"
+        }
+    }
+
+    sourceSets {
+        main {
+            if (!usesBuiltInKotlin) {
+                java.srcDirs += "src/main/kotlin"
+            } else {
+                kotlin.srcDirs += "src/main/kotlin"
+            }
+        }
+        test {
+            if (!usesBuiltInKotlin) {
+                java.srcDirs += "src/test/kotlin"
+            } else {
+                kotlin.srcDirs += "src/test/kotlin"
+            }
+        }
+    }
+
+    defaultConfig {
+        minSdkVersion 24
+    }
+
+    testOptions {
+        unitTests {
+            includeAndroidResources = true
+
+            all {
+                useJUnitPlatform()
+                outputs.upToDateWhen { false }
+                testLogging {
+                    events "passed", "skipped", "failed", "standardOut", "standardError"
+                    showStandardStreams = true
+                }
+            }
+        }
+    }
+}
+
+if (usesBuiltInKotlin) {
+    kotlin {
+        compilerOptions {
+            jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8
+        }
+    }
+}
+
+dependencies {
+    implementation "ai.ansight:ansight-android:1.0.2-preview.6"
+    testImplementation "org.jetbrains.kotlin:kotlin-test"
+    testImplementation "org.mockito:mockito-core:5.0.0"
+}

@@ -179,23 +179,35 @@ internal enum AnsightVisualTreeSupport {
     ) throws -> AnsightVisualTreeScreenshot {
         #if canImport(UIKit)
         do {
-            return try runOnMainActor {
-                let snapshotFormat: AnsightScreenSnapshotFormat = format == "jpeg" ? .jpeg : .png
-                let snapshot = try AnsightScreenSnapshotRenderer.capture(
-                    format: snapshotFormat,
-                    quality: quality,
-                    maxWidth: maxWidth,
-                    afterScreenUpdates: afterScreenUpdates
-                )
-
-                return AnsightVisualTreeScreenshot(
-                    format: format,
-                    width: snapshot.width,
-                    height: snapshot.height,
-                    data: snapshot.data,
-                    annotationApplied: false
-                )
+            let snapshotFormat: AnsightScreenSnapshotFormat = format == "jpeg" ? .jpeg : .png
+            let snapshot: AnsightScreenSnapshot
+            if afterScreenUpdates {
+                snapshot = try waitForMainActorCapture {
+                    try await AnsightScreenSnapshotRenderer.captureIncludingGpuBackedSurfaces(
+                        format: snapshotFormat,
+                        quality: quality,
+                        maxWidth: maxWidth,
+                        afterScreenUpdates: true
+                    )
+                }
+            } else {
+                snapshot = try runOnMainActor {
+                    try AnsightScreenSnapshotRenderer.capture(
+                        format: snapshotFormat,
+                        quality: quality,
+                        maxWidth: maxWidth,
+                        afterScreenUpdates: false
+                    )
+                }
             }
+
+            return AnsightVisualTreeScreenshot(
+                format: format,
+                width: snapshot.width,
+                height: snapshot.height,
+                data: snapshot.data,
+                annotationApplied: false
+            )
         } catch {
             throw AnsightVisualTreeToolError.unavailable(error.localizedDescription)
         }
@@ -217,6 +229,35 @@ internal enum AnsightVisualTreeSupport {
                 try action()
             }
         }
+    }
+
+    private static func waitForMainActorCapture(
+        _ action: @escaping @MainActor @Sendable () async throws -> AnsightScreenSnapshot
+    ) throws -> AnsightScreenSnapshot {
+        let resultBox = AnsightScreenSnapshotResultBox()
+        let semaphore = DispatchSemaphore(value: 0)
+
+        Task { @MainActor in
+            do {
+                resultBox.store(.success(try await action()))
+            } catch {
+                resultBox.store(.failure(error))
+            }
+            semaphore.signal()
+        }
+
+        if Thread.isMainThread {
+            while semaphore.wait(timeout: .now()) != .success {
+                RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.01))
+            }
+        } else {
+            semaphore.wait()
+        }
+
+        guard let result = resultBox.take() else {
+            throw AnsightVisualTreeToolError.unavailable("Screenshot capture did not produce a result.")
+        }
+        return try result.get()
     }
 
     @MainActor
@@ -358,3 +399,23 @@ internal enum AnsightVisualTreeSupport {
     }
     #endif
 }
+
+#if canImport(UIKit)
+private final class AnsightScreenSnapshotResultBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var result: Result<AnsightScreenSnapshot, Error>?
+
+    func store(_ result: Result<AnsightScreenSnapshot, Error>) {
+        lock.withLock {
+            self.result = result
+        }
+    }
+
+    func take() -> Result<AnsightScreenSnapshot, Error>? {
+        lock.withLock {
+            defer { result = nil }
+            return result
+        }
+    }
+}
+#endif

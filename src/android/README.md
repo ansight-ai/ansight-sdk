@@ -13,7 +13,7 @@ Use the all-in-one package for development builds:
 
 ```kotlin
 dependencies {
-    implementation("ai.ansight:ansight-android:1.0.2-preview.4")
+    implementation("ai.ansight:ansight-android:1.0.2-preview.6")
 }
 ```
 
@@ -21,10 +21,10 @@ Minimal integrations can depend on only the packages they need:
 
 ```kotlin
 dependencies {
-    implementation("ai.ansight:ansight-core-android:1.0.2-preview.4")
-    implementation("ai.ansight:ansight-pairing-android:1.0.2-preview.4")
-    implementation("ai.ansight:ansight-tools-filedescriptordiagnostics-android:1.0.2-preview.4")
-    implementation("ai.ansight:ansight-tools-visualtree-android:1.0.2-preview.4")
+    implementation("ai.ansight:ansight-core-android:1.0.2-preview.6")
+    implementation("ai.ansight:ansight-pairing-android:1.0.2-preview.6")
+    implementation("ai.ansight:ansight-tools-filedescriptordiagnostics-android:1.0.2-preview.6")
+    implementation("ai.ansight:ansight-tools-visualtree-android:1.0.2-preview.6")
 }
 ```
 

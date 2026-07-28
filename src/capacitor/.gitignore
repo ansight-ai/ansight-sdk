@@ -1,0 +1,10 @@
+android/.gradle/
+android/.kotlin/
+android/build/
+.build/
+.swiftpm/
+coverage/
+dist/
+example-app/ios/App/Build*/
+example-app/node_modules/
+node_modules/

@@ -12,6 +12,8 @@ skip_android=false
 skip_ios_swiftpm=false
 skip_ios_cocoapods=false
 skip_react_native=false
+skip_capacitor=false
+skip_flutter=false
 android_target=""
 
 usage() {
@@ -29,6 +31,8 @@ Options:
   --skip-ios-swiftpm
   --skip-ios-cocoapods
   --skip-react-native
+  --skip-capacitor
+  --skip-flutter
   --android-remote          Publish Android to ANSIGHT_MAVEN_URL
   --android-central         Publish Android through the Sonatype Central Portal
 
@@ -67,6 +71,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --skip-react-native)
       skip_react_native=true
+      shift
+      ;;
+    --skip-capacitor)
+      skip_capacitor=true
+      shift
+      ;;
+    --skip-flutter)
+      skip_flutter=true
       shift
       ;;
     --android-remote)
@@ -158,4 +170,23 @@ if [[ "${skip_react_native}" != "true" ]]; then
     rn_args+=(--publish)
   fi
   "${repo_root}/scripts/publish-react-native.sh" "${rn_args[@]+"${rn_args[@]}"}"
+fi
+
+if [[ "${skip_capacitor}" != "true" ]]; then
+  capacitor_args=()
+  if [[ "${publish}" == "true" ]]; then
+    capacitor_args+=(--publish)
+  fi
+  "${repo_root}/scripts/publish-capacitor.sh" "${capacitor_args[@]+"${capacitor_args[@]}"}"
+fi
+
+if [[ "${skip_flutter}" != "true" ]]; then
+  flutter_args=()
+  if [[ "${skip_tests}" == "true" ]]; then
+    flutter_args+=(--skip-tests)
+  fi
+  if [[ "${publish}" == "true" ]]; then
+    flutter_args+=(--publish)
+  fi
+  "${repo_root}/scripts/publish-flutter.sh" "${flutter_args[@]+"${flutter_args[@]}"}"
 fi

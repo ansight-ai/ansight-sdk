@@ -1,0 +1,93 @@
+PODS:
+  - Ansight (1.0.2-preview.4):
+    - AnsightCore (= 1.0.2-preview.4)
+    - AnsightPairingQR (= 1.0.2-preview.4)
+    - AnsightToolsDatabase (= 1.0.2-preview.4)
+    - AnsightToolsFileDescriptorDiagnostics (= 1.0.2-preview.4)
+    - AnsightToolsFileSystem (= 1.0.2-preview.4)
+    - AnsightToolsPreferences (= 1.0.2-preview.4)
+    - AnsightToolsReflection (= 1.0.2-preview.4)
+    - AnsightToolsSecureStorage (= 1.0.2-preview.4)
+    - AnsightToolsVisualTree (= 1.0.2-preview.4)
+  - ansight_flutter (1.0.2-preview.4):
+    - Ansight (= 1.0.2-preview.4)
+    - Flutter
+  - AnsightCore (1.0.2-preview.4)
+  - AnsightPairingQR (1.0.2-preview.4):
+    - AnsightCore (= 1.0.2-preview.4)
+  - AnsightToolsDatabase (1.0.2-preview.4):
+    - AnsightCore (= 1.0.2-preview.4)
+  - AnsightToolsFileDescriptorDiagnostics (1.0.2-preview.4):
+    - AnsightCore (= 1.0.2-preview.4)
+  - AnsightToolsFileSystem (1.0.2-preview.4):
+    - AnsightCore (= 1.0.2-preview.4)
+  - AnsightToolsPreferences (1.0.2-preview.4):
+    - AnsightCore (= 1.0.2-preview.4)
+  - AnsightToolsReflection (1.0.2-preview.4):
+    - AnsightCore (= 1.0.2-preview.4)
+  - AnsightToolsSecureStorage (1.0.2-preview.4):
+    - AnsightCore (= 1.0.2-preview.4)
+  - AnsightToolsVisualTree (1.0.2-preview.4):
+    - AnsightCore (= 1.0.2-preview.4)
+  - Flutter (1.0.0)
+  - integration_test (0.0.1):
+    - Flutter
+  - shared_preferences_foundation (0.0.1):
+    - Flutter
+    - FlutterMacOS
+  - sqflite_darwin (0.0.4):
+    - Flutter
+    - FlutterMacOS
+
+DEPENDENCIES:
+  - ansight_flutter (from `.symlinks/plugins/ansight_flutter/ios`)
+  - Flutter (from `Flutter`)
+  - integration_test (from `.symlinks/plugins/integration_test/ios`)
+  - shared_preferences_foundation (from `.symlinks/plugins/shared_preferences_foundation/darwin`)
+  - sqflite_darwin (from `.symlinks/plugins/sqflite_darwin/darwin`)
+
+SPEC REPOS:
+  trunk:
+    - Ansight
+    - AnsightCore
+    - AnsightPairingQR
+    - AnsightToolsDatabase
+    - AnsightToolsFileDescriptorDiagnostics
+    - AnsightToolsFileSystem
+    - AnsightToolsPreferences
+    - AnsightToolsReflection
+    - AnsightToolsSecureStorage
+    - AnsightToolsVisualTree
+
+EXTERNAL SOURCES:
+  ansight_flutter:
+    :path: ".symlinks/plugins/ansight_flutter/ios"
+  Flutter:
+    :path: Flutter
+  integration_test:
+    :path: ".symlinks/plugins/integration_test/ios"
+  shared_preferences_foundation:
+    :path: ".symlinks/plugins/shared_preferences_foundation/darwin"
+  sqflite_darwin:
+    :path: ".symlinks/plugins/sqflite_darwin/darwin"
+
+SPEC CHECKSUMS:
+  Ansight: dc4784f9e6e66e94067f5d3a1d9ce14bc3a6eb59
+  ansight_flutter: 41dc9dc4ffac34479837b94f48665397d3ba5995
+  AnsightCore: f0198b9ca4e2f3995f56ca97b672e932be52d85c
+  AnsightPairingQR: f5a9fd3dad6521b3ae884e97d23546eb4d58115e
+  AnsightToolsDatabase: 85229a1d8aceeb235dadd22e5d70ced49cf15daa
+  AnsightToolsFileDescriptorDiagnostics: 751b044c1ad9ffe54bd941dd2897f788be6768a0
+  AnsightToolsFileSystem: 70ee85f9889f137e5b8a89121ac489105636f4d3
+  AnsightToolsPreferences: 83b5626ad385a94498d543eef729bbd7e208e6c6
+  AnsightToolsReflection: a547cacbeb70a5424ab14d023872be42aab9c421
+  AnsightToolsSecureStorage: 36eb8083b833c93a4e5549a70cc6f75653ebbaaf
+  AnsightToolsVisualTree: 28e44f75342a2ba070afe5ed3f01bf3b8b2e49b0
+  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
+  shared_preferences_foundation: 7036424c3d8ec98dfe75ff1667cb0cd531ec82bb
+  sqflite_darwin: 20b2a3a3b70e43edae938624ce550a3cbf66a3d0
+
+PODFILE CHECKSUM: bd1410aefa6a11cd7a91579ef2fded3a0f0949f9
+
+COCOAPODS: 1.16.2
