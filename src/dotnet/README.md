@@ -68,6 +68,13 @@ encrypted export, annotation-bundle storage, and team upload.
 - all non-MAUI remote tools registered
 - full tool access enabled
 
+Cellular host connections remain disabled in every preset. To allow a personal
+hotspot or another cellular path, add `.WithCellularHostConnections()` to the
+options builder. The opt-in applies to bundled configs, QR scans, saved
+profiles, and manual connections. It can consume mobile data and broaden
+network exposure, so use it only with signed configs and a trusted development
+host.
+
 > **Important:** Screen capture will result in an FPS drop while frames are
 > captured, encoded, and transported. Disable session JPEG capture for
 > performance-focused runs unless visual evidence is required.

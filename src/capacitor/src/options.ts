@@ -256,6 +256,13 @@ export class AnsightOptionsBuilder implements AnsightOptionsBuilderApi {
     }));
   }
 
+  withCellularHostConnections(allow = true): this {
+    return this.configureHostConnection((current) => ({
+      ...current,
+      allowCellularConnections: allow,
+    }));
+  }
+
   withHostConnectionProfileRetentionSeconds(
     connectionProfileRetentionSeconds: number,
   ): this {

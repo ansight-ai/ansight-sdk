@@ -665,6 +665,11 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
                     defaultValue: options.hostConnection.connectionProfileRetentionSeconds
                 ),
                 discoveryPort: optionalInt(host, "discoveryPort") ?? options.hostConnection.discoveryPort,
+                allowCellularConnections: boolValue(
+                    host,
+                    "allowCellularConnections",
+                    defaultValue: options.hostConnection.allowCellularConnections
+                ),
                 bundledDeveloperConfigJson: stringValue(host, "bundledDeveloperConfigJson")
                     ?? options.hostConnection.bundledDeveloperConfigJson,
                 bundledConfigJson: stringValue(host, "bundledConfigJson")
@@ -865,6 +870,7 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
             "hostConnection": [
                 "savedConfigKey": options.hostConnection.savedConfigKey,
                 "connectionProfileRetentionSeconds": options.hostConnection.connectionProfileRetentionSeconds,
+                "allowCellularConnections": options.hostConnection.allowCellularConnections,
                 "hasBundledDeveloperConfigJson": options.hostConnection.bundledDeveloperConfigJson != nil,
                 "hasBundledConfigJson": options.hostConnection.bundledConfigJson != nil,
             ],

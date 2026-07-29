@@ -87,6 +87,21 @@ class FakeNativeTransport implements AnsightNativeTransport {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  test('cellular host connections are explicit and disabled by default', () {
+    expect(
+      const AnsightHostConnectionOptions().toJson()['allowCellularConnections'],
+      isFalse,
+    );
+
+    final options =
+        createOptionsBuilder().withCellularHostConnections().build();
+
+    expect(
+      options.toJson()['hostConnection'],
+      containsPair('allowCellularConnections', true),
+    );
+  });
+
   test('initializes and records typed telemetry', () async {
     final transport = FakeNativeTransport();
     final ansight = Ansight.withTransport(transport);

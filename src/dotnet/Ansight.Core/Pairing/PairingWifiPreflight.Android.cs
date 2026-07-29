@@ -43,7 +43,7 @@ internal static partial class PairingWifiPreflight
 
             if (capabilities.HasTransport(TransportType.Cellular))
             {
-                return PairingWifiPreflightStatus.NotConnected;
+                return PairingWifiPreflightStatus.Cellular;
             }
 
             return PairingWifiPreflightStatus.Unknown;
@@ -60,7 +60,7 @@ internal static partial class PairingWifiPreflight
         var status = activeNetworkInfo.Type switch
         {
             ConnectivityType.Wifi or ConnectivityType.Ethernet => PairingWifiPreflightStatus.Connected,
-            ConnectivityType.Mobile => PairingWifiPreflightStatus.NotConnected,
+            ConnectivityType.Mobile => PairingWifiPreflightStatus.Cellular,
             _ => PairingWifiPreflightStatus.Unknown
         };
 #pragma warning restore CA1422

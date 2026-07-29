@@ -398,6 +398,13 @@ class AnsightOptionsBuilder {
     }));
   }
 
+  withCellularHostConnections(allow = true) {
+    return this.configureHostConnection((hostConnection) => ({
+      ...hostConnection,
+      allowCellularConnections: allow,
+    }));
+  }
+
   withHostConnectionProfileRetentionSeconds(connectionProfileRetentionSeconds) {
     return this.configureHostConnection((hostConnection) => ({
       ...hostConnection,

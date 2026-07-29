@@ -114,6 +114,7 @@ export interface AnsightOptions {
     bundledConfigJson?: string;
     bundledDeveloperConfigJson?: string;
     discoveryPort?: number;
+    allowCellularConnections?: boolean;
     connectionProfileRetentionSeconds?: number;
   };
   secureStorage?: {
@@ -461,6 +462,7 @@ export interface AnsightOptionsBuilderApi {
     bundledConfigJson?: string;
   }): this;
   withHostConnectionDiscoveryPort(discoveryPort: number): this;
+  withCellularHostConnections(allow?: boolean): this;
   withHostConnectionProfileRetentionSeconds(
     connectionProfileRetentionSeconds: number,
   ): this;

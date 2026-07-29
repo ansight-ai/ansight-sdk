@@ -46,6 +46,12 @@ public sealed class HostConnectionOptions
     public int? DiscoveryPort { get; set; }
 
     /// <summary>
+    /// Allows runtime-owned host connections to be attempted while the active network path is cellular.
+    /// Disabled by default.
+    /// </summary>
+    public bool AllowCellularConnections { get; set; }
+
+    /// <summary>
     /// Optional assembly containing embedded bundled config resources.
     /// When supplied, the SDK looks for embedded resources whose logical names are exactly
     /// <c>ansight.developer-pairing.json</c> and <c>ansight.json</c>.
@@ -137,6 +143,17 @@ public sealed class HostConnectionOptions
         return this;
     }
 
+    /// <summary>
+    /// Configures whether runtime-owned host connections may be attempted over a cellular network path.
+    /// </summary>
+    /// <param name="allow">Whether cellular host connections are allowed.</param>
+    /// <returns>The current options instance.</returns>
+    public HostConnectionOptions UseCellularConnections(bool allow = true)
+    {
+        AllowCellularConnections = allow;
+        return this;
+    }
+
     internal HostConnectionOptions Clone()
     {
         return new HostConnectionOptions
@@ -144,6 +161,7 @@ public sealed class HostConnectionOptions
             SavedConfigPath = SavedConfigPath,
             ConnectionProfileRetention = ConnectionProfileRetention,
             DiscoveryPort = DiscoveryPort,
+            AllowCellularConnections = AllowCellularConnections,
             BundledConfigAssembly = BundledConfigAssembly,
             BundledDeveloperConfigLoader = BundledDeveloperConfigLoader,
             BundledConfigLoader = BundledConfigLoader,

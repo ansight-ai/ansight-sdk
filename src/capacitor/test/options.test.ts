@@ -71,6 +71,7 @@ describe("AnsightOptionsBuilder", () => {
         connection.discoveryPort = 4567;
       })
       .withBundledHostConnection({ bundledConfigJson: '{"kind":"test"}' })
+      .withCellularHostConnections()
       .withHostConnectionProfileRetentionSeconds(90)
       .withVisualTreeTools()
       .withoutVisualTreeTools()
@@ -89,6 +90,7 @@ describe("AnsightOptionsBuilder", () => {
     expect(options.hostConnection).toEqual({
       savedConfigKey: "harness",
       discoveryPort: 4567,
+      allowCellularConnections: true,
       connectionProfileRetentionSeconds: 90,
       bundledDeveloperConfigJson: undefined,
       bundledConfigJson: '{"kind":"test"}',

@@ -819,7 +819,8 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
             clientName,
             new PairingConnectionOptions
             {
-                DiscoveryPort = discoveryPort
+                DiscoveryPort = discoveryPort,
+                AllowCellularConnections = options.AllowCellularConnections
             },
             progress,
             cancellationToken);

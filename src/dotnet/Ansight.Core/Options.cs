@@ -777,6 +777,17 @@ public class Options
         }
 
         /// <summary>
+        /// Configures whether runtime-owned host connections may be attempted over a cellular network path.
+        /// Cellular connections remain disabled when this method is omitted.
+        /// </summary>
+        /// <param name="allow">Whether cellular host connections are allowed.</param>
+        /// <returns>The current builder.</returns>
+        public OptionsBuilder WithCellularHostConnections(bool allow = true)
+        {
+            return ConfigureHostConnection(hostConnection => hostConnection.UseCellularConnections(allow));
+        }
+
+        /// <summary>
         /// Configures how long remembered host connection profiles are retained.
         /// </summary>
         /// <param name="retention">Positive retention window for remembered host connection profiles.</param>

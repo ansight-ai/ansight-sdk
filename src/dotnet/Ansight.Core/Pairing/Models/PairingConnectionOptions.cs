@@ -20,6 +20,12 @@ public sealed class PairingConnectionOptions
     public int? DiscoveryPort { get; set; }
 
     /// <summary>
+    /// Allows the pairing connection to be attempted while the active network path is cellular.
+    /// Disabled by default.
+    /// </summary>
+    public bool AllowCellularConnections { get; set; }
+
+    /// <summary>
     /// Optional app profile values to add to or override the automatically collected baseline profile.
     /// </summary>
     public DeviceAppProfile? DeviceAppProfile { get; set; }
@@ -34,6 +40,7 @@ public sealed class PairingConnectionOptions
         {
             HostAddressOverride = HostAddressOverride,
             DiscoveryPort = DiscoveryPort,
+            AllowCellularConnections = AllowCellularConnections,
             DeviceAppProfile = DeviceAppProfile,
             CustomProperties = CustomProperties?.Clone()
         };

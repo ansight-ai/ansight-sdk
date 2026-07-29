@@ -56,6 +56,18 @@ public sealed class HostConnectionOptionsBuilderTests
     }
 
     [Fact]
+    public void WithCellularHostConnections_OptsInWhileTheDefaultRemainsDisabled()
+    {
+        var defaultOptions = Options.CreateBuilder().Build();
+        var cellularOptions = Options.CreateBuilder()
+            .WithCellularHostConnections()
+            .Build();
+
+        Assert.False(defaultOptions.HostConnection.AllowCellularConnections);
+        Assert.True(cellularOptions.HostConnection.AllowCellularConnections);
+    }
+
+    [Fact]
     public void WithHostConnectionProfileRetention_ConfiguresCachedProfileRetention()
     {
         var retention = TimeSpan.FromDays(30);

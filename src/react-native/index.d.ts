@@ -143,6 +143,7 @@ export interface AnsightOptions {
     bundledConfigJson?: string;
     bundledDeveloperConfigJson?: string;
     discoveryPort?: number;
+    allowCellularConnections?: boolean;
     connectionProfileRetentionSeconds?: number;
   };
   secureStorage?: {
@@ -293,6 +294,7 @@ export class AnsightOptionsBuilder {
     bundledConfigJson?: string;
   }): this;
   withHostConnectionDiscoveryPort(discoveryPort: number): this;
+  withCellularHostConnections(allow?: boolean): this;
   withHostConnectionProfileRetentionSeconds(connectionProfileRetentionSeconds: number): this;
   withSecureStorage(secureStorage?: NonNullable<AnsightOptions["secureStorage"]>): this;
   withRemoteTools(remoteTools?: AnsightRemoteToolsOptions): this;

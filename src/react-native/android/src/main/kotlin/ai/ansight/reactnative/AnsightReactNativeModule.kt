@@ -749,6 +749,10 @@ class AnsightReactNativeModule(
                     bundledConfigJson = host.stringValue("bundledConfigJson") ?: options.hostConnection.bundledConfigJson,
                     bundledDeveloperConfigJson = host.stringValue("bundledDeveloperConfigJson") ?: options.hostConnection.bundledDeveloperConfigJson,
                     discoveryPort = host.optionalInt("discoveryPort") ?: options.hostConnection.discoveryPort,
+                    allowCellularConnections = host.booleanValue(
+                        "allowCellularConnections",
+                        options.hostConnection.allowCellularConnections,
+                    ),
                     connectionProfileRetentionSeconds = host.longValue(
                         "connectionProfileRetentionSeconds",
                         options.hostConnection.connectionProfileRetentionSeconds,
@@ -1095,6 +1099,7 @@ class AnsightReactNativeModule(
                 "hasBundledConfigJson" to (options.hostConnection.bundledConfigJson != null),
                 "hasBundledDeveloperConfigJson" to (options.hostConnection.bundledDeveloperConfigJson != null),
                 "discoveryPort" to options.hostConnection.discoveryPort,
+                "allowCellularConnections" to options.hostConnection.allowCellularConnections,
                 "connectionProfileRetentionSeconds" to options.hostConnection.connectionProfileRetentionSeconds,
             ).toWritableMap())
             putMap("secureStorage", mapOf(

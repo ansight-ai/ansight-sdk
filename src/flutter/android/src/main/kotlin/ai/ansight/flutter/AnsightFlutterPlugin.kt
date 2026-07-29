@@ -671,6 +671,10 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
                             ?: result.hostConnection.bundledDeveloperConfigJson,
                     discoveryPort =
                         host.optionalInt("discoveryPort") ?: result.hostConnection.discoveryPort,
+                    allowCellularConnections = host.booleanValue(
+                        "allowCellularConnections",
+                        result.hostConnection.allowCellularConnections,
+                    ),
                     connectionProfileRetentionSeconds = host.longValue(
                         "connectionProfileRetentionSeconds",
                         result.hostConnection.connectionProfileRetentionSeconds,

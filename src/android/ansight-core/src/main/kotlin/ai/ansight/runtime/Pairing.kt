@@ -499,6 +499,7 @@ internal object PairingHostAddressCandidates {
 data class PairingConnectionOptions(
     val hostAddressOverride: String? = null,
     val discoveryPort: Int? = null,
+    val allowCellularConnections: Boolean = false,
 )
 
 data class PairingConnectionAttempt(
@@ -533,15 +534,26 @@ data class PairingConnectionAttempt(
 class PairingSessionConnector(
     private val simulatorLocalHostAddressProvider: () -> String? = { PairingSimulatorLocalHostAddress.resolve() },
 ) {
+    private var networkStatusProvider: () -> PairingNetworkPreflightStatus =
+        { PairingNetworkPreflightStatus.Unknown }
+
+    internal constructor(
+        simulatorLocalHostAddressProvider: () -> String?,
+        networkStatusProvider: () -> PairingNetworkPreflightStatus,
+    ) : this(simulatorLocalHostAddressProvider) {
+        this.networkStatusProvider = networkStatusProvider
+    }
+
     fun connect(
         document: ParsedPairingDocument,
         clientName: String,
         options: PairingConnectionOptions = PairingConnectionOptions(),
     ): PairingConnectionAttempt {
+        val simulatorLocalHostAddress = resolveSimulatorLocalHostAddress()
         val hostAddressCandidates = PairingHostAddressCandidates.resolve(
             document.discoveryHint,
             options.hostAddressOverride,
-            resolveSimulatorLocalHostAddress(),
+            simulatorLocalHostAddress,
         )
         if (hostAddressCandidates.isEmpty()) {
             return PairingConnectionAttempt.failure(
@@ -556,6 +568,27 @@ class PairingSessionConnector(
 
         if (discoveryPort !in 1..65_535) {
             return PairingConnectionAttempt.failure("Pairing discovery port must be between 1 and 65535.", PairingFailureCodes.HostAddressRequired)
+        }
+
+        val hasSimulatorLocalHostCandidate = simulatorLocalHostAddress != null &&
+            hostAddressCandidates.any { it.equals(simulatorLocalHostAddress, ignoreCase = true) }
+        val networkStatus = if (hasSimulatorLocalHostCandidate) {
+            PairingNetworkPreflightStatus.Connected
+        } else {
+            networkStatusProvider()
+        }
+        if (networkStatus == PairingNetworkPreflightStatus.NotConnected) {
+            return PairingConnectionAttempt.failure(
+                "Ansight is unavailable because this device is not connected to Wi-Fi. Check that this device is on the same Wi-Fi network as the Ansight host.",
+                PairingFailureCodes.WifiRequired,
+            )
+        }
+
+        if (networkStatus == PairingNetworkPreflightStatus.Cellular && !options.allowCellularConnections) {
+            return PairingConnectionAttempt.failure(
+                "Cellular host connections are disabled. Enable allowCellularConnections in the Ansight host connection builder to connect while using cellular data.",
+                PairingFailureCodes.WifiRequired,
+            )
         }
 
         var lastFailure: PairingConnectionAttempt? = null

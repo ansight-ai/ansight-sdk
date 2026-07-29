@@ -4,7 +4,8 @@ internal enum PairingWifiPreflightStatus
 {
     Unknown = 0,
     Connected = 1,
-    NotConnected = 2
+    NotConnected = 2,
+    Cellular = 3
 }
 
 internal static partial class PairingWifiPreflight

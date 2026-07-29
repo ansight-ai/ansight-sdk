@@ -705,6 +705,10 @@ class AnsightCapacitorPlugin : Plugin() {
                         ?: options.hostConnection.bundledDeveloperConfigJson,
                     discoveryPort = host.optionalInt("discoveryPort")
                         ?: options.hostConnection.discoveryPort,
+                    allowCellularConnections = host.booleanValue(
+                        "allowCellularConnections",
+                        options.hostConnection.allowCellularConnections,
+                    ),
                     connectionProfileRetentionSeconds = host.longValue(
                         "connectionProfileRetentionSeconds",
                         options.hostConnection.connectionProfileRetentionSeconds,

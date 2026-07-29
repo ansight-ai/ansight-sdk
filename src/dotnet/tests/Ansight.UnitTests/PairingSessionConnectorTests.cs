@@ -42,6 +42,36 @@ public sealed class PairingSessionConnectorTests
     }
 
     [Fact]
+    public async Task ConnectAsync_WhenCellularConnectionsAreDisabled_ReturnsSpecificFailure()
+    {
+        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var connector = new PairingSessionConnector(() => PairingWifiPreflightStatus.Cellular);
+        var document = new ParsedPairingDocument
+        {
+            Config = PairingTestDocumentFactory.CreateSignedConfig(signingKey),
+            DiscoveryHint = PairingTestDocumentFactory.CreateDiscoveryHint(
+                hostAddress: IPAddress.Loopback.ToString())
+        };
+
+        var result = await connector.ConnectAsync(
+            document,
+            "Unit Test App",
+            options: null,
+            progress: null,
+            CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.False(result.Accepted);
+        Assert.Equal(
+            "Cellular host connections are disabled. Enable AllowCellularConnections in the Ansight host connection builder to connect while using cellular data.",
+            result.Message);
+        Assert.Equal(PairingFailureCodes.WifiRequired, result.FailureCode);
+        Assert.Null(result.HostAddress);
+        Assert.Null(result.ConnectResponse);
+        Assert.Null(result.WebSocket);
+    }
+
+    [Fact]
     public void ResolveCandidates_WhenSimulatorLocalHostIsAvailable_PrefersItOverDiscoveryAddresses()
     {
         var candidates = PairingDiscoveryHintHostAddresses.ResolveCandidates(
@@ -82,6 +112,59 @@ public sealed class PairingSessionConnectorTests
             document,
             "Unit Test App",
             options: null,
+            progress: null,
+            CancellationToken.None);
+
+        var request = await listener.ReceiveAsync();
+        var parsedRequest = JsonSerializer.Deserialize<ConnectRequest>(request.Buffer, PairingJson.Compact);
+
+        Assert.NotNull(parsedRequest);
+        Assert.Equal(config.ConfigId, parsedRequest!.ConfigId);
+
+        var payload = JsonSerializer.SerializeToUtf8Bytes(
+            new ConnectResponse
+            {
+                Type = "CONNECT_RESP",
+                Ver = 1,
+                Accepted = false,
+                Reason = "pairing-required",
+                ReasonMessage = "Need WebSocket handoff",
+                HostId = "host-1",
+                HostName = "Host",
+                Message = "Rejected"
+            },
+            PairingJson.Compact);
+        await listener.SendAsync(payload, payload.Length, request.RemoteEndPoint);
+
+        var result = await connectTask;
+        Assert.False(result.Success);
+        Assert.False(result.Accepted);
+        Assert.Equal(IPAddress.Loopback, result.HostAddress);
+    }
+
+    [Fact]
+    public async Task ConnectAsync_WhenCellularConnectionsAreEnabled_AttemptsTheHostConnection()
+    {
+        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        using var listener = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        var listenerEndPoint = (IPEndPoint)listener.Client.LocalEndPoint!;
+        var connector = new PairingSessionConnector(() => PairingWifiPreflightStatus.Cellular);
+        var config = PairingTestDocumentFactory.CreateSignedConfig(signingKey, discoveryPort: listenerEndPoint.Port);
+        var document = new ParsedPairingDocument
+        {
+            Config = config,
+            DiscoveryHint = PairingTestDocumentFactory.CreateDiscoveryHint(
+                hostAddress: IPAddress.Loopback.ToString(),
+                discoveryPort: listenerEndPoint.Port)
+        };
+
+        var connectTask = connector.ConnectAsync(
+            document,
+            "Unit Test App",
+            new PairingConnectionOptions
+            {
+                AllowCellularConnections = true
+            },
             progress: null,
             CancellationToken.None);
 

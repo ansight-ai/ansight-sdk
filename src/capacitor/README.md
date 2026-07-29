@@ -49,6 +49,21 @@ await Ansight.connect(pairingJson, {
 });
 ```
 
+Cellular host connections are disabled by default for bundled configs,
+QR/payload flows, remembered/saved profiles, and manual connections. Enable
+them only for a trusted development host or personal hotspot:
+
+```ts
+const options = Ansight.createOptionsBuilder()
+  .withCellularHostConnections()
+  .build();
+```
+
+The equivalent direct option is
+`hostConnection.allowCellularConnections: true`. This may consume mobile data
+and permits connection attempts over a broader or carrier-managed network;
+signed pairing-config validation still applies.
+
 ## Telemetry and capture
 
 ```ts

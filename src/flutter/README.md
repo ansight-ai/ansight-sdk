@@ -14,7 +14,7 @@ Add the package to `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  ansight_flutter: ^1.0.2-preview.7
+  ansight_flutter: ^1.0.2-preview.8
 ```
 
 Then fetch dependencies:
@@ -107,6 +107,19 @@ await Ansight.instance.disconnect();
 Saved pairing, automatic host probing, bundled development configuration, and
 host-address overrides are available through `AnsightOptions` and the
 connection APIs.
+
+Cellular host connections are disabled by default for bundled configs, QR
+scans, remembered/saved profiles, and manual connections. Enable them only for
+a trusted development host or personal hotspot:
+
+```dart
+final options =
+    createOptionsBuilder().withCellularHostConnections().build();
+```
+
+This opt-in can consume mobile data and allows connection attempts over a
+broader or carrier-managed network. Signed pairing-config validation still
+applies.
 
 ## Custom tools
 

@@ -47,10 +47,21 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
         }
 
         let hostNetworkCheckMessage = Self.hostNetworkCheckMessage(discoveryHint: document.discoveryHint)
-        if !Self.hasSimulatorLocalHostCandidate(hostAddressCandidates, simulatorLocalHostAddress: simulatorLocalHostAddress),
-           wifiStatusProvider() == .notConnected {
+        let hasSimulatorLocalHostCandidate = Self.hasSimulatorLocalHostCandidate(
+            hostAddressCandidates,
+            simulatorLocalHostAddress: simulatorLocalHostAddress
+        )
+        let wifiStatus = hasSimulatorLocalHostCandidate ? PairingWifiPreflightStatus.connected : wifiStatusProvider()
+        if wifiStatus == .notConnected {
             return .failure(
                 "Ansight is unavailable because this device is not connected to Wi-Fi. \(hostNetworkCheckMessage)",
+                code: PairingFailureCodes.wifiRequired
+            )
+        }
+
+        if wifiStatus == .cellular, options?.allowCellularConnections != true {
+            return .failure(
+                "Cellular host connections are disabled. Enable allowCellularConnections in the Ansight host connection builder to connect while using cellular data.",
                 code: PairingFailureCodes.wifiRequired
             )
         }

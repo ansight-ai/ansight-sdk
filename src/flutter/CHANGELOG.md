@@ -1,3 +1,12 @@
+## 1.0.2-preview.8
+
+- Add an explicit, default-off cellular host-connection policy across native
+  SDKs and Flutter.
+- Allow trusted development builds to opt in with
+  `withCellularHostConnections()`.
+- Apply the policy consistently to bundled configs, QR scans, saved profiles,
+  automatic reconnects, and manual connection attempts.
+
 ## 1.0.2-preview.7
 
 - Republish the preview 6 feature set with corrected CocoaPods source metadata.

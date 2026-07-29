@@ -52,8 +52,13 @@ internal sealed class PairingSessionConnector
         }
 
         var hostNetworkCheckMessage = BuildHostNetworkCheckMessage(document.DiscoveryHint);
-        if (!HasSimulatorLocalHostCandidate(hostAddressCandidates, simulatorLocalHostAddress) &&
-            wifiStatusProvider() == PairingWifiPreflightStatus.NotConnected)
+        var hasSimulatorLocalHostCandidate = HasSimulatorLocalHostCandidate(
+            hostAddressCandidates,
+            simulatorLocalHostAddress);
+        var wifiStatus = hasSimulatorLocalHostCandidate
+            ? PairingWifiPreflightStatus.Connected
+            : wifiStatusProvider();
+        if (wifiStatus == PairingWifiPreflightStatus.NotConnected)
         {
             var wifiRequiredMessage =
                 $"Ansight is unavailable because this device is not connected to Wi-Fi. {hostNetworkCheckMessage}";
@@ -67,6 +72,24 @@ internal sealed class PairingSessionConnector
 
             return PairingConnectionAttempt.FromFailure(
                 wifiRequiredMessage,
+                PairingFailureCodes.WifiRequired);
+        }
+
+        if (wifiStatus == PairingWifiPreflightStatus.Cellular &&
+            options?.AllowCellularConnections != true)
+        {
+            const string cellularDisabledMessage =
+                "Cellular host connections are disabled. Enable AllowCellularConnections in the Ansight host connection builder to connect while using cellular data.";
+
+            HostPairingProgressReporter.Report(
+                progress,
+                HostConnectionProgressKind.Connection,
+                cellularDisabledMessage,
+                source: HostConnectionSource.HostConnection,
+                reasonCode: PairingFailureCodes.WifiRequired);
+
+            return PairingConnectionAttempt.FromFailure(
+                cellularDisabledMessage,
                 PairingFailureCodes.WifiRequired);
         }
 

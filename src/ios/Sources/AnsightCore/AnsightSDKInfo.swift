@@ -3,6 +3,6 @@ import Foundation
 public enum AnsightSDKInfo {
     public static let name = "Ansight iOS SDK"
     public static let packageId = "ai.ansight.ios"
-    public static let version = "1.0.2-preview.7"
+    public static let version = "1.0.2-preview.8"
     public static let language = "Swift"
 }

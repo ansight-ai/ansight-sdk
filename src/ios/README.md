@@ -153,6 +153,21 @@ options.hostConnection = AnsightHostConnectionOptions(
 is the plain bundled fallback. Do not ship developer pairing resources in
 release, CI, TestFlight, App Store, or other distributable builds.
 
+Cellular host connections are disabled by default, including for bundled
+developer configs and QR scans. Remembered/saved profiles and manual connection
+requests use the same restriction. Opt in only for a trusted development host
+or personal hotspot:
+
+```swift
+let options = try AnsightOptions.createBuilder()
+    .withCellularHostConnections()
+    .build()
+```
+
+The underlying `allowCellularConnections` option can consume mobile data and
+allows connection attempts over a broader or carrier-managed network. Signed
+pairing-config validation remains required.
+
 ## Host Connection
 
 Runtime-owned host connection APIs live on `AnsightRuntime.shared`.

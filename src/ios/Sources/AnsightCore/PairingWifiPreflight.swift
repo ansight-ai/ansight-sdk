@@ -17,7 +17,7 @@ enum PairingWifiPreflight {
         }
 
         if path.usesInterfaceType(.cellular) {
-            return .notConnected
+            return .cellular
         }
 
         return .unknown

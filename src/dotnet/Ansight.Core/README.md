@@ -98,6 +98,22 @@ var options = optionsBuilder.Build();
 
 Explicit requests such as `HostConnectionRequest.PayloadText(...)` and `HostConnectionRequest.QrCode(...)` always use the supplied pairing payload and replace the current host session. That gives QR/paste flows an explicit override path even when developer pairing is configured by default.
 
+Cellular host connections are disabled by default. This restriction applies to
+bundled developer configs, QR scans, remembered/saved profiles, and manual
+connection requests because they all use the same connector policy. Opt in only
+for trusted development environments:
+
+```csharp
+var options = Options.CreateBuilder()
+    .WithCellularHostConnections()
+    .Build();
+```
+
+Enabling `AllowCellularConnections` permits Ansight discovery and session
+traffic while the device reports a cellular path. This can consume mobile data
+and may expose the connection attempt to a broader or carrier-managed network;
+continue to use signed pairing configs and a trusted host or personal hotspot.
+
 If the bundled config loader is backed by authenticated app sync instead of a packaged asset, call `Runtime.HostConnection.NotifyConfigChangedAsync()` after sync adds, updates, or removes the config. The runtime re-reads and validates the effective bundled config source, updates host connection status/capabilities, and raises `StatusChanged` even when a valid config changed while availability stayed true. Call `ConnectAsync(HostConnectionRequest.BundledConfig())` when the app should connect using the latest synced config.
 
 ## Data access

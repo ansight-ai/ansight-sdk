@@ -29,7 +29,7 @@ internal static partial class PairingWifiPreflight
 #if IOS
         if (flags.HasFlag(NetworkReachabilityFlags.IsWWAN))
         {
-            return PairingWifiPreflightStatus.NotConnected;
+            return PairingWifiPreflightStatus.Cellular;
         }
 #endif
 

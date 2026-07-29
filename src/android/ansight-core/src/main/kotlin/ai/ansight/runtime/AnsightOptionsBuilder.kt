@@ -199,6 +199,13 @@ class AnsightOptionsBuilder @JvmOverloads constructor(
         }
     }
 
+    @JvmOverloads
+    fun withCellularHostConnections(allow: Boolean = true): AnsightOptionsBuilder {
+        return configureHostConnection { hostConnection ->
+            hostConnection.copy(allowCellularConnections = allow)
+        }
+    }
+
     fun withHostConnectionProfileRetentionSeconds(retentionSeconds: Long): AnsightOptionsBuilder {
         return configureHostConnection { hostConnection ->
             hostConnection.copy(connectionProfileRetentionSeconds = retentionSeconds)

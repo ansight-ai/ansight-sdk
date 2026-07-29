@@ -849,6 +849,7 @@ public final class AnsightRuntime: @unchecked Sendable {
         let connectionOptions = PairingConnectionOptions(
             hostAddressOverride: request.hostAddressOverride,
             discoveryPort: options.hostConnection.discoveryPort,
+            allowCellularConnections: options.hostConnection.allowCellularConnections,
             deviceAppProfile: nextDeviceProfile(),
             customProperties: options.customProperties
         )

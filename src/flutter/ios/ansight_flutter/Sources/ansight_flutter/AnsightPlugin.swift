@@ -755,6 +755,11 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
                 ),
                 discoveryPort:
                     optionalInt(host, "discoveryPort") ?? options.hostConnection.discoveryPort,
+                allowCellularConnections: boolValue(
+                    host,
+                    "allowCellularConnections",
+                    defaultValue: options.hostConnection.allowCellularConnections
+                ),
                 bundledDeveloperConfigJson:
                     stringValue(host, "bundledDeveloperConfigJson")
                     ?? options.hostConnection.bundledDeveloperConfigJson,

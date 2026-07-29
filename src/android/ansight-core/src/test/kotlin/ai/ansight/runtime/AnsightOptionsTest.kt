@@ -98,6 +98,7 @@ class AnsightOptionsTest {
         assertEquals(true, options.hostAutoProbe.enabled)
         assertEquals("Validation Client", options.hostAutoProbe.clientName)
         assertEquals("{}", options.hostConnection.bundledDeveloperConfigJson)
+        assertFalse(options.hostConnection.allowCellularConnections)
         assertEquals(2_000, options.sessionJpegCapture?.intervalMilliseconds)
         assertEquals(60, options.sessionJpegCapture?.quality)
         assertEquals(480, options.sessionJpegCapture?.maxWidth)
@@ -130,6 +131,7 @@ class AnsightOptionsTest {
             .withBundledHostConnection(bundledDeveloperConfigJson = "{developer}", bundledConfigJson = "{profile}")
             .withHostConnectionDiscoveryPort(45200)
             .withHostConnectionProfileRetentionSeconds(60)
+            .withCellularHostConnections()
             .addArtifactProvider(TestArtifactProvider())
             .addTool(tool)
             .build()
@@ -149,6 +151,7 @@ class AnsightOptionsTest {
         assertEquals("{profile}", options.hostConnection.bundledConfigJson)
         assertEquals(45200, options.hostConnection.discoveryPort)
         assertEquals(60, options.hostConnection.connectionProfileRetentionSeconds)
+        assertTrue(options.hostConnection.allowCellularConnections)
         assertTrue(options.initialTools.any { it.definition.id == "app.echo" })
         assertTrue(options.artifactProviders.any { it.descriptor.id == "app.report" })
     }

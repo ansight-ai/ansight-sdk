@@ -87,6 +87,26 @@ all-in-one/developer preset.
 | Retry delay after lost session | `ReconnectDelay`, default `10s` | `reconnectDelayMilliseconds`, default `10000` | `reconnectDelayMilliseconds`, default `10000` | `reconnectDelayMilliseconds`, default `10000` |
 | Client name | `ClientName` | `clientName` | `clientName` | `clientName` |
 
+## Cellular Host Connection Parity
+
+Cellular host connections are explicitly opt-in and default to disabled in
+every SDK and all-in-one/developer preset. The policy is enforced by the shared
+connector, so it covers bundled developer configs, QR scans, remembered/saved
+profiles, and manual connection requests.
+
+| SDK | Builder opt-in | Option |
+| --- | --- | --- |
+| .NET | `WithCellularHostConnections()` | `AllowCellularConnections` |
+| Android | `withCellularHostConnections()` | `allowCellularConnections` |
+| iOS | `withCellularHostConnections()` | `allowCellularConnections` |
+| Flutter | `withCellularHostConnections()` | `allowCellularConnections` |
+| React Native | `withCellularHostConnections()` | `hostConnection.allowCellularConnections` |
+| Capacitor | `withCellularHostConnections()` | `hostConnection.allowCellularConnections` |
+
+Opting in can consume mobile data and permits discovery/session connection
+attempts over a broader or carrier-managed network. Signed pairing configs
+remain mandatory; use the option only with a trusted host or personal hotspot.
+
 ## Quickstart Equivalents
 
 .NET:

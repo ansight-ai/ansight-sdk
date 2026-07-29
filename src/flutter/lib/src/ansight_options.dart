@@ -121,6 +121,7 @@ class AnsightHostConnectionOptions {
     this.bundledConfigJson,
     this.bundledDeveloperConfigJson,
     this.discoveryPort,
+    this.allowCellularConnections = false,
     this.connectionProfileRetentionSeconds,
   });
 
@@ -128,6 +129,7 @@ class AnsightHostConnectionOptions {
   final String? bundledConfigJson;
   final String? bundledDeveloperConfigJson;
   final int? discoveryPort;
+  final bool allowCellularConnections;
   final int? connectionProfileRetentionSeconds;
 
   AnsightJson toJson() => <String, Object?>{
@@ -136,6 +138,7 @@ class AnsightHostConnectionOptions {
         if (bundledDeveloperConfigJson != null)
           'bundledDeveloperConfigJson': bundledDeveloperConfigJson,
         if (discoveryPort != null) 'discoveryPort': discoveryPort,
+        'allowCellularConnections': allowCellularConnections,
         if (connectionProfileRetentionSeconds != null)
           'connectionProfileRetentionSeconds':
               connectionProfileRetentionSeconds,
@@ -475,6 +478,16 @@ class AnsightOptionsBuilder {
     AnsightHostConnectionOptions options,
   ) {
     _json['hostConnection'] = options.toJson();
+    return this;
+  }
+
+  AnsightOptionsBuilder withCellularHostConnections([bool allow = true]) {
+    final rawHostConnection = _json['hostConnection'];
+    final hostConnection = rawHostConnection is Map
+        ? Map<String, Object?>.from(rawHostConnection)
+        : <String, Object?>{};
+    hostConnection['allowCellularConnections'] = allow;
+    _json['hostConnection'] = hostConnection;
     return this;
   }
 

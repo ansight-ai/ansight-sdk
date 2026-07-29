@@ -25,8 +25,8 @@ npx react-native run-android
 
 This package version expects matching native SDK packages:
 
-- CocoaPods: `Ansight`, `AnsightObjC` version `1.0.2-preview.7`
-- Maven: `ai.ansight:ansight-android:1.0.2-preview.7`
+- CocoaPods: `Ansight`, `AnsightObjC` version `1.0.2-preview.8`
+- Maven: `ai.ansight:ansight-android:1.0.2-preview.8`
 
 ## Quickstart
 
@@ -111,6 +111,20 @@ The TypeScript `AnsightOptions` surface mirrors Android `AnsightOptions`, iOS
 | `secureStorage` | Compatibility alias for native secure-storage allow-list settings. |
 | `remoteTools` | Native visual tree, file, database, preferences, reflection, and secure-storage tool options. |
 | `lifecycle` | JS AppState tracking toggle. Defaults to true. |
+
+Cellular host connections are disabled by default. The restriction applies to
+bundled configs, QR/payload flows, remembered/saved profiles, and manual
+connections. Opt in only for a trusted development host or personal hotspot:
+
+```ts
+const options = Ansight.createOptionsBuilder()
+  .withCellularHostConnections()
+  .build();
+```
+
+You can also set `hostConnection.allowCellularConnections: true` directly.
+This may consume mobile data and permits connection attempts over a broader or
+carrier-managed network; signed pairing-config validation still applies.
 
 Example:
 

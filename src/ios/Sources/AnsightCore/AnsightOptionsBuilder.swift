@@ -232,6 +232,13 @@ public final class AnsightOptionsBuilder {
     }
 
     @discardableResult
+    public func withCellularHostConnections(_ allow: Bool = true) -> AnsightOptionsBuilder {
+        configureHostConnection { hostConnection in
+            hostConnection.allowCellularConnections = allow
+        }
+    }
+
+    @discardableResult
     public func withHostConnectionProfileRetentionSeconds(_ retentionSeconds: Int) -> AnsightOptionsBuilder {
         configureHostConnection { hostConnection in
             hostConnection.connectionProfileRetentionSeconds = retentionSeconds

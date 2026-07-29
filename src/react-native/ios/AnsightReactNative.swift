@@ -978,6 +978,11 @@ final class AnsightReactNative: RCTEventEmitter {
                 savedConfigKey: stringValue(host, "savedConfigKey") ?? options.hostConnection.savedConfigKey,
                 connectionProfileRetentionSeconds: intValue(host, "connectionProfileRetentionSeconds", defaultValue: options.hostConnection.connectionProfileRetentionSeconds),
                 discoveryPort: optionalInt(host, "discoveryPort") ?? options.hostConnection.discoveryPort,
+                allowCellularConnections: boolValue(
+                    host,
+                    "allowCellularConnections",
+                    defaultValue: options.hostConnection.allowCellularConnections
+                ),
                 bundledDeveloperConfigJson: stringValue(host, "bundledDeveloperConfigJson") ?? options.hostConnection.bundledDeveloperConfigJson,
                 bundledConfigJson: stringValue(host, "bundledConfigJson") ?? options.hostConnection.bundledConfigJson
             )
@@ -1294,6 +1299,7 @@ final class AnsightReactNative: RCTEventEmitter {
                 "savedConfigKey": options.hostConnection.savedConfigKey,
                 "connectionProfileRetentionSeconds": options.hostConnection.connectionProfileRetentionSeconds,
                 "discoveryPort": options.hostConnection.discoveryPort as Any,
+                "allowCellularConnections": options.hostConnection.allowCellularConnections,
                 "hasBundledDeveloperConfigJson": options.hostConnection.bundledDeveloperConfigJson != nil,
                 "hasBundledConfigJson": options.hostConnection.bundledConfigJson != nil,
             ],

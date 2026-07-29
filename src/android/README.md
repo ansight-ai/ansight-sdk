@@ -13,7 +13,7 @@ Use the all-in-one package for development builds:
 
 ```kotlin
 dependencies {
-    implementation("ai.ansight:ansight-android:1.0.2-preview.7")
+    implementation("ai.ansight:ansight-android:1.0.2-preview.8")
 }
 ```
 
@@ -21,10 +21,10 @@ Minimal integrations can depend on only the packages they need:
 
 ```kotlin
 dependencies {
-    implementation("ai.ansight:ansight-core-android:1.0.2-preview.7")
-    implementation("ai.ansight:ansight-pairing-android:1.0.2-preview.7")
-    implementation("ai.ansight:ansight-tools-filedescriptordiagnostics-android:1.0.2-preview.7")
-    implementation("ai.ansight:ansight-tools-visualtree-android:1.0.2-preview.7")
+    implementation("ai.ansight:ansight-core-android:1.0.2-preview.8")
+    implementation("ai.ansight:ansight-pairing-android:1.0.2-preview.8")
+    implementation("ai.ansight:ansight-tools-filedescriptordiagnostics-android:1.0.2-preview.8")
+    implementation("ai.ansight:ansight-tools-visualtree-android:1.0.2-preview.8")
 }
 ```
 
@@ -134,6 +134,21 @@ Automatic connection tries:
 2. remembered host profiles, newest first
 3. saved pairing config
 4. `hostConnection.bundledConfigJson`
+
+Cellular host connections are disabled by default, including for bundled
+developer configs and QR scans. Remembered/saved profiles and manual connection
+requests use the same restriction. Opt in only for a trusted development host
+or personal hotspot:
+
+```kotlin
+val options = AnsightOptions.createBuilder()
+    .withCellularHostConnections()
+    .build()
+```
+
+The underlying `allowCellularConnections` option can consume mobile data and
+allows connection attempts over a broader or carrier-managed network. Signed
+pairing-config validation remains required.
 
 Host auto-probe is enabled by default while the runtime is active. It remembers
 previous host connections and retries them so the app can reconnect after the

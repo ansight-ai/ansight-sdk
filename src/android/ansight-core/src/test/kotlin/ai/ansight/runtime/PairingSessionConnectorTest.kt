@@ -3,6 +3,8 @@ package ai.ansight.runtime
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.net.DatagramPacket
 import java.net.DatagramSocket
@@ -10,6 +12,75 @@ import java.net.InetAddress
 import kotlin.concurrent.thread
 
 class PairingSessionConnectorTest {
+    @Test
+    fun connectRejectsCellularWhenCellularConnectionsAreDisabled() {
+        val result = PairingSessionConnector(
+            simulatorLocalHostAddressProvider = { null },
+            networkStatusProvider = { PairingNetworkPreflightStatus.Cellular },
+        ).connect(
+            document = ParsedPairingDocument(
+                config = pairingConfig(45_123),
+                discoveryHint = PairingDiscoveryHint(
+                    hostAddresses = listOf("127.0.0.1"),
+                    discoveryPort = 45_123,
+                ),
+            ),
+            clientName = "Unit Test App",
+        )
+
+        assertFalse(result.success)
+        assertEquals(PairingFailureCodes.WifiRequired, result.failureCode)
+        assertTrue(result.message.contains("allowCellularConnections"))
+    }
+
+    @Test
+    fun connectAttemptsCellularWhenCellularConnectionsAreEnabled() {
+        val loopback = InetAddress.getByName("127.0.0.1")
+        val listener = DatagramSocket(0, loopback)
+        val responder = thread {
+            val buffer = ByteArray(16 * 1024)
+            val request = DatagramPacket(buffer, buffer.size)
+            listener.receive(request)
+
+            val response = JSONObject()
+                .put("type", "CONNECT_RESP")
+                .put("ver", 1)
+                .put("accepted", false)
+                .put("reason", "pairing-required")
+                .put("reasonMessage", "Need WebSocket handoff")
+                .put("hostId", "host-1")
+                .put("hostName", "Host")
+                .put("message", "Rejected")
+                .toString()
+                .toByteArray(Charsets.UTF_8)
+            listener.send(DatagramPacket(response, response.size, request.address, request.port))
+        }
+
+        try {
+            val result = PairingSessionConnector(
+                simulatorLocalHostAddressProvider = { null },
+                networkStatusProvider = { PairingNetworkPreflightStatus.Cellular },
+            ).connect(
+                document = ParsedPairingDocument(
+                    config = pairingConfig(listener.localPort),
+                    discoveryHint = PairingDiscoveryHint(
+                        hostAddresses = listOf("127.0.0.1"),
+                        discoveryPort = listener.localPort,
+                    ),
+                ),
+                clientName = "Unit Test App",
+                options = PairingConnectionOptions(allowCellularConnections = true),
+            )
+
+            assertFalse(result.success)
+            assertEquals("127.0.0.1", result.hostAddress)
+            assertNotEquals(PairingFailureCodes.WifiRequired, result.failureCode)
+        } finally {
+            listener.close()
+            responder.join(1_000)
+        }
+    }
+
     @Test
     fun connectUsesSimulatorLocalHostWhenDiscoveryAddressIsMissing() {
         val loopback = InetAddress.getByName("127.0.0.1")
@@ -36,6 +107,7 @@ class PairingSessionConnectorTest {
         try {
             val result = PairingSessionConnector(
                 simulatorLocalHostAddressProvider = { "127.0.0.1" },
+                networkStatusProvider = { PairingNetworkPreflightStatus.Unknown },
             ).connect(
                 document = ParsedPairingDocument(
                     config = pairingConfig(listener.localPort),

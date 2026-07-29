@@ -17,6 +17,7 @@ final class AnsightOptionsBuilderTests: XCTestCase {
             .withBundledHostConnection(bundledDeveloperConfigJson: "{developer}", bundledConfigJson: "{profile}")
             .withHostConnectionDiscoveryPort(45_200)
             .withHostConnectionProfileRetentionSeconds(120)
+            .withCellularHostConnections()
             .build()
 
         XCTAssertEqual(options.sampleFrequencyMilliseconds, 400)
@@ -36,6 +37,8 @@ final class AnsightOptionsBuilderTests: XCTestCase {
         XCTAssertEqual(options.hostConnection.bundledConfigJson, "{profile}")
         XCTAssertEqual(options.hostConnection.discoveryPort, 45_200)
         XCTAssertEqual(options.hostConnection.connectionProfileRetentionSeconds, 120)
+        XCTAssertTrue(options.hostConnection.allowCellularConnections)
+        XCTAssertFalse(AnsightOptions().hostConnection.allowCellularConnections)
     }
 
     func testBuilderCanStartFromExistingOptions() throws {
@@ -60,6 +63,15 @@ final class AnsightOptionsBuilderTests: XCTestCase {
             .build()
 
         XCTAssertEqual(options.sessionJpegCapture?.captureGpuBackedSurfaces, false)
+    }
+
+    func testHostConnectionDecodeDefaultsCellularConnectionsToDisabled() throws {
+        let json = #"{"savedConfigKey":"saved","connectionProfileRetentionSeconds":60}"#
+        let data = try XCTUnwrap(json.data(using: .utf8))
+
+        let options = try JSONDecoder().decode(AnsightHostConnectionOptions.self, from: data)
+
+        XCTAssertFalse(options.allowCellularConnections)
     }
 
     func testSessionJpegCaptureDecodeDefaultsGpuBackedSurfaceCapture() throws {

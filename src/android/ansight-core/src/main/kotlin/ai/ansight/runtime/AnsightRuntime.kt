@@ -18,9 +18,11 @@ import java.util.concurrent.atomic.AtomicInteger
 
 object AnsightRuntime {
     private val lock = Any()
-    private val connector = PairingSessionConnector()
-
     private var application: Application? = null
+    private val connector = PairingSessionConnector(
+        simulatorLocalHostAddressProvider = { PairingSimulatorLocalHostAddress.resolve() },
+        networkStatusProvider = { PairingNetworkPreflight.getStatus(application) },
+    )
     private var options: AnsightOptions = AnsightOptions()
     private var initialized = false
     private var active = false
@@ -920,6 +922,7 @@ object AnsightRuntime {
                 hostAddressOverride = originalRequest.hostAddressOverride?.trim()?.ifBlank { null }
                     ?: candidate.hostAddressOverride,
                 discoveryPort = options.hostConnection.discoveryPort,
+                allowCellularConnections = options.hostConnection.allowCellularConnections,
             ),
         )
 
