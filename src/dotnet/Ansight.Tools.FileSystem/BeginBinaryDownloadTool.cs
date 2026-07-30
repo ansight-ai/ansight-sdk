@@ -125,7 +125,7 @@ public sealed class BeginBinaryDownloadTool : ITool
     }
 
     private static async Task StreamFileAsync(
-        PairingSessionTransport transport,
+        IPairingBinaryTransport transport,
         Guid transferId,
         FileStream stream,
         int chunkBytes,
@@ -182,7 +182,7 @@ public sealed class BeginBinaryDownloadTool : ITool
     }
 
     private static async Task SendFrameAsync(
-        PairingSessionTransport transport,
+        IPairingBinaryTransport transport,
         byte[] frame,
         CancellationToken cancellationToken)
     {
@@ -194,7 +194,7 @@ public sealed class BeginBinaryDownloadTool : ITool
     }
 
     private static async Task TrySendErrorFrameAsync(
-        PairingSessionTransport transport,
+        IPairingBinaryTransport transport,
         Guid transferId,
         int sequence,
         long offsetBytes,

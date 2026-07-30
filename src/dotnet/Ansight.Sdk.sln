@@ -40,6 +40,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ansight.OfflineCapture.Samp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ansight.OfflineCapture.MauiSample", "samples\Ansight.OfflineCapture.MauiSample\Ansight.OfflineCapture.MauiSample.csproj", "{733BB30A-6DF1-47C3-9586-E66717C17D68}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ansight.Native.Android.Binding", "Ansight.Native.Android.Binding\Ansight.Native.Android.Binding.csproj", "{CAC6ECDB-D75F-431A-89E5-5DE5C028ED14}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ansight.Native.Apple.Binding", "Ansight.Native.Apple.Binding\Ansight.Native.Apple.Binding.csproj", "{BA6119BE-EA93-479F-95FB-B3B7CAA6CFD8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -254,6 +258,30 @@ Global
 		{733BB30A-6DF1-47C3-9586-E66717C17D68}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{733BB30A-6DF1-47C3-9586-E66717C17D68}.Release|x64.ActiveCfg = Release|Any CPU
 		{733BB30A-6DF1-47C3-9586-E66717C17D68}.Release|x86.ActiveCfg = Release|Any CPU
+		{CAC6ECDB-D75F-431A-89E5-5DE5C028ED14}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CAC6ECDB-D75F-431A-89E5-5DE5C028ED14}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CAC6ECDB-D75F-431A-89E5-5DE5C028ED14}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{CAC6ECDB-D75F-431A-89E5-5DE5C028ED14}.Debug|x64.Build.0 = Debug|Any CPU
+		{CAC6ECDB-D75F-431A-89E5-5DE5C028ED14}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{CAC6ECDB-D75F-431A-89E5-5DE5C028ED14}.Debug|x86.Build.0 = Debug|Any CPU
+		{CAC6ECDB-D75F-431A-89E5-5DE5C028ED14}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CAC6ECDB-D75F-431A-89E5-5DE5C028ED14}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CAC6ECDB-D75F-431A-89E5-5DE5C028ED14}.Release|x64.ActiveCfg = Release|Any CPU
+		{CAC6ECDB-D75F-431A-89E5-5DE5C028ED14}.Release|x64.Build.0 = Release|Any CPU
+		{CAC6ECDB-D75F-431A-89E5-5DE5C028ED14}.Release|x86.ActiveCfg = Release|Any CPU
+		{CAC6ECDB-D75F-431A-89E5-5DE5C028ED14}.Release|x86.Build.0 = Release|Any CPU
+		{BA6119BE-EA93-479F-95FB-B3B7CAA6CFD8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BA6119BE-EA93-479F-95FB-B3B7CAA6CFD8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BA6119BE-EA93-479F-95FB-B3B7CAA6CFD8}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{BA6119BE-EA93-479F-95FB-B3B7CAA6CFD8}.Debug|x64.Build.0 = Debug|Any CPU
+		{BA6119BE-EA93-479F-95FB-B3B7CAA6CFD8}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{BA6119BE-EA93-479F-95FB-B3B7CAA6CFD8}.Debug|x86.Build.0 = Debug|Any CPU
+		{BA6119BE-EA93-479F-95FB-B3B7CAA6CFD8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BA6119BE-EA93-479F-95FB-B3B7CAA6CFD8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BA6119BE-EA93-479F-95FB-B3B7CAA6CFD8}.Release|x64.ActiveCfg = Release|Any CPU
+		{BA6119BE-EA93-479F-95FB-B3B7CAA6CFD8}.Release|x64.Build.0 = Release|Any CPU
+		{BA6119BE-EA93-479F-95FB-B3B7CAA6CFD8}.Release|x86.ActiveCfg = Release|Any CPU
+		{BA6119BE-EA93-479F-95FB-B3B7CAA6CFD8}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -4,6 +4,7 @@ import Network
 public struct ConnectResponse: Sendable, Codable, Equatable {
     public let type: String
     public let ver: Int
+    public let requestId: String
     public let accepted: Bool
     public let reason: String
     public let reasonMessage: String?

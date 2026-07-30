@@ -1,7 +1,7 @@
 namespace Ansight.Pairing.Models;
 
 /// <summary>
-/// Host identity and transport metadata carried by a signed pairing config.
+/// Host identity and transport metadata carried by an enrollment invite.
 /// </summary>
 public sealed class PairingHost
 {
@@ -20,13 +20,4 @@ public sealed class PairingHost
     /// </summary>
     public int DiscoveryPort { get; set; } = PairingProtocolDefaults.DiscoveryPort;
 
-    /// <summary>
-    /// Host public key used to verify the pairing config signature.
-    /// </summary>
-    public required string HostPubKey { get; set; }
-
-    /// <summary>
-    /// Fingerprint for <see cref="HostPubKey"/>.
-    /// </summary>
-    public required string HostPubKeyFingerprint { get; set; }
 }

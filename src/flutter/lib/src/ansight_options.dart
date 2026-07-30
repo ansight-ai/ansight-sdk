@@ -119,7 +119,6 @@ class AnsightHostConnectionOptions {
   const AnsightHostConnectionOptions({
     this.savedConfigKey,
     this.bundledConfigJson,
-    this.bundledDeveloperConfigJson,
     this.discoveryPort,
     this.allowCellularConnections = false,
     this.connectionProfileRetentionSeconds,
@@ -127,7 +126,6 @@ class AnsightHostConnectionOptions {
 
   final String? savedConfigKey;
   final String? bundledConfigJson;
-  final String? bundledDeveloperConfigJson;
   final int? discoveryPort;
   final bool allowCellularConnections;
   final int? connectionProfileRetentionSeconds;
@@ -135,8 +133,6 @@ class AnsightHostConnectionOptions {
   AnsightJson toJson() => <String, Object?>{
         if (savedConfigKey != null) 'savedConfigKey': savedConfigKey,
         if (bundledConfigJson != null) 'bundledConfigJson': bundledConfigJson,
-        if (bundledDeveloperConfigJson != null)
-          'bundledDeveloperConfigJson': bundledDeveloperConfigJson,
         if (discoveryPort != null) 'discoveryPort': discoveryPort,
         'allowCellularConnections': allowCellularConnections,
         if (connectionProfileRetentionSeconds != null)
@@ -275,7 +271,6 @@ class AnsightRemoteToolsOptions {
 class AnsightOptions {
   const AnsightOptions({
     this.useNativeAllInOneDefaults = false,
-    this.pairingConfigJson,
     this.clientName,
     this.sampleFrequencyMilliseconds,
     this.retentionPeriodSeconds,
@@ -298,7 +293,6 @@ class AnsightOptions {
   AnsightOptions._fromBuilder(AnsightJson json)
       : _rawJson = Map<String, Object?>.unmodifiable(json),
         useNativeAllInOneDefaults = false,
-        pairingConfigJson = null,
         clientName = null,
         sampleFrequencyMilliseconds = null,
         retentionPeriodSeconds = null,
@@ -318,13 +312,11 @@ class AnsightOptions {
         additionalChannels = const <AnsightChannel>[];
 
   factory AnsightOptions.developer({
-    String? pairingConfigJson,
     String? clientName,
     AnsightToolGuard toolGuard = AnsightToolGuard.readOnly,
   }) =>
       AnsightOptions(
         useNativeAllInOneDefaults: true,
-        pairingConfigJson: pairingConfigJson,
         clientName: clientName,
         sampleFrequencyMilliseconds: 400,
         retentionPeriodSeconds: 120,
@@ -336,14 +328,11 @@ class AnsightOptions {
         touchCaptureEnabled: true,
         toolGuard: toolGuard,
         hostAutoProbe: AnsightHostAutoProbeOptions(clientName: clientName),
-        hostConnection: AnsightHostConnectionOptions(
-          bundledDeveloperConfigJson: pairingConfigJson,
-        ),
+        hostConnection: const AnsightHostConnectionOptions(),
         remoteTools: const AnsightRemoteToolsOptions(visualTree: true),
       );
 
   final bool useNativeAllInOneDefaults;
-  final String? pairingConfigJson;
   final String? clientName;
   final int? sampleFrequencyMilliseconds;
   final int? retentionPeriodSeconds;
@@ -370,7 +359,6 @@ class AnsightOptions {
     }
     return <String, Object?>{
       'useNativeAllInOneDefaults': useNativeAllInOneDefaults,
-      if (pairingConfigJson != null) 'pairingConfigJson': pairingConfigJson,
       if (clientName != null) 'clientName': clientName,
       if (sampleFrequencyMilliseconds != null)
         'sampleFrequencyMilliseconds': sampleFrequencyMilliseconds,

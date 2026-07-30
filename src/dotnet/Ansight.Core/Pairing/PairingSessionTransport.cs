@@ -15,7 +15,7 @@ internal sealed record PairingControlRequestResult(
     OperationResult OperationResult,
     PairingControlEnvelope? Response);
 
-internal sealed class PairingSessionTransport : IDisposable
+internal sealed class PairingSessionTransport : IPairingBinaryTransport, IDisposable
 {
     private ClientWebSocket? webSocket;
     private readonly SemaphoreSlim sendLock = new(1, 1);

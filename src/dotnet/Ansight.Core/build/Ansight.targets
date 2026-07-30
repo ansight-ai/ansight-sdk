@@ -69,7 +69,7 @@
           DependsOnTargets="ResolveAnsightDeveloperPairingOutputFile"
           Condition="'$(AnsightDeveloperPairingEnabled)' == 'true' and '$(OS)' == 'Unix'">
     <Error Condition="!Exists('$(AnsightDeveloperPairingSourceFile)')"
-           Text="AnsightDeveloperPairingEnabled requires a signed pairing JSON at $(AnsightDeveloperPairingSourceFile)." />
+           Text="AnsightDeveloperPairingEnabled requires a current enrollment-invite JSON at $(AnsightDeveloperPairingSourceFile)." />
     <Message Importance="High"
              Text="Ansight developer pairing capture configuration: enabled=$(AnsightDeveloperPairingEnabled), source=$(AnsightDeveloperPairingSourceFile), output=$(AnsightDeveloperPairingOutputFile), os=$(OS)." />
     <Exec Command="chmod +x &quot;$(MSBuildThisFileDirectory)generate-ansight-developer-pairing.sh&quot;" IgnoreExitCode="true" />
@@ -87,7 +87,7 @@
           DependsOnTargets="ResolveAnsightDeveloperPairingOutputFile"
           Condition="'$(AnsightDeveloperPairingEnabled)' == 'true' and '$(OS)' == 'Windows_NT'">
     <Error Condition="!Exists('$(AnsightDeveloperPairingSourceFile)')"
-           Text="AnsightDeveloperPairingEnabled requires a signed pairing JSON at $(AnsightDeveloperPairingSourceFile)." />
+           Text="AnsightDeveloperPairingEnabled requires a current enrollment-invite JSON at $(AnsightDeveloperPairingSourceFile)." />
     <Message Importance="High"
              Text="Ansight developer pairing capture configuration: enabled=$(AnsightDeveloperPairingEnabled), source=$(AnsightDeveloperPairingSourceFile), output=$(AnsightDeveloperPairingOutputFile), os=$(OS)." />
     <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)generate-ansight-developer-pairing.ps1&quot; -SourceFile &quot;$(AnsightDeveloperPairingSourceFile)&quot; -OutputFile &quot;$(AnsightDeveloperPairingOutputFile)&quot;"

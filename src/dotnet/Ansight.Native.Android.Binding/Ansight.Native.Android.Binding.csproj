@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0-android35.0</TargetFramework>
+    <SupportedOSPlatformVersion>21.0</SupportedOSPlatformVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsTrimmable>true</IsTrimmable>
+
+    <IsPackable>true</IsPackable>
+    <PackageId>Ansight.Native.Android.Binding</PackageId>
+    <AssemblyName>Ansight.Native.Android.Binding</AssemblyName>
+    <RootNamespace>Ansight.Native.Android</RootNamespace>
+    <Description>Internal slim Android binding used by the Ansight .NET SDK.</Description>
+    <PackageTags>ansight;android;binding;native</PackageTags>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <AnsightAndroidSourceDirectory>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../../android'))</AnsightAndroidSourceDirectory>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AndroidLibrary Include="$(AnsightAndroidSourceDirectory)/ansight-dotnet-bridge/build/outputs/aar/ansight-dotnet-bridge-release.aar"
+                    Bind="true"
+                    Pack="true" />
+    <AndroidLibrary Include="$(AnsightAndroidSourceDirectory)/ansight-core/build/outputs/aar/ansight-core-release.aar"
+                    Bind="false"
+                    Pack="true" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Square.OkHttp3" Version="4.9.3.2" />
+    <PackageReference Include="Xamarin.Kotlin.StdLib" Version="2.0.21.4" />
+  </ItemGroup>
+
+  <Target Name="BuildAnsightAndroidNativeLibraries"
+          BeforeTargets="_ResolveLibraryProjectImports;Pack"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <Exec Command="&quot;$(AnsightAndroidSourceDirectory)/gradlew&quot; -p &quot;$(AnsightAndroidSourceDirectory)&quot; :ansight-core:assembleRelease :ansight-dotnet-bridge:assembleRelease"
+          WorkingDirectory="$(AnsightAndroidSourceDirectory)" />
+  </Target>
+
+</Project>

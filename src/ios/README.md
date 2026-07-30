@@ -2,7 +2,9 @@
 
 The native harness app lives in `Examples/NativeHarness/`.
 
-Import `AnsightCore` plus individual pairing/tool products for a minimal integration, or import the aggregate `Ansight` product for developer defaults, QR/file pairing UI, and the current native remote-tool suites.
+Import `AnsightCore` plus individual enrollment/tool products for a minimal
+integration, or import the aggregate `Ansight` product for developer defaults,
+QR enrollment, and the current native remote-tool suites.
 
 ## License
 
@@ -15,10 +17,10 @@ Ansight Services.
 
 - runtime initialization, activation, deactivation, clearing, manual and automatic UIKit lifecycle state, screen views, custom metrics, custom events, and structured debug snapshots
 - shared telemetry bounds: 200-2000ms sampling, 60-3600s retention, reserved channel validation, bounded retained metric/event buffers
-- pairing config parsing and validation for `ansight.pairing-config.v1`, `ansight.pairing-config-document.v1`, and legacy `ansight.pairing-ticket.v1`
+- one-use `ansight.enrollment-invite.v2` parsing with saved app-installation registration
 - discovery-hint host resolution for local developer flows
-- host connection status/results for auto, saved, bundled, payload, direct config, and app-provided file/QR config-reader sources
-- UDP `CONNECT_REQ` bootstrap and WebSocket handoff compatible with the .NET SDK transport contract
+- host connection status/results for automatic reconnect, QR enrollment, and app-provided scanner payloads
+- correlated `ENROLLMENT_CONNECT`/`ENROLLMENT_RESULT` UDP bootstrap and clear-text WebSocket handoff
 - live control messages for `session.open`, `device.profile`, and `app.state`
 - live metric channel, metric sample, and app event streaming using the established `CLIENT_METRIC_CHANNELS`, `CLIENT_METRICS`, and `CLIENT_EVENTS` payloads
 - automatic UIKit foreground/background, UIKit view-controller screen-view, and SwiftUI `UIHostingController` root-view capture with explicit opt-out controls and app-provided route naming hooks
@@ -26,7 +28,7 @@ Ansight Services.
 - live JPEG screen-frame capture using Studio's binary `ASJP` / `CLIENT_JPEG` WebSocket path
 - live UIKit touch capture using a simultaneous window gesture recognizer and Studio-compatible `CLIENT_TOUCH_INPUT` / `ansight.touches.v1` packed batches
 - baseline Apple device/app profile collection without direct PII, including runtime stack codes, app icon payloads, Metal GPU/render-backend details, and coarse network transport
-- Keychain-backed saved pairing config storage and remembered host profiles with explicit clearing
+- Keychain-backed app-installation registration and remembered host profiles with explicit clearing
 - queued `ansight.file-transfer.v1` binary artifact transfers for screenshot and file-download tools during live Studio sessions
 - executable tool registration, tool guard policy, tool security metadata, reserved tool call context arguments, and `tool.query` / `tool.call` protocol handling
 - app artifact providers with `artifacts.query`, `artifacts.request`, and live binary export
@@ -37,22 +39,16 @@ Ansight Services.
 - `AnsightToolsSecureStorage` SwiftPM product with allow-listed Keychain `secure.get_value`, `secure.set_value`, and `secure.remove_key` tools
 - `AnsightToolsReflection` SwiftPM product with registered-root `reflect.*` inspection tools and opt-in write/invoke hooks
 - `AnsightToolsVisualTree` SwiftPM product with UIKit visual tree, node inspection, live screenshot, and diagnostic overlay tools
-- `AnsightPairingQR` SwiftPM product with UIKit document import and AVFoundation QR scanning for SDK-owned pairing UI
-- SwiftPM build-time developer pairing generation and bundled-tool enforcement
+- `AnsightPairingQR` SwiftPM product with AVFoundation QR scanning for SDK-owned enrollment UI
+- SwiftPM bundled-tool enforcement
 
 ## SwiftPM developer mode
 
-When building this package through SwiftPM, the `AnsightBuildToolPlugin` runs automatically for the `AnsightCore` target.
-
-Environment variables:
-
-- `ANSIGHT_DEVELOPER_PAIRING_ENABLED=true`
-- `ANSIGHT_DEVELOPER_PAIRING_SOURCE_FILE=/absolute/path/to/ansight.json` (optional; defaults to `src/ios/ansight.json` when present)
-- `ANSIGHT_ALLOW_REMOTE_TOOLS=true` to permit bundled `AnsightTool` implementations
-
-With developer pairing enabled, the build tool reads the source pairing config, captures local host metadata when available, and generates an embedded pairing ticket that you can access at runtime through `AnsightDeveloperMode.embeddedPairingJson`.
-
-Without `ANSIGHT_ALLOW_REMOTE_TOOLS=true`, the build fails when the target source contains concrete `AnsightTool` conformances.
+When building this package through SwiftPM, the `AnsightBuildToolPlugin` runs
+automatically for the `AnsightCore` target. Set
+`ANSIGHT_ALLOW_REMOTE_TOOLS=true` only for targets that intentionally bundle
+concrete `AnsightTool` implementations. Enrollment itself has no build
+environment variables or generated resource.
 
 ## CocoaPods
 
@@ -75,7 +71,8 @@ pod 'AnsightToolsVisualTree', :path => '/path/to/ansight-sdk/src/ios'
 
 The aggregate `Ansight` pod depends on `AnsightCore`, `AnsightPairingQR`, `AnsightToolsDatabase`, `AnsightToolsFileDescriptorDiagnostics`, `AnsightToolsFileSystem`, `AnsightToolsPreferences`, `AnsightToolsReflection`, `AnsightToolsSecureStorage`, and `AnsightToolsVisualTree`.
 
-The `AnsightCore` pod runs the same developer build-artifact generator before compile. It honors `ANSIGHT_DEVELOPER_PAIRING_ENABLED`, `ANSIGHT_DEVELOPER_PAIRING_SOURCE_FILE`, and `ANSIGHT_ALLOW_REMOTE_TOOLS`, then writes the pod-only `AnsightGeneratedBuildArtifactsProvider` used by `AnsightDeveloperMode`.
+The `AnsightCore` pod runs the same remote-tool build enforcement before
+compile and honors `ANSIGHT_ALLOW_REMOTE_TOOLS`.
 
 ## Quickstart
 
@@ -86,8 +83,17 @@ suites:
 import Ansight
 
 try AnsightRuntime.shared.initializeAndActivateAnsightSdk()
-await AnsightRuntime.shared.connect(.auto(clientName: "iOS App"))
+await AnsightRuntime.shared.connect(.qrCode(title: "Scan Ansight Enrollment QR"))
 ```
+
+No pairing file, build environment variable, or host address is required. The
+first scan registers a random app-installation id and saves the registration.
+Later launches reconnect automatically.
+
+The in-app scanner requires `NSCameraUsageDescription`. A physical iPhone
+connecting directly to Studio also uses Apple's Local Network privacy control.
+Ansight does not add Bluetooth, location, Bonjour discovery, contacts, photos,
+or associated-domains access.
 
 The aggregate preset mirrors the .NET all-in-one defaults:
 
@@ -134,27 +140,9 @@ try AnsightRuntime.shared.initializeAndActivate(options: options)
 | `toolGuard` | Controls remote-tool discovery and execution. |
 | `customProperties` | Grouped string properties sent with `session.open`. |
 | `hostAutoProbe` | Controls remembered-host retries after the host disappears and later reappears. |
-| `hostConnection` | Configures saved, cached, bundled, and developer pairing sources. |
+| `hostConnection` | Configures registration retention, discovery, and network policy. |
 
-Host connection options:
-
-```swift
-var options = AnsightOptions.ansightDeveloperDefaults
-options.hostConnection = AnsightHostConnectionOptions(
-    savedConfigKey: "ai.ansight.ios.saved-pairing",
-    connectionProfileRetentionSeconds: 14 * 24 * 60 * 60,
-    discoveryPort: 45123,
-    bundledDeveloperConfigJson: AnsightDeveloperMode.embeddedPairingJson,
-    bundledConfigJson: nil
-)
-```
-
-`bundledDeveloperConfigJson` is the local-development source. `bundledConfigJson`
-is the plain bundled fallback. Do not ship developer pairing resources in
-release, CI, TestFlight, App Store, or other distributable builds.
-
-Cellular host connections are disabled by default, including for bundled
-developer configs and QR scans. Remembered/saved profiles and manual connection
+Cellular host connections are disabled by default. Enrollment and reconnect
 requests use the same restriction. Opt in only for a trusted development host
 or personal hotspot:
 
@@ -165,8 +153,8 @@ let options = try AnsightOptions.createBuilder()
 ```
 
 The underlying `allowCellularConnections` option can consume mobile data and
-allows connection attempts over a broader or carrier-managed network. Signed
-pairing-config validation remains required.
+allows connection attempts over a broader or carrier-managed network. Use it
+only with a trusted development host.
 
 ## Host Connection
 
@@ -174,16 +162,15 @@ Runtime-owned host connection APIs live on `AnsightRuntime.shared`.
 
 ```swift
 let result = await AnsightRuntime.shared.connect(
-    .auto(clientName: "iOS App")
+    .qrCode(title: "Scan Ansight Enrollment QR")
 )
 ```
 
-Automatic connection tries:
+This is the default first-use flow. After a successful scan, `.auto(...)`
+reconnects with the stored registration.
 
-1. `hostConnection.bundledDeveloperConfigJson` or the embedded developer pairing artifact.
-2. remembered host profiles, newest first.
-3. saved pairing config.
-4. `hostConnection.bundledConfigJson`.
+Automatic connection uses the app-private registration created by the first
+successful enrollment scan.
 
 Host auto-probe is enabled by default while the runtime is active. It remembers
 previous host connections and retries them so the app can reconnect after the
@@ -207,12 +194,13 @@ let options = try AnsightOptions.createBuilder()
 Use `withoutHostAutoProbe()` for flows where reconnects should only happen
 after an explicit app action.
 
-Use explicit requests for override flows:
+If the app already owns a scanner, pass its result through the explicit payload
+API:
 
 ```swift
 await AnsightRuntime.shared.connect(
     .payloadText(
-        pairingJson,
+        enrollmentPayload,
         clientName: "iOS App",
         expectedAppId: Bundle.main.bundleIdentifier
     )

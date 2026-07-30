@@ -13,10 +13,11 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
 {
     private static readonly HashSet<string> CachedProfileResetCodes = new(StringComparer.Ordinal)
     {
-        PairingFailureCodes.PairingRequired,
-        PairingFailureCodes.PairingTokenInvalid,
-        PairingFailureCodes.PairingTokenExpired,
-        PairingFailureCodes.PairingProofInvalid,
+        PairingFailureCodes.EnrollmentRequired,
+        PairingFailureCodes.EnrollmentExpired,
+        PairingFailureCodes.EnrollmentConsumed,
+        PairingFailureCodes.AccessTokenInvalid,
+        PairingFailureCodes.RegistrationExpired,
         PairingFailureCodes.UdpBootstrapFailed,
         PairingFailureCodes.UdpBootstrapTimeout
     };
@@ -127,7 +128,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
             out error);
 
     /// <summary>
-    /// Parses a pairing document and validates its signature, expiry, and expected app id.
+    /// Parses an enrollment document and validates its schema, expiry, and expected app id.
     /// </summary>
     /// <param name="configJson">JSON payload containing either a pairing config document or a pairing config.</param>
     /// <param name="expectedAppId">Optional app id that the payload must target.</param>
@@ -149,7 +150,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         => configDocumentService.TryParseAndValidateConfig(configJson, expectedAppId, out config, out error);
 
     /// <summary>
-    /// Validates a pairing config against its signature, expiry, and optional expected app id.
+    /// Validates an enrollment invite against its schema, expiry, and optional expected app id.
     /// </summary>
     /// <param name="config">Config to validate.</param>
     /// <param name="expectedAppId">Optional app id that the config must target.</param>
@@ -159,7 +160,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         => configDocumentService.TryValidateConfig(config, expectedAppId, out error);
 
     /// <summary>
-    /// Validates a parsed pairing document against its signature, expiry, and optional expected app id.
+    /// Validates a parsed enrollment document against its schema, expiry, and optional expected app id.
     /// </summary>
     /// <param name="document">Parsed document to validate.</param>
     /// <param name="expectedAppId">Optional app id that the document must target.</param>
@@ -181,7 +182,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
     /// <summary>
     /// Opens a pairing session from a validated pairing config using default connection options.
     /// </summary>
-    /// <param name="config">Signed pairing config to use for the session.</param>
+    /// <param name="config">Validated enrollment invite to use for the session.</param>
     /// <param name="clientName">Name reported to the host for this client connection.</param>
     /// <param name="progress">Optional progress sink for structured connection updates.</param>
     /// <param name="cancellationToken">Cancellation token for the operation.</param>
@@ -198,7 +199,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
     /// <summary>
     /// Opens a pairing session from a validated pairing config.
     /// </summary>
-    /// <param name="config">Signed pairing config to use for the session.</param>
+    /// <param name="config">Validated enrollment invite to use for the session.</param>
     /// <param name="clientName">Name reported to the host for this client connection.</param>
     /// <param name="options">Optional discovery and profile overrides for the connection attempt.</param>
     /// <param name="progress">Optional progress sink for structured connection updates.</param>

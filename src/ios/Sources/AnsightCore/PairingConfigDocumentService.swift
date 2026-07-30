@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 
 public struct PairingConfigDocumentService: Sendable {
@@ -16,7 +15,7 @@ public struct PairingConfigDocumentService: Sendable {
     public func parseDocument(_ configJson: String) throws -> ParsedPairingDocument {
         let trimmedJson = configJson.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedJson.isEmpty else {
-            throw PairingDocumentError.invalidDocument("Paste or load a pairing config.")
+            throw PairingDocumentError.invalidDocument("Scan an Ansight enrollment QR code.")
         }
 
         if let compactDocument = PairingConfigCodeGenerator.tryParse(trimmedJson) {
@@ -29,19 +28,12 @@ public struct PairingConfigDocumentService: Sendable {
         let data = Data(trimmedJson.utf8)
         let rootObject = try decodeJSONObject(data)
         let schema = rootObject["schema"] as? String
-
-        if schema == "ansight.pairing-bootstrap.v1" {
-            throw PairingDocumentError.invalidDocument(
-                "Legacy bootstrap pairing payloads are no longer supported. Export a fresh pairing ticket from Ansight Studio."
+        if schema == PairingConfig.schemaName {
+            return ParsedPairingDocument(
+                config: try JSONDecoder.ansightDecoder.decode(PairingConfig.self, from: data)
             )
         }
-
-        if schema == PairingConfig.schemaName {
-            let config = try JSONDecoder.ansightDecoder.decode(PairingConfig.self, from: data)
-            return ParsedPairingDocument(config: config)
-        }
-
-        if schema == PairingConfigDocument.schemaName || schema == PairingConfigDocument.legacySchemaName {
+        if schema == PairingConfigDocument.schemaName {
             let document = try JSONDecoder.ansightDecoder.decode(PairingConfigDocument.self, from: data)
             return ParsedPairingDocument(
                 config: document.config,
@@ -51,34 +43,44 @@ public struct PairingConfigDocumentService: Sendable {
 
         let resolvedSchema = schema?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if resolvedSchema.isEmpty {
-            throw PairingDocumentError.invalidDocument("Pairing payloads must be pairing configs.")
+            throw PairingDocumentError.invalidDocument("The QR code is not an Ansight enrollment invite.")
         }
-
         throw PairingDocumentError.invalidDocument(
-            "Unsupported pairing payload schema '\(resolvedSchema)'. Export a fresh pairing config from Ansight Studio."
+            "Unsupported enrollment invite schema '\(resolvedSchema)'."
         )
     }
 
     public func validateDocument(_ document: ParsedPairingDocument, expectedAppId: String? = nil) throws {
-        guard verifyPairingConfigSignature(document.config) else {
-            throw PairingDocumentError.invalidDocument("Pairing ticket config signature is invalid.")
-        }
-
-        guard let expiresAt = parseTimestamp(document.config.expiresAt) else {
-            throw PairingDocumentError.invalidDocument("Pairing ticket config expiry could not be parsed.")
-        }
-
-        guard Date() <= expiresAt else {
+        let config = document.config
+        guard config.schema == PairingConfig.schemaName,
+              config.minProtocolVersion == 2,
+              config.allowedTransports == ["ws"],
+              !config.configId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !config.appId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !config.appName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              (1...65_535).contains(config.host.discoveryPort),
+              config.enrollment.maxUses == 1,
+              decodeBase64URL(config.enrollment.accessToken)?.count == 32
+        else {
             throw PairingDocumentError.invalidDocument(
-                "Pairing config expired at \(document.config.expiresAt)."
+                "Enrollment invite is incomplete or uses an unsupported connection protocol."
+            )
+        }
+
+        guard let registrationExpiry = parseTimestamp(config.enrollment.grantExpiresAt) else {
+            throw PairingDocumentError.invalidDocument("Device registration expiry could not be parsed.")
+        }
+        guard Date() <= registrationExpiry else {
+            throw PairingDocumentError.invalidDocument(
+                "Device registration expired at \(config.enrollment.grantExpiresAt). Scan a fresh QR code."
             )
         }
 
         let normalizedExpected = expectedAppId?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if !normalizedExpected.isEmpty,
-           document.config.appId.trimmingCharacters(in: .whitespacesAndNewlines) != normalizedExpected {
+           config.appId.trimmingCharacters(in: .whitespacesAndNewlines) != normalizedExpected {
             throw PairingDocumentError.invalidDocument(
-                "Config appId '\(document.config.appId)' does not match expected app id '\(normalizedExpected)'."
+                "Enrollment invite appId '\(config.appId)' does not match expected app id '\(normalizedExpected)'."
             )
         }
     }
@@ -86,43 +88,9 @@ public struct PairingConfigDocumentService: Sendable {
     private func decodeJSONObject(_ data: Data) throws -> [String: Any] {
         let raw = try JSONSerialization.jsonObject(with: data, options: [])
         guard let object = raw as? [String: Any] else {
-            throw PairingDocumentError.invalidDocument("Config JSON root must be an object.")
+            throw PairingDocumentError.invalidDocument("Enrollment invite JSON must be an object.")
         }
-
         return object
-    }
-
-    private func verifyPairingConfigSignature(_ config: PairingConfig) -> Bool {
-        guard let publicKeyData = Data(base64Encoded: config.host.hostPubKey),
-              let signatureData = Data(base64Encoded: config.signature)
-        else {
-            return false
-        }
-
-        let publicKey = (try? P256.Signing.PublicKey(derRepresentation: publicKeyData))
-            ?? (try? P256.Signing.PublicKey(x963Representation: publicKeyData))
-        guard let publicKey else {
-            return false
-        }
-
-        for signable in [
-            PairingCanonicalJSON.serializePairingConfigForSignature(config),
-            PairingCanonicalJSON.serializePairingConfigWithLegacyTrustForSignature(config),
-        ] {
-            let data = Data(signable.utf8)
-
-            if let rawSignature = try? P256.Signing.ECDSASignature(rawRepresentation: signatureData),
-               publicKey.isValidSignature(rawSignature, for: data) {
-                return true
-            }
-
-            if let derSignature = try? P256.Signing.ECDSASignature(derRepresentation: signatureData),
-               publicKey.isValidSignature(derSignature, for: data) {
-                return true
-            }
-        }
-
-        return false
     }
 
     private func normalizeDiscovery(_ discoveryHint: PairingDiscoveryHint?) -> PairingDiscoveryHint? {
@@ -137,40 +105,46 @@ public struct PairingConfigDocumentService: Sendable {
                 guard !normalizedAddress.isEmpty else {
                     return nil
                 }
-
                 let key = normalizedAddress.lowercased()
-                guard !seenAddresses.contains(key) else {
+                guard seenAddresses.insert(key).inserted else {
                     return nil
                 }
-
-                seenAddresses.insert(key)
                 return normalizedAddress
             }
         discoveryHint.hostAddresses = normalizedAddresses.isEmpty ? nil : normalizedAddresses
         if discoveryHint.schema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             discoveryHint.schema = PairingDiscoveryHint.schemaName
         }
-
         return discoveryHint
     }
 
     private func parseTimestamp(_ rawValue: String) -> Date? {
-        if let parsed = Self.makeFractionalFormatter().date(from: rawValue) {
+        let fractionalFormatter = ISO8601DateFormatter()
+        fractionalFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let parsed = fractionalFormatter.date(from: rawValue) {
             return parsed
         }
 
-        return Self.makeStandardFormatter().date(from: rawValue)
-    }
-
-    private static func makeFractionalFormatter() -> ISO8601DateFormatter {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter
-    }
-
-    private static func makeStandardFormatter() -> ISO8601DateFormatter {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
-        return formatter
+        return formatter.date(from: rawValue)
+    }
+
+    private func decodeBase64URL(_ value: String) -> Data? {
+        var normalized = value
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        switch normalized.count % 4 {
+        case 0:
+            break
+        case 2:
+            normalized.append("==")
+        case 3:
+            normalized.append("=")
+        default:
+            return nil
+        }
+        return Data(base64Encoded: normalized)
     }
 }

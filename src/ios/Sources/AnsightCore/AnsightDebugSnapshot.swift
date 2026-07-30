@@ -10,7 +10,6 @@ public struct AnsightDebugSnapshot: Sendable, Codable {
     public let executableTools: Int
     public let toolDiscoveryEnabled: Bool
     public let toolExecutionEnabled: Bool
-    public let embeddedDeveloperPairingAvailable: Bool
     public let detectedBundledTools: [String]
     public let lastMetric: RecordedMetric?
     public let lastEvent: RecordedEvent?

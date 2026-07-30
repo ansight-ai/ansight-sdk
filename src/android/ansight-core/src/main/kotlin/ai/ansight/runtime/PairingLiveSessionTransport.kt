@@ -1,12 +1,10 @@
 package ai.ansight.runtime
 
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.Response
-import okhttp3.WebSocket
-import okhttp3.WebSocketListener
-import okio.ByteString
 import org.json.JSONObject
+import org.java_websocket.client.WebSocketClient
+import org.java_websocket.handshake.ServerHandshake
+import java.net.URI
+import java.nio.ByteBuffer
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
@@ -19,59 +17,63 @@ internal data class PairingControlRequestResult(
 )
 
 class PairingLiveSessionTransport {
-    private val client = OkHttpClient.Builder()
-        .readTimeout(0, TimeUnit.MILLISECONDS)
-        .build()
     private val pendingResponses = ConcurrentHashMap<String, PendingControlResponse>()
     private val lock = Any()
-    private var webSocket: WebSocket? = null
+    private var webSocket: WebSocketClient? = null
     private var lastCloseReason: String? = null
     @Volatile var textMessageHandler: ((String) -> Unit)? = null
     @Volatile var binaryMessageHandler: ((ByteArray) -> Unit)? = null
 
     val isOpen: Boolean
-        get() = synchronized(lock) { webSocket != null }
+        get() = synchronized(lock) { webSocket?.isOpen == true }
 
     fun open(url: String, timeoutMilliseconds: Long = 5_000): OperationResult {
         close(notify = false)
 
         val opened = CountDownLatch(1)
         val failed = AtomicReference<String?>(null)
-        val request = Request.Builder().url(url).build()
-        val listener = object : WebSocketListener() {
-            override fun onOpen(webSocket: WebSocket, response: Response) {
+        val openingSocket = AtomicReference<WebSocketClient?>(null)
+        val socket = object : WebSocketClient(URI(url)) {
+            override fun onOpen(handshakeData: ServerHandshake?) {
                 synchronized(lock) {
-                    this@PairingLiveSessionTransport.webSocket = webSocket
+                    webSocket = this
                     lastCloseReason = null
                 }
                 opened.countDown()
             }
 
-            override fun onMessage(webSocket: WebSocket, text: String) {
-                handleIncomingText(text)
+            override fun onMessage(message: String) {
+                handleIncomingText(message)
             }
 
-            override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
-                binaryMessageHandler?.invoke(bytes.toByteArray())
+            override fun onMessage(bytes: ByteBuffer) {
+                val copy = ByteArray(bytes.remaining())
+                bytes.slice().get(copy)
+                binaryMessageHandler?.invoke(copy)
             }
 
-            override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-                close(reason = reason.ifBlank { "WebSocket closing." }, notify = true)
+            override fun onClose(code: Int, reason: String?, remote: Boolean) {
+                handleSocketClosed(
+                    this,
+                    reason?.takeIf { it.isNotBlank() } ?: "WebSocket closed.",
+                )
             }
 
-            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                close(reason = reason.ifBlank { "WebSocket closed." }, notify = true)
-            }
-
-            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                failed.set(t.message ?: "WebSocket failed.")
-                close(reason = failed.get() ?: "WebSocket failed.", notify = true)
+            override fun onError(error: Exception?) {
+                val message = error?.message ?: "WebSocket failed."
+                failed.compareAndSet(null, message)
+                handleSocketClosed(this, message)
                 opened.countDown()
             }
         }
 
-        client.newWebSocket(request, listener)
+        openingSocket.set(socket)
+        socket.connect()
         if (!opened.await(timeoutMilliseconds, TimeUnit.MILLISECONDS)) {
+            openingSocket.get()?.closeConnection(
+                1001,
+                "WebSocket endpoint did not become reachable in time.",
+            )
             close(reason = "WebSocket endpoint did not become reachable in time.", notify = true)
             return OperationResult.failure("WebSocket endpoint did not become reachable in time.")
         }
@@ -117,7 +119,7 @@ class PairingLiveSessionTransport {
 
         val pending = PendingControlResponse()
         pendingResponses[requestId] = pending
-        if (!socket.send(envelope.toString())) {
+        if (!sendTextPayload(socket, envelope.toString())) {
             pendingResponses.remove(requestId)
             return PairingControlRequestResult(
                 OperationResult.failure("Failed to send $action."),
@@ -149,7 +151,7 @@ class PairingLiveSessionTransport {
     fun sendText(text: String): OperationResult {
         val socket = synchronized(lock) { webSocket }
             ?: return OperationResult.failure("WebSocket session is not open.")
-        return if (socket.send(text)) {
+        return if (sendTextPayload(socket, text)) {
             OperationResult.success("Payload sent.")
         } else {
             OperationResult.failure("Failed to send WebSocket payload.")
@@ -159,7 +161,7 @@ class PairingLiveSessionTransport {
     fun sendData(bytes: ByteArray): OperationResult {
         val socket = synchronized(lock) { webSocket }
             ?: return OperationResult.failure("WebSocket session is not open.")
-        return if (socket.send(OkioCompat.byteStringOf(bytes))) {
+        return if (sendBinaryPayload(socket, bytes)) {
             OperationResult.success("Binary payload sent.")
         } else {
             OperationResult.failure("Failed to send WebSocket binary payload.")
@@ -182,6 +184,37 @@ class PairingLiveSessionTransport {
         socket?.close(1000, reason.take(120))
         return if (notify) OperationResult.failure(reason) else OperationResult.success(reason)
     }
+
+    private fun handleSocketClosed(socket: WebSocketClient, reason: String) {
+        val shouldNotify = synchronized(lock) {
+            if (webSocket !== socket) {
+                false
+            } else {
+                webSocket = null
+                lastCloseReason = reason
+                true
+            }
+        }
+        if (!shouldNotify) {
+            return
+        }
+
+        pendingResponses.values.forEach { pending ->
+            pending.error = reason
+            pending.latch.countDown()
+        }
+        pendingResponses.clear()
+    }
+
+    private fun sendTextPayload(socket: WebSocketClient, text: String): Boolean =
+        socket.isOpen && runCatching {
+            socket.send(text)
+        }.isSuccess
+
+    private fun sendBinaryPayload(socket: WebSocketClient, bytes: ByteArray): Boolean =
+        socket.isOpen && runCatching {
+            socket.send(bytes)
+        }.isSuccess
 
     private fun handleIncomingText(text: String) {
         val json = try {

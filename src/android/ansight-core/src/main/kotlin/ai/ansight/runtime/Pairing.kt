@@ -1,5 +1,6 @@
 package ai.ansight.runtime
 
+import android.app.Application
 import android.os.Build
 import org.json.JSONArray
 import org.json.JSONObject
@@ -8,13 +9,10 @@ import java.net.DatagramSocket
 import java.net.InetAddress
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
-import java.security.KeyFactory
-import java.security.Signature
-import java.security.spec.X509EncodedKeySpec
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.util.Base64
-import java.util.Locale
+import java.util.UUID
 import java.util.zip.GZIPInputStream
 
 object PairingProtocolDefaults {
@@ -30,25 +28,25 @@ data class PairingConfig(
     val appName: String,
     val issuedAt: String,
     val expiresAt: String,
-    val oneTimeToken: String,
+    val minProtocolVersion: Int = 2,
+    val allowedTransports: List<String> = listOf("ws"),
     val host: PairingHost,
-    val challenge: PairingChallenge,
-    val signature: String,
+    val enrollment: PairingEnrollment,
 ) {
     companion object {
-        const val SchemaName = "ansight.pairing-config.v1"
+        const val SchemaName = "ansight.enrollment-invite.v2"
 
         fun fromJson(json: JSONObject): PairingConfig = PairingConfig(
             schema = json.requiredString("schema"),
-            configId = json.requiredString("configId"),
+            configId = json.requiredString("inviteId"),
             appId = json.requiredString("appId"),
             appName = json.requiredString("appName"),
             issuedAt = json.requiredString("issuedAt"),
             expiresAt = json.requiredString("expiresAt"),
-            oneTimeToken = json.requiredString("oneTimeToken"),
+            minProtocolVersion = json.optInt("minProtocolVersion", 2),
+            allowedTransports = json.optJSONArray("allowedTransports").toStringList(),
             host = PairingHost.fromJson(json.getJSONObject("host")),
-            challenge = PairingChallenge.fromJson(json.getJSONObject("challenge")),
-            signature = json.requiredString("signature"),
+            enrollment = PairingEnrollment.fromJson(json.getJSONObject("enrollment")),
         )
     }
 }
@@ -57,30 +55,32 @@ data class PairingHost(
     val hostId: String?,
     val hostName: String?,
     val discoveryPort: Int,
-    val hostPubKey: String,
-    val hostPubKeyFingerprint: String,
 ) {
     companion object {
         fun fromJson(json: JSONObject): PairingHost = PairingHost(
             hostId = json.optionalString("hostId"),
             hostName = json.optionalString("hostName"),
-            discoveryPort = json.optionalInt("discoveryPort") ?: PairingProtocolDefaults.DiscoveryPort,
-            hostPubKey = json.requiredString("hostPubKey"),
-            hostPubKeyFingerprint = json.requiredString("hostPubKeyFingerprint"),
+            discoveryPort = json.optInt("discoveryPort", PairingProtocolDefaults.DiscoveryPort),
         )
     }
 }
 
-data class PairingChallenge(
-    val alg: String,
-    val challengePubKey: String,
-    val requireProofOnFirstPair: Boolean,
+data class PairingEnrollment(
+    val accessToken: String,
+    val expiresAt: String,
+    val grantExpiresAt: String,
+    val maxUses: Int,
+    val maxScopes: List<String>,
+    val allowCritical: Boolean,
 ) {
     companion object {
-        fun fromJson(json: JSONObject): PairingChallenge = PairingChallenge(
-            alg = json.requiredString("alg"),
-            challengePubKey = json.requiredString("challengePubKey"),
-            requireProofOnFirstPair = json.optionalBoolean("requireProofOnFirstPair") ?: false,
+        fun fromJson(json: JSONObject): PairingEnrollment = PairingEnrollment(
+            accessToken = json.requiredString("accessToken"),
+            expiresAt = json.requiredString("expiresAt"),
+            grantExpiresAt = json.requiredString("grantExpiresAt"),
+            maxUses = json.optInt("maxUses", 1),
+            maxScopes = json.optJSONArray("maxScopes").toStringList(),
+            allowCritical = json.optBoolean("allowCritical", false),
         )
     }
 }
@@ -112,12 +112,11 @@ data class PairingDiscoveryHint(
             val rawAddresses = json.optJSONArray("hostAddresses")
             if (rawAddresses != null) {
                 for (index in 0 until rawAddresses.length()) {
-                    rawAddresses.optString(index).trim().ifBlank { null }?.let { address -> addresses.add(address) }
+                    rawAddresses.optString(index).trim().ifBlank { null }?.let(addresses::add)
                 }
             }
 
-            json.optionalString("hostAddress")?.let { address -> addresses.add(address) }
-
+            json.optionalString("hostAddress")?.let(addresses::add)
             return PairingDiscoveryHint(
                 schema = json.optionalString("schema") ?: "ansight.discovery-hint.v1",
                 source = json.optionalString("source"),
@@ -137,8 +136,7 @@ data class ParsedPairingDocument(
 )
 
 object PairingConfigDocumentService {
-    const val ConfigDocumentSchemaName = "ansight.pairing-config-document.v1"
-    const val LegacySchemaName = "ansight.pairing-ticket.v1"
+    const val ConfigDocumentSchemaName = "ansight.enrollment-invite-document.v2"
 
     fun parseAndValidateDocument(payload: String, expectedAppId: String? = null): ParsedPairingDocument {
         val document = parseDocument(payload)
@@ -148,139 +146,80 @@ object PairingConfigDocumentService {
 
     fun parseDocument(payload: String): ParsedPairingDocument {
         val trimmed = payload.trim()
-        require(trimmed.isNotEmpty()) { "Paste or load a pairing config." }
+        require(trimmed.isNotEmpty()) { "Scan an Ansight enrollment QR code." }
 
         PairingConfigCodeGenerator.tryParse(trimmed)?.let { document -> return document }
-
         val root = try {
             JSONObject(trimmed)
         } catch (ex: Exception) {
-            throw IllegalArgumentException("Failed to parse pairing config: ${ex.message}", ex)
+            throw IllegalArgumentException("Failed to parse enrollment invite: ${ex.message}", ex)
         }
 
-        val schema = root.optionalString("schema")
-        if (schema == "ansight.pairing-bootstrap.v1") {
-            throw IllegalArgumentException("Legacy bootstrap pairing payloads are no longer supported. Export a fresh pairing config from Ansight Studio.")
+        return when (val schema = root.optionalString("schema").orEmpty()) {
+            PairingConfig.SchemaName -> ParsedPairingDocument(PairingConfig.fromJson(root))
+            ConfigDocumentSchemaName -> {
+                val invite = root.optJSONObject("invite")
+                    ?: throw IllegalArgumentException("Enrollment invite document is missing its invite.")
+                ParsedPairingDocument(
+                    config = PairingConfig.fromJson(invite),
+                    discoveryHint = PairingDiscoveryHint.fromJson(root.optJSONObject("discovery")),
+                )
+            }
+            "" -> throw IllegalArgumentException("The QR code is not an Ansight enrollment invite.")
+            else -> throw IllegalArgumentException("Unsupported enrollment invite schema '$schema'.")
         }
-
-        if (schema == PairingConfig.SchemaName) {
-            return ParsedPairingDocument(PairingConfig.fromJson(root))
-        }
-
-        if (schema == ConfigDocumentSchemaName || schema == LegacySchemaName) {
-            val configObject = root.optJSONObject("config")
-                ?: throw IllegalArgumentException("Pairing config document did not contain a pairing config.")
-            return ParsedPairingDocument(
-                config = PairingConfig.fromJson(configObject),
-                discoveryHint = PairingDiscoveryHint.fromJson(root.optJSONObject("discovery")),
-            )
-        }
-
-        val resolvedSchema = schema?.trim().orEmpty()
-        if (resolvedSchema.isEmpty()) {
-            throw IllegalArgumentException("Pairing payloads must be pairing configs.")
-        }
-
-        throw IllegalArgumentException("Unsupported pairing payload schema '$resolvedSchema'. Export a fresh pairing config from Ansight Studio.")
     }
 
     fun validateDocument(document: ParsedPairingDocument, expectedAppId: String? = null) {
         val config = document.config
         require(config.schema == PairingConfig.SchemaName) {
-            "Unsupported pairing config schema '${config.schema}'."
+            "Unsupported enrollment invite schema '${config.schema}'."
         }
-        require(verifyPairingConfigSignature(config)) {
-            "Connection config signature is invalid."
+        require(
+            config.minProtocolVersion == 2 &&
+                config.allowedTransports == listOf("ws") &&
+                config.configId.isNotBlank() &&
+                config.appId.isNotBlank() &&
+                config.appName.isNotBlank() &&
+                config.host.discoveryPort in 1..65_535 &&
+                config.enrollment.maxUses == 1 &&
+                decodeBase64Url(config.enrollment.accessToken)?.size == 32
+        ) {
+            "Enrollment invite is incomplete or uses an unsupported connection protocol."
         }
 
-        val expiresAt = parseConfigInstant(config.expiresAt)
-        require(!Instant.now().isAfter(expiresAt)) {
-            "Connection config expired at ${config.expiresAt}."
+        val registrationExpiry = parseConfigInstant(config.enrollment.grantExpiresAt)
+        require(!Instant.now().isAfter(registrationExpiry)) {
+            "Device registration expired at ${config.enrollment.grantExpiresAt}. Scan a fresh QR code."
         }
 
         val normalizedExpected = expectedAppId?.trim().orEmpty()
         if (normalizedExpected.isNotEmpty()) {
             require(config.appId.trim() == normalizedExpected) {
-                "Pairing config appId '${config.appId.trim()}' does not match expected app id '$normalizedExpected'."
+                "Enrollment invite appId '${config.appId.trim()}' does not match expected app id '$normalizedExpected'."
             }
-        }
-    }
-
-    internal fun verifyPairingConfigSignature(config: PairingConfig): Boolean {
-        return try {
-            val publicKeyBytes = Base64.getDecoder().decode(config.host.hostPubKey)
-            val signatureBytes = Base64.getDecoder().decode(config.signature)
-            val publicKey = KeyFactory.getInstance("EC").generatePublic(X509EncodedKeySpec(publicKeyBytes))
-            val derSignature = ensureDerSignature(signatureBytes)
-            listOf(
-                PairingCanonicalJson.serializePairingConfigForSignature(config),
-                PairingCanonicalJson.serializePairingConfigWithLegacyTrustForSignature(config),
-            ).any { signable ->
-                val verifier = Signature.getInstance("SHA256withECDSA")
-                verifier.initVerify(publicKey)
-                verifier.update(signable.toByteArray(StandardCharsets.UTF_8))
-                verifier.verify(derSignature)
-            }
-        } catch (_: Exception) {
-            false
         }
     }
 
     internal fun parseConfigInstant(value: String): Instant =
         runCatching { Instant.parse(value) }
             .recoverCatching { OffsetDateTime.parse(value).toInstant() }
-            .getOrElse { throw IllegalArgumentException("Pairing config expiry could not be parsed.", it) }
-
-    private fun ensureDerSignature(signature: ByteArray): ByteArray {
-        if (signature.firstOrNull() == 0x30.toByte()) {
-            return signature
-        }
-
-        if (signature.size != 64) {
-            return signature
-        }
-
-        val r = signature.copyOfRange(0, 32).toDerInteger()
-        val s = signature.copyOfRange(32, 64).toDerInteger()
-        val bodyLength = 2 + r.size + 2 + s.size
-        return byteArrayOf(0x30, bodyLength.toByte(), 0x02, r.size.toByte()) +
-            r +
-            byteArrayOf(0x02, s.size.toByte()) +
-            s
-    }
-
-    private fun ByteArray.toDerInteger(): ByteArray {
-        var offset = 0
-        while (offset < size - 1 && this[offset] == 0.toByte()) {
-            offset++
-        }
-
-        val value = copyOfRange(offset, size)
-        return if (value.first().toInt() and 0x80 != 0) {
-            byteArrayOf(0) + value
-        } else {
-            value
-        }
-    }
+            .getOrElse { throw IllegalArgumentException("Enrollment expiry could not be parsed.", it) }
 }
 
 internal object PairingConfigCodeGenerator {
-    const val FormatPrefix = "apc1"
-    const val LegacyFormatPrefix = "apt1"
+    const val FormatPrefix = "ans2"
 
     fun tryParse(payload: String): ParsedPairingDocument? {
         val normalizedPayload = payload.trim()
-        val formatPrefix = when {
-            normalizedPayload.startsWith("$FormatPrefix:") -> FormatPrefix
-            normalizedPayload.startsWith("$LegacyFormatPrefix:") -> LegacyFormatPrefix
-            else -> return null
+        if (!normalizedPayload.startsWith("$FormatPrefix:")) {
+            return null
         }
 
-        val encodedPayload = normalizedPayload.substring(formatPrefix.length + 1)
+        val encodedPayload = normalizedPayload.substring(FormatPrefix.length + 1)
         val compressedBytes = runCatching {
             Base64.getUrlDecoder().decode(encodedPayload)
         }.getOrNull() ?: return null
-
         val json = runCatching {
             GZIPInputStream(compressedBytes.inputStream()).use { gzip ->
                 String(gzip.readBytes(), StandardCharsets.UTF_8)
@@ -289,123 +228,44 @@ internal object PairingConfigCodeGenerator {
 
         return runCatching {
             val root = JSONObject(json)
-            val schema = root.optionalString("schema")
-            if (schema != PairingConfigDocumentService.ConfigDocumentSchemaName &&
-                schema != PairingConfigDocumentService.LegacySchemaName
-            ) {
+            if (root.optionalString("schema") != PairingConfigDocumentService.ConfigDocumentSchemaName) {
                 return null
             }
 
-            val configObject = root.optJSONObject("config") ?: return null
+            val invite = root.optJSONObject("invite") ?: return null
             ParsedPairingDocument(
-                config = PairingConfig.fromJson(configObject),
+                config = PairingConfig.fromJson(invite),
                 discoveryHint = PairingDiscoveryHint.fromJson(root.optJSONObject("discovery")),
             )
         }.getOrNull()
     }
 }
 
-internal object PairingCanonicalJson {
-    fun serializePairingConfigForSignature(config: PairingConfig): String {
-        return serializePairingConfig(config, includeLegacyTrust = false)
-    }
-
-    fun serializePairingConfigWithLegacyTrustForSignature(config: PairingConfig): String {
-        return serializePairingConfig(config, includeLegacyTrust = true)
-    }
-
-    private fun serializePairingConfig(config: PairingConfig, includeLegacyTrust: Boolean): String {
-        val hostJson = serializeHost(config.host.hostPubKey, config.host.hostPubKeyFingerprint)
-        val fields = mutableListOf(
-            jsonStringField("schema", config.schema, escapePlus = true),
-            jsonStringField("configId", config.configId, escapePlus = true),
-            jsonStringField("appId", config.appId, escapePlus = true),
-            jsonStringField("appName", config.appName, escapePlus = true),
-            jsonStringField("issuedAt", config.issuedAt, escapePlus = false),
-            jsonStringField("expiresAt", config.expiresAt, escapePlus = false),
-            jsonStringField("oneTimeToken", config.oneTimeToken, escapePlus = true),
-            "\"host\":$hostJson",
-            "\"challenge\":${serializeChallenge(config.challenge)}",
-        )
-        if (includeLegacyTrust) {
-            fields.add("\"trust\":${serializeLegacyTrust()}")
-        }
-
-        return fields.joinToString(prefix = "{", postfix = "}", separator = ",")
-    }
-
-    private fun serializeHost(hostPubKey: String, hostPubKeyFingerprint: String): String {
-        return listOf(
-            jsonStringField("hostPubKey", hostPubKey, escapePlus = true),
-            jsonStringField("hostPubKeyFingerprint", hostPubKeyFingerprint, escapePlus = true),
-        ).joinToString(prefix = "{", postfix = "}", separator = ",")
-    }
-
-    private fun serializeChallenge(challenge: PairingChallenge): String {
-        return listOf(
-            jsonStringField("alg", challenge.alg, escapePlus = true),
-            jsonStringField("challengePubKey", challenge.challengePubKey, escapePlus = true),
-            "\"requireProofOnFirstPair\":${challenge.requireProofOnFirstPair}",
-        ).joinToString(prefix = "{", postfix = "}", separator = ",")
-    }
-
-    private fun serializeLegacyTrust(): String {
-        return listOf(
-            jsonStringField("mode", "pinned-key+token+challenge", escapePlus = true),
-            "\"requireTokenOnFirstPair\":true",
-            "\"allowLanDiscovery\":false",
-        ).joinToString(prefix = "{", postfix = "}", separator = ",")
-    }
-
-    private fun jsonStringField(name: String, value: String, escapePlus: Boolean): String {
-        return "\"$name\":\"${escapeJsonString(value, escapePlus)}\""
-    }
-
-    private fun escapeJsonString(value: String, escapePlus: Boolean): String {
-        val builder = StringBuilder(value.length)
-        value.forEach { char ->
-            when (char) {
-                '"' -> builder.append("\\\"")
-                '\\' -> builder.append("\\\\")
-                '\n' -> builder.append("\\n")
-                '\r' -> builder.append("\\r")
-                '\t' -> builder.append("\\t")
-                '+' -> if (escapePlus) builder.append("\\u002B") else builder.append('+')
-                else -> {
-                    val code = char.code
-                    if (code < 0x20) {
-                        builder.append("\\u")
-                        builder.append(code.toString(16).uppercase(Locale.US).padStart(4, '0'))
-                    } else {
-                        builder.append(char)
-                    }
-                }
-            }
-        }
-        return builder.toString()
-    }
-}
-
 data class ConnectRequest(
-    val configId: String,
-    val oneTimeToken: String,
+    val requestId: String,
+    val inviteId: String,
     val appId: String,
-    val clientName: String,
+    val deviceId: String,
+    val deviceName: String,
+    val accessToken: String,
     val processSessionId: String? = ProcessSessionIdentity.current,
 ) {
     fun toJson(): JSONObject = JSONObject()
-        .put("type", "CONNECT_REQ")
-        .put("ver", 1)
-        .put("configId", configId)
-        .put("oneTimeToken", oneTimeToken)
+        .put("type", "ENROLLMENT_CONNECT")
+        .put("ver", 2)
+        .put("requestId", requestId)
+        .put("inviteId", inviteId)
         .put("appId", appId)
-        .put("clientName", clientName)
+        .put("deviceId", deviceId)
+        .put("deviceName", deviceName)
+        .put("accessToken", accessToken)
         .putIfNotNull("processSessionId", processSessionId)
 }
 
 data class ConnectResponse(
     val type: String,
     val ver: Int,
+    val requestId: String,
     val accepted: Boolean,
     val reason: String,
     val reasonMessage: String?,
@@ -420,7 +280,8 @@ data class ConnectResponse(
     companion object {
         fun fromJson(json: JSONObject): ConnectResponse = ConnectResponse(
             type = json.requiredString("type"),
-            ver = json.optInt("ver", 1),
+            ver = json.optInt("ver", 0),
+            requestId = json.requiredString("requestId"),
             accepted = json.optBoolean("accepted", false),
             reason = json.requiredString("reason"),
             reasonMessage = json.optionalString("reasonMessage"),
@@ -445,16 +306,32 @@ object PairingControlActions {
 }
 
 object ProcessSessionIdentity {
-    val current: String = "android.${java.util.UUID.randomUUID().toString().replace("-", "")}"
+    val current: String = "android.${UUID.randomUUID().toString().replace("-", "")}"
+}
+
+internal object AndroidPairingDeviceIdentity {
+    private const val PreferencesName = "ai.ansight.enrollment"
+    private const val DeviceIdKey = "deviceId"
+    private val processFallback = "android.${UUID.randomUUID().toString().replace("-", "")}"
+
+    fun resolve(application: Application?): String {
+        if (application == null) {
+            return processFallback
+        }
+
+        val preferences = application.getSharedPreferences(PreferencesName, Application.MODE_PRIVATE)
+        synchronized(this) {
+            preferences.getString(DeviceIdKey, null)?.trim()?.ifBlank { null }?.let { return it }
+            val deviceId = "android.${UUID.randomUUID().toString().replace("-", "")}"
+            preferences.edit().putString(DeviceIdKey, deviceId).apply()
+            return deviceId
+        }
+    }
 }
 
 internal object PairingSimulatorLocalHostAddress {
     fun resolve(): String? = runCatching {
-        if (isAndroidEmulator()) {
-            androidHostAddress()
-        } else {
-            null
-        }
+        if (isAndroidEmulator()) androidHostAddress() else null
     }.getOrNull()
 
     private fun androidHostAddress(): String =
@@ -489,7 +366,6 @@ internal object PairingHostAddressCandidates {
         simulatorLocalHostAddress: String?,
     ): List<String> {
         hostAddressOverride?.trim()?.ifBlank { null }?.let { return listOf(it) }
-
         return (listOf(simulatorLocalHostAddress) + discoveryHint?.hostAddressCandidates.orEmpty())
             .mapNotNull { address -> address?.trim()?.ifBlank { null } }
             .distinct()
@@ -512,7 +388,9 @@ data class PairingConnectionAttempt(
     val failureCode: String? = null,
 ) {
     companion object {
-        fun failure(message: String, code: String? = null) = PairingConnectionAttempt(false, false, message, failureCode = code)
+        fun failure(message: String, code: String? = null) =
+            PairingConnectionAttempt(false, false, message, failureCode = code)
+
         fun rejected(hostAddress: String, response: ConnectResponse) = PairingConnectionAttempt(
             success = false,
             accepted = false,
@@ -520,19 +398,22 @@ data class PairingConnectionAttempt(
             hostAddress = hostAddress,
             connectResponse = response,
         )
-        fun success(hostAddress: String, response: ConnectResponse, transport: PairingLiveSessionTransport) = PairingConnectionAttempt(
-            success = true,
-            accepted = true,
-            message = "Connected to host and WebSocket session is ready.",
-            hostAddress = hostAddress,
-            connectResponse = response,
-            transport = transport,
-        )
+
+        fun success(hostAddress: String, response: ConnectResponse, transport: PairingLiveSessionTransport) =
+            PairingConnectionAttempt(
+                success = true,
+                accepted = true,
+                message = "Connected to Studio.",
+                hostAddress = hostAddress,
+                connectResponse = response,
+                transport = transport,
+            )
     }
 }
 
 class PairingSessionConnector(
     private val simulatorLocalHostAddressProvider: () -> String? = { PairingSimulatorLocalHostAddress.resolve() },
+    private val applicationProvider: () -> Application? = { null },
 ) {
     private var networkStatusProvider: () -> PairingNetworkPreflightStatus =
         { PairingNetworkPreflightStatus.Unknown }
@@ -540,7 +421,8 @@ class PairingSessionConnector(
     internal constructor(
         simulatorLocalHostAddressProvider: () -> String?,
         networkStatusProvider: () -> PairingNetworkPreflightStatus,
-    ) : this(simulatorLocalHostAddressProvider) {
+        applicationProvider: () -> Application? = { null },
+    ) : this(simulatorLocalHostAddressProvider, applicationProvider) {
         this.networkStatusProvider = networkStatusProvider
     }
 
@@ -557,7 +439,7 @@ class PairingSessionConnector(
         )
         if (hostAddressCandidates.isEmpty()) {
             return PairingConnectionAttempt.failure(
-                "A current host address is required. Import a fresh pairing config or compact pairing config code.",
+                "The scanned Ansight QR code does not contain a reachable Studio address.",
                 PairingFailureCodes.HostAddressRequired,
             )
         }
@@ -565,9 +447,11 @@ class PairingSessionConnector(
         val discoveryPort = options.discoveryPort
             ?: document.discoveryHint?.discoveryPort
             ?: document.config.host.discoveryPort
-
         if (discoveryPort !in 1..65_535) {
-            return PairingConnectionAttempt.failure("Pairing discovery port must be between 1 and 65535.", PairingFailureCodes.HostAddressRequired)
+            return PairingConnectionAttempt.failure(
+                "Studio discovery port must be between 1 and 65535.",
+                PairingFailureCodes.HostAddressRequired,
+            )
         }
 
         val hasSimulatorLocalHostCandidate = simulatorLocalHostAddress != null &&
@@ -579,39 +463,37 @@ class PairingSessionConnector(
         }
         if (networkStatus == PairingNetworkPreflightStatus.NotConnected) {
             return PairingConnectionAttempt.failure(
-                "Ansight is unavailable because this device is not connected to Wi-Fi. Check that this device is on the same Wi-Fi network as the Ansight host.",
+                "This device must be on the same Wi-Fi network as Ansight Studio.",
                 PairingFailureCodes.WifiRequired,
             )
         }
-
         if (networkStatus == PairingNetworkPreflightStatus.Cellular && !options.allowCellularConnections) {
             return PairingConnectionAttempt.failure(
-                "Cellular host connections are disabled. Enable allowCellularConnections in the Ansight host connection builder to connect while using cellular data.",
+                "Cellular Studio connections are disabled.",
                 PairingFailureCodes.WifiRequired,
             )
         }
 
+        val deviceId = AndroidPairingDeviceIdentity.resolve(applicationProvider())
         var lastFailure: PairingConnectionAttempt? = null
         for (hostAddress in hostAddressCandidates) {
             val connectResponse = try {
-                sendConnectRequest(document.config, clientName, hostAddress, discoveryPort)
+                sendConnectRequest(document.config, clientName, deviceId, hostAddress, discoveryPort)
             } catch (ex: Exception) {
-                lastFailure = PairingConnectionAttempt.failure("UDP connect failed for $hostAddress: ${ex.message}", PairingFailureCodes.UdpBootstrapFailed)
+                lastFailure = PairingConnectionAttempt.failure(
+                    "UDP enrollment failed for $hostAddress: ${ex.message}",
+                    PairingFailureCodes.UdpBootstrapFailed,
+                )
                 continue
             }
 
             if (connectResponse == null) {
                 lastFailure = PairingConnectionAttempt.failure(
-                    "No connect response from host at $hostAddress. Check that this device is on the same Wi-Fi network as the Ansight host.",
+                    "No response from Studio at $hostAddress. Scan a fresh QR code if Studio's address changed.",
                     PairingFailureCodes.UdpBootstrapTimeout,
                 )
                 continue
             }
-
-            if (connectResponse.type != "CONNECT_RESP") {
-                return PairingConnectionAttempt.failure("Host connect response had unexpected type '${connectResponse.type}'.", PairingFailureCodes.UdpBootstrapFailed)
-            }
-
             if (!connectResponse.accepted) {
                 return PairingConnectionAttempt.rejected(hostAddress, connectResponse)
             }
@@ -620,21 +502,26 @@ class PairingSessionConnector(
             val webSocketPath = connectResponse.webSocketPath?.trim()
             val webSocketToken = connectResponse.webSocketToken?.trim()
             if (webSocketPort == null || webSocketPath.isNullOrBlank() || webSocketToken.isNullOrBlank()) {
-                return PairingConnectionAttempt.failure("Host did not provide a WebSocket handoff.", PairingFailureCodes.WebSocketHandoffUnavailable)
+                return PairingConnectionAttempt.failure(
+                    "Studio did not provide a WebSocket handoff.",
+                    PairingFailureCodes.WebSocketHandoffUnavailable,
+                )
             }
 
-            val url = buildWebSocketUrl(hostAddress, webSocketPort, webSocketPath, webSocketToken)
             val transport = PairingLiveSessionTransport()
-            val openResult = transport.open(url)
+            val openResult = transport.open(buildWebSocketUrl(hostAddress, webSocketPort, webSocketPath, webSocketToken))
             if (!openResult.success) {
-                return PairingConnectionAttempt.failure(openResult.message, PairingFailureCodes.WebSocketEndpointUnreachable)
+                return PairingConnectionAttempt.failure(
+                    openResult.message,
+                    PairingFailureCodes.WebSocketEndpointUnreachable,
+                )
             }
 
             return PairingConnectionAttempt.success(hostAddress, connectResponse, transport)
         }
 
         return lastFailure ?: PairingConnectionAttempt.failure(
-            "A current host address is required. Import a fresh pairing config or compact pairing config code.",
+            "The scanned Ansight QR code does not contain a reachable Studio address.",
             PairingFailureCodes.HostAddressRequired,
         )
     }
@@ -644,32 +531,44 @@ class PairingSessionConnector(
 
     private fun sendConnectRequest(
         config: PairingConfig,
-        clientName: String,
+        deviceName: String,
+        deviceId: String,
         hostAddress: String,
         discoveryPort: Int,
     ): ConnectResponse? {
         val address = InetAddress.getByName(hostAddress)
-        val socket = DatagramSocket()
-        socket.soTimeout = 5_000
-        socket.use {
+        val requestId = UUID.randomUUID().toString().replace("-", "")
+        DatagramSocket().use { socket ->
+            socket.soTimeout = 5_000
             val request = ConnectRequest(
-                configId = config.configId,
-                oneTimeToken = config.oneTimeToken,
+                requestId = requestId,
+                inviteId = config.configId,
                 appId = config.appId,
-                clientName = clientName,
+                deviceId = deviceId,
+                deviceName = deviceName,
+                accessToken = config.enrollment.accessToken,
             ).toJson().toString().toByteArray(StandardCharsets.UTF_8)
 
-            it.send(DatagramPacket(request, request.size, address, discoveryPort))
+            socket.send(DatagramPacket(request, request.size, address, discoveryPort))
             val buffer = ByteArray(16 * 1024)
-            val packet = DatagramPacket(buffer, buffer.size)
             while (true) {
-                it.receive(packet)
+                val packet = DatagramPacket(buffer, buffer.size)
+                socket.receive(packet)
                 if (packet.address != address) {
                     continue
                 }
 
-                val json = JSONObject(String(packet.data, packet.offset, packet.length, StandardCharsets.UTF_8))
-                return ConnectResponse.fromJson(json)
+                val response = ConnectResponse.fromJson(
+                    JSONObject(String(packet.data, packet.offset, packet.length, StandardCharsets.UTF_8)),
+                )
+                require(
+                    response.type == "ENROLLMENT_RESULT" &&
+                        response.ver == 2 &&
+                        response.requestId == requestId
+                ) {
+                    "Studio returned an unexpected enrollment response."
+                }
+                return response
             }
         }
     }
@@ -677,9 +576,28 @@ class PairingSessionConnector(
     private fun buildWebSocketUrl(hostAddress: String, port: Int, path: String, token: String): String {
         val normalizedPath = if (path.startsWith("/")) path else "/$path"
         val encodedToken = URLEncoder.encode(token, "UTF-8")
-        val normalizedHost = if (hostAddress.contains(":") && !hostAddress.startsWith("[")) "[$hostAddress]" else hostAddress
+        val normalizedHost = if (hostAddress.contains(":") && !hostAddress.startsWith("[")) {
+            "[$hostAddress]"
+        } else {
+            hostAddress
+        }
         return "ws://$normalizedHost:$port$normalizedPath?token=$encodedToken"
     }
 }
 
 internal fun JSONObject.toCompactString(): String = toString()
+
+private fun JSONArray?.toStringList(): List<String> {
+    if (this == null) {
+        return emptyList()
+    }
+
+    return (0 until length()).mapNotNull { index ->
+        optString(index).trim().ifBlank { null }
+    }
+}
+
+internal fun decodeBase64Url(value: String?): ByteArray? =
+    value?.trim()?.ifBlank { null }?.let { encoded ->
+        runCatching { Base64.getUrlDecoder().decode(encoded) }.getOrNull()
+    }

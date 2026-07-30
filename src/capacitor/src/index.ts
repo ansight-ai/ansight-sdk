@@ -62,16 +62,6 @@ function normalizePairingPayload(
 
 function normalizeOptions(input: AnsightOptions): AnsightOptions {
   const options = JSON.parse(JSON.stringify(input)) as AnsightOptions;
-  if (options.pairingConfig != null) {
-    options.pairingConfigJson =
-      normalizePairingPayload(options.pairingConfig) ?? undefined;
-    delete options.pairingConfig;
-  }
-  if (options.bundledPairingConfig != null) {
-    options.pairingConfigJson =
-      normalizePairingPayload(options.bundledPairingConfig) ?? undefined;
-    delete options.bundledPairingConfig;
-  }
   delete options.domTools;
   delete options.errorCapture;
   delete options.lifecycle;
@@ -251,6 +241,13 @@ export function scanPairingQrCode(
   options: AnsightQrPairingOptions = {},
 ): Promise<AnsightHostConnectionResult> {
   return afterConnectionChange(() => AnsightNative.scanPairingQrCode(options));
+}
+
+/** Scans a one-use Studio invite, registers this installation, and saves automatic reconnect state. */
+export function enrollFromQrCode(
+  options: AnsightQrPairingOptions = {},
+): Promise<AnsightHostConnectionResult> {
+  return scanPairingQrCode(options);
 }
 
 export function openSession(
@@ -759,6 +756,7 @@ const Ansight = {
   trackRoute,
   setAppLifecycleState,
   connect,
+  enrollFromQrCode,
   scanPairingQrCode,
   openSession,
   disconnect,

@@ -44,7 +44,10 @@ android {
 
 dependencies {
     implementation("androidx.annotation:annotation:1.6.0")
-    implementation("com.squareup.okhttp3:okhttp:4.9.3")
+    implementation("org.java-websocket:Java-WebSocket:1.6.0") {
+        exclude(group = "org.slf4j", module = "slf4j-api")
+    }
+    implementation("org.slf4j:slf4j-api:1.7.36")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")

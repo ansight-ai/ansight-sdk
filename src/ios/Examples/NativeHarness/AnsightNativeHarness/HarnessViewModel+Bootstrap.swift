@@ -14,14 +14,10 @@ extension HarnessViewModel {
             setLifecycle(.foreground)
             recordMetric()
 
-            if HarnessBundledPairingConfig.hasHostDiscovery {
-                let result = await AnsightRuntime.shared.connect(.bundledConfig(clientName: HarnessConstants.clientName))
-                connectionMessage = result.message
-            } else if HarnessBundledPairingConfig.json != nil {
-                connectionMessage = "Initialized with bundled public config. First pairing requires QR/file discovery; auto-probe reconnects cached sessions."
-            } else {
-                connectionMessage = "Initialized. Use Pairing File or Scan QR for first pairing; auto-probe reconnects cached sessions."
-            }
+            let result = await AnsightRuntime.shared.connect(.auto(clientName: HarnessConstants.clientName))
+            connectionMessage = result.success
+                ? result.message
+                : "Initialized. Scan an enrollment QR once; later launches reconnect automatically."
         } catch {
             connectionMessage = error.localizedDescription
         }
@@ -113,9 +109,6 @@ extension HarnessViewModel {
                 probeIntervalMilliseconds: 5_000,
                 reconnectDelayMilliseconds: 10_000,
                 clientName: HarnessConstants.clientName
-            ),
-            hostConnection: AnsightHostConnectionOptions(
-                bundledConfigJson: HarnessBundledPairingConfig.json
             )
         )
     }

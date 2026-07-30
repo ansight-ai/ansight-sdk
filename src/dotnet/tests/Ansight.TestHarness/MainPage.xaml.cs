@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using System.Threading;
 using Ansight.Annotations;
+using Ansight.TestHarness.Native;
 using Microsoft.Maui.ApplicationModel.DataTransfer;
 using SkiaSharp;
 
@@ -36,13 +37,31 @@ public partial class MainPage : ContentPage
     {
         var isActive = Runtime.IsActive;
         var fpsEnabled = Runtime.IsFramesPerSecondEnabled;
-        StatusLabel.Text = $"Runtime {(isActive ? "active" : "inactive")} • FPS {(fpsEnabled ? "enabled" : "disabled")} • Retained allocations {releaseActions.Count}";
+        StatusLabel.Text =
+            $"Runtime {(isActive ? "active" : "inactive")} • FPS {(fpsEnabled ? "enabled" : "disabled")} • " +
+            $"Retained allocations {releaseActions.Count}{Environment.NewLine}{NativeBindingDiagnostics.GetStatus()}";
     }
 
     private void OnActivateClicked(object? sender, EventArgs e)
     {
         Runtime.Activate();
         UpdateRuntimeStatus();
+    }
+
+    private async void OnEnrollClicked(object? sender, EventArgs e)
+    {
+        EnrollmentStatusLabel.Text = "Opening scanner…";
+        try
+        {
+            var result = await Runtime.HostConnection.ConnectAsync(
+                HostConnectionRequest.QrCode("Scan Ansight Enrollment QR"));
+            EnrollmentStatusLabel.Text = result.Message;
+            UpdateRuntimeStatus();
+        }
+        catch (Exception exception)
+        {
+            EnrollmentStatusLabel.Text = exception.Message;
+        }
     }
 
     private void OnLowFrameDropClicked(object? sender, EventArgs e) => StartFrameDrop(TimeSpan.FromMilliseconds(800), TimeSpan.FromMilliseconds(50));

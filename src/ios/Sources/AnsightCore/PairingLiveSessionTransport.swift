@@ -21,7 +21,7 @@ final class PairingLiveSessionTransport: @unchecked Sendable {
 
     init(
         sendTimeoutSeconds: TimeInterval = PairingLiveSessionTransport.defaultSendTimeoutSeconds,
-        webSocketFactory: @escaping @Sendable (URL) -> any PairingWebSocket = { URLSessionPairingWebSocket(url: $0) }
+        webSocketFactory: @escaping @Sendable (URL) -> any PairingWebSocket = { NetworkPairingWebSocket(url: $0) }
     ) {
         self.sendTimeoutSeconds = max(0.2, sendTimeoutSeconds)
         self.webSocketFactory = webSocketFactory
@@ -48,6 +48,24 @@ final class PairingLiveSessionTransport: @unchecked Sendable {
         task.resume()
         receiveTask = Task { [weak self] in
             await self?.runReceivePump(task)
+        }
+    }
+
+    func attach(
+        authenticatedSocket: any PairingWebSocket,
+        toolMessageHandler: (@Sendable (String) async -> String?)? = nil,
+        toolResponseSentHandler: (@Sendable (String, String) async -> Void)? = nil,
+        closeHandler: (@Sendable (String) async -> Void)? = nil
+    ) async {
+        await close(notify: false)
+        lock.withLock {
+            webSocket = authenticatedSocket
+            self.toolMessageHandler = toolMessageHandler
+            self.toolResponseSentHandler = toolResponseSentHandler
+            self.closeHandler = closeHandler
+        }
+        receiveTask = Task { [weak self] in
+            await self?.runReceivePump(authenticatedSocket)
         }
     }
 

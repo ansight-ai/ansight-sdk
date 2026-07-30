@@ -35,16 +35,7 @@ function normalizePairingPayload(payload) {
 }
 
 function normalizeOptions(options = {}) {
-  const normalized = { ...options };
-  if (normalized.pairingConfig != null) {
-    normalized.pairingConfigJson = normalizePairingPayload(normalized.pairingConfig);
-    delete normalized.pairingConfig;
-  }
-  if (normalized.bundledPairingConfig != null) {
-    normalized.pairingConfigJson = normalizePairingPayload(normalized.bundledPairingConfig);
-    delete normalized.bundledPairingConfig;
-  }
-  return normalized;
+  return { ...options };
 }
 
 function cloneOptions(options = {}) {
@@ -383,10 +374,9 @@ class AnsightOptionsBuilder {
     return this;
   }
 
-  withBundledHostConnection({ bundledDeveloperConfigJson = undefined, bundledConfigJson = undefined } = {}) {
+  withBundledHostConnection({ bundledConfigJson = undefined } = {}) {
     return this.configureHostConnection((hostConnection) => ({
       ...hostConnection,
-      bundledDeveloperConfigJson,
       bundledConfigJson,
     }));
   }
@@ -2181,6 +2171,14 @@ function connect(pairingPayload, options = {}) {
   return notifyAfterHostConnectionChange(() => nativeModule.connect(normalizePairingPayload(pairingPayload), options));
 }
 
+function scanPairingQrCode(options = {}) {
+  return notifyAfterHostConnectionChange(() => nativeModule.scanPairingQrCode(options));
+}
+
+function enrollFromQrCode(options = {}) {
+  return scanPairingQrCode(options);
+}
+
 function openSession(pairingPayload, options = {}) {
   return notifyAfterHostConnectionChange(() => nativeModule.openSession(normalizePairingPayload(pairingPayload), options));
 }
@@ -2238,6 +2236,8 @@ const Ansight = {
   trackRoute,
   setAppLifecycleState: (state) => nativeModule.setAppLifecycleState(state),
   connect,
+  enrollFromQrCode,
+  scanPairingQrCode,
   openSession,
   disconnect: () => notifyAfterHostConnectionChange(() => nativeModule.disconnect()),
   completeSession: () => notifyAfterHostConnectionChange(() => nativeModule.completeSession()),
@@ -2302,6 +2302,8 @@ module.exports.default = Ansight;
 module.exports.AnsightOptionsBuilder = AnsightOptionsBuilder;
 module.exports.createOptionsBuilder = createOptionsBuilder;
 module.exports.notifyHostConnectionConfigChanged = Ansight.notifyHostConnectionConfigChanged;
+module.exports.enrollFromQrCode = Ansight.enrollFromQrCode;
+module.exports.scanPairingQrCode = Ansight.scanPairingQrCode;
 module.exports.addHostConnectionStatusListener = addHostConnectionStatusListener;
 module.exports.addLogListener = addLogListener;
 module.exports.registerArtifactProvider = registerArtifactProvider;

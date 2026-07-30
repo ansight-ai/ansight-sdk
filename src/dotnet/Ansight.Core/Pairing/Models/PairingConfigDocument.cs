@@ -1,19 +1,14 @@
 namespace Ansight.Pairing.Models;
 
 /// <summary>
-/// Self-contained pairing config payload used by file, QR, and bundled pairing flows.
+/// Self-contained enrollment invite used by QR scanning.
 /// </summary>
 public sealed class PairingConfigDocument
 {
     /// <summary>
     /// Current schema identifier for pairing config document payloads.
     /// </summary>
-    public const string SchemaName = "ansight.pairing-config-document.v1";
-
-    /// <summary>
-    /// Legacy schema identifier accepted for backwards compatibility.
-    /// </summary>
-    public const string LegacySchemaName = "ansight.pairing-ticket.v1";
+    public const string SchemaName = "ansight.enrollment-invite-document.v2";
 
     /// <summary>
     /// Schema identifier for this config document.
@@ -21,8 +16,9 @@ public sealed class PairingConfigDocument
     public string Schema { get; set; } = SchemaName;
 
     /// <summary>
-    /// Signed pairing config carried by the document.
+    /// Enrollment invite carried by the document.
     /// </summary>
+    [System.Text.Json.Serialization.JsonPropertyName("invite")]
     public required PairingConfig Config { get; set; }
 
     /// <summary>

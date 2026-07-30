@@ -39,23 +39,19 @@ object Ansight {
     @JvmStatic
     @JvmOverloads
     fun developerOptions(
-        bundledDeveloperConfigJson: String? = null,
         clientName: String? = null,
     ): AnsightOptions = withStandardTools(
         AnsightDeveloperMode.options(
-            bundledDeveloperConfigJson = bundledDeveloperConfigJson,
             clientName = clientName,
         ),
     )
 
     fun developerOptions(
-        bundledDeveloperConfigJson: String? = null,
         clientName: String? = null,
         configure: AnsightOptionsBuilder.() -> Unit,
     ): AnsightOptions {
         val builder = AnsightOptions.createBuilder(
             AnsightDeveloperMode.options(
-                bundledDeveloperConfigJson = bundledDeveloperConfigJson,
                 clientName = clientName,
             ),
         )
@@ -79,13 +75,11 @@ object Ansight {
     @JvmOverloads
     fun initializeAndActivateDeveloperMode(
         application: Application,
-        bundledDeveloperConfigJson: String? = null,
         clientName: String? = null,
     ) {
         AnsightRuntime.initializeAndActivate(
             application = application,
             options = developerOptions(
-                bundledDeveloperConfigJson = bundledDeveloperConfigJson,
                 clientName = clientName,
             ),
         )
@@ -164,6 +158,24 @@ object Ansight {
     ): HostConnectionStatusSubscription {
         return AnsightRuntime.addHostConnectionStatusListener(listener, emitCurrent)
     }
+
+    @JvmStatic
+    @JvmOverloads
+    fun enrollFromQrCode(
+        activity: Activity,
+        clientName: String? = null,
+        expectedAppId: String? = activity.packageName,
+        hostAddressOverride: String? = null,
+        onResult: (HostConnectionResult) -> Unit = {},
+        onError: (Throwable) -> Unit = {},
+    ) = AnsightPairing.enrollFromQrCode(
+        activity = activity,
+        clientName = clientName,
+        expectedAppId = expectedAppId,
+        hostAddressOverride = hostAddressOverride,
+        onResult = onResult,
+        onError = onError,
+    )
 
     @JvmStatic
     @JvmOverloads

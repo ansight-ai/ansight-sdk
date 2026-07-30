@@ -13,12 +13,7 @@ public static class PairingConfigCodeGenerator
     /// <summary>
     /// Prefix used by compact pairing config codes.
     /// </summary>
-    public const string FormatPrefix = "apc1";
-
-    /// <summary>
-    /// Legacy compact-code prefix accepted for backwards compatibility.
-    /// </summary>
-    public const string LegacyFormatPrefix = "apt1";
+    public const string FormatPrefix = "ans2";
 
     /// <summary>
     /// Serializes a pairing config document into a compact QR-friendly code.
@@ -50,17 +45,12 @@ public static class PairingConfigCodeGenerator
         }
 
         var normalizedPayload = payload.Trim();
-        var formatPrefix = normalizedPayload.StartsWith($"{FormatPrefix}:", StringComparison.Ordinal)
-            ? FormatPrefix
-            : normalizedPayload.StartsWith($"{LegacyFormatPrefix}:", StringComparison.Ordinal)
-                ? LegacyFormatPrefix
-                : null;
-        if (formatPrefix is null)
+        if (!normalizedPayload.StartsWith($"{FormatPrefix}:", StringComparison.Ordinal))
         {
             return false;
         }
 
-        var encodedPayload = normalizedPayload[(formatPrefix.Length + 1)..];
+        var encodedPayload = normalizedPayload[(FormatPrefix.Length + 1)..];
         byte[] compressedBytes;
         try
         {
@@ -84,9 +74,11 @@ public static class PairingConfigCodeGenerator
                 PairingDiscoveryHintHostAddresses.NormalizeInPlace(document.Discovery);
             }
 
-            return document is not null &&
-                   (string.Equals(document.Schema, PairingConfigDocument.SchemaName, StringComparison.Ordinal) ||
-                    string.Equals(document.Schema, PairingConfigDocument.LegacySchemaName, StringComparison.Ordinal));
+            return document is not null
+                   && string.Equals(
+                       document.Schema,
+                       PairingConfigDocument.SchemaName,
+                       StringComparison.Ordinal);
         }
         catch
         {

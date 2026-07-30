@@ -92,7 +92,6 @@ describe("AnsightOptionsBuilder", () => {
       discoveryPort: 4567,
       allowCellularConnections: true,
       connectionProfileRetentionSeconds: 90,
-      bundledDeveloperConfigJson: undefined,
       bundledConfigJson: '{"kind":"test"}',
     });
     expect(options.remoteTools?.visualTree).toBe(false);

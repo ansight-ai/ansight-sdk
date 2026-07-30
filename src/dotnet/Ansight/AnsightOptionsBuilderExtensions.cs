@@ -81,7 +81,7 @@ public static class AnsightOptionsBuilderExtensions
             builder = builder.WithBundledHostConnection(bundledHostConnectionAssembly);
         }
 
-#if IOS || MACCATALYST
+#if ANDROID || IOS || MACCATALYST
         builder = builder.WithPlatformPairing();
 #endif
 

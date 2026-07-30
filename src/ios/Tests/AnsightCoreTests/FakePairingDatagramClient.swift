@@ -28,6 +28,16 @@ final class FakePairingDatagramClient: PairingDatagramClient, @unchecked Sendabl
             requestCounter += 1
             hosts.append(host)
         }
-        return responseProvider(host, port)
+        let response = responseProvider(host, port)
+        guard let response,
+              var responseObject = try? JSONSerialization.jsonObject(with: response) as? [String: Any],
+              let requestObject = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let requestId = requestObject["requestId"] as? String
+        else {
+            return response
+        }
+
+        responseObject["requestId"] = requestId
+        return try JSONSerialization.data(withJSONObject: responseObject)
     }
 }

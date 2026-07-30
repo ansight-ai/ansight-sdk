@@ -476,7 +476,7 @@ internal static partial class VisualTreeSupport
     }
 
     private static async Task StreamScreenshotBytesAsync(
-        PairingSessionTransport transport,
+        IPairingBinaryTransport transport,
         Guid transferId,
         byte[] bytes,
         CancellationToken cancellationToken)
@@ -516,7 +516,7 @@ internal static partial class VisualTreeSupport
     }
 
     private static async Task SendScreenshotTransferFrameAsync(
-        PairingSessionTransport transport,
+        IPairingBinaryTransport transport,
         byte[] frame,
         CancellationToken cancellationToken)
     {
@@ -528,7 +528,7 @@ internal static partial class VisualTreeSupport
     }
 
     private static async Task TrySendScreenshotTransferErrorFrameAsync(
-        PairingSessionTransport transport,
+        IPairingBinaryTransport transport,
         Guid transferId,
         int sequence,
         long offsetBytes,

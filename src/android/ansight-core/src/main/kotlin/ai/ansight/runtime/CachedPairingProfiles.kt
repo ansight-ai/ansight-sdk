@@ -25,10 +25,6 @@ internal object CachedPairingProfilesCodec {
 
     fun load(
         profilesJson: String?,
-        legacyPayload: String?,
-        legacyHostAddress: String?,
-        legacyCachedAtEpochMs: Long,
-        legacyExpiresAtEpochMs: Long,
         nowEpochMs: Long,
     ): CachedPairingProfileLoadResult {
         val normalizedJson = profilesJson?.trim()?.ifBlank { null }
@@ -43,20 +39,9 @@ internal object CachedPairingProfilesCodec {
             }
         }
 
-        val legacyProfile = legacyProfile(
-            legacyPayload,
-            legacyHostAddress,
-            legacyCachedAtEpochMs,
-            legacyExpiresAtEpochMs,
-            nowEpochMs,
-        )
-        if (legacyProfile != null) {
-            return CachedPairingProfileLoadResult(listOf(legacyProfile), shouldRewrite = true)
-        }
-
         return CachedPairingProfileLoadResult(
             emptyList(),
-            shouldRewrite = normalizedJson != null || !legacyPayload.isNullOrBlank(),
+            shouldRewrite = normalizedJson != null,
         )
     }
 
@@ -156,31 +141,6 @@ internal object CachedPairingProfilesCodec {
             wifiName = normalizedString(json.optionalString("wifiName")),
             hostName = normalizedString(json.optionalString("hostName")),
             cachedAtEpochMs = cachedAtEpochMs,
-            expiresAtEpochMs = expiresAtEpochMs,
-        )
-    }
-
-    private fun legacyProfile(
-        payload: String?,
-        hostAddress: String?,
-        cachedAtEpochMs: Long,
-        expiresAtEpochMs: Long,
-        nowEpochMs: Long,
-    ): CachedPairingProfile? {
-        val normalizedPayload = payload?.trim()?.ifBlank { null } ?: return null
-        if (expiresAtEpochMs <= nowEpochMs) {
-            return null
-        }
-
-        val document = runCatching { PairingConfigDocumentService.parseDocument(normalizedPayload) }.getOrNull()
-            ?: return null
-        return CachedPairingProfile(
-            networkKey = resolveNetworkKey(document),
-            payload = normalizedPayload,
-            hostAddress = normalizedString(hostAddress),
-            wifiName = normalizedString(document.discoveryHint?.wifiName),
-            hostName = normalizedString(document.discoveryHint?.hostName),
-            cachedAtEpochMs = cachedAtEpochMs.takeIf { it > 0L } ?: nowEpochMs,
             expiresAtEpochMs = expiresAtEpochMs,
         )
     }

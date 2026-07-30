@@ -28,9 +28,15 @@ DEFAULT_TEST_APPS_ROOT = Path("/Users/matthewrobbins/Development/git/ansight-sdk
 DEFAULT_SDK_ROOT = Path("/Users/matthewrobbins/Development/git/ansight-sdk/src/android")
 DEFAULT_OUTPUT_ROOT = Path("/Users/matthewrobbins/Development/git/ansight-sdk/.ansight-validation")
 DEFAULT_WORK_ROOT = Path("/tmp/ansight-android-corpus-validation")
-DEFAULT_STUDIO_DAEMON = Path("/Applications/Ansight.app/Contents/Helpers/ansight-daemon")
+DEFAULT_STUDIO_DAEMON = (
+    Path(__file__).resolve().parents[2]
+    / "ansight/ansight.studio/Ansight.McpStdio/bin/Debug/net10.0/ansight-daemon"
+)
 DEFAULT_ANDROID_SDK_ARTIFACT = "ai.ansight:ansight-android:1.0.2-preview.8"
-DEFAULT_COMPILE_SDK = 35
+# Keep older projects on a platform their bundled AGP/aapt2 can parse. The
+# Ansight AARs do not require consumers to compile against the SDK's own
+# compileSdk (35), and 33 is sufficient for the injected validation surface.
+DEFAULT_COMPILE_SDK = 33
 DEFAULT_MIN_SDK = 23
 JDK_HOME_BY_MAJOR = {
     8: Path("/Library/Java/JavaVirtualMachines/temurin-8.jdk/Contents/Home"),
@@ -110,6 +116,8 @@ class ValidationResult:
     validation_bootstrap_exercises_preferences: bool = False
     validation_bootstrap_exercises_filesystem: bool = False
     validation_bootstrap_exercises_database: bool = False
+    validation_protocol_v2_only: bool = False
+    enrollment_invite_id: str | None = None
     studio_verified: bool = False
     studio_session_id: str | None = None
     studio_status: str | None = None
@@ -117,6 +125,11 @@ class ValidationResult:
     studio_fps_sample_count: int | None = None
     studio_image_count: int | None = None
     studio_tool_count: int | None = None
+    auto_reconnect_verified: bool = False
+    auto_reconnect_session_id: str | None = None
+    auto_reconnect_status: str | None = None
+    auto_reconnect_tool_count: int | None = None
+    auto_reconnect_error: str | None = None
     studio_error: str | None = None
     command: list[str] | None = None
     status: str = "pending"
@@ -270,10 +283,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--launch", action="store_true", help="Launch each installed APK with adb monkey.")
     parser.add_argument("--device", default=None, help="adb device serial. Defaults to adb's selected device.")
     parser.add_argument("--gradle-arg", action="append", default=[], help="Additional Gradle argument. Can be repeated.")
-    parser.add_argument("--pairing-config-json", default=None, help="Bundled Ansight developer pairing JSON.")
-    parser.add_argument("--pairing-config-file", type=Path, default=None, help="File containing bundled pairing JSON.")
     parser.add_argument("--studio-daemon", type=Path, default=DEFAULT_STUDIO_DAEMON)
     parser.add_argument("--studio-verify", action="store_true", help="After launch, verify the live session through Ansight Studio MCP.")
+    parser.add_argument("--studio-invite-duration", default="12h", help="Lifetime for enrollment invites issued during Studio verification.")
+    parser.add_argument(
+        "--host-address",
+        default="10.0.2.2",
+        help="Studio host address added to the enrollment document. Defaults to the Android emulator host alias.",
+    )
     parser.add_argument("--studio-wait-seconds", type=int, default=25)
     parser.add_argument("--studio-poll-interval", type=float, default=2.0)
     parser.add_argument("--studio-min-metric-samples", type=int, default=1)
@@ -391,7 +408,8 @@ def module_from_run_evidence(source_root: Path, run_evidence: str | None) -> tup
 def discover_application_module(source_root: Path) -> tuple[Path, Path]:
     candidates: list[tuple[int, Path, Path]] = []
     for manifest_path in source_root.rglob("src/main/AndroidManifest.xml"):
-        if any(part in EXCLUDED_COPY_NAMES for part in manifest_path.parts):
+        relative_parts = manifest_path.relative_to(source_root).parts
+        if any(part in EXCLUDED_COPY_NAMES for part in relative_parts):
             continue
         module_root = manifest_path.parents[2]
         build_file = find_build_file(module_root)
@@ -492,7 +510,8 @@ def copy_ignore(directory: str, names: list[str]) -> set[str]:
 
 def normalize_gradle_wrappers(project_root: Path) -> None:
     for wrapper in project_root.rglob("gradlew"):
-        if any(part in EXCLUDED_COPY_NAMES for part in wrapper.parts):
+        relative_parts = wrapper.relative_to(project_root).parts
+        if any(part in EXCLUDED_COPY_NAMES for part in relative_parts):
             continue
         data = wrapper.read_bytes()
         if data.startswith(b"\xef\xbb\xbf"):
@@ -535,7 +554,8 @@ def prepare_project(
     keep_workdirs: bool,
     compile_sdk: int,
     min_sdk: int,
-    pairing_config_json: str | None,
+    enrollment_invite_json: str | None,
+    host_address_override: str | None,
 ) -> tuple[Path, AndroidAppProject, dict[str, bool]]:
     worktree_path = work_root / project.slug
     copy_project(project.source_root, worktree_path, keep_workdirs)
@@ -558,13 +578,20 @@ def prepare_project(
     prepared_project.namespace = parse_namespace(module_root)
 
     ensure_local_properties(worktree_path)
+    apply_known_build_placeholders(worktree_path)
     sdk_changes = patch_android_sdk_versions(
         worktree_path,
         module_root,
         compile_sdk=compatible_compile_sdk(worktree_path, module_root, compile_sdk),
         min_sdk=min_sdk,
     )
-    inject_validation_provider(worktree_path / manifest_rel, module_root, pairing_config_json, project.slug)
+    inject_validation_provider(
+        worktree_path / manifest_rel,
+        module_root,
+        project.slug,
+        enrollment_invite_json,
+        host_address_override,
+    )
     return worktree_path, prepared_project, {
         "compile_sdk_raised": sdk_changes["compile_sdk_raised"],
         "min_sdk_raised": sdk_changes["min_sdk_raised"],
@@ -595,6 +622,27 @@ def ensure_local_properties(project_root: Path) -> None:
     if lines:
         prefix = "" if not existing or existing.endswith("\n") else "\n"
         local_properties.write_text(existing + prefix + "\n".join(lines) + "\n", encoding="utf-8")
+
+
+def apply_known_build_placeholders(project_root: Path) -> None:
+    movie_hunt_config = project_root / "buildSrc/src/main/kotlin/Config.kt"
+    if not movie_hunt_config.exists():
+        return
+
+    text = read_text(movie_hunt_config)
+    if "buildConfigField(\"String\", \"TMDB_API_KEY\", TMDB_API_KEY)" not in text:
+        return
+    if re.search(r"^\s*const\s+val\s+TMDB_API_KEY\b", text, flags=re.MULTILINE):
+        return
+
+    movie_hunt_config.write_text(
+        text.replace(
+            "object Config {",
+            r'const val TMDB_API_KEY = "\"ansight-validation\""' + "\n\nobject Config {",
+            1,
+        ),
+        encoding="utf-8",
+    )
 
 
 def android_sdk_path() -> Path | None:
@@ -716,8 +764,9 @@ def raise_toml_version_value(text: str, patterns: list[str], minimum: int) -> tu
 def inject_validation_provider(
     manifest_path: Path,
     module_root: Path,
-    pairing_config_json: str | None,
     slug: str,
+    enrollment_invite_json: str | None,
+    host_address_override: str | None,
 ) -> None:
     ET.register_namespace("android", ANDROID_NS)
     tree = ET.parse(manifest_path)
@@ -725,7 +774,6 @@ def inject_validation_provider(
     application = manifest.find("application")
     if application is None:
         application = ET.SubElement(manifest, "application")
-
     android_name = f"{{{ANDROID_NS}}}name"
     for child in list(application):
         if child.tag == "provider" and child.attrib.get(android_name) == VALIDATION_PROVIDER_CLASS:
@@ -741,12 +789,62 @@ def inject_validation_provider(
 
     source_path = module_root / VALIDATION_PROVIDER_SOURCE
     source_path.parent.mkdir(parents=True, exist_ok=True)
-    source_path.write_text(validation_provider_source(pairing_config_json, slug), encoding="utf-8")
+    source_path.write_text(
+        validation_provider_source(slug, enrollment_invite_json, host_address_override),
+        encoding="utf-8",
+    )
 
 
-def validation_provider_source(pairing_config_json: str | None, slug: str) -> str:
-    pairing_literal = "null" if pairing_config_json is None else java_string_literal(pairing_config_json)
+def validation_provider_source(
+    slug: str,
+    enrollment_invite_json: str | None,
+    host_address_override: str | None = None,
+) -> str:
     client_literal = java_string_literal(f"Ansight Android Validation - {slug}")
+    host_address_literal = (
+        java_string_literal(host_address_override)
+        if host_address_override
+        else "null"
+    )
+    enrollment_invite_declaration = ""
+    enrollment_call = ""
+    if enrollment_invite_json:
+        enrollment_invite_declaration = (
+            f"    private static final String ENROLLMENT_INVITE_JSON = "
+            f"{java_string_literal(enrollment_invite_json)};\n"
+        )
+        enrollment_call = """
+            final SharedPreferences enrollmentState = application.getSharedPreferences(
+                "ansight-validation-enrollment",
+                Context.MODE_PRIVATE
+            );
+            if (!enrollmentState.getBoolean("inviteConsumed", false)) {
+                final String packageName = context.getPackageName();
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        ai.ansight.runtime.HostConnectionResult result =
+                            ai.ansight.runtime.AnsightRuntime.INSTANCE.connect(
+                                ai.ansight.runtime.HostConnectionRequest.payloadText(
+                                    ENROLLMENT_INVITE_JSON,
+                                    CLIENT_NAME + " - " + packageName,
+                                    packageName,
+                                    __ANSIGHT_HOST_ADDRESS_OVERRIDE__
+                                )
+                            );
+                        if (result.getSuccess()) {
+                            enrollmentState.edit().putBoolean("inviteConsumed", true).apply();
+                        } else {
+                            Log.w(
+                                TAG,
+                                "Enrollment failed: " + result.getMessage()
+                                    + " (reason=" + result.getReasonCode() + ")"
+                            );
+                        }
+                    }
+                }, "ansight-validation-enrollment").start();
+            }
+""".replace("__ANSIGHT_HOST_ADDRESS_OVERRIDE__", host_address_literal)
     return f"""package ai.ansight.validation;
 
 import ai.ansight.Ansight;
@@ -770,8 +868,8 @@ import java.util.Map;
 
 public final class AnsightValidationProvider extends ContentProvider {{
     private static final String TAG = "AnsightValidation";
-    private static final String PAIRING_CONFIG_JSON = {pairing_literal};
     private static final String CLIENT_NAME = {client_literal};
+{enrollment_invite_declaration.rstrip()}
 
     @Override
     public boolean onCreate() {{
@@ -789,9 +887,9 @@ public final class AnsightValidationProvider extends ContentProvider {{
         try {{
             Ansight.initializeAndActivateDeveloperMode(
                 application,
-                PAIRING_CONFIG_JSON,
                 CLIENT_NAME + " - " + context.getPackageName()
             );
+{enrollment_call.rstrip()}
             Runtime.Event(
                 "ansight.validation.bootstrap",
                 AnsightEventType.Info,
@@ -936,15 +1034,32 @@ allprojects {{ project ->
     return script_path
 
 
-def publish_sdk(sdk_root: Path, timeout: int) -> CommandResult:
+def publish_sdk(
+    sdk_root: Path,
+    timeout: int,
+    version_override: str | None = None,
+) -> CommandResult:
     gradle = gradle_command(sdk_root)
+    command = gradle + ["publishReleasePublicationToMavenLocal"]
+    if version_override:
+        command.append(f"-PansightAndroidVersion={version_override}")
     result = run_command(
-        gradle + ["publishReleasePublicationToMavenLocal"],
+        command,
         cwd=sdk_root,
         timeout=timeout,
     )
     require_success(result, "sdk_publish")
     return result
+
+
+def validation_sdk_artifact(default_artifact: str) -> tuple[str, str | None]:
+    if default_artifact != DEFAULT_ANDROID_SDK_ARTIFACT:
+        return default_artifact, None
+
+    group, artifact, published_version = default_artifact.split(":", maxsplit=2)
+    base_version = published_version.split("-", maxsplit=1)[0]
+    version = f"{base_version}-validation-{dt.datetime.now(dt.UTC):%Y%m%d%H%M%S}"
+    return f"{group}:{artifact}:{version}", version
 
 
 def gradle_command(project_root: Path, module_root: Path | None = None) -> list[str]:
@@ -999,7 +1114,8 @@ def gradle_root(project_root: Path, module_root: Path | None = None) -> Path:
 def project_requires_java_21(project_root: Path) -> bool:
     patterns = ("VERSION_21", "jvmTarget = \"21\"", "jvmTarget.set(\"21\")", "languageVersion.set(JavaLanguageVersion.of(21))")
     for path in project_root.rglob("*gradle*"):
-        if any(part in EXCLUDED_COPY_NAMES for part in path.parts) or not path.is_file():
+        relative_parts = path.relative_to(project_root).parts
+        if any(part in EXCLUDED_COPY_NAMES for part in relative_parts) or not path.is_file():
             continue
         text = read_text(path)
         if any(pattern in text for pattern in patterns):
@@ -1088,6 +1204,35 @@ def find_debug_apk(module_root: Path) -> Path | None:
     return max(apks, key=lambda path: path.stat().st_mtime)
 
 
+def verify_apk_protocol_generation(apk_path: Path) -> None:
+    legacy_schemas = (
+        b"ansight.pairing-bootstrap.v1",
+        b"ansight.pairing-config.v1",
+        b"ansight.pairing-config-document.v1",
+        b"ansight.pairing-ticket.v1",
+    )
+    current_schema = b"ansight.enrollment-invite.v2"
+
+    with zipfile.ZipFile(apk_path) as archive:
+        dex_payload = b"".join(
+            archive.read(name)
+            for name in archive.namelist()
+            if re.fullmatch(r"classes\d*\.dex", name)
+        )
+
+    if current_schema not in dex_payload:
+        raise ValidationError(
+            "sdk_protocol_artifact",
+            "Built APK does not contain the current Ansight enrollment-invite v2 protocol.",
+        )
+    found_legacy = [schema.decode("ascii") for schema in legacy_schemas if schema in dex_payload]
+    if found_legacy:
+        raise ValidationError(
+            "sdk_protocol_artifact",
+            "Built APK contains removed Ansight v1 protocol schemas: " + ", ".join(found_legacy),
+        )
+
+
 def resolve_built_application_id(module_root: Path) -> str | None:
     manifest_roots = [
         module_root / "build/intermediates/merged_manifest/debug",
@@ -1172,6 +1317,69 @@ def verify_studio_session(
     raise RuntimeError(result.studio_error)
 
 
+def verify_studio_reconnect(
+    studio: StudioMCPClient,
+    result: ValidationResult,
+    previous_session_id: str,
+    wait_seconds: int,
+    poll_interval_seconds: float,
+    min_tools: int,
+) -> None:
+    if not result.application_id:
+        raise RuntimeError("Cannot verify Studio reconnect before resolving the Android application id.")
+
+    deadline = time.monotonic() + wait_seconds
+    last_error: str | None = None
+    while time.monotonic() <= deadline:
+        try:
+            sessions_result = studio.call_tool(
+                "ansight_list_sessions",
+                {
+                    "appId": result.application_id,
+                    "liveOnly": True,
+                    "includeHistorical": False,
+                    "limit": 25,
+                },
+            )
+            sessions = sessions_result.get("sessions", [])
+            candidates = [
+                session
+                for session in (sessions if isinstance(sessions, list) else [])
+                if session.get("sessionId") != previous_session_id
+            ]
+            session = select_studio_session(result.application_id, candidates)
+            if session:
+                session_id = session.get("sessionId")
+                status = session.get("status")
+                tool_count = verify_studio_tool_catalog(
+                    studio,
+                    session_id if isinstance(session_id, str) else None,
+                )
+                result.auto_reconnect_session_id = session_id
+                result.auto_reconnect_status = status
+                result.auto_reconnect_tool_count = tool_count
+
+                failures: list[str] = []
+                if status != "WebSocket Open":
+                    failures.append(f"session status is {status!r}")
+                if tool_count < min_tools:
+                    failures.append(f"tool count {tool_count} < {min_tools}")
+                if not failures:
+                    result.auto_reconnect_verified = True
+                    result.auto_reconnect_error = None
+                    return
+                last_error = "; ".join(failures)
+            else:
+                last_error = "No new live Studio session appeared after the no-invite relaunch."
+        except Exception as error:
+            last_error = str(error)
+
+        time.sleep(poll_interval_seconds)
+
+    result.auto_reconnect_error = last_error or "Studio reconnect verification timed out."
+    raise RuntimeError(result.auto_reconnect_error)
+
+
 def select_studio_session(application_id: str, sessions: list[dict[str, Any]]) -> dict[str, Any] | None:
     if not sessions:
         return None
@@ -1233,21 +1441,52 @@ def launch_app(application_id: str, device: str | None) -> CommandResult:
     )
 
 
-def pairing_config(args: argparse.Namespace) -> str | None:
-    if args.pairing_config_json and args.pairing_config_file:
-        raise ValidationError("arguments", "Use only one of --pairing-config-json or --pairing-config-file.")
-    if args.pairing_config_json:
-        return args.pairing_config_json
-    if args.pairing_config_file:
-        return args.pairing_config_file.read_text(encoding="utf-8")
-    return None
+def stop_app(application_id: str, device: str | None) -> CommandResult:
+    return run_command(
+        adb_command(device) + ["shell", "am", "force-stop", application_id],
+        cwd=None,
+        timeout=30,
+    )
+
+
+def clear_app_data(application_id: str, device: str | None) -> CommandResult:
+    return run_command(
+        adb_command(device) + ["shell", "pm", "clear", application_id],
+        cwd=None,
+        timeout=60,
+    )
+
+
+def issue_enrollment_invite(
+    studio: StudioMCPClient,
+    project: AndroidAppProject,
+    duration: str,
+) -> tuple[str, str]:
+    application_id = project.application_id
+    if not application_id:
+        raise ValidationError("issuing_enrollment_invite", f"Could not resolve the app id for {project.slug}.")
+
+    issued = studio.call_tool(
+        "ansight_issue_enrollment_invite",
+        {
+            "appId": application_id,
+            "appName": project.summary or project.slug,
+            "duration": duration,
+        },
+    )
+    invite_id = issued.get("inviteId")
+    invite_json = issued.get("inviteJson")
+    if not isinstance(invite_id, str) or not invite_id.strip():
+        raise ValidationError("issuing_enrollment_invite", "Ansight Studio did not return an enrollment invite id.")
+    if not isinstance(invite_json, str) or not invite_json.strip():
+        raise ValidationError("issuing_enrollment_invite", "Ansight Studio did not return enrollment invite JSON.")
+    return invite_id, invite_json
 
 
 def validate_project(
     project: AndroidAppProject,
     args: argparse.Namespace,
     init_script: Path,
-    pairing_json: str | None,
     studio_client: StudioMCPClient | None,
 ) -> ValidationResult:
     result = ValidationResult(
@@ -1259,13 +1498,16 @@ def validate_project(
     last_command: CommandResult | None = None
 
     try:
+        enrollment_invite_json: str | None = None
+
         worktree_path, prepared_project, changes = prepare_project(
             project,
             args.work_root,
             args.keep_workdirs,
             args.compile_sdk,
             args.min_sdk,
-            pairing_json,
+            enrollment_invite_json,
+            args.host_address if enrollment_invite_json else None,
         )
         module_root = worktree_path / prepared_project.module_rel
         manifest_path = worktree_path / prepared_project.manifest_rel
@@ -1305,9 +1547,42 @@ def validate_project(
         if built_application_id:
             result.application_id = built_application_id
 
+        if args.studio_verify:
+            if studio_client is None:
+                raise ValidationError("issuing_enrollment_invite", "Studio MCP client was not started.")
+            invite_project = dataclasses.replace(
+                prepared_project,
+                application_id=result.application_id,
+            )
+            result.enrollment_invite_id, enrollment_invite_json = issue_enrollment_invite(
+                studio_client,
+                invite_project,
+                args.studio_invite_duration,
+            )
+            inject_validation_provider(
+                manifest_path,
+                module_root,
+                project.slug,
+                enrollment_invite_json,
+                args.host_address,
+            )
+            last_command = build_project(
+                worktree_path,
+                prepared_project.module_rel,
+                init_script,
+                args.build_timeout,
+                args.gradle_arg,
+            )
+            result.command = last_command.command
+            result.stdout_tail = tail(last_command.stdout)
+            result.stderr_tail = tail(last_command.stderr)
+            require_success(last_command, "build_with_enrollment")
+
         apk_path = find_debug_apk(module_root)
         if apk_path is not None:
             result.apk_path = str(apk_path)
+            verify_apk_protocol_generation(apk_path)
+            result.validation_protocol_v2_only = True
         elif args.install or args.launch:
             raise ValidationError("install", f"No debug APK was produced under {module_root}")
 
@@ -1320,6 +1595,11 @@ def validate_project(
             result.stderr_tail = tail(last_command.stderr)
             require_success(last_command, "install")
             result.installed = True
+            if args.studio_verify:
+                if not result.application_id:
+                    raise ValidationError("clear_app_data", f"Could not resolve applicationId for {project.slug}")
+                last_command = clear_app_data(result.application_id, args.device)
+                require_success(last_command, "clear_app_data")
 
         if args.launch:
             if not result.application_id:
@@ -1350,6 +1630,27 @@ def validate_project(
                 )
             except Exception as error:
                 raise ValidationError("studio_verification", str(error)) from error
+            first_session_id = result.studio_session_id
+            if not first_session_id:
+                raise ValidationError("auto_reconnect", "Initial Studio verification returned no session id.")
+            if not result.application_id:
+                raise ValidationError("auto_reconnect", f"Could not resolve applicationId for {project.slug}")
+            last_command = stop_app(result.application_id, args.device)
+            require_success(last_command, "auto_reconnect")
+            time.sleep(1.0)
+            last_command = launch_app(result.application_id, args.device)
+            require_success(last_command, "auto_reconnect")
+            try:
+                verify_studio_reconnect(
+                    studio_client,
+                    result,
+                    first_session_id,
+                    args.studio_wait_seconds,
+                    args.studio_poll_interval,
+                    args.studio_min_tools,
+                )
+            except Exception as error:
+                raise ValidationError("auto_reconnect", str(error)) from error
             result.status = "verified"
         else:
             result.status = "success"
@@ -1426,7 +1727,9 @@ def write_results(output_root: Path, results: list[ValidationResult], started_at
         "installed": sum(1 for result in results if result.installed),
         "launched": sum(1 for result in results if result.launched),
         "studioVerifiedCount": sum(1 for result in results if result.studio_verified),
+        "autoReconnectVerifiedCount": sum(1 for result in results if result.auto_reconnect_verified),
         "studioVerificationFailureCount": sum(1 for result in results if result.failure_stage == "studio_verification"),
+        "autoReconnectFailureCount": sum(1 for result in results if result.failure_stage == "auto_reconnect"),
         "studioGates": {
             "fps": build_gate_summary(results, lambda result: (result.studio_fps_sample_count or 0) > 0),
             "screenshots": build_gate_summary(results, lambda result: (result.studio_image_count or 0) > 0),
@@ -1477,7 +1780,6 @@ def main(argv: list[str]) -> int:
 
     studio_client: StudioMCPClient | None = None
     try:
-        pairing_json = pairing_config(args)
         projects = discover_projects(args.test_apps_root, args.app)
         if args.limit is not None:
             projects = projects[: args.limit]
@@ -1488,9 +1790,14 @@ def main(argv: list[str]) -> int:
         print(f"Discovered {len(projects)} Android test app(s). Inventory: {inventory_path}")
 
         if not args.skip_sdk_publish and not args.prepare_only:
+            args.sdk_artifact, validation_version = validation_sdk_artifact(args.sdk_artifact)
             print(f"Publishing Android SDK from {args.sdk_root} to Maven local...")
-            publish_result = publish_sdk(args.sdk_root, args.sdk_publish_timeout)
-            print(f"Published SDK ({publish_result.returncode}).")
+            publish_result = publish_sdk(
+                args.sdk_root,
+                args.sdk_publish_timeout,
+                validation_version,
+            )
+            print(f"Published SDK ({publish_result.returncode}) as {args.sdk_artifact}.")
 
         if args.studio_verify:
             studio_client = StudioMCPClient(args.studio_daemon)
@@ -1499,7 +1806,7 @@ def main(argv: list[str]) -> int:
         init_script = create_gradle_init_script(args.output_root, args.sdk_artifact)
         results: list[ValidationResult] = []
         for project in projects:
-            result = validate_project(project, args, init_script, pairing_json, studio_client)
+            result = validate_project(project, args, init_script, studio_client)
             results.append(result)
             write_results(args.output_root, results, started_at)
             print_result(result)

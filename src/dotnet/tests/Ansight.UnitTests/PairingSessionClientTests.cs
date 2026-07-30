@@ -1,5 +1,4 @@
 using System.Net;
-using System.Security.Cryptography;
 using Ansight.Pairing;
 
 namespace Ansight.UnitTests;
@@ -9,8 +8,7 @@ public sealed class PairingSessionClientTests
     [Fact]
     public void CreateSessionOpenPayload_WhenCustomPropertiesAreRegistered_IncludesGroupedProperties()
     {
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var config = PairingTestDocumentFactory.CreateSignedConfig(signingKey);
+        var config = PairingTestDocumentFactory.CreateEnrollmentInvite();
         var customProperties = new SessionCustomProperties()
             .Register("app", "tenant", "acme")
             .Register("app", "region", "au")
@@ -55,10 +53,9 @@ public sealed class PairingSessionClientTests
     [Fact]
     public void CreateCachedDocument_WhenConnectedHostAddressIsAvailable_AddsDiscoveryHint()
     {
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var document = new ParsedPairingDocument
         {
-            Config = PairingTestDocumentFactory.CreateSignedConfig(signingKey)
+            Config = PairingTestDocumentFactory.CreateEnrollmentInvite()
         };
         var capturedAt = new DateTimeOffset(2026, 03, 22, 03, 50, 00, TimeSpan.Zero);
 
@@ -80,10 +77,9 @@ public sealed class PairingSessionClientTests
     [Fact]
     public void CreateCachedDocument_WhenHostReportsWifi_UpdatesDiscoveryMetadata()
     {
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var document = new ParsedPairingDocument
         {
-            Config = PairingTestDocumentFactory.CreateSignedConfig(signingKey),
+            Config = PairingTestDocumentFactory.CreateEnrollmentInvite(),
             DiscoveryHint = PairingTestDocumentFactory.CreateDiscoveryHint(
                 hostAddress: "10.0.0.4",
                 hostName: "old-host",
@@ -91,8 +87,9 @@ public sealed class PairingSessionClientTests
         };
         var connectResponse = new ConnectResponse
         {
-            Type = "CONNECT_RESP",
-            Ver = 1,
+            Type = "ENROLLMENT_RESULT",
+            Ver = 2,
+            RequestId = "test-request",
             Accepted = true,
             Reason = "accepted",
             HostId = "host-1",

@@ -17,11 +17,17 @@ void main() {
     expect(find.text('Ansight Flutter Harness'), findsOneWidget);
     expect(find.byKey(const Key('fixture-dashboard')), findsOneWidget);
     expect(find.byKey(const Key('rendered-scene')), findsOneWidget);
+    final harnessScrollable = find
+        .descendant(
+          of: find.byKey(const Key('harness-scroll')),
+          matching: find.byType(Scrollable),
+        )
+        .first;
     for (final title in <String>[
       'Runtime',
       'Telemetry',
       'Visual evidence and input',
-      'Host pairing and sessions',
+      'Host enrollment and sessions',
       'Properties, tools, and artifacts',
       'Harness controls',
       'Activity',
@@ -29,7 +35,7 @@ void main() {
       await tester.scrollUntilVisible(
         find.text(title),
         400,
-        scrollable: find.byType(Scrollable).first,
+        scrollable: harnessScrollable,
       );
       expect(find.text(title), findsOneWidget);
     }

@@ -75,6 +75,31 @@
                         <RoundRectangle CornerRadius="12"/>
                     </Border.StrokeShape>
                     <VerticalStackLayout Spacing="10">
+                        <Label Text="Studio enrollment"
+                               FontAttributes="Bold"
+                               FontSize="16"
+                               TextColor="#111111"/>
+                        <Label Text="Scan once to register this app installation. Later launches reconnect automatically."
+                               FontSize="12"
+                               TextColor="#666666"/>
+                        <Label x:Name="EnrollmentStatusLabel"
+                               Text="Not connected"
+                               FontSize="12"
+                               TextColor="#666666"/>
+                        <Button Text="Scan enrollment QR"
+                                Clicked="OnEnrollClicked"
+                                Margin="0,0,10,10"/>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Stroke="#dcdcdc"
+                        StrokeThickness="1"
+                        BackgroundColor="#ffffff"
+                        Padding="14,12">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="12"/>
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Spacing="10">
                         <Label Text="Runtime controls"
                                FontAttributes="Bold"
                                FontSize="16"

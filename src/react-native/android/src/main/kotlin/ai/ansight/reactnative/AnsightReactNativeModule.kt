@@ -38,6 +38,7 @@ import ai.ansight.runtime.ToolScope
 import ai.ansight.runtime.ToolSecurity
 import ai.ansight.runtime.ToolSecurityLevel
 import ai.ansight.runtime.sendBinaryTransfer
+import ai.ansight.pairing.AnsightPairing
 import ai.ansight.tools.database.AndroidDatabaseRoot
 import ai.ansight.tools.database.AndroidDatabaseToolsOptions
 import ai.ansight.tools.database.withDatabaseTools
@@ -74,6 +75,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.Locale
 
 class AnsightReactNativeModule(
@@ -261,6 +263,56 @@ class AnsightReactNativeModule(
                 hostConnectionResultMap(AnsightRuntime.connect(request))
             }.resolve(promise)
         }
+    }
+
+    @ReactMethod
+    fun scanPairingQrCode(options: ReadableMap?, promise: Promise) {
+        val activity = currentActivity
+        if (activity == null) {
+            promise.reject("ansight_qr_unavailable", "QR pairing is unavailable because no Android activity is available.")
+            return
+        }
+
+        val completed = AtomicBoolean(false)
+        AnsightPairing.scanQrCode(
+            activity = activity,
+            onPayload = { payload ->
+                if (!completed.compareAndSet(false, true)) {
+                    return@scanQrCode
+                }
+                if (payload.isNullOrBlank()) {
+                    promise.resolve(
+                        hostConnectionResultMap(
+                            HostConnectionResult.failure(
+                                message = "QR pairing canceled.",
+                                reasonCode = "pairing_canceled",
+                            ),
+                        ),
+                    )
+                    return@scanQrCode
+                }
+                backgroundExecutor.execute {
+                    runCatching {
+                        hostConnectionResultMap(
+                            AnsightRuntime.connect(
+                                HostConnectionRequest(
+                                    kind = HostConnectionRequestKind.QrCode,
+                                    payload = payload,
+                                    clientName = options.stringValue("clientName"),
+                                    expectedAppId = options.stringValue("expectedAppId"),
+                                    hostAddressOverride = options.stringValue("hostAddressOverride"),
+                                ),
+                            ),
+                        )
+                    }.resolve(promise)
+                }
+            },
+            onError = { error ->
+                if (completed.compareAndSet(false, true)) {
+                    promise.reject("ansight_qr_error", error.message, error)
+                }
+            },
+        )
     }
 
     @ReactMethod
@@ -616,22 +668,13 @@ class AnsightReactNativeModule(
 
     private fun buildOptions(map: ReadableMap?): AnsightOptions {
         val useNativeAllInOneDefaults = map.booleanValue("useNativeAllInOneDefaults", false)
-        val pairingConfigJson = map.stringValue("pairingConfigJson")
         val clientName = map.stringValue("clientName")
         var options = if (useNativeAllInOneDefaults) {
             AnsightDeveloperMode.options(
-                bundledDeveloperConfigJson = pairingConfigJson,
                 clientName = clientName,
             )
         } else {
             AnsightOptions()
-        }
-        if (!useNativeAllInOneDefaults && !pairingConfigJson.isNullOrBlank()) {
-            options = options.copy(
-                hostConnection = options.hostConnection.copy(
-                    bundledConfigJson = pairingConfigJson,
-                ),
-            )
         }
         if (useNativeAllInOneDefaults && !map.hasString("toolGuard")) {
             options = options.copy(toolGuard = AnsightToolGuard.ReadOnly)
@@ -747,7 +790,6 @@ class AnsightReactNativeModule(
                 hostConnection = AnsightHostConnectionOptions(
                     savedConfigKey = host.stringValue("savedConfigKey") ?: options.hostConnection.savedConfigKey,
                     bundledConfigJson = host.stringValue("bundledConfigJson") ?: options.hostConnection.bundledConfigJson,
-                    bundledDeveloperConfigJson = host.stringValue("bundledDeveloperConfigJson") ?: options.hostConnection.bundledDeveloperConfigJson,
                     discoveryPort = host.optionalInt("discoveryPort") ?: options.hostConnection.discoveryPort,
                     allowCellularConnections = host.booleanValue(
                         "allowCellularConnections",
@@ -1018,7 +1060,6 @@ class AnsightReactNativeModule(
             putString("configId", result.configId)
             putString("appId", result.appId)
             putString("resolvedHostAddress", result.resolvedHostAddress)
-            putBoolean("usedEmbeddedDeveloperPairing", result.usedEmbeddedDeveloperPairing)
             putString("discoverySource", result.discoverySource)
             putString("reasonCode", result.reasonCode)
             putString("hostId", result.hostId)
@@ -1038,7 +1079,6 @@ class AnsightReactNativeModule(
                 putString("hostId", session.hostId)
                 putString("hostName", session.hostName)
                 putBoolean("accepted", session.accepted)
-                putBoolean("usedEmbeddedDeveloperPairing", session.usedEmbeddedDeveloperPairing)
                 putString("discoverySource", session.discoverySource)
             }
         }
@@ -1097,7 +1137,6 @@ class AnsightReactNativeModule(
             putMap("hostConnection", mapOf(
                 "savedConfigKey" to options.hostConnection.savedConfigKey,
                 "hasBundledConfigJson" to (options.hostConnection.bundledConfigJson != null),
-                "hasBundledDeveloperConfigJson" to (options.hostConnection.bundledDeveloperConfigJson != null),
                 "discoveryPort" to options.hostConnection.discoveryPort,
                 "allowCellularConnections" to options.hostConnection.allowCellularConnections,
                 "connectionProfileRetentionSeconds" to options.hostConnection.connectionProfileRetentionSeconds,

@@ -12,8 +12,6 @@ targets:
     deploymentTarget: "15.0"
     sources:
       - AnsightNativeHarness
-      - path: ../../ansight.json
-        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ai.ansight.ios.native-harness
@@ -21,7 +19,6 @@ targets:
         INFOPLIST_FILE: AnsightNativeHarness/Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         SWIFT_VERSION: 6.0
-        ANSIGHT_DEVELOPER_PAIRING_ENABLED: true
     dependencies:
       - package: AnsightSDK
         product: Ansight

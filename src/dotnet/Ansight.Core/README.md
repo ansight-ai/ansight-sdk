@@ -6,6 +6,14 @@ from an app process.
 
 The runtime namespace remains `Ansight`. This package supports direct/manual pairing, the Ansight UDP pairing handshake, tool abstractions, and the build-time safety targets. Use the `Ansight` package for the all-in-one app setup, or `Ansight.Maui` for the MAUI all-in-one setup.
 
+On Android, iOS, and Mac Catalyst, `Ansight.Core` automatically includes a thin
+binding to the platform Ansight runtime. The Kotlin or Swift runtime owns the
+saved registration, auto-connect loop, telemetry buffer, capture hooks, live
+WebSocket, tool response transport, and binary transfers. There is no second
+managed WebSocket or managed pairing loop on these targets. The public .NET
+`IDataSink` projects the native buffer so existing .NET readers and offline
+capture remain compatible.
+
 ## License
 
 The Ansight SDK is source-available software under the
@@ -42,9 +50,12 @@ When `WithSessionJpegCapture(...)` is enabled, the pairing client will capture t
 > captured, encoded, and transported. Disable session JPEG capture for
 > performance-focused runs unless visual evidence is required.
 
-Host auto-probe is enabled by default. While `Runtime` is active, Ansight remembers previous host connections and retries those profiles so the app can reconnect after the host disappears and later reappears. Probing pauses while a session stays open and resumes after the retry delay if the session closes. Remembered profiles are keyed by the Wi-Fi network reported by the host, store the latest host/LAN address, host name, discovery metadata, and signed pairing config for that network, and expire after 14 days by default. Disable auto-probe with `WithoutHostAutoProbe()`, customize the probing loop with `WithHostAutoProbe(new HostAutoProbeOptions { ... })`, or change profile expiry with `WithHostConnectionProfileRetention(...)`.
+Host auto-probe is enabled by default. While `Runtime` is active, Ansight remembers previous host connections and retries those profiles so the app can reconnect after the host disappears and later reappears. Probing pauses while a session stays open and resumes after the retry delay if the session closes. Remembered profiles are keyed by the Wi-Fi network reported by the host, store the latest host/LAN address, host name, discovery metadata, and app-installation registration for that network, and expire after 14 days by default. Disable auto-probe with `WithoutHostAutoProbe()`, customize the probing loop with `WithHostAutoProbe(new HostAutoProbeOptions { ... })`, or change profile expiry with `WithHostConnectionProfileRetention(...)`.
 
-Runtime-owned host connection now also owns remembered, saved, bundled, and developer pairing config resolution. If you enable `AnsightDeveloperPairingEnabled`, the build must be given a signed pairing JSON through `AnsightDeveloperPairingSourceFile`; the generated `ansight.developer-pairing.json` is embedded into the app assembly automatically and startup auto-connect can discover it. Auto-connect prefers that developer pairing config when available, then cycles remembered Wi-Fi connection profiles, saved configs, and bundled-config fallbacks.
+Runtime-owned host connection also owns saved-registration reconnect,
+remembered, saved, bundled, and developer enrollment-invite resolution. QR is the
+normal first-use path. Build-time config embedding is an advanced option for
+CI, simulators, and workflows that cannot scan.
 
 Install `Ansight.Pairing` when you are staying on `Ansight.Core` but still want Ansight to own native QR pairing acquisition. The `Ansight` and `Ansight.Maui` all-in-one packages already include it where supported.
 
@@ -54,23 +65,18 @@ public static class AppBootstrap
     public static async Task ConfigureAnsightAsync()
     {
         var optionsBuilder = Options.CreateBuilder()
-            .WithBundledHostConnection(typeof(AppBootstrap).Assembly);
-
-#if ANDROID
-        optionsBuilder = optionsBuilder.WithPlatformPairing(() => Microsoft.Maui.ApplicationModel.Platform.CurrentActivity);
-#else
-        optionsBuilder = optionsBuilder.WithPlatformPairing();
-#endif
+            .WithPlatformPairing();
 
         var options = optionsBuilder.Build();
 
         Runtime.InitializeAndActivate(options);
-        var connectResult = await Runtime.HostConnection.ConnectAsync(HostConnectionRequest.Auto());
+        var connectResult = await Runtime.HostConnection.ConnectAsync(HostConnectionRequest.QrCode());
     }
 }
 ```
 
-On Android, `Ansight.Pairing` only needs the current `Activity` so it can launch the scanner UI for `HostConnectionRequest.QrCode(...)`.
+On Android, `Ansight.Pairing` tracks the resumed `Activity` automatically. No
+app callback is required.
 
 Remembered host connection profile retention can be configured independently of telemetry retention:
 
@@ -80,28 +86,13 @@ var options = Options.CreateBuilder()
     .Build();
 ```
 
-When the pairing documents live in packaged text assets instead of embedded resources, use the bundled asset loader overload and keep the standard asset names:
+`HostConnectionRequest.QrCode(...)` is the normal first-use path. If the app
+already owns a scanner, `HostConnectionRequest.PayloadText(...)` accepts that
+enrollment payload.
 
-```csharp
-var optionsBuilder = Options.CreateBuilder()
-    .WithBundledHostConnection(
-        (assetName, cancellationToken) => TryLoadBundledTextAssetAsync(assetName, cancellationToken));
-
-#if ANDROID
-optionsBuilder = optionsBuilder.WithPlatformPairing(() => Microsoft.Maui.ApplicationModel.Platform.CurrentActivity);
-#else
-optionsBuilder = optionsBuilder.WithPlatformPairing();
-#endif
-
-var options = optionsBuilder.Build();
-```
-
-Explicit requests such as `HostConnectionRequest.PayloadText(...)` and `HostConnectionRequest.QrCode(...)` always use the supplied pairing payload and replace the current host session. That gives QR/paste flows an explicit override path even when developer pairing is configured by default.
-
-Cellular host connections are disabled by default. This restriction applies to
-bundled developer configs, QR scans, remembered/saved profiles, and manual
-connection requests because they all use the same connector policy. Opt in only
-for trusted development environments:
+Cellular host connections are disabled by default. Enrollment and reconnect
+requests use the same connector policy. Opt in only for trusted development
+environments:
 
 ```csharp
 var options = Options.CreateBuilder()
@@ -112,9 +103,7 @@ var options = Options.CreateBuilder()
 Enabling `AllowCellularConnections` permits Ansight discovery and session
 traffic while the device reports a cellular path. This can consume mobile data
 and may expose the connection attempt to a broader or carrier-managed network;
-continue to use signed pairing configs and a trusted host or personal hotspot.
-
-If the bundled config loader is backed by authenticated app sync instead of a packaged asset, call `Runtime.HostConnection.NotifyConfigChangedAsync()` after sync adds, updates, or removes the config. The runtime re-reads and validates the effective bundled config source, updates host connection status/capabilities, and raises `StatusChanged` even when a valid config changed while availability stayed true. Call `ConnectAsync(HostConnectionRequest.BundledConfig())` when the app should connect using the latest synced config.
+use only a trusted development host or personal hotspot.
 
 ## Data access
 
@@ -124,9 +113,9 @@ var allMetrics = sink.Metrics;
 var allEvents = sink.Events;
 ```
 
-## Pairing quickstart
+## Enrollment quickstart
 
-Open a pairing session:
+Open a session from a current enrollment invite:
 
 ```csharp
 using Ansight.Pairing;
@@ -146,7 +135,7 @@ var result = await client.OpenSessionAsync(
 
 Apps that initialize the runtime should generally prefer `Runtime.HostConnection` over creating their own long-lived `PairingSessionClient` instances, because the runtime-owned surface coordinates stored configs, auto-probe, metrics streaming, and disconnect state in one place.
 
-Create or parse a pairing config document:
+Create or parse an enrollment invite document:
 
 ```csharp
 using Ansight.Pairing;
@@ -262,57 +251,13 @@ and receives the newly created `IRuntime` once. Initialization failures are
 logged and isolated from core runtime startup. `Ansight.Annotations` uses this
 extension point for its opt-in feedback service.
 
-## Embedded developer pairing target
+## Enrollment setup
 
-The core package ships an optional MSBuild target that can embed a signed local-development pairing config during build.
-
-Enable it in your app project:
-
-```xml
-<PropertyGroup Condition="'$(Configuration)' == 'Debug'">
-  <AnsightDeveloperPairingEnabled>true</AnsightDeveloperPairingEnabled>
-</PropertyGroup>
-```
-
-Optional properties:
-
-```xml
-<PropertyGroup>
-  <AnsightDeveloperPairingSourceFile>ansight.json</AnsightDeveloperPairingSourceFile>
-  <AnsightDeveloperPairingOutputFile>$(BaseIntermediateOutputPath)ansight.developer-pairing.json</AnsightDeveloperPairingOutputFile>
-</PropertyGroup>
-```
-
-When enabled, the target writes `$(AnsightDeveloperPairingOutputFile)` and embeds it into the consuming assembly automatically as `ansight.developer-pairing.json`. No extra `EmbeddedResource` item is required for the generated developer pairing file.
-
-`AnsightDeveloperPairingSourceFile` is required and must point at a signed pairing JSON. The build fails when developer pairing is enabled and the source file is missing.
-
-If you also want a plain bundled fallback config, keep embedding `ansight.json` manually and configure `WithBundledHostConnection(...)`:
-
-```xml
-<ItemGroup>
-  <EmbeddedResource Include="ansight.json" LogicalName="ansight.json" />
-</ItemGroup>
-```
-
-With the generated developer resource available, or with `WithBundledHostConnection(typeof(AppBootstrap).Assembly)` configured for explicit bundled config loading:
-
-- auto-connect prefers the embedded developer pairing config when available, then cycles valid remembered Wi-Fi connection profiles newest-first, then falls back to saved configs and any plain bundled config
-- explicit `HostConnectionRequest.PayloadText(...)` and `HostConnectionRequest.QrCode(...)` requests always use the supplied pairing payload and replace the current host session
-
-The target reads the source pairing config, captures local machine metadata when available, and writes a pairing config document containing:
-
-- the original `PairingConfig`
-- a `PairingDiscoveryHint` with host addresses, machine name, and Wi-Fi name when available
-
-On Unix it uses `generate-ansight-developer-pairing.sh`. On Windows it uses `generate-ansight-developer-pairing.ps1`.
-
-Security and integration considerations:
-
-- the generated embedded resource includes host addresses, host name, Wi-Fi name, and a capture timestamp from the build machine
-- saved, pasted, QR, compact-code, bundled, and developer pairing config flows require signed pairing configs and keep signature, expiry, token, and app-id validation
-- keep `AnsightDeveloperPairingEnabled=true` limited to local development and Debug builds
-- do not ship developer pairing resources in CI, Release, TestFlight, App Store, Play Store, or other distributable builds
+Install the SDK, initialize it, and call
+`Runtime.HostConnection.ConnectAsync(HostConnectionRequest.QrCode())` from a
+developer-only surface. The first successful scan registers the installation;
+later launches reconnect from app-private state. No MSBuild property, embedded
+resource, generated file, certificate, or host address is required.
 
 ## Build-time Remote Tool Enforcement
 

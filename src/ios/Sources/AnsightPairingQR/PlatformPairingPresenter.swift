@@ -21,7 +21,7 @@ enum PlatformPairingPresenter {
             return resolvePresentedController(rootViewController)
         }
 
-        throw RuntimeError.invalidInput("Pairing UI is unavailable because no active iOS view controller is available.")
+        throw RuntimeError.invalidInput("Enrollment UI is unavailable because no active iOS view controller is available.")
     }
 
     @MainActor

@@ -574,19 +574,12 @@ class AnsightCapacitorPlugin : Plugin() {
 
     private fun buildOptions(map: JSObject): AnsightOptions {
         val useDefaults = map.booleanValue("useNativeAllInOneDefaults", false)
-        val pairingConfigJson = map.stringValue("pairingConfigJson")
         var options = if (useDefaults) {
             AnsightDeveloperMode.options(
-                bundledDeveloperConfigJson = pairingConfigJson,
                 clientName = map.stringValue("clientName"),
             )
         } else {
             AnsightOptions()
-        }
-        if (!useDefaults && !pairingConfigJson.isNullOrBlank()) {
-            options = options.copy(
-                hostConnection = options.hostConnection.copy(bundledConfigJson = pairingConfigJson),
-            )
         }
         if (map.has("sampleFrequencyMilliseconds")) {
             options = options.copy(
@@ -701,8 +694,6 @@ class AnsightCapacitorPlugin : Plugin() {
                         ?: options.hostConnection.savedConfigKey,
                     bundledConfigJson = host.stringValue("bundledConfigJson")
                         ?: options.hostConnection.bundledConfigJson,
-                    bundledDeveloperConfigJson = host.stringValue("bundledDeveloperConfigJson")
-                        ?: options.hostConnection.bundledDeveloperConfigJson,
                     discoveryPort = host.optionalInt("discoveryPort")
                         ?: options.hostConnection.discoveryPort,
                     allowCellularConnections = host.booleanValue(
@@ -893,7 +884,6 @@ class AnsightCapacitorPlugin : Plugin() {
             .putValue("configId", value.configId)
             .putValue("appId", value.appId)
             .putValue("resolvedHostAddress", value.resolvedHostAddress)
-            .putValue("usedEmbeddedDeveloperPairing", value.usedEmbeddedDeveloperPairing)
             .putValue("discoverySource", value.discoverySource)
             .putValue("reasonCode", value.reasonCode)
             .putValue("hostId", value.hostId)
@@ -915,7 +905,6 @@ class AnsightCapacitorPlugin : Plugin() {
                     put("hostId", it.hostId)
                     put("hostName", it.hostName)
                     put("accepted", it.accepted)
-                    put("usedEmbeddedDeveloperPairing", it.usedEmbeddedDeveloperPairing)
                     put("discoverySource", it.discoverySource)
                 }
             }

@@ -4,27 +4,33 @@ import Network
 public struct ConnectRequest: Sendable, Codable, Equatable {
     public let type: String
     public let ver: Int
-    public let configId: String
-    public let oneTimeToken: String
+    public let requestId: String
+    public let inviteId: String
     public let appId: String
-    public let clientName: String
+    public let deviceId: String
+    public let deviceName: String
+    public let accessToken: String
     public let processSessionId: String?
 
     public init(
-        type: String = "CONNECT_REQ",
-        ver: Int = 1,
-        configId: String,
-        oneTimeToken: String,
+        type: String = "ENROLLMENT_CONNECT",
+        ver: Int = 2,
+        requestId: String,
+        inviteId: String,
         appId: String,
-        clientName: String,
+        deviceId: String,
+        deviceName: String,
+        accessToken: String,
         processSessionId: String? = ProcessSessionIdentity.current
     ) {
         self.type = type
         self.ver = ver
-        self.configId = configId
-        self.oneTimeToken = oneTimeToken
+        self.requestId = requestId
+        self.inviteId = inviteId
         self.appId = appId
-        self.clientName = clientName
+        self.deviceId = deviceId
+        self.deviceName = deviceName
+        self.accessToken = accessToken
         self.processSessionId = processSessionId
     }
 }

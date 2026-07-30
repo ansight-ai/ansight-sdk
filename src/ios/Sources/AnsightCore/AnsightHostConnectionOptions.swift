@@ -6,7 +6,6 @@ public struct AnsightHostConnectionOptions: Sendable, Codable, Equatable {
         case connectionProfileRetentionSeconds
         case discoveryPort
         case allowCellularConnections
-        case bundledDeveloperConfigJson
         case bundledConfigJson
     }
 
@@ -14,7 +13,6 @@ public struct AnsightHostConnectionOptions: Sendable, Codable, Equatable {
     public var connectionProfileRetentionSeconds: Int
     public var discoveryPort: Int?
     public var allowCellularConnections: Bool
-    public var bundledDeveloperConfigJson: String?
     public var bundledConfigJson: String?
 
     public init(
@@ -22,14 +20,12 @@ public struct AnsightHostConnectionOptions: Sendable, Codable, Equatable {
         connectionProfileRetentionSeconds: Int = 14 * 24 * 60 * 60,
         discoveryPort: Int? = nil,
         allowCellularConnections: Bool = false,
-        bundledDeveloperConfigJson: String? = nil,
         bundledConfigJson: String? = nil
     ) {
         self.savedConfigKey = savedConfigKey
         self.connectionProfileRetentionSeconds = connectionProfileRetentionSeconds
         self.discoveryPort = discoveryPort
         self.allowCellularConnections = allowCellularConnections
-        self.bundledDeveloperConfigJson = bundledDeveloperConfigJson
         self.bundledConfigJson = bundledConfigJson
     }
 
@@ -47,10 +43,6 @@ public struct AnsightHostConnectionOptions: Sendable, Codable, Equatable {
                 Bool.self,
                 forKey: .allowCellularConnections
             ) ?? false,
-            bundledDeveloperConfigJson: try container.decodeIfPresent(
-                String.self,
-                forKey: .bundledDeveloperConfigJson
-            ),
             bundledConfigJson: try container.decodeIfPresent(String.self, forKey: .bundledConfigJson)
         )
     }
@@ -68,9 +60,6 @@ public struct AnsightHostConnectionOptions: Sendable, Codable, Equatable {
 
         if let trimmed = bundledConfigJson?.trimmingCharacters(in: .whitespacesAndNewlines), trimmed.isEmpty {
             bundledConfigJson = nil
-        }
-        if let trimmed = bundledDeveloperConfigJson?.trimmingCharacters(in: .whitespacesAndNewlines), trimmed.isEmpty {
-            bundledDeveloperConfigJson = nil
         }
     }
 }

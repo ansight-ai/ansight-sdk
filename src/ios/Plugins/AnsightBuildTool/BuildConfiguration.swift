@@ -3,15 +3,11 @@ import Foundation
 struct BuildConfiguration {
     let outputFile: URL
     let targetDirectory: URL
-    let packageDirectory: URL
-    let developerPairingEnabled: Bool
-    let developerPairingSourceFile: URL?
     let allowBundledTools: Bool
 
     init(arguments: [String], environment: [String: String]) throws {
         var outputFile: URL?
         var targetDirectory: URL?
-        var packageDirectory: URL?
         var index = 0
 
         while index < arguments.count {
@@ -23,9 +19,6 @@ struct BuildConfiguration {
             case "--target-directory":
                 index += 1
                 targetDirectory = URL(fileURLWithPath: try Self.argumentValue(arguments, index: index, name: argument))
-            case "--package-directory":
-                index += 1
-                packageDirectory = URL(fileURLWithPath: try Self.argumentValue(arguments, index: index, name: argument))
             default:
                 throw BuildToolError.invalidArguments("Unknown argument '\(argument)'.")
             }
@@ -33,20 +26,12 @@ struct BuildConfiguration {
             index += 1
         }
 
-        guard let outputFile, let targetDirectory, let packageDirectory else {
-            throw BuildToolError.invalidArguments("Missing required output, target, or package directory argument.")
+        guard let outputFile, let targetDirectory else {
+            throw BuildToolError.invalidArguments("Missing required output or target directory argument.")
         }
-
-        let defaultSource = packageDirectory.appendingPathComponent("ansight.json")
-        let sourceFile = environment["ANSIGHT_DEVELOPER_PAIRING_SOURCE_FILE"]
-            .map(URL.init(fileURLWithPath:))
-            ?? (FileManager.default.fileExists(atPath: defaultSource.path) ? defaultSource : nil)
 
         self.outputFile = outputFile
         self.targetDirectory = targetDirectory
-        self.packageDirectory = packageDirectory
-        developerPairingEnabled = Self.isEnabled(environment["ANSIGHT_DEVELOPER_PAIRING_ENABLED"])
-        developerPairingSourceFile = sourceFile
         allowBundledTools = Self.isEnabled(environment["ANSIGHT_ALLOW_REMOTE_TOOLS"])
     }
 

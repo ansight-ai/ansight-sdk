@@ -1,0 +1,1 @@
+-keep class ai.ansight.dotnet.AnsightDotNetBridge { public *; }

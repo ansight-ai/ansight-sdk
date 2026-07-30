@@ -17,17 +17,16 @@ Ansight Services.
 using Ansight;
 
 var options = Options.CreateBuilder()
-    .WithAnsightSdk(ansight =>
-    {
-        ansight.WithBundledHostConnection(typeof(AppBootstrap).Assembly);
-#if ANDROID
-        ansight.WithPlatformPairing(() => CurrentActivityProvider());
-#endif
-    })
+    .WithAnsightSdk()
     .Build();
 
 Runtime.InitializeAndActivate(options);
+await Runtime.HostConnection.ConnectAsync(HostConnectionRequest.QrCode());
 ```
+
+The all-in-one package registers the platform QR reader and tracks the current
+Android activity automatically. A first scan stores this app installation's
+registration; later launches reconnect without a pairing file or another scan.
 
 In-app annotations are bundled but deliberately not enabled by the all-in-one defaults. Opt in explicitly from a Debug application build:
 
@@ -49,7 +48,7 @@ Use `OfflineCapture.Configure(...)` for retained local sessions, ZIP/AES export,
 annotation storage, and team upload. See the `Ansight.OfflineCapture` package
 documentation.
 
-`WithAnsightSdk(...)` configures FPS sampling, 400ms sampling, 120s retention, 2000ms/quality-60/max-width-480 JPEG capture, host auto-probe, bundled host connection, all non-MAUI tools, and full tool access. Host auto-probe remembers successful host sessions per host-reported Wi-Fi network and retries those profiles so the app can reconnect after the host disappears and later reappears. Successful reconnects refresh the matching profile, and profiles expire after 14 days by default. Its callback receives the existing `Options.OptionsBuilder` after runtime defaults and before default tool-suite registration:
+`WithAnsightSdk(...)` configures FPS sampling, 400ms sampling, 120s retention, 2000ms/quality-60/max-width-480 JPEG capture, platform QR enrollment, host auto-probe, all non-MAUI tools, and full tool access. Host auto-probe remembers successful host sessions and retries the stored registration so the app can reconnect after the host disappears and later reappears. Its callback receives the existing `Options.OptionsBuilder` after runtime defaults and before default tool-suite registration:
 
 > **Important:** Screen capture will result in an FPS drop while frames are
 > captured, encoded, and transported. Disable session JPEG capture for

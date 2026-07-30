@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using Ansight.Pairing;
 
 namespace Ansight.UnitTests;
@@ -8,8 +7,7 @@ public sealed class StoredPairingDocumentCacheTests
     [Fact]
     public void Save_AndLoadValidated_RoundTripsPairingConfig()
     {
-        using var signingKey = ECDsa.Create();
-        var pairingConfig = PairingTestDocumentFactory.CreateSignedConfig(signingKey, appId: "com.ansight.cache-test");
+        var pairingConfig = PairingTestDocumentFactory.CreateEnrollmentInvite(appId: "com.ansight.cache-test");
         var configJson = PairingTestDocumentFactory.CreateConfigDocumentJson(
             pairingConfig,
             PairingTestDocumentFactory.CreateDiscoveryHint(hostAddress: "127.0.0.1"));
@@ -32,7 +30,7 @@ public sealed class StoredPairingDocumentCacheTests
                 out var loadError), loadError);
             Assert.NotNull(loadedDocument);
             Assert.Equal(document!.Config.ConfigId, loadedDocument!.Config.ConfigId);
-            Assert.Equal(document.Config.OneTimeToken, loadedDocument.Config.OneTimeToken);
+            Assert.Equal(document.Config.Enrollment!.Secret, loadedDocument.Config.Enrollment!.Secret);
             Assert.Equal(document.DiscoveryHint?.HostAddresses, loadedDocument.DiscoveryHint?.HostAddresses);
         }
         finally
@@ -47,11 +45,9 @@ public sealed class StoredPairingDocumentCacheTests
     [Fact]
     public void TryLoadValidated_WhenCachedDocumentIsExpired_ClearsTheCache()
     {
-        using var signingKey = ECDsa.Create();
-        var expiredConfig = PairingTestDocumentFactory.CreateSignedConfig(
-            signingKey,
+        var expiredConfig = PairingTestDocumentFactory.CreateEnrollmentInvite(
             appId: "com.ansight.cache-test",
-            expiresAt: DateTimeOffset.UtcNow.AddMinutes(-5));
+            registrationExpiresAt: DateTimeOffset.UtcNow.AddMinutes(-5));
         var expiredJson = PairingTestDocumentFactory.CreateConfigDocumentJson(expiredConfig);
 
         var cacheFilePath = Path.Combine(Path.GetTempPath(), $"ansight-cache-{Guid.NewGuid():N}.json");
@@ -80,17 +76,14 @@ public sealed class StoredPairingDocumentCacheTests
     [Fact]
     public void Save_WhenDifferentWifiNetworksAreCached_RoundTripsProfilesByMostRecent()
     {
-        using var signingKey = ECDsa.Create();
         var cacheFilePath = Path.Combine(Path.GetTempPath(), $"ansight-cache-{Guid.NewGuid():N}.json");
         var now = DateTimeOffset.UtcNow;
         var homeDocument = CreateParsedDocument(
-            signingKey,
             configId: "cfg-home",
             hostAddress: "10.0.0.8",
             wifiName: "Home Wi-Fi",
             capturedAt: now);
         var officeDocument = CreateParsedDocument(
-            signingKey,
             configId: "cfg-office",
             hostAddress: "10.0.1.9",
             wifiName: "Office Wi-Fi",
@@ -125,17 +118,14 @@ public sealed class StoredPairingDocumentCacheTests
     [Fact]
     public void Save_WhenSameWifiNetworkIsCached_RefreshesExistingProfile()
     {
-        using var signingKey = ECDsa.Create();
         var cacheFilePath = Path.Combine(Path.GetTempPath(), $"ansight-cache-{Guid.NewGuid():N}.json");
         var now = DateTimeOffset.UtcNow;
         var initialDocument = CreateParsedDocument(
-            signingKey,
             configId: "cfg-home",
             hostAddress: "10.0.0.8",
             wifiName: "Home Wi-Fi",
             capturedAt: now);
         var refreshedDocument = CreateParsedDocument(
-            signingKey,
             configId: "cfg-home-refresh",
             hostAddress: "10.0.0.42",
             wifiName: "Home Wi-Fi",
@@ -169,12 +159,10 @@ public sealed class StoredPairingDocumentCacheTests
     [Fact]
     public void TryLoadValidatedProfiles_WhenProfileRetentionExpires_RemovesProfile()
     {
-        using var signingKey = ECDsa.Create();
         var cacheFilePath = Path.Combine(Path.GetTempPath(), $"ansight-cache-{Guid.NewGuid():N}.json");
         var now = DateTimeOffset.UtcNow;
         var capturedAt = now.AddDays(-2);
         var document = CreateParsedDocument(
-            signingKey,
             configId: "cfg-home",
             hostAddress: "10.0.0.8",
             wifiName: "Home Wi-Fi",
@@ -207,7 +195,6 @@ public sealed class StoredPairingDocumentCacheTests
     }
 
     private static ParsedPairingDocument CreateParsedDocument(
-        ECDsa signingKey,
         string configId,
         string hostAddress,
         string wifiName,
@@ -215,8 +202,7 @@ public sealed class StoredPairingDocumentCacheTests
     {
         return new ParsedPairingDocument
         {
-            Config = PairingTestDocumentFactory.CreateSignedConfig(
-                signingKey,
+            Config = PairingTestDocumentFactory.CreateEnrollmentInvite(
                 configId: configId,
                 appId: "com.ansight.cache-test",
                 expiresAt: DateTimeOffset.UtcNow.AddDays(3)),

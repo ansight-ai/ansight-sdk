@@ -47,7 +47,7 @@ internal sealed class PairingSessionConnector
         if (hostAddressCandidates.Length == 0)
         {
             return PairingConnectionAttempt.FromFailure(
-                "A current host address is required. Import a fresh pairing config or compact pairing config code.",
+                "The scanned Ansight QR code does not contain a reachable Studio address.",
                 PairingFailureCodes.HostAddressRequired);
         }
 
@@ -100,7 +100,7 @@ internal sealed class PairingSessionConnector
             HostConnectionProgressKind.Connection,
             usingHostOverride
                 ? $"Using host override address: {hostAddressCandidates[0]}"
-                : $"Using pairing config host address candidates: {string.Join(", ", hostAddressCandidates)}",
+                : $"Using enrollment QR host address candidates: {string.Join(", ", hostAddressCandidates)}",
             source: HostConnectionSource.HostConnection);
 
         PairingConnectionAttempt? lastFailure = null;
@@ -157,7 +157,7 @@ internal sealed class PairingSessionConnector
             if (connectResponse is null)
             {
                 lastFailure = PairingConnectionAttempt.FromFailure(
-                    $"No connect response from host at {hostAddress}. {hostNetworkCheckMessage} The remembered host address may be stale. Import a fresh pairing QR code or enter the host IP manually.",
+                    $"No connect response from Studio at {hostAddress}. {hostNetworkCheckMessage} Scan a fresh QR code if Studio's address changed.",
                     PairingFailureCodes.UdpBootstrapTimeout);
                 continue;
             }
@@ -228,7 +228,7 @@ internal sealed class PairingSessionConnector
         }
 
         return lastFailure ?? PairingConnectionAttempt.FromFailure(
-            "A current host address is required. Import a fresh pairing config or compact pairing config code.",
+            "The scanned Ansight QR code does not contain a reachable Studio address.",
             PairingFailureCodes.HostAddressRequired);
     }
 
@@ -280,15 +280,18 @@ internal sealed class PairingSessionConnector
         CancellationToken cancellationToken)
     {
         using var udpClient = new UdpClient(hostAddress.AddressFamily);
+        var requestId = PairingCrypto.CreateBase64UrlRandom(16);
 
         var request = new ConnectRequest
         {
-            Type = "CONNECT_REQ",
-            Ver = 1,
-            ConfigId = config.ConfigId,
-            OneTimeToken = config.OneTimeToken,
+            RequestId = requestId,
+            InviteId = config.ConfigId,
             AppId = config.AppId,
-            ClientName = clientName,
+            DeviceId = PairingDeviceIdentity.GetOrCreate(config.AppId),
+            DeviceName = clientName,
+            AccessToken = config.Enrollment?.Secret
+                          ?? throw new InvalidOperationException(
+                              "Enrollment invite is missing its access token."),
             ProcessSessionId = ProcessSessionIdentity.Current
         };
 
@@ -315,7 +318,10 @@ internal sealed class PairingSessionConnector
             try
             {
                 var response = JsonSerializer.Deserialize<ConnectResponse>(receiveResult.Buffer, PairingJson.Compact);
-                if (response is not null && string.Equals(response.Type, "CONNECT_RESP", StringComparison.Ordinal))
+                if (response is not null
+                    && string.Equals(response.Type, "ENROLLMENT_RESULT", StringComparison.Ordinal)
+                    && response.Ver == 2
+                    && string.Equals(response.RequestId, requestId, StringComparison.Ordinal))
                 {
                     return response;
                 }

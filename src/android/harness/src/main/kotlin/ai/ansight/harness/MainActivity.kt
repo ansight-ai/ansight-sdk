@@ -9,8 +9,6 @@ import ai.ansight.runtime.AnsightOptions
 import ai.ansight.runtime.AnsightRuntime
 import ai.ansight.runtime.AnsightSessionJpegCaptureOptions
 import ai.ansight.runtime.FunctionAndroidTool
-import ai.ansight.runtime.HostConnectionRequest
-import ai.ansight.runtime.HostConnectionRequestKind
 import ai.ansight.runtime.HostConnectionResult
 import ai.ansight.runtime.ToolDefinition
 import ai.ansight.runtime.ToolScope
@@ -27,7 +25,6 @@ import android.opengl.GLES20
 import android.opengl.GLSurfaceView
 import android.opengl.Matrix
 import android.os.Bundle
-import android.util.Base64
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -57,7 +54,6 @@ class MainActivity : AppCompatActivity() {
 
     private val tabButtons = linkedMapOf<HarnessTab, Button>()
     private val harnessState = HarnessState()
-    private var pairingConfigJson: String? = null
     private var lastConnectionResult: HostConnectionResult? = null
     private var lastToolResult: JSONObject? = null
     private var lastDatabaseSummary: JSONObject? = null
@@ -65,7 +61,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        pairingConfigJson = extractPairingConfig()
         database = HarnessDatabase(this).also { it.seedIfNeeded() }
         lastDatabaseSummary = database.summary()
         registerReflectionRoots()
@@ -76,7 +71,7 @@ class MainActivity : AppCompatActivity() {
         runCatching {
             Ansight.initializeAndActivate(
                 application = application,
-                options = harnessOptions(pairingConfigJson),
+                options = harnessOptions(),
             )
             AnsightRuntime.screenViewed("Harness.${harnessState.selectedTab.name.lowercase(Locale.US)}")
         }.onFailure { error ->
@@ -107,9 +102,8 @@ class MainActivity : AppCompatActivity() {
         super.onPause()
     }
 
-    private fun harnessOptions(pairingConfigJson: String?): AnsightOptions {
+    private fun harnessOptions(): AnsightOptions {
         val baseOptions = Ansight.developerOptions(
-            bundledDeveloperConfigJson = pairingConfigJson,
             clientName = "Ansight Android Harness",
         )
         return baseOptions.copy(
@@ -562,7 +556,7 @@ class MainActivity : AppCompatActivity() {
         runCatching {
             Ansight.initialize(
                 application = application,
-                options = harnessOptions(pairingConfigJson),
+                options = harnessOptions(),
             )
         }.onFailure { error ->
             harnessState.lastError = error.message ?: error.javaClass.simpleName
@@ -572,17 +566,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun openHarnessSession() {
         lastConnectionResult = runCatching {
-            val pairingConfig = pairingConfigJson
-            if (pairingConfig == null) {
-                AnsightRuntime.connect()
-            } else {
-                AnsightRuntime.connect(
-                    HostConnectionRequest(
-                        kind = HostConnectionRequestKind.Payload,
-                        payload = pairingConfig,
-                    ),
-                )
-            }
+            AnsightRuntime.connect()
         }.getOrElse { ex ->
             HostConnectionResult.failure(ex.message ?: "Connection failed.")
         }
@@ -864,17 +848,6 @@ class MainActivity : AppCompatActivity() {
             AndroidToolResult.success(database.summary())
         },
     )
-
-    private fun extractPairingConfig(): String? {
-        val raw = intent.getStringExtra(EXTRA_PAIRING_CONFIG)?.trim()?.ifBlank { null }
-        if (raw != null) {
-            return raw
-        }
-
-        val encoded = intent.getStringExtra(EXTRA_PAIRING_CONFIG_BASE64)?.trim()?.ifBlank { null }
-            ?: return null
-        return String(Base64.decode(encoded, Base64.DEFAULT), Charsets.UTF_8).trim().ifBlank { null }
-    }
 
     private fun addButtonRow(parent: LinearLayout, first: Pair<String, () -> Unit>, second: Pair<String, () -> Unit>) {
         val row = LinearLayout(this).apply {
@@ -1285,8 +1258,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private companion object {
-        const val EXTRA_PAIRING_CONFIG = "ai.ansight.harness.PAIRING_CONFIG"
-        const val EXTRA_PAIRING_CONFIG_BASE64 = "ai.ansight.harness.PAIRING_CONFIG_BASE64"
         const val EXTRA_CAPTURE_VALIDATION = "ai.ansight.harness.CAPTURE_VALIDATION"
     }
 }

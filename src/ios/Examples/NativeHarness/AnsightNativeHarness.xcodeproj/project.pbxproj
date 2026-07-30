@@ -12,7 +12,6 @@
 		05E077788D0C535DDD589E39 /* HarnessActionGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 725A50BEC705B1B10E0B9515 /* HarnessActionGrid.swift */; };
 		0CFE92582C207DBD1095C4EB /* HarnessFlyoutDrawerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F3DC606C3413356E4BA872F /* HarnessFlyoutDrawerView.swift */; };
 		0DC0153DD4E137E6DD244E9F /* HarnessTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D202F73D5A8FB4CC15B01B5 /* HarnessTab.swift */; };
-		14C5BF5DF937358964EE6A20 /* HarnessBundledPairingConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5238774EE821FF17AB219B3C /* HarnessBundledPairingConfig.swift */; };
 		1AADDBDDF4FBE1C2A4D0F47D /* HarnessKeyValueRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 168A1D53FEB0CDC449C8D4F8 /* HarnessKeyValueRow.swift */; };
 		211A98EE8A83D4F16015DD4E /* HarnessListReflectionRootsTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB90C0F1B970D2EF58AF6593 /* HarnessListReflectionRootsTool.swift */; };
 		2ED2CA8EE23BB243EE4EA017 /* HarnessViewModel+Telemetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A2A76DC81C7CFA61E067BC /* HarnessViewModel+Telemetry.swift */; };
@@ -35,7 +34,6 @@
 		82E91F8C82C9256138F380AB /* HarnessModalContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF67A668047438CF5A25373F /* HarnessModalContentView.swift */; };
 		862E7237DBCEEA887CE0AE7C /* HarnessViewModel+Inspection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E0A298BFFAA7F1DF762A076 /* HarnessViewModel+Inspection.swift */; };
 		869441C94B984AF8F798B2B6 /* HarnessViewModel+DatabaseSeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 545F610EF4B947DB7C3113A6 /* HarnessViewModel+DatabaseSeed.swift */; };
-		8A2D33E88EA7042E1FBE8B2A /* ansight.json in Resources */ = {isa = PBXBuildFile; fileRef = 57D293C387F127A73DAFB1F2 /* ansight.json */; };
 		8A32703133D14458DF44577A /* HarnessNavigationPlaygroundView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D6054981EFF94F3BCBC4AA9 /* HarnessNavigationPlaygroundView.swift */; };
 		914469B9DA9F2B975AA95359 /* HarnessViewModel+FileSystemSeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ACBD4A949EAFD7AD2717844 /* HarnessViewModel+FileSystemSeed.swift */; };
 		97A81D71DA8E067617E21C41 /* HarnessViewModel+SecureStorageSeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2355E738287039125592933 /* HarnessViewModel+SecureStorageSeed.swift */; };
@@ -76,12 +74,10 @@
 		3F8A9311173B43C2539151ED /* HarnessInspectReflectionRootTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarnessInspectReflectionRootTool.swift; sourceTree = "<group>"; };
 		43E7F4D89414DCABDEE56756 /* HarnessSeededDataSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarnessSeededDataSectionView.swift; sourceTree = "<group>"; };
 		461DD5032FE4FCFAB7293C23 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		5238774EE821FF17AB219B3C /* HarnessBundledPairingConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarnessBundledPairingConfig.swift; sourceTree = "<group>"; };
 		524917AEE50A25617092C69B /* HarnessStateSnapshotTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarnessStateSnapshotTool.swift; sourceTree = "<group>"; };
 		53EEEABDE9BF5F57539BC617 /* HarnessViewModel+Bootstrap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HarnessViewModel+Bootstrap.swift"; sourceTree = "<group>"; };
 		545F610EF4B947DB7C3113A6 /* HarnessViewModel+DatabaseSeed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HarnessViewModel+DatabaseSeed.swift"; sourceTree = "<group>"; };
 		558141FEE50406D0632934B9 /* AnsightNativeHarness.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = AnsightNativeHarness.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		57D293C387F127A73DAFB1F2 /* ansight.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ansight.json; sourceTree = "<group>"; };
 		59C4E537672A2FEB8206BC0D /* Harness3DViewerTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Harness3DViewerTabView.swift; sourceTree = "<group>"; };
 		5B9EE774E6CAAFE6833B7E3B /* HarnessDataInspectorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarnessDataInspectorView.swift; sourceTree = "<group>"; };
 		649E34BE68EE8778E03A3241 /* HarnessPairingSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarnessPairingSectionView.swift; sourceTree = "<group>"; };
@@ -138,20 +134,10 @@
 			name = Packages;
 			sourceTree = "<group>";
 		};
-		3B313B2D9F8101E50ACEA9A0 /* ios */ = {
-			isa = PBXGroup;
-			children = (
-				57D293C387F127A73DAFB1F2 /* ansight.json */,
-			);
-			name = ios;
-			path = ../..;
-			sourceTree = "<group>";
-		};
 		57E544B152B7DFC797C9E39B = {
 			isa = PBXGroup;
 			children = (
 				859A9F341E6CDCEADD64BE67 /* AnsightNativeHarness */,
-				3B313B2D9F8101E50ACEA9A0 /* ios */,
 				1EFCD60A27ABADA593D7A78B /* Packages */,
 				8BF89118D367EEBCDA34E1C5 /* Products */,
 			);
@@ -166,7 +152,6 @@
 				59C4E537672A2FEB8206BC0D /* Harness3DViewerTabView.swift */,
 				E7BD2ABEC62ECD5F75FAA792 /* HarnessActionButton.swift */,
 				725A50BEC705B1B10E0B9515 /* HarnessActionGrid.swift */,
-				5238774EE821FF17AB219B3C /* HarnessBundledPairingConfig.swift */,
 				CAD2EAA0B28B290E8D383242 /* HarnessConstants.swift */,
 				219B2C7443BC4F2244F3DA90 /* HarnessDashboardHeaderView.swift */,
 				B974D49AD9B825D12A4AB8E2 /* HarnessDashboardView.swift */,
@@ -285,7 +270,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				FB22CCD497BF15DD0622EF87 /* Assets.xcassets in Resources */,
-				8A2D33E88EA7042E1FBE8B2A /* ansight.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -301,7 +285,6 @@
 				5F497814F3C624EFD37841BA /* Harness3DViewerTabView.swift in Sources */,
 				4B2119A312CEE4D68CE0F6A0 /* HarnessActionButton.swift in Sources */,
 				05E077788D0C535DDD589E39 /* HarnessActionGrid.swift in Sources */,
-				14C5BF5DF937358964EE6A20 /* HarnessBundledPairingConfig.swift in Sources */,
 				01CCB1766828FE46BABE755C /* HarnessConstants.swift in Sources */,
 				B728F100B399E3BA17323000 /* HarnessDashboardHeaderView.swift in Sources */,
 				B46EECD95167CC34F3E0F30F /* HarnessDashboardView.swift in Sources */,
@@ -471,7 +454,6 @@
 		E18344A9F64DFA3C082D8229 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ANSIGHT_DEVELOPER_PAIRING_ENABLED = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				INFOPLIST_FILE = AnsightNativeHarness/Info.plist;
@@ -491,7 +473,6 @@
 		F75DFB971C64339035E171F4 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ANSIGHT_DEVELOPER_PAIRING_ENABLED = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				INFOPLIST_FILE = AnsightNativeHarness/Info.plist;

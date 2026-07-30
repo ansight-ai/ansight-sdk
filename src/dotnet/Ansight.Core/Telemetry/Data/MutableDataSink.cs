@@ -609,6 +609,26 @@ internal class MutableDataSink : IDataSink, IAppLifecycleStateSource
         });
     }
 
+    internal void ImportNativeMetric(long value, byte channel, DateTime capturedAtUtc)
+    {
+        MutateMetrics(metrics =>
+        {
+            if (!metrics.TryGetValue(channel, out var channelMetrics))
+            {
+                return Array.Empty<Metric>();
+            }
+
+            var metric = new Metric
+            {
+                CapturedAtUtc = capturedAtUtc,
+                Channel = channel,
+                Value = value
+            };
+            channelMetrics.Add(metric);
+            return new[] { metric };
+        });
+    }
+
     private void MutateMetrics(Func<Dictionary<byte, List<Metric>>, IReadOnlyList<Metric>> mutator)
     {
         if (mutator == null) throw new ArgumentNullException(nameof(mutator));
@@ -832,6 +852,16 @@ internal class MutableDataSink : IDataSink, IAppLifecycleStateSource
                 @event
             };
         });
+    }
+
+    internal void ImportNativeEvent(
+        string label,
+        AppEventType type,
+        byte channel,
+        string details,
+        DateTime capturedAtUtc)
+    {
+        AddEvent(label, type, channel, details, capturedAtUtc);
     }
 
 

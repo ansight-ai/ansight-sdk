@@ -15,7 +15,7 @@ public sealed class PairingConnectionOptions
 
     /// <summary>
     /// Optional UDP discovery port to use for the initial pairing bootstrap.
-    /// When omitted, Ansight prefers a discovery hint port, then any legacy config port, then the default protocol port.
+    /// When omitted, Ansight prefers a discovery hint port, then the invite host port, then the default protocol port.
     /// </summary>
     public int? DiscoveryPort { get; set; }
 

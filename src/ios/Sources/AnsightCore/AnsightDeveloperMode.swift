@@ -1,17 +1,6 @@
 import Foundation
 
 public enum AnsightDeveloperMode {
-    public static var embeddedPairingJson: String? {
-        guard let base64 = providerType?.embeddedDeveloperPairingJsonBase64(),
-              let data = Data(base64Encoded: base64),
-              let json = String(data: data, encoding: .utf8)
-        else {
-            return nil
-        }
-
-        return json
-    }
-
     public static var bundledToolScanReport: AnsightBundledToolScanReport {
         AnsightBundledToolScanReport(
             detectedToolTypes: providerType?.detectedBundledToolTypes() ?? [],

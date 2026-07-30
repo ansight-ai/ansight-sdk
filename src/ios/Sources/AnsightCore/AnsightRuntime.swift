@@ -12,20 +12,22 @@ public final class AnsightRuntime: @unchecked Sendable {
     public static let shared = AnsightRuntime()
 
     private static let cachedProfileResetReasonCodes: Set<String> = [
-        PairingFailureCodes.pairingRequired,
-        PairingFailureCodes.pairingTokenInvalid,
-        PairingFailureCodes.pairingTokenExpired,
-        PairingFailureCodes.pairingProofInvalid,
+        PairingFailureCodes.enrollmentRequired,
+        PairingFailureCodes.enrollmentExpired,
+        PairingFailureCodes.enrollmentConsumed,
+        PairingFailureCodes.accessTokenInvalid,
+        PairingFailureCodes.registrationExpired,
         PairingFailureCodes.udpBootstrapFailed,
         PairingFailureCodes.udpBootstrapTimeout,
         PairingFailureCodes.hostAddressRequired,
     ]
 
     private static let storedProfileResetReasonCodes: Set<String> = [
-        PairingFailureCodes.pairingRequired,
-        PairingFailureCodes.pairingTokenInvalid,
-        PairingFailureCodes.pairingTokenExpired,
-        PairingFailureCodes.pairingProofInvalid,
+        PairingFailureCodes.enrollmentRequired,
+        PairingFailureCodes.enrollmentExpired,
+        PairingFailureCodes.enrollmentConsumed,
+        PairingFailureCodes.accessTokenInvalid,
+        PairingFailureCodes.registrationExpired,
     ]
 
     private static let screenCaptureRenderBudgetMilliseconds = 14
@@ -50,6 +52,8 @@ public final class AnsightRuntime: @unchecked Sendable {
     private var channels: [Int: AnsightChannel] = [:]
     private var metricStreams: [Int: AnsightMetricStream] = [:]
     private var tools: [String: RegisteredTool] = [:]
+    private var externalToolProtocolHandler: (@Sendable (String) throws -> String?)?
+    private var externalToolProtocolResponseSentHandler: (@Sendable (String) -> Void)?
     private var artifactProviders: [String: any AnsightArtifactProvider] = [:]
     private var lastPairingDocument: ParsedPairingDocument?
     private var resolvedHostAddress: String?
@@ -70,7 +74,6 @@ public final class AnsightRuntime: @unchecked Sendable {
     private var telemetryGeneration = 0
     private var telemetrySamplingTask: Task<Void, Never>?
     private var autoProbeTask: Task<Void, Never>?
-    private var startupDeveloperConnectTask: Task<Void, Never>?
     private var connectionTask: Task<HostConnectionResult, Never>?
     private var connectionTaskId: UUID?
     private var screenCaptureTask: Task<Void, Never>?
@@ -114,8 +117,6 @@ public final class AnsightRuntime: @unchecked Sendable {
         telemetrySamplingTask = nil
         autoProbeTask?.cancel()
         autoProbeTask = nil
-        startupDeveloperConnectTask?.cancel()
-        startupDeveloperConnectTask = nil
         connectionTask?.cancel()
         connectionTask = nil
         connectionTaskId = nil
@@ -161,6 +162,8 @@ public final class AnsightRuntime: @unchecked Sendable {
             touchesSent = 0
             lastTouchCaptureMessage = nil
             pendingBinaryTransfers.removeAll()
+            externalToolProtocolHandler = nil
+            externalToolProtocolResponseSentHandler = nil
             lastPairingDocument = nil
             currentScreen = nil
             currentLifecycleState = .unknown
@@ -189,18 +192,14 @@ public final class AnsightRuntime: @unchecked Sendable {
 
             guard !active else {
                 return RuntimeActivationWork(
-                    shouldStartAutoProbe: false,
-                    shouldStartDeveloperConnect: false,
-                    clientName: options.hostAutoProbe.clientName
+                    shouldStartAutoProbe: false
                 )
             }
 
             active = true
             sessionMessage = "Runtime activated."
             return RuntimeActivationWork(
-                shouldStartAutoProbe: options.hostAutoProbe.enabled,
-                shouldStartDeveloperConnect: AnsightDeveloperMode.embeddedPairingJson != nil,
-                clientName: options.hostAutoProbe.clientName
+                shouldStartAutoProbe: options.hostAutoProbe.enabled
             )
         }
 
@@ -208,9 +207,6 @@ public final class AnsightRuntime: @unchecked Sendable {
         startLifecycleCaptureIfNeeded()
         startFrameRateSamplingIfNeeded()
         startTouchCaptureIfNeeded()
-        if activation.shouldStartDeveloperConnect {
-            startStartupDeveloperConnectIfNeeded(clientName: activation.clientName)
-        }
         if activation.shouldStartAutoProbe {
             startAutoProbeIfNeeded()
         }
@@ -230,8 +226,6 @@ public final class AnsightRuntime: @unchecked Sendable {
         telemetrySamplingTask = nil
         autoProbeTask?.cancel()
         autoProbeTask = nil
-        startupDeveloperConnectTask?.cancel()
-        startupDeveloperConnectTask = nil
         connectionTask?.cancel()
         connectionTask = nil
         connectionTaskId = nil
@@ -296,7 +290,7 @@ public final class AnsightRuntime: @unchecked Sendable {
     public func clearSavedPairing() {
         savedPairingStore.clear()
         lock.withLock {
-            sessionMessage = "Saved pairing config cleared."
+            sessionMessage = "Saved Studio registration cleared."
         }
         publishHostConnectionStatusIfChanged()
     }
@@ -314,7 +308,7 @@ public final class AnsightRuntime: @unchecked Sendable {
         guard isInitialized else {
             return HostConnectionResult(
                 success: false,
-                message: "AnsightRuntime must be initialized before saving a pairing config.",
+                message: "AnsightRuntime must be initialized before saving a Studio registration.",
                 kind: .savedConfig,
                 source: .savedConfig
             )
@@ -324,7 +318,7 @@ public final class AnsightRuntime: @unchecked Sendable {
         guard !trimmedJson.isEmpty else {
             return HostConnectionResult(
                 success: false,
-                message: "Pairing config JSON is required.",
+                message: "An enrollment invite is required.",
                 kind: .savedConfig,
                 source: .savedConfig
             )
@@ -345,12 +339,12 @@ public final class AnsightRuntime: @unchecked Sendable {
             _ = try pairingDocumentService.parseAndValidateDocument(trimmedJson, expectedAppId: effectiveExpectedAppId)
             try savedPairingStore.save(trimmedJson)
             lock.withLock {
-                sessionMessage = "Saved pairing config."
+                sessionMessage = "Saved Studio registration."
             }
             publishHostConnectionStatusIfChanged()
             return HostConnectionResult(
                 success: true,
-                message: "Saved pairing config.",
+                message: "Saved Studio registration.",
                 kind: .savedConfig,
                 source: .savedConfig
             )
@@ -619,7 +613,11 @@ public final class AnsightRuntime: @unchecked Sendable {
         streamPendingTelemetry()
     }
 
-    public func screenViewed(_ name: String, details: [String: String] = [:]) throws {
+    public func screenViewed(
+        _ name: String,
+        details: [String: String] = [:],
+        channel: Int = AnsightChannels.lifecycle
+    ) throws {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else {
             throw RuntimeError.invalidInput("Screen name must not be blank.")
@@ -639,7 +637,7 @@ public final class AnsightRuntime: @unchecked Sendable {
                     label: trimmedName,
                     type: .screenViewed,
                     details: detailsJson,
-                    channel: AnsightChannels.lifecycle,
+                    channel: try validateChannel(channel),
                     capturedAtUtc: capturedAtUtc,
                     sequence: nextEventSequence
                 )
@@ -814,7 +812,7 @@ public final class AnsightRuntime: @unchecked Sendable {
 
         return lastResult ?? HostConnectionResult(
             success: false,
-            message: "No pairing config is available.",
+            message: "No Studio registration is available. Scan an enrollment QR in Ansight Studio.",
             kind: request.kind,
             source: source(for: request.kind),
             reasonCode: nil
@@ -860,7 +858,10 @@ public final class AnsightRuntime: @unchecked Sendable {
             options: connectionOptions
         )
 
-        guard attempt.success, let webSocketURL = attempt.webSocketURL, let connectResponse = attempt.connectResponse else {
+        guard attempt.success,
+              let connectResponse = attempt.connectResponse,
+              attempt.webSocketURL != nil || attempt.authenticatedWebSocket != nil
+        else {
             lock.withLock {
                 connectionState = .disconnected
                 sessionOpen = false
@@ -879,7 +880,6 @@ public final class AnsightRuntime: @unchecked Sendable {
                 configId: resolvedRequest.document.config.configId,
                 appId: resolvedRequest.document.config.appId,
                 resolvedHostAddress: attempt.hostAddress,
-                usedEmbeddedDeveloperPairing: resolvedRequest.usedEmbeddedDeveloperPairing,
                 discoverySource: resolvedRequest.document.discoveryHint?.source,
                 reasonCode: attempt.failureCode ?? attempt.connectResponse?.reason,
                 hostId: attempt.connectResponse?.hostId,
@@ -895,11 +895,20 @@ public final class AnsightRuntime: @unchecked Sendable {
             )
         }
 
-        let sessionOpenAttempt = await openLiveTransportSession(
-            url: webSocketURL,
-            config: resolvedRequest.document.config,
-            clientName: clientName
-        )
+        let sessionOpenAttempt: LiveSessionOpenAttempt
+        if let authenticatedWebSocket = attempt.authenticatedWebSocket {
+            sessionOpenAttempt = await openLiveTransportSession(
+                authenticatedSocket: authenticatedWebSocket,
+                config: resolvedRequest.document.config,
+                clientName: clientName
+            )
+        } else {
+            sessionOpenAttempt = await openLiveTransportSession(
+                url: attempt.webSocketURL!,
+                config: resolvedRequest.document.config,
+                clientName: clientName
+            )
+        }
         guard sessionOpenAttempt.result.success else {
             lock.withLock {
                 connectionState = .disconnected
@@ -995,7 +1004,6 @@ public final class AnsightRuntime: @unchecked Sendable {
             configId: resolvedRequest.document.config.configId,
             appId: resolvedRequest.document.config.appId,
             resolvedHostAddress: attempt.hostAddress,
-            usedEmbeddedDeveloperPairing: resolvedRequest.usedEmbeddedDeveloperPairing,
             discoverySource: resolvedRequest.document.discoveryHint?.source,
             reasonCode: connectResponse.reason,
             hostId: connectResponse.hostId,
@@ -1070,7 +1078,7 @@ public final class AnsightRuntime: @unchecked Sendable {
         }
 
         switch resolvedRequest.source {
-        case .bundledDeveloperConfig, .cachedSession:
+        case .cachedSession:
             return true
         case .savedConfig:
             return shouldRetryWithBundledConfig(reasonCode: result.reasonCode)
@@ -1210,21 +1218,16 @@ public final class AnsightRuntime: @unchecked Sendable {
                 throw RuntimeError.notInitialized("AnsightRuntime must be initialized before opening a session.")
             }
 
-            let trimmedPairingJson = pairingJson.trimmingCharacters(in: .whitespacesAndNewlines)
-            let embeddedPairingJson = AnsightDeveloperMode.embeddedPairingJson
-            let effectivePairingJson = trimmedPairingJson.isEmpty ? embeddedPairingJson ?? "" : pairingJson
-            let usedEmbeddedDeveloperPairing = trimmedPairingJson.isEmpty && embeddedPairingJson != nil
-
-            guard !effectivePairingJson.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            guard !pairingJson.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 return OpenSessionResult(
                     success: false,
-                    message: "Pairing config JSON is required unless an embedded developer pairing config is available.",
+                    message: "An enrollment invite is required.",
                     sessionId: nil
                 )
             }
 
             let document = try pairingDocumentService.parseAndValidateDocument(
-                effectivePairingJson,
+                pairingJson,
                 expectedAppId: options.expectedAppId
             )
 
@@ -1240,7 +1243,6 @@ public final class AnsightRuntime: @unchecked Sendable {
                     sessionId: nil,
                     configId: document.config.configId,
                     appId: document.config.appId,
-                    usedEmbeddedDeveloperPairing: usedEmbeddedDeveloperPairing,
                     discoverySource: document.discoveryHint?.source,
                     reasonCode: PairingFailureCodes.hostAddressRequired
                 )
@@ -1259,7 +1261,6 @@ public final class AnsightRuntime: @unchecked Sendable {
                 configId: document.config.configId,
                 appId: document.config.appId,
                 resolvedHostAddress: hintedHostAddress,
-                usedEmbeddedDeveloperPairing: usedEmbeddedDeveloperPairing,
                 discoverySource: document.discoveryHint?.source
             )
         }
@@ -1288,6 +1289,29 @@ public final class AnsightRuntime: @unchecked Sendable {
             sessionMessage = result.success ? "Log sent." : result.message
         }
         return result.success ? .success("Log sent.") : result
+    }
+
+    public func sendControlRequest(action: String, payload: JSONValue?) async -> OperationResult {
+        let normalizedAction = action.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedAction.isEmpty else {
+            return .failure("A control request action is required.")
+        }
+        guard liveTransport.isOpen else {
+            return .failure("WebSocket session is not open.")
+        }
+
+        return await liveTransport.sendControlRequest(
+            action: normalizedAction,
+            payload: payload
+        )
+    }
+
+    public func sendBinaryData(_ data: Data) async -> OperationResult {
+        guard liveTransport.isOpen else {
+            return .failure("WebSocket session is not open.")
+        }
+
+        return await liveTransport.sendData(data)
     }
 
     public func updateSessionProperties(_ customProperties: [String: [String: String]]) async -> OperationResult {
@@ -1384,6 +1408,25 @@ public final class AnsightRuntime: @unchecked Sendable {
 
         return lock.withLock {
             tools[normalizedId] != nil
+        }
+    }
+
+    public func setExternalToolProtocolHandler(
+        _ handler: (@Sendable (String) throws -> String?)?
+    ) {
+        lock.withLock {
+            externalToolProtocolHandler = handler
+            sessionMessage = handler == nil
+                ? "External tool protocol handler cleared."
+                : "External tool protocol handler registered."
+        }
+    }
+
+    public func setExternalToolProtocolResponseSentHandler(
+        _ handler: (@Sendable (String) -> Void)?
+    ) {
+        lock.withLock {
+            externalToolProtocolResponseSentHandler = handler
         }
     }
 
@@ -1545,6 +1588,10 @@ public final class AnsightRuntime: @unchecked Sendable {
     }
 
     public func handleToolProtocolMessage(_ json: String) throws -> String? {
+        if let externalHandler = lock.withLock({ externalToolProtocolHandler }) {
+            return try externalHandler(json)
+        }
+
         let bridge = lock.withLock {
             AnsightToolProtocolBridge(registry: tools, guardPolicy: options.toolGuard)
         }
@@ -1700,7 +1747,6 @@ public final class AnsightRuntime: @unchecked Sendable {
                 executableTools: executableTools,
                 toolDiscoveryEnabled: options.toolGuard.discoveryEnabled,
                 toolExecutionEnabled: options.toolGuard.executionEnabled,
-                embeddedDeveloperPairingAvailable: AnsightDeveloperMode.embeddedPairingJson != nil,
                 detectedBundledTools: AnsightDeveloperMode.bundledToolScanReport.detectedToolTypes,
                 lastMetric: metrics.last,
                 lastEvent: events.last,
@@ -1749,10 +1795,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             let status = hostConnectionStatusLocked
             sessionMessage = status.summaryMessage
             let source: HostConnectionSource
-            if options.hostConnection.bundledDeveloperConfigJson != nil ||
-                AnsightDeveloperMode.embeddedPairingJson != nil {
-                source = .bundledDeveloperConfig
-            } else if hasBundledConfigLocked {
+            if hasBundledConfigLocked {
                 source = .bundledConfig
             } else {
                 source = .configReader
@@ -2187,36 +2230,6 @@ public final class AnsightRuntime: @unchecked Sendable {
         }
     }
 
-    private func startStartupDeveloperConnectIfNeeded(clientName: String?) {
-        startupDeveloperConnectTask?.cancel()
-        startupDeveloperConnectTask = Task { [weak self] in
-            guard let self else {
-                return
-            }
-
-            let shouldConnect = self.lock.withLock {
-                self.initialized &&
-                    self.active &&
-                    !self.sessionOpen &&
-                    self.connectionState != .connecting &&
-                    AnsightDeveloperMode.embeddedPairingJson != nil
-            }
-            guard shouldConnect else {
-                return
-            }
-
-            let result = await self.connect(.auto(
-                clientName: clientName,
-                sourceDescription: "startup-bundled-developer-config"
-            ))
-            self.lock.withLock {
-                if self.active && !self.sessionOpen {
-                    self.sessionMessage = result.message
-                }
-            }
-        }
-    }
-
     private func startAutoProbeIfNeeded() {
         autoProbeTask?.cancel()
         let autoOptions = lock.withLock { options.hostAutoProbe }
@@ -2441,6 +2454,7 @@ public final class AnsightRuntime: @unchecked Sendable {
                     },
                     toolResponseSentHandler: { [weak self] request, _ in
                         self?.startQueuedBinaryTransferIfNeeded(forToolProtocolMessage: request)
+                        self?.notifyExternalToolProtocolResponseSent(request)
                     },
                     closeHandler: { [weak self] reason in
                         self?.handleLiveTransportClosed(reason: reason)
@@ -2485,8 +2499,40 @@ public final class AnsightRuntime: @unchecked Sendable {
         )
     }
 
+    private func openLiveTransportSession(
+        authenticatedSocket: any PairingWebSocket,
+        config: PairingConfig,
+        clientName: String
+    ) async -> LiveSessionOpenAttempt {
+        await liveTransport.attach(
+            authenticatedSocket: authenticatedSocket,
+            toolMessageHandler: { [weak self] message in
+                try? self?.handleToolProtocolMessage(message)
+            },
+            toolResponseSentHandler: { [weak self] request, _ in
+                self?.startQueuedBinaryTransferIfNeeded(forToolProtocolMessage: request)
+                self?.notifyExternalToolProtocolResponseSent(request)
+            },
+            closeHandler: { [weak self] reason in
+                self?.handleLiveTransportClosed(reason: reason)
+            }
+        )
+        let result = await sendSessionOpen(config: config, clientName: clientName)
+        if !result.success {
+            await liveTransport.close(notify: false)
+        }
+        return LiveSessionOpenAttempt(
+            result: result,
+            reasonCode: result.success ? nil : PairingFailureCodes.webSocketHandshakeFailed
+        )
+    }
+
     private static func isRetryableSessionOpenFailure(_ result: OperationResult) -> Bool {
         result.message.hasPrefix("Failed to send \(PairingControlActions.sessionOpen):")
+    }
+
+    private func notifyExternalToolProtocolResponseSent(_ request: String) {
+        lock.withLock { externalToolProtocolResponseSentHandler }?(request)
     }
 
     private func sendSessionOpen(config: PairingConfig, clientName: String) async -> OperationResult {
@@ -2718,13 +2764,12 @@ public final class AnsightRuntime: @unchecked Sendable {
 
             let payload = try await reader.readConfigPayload(for: request)
             guard let payload, !payload.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                throw PairingDocumentError.invalidDocument("No pairing config was provided.")
+                throw PairingDocumentError.invalidDocument("No enrollment invite was provided.")
             }
 
             return [try resolvedRequest(
                 fromPayload: payload,
-                source: .configReader,
-                usedEmbeddedDeveloperPairing: false
+                source: .configReader
             )]
         default:
             return try resolveConnectionRequests(request)
@@ -2733,7 +2778,7 @@ public final class AnsightRuntime: @unchecked Sendable {
 
     private func resolveConnectionRequest(_ request: HostConnectionRequest) throws -> ResolvedConnectionRequest {
         guard let resolvedRequest = try resolveConnectionRequests(request).first else {
-            throw RuntimeError.invalidInput("No pairing config is available.")
+            throw RuntimeError.invalidInput("No Studio registration is available.")
         }
         return resolvedRequest
     }
@@ -2751,58 +2796,53 @@ public final class AnsightRuntime: @unchecked Sendable {
         switch request.kind {
         case .auto:
             var resolvedRequests: [ResolvedConnectionRequest] = []
-            if let embedded = lock.withLock({ options.hostConnection.bundledDeveloperConfigJson }) ?? AnsightDeveloperMode.embeddedPairingJson {
-                resolvedRequests.append(try resolvedRequest(
-                    fromPayload: embedded,
-                    source: .bundledDeveloperConfig,
-                    usedEmbeddedDeveloperPairing: true
-                ))
-            }
             resolvedRequests.append(contentsOf: cachedPairingProfiles())
             if let savedJson = savedPairingStore.load(), !savedJson.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                resolvedRequests.append(try resolvedRequest(
-                    fromPayload: savedJson,
-                    source: .savedConfig,
-                    usedEmbeddedDeveloperPairing: false
-                ))
+                do {
+                    resolvedRequests.append(try resolvedRequest(
+                        fromPayload: savedJson,
+                        source: .savedConfig
+                    ))
+                } catch {
+                    savedPairingStore.clear()
+                    AnsightLogger.warning(
+                        "Saved Studio registration is invalid and was cleared. Scan a fresh enrollment QR code.",
+                        error: error
+                    )
+                }
             }
             if let bundled = lock.withLock({ options.hostConnection.bundledConfigJson }) {
                 resolvedRequests.append(try resolvedRequest(
                     fromPayload: bundled,
-                    source: .bundledConfig,
-                    usedEmbeddedDeveloperPairing: false
+                    source: .bundledConfig
                 ))
             }
             guard !resolvedRequests.isEmpty else {
-                throw RuntimeError.invalidInput("No cached, saved, bundled, or developer pairing config is available.")
+                throw RuntimeError.invalidInput("No Studio registration is available. Scan an enrollment QR in Ansight Studio.")
             }
             return resolvedRequests
         case .savedConfig:
             guard let savedJson = savedPairingStore.load(), !savedJson.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                throw PairingDocumentError.invalidDocument("No saved pairing config is available.")
+                throw PairingDocumentError.invalidDocument("No saved Studio registration is available.")
             }
-            return [try resolvedRequest(fromPayload: savedJson, source: .savedConfig, usedEmbeddedDeveloperPairing: false)]
+            return [try resolvedRequest(fromPayload: savedJson, source: .savedConfig)]
         case .bundledConfig:
-            if let embedded = lock.withLock({ options.hostConnection.bundledDeveloperConfigJson }) ?? AnsightDeveloperMode.embeddedPairingJson {
-                return [try resolvedRequest(fromPayload: embedded, source: .bundledDeveloperConfig, usedEmbeddedDeveloperPairing: true)]
-            }
             if let bundled = lock.withLock({ options.hostConnection.bundledConfigJson }) {
-                return [try resolvedRequest(fromPayload: bundled, source: .bundledConfig, usedEmbeddedDeveloperPairing: false)]
+                return [try resolvedRequest(fromPayload: bundled, source: .bundledConfig)]
             }
-            throw PairingDocumentError.invalidDocument("No bundled pairing config is available.")
+            throw PairingDocumentError.invalidDocument("No bundled enrollment invite is available.")
         case .payload:
             guard let payload = request.payload else {
                 throw PairingDocumentError.invalidDocument("Pairing payload is required.")
             }
-            return [try resolvedRequest(fromPayload: payload, source: .payload, usedEmbeddedDeveloperPairing: false)]
+            return [try resolvedRequest(fromPayload: payload, source: .payload)]
         case .config:
             guard let config = request.config else {
                 throw PairingDocumentError.invalidDocument("Pairing config value is required.")
             }
             return [ResolvedConnectionRequest(
                 document: ParsedPairingDocument(config: config.config, discoveryHint: config.discovery),
-                source: .configReader,
-                usedEmbeddedDeveloperPairing: false
+                source: .configReader
             )]
         case .file, .qrCode:
             throw RuntimeError.invalidInput("File and QR config readers are resolved asynchronously by connect(...).")
@@ -2811,30 +2851,17 @@ public final class AnsightRuntime: @unchecked Sendable {
 
     private func resolvedRequest(
         fromPayload payload: String,
-        source: HostConnectionSource,
-        usedEmbeddedDeveloperPairing: Bool
+        source: HostConnectionSource
     ) throws -> ResolvedConnectionRequest {
         ResolvedConnectionRequest(
             document: try pairingDocumentService.parseDocument(payload),
-            source: source,
-            usedEmbeddedDeveloperPairing: usedEmbeddedDeveloperPairing
+            source: source
         )
     }
 
     private func validatePinnedHostIdentity(for document: ParsedPairingDocument, source: HostConnectionSource) throws {
-        guard source != .savedConfig,
-              let savedJson = savedPairingStore.load(),
-              let savedDocument = try? pairingDocumentService.parseDocument(savedJson),
-              savedDocument.config.appId == document.config.appId
-        else {
-            return
-        }
-
-        let savedFingerprint = savedDocument.config.host.hostPubKeyFingerprint.trimmingCharacters(in: .whitespacesAndNewlines)
-        let incomingFingerprint = document.config.host.hostPubKeyFingerprint.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !savedFingerprint.isEmpty, !incomingFingerprint.isEmpty, savedFingerprint != incomingFingerprint {
-            throw PairingDocumentError.invalidDocument("Saved host identity does not match the incoming pairing config. Clear saved pairing before trusting a different host.")
-        }
+        // Enrollment access is bound by Studio to the app-local device identity.
+        // A fresh QR can intentionally move an app instance to another Studio host.
     }
 
     private func savePairingDocument(_ document: ParsedPairingDocument, connectedHostAddress: String?, connectResponse: ConnectResponse) {
@@ -3000,19 +3027,19 @@ public final class AnsightRuntime: @unchecked Sendable {
             message = hostName.map { "Connected to \($0)." } ?? "Connected to Ansight host."
         } else if availableConfigCount > 1 {
             summary = .disconnectedMultipleConfigsAvailable
-            message = "Disconnected. Multiple pairing configs are available."
+            message = "Disconnected. Multiple Studio registrations are available."
         } else if saved {
             summary = .disconnectedSavedConfigAvailable
-            message = "Disconnected. A saved pairing config is available."
+            message = "Disconnected. A saved Studio registration is available."
         } else if bundled {
             summary = .disconnectedBundledConfigAvailable
-            message = "Disconnected. A bundled pairing config is available."
+            message = "Disconnected. A bundled enrollment invite is available."
         } else if cached {
             summary = .disconnectedCachedSessionAvailable
             message = "Disconnected. A cached session is available."
         } else {
             summary = .disconnectedNoConfigs
-            message = "Disconnected. No pairing config is available."
+            message = "Disconnected. Scan an enrollment QR in Ansight Studio."
         }
 
         return HostConnectionStatus(
@@ -3037,13 +3064,9 @@ public final class AnsightRuntime: @unchecked Sendable {
     }
 
     private var hasBundledConfigLocked: Bool {
-        if options.hostConnection.bundledDeveloperConfigJson?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
-            return true
-        }
-        if options.hostConnection.bundledConfigJson?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
-            return true
-        }
-        return AnsightDeveloperMode.embeddedPairingJson != nil
+        options.hostConnection.bundledConfigJson?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .isEmpty == false
     }
 
     private var hasCachedPairingProfileLocked: Bool {
@@ -3103,8 +3126,7 @@ public final class AnsightRuntime: @unchecked Sendable {
                     config: profile.document.config,
                     discoveryHint: profile.document.discovery
                 ),
-                source: .cachedSession,
-                usedEmbeddedDeveloperPairing: false
+                source: .cachedSession
             )
         }
     }
@@ -3116,24 +3138,14 @@ public final class AnsightRuntime: @unchecked Sendable {
             return []
         }
 
-        let decodedProfiles: [CachedPairingProfileDocument]
-        let shouldRewriteForSchema: Bool
-        if let collection = try? JSONDecoder.ansightDecoder.decode(
+        guard let collection = try? JSONDecoder.ansightDecoder.decode(
             CachedPairingProfileCollectionDocument.self,
             from: data
-        ), collection.schema == CachedPairingProfileCollectionDocument.schemaName {
-            decodedProfiles = collection.profiles
-            shouldRewriteForSchema = false
-        } else if let profile = try? JSONDecoder.ansightDecoder.decode(
-            CachedPairingProfileDocument.self,
-            from: data
-        ), profile.schema == CachedPairingProfileDocument.schemaName {
-            decodedProfiles = [profile]
-            shouldRewriteForSchema = true
-        } else {
+        ), collection.schema == CachedPairingProfileCollectionDocument.schemaName else {
             cachedPairingProfileStore.clear()
             return []
         }
+        let decodedProfiles = collection.profiles
 
         let validProfiles = Self.sortedCachedPairingProfiles(
             decodedProfiles.compactMap { profile in
@@ -3147,7 +3159,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             }
         )
 
-        if shouldRewriteForSchema || validProfiles.count != decodedProfiles.count {
+        if validProfiles.count != decodedProfiles.count {
             saveCachedPairingProfileDocuments(validProfiles)
         }
 
@@ -3237,22 +3249,19 @@ public final class AnsightRuntime: @unchecked Sendable {
     private func reasonCode(for error: Error) -> String? {
         let message = error.localizedDescription
         if message.localizedCaseInsensitiveContains("expired") {
-            return PairingFailureCodes.pairingTokenExpired
-        }
-        if message.localizedCaseInsensitiveContains("signature is invalid") {
-            return PairingFailureCodes.pairingProofInvalid
+            return PairingFailureCodes.registrationExpired
         }
         if message.localizedCaseInsensitiveContains("does not match expected app id") {
-            return PairingFailureCodes.pairingRequired
+            return PairingFailureCodes.enrollmentRequired
         }
         if message.contains("No host config reader") ||
             message.contains("File and QR config readers") {
             return PairingFailureCodes.unsupportedSource
         }
-        if message.contains("No saved pairing config") {
+        if message.contains("No saved Studio registration") {
             return PairingFailureCodes.noSavedConfig
         }
-        if message.contains("No bundled pairing config") {
+        if message.contains("No bundled enrollment invite") {
             return PairingFailureCodes.noBundledConfig
         }
         if message.contains("Saved host identity") {

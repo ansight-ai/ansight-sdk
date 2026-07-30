@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net9.0-ios18.0;net9.0-maccatalyst18.0</TargetFrameworks>
+    <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsBindingProject>true</IsBindingProject>
+    <IsTrimmable>true</IsTrimmable>
+
+    <IsPackable>true</IsPackable>
+    <PackageId>Ansight.Native.Apple.Binding</PackageId>
+    <AssemblyName>Ansight.Native.Apple.Binding</AssemblyName>
+    <RootNamespace>Ansight.Native.Apple</RootNamespace>
+    <Description>Internal slim Apple binding used by the Ansight .NET SDK.</Description>
+    <PackageTags>ansight;ios;maccatalyst;binding;native</PackageTags>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ObjcBindingApiDefinition Include="ApiDefinition.cs" />
+    <XcodeProject Include="..\..\ios\AnsightDotNetBridge\AnsightDotNetBridge.xcodeproj">
+      <SchemeName>AnsightDotNetBridge</SchemeName>
+    </XcodeProject>
+  </ItemGroup>
+
+</Project>

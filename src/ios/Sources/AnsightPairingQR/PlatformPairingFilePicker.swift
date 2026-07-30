@@ -61,7 +61,7 @@ final class PlatformPairingFilePicker: NSObject, UIDocumentPickerDelegate {
 
             let data = try Data(contentsOf: url)
             guard let payload = String(data: data, encoding: .utf8) else {
-                throw RuntimeError.invalidInput("Pairing config file must be UTF-8 text.")
+                throw RuntimeError.invalidInput("Enrollment invite file must be UTF-8 text.")
             }
 
             complete(with: .success(payload))

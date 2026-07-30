@@ -12,15 +12,15 @@ Run it without automatic pairing:
 flutter run
 ```
 
-For a device-safe paired run, use the package launcher from `src/flutter/`.
-It wraps Studio's signed public config in a pairing document containing the
-current development host address. The signed config is not modified, and the
-temporary compiler-defines file is deleted when `flutter run` exits:
+For a device-safe enrolled run, use the package launcher from `src/flutter/`.
+It wraps Studio's enrollment invite in a document containing the current
+development host address. The invite is not modified, and the temporary
+compiler-defines file is deleted when `flutter run` exits:
 
 ```shell
 dart run tool/run_harness.dart \
   --device <device-id> \
-  --pairing-config "/path/to/ai.ansight.flutter.harness.ans.json" \
+  --enrollment-invite "/path/to/ai.ansight.flutter.harness.json" \
   --release
 ```
 

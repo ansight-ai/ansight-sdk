@@ -17,7 +17,7 @@ public static class PairingConfigDocumentJson
         var model = new PairingConfigDocumentJsonModel
         {
             Schema = PairingConfigDocument.SchemaName,
-            Config = PairingConfigJson.CreateJsonModel(document.Config),
+            Invite = PairingConfigJson.CreateJsonModel(document.Config),
             Discovery = normalizedDiscovery
         };
 
@@ -28,7 +28,7 @@ public static class PairingConfigDocumentJson
     {
         public required string Schema { get; init; }
 
-        public required object Config { get; init; }
+        public required object Invite { get; init; }
 
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public PairingDiscoveryHint? Discovery { get; init; }

@@ -215,11 +215,9 @@ public final class AnsightOptionsBuilder {
 
     @discardableResult
     public func withBundledHostConnection(
-        bundledDeveloperConfigJson: String? = nil,
         bundledConfigJson: String? = nil
     ) -> AnsightOptionsBuilder {
         configureHostConnection { hostConnection in
-            hostConnection.bundledDeveloperConfigJson = bundledDeveloperConfigJson
             hostConnection.bundledConfigJson = bundledConfigJson
         }
     }

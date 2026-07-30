@@ -31,6 +31,16 @@ public static MauiApp CreateMauiApp()
 
 Use `UseAnsight<App>()` to initialize and activate the runtime from the MAUI builder. It also automatically records foreground/background lifecycle transitions and records a screen-view event whenever a MAUI page appears. No `AppDelegate`, Android `Application`, or page `OnAppearing` calls are required for the default telemetry.
 
+From a developer-only button or command, scan Studio's QR once:
+
+```csharp
+await Runtime.HostConnection.ConnectAsync(HostConnectionRequest.QrCode());
+```
+
+No pairing file, build property, host address, or Android activity callback is
+required. Ansight stores this app installation's registration and reconnects
+automatically on later launches.
+
 Enable the in-app feedback overlay explicitly in Debug builds:
 
 ```csharp

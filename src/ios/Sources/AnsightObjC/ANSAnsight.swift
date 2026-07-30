@@ -20,12 +20,9 @@ public final class ANSAnsight: NSObject {
         try AnsightRuntime.shared.initializeAndActivateAnsightSdk()
     }
 
-    @objc(initializeAndActivateWithPairingConfigJson:clientName:error:)
-    public static func initializeAndActivate(pairingConfigJson: String?, clientName: String?) throws {
+    @objc(initializeAndActivateWithClientName:error:)
+    public static func initializeAndActivate(clientName: String?) throws {
         var options = AnsightOptions.ansightDeveloperDefaults
-        if let pairingConfigJson = normalized(pairingConfigJson) {
-            options.hostConnection.bundledDeveloperConfigJson = pairingConfigJson
-        }
         options.hostAutoProbe.clientName = normalized(clientName)
 
         try AnsightRuntime.shared.initializeAndActivateAnsightSdk(options: options)

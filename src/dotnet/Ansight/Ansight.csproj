@@ -47,8 +47,6 @@
           Pack="true"
           PackagePath="buildTransitive"
           Visible="false" />
-    <None Include="..\Ansight.Core\build\generate-ansight-developer-pairing.sh" Pack="true" PackagePath="buildTransitive\generate-ansight-developer-pairing.sh" />
-    <None Include="..\Ansight.Core\build\generate-ansight-developer-pairing.ps1" Pack="true" PackagePath="buildTransitive\generate-ansight-developer-pairing.ps1" />
   </ItemGroup>
 
 </Project>

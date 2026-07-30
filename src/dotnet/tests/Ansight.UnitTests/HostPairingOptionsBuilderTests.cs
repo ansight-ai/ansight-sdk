@@ -18,17 +18,12 @@ public sealed class HostConnectionOptionsBuilderTests
                 payloadReader)
             .Build();
 
-        Assert.NotNull(options.HostConnection.BundledDeveloperConfigLoader);
         Assert.NotNull(options.HostConnection.BundledConfigLoader);
         Assert.Same(payloadReader, options.HostConnection.ConfigReader);
 
-        var bundledDeveloperText = await options.HostConnection.BundledDeveloperConfigLoader!(CancellationToken.None);
         var bundledProfileText = await options.HostConnection.BundledConfigLoader!(CancellationToken.None);
 
-        Assert.Equal(
-            [HostConnectionOptions.BundledDeveloperConfigAssetName, HostConnectionOptions.BundledConfigAssetName],
-            requestedAssetNames);
-        Assert.Equal(HostConnectionOptions.BundledDeveloperConfigAssetName, bundledDeveloperText);
+        Assert.Equal([HostConnectionOptions.BundledConfigAssetName], requestedAssetNames);
         Assert.Equal(HostConnectionOptions.BundledConfigAssetName, bundledProfileText);
     }
 

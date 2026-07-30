@@ -1,4 +1,5 @@
 using UIKit;
+using Ansight.TestHarness.Native;
 
 namespace Ansight.TestHarness.iOSNative;
 
@@ -10,18 +11,41 @@ internal sealed class HarnessViewController : UIViewController
         var rootView = View ?? throw new InvalidOperationException("The view controller view is not available.");
         rootView.BackgroundColor = UIColor.SystemBackground;
 
-        var buttons = new[]
+        var nativeBindingStatus = new UILabel
         {
-            BuildButton("Activate", Runtime.Activate),
-            BuildButton("Deactivate", Runtime.Deactivate),
-            BuildButton("Enable FPS", Runtime.EnableFramesPerSecond),
-            BuildButton("Disable FPS", Runtime.DisableFramesPerSecond),
-            BuildButton("Trigger .NET GC", TriggerGc),
-            BuildButton("Create Test Event", () => Runtime.Event("Test Event")),
-            BuildButton("Clear Data", Runtime.Clear),
+            Lines = 0,
+            TextAlignment = UITextAlignment.Center
         };
 
-        var stack = new UIStackView(buttons)
+        void UpdateNativeBindingStatus()
+        {
+            nativeBindingStatus.Text = NativeBindingDiagnostics.GetStatus();
+        }
+
+        UIButton BuildRuntimeButton(string text, Action action)
+        {
+            return BuildButton(text, () =>
+            {
+                action();
+                UpdateNativeBindingStatus();
+            });
+        }
+
+        UpdateNativeBindingStatus();
+
+        var controls = new UIView[]
+        {
+            nativeBindingStatus,
+            BuildRuntimeButton("Activate", Runtime.Activate),
+            BuildRuntimeButton("Deactivate", Runtime.Deactivate),
+            BuildRuntimeButton("Enable FPS", Runtime.EnableFramesPerSecond),
+            BuildRuntimeButton("Disable FPS", Runtime.DisableFramesPerSecond),
+            BuildButton("Trigger .NET GC", TriggerGc),
+            BuildRuntimeButton("Create Test Event", () => Runtime.Event("Test Event")),
+            BuildRuntimeButton("Clear Data", Runtime.Clear),
+        };
+
+        var stack = new UIStackView(controls)
         {
             Axis = UILayoutConstraintAxis.Vertical,
             Distribution = UIStackViewDistribution.FillEqually,

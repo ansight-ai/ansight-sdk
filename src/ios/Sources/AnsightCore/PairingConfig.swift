@@ -1,8 +1,7 @@
-import CryptoKit
 import Foundation
 
 public struct PairingConfig: Sendable, Codable, Equatable {
-    public static let schemaName = "ansight.pairing-config.v1"
+    public static let schemaName = "ansight.enrollment-invite.v2"
 
     public var schema: String
     public var configId: String
@@ -10,10 +9,10 @@ public struct PairingConfig: Sendable, Codable, Equatable {
     public var appName: String
     public var issuedAt: String
     public var expiresAt: String
-    public var oneTimeToken: String
+    public var minProtocolVersion: Int
+    public var allowedTransports: [String]
     public var host: PairingHost
-    public var challenge: PairingChallenge
-    public var signature: String
+    public var enrollment: PairingEnrollment
 
     public init(
         schema: String = PairingConfig.schemaName,
@@ -22,10 +21,10 @@ public struct PairingConfig: Sendable, Codable, Equatable {
         appName: String,
         issuedAt: String,
         expiresAt: String,
-        oneTimeToken: String,
+        minProtocolVersion: Int = 2,
+        allowedTransports: [String] = ["ws"],
         host: PairingHost,
-        challenge: PairingChallenge,
-        signature: String
+        enrollment: PairingEnrollment
     ) {
         self.schema = schema
         self.configId = configId
@@ -33,9 +32,47 @@ public struct PairingConfig: Sendable, Codable, Equatable {
         self.appName = appName
         self.issuedAt = issuedAt
         self.expiresAt = expiresAt
-        self.oneTimeToken = oneTimeToken
+        self.minProtocolVersion = minProtocolVersion
+        self.allowedTransports = allowedTransports
         self.host = host
-        self.challenge = challenge
-        self.signature = signature
+        self.enrollment = enrollment
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case schema
+        case configId = "inviteId"
+        case appId
+        case appName
+        case issuedAt
+        case expiresAt
+        case minProtocolVersion
+        case allowedTransports
+        case host
+        case enrollment
+    }
+}
+
+public struct PairingEnrollment: Sendable, Codable, Equatable {
+    public var accessToken: String
+    public var expiresAt: String
+    public var grantExpiresAt: String
+    public var maxUses: Int
+    public var maxScopes: [String]
+    public var allowCritical: Bool
+
+    public init(
+        accessToken: String,
+        expiresAt: String,
+        grantExpiresAt: String,
+        maxUses: Int = 1,
+        maxScopes: [String] = ["Read"],
+        allowCritical: Bool = false
+    ) {
+        self.accessToken = accessToken
+        self.expiresAt = expiresAt
+        self.grantExpiresAt = grantExpiresAt
+        self.maxUses = maxUses
+        self.maxScopes = maxScopes
+        self.allowCritical = allowCritical
     }
 }

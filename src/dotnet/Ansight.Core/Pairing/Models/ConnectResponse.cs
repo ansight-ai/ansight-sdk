@@ -8,12 +8,17 @@ public sealed class ConnectResponse
     /// <summary>
     /// Protocol message type identifier.
     /// </summary>
-    public required string Type { get; set; }
+    public string Type { get; set; } = "ENROLLMENT_RESULT";
 
     /// <summary>
     /// Handshake protocol version.
     /// </summary>
-    public required int Ver { get; set; }
+    public int Ver { get; set; } = 2;
+
+    /// <summary>
+    /// Request identifier copied from the enrollment request.
+    /// </summary>
+    public required string RequestId { get; set; }
 
     /// <summary>
     /// Indicates whether the host accepted the connection attempt.

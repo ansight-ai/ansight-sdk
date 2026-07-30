@@ -32,14 +32,19 @@ await Ansight.initializeAndActivate(
     .build(),
 );
 
-await Ansight.connect(null, { clientName: 'Capacitor app' });
+await Ansight.enrollFromQrCode({ clientName: 'Capacitor app' });
 ```
 
+No pairing file, build variable, or host address is required. The first scan
+stores this app installation's registration; automatic connection and host
+auto-probe use it on later launches.
+
 Use `.withAnsightSdk()` or `.withAllToolAccess()` only in trusted development
-builds. Do not embed developer pairing material or unrestricted remote tools in
+builds. Do not ship unrestricted remote tools in
 store builds.
 
-Pair with an explicit JSON document when needed:
+For advanced paste, file-import, CI, or custom-UI flows, pair with an explicit
+JSON document:
 
 ```ts
 await Ansight.savePairingConfig(pairingJson);
@@ -62,7 +67,7 @@ const options = Ansight.createOptionsBuilder()
 The equivalent direct option is
 `hostConnection.allowCellularConnections: true`. This may consume mobile data
 and permits connection attempts over a broader or carrier-managed network;
-signed pairing-config validation still applies.
+use it only with a trusted development host.
 
 ## Telemetry and capture
 

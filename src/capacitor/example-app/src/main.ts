@@ -775,7 +775,7 @@ const fixtureArtifactProvider: AnsightArtifactProvider = {
   },
 };
 
-function createHarnessOptions(bundledPairingConfig?: string) {
+function createHarnessOptions() {
   const builder = Ansight.createOptionsBuilder()
     .withAnsightSdk((options) => {
       options
@@ -841,12 +841,6 @@ function createHarnessOptions(bundledPairingConfig?: string) {
     .registerCustomProperty("harness", "appId", appId)
     .registerCustomProperty("harness", "platform", Capacitor.getPlatform());
 
-  if (bundledPairingConfig) {
-    builder.withBundledHostConnection({
-      bundledDeveloperConfigJson: bundledPairingConfig,
-      bundledConfigJson: bundledPairingConfig,
-    });
-  }
   return builder.build();
 }
 
@@ -1011,7 +1005,7 @@ async function ensureHarnessTools(): Promise<string[]> {
             removeCustomProperty: removeResult,
             currentOptions: {
               hasOptions: Boolean(currentOptions),
-              hasPairingConfigJson: Boolean(
+              hasLegacyPairingConfigJson: Boolean(
                 currentOptions && "pairingConfigJson" in currentOptions,
               ),
             },
@@ -1106,12 +1100,9 @@ async function ensureLiveConnection(): Promise<unknown> {
 }
 
 async function restoreHarness(connectWhenConfigured = true): Promise<unknown> {
-  let config = pairingJson();
   const initialized = requireSuccess(
     await Ansight.initializeAndActivate(
-      createHarnessOptions(
-        prefersNativeSavedPairing() ? undefined : config || undefined,
-      ),
+      createHarnessOptions(),
     ),
   );
   const initialConnectionStatus = asObject(
@@ -1130,8 +1121,6 @@ async function restoreHarness(connectWhenConfigured = true): Promise<unknown> {
     !Boolean(initialConnectionStatus.hasCachedSession)
   ) {
     localStorage.removeItem(pairingSourceStorageKey);
-    await loadBundledPairingConfig();
-    config = pairingJson();
   }
   fixtures = await seedHarnessFixtures();
   await ensureJavaScriptSurface();
@@ -1313,7 +1302,7 @@ const tests: TestCase[] = [
     unsafe: true,
     run: async () => {
       const initialized = await Ansight.initialize(
-        createHarnessOptions(pairingJson() || undefined),
+        createHarnessOptions(),
       );
       assert(
         initialized.active === false,
@@ -2168,23 +2157,8 @@ function exportPayload() {
   };
 }
 
-async function loadBundledPairingConfig(): Promise<void> {
-  if (pairingJson() || prefersNativeSavedPairing()) return;
-
-  const response = await fetch("./ansight-pairing.json", { cache: "no-store" });
-  if (!response.ok) return;
-
-  const configJson = (await response.text()).trim();
-  if (!configJson) return;
-
-  pairingInput.value = configJson;
-  localStorage.setItem(pairingJsonStorageKey, configJson);
-  log("Loaded the local developer pairing config.");
-}
-
 async function startHarness(): Promise<void> {
   try {
-    await loadBundledPairingConfig();
     await restoreHarness(true);
     const connection = await Ansight.hostConnectionStatus();
     log("Harness initialized.", {

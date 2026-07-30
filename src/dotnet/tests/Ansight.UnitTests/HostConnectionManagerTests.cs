@@ -1,4 +1,5 @@
 using System.Net;
+using System.Security.Cryptography;
 using Ansight.Input;
 using Ansight.Pairing;
 using Ansight.Pairing.Models;
@@ -149,28 +150,26 @@ public sealed class HostConnectionManagerTests
         {
             Config = new PairingConfig
             {
-                Schema = "pairing-config/v1",
+                Schema = PairingConfig.SchemaName,
                 ConfigId = "config-1",
                 AppId = "com.example.app",
                 AppName = "Example App",
                 IssuedAt = DateTimeOffset.UtcNow,
                 ExpiresAt = DateTimeOffset.UtcNow.AddHours(1),
-                OneTimeToken = "token",
+                MinProtocolVersion = 2,
+                AllowedTransports = ["ws"],
                 Host = new PairingHost
                 {
                     HostId = "host-1",
                     HostName = "Host",
-                    DiscoveryPort = 45123,
-                    HostPubKey = "host-pub",
-                    HostPubKeyFingerprint = "fingerprint"
+                    DiscoveryPort = 45123
                 },
-                Challenge = new PairingChallenge
+                Enrollment = new PairingEnrollment
                 {
-                    Alg = "none",
-                    ChallengePubKey = "challenge-pub",
-                    RequireProofOnFirstPair = false
-                },
-                Signature = "signature"
+                    Secret = PairingCrypto.ToBase64Url(RandomNumberGenerator.GetBytes(32)),
+                    ExpiresAt = DateTimeOffset.UtcNow.AddHours(1),
+                    GrantExpiresAt = DateTimeOffset.UtcNow.AddDays(1)
+                }
             },
             DiscoveryHint = new PairingDiscoveryHint
             {
@@ -188,8 +187,9 @@ public sealed class HostConnectionManagerTests
             IPAddress.Loopback,
             new ConnectResponse
             {
-                Type = "CONNECT_RESP",
-                Ver = 1,
+                Type = "ENROLLMENT_RESULT",
+                Ver = 2,
+                RequestId = "test-request",
                 Accepted = true,
                 Reason = "ok",
                 HostId = "host-1",

@@ -5,7 +5,6 @@ public enum HostConnectionSource: String, Sendable, Codable, CaseIterable {
     case autoProbe
     case cachedSession
     case savedConfig
-    case bundledDeveloperConfig
     case bundledConfig
     case payload
     case configReader

@@ -3,7 +3,7 @@
 <plist version="1.0">
   <dict>
     <key>CFBundleIdentifier</key>
-    <string>$(ApplicationId)</string>
+    <string>com.example.ansight.maccatalystharness</string>
     <key>CFBundleName</key>
     <string>AnsightHarnessMac</string>
     <key>CFBundleDisplayName</key>

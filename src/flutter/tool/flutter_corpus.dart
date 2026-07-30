@@ -2124,7 +2124,7 @@ String _safeName(String value) =>
 
 void _printUsage() {
   stdout.writeln('''
-Validate ansight_flutter against the 25-app open-source Flutter corpus.
+Validate ansight_flutter against the 22-app open-source Flutter corpus.
 
 Usage:
   dart run tool/flutter_corpus.dart [integrate|validate|all] [options]

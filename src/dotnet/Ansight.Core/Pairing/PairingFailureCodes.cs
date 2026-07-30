@@ -16,24 +16,34 @@ public static class PairingFailureCodes
     public const string WifiRequired = "WifiRequired";
 
     /// <summary>
-    /// The host requires the client to pair again before a session can be opened.
+    /// The host requires a current Studio enrollment invite.
     /// </summary>
-    public const string PairingRequired = "PairingRequired";
+    public const string EnrollmentRequired = "EnrollmentRequired";
 
     /// <summary>
-    /// The one-time pairing token supplied by the client is invalid.
+    /// Enrollment is temporarily unavailable on the host.
     /// </summary>
-    public const string PairingTokenInvalid = "PairingTokenInvalid";
+    public const string EnrollmentUnavailable = "EnrollmentUnavailable";
 
     /// <summary>
-    /// The one-time pairing token supplied by the client has expired.
+    /// The one-use enrollment invite has expired.
     /// </summary>
-    public const string PairingTokenExpired = "PairingTokenExpired";
+    public const string EnrollmentExpired = "EnrollmentExpired";
 
     /// <summary>
-    /// The client proof submitted for the pairing challenge is invalid.
+    /// The one-use enrollment invite has already registered an installation.
     /// </summary>
-    public const string PairingProofInvalid = "PairingProofInvalid";
+    public const string EnrollmentConsumed = "EnrollmentConsumed";
+
+    /// <summary>
+    /// The enrollment or saved registration access token is invalid.
+    /// </summary>
+    public const string AccessTokenInvalid = "AccessTokenInvalid";
+
+    /// <summary>
+    /// The app installation's registration has expired or been revoked.
+    /// </summary>
+    public const string RegistrationExpired = "RegistrationExpired";
 
     /// <summary>
     /// The host requires the user to sign in to Ansight Studio before an app can connect.

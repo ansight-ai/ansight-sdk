@@ -6,7 +6,6 @@ object AnsightDeveloperMode {
     @JvmStatic
     @JvmOverloads
     fun options(
-        bundledDeveloperConfigJson: String? = null,
         clientName: String? = null,
     ): AnsightOptions = AnsightOptions(
         sampleFrequencyMilliseconds = 400,
@@ -24,22 +23,17 @@ object AnsightDeveloperMode {
             enabled = true,
             clientName = clientName,
         ),
-        hostConnection = AnsightHostConnectionOptions(
-            bundledDeveloperConfigJson = bundledDeveloperConfigJson,
-        ),
     )
 
     @JvmStatic
     @JvmOverloads
     fun initializeAndActivateAnsightSdk(
         application: Application,
-        bundledDeveloperConfigJson: String? = null,
         clientName: String? = null,
     ) {
         AnsightRuntime.initializeAndActivate(
             application = application,
             options = options(
-                bundledDeveloperConfigJson = bundledDeveloperConfigJson,
                 clientName = clientName,
             ),
         )

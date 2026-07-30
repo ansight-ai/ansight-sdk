@@ -8,11 +8,6 @@ namespace Ansight;
 public sealed class HostConnectionOptions
 {
     /// <summary>
-    /// Logical name for the bundled developer pairing config embedded resource.
-    /// </summary>
-    public const string BundledDeveloperConfigAssetName = "ansight.developer-pairing.json";
-
-    /// <summary>
     /// Logical name for the bundled config embedded resource.
     /// </summary>
     public const string BundledConfigAssetName = "ansight.json";
@@ -41,7 +36,7 @@ public sealed class HostConnectionOptions
 
     /// <summary>
     /// Optional UDP discovery port override for runtime-owned host connections.
-    /// When omitted, Ansight prefers a discovery hint port, then any legacy config port, then the default protocol port.
+    /// When omitted, Ansight prefers a discovery hint port, then the invite host port, then the default protocol port.
     /// </summary>
     public int? DiscoveryPort { get; set; }
 
@@ -53,16 +48,10 @@ public sealed class HostConnectionOptions
 
     /// <summary>
     /// Optional assembly containing embedded bundled config resources.
-    /// When supplied, the SDK looks for embedded resources whose logical names are exactly
-    /// <c>ansight.developer-pairing.json</c> and <c>ansight.json</c>.
+    /// When supplied, the SDK looks for an embedded resource whose logical name is
+    /// <c>ansight.json</c>.
     /// </summary>
     public Assembly? BundledConfigAssembly { get; set; }
-
-    /// <summary>
-    /// Optional loader for a bundled developer pairing config.
-    /// When set, this overrides loading <c>ansight.developer-pairing.json</c> from <see cref="BundledConfigAssembly"/>.
-    /// </summary>
-    public Func<CancellationToken, Task<string?>>? BundledDeveloperConfigLoader { get; set; }
 
     /// <summary>
     /// Optional loader for a bundled config.
@@ -78,7 +67,7 @@ public sealed class HostConnectionOptions
     /// <summary>
     /// Configures the assembly used to resolve bundled config resources.
     /// </summary>
-    /// <param name="bundledConfigAssembly">Assembly containing resources named <c>ansight.developer-pairing.json</c> and/or <c>ansight.json</c>.</param>
+    /// <param name="bundledConfigAssembly">Assembly containing a resource named <c>ansight.json</c>.</param>
     /// <returns>The current options instance.</returns>
     public HostConnectionOptions UseBundledConfigAssembly(Assembly bundledConfigAssembly)
     {
@@ -87,7 +76,7 @@ public sealed class HostConnectionOptions
     }
 
     /// <summary>
-    /// Configures a shared bundled asset loader for the standard developer and bundled pairing asset names.
+    /// Configures a bundled asset loader for the standard bundled config asset name.
     /// </summary>
     /// <param name="bundledAssetLoader">Loader that resolves bundled text assets by logical asset name.</param>
     /// <returns>The current options instance.</returns>
@@ -95,7 +84,6 @@ public sealed class HostConnectionOptions
     {
         ArgumentNullException.ThrowIfNull(bundledAssetLoader);
 
-        BundledDeveloperConfigLoader = cancellationToken => bundledAssetLoader(BundledDeveloperConfigAssetName, cancellationToken);
         BundledConfigLoader = cancellationToken => bundledAssetLoader(BundledConfigAssetName, cancellationToken);
         return this;
     }
@@ -163,7 +151,6 @@ public sealed class HostConnectionOptions
             DiscoveryPort = DiscoveryPort,
             AllowCellularConnections = AllowCellularConnections,
             BundledConfigAssembly = BundledConfigAssembly,
-            BundledDeveloperConfigLoader = BundledDeveloperConfigLoader,
             BundledConfigLoader = BundledConfigLoader,
             ConfigReader = ConfigReader
         };

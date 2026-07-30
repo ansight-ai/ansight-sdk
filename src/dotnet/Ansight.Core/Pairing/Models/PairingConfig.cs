@@ -1,14 +1,16 @@
+using System.Text.Json.Serialization;
+
 namespace Ansight.Pairing.Models;
 
 /// <summary>
-/// Signed host-issued pairing configuration used to authorize and describe a pairing session.
+/// QR-issued enrollment invite used to register and reconnect an app instance.
 /// </summary>
 public sealed class PairingConfig
 {
     /// <summary>
-    /// Current schema identifier for signed pairing config payloads.
+    /// Current schema identifier for Studio enrollment invites.
     /// </summary>
-    public const string SchemaName = "ansight.pairing-config.v1";
+    public const string SchemaName = "ansight.enrollment-invite.v2";
 
     /// <summary>
     /// Schema identifier for the config payload.
@@ -16,8 +18,9 @@ public sealed class PairingConfig
     public required string Schema { get; set; }
 
     /// <summary>
-    /// Stable identifier for this pairing config.
+    /// Stable identifier for this enrollment invite.
     /// </summary>
+    [JsonPropertyName("inviteId")]
     public required string ConfigId { get; set; }
 
     /// <summary>
@@ -41,9 +44,14 @@ public sealed class PairingConfig
     public required DateTimeOffset ExpiresAt { get; set; }
 
     /// <summary>
-    /// One-time token used to authorize the connection attempt.
+    /// Minimum pairing protocol version accepted by this config.
     /// </summary>
-    public required string OneTimeToken { get; set; }
+    public int MinProtocolVersion { get; set; } = 2;
+
+    /// <summary>
+    /// Transport names permitted by this config.
+    /// </summary>
+    public string[] AllowedTransports { get; set; } = ["ws"];
 
     /// <summary>
     /// Host identity and transport metadata.
@@ -51,12 +59,8 @@ public sealed class PairingConfig
     public required PairingHost Host { get; set; }
 
     /// <summary>
-    /// Challenge metadata used during the trust handshake.
+    /// One-use access token and registration lifetime.
     /// </summary>
-    public required PairingChallenge Challenge { get; set; }
+    public PairingEnrollment? Enrollment { get; set; }
 
-    /// <summary>
-    /// Host signature covering the canonical pairing config payload.
-    /// </summary>
-    public required string Signature { get; set; }
 }

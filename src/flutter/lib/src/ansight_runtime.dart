@@ -159,7 +159,7 @@ class Ansight {
   }
 
   Future<AnsightHostConnectionResult> scanPairingQrCode({
-    String title = 'Scan Ansight Pairing QR',
+    String title = 'Scan Ansight Enrollment QR',
     String? clientName,
     String? expectedAppId,
     String? hostAddressOverride,
@@ -174,6 +174,21 @@ class Ansight {
     await _publishConnectionStatus();
     return AnsightHostConnectionResult.fromJson(result);
   }
+
+  /// Scans a one-use Studio invite, registers this installation, and saves
+  /// automatic reconnect state.
+  Future<AnsightHostConnectionResult> enrollFromQrCode({
+    String title = 'Scan Ansight Enrollment QR',
+    String? clientName,
+    String? expectedAppId,
+    String? hostAddressOverride,
+  }) =>
+      scanPairingQrCode(
+        title: title,
+        clientName: clientName,
+        expectedAppId: expectedAppId,
+        hostAddressOverride: hostAddressOverride,
+      );
 
   Future<AnsightHostConnectionResult> openSession(
     Object pairingPayload, {

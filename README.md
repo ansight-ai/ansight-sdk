@@ -19,7 +19,8 @@ Current SDK features include:
 
 - live and retained metrics, events, lifecycle, screen-view, memory, FPS, and
   battery telemetry
-- saved, bundled, explicit, and remembered-host pairing with automatic reconnect
+- one-scan enrollment with an app-local installation id and automatic
+  reconnect, with no pairing config or certificate setup
 - live screenshots, host-owned simulator/emulator capture, touch capture,
   session properties, device profiles, and app-provided logs
 - guarded native tools for UI, files, file descriptors, preferences, secure
@@ -48,6 +49,7 @@ client name used for retry attempts.
 
 ## Docs
 
+- [Install once, scan once](docs/getting-started.md)
 - [Current Feature Catalog](docs/features.md)
 - [Cross-SDK API Parity](docs/sdk-api-parity.md)
 - [.NET SDK Guide](src/dotnet/README.md)

@@ -42,6 +42,9 @@ Future<void> main() async {
     ),
   );
   await AnsightFlutterInstrumentation.instance.install();
+  await Ansight.instance.enrollFromQrCode(
+    clientName: 'My Flutter App',
+  );
 
   runApp(const MyApp());
 }
@@ -90,7 +93,21 @@ snapshots, recorded metrics/events, and log and connection-status streams.
 
 ## Pairing and sessions
 
-Pairing payloads may be JSON strings or decoded JSON-compatible objects:
+Scan the QR displayed by Studio for the normal first connection:
+
+```dart
+final result = await Ansight.instance.enrollFromQrCode(
+  clientName: 'My Flutter App',
+  expectedAppId: 'com.example.my_app',
+);
+```
+
+No pairing file, build variable, or host address is required. The first scan
+stores this app installation's registration; remembered connections then
+reconnect automatically.
+
+For advanced paste, file-import, CI, or custom-UI flows, pairing payloads may be
+JSON strings or decoded JSON-compatible objects:
 
 ```dart
 final result = await Ansight.instance.openSession(
@@ -98,10 +115,6 @@ final result = await Ansight.instance.openSession(
   clientName: 'My Flutter App',
   expectedAppId: 'com.example.my_app',
 );
-
-final status = await Ansight.instance.hostConnectionStatus();
-await Ansight.instance.completeSession();
-await Ansight.instance.disconnect();
 ```
 
 Saved pairing, automatic host probing, bundled development configuration, and
@@ -118,8 +131,8 @@ final options =
 ```
 
 This opt-in can consume mobile data and allows connection attempts over a
-broader or carrier-managed network. Signed pairing-config validation still
-applies.
+broader or carrier-managed network. Use it only with a trusted development
+host.
 
 ## Custom tools
 
@@ -175,14 +188,14 @@ Run the package and harness checks with:
 
 ```shell
 flutter test
-flutter test example/test
+(cd example && flutter test)
 flutter test example/integration_test -d <device-id>
 flutter build apk --debug --target example/lib/main.dart
 flutter build ios --simulator --no-codesign --target example/lib/main.dart
 ```
 
 `tool/flutter_corpus.dart` integrates and validates the SDK against the
-repository's 25-app open-source Flutter corpus. Its generated JSON, Markdown,
+repository's 22-app open-source Flutter corpus. Its generated JSON, Markdown,
 and command logs provide reproducible build evidence.
 
 Regenerate the Pigeon transports with `dart run tool/generate_pigeon.dart`.

@@ -129,7 +129,6 @@ data class AnsightHostAutoProbeOptions(
 data class AnsightHostConnectionOptions(
     val savedConfigKey: String = "ai.ansight.android.saved-pairing",
     val bundledConfigJson: String? = null,
-    val bundledDeveloperConfigJson: String? = null,
     val discoveryPort: Int? = null,
     val allowCellularConnections: Boolean = false,
     val connectionProfileRetentionSeconds: Long = 14L * 24L * 60L * 60L,
@@ -143,7 +142,6 @@ data class AnsightHostConnectionOptions(
         return copy(
             savedConfigKey = savedConfigKey.trim().ifBlank { "ai.ansight.android.saved-pairing" },
             bundledConfigJson = bundledConfigJson?.trim()?.ifBlank { null },
-            bundledDeveloperConfigJson = bundledDeveloperConfigJson?.trim()?.ifBlank { null },
             connectionProfileRetentionSeconds = connectionProfileRetentionSeconds.coerceAtLeast(1),
         )
     }
@@ -264,7 +262,6 @@ enum class HostConnectionSource {
     AutoProbe,
     CachedSession,
     SavedConfig,
-    BundledDeveloperConfig,
     BundledConfig,
     Payload,
     ConfigReader,
@@ -468,7 +465,6 @@ data class OpenSessionResult(
     val configId: String? = null,
     val appId: String? = null,
     val resolvedHostAddress: String? = null,
-    val usedEmbeddedDeveloperPairing: Boolean = false,
     val discoverySource: String? = null,
     val reasonCode: String? = null,
     val hostId: String? = null,
@@ -558,10 +554,12 @@ data class AnsightDebugSnapshot(
 object PairingFailureCodes {
     const val HostAddressRequired = "HostAddressRequired"
     const val WifiRequired = "WifiRequired"
-    const val PairingRequired = "PairingRequired"
-    const val PairingTokenInvalid = "PairingTokenInvalid"
-    const val PairingTokenExpired = "PairingTokenExpired"
-    const val PairingProofInvalid = "PairingProofInvalid"
+    const val EnrollmentRequired = "EnrollmentRequired"
+    const val EnrollmentUnavailable = "EnrollmentUnavailable"
+    const val EnrollmentExpired = "EnrollmentExpired"
+    const val EnrollmentConsumed = "EnrollmentConsumed"
+    const val AccessTokenInvalid = "AccessTokenInvalid"
+    const val RegistrationExpired = "RegistrationExpired"
     const val SignInRequired = "SignInRequired"
     const val UdpBootstrapFailed = "UdpBootstrapFailed"
     const val UdpBootstrapTimeout = "UdpBootstrapTimeout"

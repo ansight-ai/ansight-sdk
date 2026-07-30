@@ -713,7 +713,7 @@ public class Options
         /// <summary>
         /// Configures runtime-owned host connection config loading from the provided assembly.
         /// </summary>
-        /// <param name="bundledConfigAssembly">Assembly containing resources named <c>ansight.developer-pairing.json</c> and/or <c>ansight.json</c>.</param>
+        /// <param name="bundledConfigAssembly">Assembly containing a resource named <c>ansight.json</c>.</param>
         /// <param name="configReader">Optional platform-owned config reader.</param>
         /// <returns>The current builder.</returns>
         public OptionsBuilder WithBundledHostConnection(

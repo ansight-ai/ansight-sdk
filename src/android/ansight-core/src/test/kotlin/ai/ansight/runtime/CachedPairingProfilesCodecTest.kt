@@ -47,25 +47,6 @@ class CachedPairingProfilesCodecTest {
     }
 
     @Test
-    fun loadMigratesLegacySingleProfile() {
-        val payload = configDocument("cfg-office", "Office WiFi", "Office Host")
-
-        val result = CachedPairingProfilesCodec.load(
-            profilesJson = null,
-            legacyPayload = payload,
-            legacyHostAddress = "10.0.0.10",
-            legacyCachedAtEpochMs = 1_000,
-            legacyExpiresAtEpochMs = 61_000,
-            nowEpochMs = 2_000,
-        )
-
-        assertTrue(result.shouldRewrite)
-        assertEquals(1, result.profiles.size)
-        assertEquals("wifi:Office WiFi", result.profiles[0].networkKey)
-        assertEquals("10.0.0.10", result.profiles[0].hostAddress)
-    }
-
-    @Test
     fun loadDropsExpiredProfilesAndRequestsRewrite() {
         val expiredPayload = configDocument("cfg-expired", "Expired WiFi", "Expired Host")
         val validPayload = configDocument("cfg-valid", "Valid WiFi", "Valid Host")
@@ -95,10 +76,6 @@ class CachedPairingProfilesCodecTest {
         assertNotNull(profilesJson)
         val result = CachedPairingProfilesCodec.load(
             profilesJson = profilesJson,
-            legacyPayload = null,
-            legacyHostAddress = null,
-            legacyCachedAtEpochMs = 0,
-            legacyExpiresAtEpochMs = 0,
             nowEpochMs = 2_000,
         )
 
@@ -126,10 +103,6 @@ class CachedPairingProfilesCodecTest {
         assertNotNull(profilesJson)
         val result = CachedPairingProfilesCodec.load(
             profilesJson = profilesJson,
-            legacyPayload = null,
-            legacyHostAddress = null,
-            legacyCachedAtEpochMs = 0,
-            legacyExpiresAtEpochMs = 0,
             nowEpochMs = 2_000,
         )
 
@@ -149,31 +122,33 @@ class CachedPairingProfilesCodecTest {
         return JSONObject()
             .put("schema", PairingConfigDocumentService.ConfigDocumentSchemaName)
             .put(
-                "config",
+                "invite",
                 JSONObject()
                     .put("schema", PairingConfig.SchemaName)
-                    .put("configId", configId)
+                    .put("inviteId", configId)
                     .put("appId", "ai.ansight.android.test")
                     .put("appName", "Android Test")
                     .put("issuedAt", "2026-06-15T10:49:15.800804+10:00")
-                    .put("expiresAt", "2026-06-15T11:49:15.800804+10:00")
-                    .put("oneTimeToken", "token")
+                    .put("expiresAt", "2099-06-15T11:49:15.800804+10:00")
+                    .put("minProtocolVersion", 2)
+                    .put("allowedTransports", JSONArray().put("ws"))
                     .put(
                         "host",
                         JSONObject()
+                            .put("hostId", "host-1")
                             .put("hostName", hostName)
-                            .put("discoveryPort", 45_200)
-                            .put("hostPubKey", "host-pub-key")
-                            .put("hostPubKeyFingerprint", "host-fingerprint"),
+                            .put("discoveryPort", 45_200),
                     )
                     .put(
-                        "challenge",
+                        "enrollment",
                         JSONObject()
-                            .put("alg", "X25519")
-                            .put("challengePubKey", "challenge-pub-key")
-                            .put("requireProofOnFirstPair", false),
-                    )
-                    .put("signature", "signature"),
+                            .put("accessToken", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+                            .put("expiresAt", "2099-06-15T11:49:15.800804+10:00")
+                            .put("grantExpiresAt", "2099-07-15T11:49:15.800804+10:00")
+                            .put("maxUses", 1)
+                            .put("maxScopes", JSONArray().put("Read"))
+                            .put("allowCritical", false),
+                    ),
             )
             .put("discovery", discovery)
             .toString()

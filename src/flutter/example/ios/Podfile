@@ -28,6 +28,17 @@ require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelpe
 flutter_ios_podfile_setup
 
 target 'Runner' do
+  ansight_ios_path = '../../../ios'
+  pod 'AnsightCore', :path => ansight_ios_path
+  pod 'AnsightPairingQR', :path => ansight_ios_path
+  pod 'AnsightToolsDatabase', :path => ansight_ios_path
+  pod 'AnsightToolsFileDescriptorDiagnostics', :path => ansight_ios_path
+  pod 'AnsightToolsFileSystem', :path => ansight_ios_path
+  pod 'AnsightToolsPreferences', :path => ansight_ios_path
+  pod 'AnsightToolsReflection', :path => ansight_ios_path
+  pod 'AnsightToolsSecureStorage', :path => ansight_ios_path
+  pod 'AnsightToolsVisualTree', :path => ansight_ios_path
+  pod 'Ansight', :path => ansight_ios_path
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do
     inherit! :search_paths

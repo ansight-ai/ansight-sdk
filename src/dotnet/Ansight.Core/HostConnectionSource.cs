@@ -9,7 +9,6 @@ public enum HostConnectionSource
     AutoProbe = 1,
     CachedSession = 2,
     SavedConfig = 3,
-    BundledDeveloperConfig = 4,
     BundledConfig = 5,
     Payload = 6,
     ConfigReader = 7,

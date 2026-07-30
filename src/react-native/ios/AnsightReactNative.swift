@@ -350,6 +350,24 @@ final class AnsightReactNative: RCTEventEmitter {
         }
     }
 
+    @objc(scanPairingQrCode:resolver:rejecter:)
+    func scanPairingQrCode(
+        _ options: NSDictionary?,
+        resolver resolve: @escaping RCTPromiseResolveBlock,
+        rejecter reject: @escaping RCTPromiseRejectBlock
+    ) {
+        Task {
+            let request = HostConnectionRequest.qrCode(
+                title: stringValue(options, "title") ?? "Scan Ansight Enrollment QR",
+                clientName: stringValue(options, "clientName"),
+                expectedAppId: stringValue(options, "expectedAppId"),
+                hostAddressOverride: stringValue(options, "hostAddressOverride"),
+                sourceDescription: "React Native native QR scanner"
+            )
+            resolve(hostConnectionResultDictionary(await AnsightRuntime.shared.connect(request)))
+        }
+    }
+
     @objc(openSession:options:resolver:rejecter:)
     func openSession(
         _ pairingPayload: NSString?,
@@ -859,13 +877,6 @@ final class AnsightReactNative: RCTEventEmitter {
         let useNativeAllInOneDefaults = boolValue(dictionary, "useNativeAllInOneDefaults", defaultValue: false)
         var options = useNativeAllInOneDefaults ? AnsightOptions.ansightDeveloperDefaults : AnsightOptions()
 
-        if let value = stringValue(dictionary, "pairingConfigJson") {
-            if useNativeAllInOneDefaults {
-                options.hostConnection.bundledDeveloperConfigJson = value
-            } else {
-                options.hostConnection.bundledConfigJson = value
-            }
-        }
         if useNativeAllInOneDefaults && stringValue(dictionary, "toolGuard") == nil {
             options.toolGuard = .readOnly
         }
@@ -983,7 +994,6 @@ final class AnsightReactNative: RCTEventEmitter {
                     "allowCellularConnections",
                     defaultValue: options.hostConnection.allowCellularConnections
                 ),
-                bundledDeveloperConfigJson: stringValue(host, "bundledDeveloperConfigJson") ?? options.hostConnection.bundledDeveloperConfigJson,
                 bundledConfigJson: stringValue(host, "bundledConfigJson") ?? options.hostConnection.bundledConfigJson
             )
         }
@@ -1092,7 +1102,6 @@ final class AnsightReactNative: RCTEventEmitter {
             "executableTools": snapshot.executableTools,
             "toolDiscoveryEnabled": snapshot.toolDiscoveryEnabled,
             "toolExecutionEnabled": snapshot.toolExecutionEnabled,
-            "embeddedDeveloperPairingAvailable": snapshot.embeddedDeveloperPairingAvailable,
             "detectedBundledTools": snapshot.detectedBundledTools,
             "touchesRecorded": snapshot.touchesCaptured,
             "touchesCaptured": snapshot.touchesCaptured,
@@ -1177,7 +1186,6 @@ final class AnsightReactNative: RCTEventEmitter {
         }
         if let session = result.openSession {
             dictionary["accepted"] = session.accepted
-            dictionary["usedEmbeddedDeveloperPairing"] = session.usedEmbeddedDeveloperPairing
             if let value = session.sessionId {
                 dictionary["sessionId"] = value
             }
@@ -1208,7 +1216,6 @@ final class AnsightReactNative: RCTEventEmitter {
             "success": result.success,
             "message": result.message,
             "accepted": result.accepted,
-            "usedEmbeddedDeveloperPairing": result.usedEmbeddedDeveloperPairing,
         ]
         if let value = result.sessionId {
             dictionary["sessionId"] = value
@@ -1300,7 +1307,6 @@ final class AnsightReactNative: RCTEventEmitter {
                 "connectionProfileRetentionSeconds": options.hostConnection.connectionProfileRetentionSeconds,
                 "discoveryPort": options.hostConnection.discoveryPort as Any,
                 "allowCellularConnections": options.hostConnection.allowCellularConnections,
-                "hasBundledDeveloperConfigJson": options.hostConnection.bundledDeveloperConfigJson != nil,
                 "hasBundledConfigJson": options.hostConnection.bundledConfigJson != nil,
             ],
         ]

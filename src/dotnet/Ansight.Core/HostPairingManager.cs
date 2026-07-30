@@ -11,10 +11,11 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
 {
     private static readonly HashSet<string> StoredProfileResetReasonCodes = new(StringComparer.Ordinal)
     {
-        PairingFailureCodes.PairingRequired,
-        PairingFailureCodes.PairingTokenInvalid,
-        PairingFailureCodes.PairingTokenExpired,
-        PairingFailureCodes.PairingProofInvalid
+        PairingFailureCodes.EnrollmentRequired,
+        PairingFailureCodes.EnrollmentExpired,
+        PairingFailureCodes.EnrollmentConsumed,
+        PairingFailureCodes.AccessTokenInvalid,
+        PairingFailureCodes.RegistrationExpired
     };
 
     private readonly IHostSessionConnection hostConnection;
@@ -212,16 +213,6 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
                     hostConnection.StatusSummary,
                     HostConnectionActionKind.AutoConnect,
                     HostConnectionSource.HostConnection);
-            }
-
-            var bundledDeveloperConfigResult = await TryConnectUsingBundledDeveloperConfigAsync(
-                clientName,
-                progress,
-                cancellationToken,
-                HostConnectionActionKind.AutoConnect);
-            if (bundledDeveloperConfigResult?.Success == true)
-            {
-                return bundledDeveloperConfigResult;
             }
 
             if (hostConnection.HasCachedProfile)
@@ -504,36 +495,6 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
         operationGate.Dispose();
     }
 
-    internal async Task HandleRuntimeActivatedAsync(CancellationToken cancellationToken = default)
-    {
-        if (disposed || hostConnection.IsConnected || !isRuntimeActive())
-        {
-            return;
-        }
-
-        var bundledDeveloperConfig = await TryResolveBundledConfigSnapshotAsync(
-            ResolveBundledDocumentLoader(HostConnectionSource.BundledDeveloperConfig),
-            HostConnectionSource.BundledDeveloperConfig,
-            cancellationToken);
-        if (!bundledDeveloperConfig.HasConfig || disposed || !isRuntimeActive())
-        {
-            return;
-        }
-
-        bundledConfigSnapshot = bundledDeveloperConfig;
-        UpdateStatusAndCapabilities(hasBundledConfig || bundledDeveloperConfig.HasConfig);
-        Logger.Info("Bundled developer pairing config detected. Attempting Ansight startup auto-connect.");
-
-        var result = await ConnectAutoAsync(clientName: null, progress: null, cancellationToken: cancellationToken);
-        if (result.Success)
-        {
-            Logger.Info($"Ansight startup auto-connect succeeded. {result.Message}");
-            return;
-        }
-
-        Logger.Warning($"Ansight startup auto-connect failed. {result.Message}");
-    }
-
     private async Task<HostConnectionResult> ConnectFromPayloadCoreAsync(
         string payload,
         string? sourceDescription,
@@ -604,27 +565,6 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
 
         var connectResult = await ConnectResolvedDocumentAsync(
             bundledDocument,
-            clientName,
-            progress,
-            cancellationToken,
-            actionKind);
-        return ToPairingResult(connectResult, actionKind);
-    }
-
-    private async Task<HostConnectionResult?> TryConnectUsingBundledDeveloperConfigAsync(
-        string? clientName,
-        IProgress<HostConnectionProgressUpdate>? progress,
-        CancellationToken cancellationToken,
-        HostConnectionActionKind actionKind)
-    {
-        var bundledDeveloperDocument = await TryResolveBundledDeveloperPairingDocumentAsync(cancellationToken);
-        if (!bundledDeveloperDocument.Success || bundledDeveloperDocument.Document is null)
-        {
-            return null;
-        }
-
-        var connectResult = await ConnectResolvedDocumentAsync(
-            bundledDeveloperDocument,
             clientName,
             progress,
             cancellationToken,
@@ -709,12 +649,6 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
 
     private async Task<ResolvedPairingDocument> TryResolveBundledPairingDocumentAsync(CancellationToken cancellationToken)
     {
-        var bundledDeveloperDocument = await TryResolveBundledDeveloperPairingDocumentAsync(cancellationToken);
-        if (bundledDeveloperDocument.Success)
-        {
-            return bundledDeveloperDocument;
-        }
-
         var bundledDocument = await TryResolveBundledConfigDocumentAsync(cancellationToken);
         if (bundledDocument.Success)
         {
@@ -722,15 +656,6 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
         }
 
         return ResolvedPairingDocument.FromFailure("No bundled pairing config is available.");
-    }
-
-    private Task<ResolvedPairingDocument> TryResolveBundledDeveloperPairingDocumentAsync(CancellationToken cancellationToken)
-    {
-        return TryLoadBundledDocumentAsync(
-            ResolveBundledDocumentLoader(HostConnectionSource.BundledDeveloperConfig),
-            "Using bundled developer pairing config.",
-            HostConnectionSource.BundledDeveloperConfig,
-            cancellationToken);
     }
 
     private Task<ResolvedPairingDocument> TryResolveBundledConfigDocumentAsync(CancellationToken cancellationToken)
@@ -890,15 +815,6 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
 
     private async Task<BundledConfigSnapshot> ResolveBundledConfigSnapshotAsync(CancellationToken cancellationToken)
     {
-        var bundledDeveloperConfig = await TryResolveBundledConfigSnapshotAsync(
-            ResolveBundledDocumentLoader(HostConnectionSource.BundledDeveloperConfig),
-            HostConnectionSource.BundledDeveloperConfig,
-            cancellationToken);
-        if (bundledDeveloperConfig.HasConfig)
-        {
-            return bundledDeveloperConfig;
-        }
-
         var bundledConfig = await TryResolveBundledConfigSnapshotAsync(
             ResolveBundledDocumentLoader(HostConnectionSource.BundledConfig),
             HostConnectionSource.BundledConfig,
@@ -906,11 +822,6 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
         if (bundledConfig.HasConfig)
         {
             return bundledConfig;
-        }
-
-        if (bundledDeveloperConfig.IsFailure)
-        {
-            return bundledDeveloperConfig;
         }
 
         return bundledConfig;
@@ -956,10 +867,6 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
     {
         return source switch
         {
-            HostConnectionSource.BundledDeveloperConfig => ResolveBundledDocumentLoader(
-                options.BundledDeveloperConfigLoader,
-                HostConnectionOptions.BundledDeveloperConfigAssetName,
-                useDefaultAssemblyFallback: true),
             HostConnectionSource.BundledConfig => ResolveBundledDocumentLoader(
                 options.BundledConfigLoader,
                 HostConnectionOptions.BundledConfigAssetName),
@@ -1084,7 +991,6 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
     {
         return source switch
         {
-            HostConnectionSource.BundledDeveloperConfig => "the bundled developer pairing config",
             HostConnectionSource.BundledConfig => "the bundled pairing config",
             _ => "the bundled config source"
         };

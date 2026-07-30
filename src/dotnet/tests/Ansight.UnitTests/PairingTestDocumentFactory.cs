@@ -1,29 +1,24 @@
 using System.Security.Cryptography;
-using System.Text;
 using Ansight.Pairing;
 
 namespace Ansight.UnitTests;
 
 internal static class PairingTestDocumentFactory
 {
-    public static PairingConfig CreateSignedConfig(
-        ECDsa signingKey,
-        string configId = "cfg-1",
+    public static PairingConfig CreateEnrollmentInvite(
+        string configId = "invite-1",
         string appId = "com.ansight.test",
         string appName = "Ansight Test",
-        string oneTimeToken = "token-1",
-        string challengePubKey = "challenge-key",
         string? hostId = "host-1",
         string? hostName = "test-host",
         int discoveryPort = 41000,
         DateTimeOffset? issuedAt = null,
-        DateTimeOffset? expiresAt = null)
+        DateTimeOffset? expiresAt = null,
+        DateTimeOffset? registrationExpiresAt = null)
     {
         var issued = issuedAt ?? DateTimeOffset.UtcNow.AddMinutes(-1);
         var expires = expiresAt ?? DateTimeOffset.UtcNow.AddMinutes(10);
-        var publicKey = Convert.ToBase64String(signingKey.ExportSubjectPublicKeyInfo());
-
-        var config = new PairingConfig
+        return new PairingConfig
         {
             Schema = PairingConfig.SchemaName,
             ConfigId = configId,
@@ -31,40 +26,31 @@ internal static class PairingTestDocumentFactory
             AppName = appName,
             IssuedAt = issued,
             ExpiresAt = expires,
-            OneTimeToken = oneTimeToken,
+            MinProtocolVersion = 2,
+            AllowedTransports = ["ws"],
             Host = new PairingHost
             {
                 HostId = hostId,
                 HostName = hostName,
-                DiscoveryPort = discoveryPort,
-                HostPubKey = publicKey,
-                HostPubKeyFingerprint = "fingerprint-1"
+                DiscoveryPort = discoveryPort
             },
-            Challenge = new PairingChallenge
+            Enrollment = new PairingEnrollment
             {
-                Alg = "ECDH-P256",
-                ChallengePubKey = challengePubKey,
-                RequireProofOnFirstPair = true
-            },
-            Signature = string.Empty
+                Secret = PairingCrypto.ToBase64Url(RandomNumberGenerator.GetBytes(32)),
+                ExpiresAt = expires,
+                GrantExpiresAt = registrationExpiresAt ?? DateTimeOffset.UtcNow.AddDays(14),
+                MaxUses = 1,
+                MaxScopes = ["Read"],
+                AllowCritical = false
+            }
         };
-
-        var signable = PairingCanonicalJson.SerializePairingConfigForSignature(config);
-        var signature = signingKey.SignData(Encoding.UTF8.GetBytes(signable), HashAlgorithmName.SHA256);
-        config.Signature = Convert.ToBase64String(signature);
-        return config;
     }
 
     public static PairingConfigDocument CreateConfigDocument(
         PairingConfig? config = null,
         PairingDiscoveryHint? discoveryHint = null)
     {
-        if (config is null)
-        {
-            using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-            config = CreateSignedConfig(signingKey);
-        }
-
+        config ??= CreateEnrollmentInvite();
         return new PairingConfigDocument
         {
             Schema = PairingConfigDocument.SchemaName,
@@ -82,7 +68,7 @@ internal static class PairingTestDocumentFactory
         string? source = "unit-test",
         DateTimeOffset? capturedAt = null)
     {
-        var resolvedHostAddresses = hostAddresses ?? new[] { hostAddress };
+        var resolvedHostAddresses = hostAddresses ?? [hostAddress];
         return new PairingDiscoveryHint
         {
             Schema = PairingDiscoveryHint.SchemaName,
@@ -98,14 +84,10 @@ internal static class PairingTestDocumentFactory
     public static string CreateConfigDocumentJson(
         PairingConfig? config = null,
         PairingDiscoveryHint? discoveryHint = null)
-    {
-        return PairingConfigDocumentJson.Serialize(CreateConfigDocument(config, discoveryHint));
-    }
+        => PairingConfigDocumentJson.Serialize(CreateConfigDocument(config, discoveryHint));
 
     public static string CreateCompactConfigDocument(
         PairingConfig? config = null,
         PairingDiscoveryHint? discoveryHint = null)
-    {
-        return PairingConfigCodeGenerator.Serialize(CreateConfigDocument(config, discoveryHint));
-    }
+        => PairingConfigCodeGenerator.Serialize(CreateConfigDocument(config, discoveryHint));
 }

@@ -27,17 +27,15 @@ Legend:
 | Live telemetry, event, touch, screenshot, and control streaming | Yes | Yes | Yes | Native | Native |
 | App-provided live-session logs | Yes | Yes | Yes | Native | Native |
 | Grouped session/custom properties and live mutations | Yes | Yes | Yes | Native | Native |
-| Saved pairing config | Yes | Yes | Yes | Native | Native |
+| App-private enrollment registration | Yes | Yes | Yes | Native | Native |
 | Remembered host profiles and host auto-probe | Yes | Yes | Yes | Native | Native |
-| Bundled and developer pairing sources | Yes | Yes | Yes | Native configuration | Native configuration |
 | Explicit payload connection | Yes | Yes | Yes | Yes | Yes |
-| SDK-owned pairing UI | Android/iOS QR via `Ansight.Pairing` | QR scanner and pairing sheet | UIKit file import and QR scanner | No; pass an app-acquired payload to `connect(...)` | No; pass an app-acquired payload to `connect(...)` |
+| SDK-owned enrollment UI | Android/iOS QR via `Ansight.Pairing` | QR scanner | UIKit QR scanner | Native QR bridge | Native QR bridge |
 | Connection status, capabilities, and change listeners | Yes | Yes | Yes | Native | Native |
 | SDK diagnostic log callbacks | Yes | Yes | Yes | Native listener | Native listener |
 
-Automatic connection uses the same source priority across SDKs: bundled
-developer config, remembered host profiles newest-first, saved config, then the
-plain bundled config.
+Automatic connection uses the app-private registration created by the first QR
+scan.
 
 ## Capture and diagnostics
 
@@ -120,13 +118,13 @@ capture starts only after the app configures and initializes an
 
 | Capability | .NET / MAUI | Android | iOS | React Native | Capacitor |
 | --- | --- | --- | --- | --- | --- |
-| Generate and embed developer pairing material | MSBuild target; requires a signed source pairing JSON | App/build supplies bundled JSON | SwiftPM/CocoaPods build tool | Configure through the native projects or JS options | Configure through the native projects or JS options |
+| Normal enrollment setup | Install package + scan QR | Install package + scan QR | Install package + scan QR | Install package + scan QR | Install package + scan QR |
 | Detect bundled remote-tool implementations | `AnsightRemoteToolsPolicy` | No SDK build scanner | Build tool; requires `ANSIGHT_ALLOW_REMOTE_TOOLS=true` | Native build rules apply | Native build rules apply |
 | Hard-disable annotated feedback in Release builds | Yes | Not available | Not available | Not available | Not available |
 
-Developer pairing material and broad remote-tool access are development
-features. Do not embed developer pairing resources or unrestricted tool
-policies in CI, store, TestFlight, Play Store, or other distributable builds.
+Enrollment UI and broad remote-tool access are development features. Do not
+ship unrestricted tool policies in CI, store, TestFlight, Play Store, or other
+distributable builds.
 
 ## Detailed guides
 

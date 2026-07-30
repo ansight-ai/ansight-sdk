@@ -39,7 +39,7 @@ Published SwiftPM validation requires tags created after the repository root
 `Package.swift` was added. Older tags that only contain `src/ios/Package.swift`
 cannot be resolved by SwiftPM from the Git repository URL.
 
-## Pairing
+## Enrollment
 
 The app initializes the SDK on launch and registers the aggregate remote tools through:
 
@@ -47,17 +47,19 @@ The app initializes the SDK on launch and registers the aggregate remote tools t
 try AnsightRuntime.shared.initializeAndActivateAnsightSdk(...)
 ```
 
-Use one of the pairing buttons in the app:
+Use one of the enrollment buttons in the app:
 
-- `Auto Connect` explicitly tries the SDK's normal auto order: embedded developer config, cached session, saved config, then bundled config.
-- `Pairing File` opens the native document picker for an Ansight Studio pairing config.
-- `Scan QR` opens the native QR pairing scanner.
+- `Auto Connect` reconnects from app-private enrollment state.
+- `Scan Enrollment QR` opens the native scanner for first-use registration.
 
-The harness bundles `src/ios/ansight.json` as an app resource and passes it to `AnsightHostConnectionOptions.bundledConfigJson`. Host auto-probe is enabled and mirrors the .NET SDK behavior: it retries remembered host profiles while the runtime is active so the app can reconnect after the host disappears and later reappears. Public bundled configs do not contain LAN routing metadata, so first pairing still needs a QR/file/config-document payload with discovery host addresses.
+The first successful scan stores a random installation id and enrollment state
+privately. Host auto-probe retries that remembered registration while the
+runtime is active, so the app reconnects after Studio disappears and later
+reappears. The harness has no bundled connection file or build-time secret.
 
 ## Validation Checklist
 
-After pairing with Ansight Studio, validate:
+After enrollment with Ansight Studio, validate:
 
 - App profile: app id, app name, icon, simulator/device details.
 - Telemetry: custom metric channel `42`, lifecycle events, manual events, screen views, FPS metrics.

@@ -1,5 +1,4 @@
 using System.Net;
-using System.Security.Cryptography;
 using Ansight.Pairing;
 
 namespace Ansight.UnitTests;
@@ -35,64 +34,10 @@ public sealed class HostPairingManagerTests
     }
 
     [Fact]
-    public async Task AutoConnectAsync_WhenBundledDeveloperConfigExists_PrefersItOverCachedProfile()
-    {
-        var savedConfigPath = CreateTempFilePath();
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var bundledDeveloperDocument = CreateDocument(signingKey, configId: "cfg-developer", hostAddress: "192.168.1.30");
-
-        using var hostConnection = new FakeHostConnection();
-        hostConnection.HasCachedProfile = true;
-        hostConnection.CachedConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using cached profile."));
-        hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using bundled developer config."));
-        using var manager = CreateManager(
-            hostConnection,
-            savedConfigPath,
-            new HostConnectionOptions
-            {
-                BundledDeveloperConfigLoader = _ => Task.FromResult<string?>(CreateConfigDocumentJson(bundledDeveloperDocument))
-            });
-
-        var result = await manager.ConnectAsync(HostConnectionRequest.Auto());
-
-        Assert.True(result.Success);
-        Assert.Equal(0, hostConnection.CachedConnectCallCount);
-        var connectedDocument = Assert.Single(hostConnection.ConnectDocuments);
-        Assert.Equal("cfg-developer", connectedDocument.Config.ConfigId);
-    }
-
-    [Fact]
-    public async Task AutoConnectAsync_WhenBundledDeveloperConfigExists_PrefersItOverSavedConfig()
-    {
-        var savedConfigPath = CreateTempFilePath();
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var savedDocument = CreateDocument(signingKey, configId: "cfg-saved", hostAddress: "192.168.1.10");
-        var bundledDeveloperDocument = CreateDocument(signingKey, configId: "cfg-developer", hostAddress: "192.168.1.30");
-
-        using var hostConnection = new FakeHostConnection();
-        hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using bundled developer config."));
-        using var manager = CreateManager(
-            hostConnection,
-            savedConfigPath,
-            new HostConnectionOptions
-            {
-                BundledDeveloperConfigLoader = _ => Task.FromResult<string?>(CreateConfigDocumentJson(bundledDeveloperDocument))
-            });
-        SaveSavedConfig(savedConfigPath, savedDocument);
-
-        var result = await manager.ConnectAsync(HostConnectionRequest.Auto());
-
-        Assert.True(result.Success);
-        var connectedDocument = Assert.Single(hostConnection.ConnectDocuments);
-        Assert.Equal("cfg-developer", connectedDocument.Config.ConfigId);
-    }
-
-    [Fact]
     public async Task ConnectFromPayloadAsync_WhenPairingConfigIsProvided_ConnectsThatConfig()
     {
         var savedConfigPath = CreateTempFilePath();
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var savedDocument = CreateDocument(signingKey, configId: "cfg-base", hostAddress: "192.168.1.50");
+        var savedDocument = CreateDocument(configId: "cfg-base", hostAddress: "192.168.1.50");
 
         using var hostConnection = new FakeHostConnection();
         hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult());
@@ -101,11 +46,8 @@ public sealed class HostPairingManagerTests
 
         var payload = PairingConfigDocumentJson.Serialize(
             PairingTestDocumentFactory.CreateConfigDocument(
-                PairingTestDocumentFactory.CreateSignedConfig(
-                    signingKey,
-                    configId: "cfg-override",
-                    oneTimeToken: "token-override",
-                    challengePubKey: "challenge-override"),
+                PairingTestDocumentFactory.CreateEnrollmentInvite(
+                    configId: "cfg-override"),
                 PairingTestDocumentFactory.CreateDiscoveryHint(
                     hostAddress: "10.0.0.25",
                     discoveryPort: 45200)));
@@ -115,8 +57,7 @@ public sealed class HostPairingManagerTests
         Assert.True(result.Success);
         var connectedDocument = Assert.Single(hostConnection.ConnectDocuments);
         Assert.Equal("cfg-override", connectedDocument.Config.ConfigId);
-        Assert.Equal("token-override", connectedDocument.Config.OneTimeToken);
-        Assert.Equal("challenge-override", connectedDocument.Config.Challenge.ChallengePubKey);
+        Assert.False(string.IsNullOrWhiteSpace(connectedDocument.Config.Enrollment!.Secret));
         Assert.Equal(new[] { "10.0.0.25" }, connectedDocument.DiscoveryHint?.HostAddresses);
         Assert.Equal(45200, hostConnection.LastConnectionOptions?.DiscoveryPort);
     }
@@ -125,8 +66,7 @@ public sealed class HostPairingManagerTests
     public async Task ConnectFromPayloadAsync_WhenAlreadyConnected_UsesSuppliedPayloadAsOverride()
     {
         var savedConfigPath = CreateTempFilePath();
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var savedDocument = CreateDocument(signingKey, configId: "cfg-saved", hostAddress: "192.168.1.10");
+        var savedDocument = CreateDocument(configId: "cfg-saved", hostAddress: "192.168.1.10");
 
         using var hostConnection = new FakeHostConnection();
         hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using saved config."));
@@ -136,11 +76,8 @@ public sealed class HostPairingManagerTests
 
         var payload = PairingConfigDocumentJson.Serialize(
             PairingTestDocumentFactory.CreateConfigDocument(
-                PairingTestDocumentFactory.CreateSignedConfig(
-                    signingKey,
-                    configId: "cfg-override",
-                    oneTimeToken: "token-override",
-                    challengePubKey: "challenge-override"),
+                PairingTestDocumentFactory.CreateEnrollmentInvite(
+                    configId: "cfg-override"),
                 PairingTestDocumentFactory.CreateDiscoveryHint(hostAddress: "10.0.0.25")));
 
         var initialResult = await manager.ConnectAsync(HostConnectionRequest.SavedConfig());
@@ -157,8 +94,7 @@ public sealed class HostPairingManagerTests
     public async Task ConnectUsingBundledConfigAsync_WhenDiscoveryPortOverrideIsConfigured_PassesItToTheConnection()
     {
         var savedConfigPath = CreateTempFilePath();
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var bundledDocument = CreateDocument(signingKey, configId: "cfg-bundled", hostAddress: "192.168.1.20");
+        var bundledDocument = CreateDocument(configId: "cfg-bundled", hostAddress: "192.168.1.20");
 
         using var hostConnection = new FakeHostConnection();
         hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using bundled config."));
@@ -181,8 +117,7 @@ public sealed class HostPairingManagerTests
     public async Task ConnectUsingSavedConfigAsync_WhenSavedConfigContainsHostAddress_ConnectsUsingSavedConfig()
     {
         var savedConfigPath = CreateTempFilePath();
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var savedDocument = CreateDocument(signingKey, configId: "cfg-saved", hostAddress: "192.168.1.10");
+        var savedDocument = CreateDocument(configId: "cfg-saved", hostAddress: "192.168.1.10");
 
         using var hostConnection = new FakeHostConnection();
         hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using saved config."));
@@ -202,8 +137,7 @@ public sealed class HostPairingManagerTests
     public async Task ConnectUsingSavedConfigAsync_WhenCachedProfileExists_StillUsesSavedConfig()
     {
         var savedConfigPath = CreateTempFilePath();
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var savedDocument = CreateDocument(signingKey, configId: "cfg-saved", hostAddress: "192.168.1.10");
+        var savedDocument = CreateDocument(configId: "cfg-saved", hostAddress: "192.168.1.10");
 
         using var hostConnection = new FakeHostConnection();
         hostConnection.HasCachedProfile = true;
@@ -224,9 +158,8 @@ public sealed class HostPairingManagerTests
     public async Task AutoConnectAsync_WhenSavedConfigNeedsFreshHostAddress_FallsBackToBundledConfig()
     {
         var savedConfigPath = CreateTempFilePath();
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var savedDocument = CreateDocumentWithoutHostAddress(signingKey, configId: "cfg-saved");
-        var bundledDocument = CreateDocument(signingKey, configId: "cfg-bundled", hostAddress: "192.168.1.20");
+        var savedDocument = CreateDocumentWithoutHostAddress(configId: "cfg-saved");
+        var bundledDocument = CreateDocument(configId: "cfg-bundled", hostAddress: "192.168.1.20");
 
         using var hostConnection = new FakeHostConnection();
         hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using bundled config."));
@@ -252,9 +185,8 @@ public sealed class HostPairingManagerTests
     {
         var savedConfigPath = CreateTempFilePath();
         var bundledLoaderCallCount = 0;
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var savedDocument = CreateDocument(signingKey, configId: "cfg-saved", hostAddress: "192.168.1.10");
-        var bundledDocument = CreateDocument(signingKey, configId: "cfg-bundled", hostAddress: "192.168.1.20");
+        var savedDocument = CreateDocument(configId: "cfg-saved", hostAddress: "192.168.1.10");
+        var bundledDocument = CreateDocument(configId: "cfg-bundled", hostAddress: "192.168.1.20");
 
         using var hostConnection = new FakeHostConnection();
         hostConnection.ConnectResults.Enqueue(CreateRejectedConnectionResult(
@@ -288,9 +220,8 @@ public sealed class HostPairingManagerTests
     public async Task ConnectFromPayloadAsync_WhenPayloadIsInvalid_DoesNotOverwriteSavedConfig()
     {
         var savedConfigPath = CreateTempFilePath();
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var savedDocument = CreateDocument(signingKey, configId: "cfg-saved", hostAddress: "192.168.1.10");
-        var invalidPayloadDocument = CreateDocumentWithoutHostAddress(signingKey, configId: "cfg-invalid");
+        var savedDocument = CreateDocument(configId: "cfg-saved", hostAddress: "192.168.1.10");
+        var invalidPayloadDocument = CreateDocumentWithoutHostAddress(configId: "cfg-invalid");
 
         using var hostConnection = new FakeHostConnection();
         using var manager = CreateManager(hostConnection, savedConfigPath);
@@ -317,8 +248,7 @@ public sealed class HostPairingManagerTests
     public async Task ConnectFromPayloadAsync_WhenPayloadHasNoHostAddressButSimulatorFallbackExists_Connects()
     {
         var savedConfigPath = CreateTempFilePath();
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var payloadDocument = CreateDocumentWithoutHostAddress(signingKey, configId: "cfg-simulator");
+        var payloadDocument = CreateDocumentWithoutHostAddress(configId: "cfg-simulator");
 
         using var hostConnection = new FakeHostConnection();
         hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult());
@@ -364,8 +294,7 @@ public sealed class HostPairingManagerTests
     public async Task AutoConnectAsync_WhenSavedConfigIsMissing_FallsBackToBundledConfig()
     {
         var savedConfigPath = CreateTempFilePath();
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var bundledDocument = CreateDocument(signingKey, configId: "cfg-bundled", hostAddress: "192.168.1.20");
+        var bundledDocument = CreateDocument(configId: "cfg-bundled", hostAddress: "192.168.1.20");
 
         using var hostConnection = new FakeHostConnection();
         hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using bundled config."));
@@ -385,18 +314,15 @@ public sealed class HostPairingManagerTests
     }
 
     [Fact]
-    public async Task AutoConnectAsync_WhenBundledConfigAssemblyContainsEmbeddedResources_PrefersDeveloperResourceLogicalName()
+    public async Task AutoConnectAsync_WhenBundledConfigAssemblyContainsResource_UsesStandardLogicalName()
     {
         var savedConfigPath = CreateTempFilePath();
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var bundledDeveloperDocument = CreateDocument(signingKey, configId: "cfg-developer", hostAddress: "192.168.1.30");
-        var bundledDocument = CreateDocument(signingKey, configId: "cfg-bundled", hostAddress: "192.168.1.20");
+        var bundledDocument = CreateDocument(configId: "cfg-bundled", hostAddress: "192.168.1.20");
 
         using var hostConnection = new FakeHostConnection
         {
             ParseDocumentOverride = configJson => configJson.Trim() switch
             {
-                "developer-resource" => bundledDeveloperDocument,
                 "bundled-resource" => bundledDocument,
                 _ => null
             }
@@ -414,62 +340,14 @@ public sealed class HostPairingManagerTests
 
         Assert.True(result.Success);
         var connectedDocument = Assert.Single(hostConnection.ConnectDocuments);
-        Assert.Equal("cfg-developer", connectedDocument.Config.ConfigId);
-    }
-
-    [Fact]
-    public async Task HandleRuntimeActivatedAsync_WhenBundledDeveloperConfigExists_AttemptsAutoConnect()
-    {
-        var savedConfigPath = CreateTempFilePath();
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var bundledDeveloperDocument = CreateDocument(signingKey, configId: "cfg-developer", hostAddress: "192.168.1.30");
-
-        using var hostConnection = new FakeHostConnection();
-        hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using bundled developer config."));
-        using var manager = CreateManager(
-            hostConnection,
-            savedConfigPath,
-            new HostConnectionOptions
-            {
-                BundledDeveloperConfigLoader = _ => Task.FromResult<string?>(CreateConfigDocumentJson(bundledDeveloperDocument))
-            });
-
-        await manager.HandleRuntimeActivatedAsync();
-
-        var connectedDocument = Assert.Single(hostConnection.ConnectDocuments);
-        Assert.Equal("cfg-developer", connectedDocument.Config.ConfigId);
-        Assert.True(manager.Status.HasBundledConfig);
-    }
-
-    [Fact]
-    public async Task HandleRuntimeActivatedAsync_WhenOnlyBundledConfigExists_DoesNotAttemptAutoConnect()
-    {
-        var savedConfigPath = CreateTempFilePath();
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var bundledDocument = CreateDocument(signingKey, configId: "cfg-bundled", hostAddress: "192.168.1.20");
-
-        using var hostConnection = new FakeHostConnection();
-        hostConnection.ConnectResults.Enqueue(CreateSuccessConnectionResult("Connected using bundled config."));
-        using var manager = CreateManager(
-            hostConnection,
-            savedConfigPath,
-            new HostConnectionOptions
-            {
-                BundledConfigLoader = _ => Task.FromResult<string?>(CreateConfigDocumentJson(bundledDocument))
-            });
-
-        await manager.HandleRuntimeActivatedAsync();
-
-        Assert.Empty(hostConnection.ConnectDocuments);
-        Assert.False(hostConnection.IsConnected);
+        Assert.Equal("cfg-bundled", connectedDocument.Config.ConfigId);
     }
 
     [Fact]
     public void ClearSavedConfigs_ClearsSavedStoreAndCachedHostProfile()
     {
         var savedConfigPath = CreateTempFilePath();
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var savedDocument = CreateDocument(signingKey, configId: "cfg-saved", hostAddress: "192.168.1.10");
+        var savedDocument = CreateDocument(configId: "cfg-saved", hostAddress: "192.168.1.10");
 
         using var hostConnection = new FakeHostConnection();
         hostConnection.HasCachedProfile = true;
@@ -503,8 +381,7 @@ public sealed class HostPairingManagerTests
     public async Task RefreshCapabilitiesAsync_WhenBundledConfigProbeSucceeds_UpdatesStatusSnapshot()
     {
         var savedConfigPath = CreateTempFilePath();
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var bundledDocument = CreateDocument(signingKey, configId: "cfg-bundled", hostAddress: "192.168.1.20");
+        var bundledDocument = CreateDocument(configId: "cfg-bundled", hostAddress: "192.168.1.20");
         using var hostConnection = new FakeHostConnection();
         using var manager = CreateManager(
             hostConnection,
@@ -525,8 +402,7 @@ public sealed class HostPairingManagerTests
     public async Task NotifyConfigChangedAsync_WhenBundledConfigIsAdded_UpdatesAvailability()
     {
         var savedConfigPath = CreateTempFilePath();
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var bundledDocument = CreateDocument(signingKey, configId: "cfg-bundled", hostAddress: "192.168.1.20");
+        var bundledDocument = CreateDocument(configId: "cfg-bundled", hostAddress: "192.168.1.20");
         string? bundledJson = null;
         using var hostConnection = new FakeHostConnection();
         using var manager = CreateManager(
@@ -534,7 +410,6 @@ public sealed class HostPairingManagerTests
             savedConfigPath,
             new HostConnectionOptions
             {
-                BundledDeveloperConfigLoader = _ => Task.FromResult<string?>(null),
                 BundledConfigLoader = _ => Task.FromResult<string?>(bundledJson)
             });
 
@@ -560,9 +435,8 @@ public sealed class HostPairingManagerTests
     public async Task NotifyConfigChangedAsync_WhenBundledConfigChanges_RaisesStatusChanged()
     {
         var savedConfigPath = CreateTempFilePath();
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var firstBundledDocument = CreateDocument(signingKey, configId: "cfg-bundled-1", hostAddress: "192.168.1.20");
-        var secondBundledDocument = CreateDocument(signingKey, configId: "cfg-bundled-2", hostAddress: "192.168.1.21");
+        var firstBundledDocument = CreateDocument(configId: "cfg-bundled-1", hostAddress: "192.168.1.20");
+        var secondBundledDocument = CreateDocument(configId: "cfg-bundled-2", hostAddress: "192.168.1.21");
         var bundledJson = CreateConfigDocumentJson(firstBundledDocument);
         using var hostConnection = new FakeHostConnection();
         using var manager = CreateManager(
@@ -570,7 +444,6 @@ public sealed class HostPairingManagerTests
             savedConfigPath,
             new HostConnectionOptions
             {
-                BundledDeveloperConfigLoader = _ => Task.FromResult<string?>(null),
                 BundledConfigLoader = _ => Task.FromResult<string?>(bundledJson)
             });
 
@@ -603,8 +476,7 @@ public sealed class HostPairingManagerTests
     public async Task NotifyConfigChangedAsync_WhenBundledConfigIsRemoved_UpdatesAvailability()
     {
         var savedConfigPath = CreateTempFilePath();
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var bundledDocument = CreateDocument(signingKey, configId: "cfg-bundled", hostAddress: "192.168.1.20");
+        var bundledDocument = CreateDocument(configId: "cfg-bundled", hostAddress: "192.168.1.20");
         string? bundledJson = CreateConfigDocumentJson(bundledDocument);
         using var hostConnection = new FakeHostConnection();
         using var manager = CreateManager(
@@ -612,7 +484,6 @@ public sealed class HostPairingManagerTests
             savedConfigPath,
             new HostConnectionOptions
             {
-                BundledDeveloperConfigLoader = _ => Task.FromResult<string?>(null),
                 BundledConfigLoader = _ => Task.FromResult<string?>(bundledJson)
             });
 
@@ -638,8 +509,7 @@ public sealed class HostPairingManagerTests
     public void Status_WhenSavedAndCachedProfilesExist_ReportsMultipleConfigsAvailable()
     {
         var savedConfigPath = CreateTempFilePath();
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var savedDocument = CreateDocument(signingKey, configId: "cfg-saved", hostAddress: "192.168.1.10");
+        var savedDocument = CreateDocument(configId: "cfg-saved", hostAddress: "192.168.1.10");
 
         using var hostConnection = new FakeHostConnection();
         hostConnection.HasCachedProfile = true;
@@ -668,22 +538,21 @@ public sealed class HostPairingManagerTests
     }
 
     private static ParsedPairingDocument CreateDocument(
-        ECDsa signingKey,
         string configId,
         string hostAddress)
     {
         return new ParsedPairingDocument
         {
-            Config = PairingTestDocumentFactory.CreateSignedConfig(signingKey, configId: configId),
+            Config = PairingTestDocumentFactory.CreateEnrollmentInvite(configId: configId),
             DiscoveryHint = PairingTestDocumentFactory.CreateDiscoveryHint(hostAddress: hostAddress)
         };
     }
 
-    private static ParsedPairingDocument CreateDocumentWithoutHostAddress(ECDsa signingKey, string configId)
+    private static ParsedPairingDocument CreateDocumentWithoutHostAddress(string configId)
     {
         return new ParsedPairingDocument
         {
-            Config = PairingTestDocumentFactory.CreateSignedConfig(signingKey, configId: configId),
+            Config = PairingTestDocumentFactory.CreateEnrollmentInvite(configId: configId),
             DiscoveryHint = new PairingDiscoveryHint
             {
                 Schema = PairingDiscoveryHint.SchemaName,
@@ -724,8 +593,9 @@ public sealed class HostPairingManagerTests
                 IPAddress.Loopback,
                 new ConnectResponse
                 {
-                    Type = "CONNECT_RESP",
-                    Ver = 1,
+                    Type = "ENROLLMENT_RESULT",
+                    Ver = 2,
+                    RequestId = "test-request",
                     Accepted = true,
                     Reason = "ok",
                     HostId = "host-1",
@@ -745,8 +615,9 @@ public sealed class HostPairingManagerTests
                 IPAddress.Loopback,
                 new ConnectResponse
                 {
-                    Type = "CONNECT_RESP",
-                    Ver = 1,
+                    Type = "ENROLLMENT_RESULT",
+                    Ver = 2,
+                    RequestId = "test-request",
                     Accepted = false,
                     Reason = rejectionCode,
                     ReasonMessage = rejectionMessage,

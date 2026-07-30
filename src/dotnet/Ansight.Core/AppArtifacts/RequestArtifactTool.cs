@@ -220,7 +220,7 @@ public sealed class RequestArtifactTool : ITool
     }
 
     private static async Task StreamArtifactAsync(
-        PairingSessionTransport transport,
+        IPairingBinaryTransport transport,
         Guid transferId,
         Stream stream,
         int chunkBytes,
@@ -273,7 +273,7 @@ public sealed class RequestArtifactTool : ITool
     }
 
     private static async Task SendFrameAsync(
-        PairingSessionTransport transport,
+        IPairingBinaryTransport transport,
         byte[] frame,
         CancellationToken cancellationToken)
     {
@@ -285,7 +285,7 @@ public sealed class RequestArtifactTool : ITool
     }
 
     private static async Task TrySendErrorFrameAsync(
-        PairingSessionTransport transport,
+        IPairingBinaryTransport transport,
         Guid transferId,
         int sequence,
         long offsetBytes,

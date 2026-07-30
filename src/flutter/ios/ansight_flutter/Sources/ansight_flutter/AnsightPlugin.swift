@@ -234,7 +234,7 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
             return hostConnectionResultDictionary(await AnsightRuntime.shared.connect(request))
         case "scanPairingQrCode":
             let request = HostConnectionRequest.qrCode(
-                title: stringValue(arguments, "title") ?? "Scan Ansight Pairing QR",
+                title: stringValue(arguments, "title") ?? "Scan Ansight Enrollment QR",
                 clientName: stringValue(arguments, "clientName"),
                 expectedAppId: stringValue(arguments, "expectedAppId"),
                 hostAddressOverride: stringValue(arguments, "hostAddressOverride"),
@@ -581,13 +581,6 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
             defaultValue: false
         )
         var options = useDefaults ? AnsightOptions.ansightDeveloperDefaults : AnsightOptions()
-        if let value = stringValue(dictionary, "pairingConfigJson") {
-            if useDefaults {
-                options.hostConnection.bundledDeveloperConfigJson = value
-            } else {
-                options.hostConnection.bundledConfigJson = value
-            }
-        }
         if useDefaults && stringValue(dictionary, "toolGuard") == nil {
             options.toolGuard = .readOnly
         }
@@ -760,9 +753,6 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
                     "allowCellularConnections",
                     defaultValue: options.hostConnection.allowCellularConnections
                 ),
-                bundledDeveloperConfigJson:
-                    stringValue(host, "bundledDeveloperConfigJson")
-                    ?? options.hostConnection.bundledDeveloperConfigJson,
                 bundledConfigJson:
                     stringValue(host, "bundledConfigJson")
                     ?? options.hostConnection.bundledConfigJson
@@ -955,8 +945,6 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
         }
         if let session = value.openSession {
             result["accepted"] = session.accepted
-            result["usedEmbeddedDeveloperPairing"] =
-                session.usedEmbeddedDeveloperPairing
             addIfPresent(&result, "sessionId", session.sessionId)
             addIfPresent(&result, "configId", session.configId)
             addIfPresent(&result, "appId", session.appId)
@@ -973,7 +961,6 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
             "success": value.success,
             "message": value.message,
             "accepted": value.accepted,
-            "usedEmbeddedDeveloperPairing": value.usedEmbeddedDeveloperPairing,
         ]
         addIfPresent(&result, "sessionId", value.sessionId)
         addIfPresent(&result, "configId", value.configId)

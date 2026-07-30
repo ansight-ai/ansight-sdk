@@ -5,6 +5,11 @@ public sealed class PlatformHostConnectionConfigReader : IHostConnectionConfigRe
 #if ANDROID
     private readonly Func<Android.App.Activity?> currentActivityProvider;
 
+    public PlatformHostConnectionConfigReader()
+        : this(AndroidPairingActivityTracker.GetCurrentActivity)
+    {
+    }
+
     public PlatformHostConnectionConfigReader(Func<Android.App.Activity?> currentActivityProvider)
     {
         this.currentActivityProvider = currentActivityProvider ?? throw new ArgumentNullException(nameof(currentActivityProvider));

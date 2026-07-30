@@ -147,6 +147,10 @@ interface AndroidTool {
     fun execute(arguments: Map<String, String>, context: AndroidToolExecutionContext): AndroidToolResult
 }
 
+fun interface ExternalToolProtocolHandler {
+    fun handle(messageJson: String): String?
+}
+
 class FunctionAndroidTool(
     override val definition: ToolDefinition,
     private val handler: (Map<String, String>, AndroidToolExecutionContext) -> AndroidToolResult,

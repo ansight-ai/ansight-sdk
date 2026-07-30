@@ -1,6 +1,4 @@
 using System.Net;
-using System.Security.Cryptography;
-using System.Text;
 using Ansight.Input;
 using Ansight.Pairing;
 
@@ -12,8 +10,7 @@ public sealed class HostPairingManagerIntegrationTests
     public async Task AutoConnectAsync_WhenBundledConfigExists_ConnectsThroughHostConnectionManager()
     {
         var savedConfigPath = CreateTempFilePath();
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var bundledDocument = CreateDocument(signingKey, configId: "cfg-bundled", hostAddress: "127.0.0.1");
+        var bundledDocument = CreateDocument(configId: "cfg-bundled", hostAddress: "127.0.0.1");
 
         var runtime = CreateRuntime();
         runtime.Activate();
@@ -31,7 +28,7 @@ public sealed class HostPairingManagerIntegrationTests
 
         var result = await hostPairing.ConnectAsync(HostConnectionRequest.Auto());
 
-        Assert.True(result.Success);
+        Assert.True(result.Success, result.Message);
         Assert.True(hostConnection.IsConnected);
         Assert.Equal(1, sessionClient.OpenSessionCallCount);
         Assert.Equal(1, sessionClient.StartMetricsStreamingCallCount);
@@ -44,8 +41,7 @@ public sealed class HostPairingManagerIntegrationTests
     public async Task ConnectFromPayloadAsync_WhenPairingConfigIsProvided_ConnectsThatConfig()
     {
         var savedConfigPath = CreateTempFilePath();
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var savedDocument = CreateDocument(signingKey, configId: "cfg-base", hostAddress: "127.0.0.1");
+        var savedDocument = CreateDocument(configId: "cfg-base", hostAddress: "127.0.0.1");
 
         var runtime = CreateRuntime();
         runtime.Activate();
@@ -64,13 +60,13 @@ public sealed class HostPairingManagerIntegrationTests
         var payload = PairingConfigDocumentJson.Serialize(
             new Ansight.Pairing.Models.PairingConfigDocument
             {
-                Config = CreateSignedConfig(signingKey, configId: "cfg-override"),
+                Config = CreateEnrollmentInvite(configId: "cfg-override"),
                 Discovery = CreateDiscoveryHint(hostAddress: "127.0.0.1")
             });
 
         var result = await hostPairing.ConnectAsync(HostConnectionRequest.PayloadText(payload, "pairing config"));
 
-        Assert.True(result.Success);
+        Assert.True(result.Success, result.Message);
         Assert.Equal(1, sessionClient.OpenSessionCallCount);
         Assert.Equal(1, sessionClient.StartMetricsStreamingCallCount);
         Assert.Equal("cfg-override", sessionClient.LastOpenedDocument?.Config.ConfigId);
@@ -88,53 +84,47 @@ public sealed class HostPairingManagerIntegrationTests
     }
 
     private static ParsedPairingDocument CreateDocument(
-        ECDsa signingKey,
         string configId,
         string hostAddress)
     {
         return new ParsedPairingDocument
         {
-            Config = CreateSignedConfig(signingKey, configId: configId),
+            Config = CreateEnrollmentInvite(configId: configId),
             DiscoveryHint = CreateDiscoveryHint(hostAddress: hostAddress)
         };
     }
 
-    private static PairingConfig CreateSignedConfig(
-        ECDsa signingKey,
+    private static PairingConfig CreateEnrollmentInvite(
         string configId,
         string appId = "com.ansight.test")
     {
-        var publicKey = Convert.ToBase64String(signingKey.ExportSubjectPublicKeyInfo());
-        var config = new PairingConfig
+        var expiresAt = DateTimeOffset.UtcNow.AddMinutes(10);
+        return new PairingConfig
         {
-            Schema = "ansight.pairing-config.v1",
+            Schema = PairingConfig.SchemaName,
             ConfigId = configId,
             AppId = appId,
             AppName = "Ansight Integration Test",
             IssuedAt = DateTimeOffset.UtcNow.AddMinutes(-1),
-            ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(10),
-            OneTimeToken = $"{configId}-token",
+            ExpiresAt = expiresAt,
+            MinProtocolVersion = 2,
+            AllowedTransports = ["ws"],
             Host = new PairingHost
             {
                 HostId = "host-1",
                 HostName = "test-host",
-                DiscoveryPort = 41000,
-                HostPubKey = publicKey,
-                HostPubKeyFingerprint = "fingerprint-1"
+                DiscoveryPort = 41000
             },
-            Challenge = new PairingChallenge
+            Enrollment = new PairingEnrollment
             {
-                Alg = "ECDH-P256",
-                ChallengePubKey = $"{configId}-challenge",
-                RequireProofOnFirstPair = true
-            },
-            Signature = string.Empty
+                Secret = PairingCrypto.CreateBase64UrlRandom(32),
+                ExpiresAt = expiresAt,
+                GrantExpiresAt = DateTimeOffset.UtcNow.AddDays(14),
+                MaxUses = 1,
+                MaxScopes = ["Read"],
+                AllowCritical = false
+            }
         };
-
-        var signable = PairingCanonicalJson.SerializePairingConfigForSignature(config);
-        var signature = signingKey.SignData(Encoding.UTF8.GetBytes(signable), HashAlgorithmName.SHA256);
-        config.Signature = Convert.ToBase64String(signature);
-        return config;
     }
 
     private static PairingDiscoveryHint CreateDiscoveryHint(string hostAddress)
@@ -179,8 +169,9 @@ public sealed class HostPairingManagerIntegrationTests
             IPAddress.Loopback,
             new ConnectResponse
             {
-                Type = "CONNECT_RESP",
-                Ver = 1,
+                Type = "ENROLLMENT_RESULT",
+                Ver = 2,
+                RequestId = "integration-request",
                 Accepted = true,
                 Reason = "ok",
                 HostId = "host-1",

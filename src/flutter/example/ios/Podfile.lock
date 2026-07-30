@@ -40,28 +40,45 @@ PODS:
     - FlutterMacOS
 
 DEPENDENCIES:
+  - Ansight (from `../../../ios`)
   - ansight_flutter (from `.symlinks/plugins/ansight_flutter/ios`)
+  - AnsightCore (from `../../../ios`)
+  - AnsightPairingQR (from `../../../ios`)
+  - AnsightToolsDatabase (from `../../../ios`)
+  - AnsightToolsFileDescriptorDiagnostics (from `../../../ios`)
+  - AnsightToolsFileSystem (from `../../../ios`)
+  - AnsightToolsPreferences (from `../../../ios`)
+  - AnsightToolsReflection (from `../../../ios`)
+  - AnsightToolsSecureStorage (from `../../../ios`)
+  - AnsightToolsVisualTree (from `../../../ios`)
   - Flutter (from `Flutter`)
   - integration_test (from `.symlinks/plugins/integration_test/ios`)
   - shared_preferences_foundation (from `.symlinks/plugins/shared_preferences_foundation/darwin`)
   - sqflite_darwin (from `.symlinks/plugins/sqflite_darwin/darwin`)
 
-SPEC REPOS:
-  trunk:
-    - Ansight
-    - AnsightCore
-    - AnsightPairingQR
-    - AnsightToolsDatabase
-    - AnsightToolsFileDescriptorDiagnostics
-    - AnsightToolsFileSystem
-    - AnsightToolsPreferences
-    - AnsightToolsReflection
-    - AnsightToolsSecureStorage
-    - AnsightToolsVisualTree
-
 EXTERNAL SOURCES:
+  Ansight:
+    :path: "../../../ios"
   ansight_flutter:
     :path: ".symlinks/plugins/ansight_flutter/ios"
+  AnsightCore:
+    :path: "../../../ios"
+  AnsightPairingQR:
+    :path: "../../../ios"
+  AnsightToolsDatabase:
+    :path: "../../../ios"
+  AnsightToolsFileDescriptorDiagnostics:
+    :path: "../../../ios"
+  AnsightToolsFileSystem:
+    :path: "../../../ios"
+  AnsightToolsPreferences:
+    :path: "../../../ios"
+  AnsightToolsReflection:
+    :path: "../../../ios"
+  AnsightToolsSecureStorage:
+    :path: "../../../ios"
+  AnsightToolsVisualTree:
+    :path: "../../../ios"
   Flutter:
     :path: Flutter
   integration_test:
@@ -74,7 +91,7 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   Ansight: 840375818b8b380c65d057df4c35d7c2fa4391bc
   ansight_flutter: 349d92bb3bd6407163ec4b61fc7520898f675f3d
-  AnsightCore: 2f23eba2b5ed8f92b2c9601c403e7e6284f2bc29
+  AnsightCore: cba7833b06a92bdf46a96930c708fb67134eafd2
   AnsightPairingQR: cedc5ba6ad5823970e5de78a84a1d2be0bbb383c
   AnsightToolsDatabase: fab4d8904cce98ac3b75e11080f56e4744f8c983
   AnsightToolsFileDescriptorDiagnostics: 7901fa28b57a6dcf915c333fea04c7695b7c5496
@@ -88,6 +105,6 @@ SPEC CHECKSUMS:
   shared_preferences_foundation: 7036424c3d8ec98dfe75ff1667cb0cd531ec82bb
   sqflite_darwin: 20b2a3a3b70e43edae938624ce550a3cbf66a3d0
 
-PODFILE CHECKSUM: bd1410aefa6a11cd7a91579ef2fded3a0f0949f9
+PODFILE CHECKSUM: c8ead8d6ecd1105692ec4fb65353a318e7f448c9
 
 COCOAPODS: 1.16.2

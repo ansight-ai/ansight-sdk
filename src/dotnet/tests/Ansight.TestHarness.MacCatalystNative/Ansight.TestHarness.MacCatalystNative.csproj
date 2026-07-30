@@ -6,10 +6,14 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
+    <ApplicationId>com.example.ansight.maccatalystharness</ApplicationId>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\Ansight.Core\Ansight.Core.csproj" />
+    <!-- Intentionally direct: this harness reads binding state to verify Core selected the native runtime. -->
+    <ProjectReference Include="..\..\Ansight.Native.Apple.Binding\Ansight.Native.Apple.Binding.csproj" />
+    <Compile Include="..\NativeBindingDiagnostics.cs" Link="NativeBindingDiagnostics.cs" />
   </ItemGroup>
 
 

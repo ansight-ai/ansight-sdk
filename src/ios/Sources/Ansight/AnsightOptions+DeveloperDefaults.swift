@@ -16,10 +16,7 @@ public extension AnsightOptions {
             ),
             touchCapture: AnsightTouchCaptureOptions(),
             toolGuard: .fullAccess,
-            hostAutoProbe: .enabledDefault,
-            hostConnection: AnsightHostConnectionOptions(
-                bundledDeveloperConfigJson: AnsightDeveloperMode.embeddedPairingJson
-            )
+            hostAutoProbe: .enabledDefault
         )
     }
 }

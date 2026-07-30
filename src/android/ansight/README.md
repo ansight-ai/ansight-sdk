@@ -10,14 +10,13 @@ all current standard Android tool suites.
 ```kotlin
 import ai.ansight.Ansight
 
-Ansight.initializeAndActivate(
-    application = application,
-    options = Ansight.developerOptions(
-        bundledDeveloperConfigJson = BuildConfig.ANSIGHT_DEVELOPER_PAIRING_JSON,
-        clientName = "Android App",
-    ),
-)
+Ansight.initializeAndActivate(application)
+Ansight.enrollFromQrCode(activity)
 ```
+
+No pairing build constant, config file, host address, or camera permission is
+required. The scan stores this app installation's registration for automatic
+reconnect.
 
 `Ansight.developerOptions(...)` applies the aligned all-in-one defaults:
 400 ms sampling, 120 second retention, FPS, touch capture, 2000 ms JPEG capture

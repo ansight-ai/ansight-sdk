@@ -30,19 +30,19 @@ public sealed class FrameRateMonitor : NSObject, IFrameRateMonitor
         lastReportTimestamp = 0;
         framesSinceLastReport = 0;
 
-        UIApplication.SharedApplication.InvokeOnMainThread(() =>
+        UIApplication.SharedApplication?.InvokeOnMainThread(() =>
         {
             EnsureDisplayLink();
         });
 
         didEnterBackgroundObserver ??= UIApplication.Notifications.ObserveDidEnterBackground((_, _) =>
         {
-            UIApplication.SharedApplication.InvokeOnMainThread(PauseDisplayLink);
+            UIApplication.SharedApplication?.InvokeOnMainThread(PauseDisplayLink);
         });
 
         didBecomeActiveObserver ??= UIApplication.Notifications.ObserveDidBecomeActive((_, _) =>
         {
-            UIApplication.SharedApplication.InvokeOnMainThread(EnsureDisplayLink);
+            UIApplication.SharedApplication?.InvokeOnMainThread(EnsureDisplayLink);
         });
     }
 
@@ -55,7 +55,7 @@ public sealed class FrameRateMonitor : NSObject, IFrameRateMonitor
 
         running = false;
 
-        UIApplication.SharedApplication.InvokeOnMainThread(() =>
+        UIApplication.SharedApplication?.InvokeOnMainThread(() =>
         {
             TearDownDisplayLink();
             lock (sync)

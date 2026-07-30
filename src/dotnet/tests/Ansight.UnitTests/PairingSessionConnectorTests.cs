@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
-using System.Security.Cryptography;
 using System.Text.Json;
 using Ansight.Pairing;
 using Ansight.Pairing.Models;
@@ -13,11 +12,10 @@ public sealed class PairingSessionConnectorTests
     [Fact]
     public async Task ConnectAsync_WhenWifiIsUnavailable_ReturnsSpecificFailure()
     {
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var connector = new PairingSessionConnector(() => PairingWifiPreflightStatus.NotConnected);
         var document = new ParsedPairingDocument
         {
-            Config = PairingTestDocumentFactory.CreateSignedConfig(signingKey),
+            Config = PairingTestDocumentFactory.CreateEnrollmentInvite(),
             DiscoveryHint = PairingTestDocumentFactory.CreateDiscoveryHint(
                 hostAddress: IPAddress.Loopback.ToString(),
                 wifiName: "Office Wifi")
@@ -44,11 +42,10 @@ public sealed class PairingSessionConnectorTests
     [Fact]
     public async Task ConnectAsync_WhenCellularConnectionsAreDisabled_ReturnsSpecificFailure()
     {
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var connector = new PairingSessionConnector(() => PairingWifiPreflightStatus.Cellular);
         var document = new ParsedPairingDocument
         {
-            Config = PairingTestDocumentFactory.CreateSignedConfig(signingKey),
+            Config = PairingTestDocumentFactory.CreateEnrollmentInvite(),
             DiscoveryHint = PairingTestDocumentFactory.CreateDiscoveryHint(
                 hostAddress: IPAddress.Loopback.ToString())
         };
@@ -96,13 +93,12 @@ public sealed class PairingSessionConnectorTests
     [Fact]
     public async Task ConnectAsync_WhenWifiUnavailableButSimulatorFallbackExists_UsesSimulatorLocalHost()
     {
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         using var listener = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
         var listenerEndPoint = (IPEndPoint)listener.Client.LocalEndPoint!;
         var connector = new PairingSessionConnector(
             () => PairingWifiPreflightStatus.NotConnected,
             () => IPAddress.Loopback.ToString());
-        var config = PairingTestDocumentFactory.CreateSignedConfig(signingKey, discoveryPort: listenerEndPoint.Port);
+        var config = PairingTestDocumentFactory.CreateEnrollmentInvite(discoveryPort: listenerEndPoint.Port);
         var document = new ParsedPairingDocument
         {
             Config = config
@@ -119,13 +115,14 @@ public sealed class PairingSessionConnectorTests
         var parsedRequest = JsonSerializer.Deserialize<ConnectRequest>(request.Buffer, PairingJson.Compact);
 
         Assert.NotNull(parsedRequest);
-        Assert.Equal(config.ConfigId, parsedRequest!.ConfigId);
+        Assert.Equal(config.ConfigId, parsedRequest!.InviteId);
 
         var payload = JsonSerializer.SerializeToUtf8Bytes(
             new ConnectResponse
             {
-                Type = "CONNECT_RESP",
-                Ver = 1,
+                Type = "ENROLLMENT_RESULT",
+                Ver = 2,
+                RequestId = parsedRequest.RequestId,
                 Accepted = false,
                 Reason = "pairing-required",
                 ReasonMessage = "Need WebSocket handoff",
@@ -145,11 +142,10 @@ public sealed class PairingSessionConnectorTests
     [Fact]
     public async Task ConnectAsync_WhenCellularConnectionsAreEnabled_AttemptsTheHostConnection()
     {
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         using var listener = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
         var listenerEndPoint = (IPEndPoint)listener.Client.LocalEndPoint!;
         var connector = new PairingSessionConnector(() => PairingWifiPreflightStatus.Cellular);
-        var config = PairingTestDocumentFactory.CreateSignedConfig(signingKey, discoveryPort: listenerEndPoint.Port);
+        var config = PairingTestDocumentFactory.CreateEnrollmentInvite(discoveryPort: listenerEndPoint.Port);
         var document = new ParsedPairingDocument
         {
             Config = config,
@@ -172,13 +168,14 @@ public sealed class PairingSessionConnectorTests
         var parsedRequest = JsonSerializer.Deserialize<ConnectRequest>(request.Buffer, PairingJson.Compact);
 
         Assert.NotNull(parsedRequest);
-        Assert.Equal(config.ConfigId, parsedRequest!.ConfigId);
+        Assert.Equal(config.ConfigId, parsedRequest!.InviteId);
 
         var payload = JsonSerializer.SerializeToUtf8Bytes(
             new ConnectResponse
             {
-                Type = "CONNECT_RESP",
-                Ver = 1,
+                Type = "ENROLLMENT_RESULT",
+                Ver = 2,
+                RequestId = parsedRequest.RequestId,
                 Accepted = false,
                 Reason = "pairing-required",
                 ReasonMessage = "Need WebSocket handoff",
@@ -211,11 +208,10 @@ public sealed class PairingSessionConnectorTests
     [Fact]
     public async Task SendConnectRequestAsync_IncludesStableProcessSessionId()
     {
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         using var listener = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
         var listenerEndPoint = (IPEndPoint)listener.Client.LocalEndPoint!;
 
-        var config = PairingTestDocumentFactory.CreateSignedConfig(signingKey);
+        var config = PairingTestDocumentFactory.CreateEnrollmentInvite();
 
         var method = typeof(PairingSessionConnector).GetMethod(
             "SendConnectRequestAsync",
@@ -243,8 +239,9 @@ public sealed class PairingSessionConnectorTests
         var payload = JsonSerializer.SerializeToUtf8Bytes(
             new ConnectResponse
             {
-                Type = "CONNECT_RESP",
-                Ver = 1,
+                Type = "ENROLLMENT_RESULT",
+                Ver = 2,
+                RequestId = parsedRequest.RequestId,
                 Accepted = true,
                 Reason = "Ok",
                 HostId = "host-1",
@@ -264,11 +261,10 @@ public sealed class PairingSessionConnectorTests
     [Fact]
     public async Task ConnectAsync_WhenDiscoveryPortOverrideIsProvided_UsesItForUdpBootstrap()
     {
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         using var listener = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
         var listenerEndPoint = (IPEndPoint)listener.Client.LocalEndPoint!;
         var connector = new PairingSessionConnector(() => PairingWifiPreflightStatus.Connected);
-        var config = PairingTestDocumentFactory.CreateSignedConfig(signingKey, discoveryPort: 41000);
+        var config = PairingTestDocumentFactory.CreateEnrollmentInvite(discoveryPort: 41000);
         var document = new ParsedPairingDocument
         {
             Config = config,
@@ -289,13 +285,14 @@ public sealed class PairingSessionConnectorTests
         var parsedRequest = JsonSerializer.Deserialize<ConnectRequest>(request.Buffer, PairingJson.Compact);
 
         Assert.NotNull(parsedRequest);
-        Assert.Equal(config.ConfigId, parsedRequest!.ConfigId);
+        Assert.Equal(config.ConfigId, parsedRequest!.InviteId);
 
         var payload = JsonSerializer.SerializeToUtf8Bytes(
             new ConnectResponse
             {
-                Type = "CONNECT_RESP",
-                Ver = 1,
+                Type = "ENROLLMENT_RESULT",
+                Ver = 2,
+                RequestId = parsedRequest.RequestId,
                 Accepted = false,
                 Reason = "pairing-required",
                 ReasonMessage = "Need WebSocket handoff",
@@ -315,11 +312,10 @@ public sealed class PairingSessionConnectorTests
     [Fact]
     public async Task ConnectAsync_WhenDiscoveryHintPortIsMissing_UsesConfigHostDiscoveryPort()
     {
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         using var listener = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
         var listenerEndPoint = (IPEndPoint)listener.Client.LocalEndPoint!;
         var connector = new PairingSessionConnector(() => PairingWifiPreflightStatus.Connected);
-        var config = PairingTestDocumentFactory.CreateSignedConfig(signingKey, discoveryPort: listenerEndPoint.Port);
+        var config = PairingTestDocumentFactory.CreateEnrollmentInvite(discoveryPort: listenerEndPoint.Port);
         var document = new ParsedPairingDocument
         {
             Config = config,
@@ -337,13 +333,14 @@ public sealed class PairingSessionConnectorTests
         var parsedRequest = JsonSerializer.Deserialize<ConnectRequest>(request.Buffer, PairingJson.Compact);
 
         Assert.NotNull(parsedRequest);
-        Assert.Equal(config.ConfigId, parsedRequest!.ConfigId);
+        Assert.Equal(config.ConfigId, parsedRequest!.InviteId);
 
         var payload = JsonSerializer.SerializeToUtf8Bytes(
             new ConnectResponse
             {
-                Type = "CONNECT_RESP",
-                Ver = 1,
+                Type = "ENROLLMENT_RESULT",
+                Ver = 2,
+                RequestId = parsedRequest.RequestId,
                 Accepted = false,
                 Reason = "pairing-required",
                 ReasonMessage = "Need WebSocket handoff",
@@ -363,11 +360,10 @@ public sealed class PairingSessionConnectorTests
     [Fact]
     public async Task ConnectAsync_WhenDiscoveryHintHasMultipleAddresses_TriesNextValidCandidate()
     {
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         using var listener = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
         var listenerEndPoint = (IPEndPoint)listener.Client.LocalEndPoint!;
         var connector = new PairingSessionConnector(() => PairingWifiPreflightStatus.Connected);
-        var config = PairingTestDocumentFactory.CreateSignedConfig(signingKey, discoveryPort: listenerEndPoint.Port);
+        var config = PairingTestDocumentFactory.CreateEnrollmentInvite(discoveryPort: listenerEndPoint.Port);
         var document = new ParsedPairingDocument
         {
             Config = config,
@@ -387,13 +383,14 @@ public sealed class PairingSessionConnectorTests
         var parsedRequest = JsonSerializer.Deserialize<ConnectRequest>(request.Buffer, PairingJson.Compact);
 
         Assert.NotNull(parsedRequest);
-        Assert.Equal(config.ConfigId, parsedRequest!.ConfigId);
+        Assert.Equal(config.ConfigId, parsedRequest!.InviteId);
 
         var payload = JsonSerializer.SerializeToUtf8Bytes(
             new ConnectResponse
             {
-                Type = "CONNECT_RESP",
-                Ver = 1,
+                Type = "ENROLLMENT_RESULT",
+                Ver = 2,
+                RequestId = parsedRequest.RequestId,
                 Accepted = false,
                 Reason = "pairing-required",
                 ReasonMessage = "Need WebSocket handoff",
@@ -413,11 +410,10 @@ public sealed class PairingSessionConnectorTests
     [Fact]
     public async Task ConnectAsync_WhenHostRequiresSignIn_SurfacesSignInRejection()
     {
-        using var signingKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         using var listener = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
         var listenerEndPoint = (IPEndPoint)listener.Client.LocalEndPoint!;
         var connector = new PairingSessionConnector(() => PairingWifiPreflightStatus.Connected);
-        var config = PairingTestDocumentFactory.CreateSignedConfig(signingKey, discoveryPort: listenerEndPoint.Port);
+        var config = PairingTestDocumentFactory.CreateEnrollmentInvite(discoveryPort: listenerEndPoint.Port);
         var document = new ParsedPairingDocument
         {
             Config = config,
@@ -432,11 +428,16 @@ public sealed class PairingSessionConnectorTests
             CancellationToken.None);
 
         var request = await listener.ReceiveAsync();
+        var parsedRequest = JsonSerializer.Deserialize<ConnectRequest>(
+            request.Buffer,
+            PairingJson.Compact);
+        Assert.NotNull(parsedRequest);
         var payload = JsonSerializer.SerializeToUtf8Bytes(
             new ConnectResponse
             {
-                Type = "CONNECT_RESP",
-                Ver = 1,
+                Type = "ENROLLMENT_RESULT",
+                Ver = 2,
+                RequestId = parsedRequest!.RequestId,
                 Accepted = false,
                 Reason = PairingFailureCodes.SignInRequired,
                 ReasonMessage = "Sign in required. Sign in to Ansight Studio before connecting an app.",

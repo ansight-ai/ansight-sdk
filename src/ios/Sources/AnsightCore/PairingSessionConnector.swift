@@ -33,7 +33,7 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
         )
         guard !hostAddressCandidates.isEmpty else {
             return .failure(
-                "A current host address is required. Import a fresh pairing config or compact pairing config code.",
+                "The scanned Ansight QR code does not contain a reachable Studio address.",
                 code: PairingFailureCodes.hostAddressRequired
             )
         }
@@ -41,9 +41,11 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
         let discoveryPort = options?.discoveryPort
             ?? document.discoveryHint?.discoveryPort
             ?? document.config.host.discoveryPort
-
         guard (1...65_535).contains(discoveryPort) else {
-            return .failure("Pairing discovery port must be between 1 and 65535.", code: PairingFailureCodes.hostAddressRequired)
+            return .failure(
+                "Studio discovery port must be between 1 and 65535.",
+                code: PairingFailureCodes.hostAddressRequired
+            )
         }
 
         let hostNetworkCheckMessage = Self.hostNetworkCheckMessage(discoveryHint: document.discoveryHint)
@@ -54,34 +56,39 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
         let wifiStatus = hasSimulatorLocalHostCandidate ? PairingWifiPreflightStatus.connected : wifiStatusProvider()
         if wifiStatus == .notConnected {
             return .failure(
-                "Ansight is unavailable because this device is not connected to Wi-Fi. \(hostNetworkCheckMessage)",
+                "This device must be on the same Wi-Fi network as Ansight Studio. \(hostNetworkCheckMessage)",
                 code: PairingFailureCodes.wifiRequired
             )
         }
-
         if wifiStatus == .cellular, options?.allowCellularConnections != true {
             return .failure(
-                "Cellular host connections are disabled. Enable allowCellularConnections in the Ansight host connection builder to connect while using cellular data.",
+                "Cellular Studio connections are disabled.",
                 code: PairingFailureCodes.wifiRequired
             )
         }
 
-        let request = ConnectRequest(
-            configId: document.config.configId,
-            oneTimeToken: document.config.oneTimeToken,
-            appId: document.config.appId,
-            clientName: clientName
-        )
-
-        let requestData: Data
-        do {
-            requestData = try JSONEncoder.ansightEncoder.encode(request)
-        } catch {
-            return .failure("Failed to encode connect request: \(error.localizedDescription)", code: PairingFailureCodes.udpBootstrapFailed)
-        }
-
+        let deviceId = PairingDeviceIdentity.resolve()
         var lastFailure: PairingConnectionAttempt?
         for hostAddress in hostAddressCandidates {
+            let requestId = UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
+            let request = ConnectRequest(
+                requestId: requestId,
+                inviteId: document.config.configId,
+                appId: document.config.appId,
+                deviceId: deviceId,
+                deviceName: clientName,
+                accessToken: document.config.enrollment.accessToken
+            )
+            let requestData: Data
+            do {
+                requestData = try JSONEncoder.ansightEncoder.encode(request)
+            } catch {
+                return .failure(
+                    "Failed to encode enrollment request: \(error.localizedDescription)",
+                    code: PairingFailureCodes.udpBootstrapFailed
+                )
+            }
+
             let responseData: Data?
             do {
                 responseData = try await datagramClient.sendConnectRequest(
@@ -91,13 +98,15 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
                     timeoutSeconds: 5
                 )
             } catch {
-                lastFailure = .failure("UDP connect failed for \(hostAddress): \(error.localizedDescription)", code: PairingFailureCodes.udpBootstrapFailed)
+                lastFailure = .failure(
+                    "UDP enrollment failed for \(hostAddress): \(error.localizedDescription)",
+                    code: PairingFailureCodes.udpBootstrapFailed
+                )
                 continue
             }
-
             guard let responseData else {
                 lastFailure = .failure(
-                    "No connect response from host at \(hostAddress). \(hostNetworkCheckMessage) The remembered host address may be stale. Import a fresh pairing QR code or enter the host IP manually.",
+                    "No response from Studio at \(hostAddress). \(hostNetworkCheckMessage) Scan a fresh QR code if Studio's address changed.",
                     code: PairingFailureCodes.udpBootstrapTimeout
                 )
                 continue
@@ -107,24 +116,33 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
             do {
                 response = try JSONDecoder.ansightDecoder.decode(ConnectResponse.self, from: responseData)
             } catch {
-                return .failure("Host connect response was malformed: \(error.localizedDescription)", code: PairingFailureCodes.udpBootstrapFailed)
+                return .failure(
+                    "Studio enrollment response was malformed: \(error.localizedDescription)",
+                    code: PairingFailureCodes.udpBootstrapFailed
+                )
             }
-
-            guard response.type == "CONNECT_RESP" else {
-                return .failure("Host connect response had unexpected type '\(response.type)'.", code: PairingFailureCodes.udpBootstrapFailed)
+            guard response.type == "ENROLLMENT_RESULT",
+                  response.ver == 2,
+                  response.requestId == requestId
+            else {
+                return .failure(
+                    "Studio returned an unexpected enrollment response.",
+                    code: PairingFailureCodes.udpBootstrapFailed
+                )
             }
-
             guard response.accepted else {
                 return .rejected(hostAddress: hostAddress, response: response)
             }
-
             guard let webSocketPort = response.webSocketPort,
                   let webSocketPath = response.webSocketPath,
                   let webSocketToken = response.webSocketToken,
                   !webSocketPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                   !webSocketToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             else {
-                return .failure("Host did not provide a WebSocket handoff.", code: PairingFailureCodes.webSocketHandoffUnavailable)
+                return .failure(
+                    "Studio did not provide a WebSocket handoff.",
+                    code: PairingFailureCodes.webSocketHandoffUnavailable
+                )
             }
 
             var components = URLComponents()
@@ -134,14 +152,17 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
             components.path = webSocketPath.hasPrefix("/") ? webSocketPath : "/\(webSocketPath)"
             components.queryItems = [URLQueryItem(name: "token", value: webSocketToken)]
             guard let url = components.url else {
-                return .failure("Host WebSocket handoff was not a valid URL.", code: PairingFailureCodes.webSocketHandoffUnavailable)
+                return .failure(
+                    "Studio WebSocket handoff was not a valid URL.",
+                    code: PairingFailureCodes.webSocketHandoffUnavailable
+                )
             }
 
             return .success(hostAddress: hostAddress, response: response, webSocketURL: url)
         }
 
         return lastFailure ?? .failure(
-            "A current host address is required. Import a fresh pairing config or compact pairing config code.",
+            "The scanned Ansight QR code does not contain a reachable Studio address.",
             code: PairingFailureCodes.hostAddressRequired
         )
     }
@@ -152,7 +173,6 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
         else {
             return nil
         }
-
         return candidate
     }
 
@@ -163,16 +183,36 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
         guard let simulatorLocalHostAddress else {
             return false
         }
-
-        return candidates.contains { $0.caseInsensitiveCompare(simulatorLocalHostAddress) == .orderedSame }
+        return candidates.contains {
+            $0.caseInsensitiveCompare(simulatorLocalHostAddress) == .orderedSame
+        }
     }
 
     private static func hostNetworkCheckMessage(discoveryHint: PairingDiscoveryHint?) -> String {
         if let wifiName = discoveryHint?.wifiName?.trimmingCharacters(in: .whitespacesAndNewlines),
            !wifiName.isEmpty {
-            return "Check that this device is on the same Wi-Fi network as the Ansight host. Last known host Wi-Fi: \(wifiName)."
+            return "Last known Studio Wi-Fi: \(wifiName)."
+        }
+        return "Check that both devices are on the same Wi-Fi network."
+    }
+}
+
+private enum PairingDeviceIdentity {
+    private static let key = "ai.ansight.enrollment.device-id"
+    private static let lock = NSLock()
+
+    static func resolve() -> String {
+        lock.lock()
+        defer { lock.unlock() }
+
+        if let existing = UserDefaults.standard.string(forKey: key)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+           !existing.isEmpty {
+            return existing
         }
 
-        return "Check that this device is on the same Wi-Fi network as the Ansight host."
+        let deviceId = "apple.\(UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased())"
+        UserDefaults.standard.set(deviceId, forKey: key)
+        return deviceId
     }
 }

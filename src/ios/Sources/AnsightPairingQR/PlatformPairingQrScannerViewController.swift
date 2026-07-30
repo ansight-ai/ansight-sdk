@@ -34,7 +34,7 @@ final class PlatformPairingQrScannerViewController: UIViewController, @MainActor
                 let presenter = try PlatformPairingPresenter.presentingViewController()
                 let title = request.title?.trimmingCharacters(in: .whitespacesAndNewlines)
                 let controller = PlatformPairingQrScannerViewController(
-                    requestedTitle: title?.isEmpty == false ? title! : "Scan Pairing QR",
+                    requestedTitle: title?.isEmpty == false ? title! : "Scan Ansight Enrollment QR",
                     continuation: continuation
                 )
                 presenter.present(controller, animated: true)
@@ -60,7 +60,7 @@ final class PlatformPairingQrScannerViewController: UIViewController, @MainActor
         overlay.layer.masksToBounds = true
 
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
-        statusLabel.text = "Point the camera at an Ansight pairing QR code."
+        statusLabel.text = "Point the camera at an Ansight enrollment QR code."
         statusLabel.textColor = .white
         statusLabel.textAlignment = .center
         statusLabel.numberOfLines = 0
@@ -122,7 +122,7 @@ final class PlatformPairingQrScannerViewController: UIViewController, @MainActor
     private func configureAndStart() async {
         do {
             guard await requestCameraAccessIfNeeded() else {
-                complete(with: .failure(RuntimeError.invalidInput("Camera access is required to scan an Ansight pairing QR code.")))
+                complete(with: .failure(RuntimeError.invalidInput("Camera access is required to scan an Ansight enrollment QR code.")))
                 return
             }
 
@@ -130,7 +130,7 @@ final class PlatformPairingQrScannerViewController: UIViewController, @MainActor
             captureSession.sessionPreset = .high
 
             guard let device = AVCaptureDevice.default(for: .video) else {
-                complete(with: .failure(RuntimeError.invalidInput("No camera is available to scan an Ansight pairing QR code.")))
+                complete(with: .failure(RuntimeError.invalidInput("No camera is available to scan an Ansight enrollment QR code.")))
                 return
             }
 

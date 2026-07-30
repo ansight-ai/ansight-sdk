@@ -17,6 +17,9 @@ dependencies {
 }
 ```
 
+Kotlin source projects need Kotlin Gradle plugin 1.8 or newer because the
+published SDK uses Kotlin 1.8 metadata.
+
 Minimal integrations can depend on only the packages they need:
 
 ```kotlin
@@ -30,7 +33,8 @@ dependencies {
 
 ## Quickstart
 
-Initialize from your `Application`:
+Initialize from your `Application`. No pairing file or build constant is
+required:
 
 ```kotlin
 import ai.ansight.Ansight
@@ -40,16 +44,21 @@ class MyApplication : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        Ansight.initializeAndActivate(
-            application = this,
-            options = Ansight.developerOptions(
-                bundledDeveloperConfigJson = BuildConfig.ANSIGHT_DEVELOPER_PAIRING_JSON,
-                clientName = "Android App",
-            ),
-        )
+        Ansight.initializeAndActivate(application = this)
     }
 }
 ```
+
+From a developer-only screen, scan the enrollment QR displayed by Studio:
+
+```kotlin
+Ansight.enrollFromQrCode(activity)
+```
+
+The first scan registers a random app-installation id and stores the
+registration in app-private storage. Later launches reconnect automatically.
+Google Code Scanner owns the camera interaction, so the app does not need the
+`CAMERA` permission.
 
 `Ansight.developerOptions(...)` applies the all-in-one developer preset:
 
@@ -95,7 +104,7 @@ AnsightRuntime.initializeAndActivate(
 | `toolGuard` | Controls remote-tool discovery and execution. |
 | `customProperties` | Grouped string properties sent with `session.open`. |
 | `hostAutoProbe` | Controls remembered-host retries after the host disappears and later reappears. |
-| `hostConnection` | Configures saved, bundled, and developer pairing sources. |
+| `hostConnection` | Configures enrollment reconnect and network policy. |
 | `secureStorage` | Defines secure-storage allow-lists for the secure storage tools. |
 | `initialTools` | Adds custom or package-provided tools at initialization. |
 | `artifactProviders` | Adds app-defined artifact catalogs and binary exports. |
@@ -128,15 +137,10 @@ val result = AnsightRuntime.connect(
 )
 ```
 
-Automatic connection tries:
+Automatic connection uses the app-private registration created by the first
+successful enrollment scan.
 
-1. `hostConnection.bundledDeveloperConfigJson`
-2. remembered host profiles, newest first
-3. saved pairing config
-4. `hostConnection.bundledConfigJson`
-
-Cellular host connections are disabled by default, including for bundled
-developer configs and QR scans. Remembered/saved profiles and manual connection
+Cellular host connections are disabled by default. Enrollment and reconnect
 requests use the same restriction. Opt in only for a trusted development host
 or personal hotspot:
 
@@ -147,8 +151,8 @@ val options = AnsightOptions.createBuilder()
 ```
 
 The underlying `allowCellularConnections` option can consume mobile data and
-allows connection attempts over a broader or carrier-managed network. Signed
-pairing-config validation remains required.
+allows connection attempts over a broader or carrier-managed network. Use it
+only with a trusted development host.
 
 Host auto-probe is enabled by default while the runtime is active. It remembers
 previous host connections and retries them so the app can reconnect after the
@@ -172,28 +176,10 @@ val options = AnsightOptions.createBuilder()
 Use `withoutHostAutoProbe()` for flows where reconnects should only happen
 after an explicit app action.
 
-Use explicit requests for override flows:
+The all-in-one package exposes the normal enrollment flow:
 
 ```kotlin
-AnsightRuntime.connect(
-    HostConnectionRequest(
-        kind = HostConnectionRequestKind.Payload,
-        payload = pairingJson,
-        clientName = "Android App",
-        expectedAppId = application.packageName,
-    ),
-)
-
-AnsightRuntime.savePairingConfig(pairingJson, expectedAppId = application.packageName)
-AnsightRuntime.clearSavedPairingConfig()
-AnsightRuntime.clearCachedSession()
-AnsightRuntime.disconnect()
-```
-
-The all-in-one package also exposes the Android pairing sheet:
-
-```kotlin
-Ansight.showPairingSheet(
+Ansight.enrollFromQrCode(
     activity = activity,
     clientName = "Android App",
     expectedAppId = activity.packageName,
@@ -203,8 +189,20 @@ Ansight.showPairingSheet(
 )
 ```
 
-Developer pairing JSON must not be shipped in release, CI, Play Store, or other
-distributable builds.
+If the app already owns a scanner, pass its result as an explicit payload:
+
+```kotlin
+AnsightRuntime.connect(
+    HostConnectionRequest(
+        kind = HostConnectionRequestKind.Payload,
+        payload = enrollmentPayload,
+        clientName = "Android App",
+        expectedAppId = application.packageName,
+    ),
+)
+```
+
+No pairing file or build secret is required.
 
 ## Telemetry
 

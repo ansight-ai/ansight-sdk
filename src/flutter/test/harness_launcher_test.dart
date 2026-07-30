@@ -4,11 +4,11 @@ import '../tool/run_harness.dart';
 
 void main() {
   group('buildHarnessPairingDocument', () {
-    test('wraps a signed public config without modifying it', () {
+    test('wraps an enrollment invite without modifying it', () {
       final config = <String, Object?>{
-        'schema': 'ansight.pairing-config.v1',
-        'configId': 'config-1',
-        'signature': 'signed-value',
+        'schema': 'ansight.enrollment-invite.v2',
+        'inviteId': 'invite-1',
+        'enrollment': <String, Object?>{'accessToken': 'token-value'},
       };
 
       final document = buildHarnessPairingDocument(
@@ -17,11 +17,11 @@ void main() {
         discoveryPort: 45123,
       );
 
-      expect(document['schema'], 'ansight.pairing-config-document.v1');
-      expect(document['config'], same(config));
+      expect(document['schema'], 'ansight.enrollment-invite-document.v2');
+      expect(document['invite'], same(config));
       expect(
-        document['config'],
-        containsPair('signature', 'signed-value'),
+        document['invite'],
+        containsPair('inviteId', 'invite-1'),
       );
       expect(
         document['discovery'],
@@ -36,10 +36,10 @@ void main() {
 
     test('adds the selected host first and preserves existing hints', () {
       final document = <String, Object?>{
-        'schema': 'ansight.pairing-config-document.v1',
-        'config': <String, Object?>{
-          'schema': 'ansight.pairing-config.v1',
-          'configId': 'config-2',
+        'schema': 'ansight.enrollment-invite-document.v2',
+        'invite': <String, Object?>{
+          'schema': 'ansight.enrollment-invite.v2',
+          'inviteId': 'invite-2',
         },
         'discovery': <String, Object?>{
           'hostAddresses': <Object?>['10.0.0.5', '192.168.1.20'],

@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using Ansight.Pairing;
+using Ansight.Native;
 using Ansight.Telemetry.Battery;
 using Ansight.Telemetry.Memory;
 using Ansight.Tools;
@@ -14,19 +15,25 @@ internal class RuntimeImpl : IRuntime
     private MemorySamplerThread? samplerThread;
     private readonly Lock samplerLock = new Lock();
     private readonly Lock appLifecycleLock = new();
+    private readonly Lock nativeTelemetrySyncLock = new();
     private long appLifecycleVersion;
+    private long lastNativeMetricSequence;
+    private long lastNativeEventSequence;
 
     private readonly MutableDataSink mutableDataSink;
+    private readonly IDataSink dataSink;
     private readonly IFrameRateMonitor frameRateMonitor;
     private readonly IBatteryLevelMonitor batteryLevelMonitor;
     private readonly ITouchCaptureSession touchCaptureSession;
-    private readonly HostSessionManager hostConnection;
-    private readonly HostPairingManager hostPairing;
+    private readonly HostSessionManager? managedHostConnection;
+    private readonly IHostConnection hostConnection;
     private readonly SessionCustomProperties customProperties;
+    private readonly INativeRuntimeBridge nativeRuntime;
+    private readonly bool usesNativeRuntime;
     private bool fpsTrackingEnabled;
     private readonly bool batteryLevelTrackingEnabled;
 
-    public IDataSink DataSink => mutableDataSink;
+    public IDataSink DataSink => dataSink;
     internal Options Options => options;
     internal PairingBinaryTransferHub BinaryTransferHub { get; } = new();
     internal TouchCaptureHub TouchCaptureHub { get; }
@@ -35,25 +42,37 @@ internal class RuntimeImpl : IRuntime
 
     public ToolProtocolBridge ToolBridge { get; }
 
-    public IHostConnection HostConnection => hostPairing;
+    public IHostConnection HostConnection => hostConnection;
 
     public RuntimeImpl(Options options)
     {
         this.options = options ?? throw new ArgumentNullException(nameof(options));
         mutableDataSink = new MutableDataSink(options);
+        dataSink = new RuntimeDataSink(mutableDataSink, this);
         frameRateMonitor = FrameRateMonitorFactory.Create();
         batteryLevelMonitor = BatteryLevelMonitorFactory.Create();
         TouchCaptureHub = new TouchCaptureHub(options.TouchCapture);
         touchCaptureSession = TouchCaptureSupport.CreateSession(TouchCaptureHub);
         customProperties = options.CustomProperties?.Clone() ?? new SessionCustomProperties();
+        nativeRuntime = NativeRuntimeBridgeFactory.Create(options);
+        usesNativeRuntime = nativeRuntime.IsAvailable;
         fpsTrackingEnabled = options.EnableFramesPerSecond;
         batteryLevelTrackingEnabled = options.EnableBatteryLevel && batteryLevelMonitor.IsSupported;
         ToolBridge = options.Tools.CreateBridge(options.ToolGuard);
-        hostConnection = new HostSessionManager(
-            this,
-            options.HostAutoProbe,
-            cachedProfileRetention: options.HostConnection.ConnectionProfileRetention);
-        hostPairing = new HostPairingManager(hostConnection, options.HostConnection);
+        if (usesNativeRuntime)
+        {
+            nativeRuntime.ConfigureToolProtocol(ToolBridge);
+            hostConnection = new NativeHostConnection(nativeRuntime, options.HostConnection);
+            BinaryTransferHub.AttachTransport(new NativePairingBinaryTransport(nativeRuntime));
+        }
+        else
+        {
+            managedHostConnection = new HostSessionManager(
+                this,
+                options.HostAutoProbe,
+                cachedProfileRetention: options.HostConnection.ConnectionProfileRetention);
+            hostConnection = new HostPairingManager(managedHostConnection, options.HostConnection);
+        }
         InitializeRuntimeFeatures();
     }
 
@@ -84,7 +103,7 @@ internal class RuntimeImpl : IRuntime
 
     internal event EventHandler? CustomPropertiesChanged;
 
-    internal Task<OperationResult> SendBinaryExtensionAsync(
+    internal async Task<OperationResult> SendBinaryExtensionAsync(
         string action,
         JsonObject payload,
         string fileName,
@@ -92,13 +111,70 @@ internal class RuntimeImpl : IRuntime
         ReadOnlyMemory<byte> content,
         CancellationToken cancellationToken)
     {
-        return hostConnection.SendBinaryExtensionAsync(
-            action,
-            payload,
-            fileName,
-            mimeType,
-            content,
+        if (managedHostConnection is not null)
+        {
+            return await managedHostConnection.SendBinaryExtensionAsync(
+                action,
+                payload,
+                fileName,
+                mimeType,
+                content,
+                cancellationToken);
+        }
+
+        const int chunkBytes = 64 * 1024;
+        var transferId = Guid.NewGuid();
+        var requestPayload = payload.DeepClone().AsObject();
+        requestPayload["transfer"] = new JsonObject
+        {
+            ["transferId"] = transferId.ToString("N"),
+            ["fileName"] = fileName,
+            ["mimeType"] = mimeType,
+            ["sizeBytes"] = content.Length,
+            ["chunkBytes"] = chunkBytes,
+            ["wireProtocol"] = PairingFileTransferWireProtocol.ProtocolName
+        };
+
+        var readyResult = await nativeRuntime.SendControlRequestAsync(
+            action.Trim(),
+            requestPayload.ToJsonString(PairingJson.Compact),
             cancellationToken);
+        if (!readyResult.Success)
+        {
+            return readyResult;
+        }
+
+        var sequence = 0;
+        var offset = 0;
+        while (offset < content.Length)
+        {
+            var length = Math.Min(chunkBytes, content.Length - offset);
+            var frame = PairingFileTransferWireProtocol.CreateFrame(
+                transferId,
+                PairingFileTransferFrameType.Chunk,
+                sequence,
+                offset,
+                content.Span.Slice(offset, length));
+            var sendResult = await nativeRuntime.SendBinaryAsync(frame, cancellationToken);
+            if (!sendResult.Success)
+            {
+                return sendResult;
+            }
+
+            sequence++;
+            offset += length;
+        }
+
+        var completeFrame = PairingFileTransferWireProtocol.CreateFrame(
+            transferId,
+            PairingFileTransferFrameType.Complete,
+            sequence,
+            offset,
+            ReadOnlySpan<byte>.Empty);
+        var completeResult = await nativeRuntime.SendBinaryAsync(completeFrame, cancellationToken);
+        return completeResult.Success
+            ? OperationResult.FromSuccess("Extension payload sent.")
+            : completeResult;
     }
 
     public void Activate()
@@ -110,38 +186,45 @@ internal class RuntimeImpl : IRuntime
                 return;
             }
 
-            if (ShouldTrackFps())
+            if (!usesNativeRuntime && ShouldTrackFps())
             {
                 frameRateMonitor.Start();
             }
 
-            if (ShouldTrackBatteryLevel())
+            if (!usesNativeRuntime && ShouldTrackBatteryLevel())
             {
                 batteryLevelMonitor.Start();
             }
 
             samplerThread = new MemorySamplerThread(options.SampleFrequencyMilliseconds, snapshot =>
             {
-                mutableDataSink.RecordMemorySnapshot(snapshot);
-                RecordFrameSample();
-                RecordBatteryLevelSample();
+                if (usesNativeRuntime)
+                {
+                    RecordManagedHeapSample(snapshot);
+                    SyncNativeTelemetry();
+                }
+                else
+                {
+                    mutableDataSink.RecordMemorySnapshot(snapshot);
+                    RecordFrameSample();
+                    RecordBatteryLevelSample();
+                }
             });
 
+            if (!usesNativeRuntime)
+            {
+                touchCaptureSession.Start();
+            }
+
+            if (usesNativeRuntime)
+            {
+                nativeRuntime.Activate();
+                SyncNativeTelemetry();
+            }
             IsActive = true;
-            touchCaptureSession.Start();
         }
 
-        hostConnection.OnRuntimeActivated();
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await hostPairing.HandleRuntimeActivatedAsync(CancellationToken.None);
-            }
-            catch
-            {
-            }
-        }, CancellationToken.None);
+        managedHostConnection?.OnRuntimeActivated();
         OnActivated?.Invoke(this, EventArgs.Empty);
     }
 
@@ -156,14 +239,78 @@ internal class RuntimeImpl : IRuntime
 
             samplerThread?.Dispose();
             samplerThread = null;
-            touchCaptureSession.Stop();
+            if (!usesNativeRuntime)
+            {
+                touchCaptureSession.Stop();
+            }
+            else
+            {
+                nativeRuntime.Deactivate();
+                SyncNativeTelemetry();
+            }
             IsActive = false;
         }
 
-        frameRateMonitor.Stop();
-        batteryLevelMonitor.Stop();
-        hostConnection.OnRuntimeDeactivated();
+        if (!usesNativeRuntime)
+        {
+            frameRateMonitor.Stop();
+            batteryLevelMonitor.Stop();
+        }
+        managedHostConnection?.OnRuntimeDeactivated();
         OnDeactivated?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void RecordManagedHeapSample(MemorySnapshot snapshot)
+    {
+        if (!options.DefaultMemoryChannels.HasFlag(DefaultMemoryChannels.ManagedHeap))
+        {
+            return;
+        }
+
+        nativeRuntime.Metric(
+            snapshot.ManagedHeapBytes,
+            Constants.ReservedChannels.ClrMemoryUsage_Id);
+    }
+
+    private void SyncNativeTelemetry()
+    {
+        if (!usesNativeRuntime)
+        {
+            return;
+        }
+
+        lock (nativeTelemetrySyncLock)
+        {
+            try
+            {
+                var snapshot = nativeRuntime.ReadTelemetrySnapshot(
+                    lastNativeMetricSequence,
+                    lastNativeEventSequence);
+                foreach (var metric in snapshot.Metrics.OrderBy(metric => metric.Sequence))
+                {
+                    mutableDataSink.ImportNativeMetric(
+                        metric.Value,
+                        metric.Channel,
+                        metric.CapturedAtUtc);
+                    lastNativeMetricSequence = Math.Max(lastNativeMetricSequence, metric.Sequence);
+                }
+
+                foreach (var nativeEvent in snapshot.Events.OrderBy(nativeEvent => nativeEvent.Sequence))
+                {
+                    mutableDataSink.ImportNativeEvent(
+                        nativeEvent.Label,
+                        nativeEvent.Type,
+                        nativeEvent.Channel,
+                        nativeEvent.Details,
+                        nativeEvent.CapturedAtUtc);
+                    lastNativeEventSequence = Math.Max(lastNativeEventSequence, nativeEvent.Sequence);
+                }
+            }
+            catch (Exception exception)
+            {
+                Logger.Warning($"Could not refresh the .NET view of native telemetry: {exception.Message}");
+            }
+        }
     }
 
     private void RecordFrameSample()
@@ -187,7 +334,11 @@ internal class RuntimeImpl : IRuntime
     public void EnableFramesPerSecond()
     {
         fpsTrackingEnabled = true;
-        if (IsActive)
+        if (usesNativeRuntime)
+        {
+            nativeRuntime.EnableFramesPerSecond();
+        }
+        else if (IsActive)
         {
             frameRateMonitor.Start();
         }
@@ -196,22 +347,41 @@ internal class RuntimeImpl : IRuntime
     public void DisableFramesPerSecond()
     {
         fpsTrackingEnabled = false;
-        frameRateMonitor.Stop();
+        if (usesNativeRuntime)
+        {
+            nativeRuntime.DisableFramesPerSecond();
+        }
+        else
+        {
+            frameRateMonitor.Stop();
+        }
     }
 
     public void EnableTouchCapture()
     {
         TouchCaptureHub.EnableRuntimeCapture();
+        if (usesNativeRuntime)
+        {
+            nativeRuntime.EnableTouchCapture();
+        }
     }
 
     public void DisableTouchCapture()
     {
         TouchCaptureHub.DisableRuntimeCapture();
+        if (usesNativeRuntime)
+        {
+            nativeRuntime.DisableTouchCapture();
+        }
     }
 
     public void SetTouchCaptureGuard(Func<bool>? guard)
     {
         TouchCaptureHub.SetRuntimeCaptureGuard(guard);
+        if (usesNativeRuntime)
+        {
+            nativeRuntime.SetTouchCaptureGuard(guard);
+        }
     }
 
     private bool ShouldTrackFps() => fpsTrackingEnabled;
@@ -236,82 +406,134 @@ internal class RuntimeImpl : IRuntime
 
     public void Metric(long value, byte channel)
     {
-        mutableDataSink.Metric(value, channel);
+        if (usesNativeRuntime)
+        {
+            nativeRuntime.Metric(value, channel);
+            SyncNativeTelemetry();
+        }
+        else
+        {
+            mutableDataSink.Metric(value, channel);
+        }
     }
 
     public void Event(string label)
     {
         if (string.IsNullOrWhiteSpace(label)) throw new ArgumentException("Value cannot be null or whitespace.", nameof(label));
 
-        mutableDataSink.Event(label);
+        RecordEvent(
+            label,
+            AppEventType.Info,
+            details: null,
+            Constants.ReservedChannels.ChannelNotSpecified_Id);
     }
 
     public void Event(string label, AppEventType type)
     {
         if (string.IsNullOrWhiteSpace(label)) throw new ArgumentException("Value cannot be null or whitespace.", nameof(label));
 
-        mutableDataSink.Event(label, type);
+        RecordEvent(
+            label,
+            type,
+            details: null,
+            Constants.ReservedChannels.ChannelNotSpecified_Id);
     }
 
     public void Event(string label, AppEventType type, string details)
     {
         if (string.IsNullOrWhiteSpace(label)) throw new ArgumentException("Value cannot be null or whitespace.", nameof(label));
 
-        mutableDataSink.Event(label, type, details);
+        RecordEvent(
+            label,
+            type,
+            details,
+            Constants.ReservedChannels.ChannelNotSpecified_Id);
     }
 
     public void Event(string label, byte channel)
     {
         if (string.IsNullOrWhiteSpace(label)) throw new ArgumentException("Value cannot be null or whitespace.", nameof(label));
 
-        mutableDataSink.Event(label, channel);
+        RecordEvent(label, AppEventType.Info, details: null, channel);
     }
 
     public void Event(string label, AppEventType type, byte channel)
     {
         if (string.IsNullOrWhiteSpace(label)) throw new ArgumentException("Value cannot be null or whitespace.", nameof(label));
 
-        mutableDataSink.Event(label, type, channel);
+        RecordEvent(label, type, details: null, channel);
     }
 
     public void Event(string label, AppEventType type, byte channel, string details)
     {
         if (string.IsNullOrWhiteSpace(label)) throw new ArgumentException("Value cannot be null or whitespace.", nameof(label));
 
-        mutableDataSink.Event(label, type, channel, details);
+        RecordEvent(label, type, details, channel);
+    }
+
+    private void RecordEvent(
+        string label,
+        AppEventType type,
+        string? details,
+        byte channel)
+    {
+        if (usesNativeRuntime)
+        {
+            nativeRuntime.Event(label, type, details, channel);
+            SyncNativeTelemetry();
+            return;
+        }
+
+        mutableDataSink.Event(label, type, channel, details ?? string.Empty);
     }
 
     public void ScreenViewed(string screenName)
     {
         if (string.IsNullOrWhiteSpace(screenName)) throw new ArgumentException("Value cannot be null or whitespace.", nameof(screenName));
 
-        mutableDataSink.ScreenViewed(screenName);
+        RecordScreenView(screenName, details: null, Constants.ReservedChannels.ChannelNotSpecified_Id);
     }
 
     public void ScreenViewed(string screenName, string details)
     {
         if (string.IsNullOrWhiteSpace(screenName)) throw new ArgumentException("Value cannot be null or whitespace.", nameof(screenName));
 
-        mutableDataSink.ScreenViewed(screenName, details);
+        RecordScreenView(screenName, details, Constants.ReservedChannels.ChannelNotSpecified_Id);
     }
 
     public void ScreenViewed(string screenName, byte channel)
     {
         if (string.IsNullOrWhiteSpace(screenName)) throw new ArgumentException("Value cannot be null or whitespace.", nameof(screenName));
 
-        mutableDataSink.ScreenViewed(screenName, channel);
+        RecordScreenView(screenName, details: null, channel);
     }
 
     public void ScreenViewed(string screenName, byte channel, string details)
     {
         if (string.IsNullOrWhiteSpace(screenName)) throw new ArgumentException("Value cannot be null or whitespace.", nameof(screenName));
 
-        mutableDataSink.ScreenViewed(screenName, channel, details);
+        RecordScreenView(screenName, details, channel);
+    }
+
+    private void RecordScreenView(string screenName, string? details, byte channel)
+    {
+        if (usesNativeRuntime)
+        {
+            nativeRuntime.ScreenViewed(screenName, details, channel);
+            SyncNativeTelemetry();
+            return;
+        }
+
+        mutableDataSink.ScreenViewed(screenName, channel, details ?? string.Empty);
     }
 
     public void RegisterCustomProperty(string group, string key, object? value)
     {
         customProperties.Register(group, key, value);
+        if (usesNativeRuntime)
+        {
+            nativeRuntime.RegisterCustomProperty(group, key, value);
+        }
         CustomPropertiesChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -320,6 +542,10 @@ internal class RuntimeImpl : IRuntime
         var removed = customProperties.Remove(group, key);
         if (removed)
         {
+            if (usesNativeRuntime)
+            {
+                nativeRuntime.RemoveCustomProperty(group, key);
+            }
             CustomPropertiesChanged?.Invoke(this, EventArgs.Empty);
         }
 
@@ -334,6 +560,10 @@ internal class RuntimeImpl : IRuntime
         }
 
         customProperties.Clear();
+        if (usesNativeRuntime)
+        {
+            nativeRuntime.ClearCustomProperties();
+        }
         CustomPropertiesChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -344,7 +574,20 @@ internal class RuntimeImpl : IRuntime
 
     public void Clear()
     {
-        mutableDataSink.Clear();
+        if (usesNativeRuntime)
+        {
+            nativeRuntime.Clear();
+            lock (nativeTelemetrySyncLock)
+            {
+                lastNativeMetricSequence = 0;
+                lastNativeEventSequence = 0;
+                mutableDataSink.Clear();
+            }
+        }
+        else
+        {
+            mutableDataSink.Clear();
+        }
     }
 
     internal bool SetAppLifecycleState(
@@ -363,6 +606,20 @@ internal class RuntimeImpl : IRuntime
             appLifecycleVersion = version;
         }
 
-        return mutableDataSink.SetAppLifecycleState(state, changedAtUtc, emitTransitionEvent);
+        var effectiveChangedAtUtc = changedAtUtc ?? DateTimeOffset.UtcNow;
+        var changed = mutableDataSink.SetAppLifecycleState(
+            state,
+            effectiveChangedAtUtc,
+            usesNativeRuntime ? false : emitTransitionEvent);
+        if (changed)
+        {
+            if (usesNativeRuntime)
+            {
+                nativeRuntime.SetAppLifecycleState(state, effectiveChangedAtUtc);
+                SyncNativeTelemetry();
+            }
+        }
+
+        return changed;
     }
 }

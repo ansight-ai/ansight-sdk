@@ -290,7 +290,8 @@ internal sealed class StoredPairingDocumentCache
 
             if (!string.Equals(schema, ProfilesSchema, StringComparison.Ordinal))
             {
-                return TryParseLegacyProfile(json, now, out profiles, out shouldRewrite, out error);
+                error = $"Unsupported cached host session schema '{schema ?? "<missing>"}'.";
+                return false;
             }
 
             var cacheFile = JsonSerializer.Deserialize<StoredPairingDocumentCacheFile>(json, PairingJson.Compact);
@@ -326,30 +327,6 @@ internal sealed class StoredPairingDocumentCache
             error = $"Failed to parse cached Ansight host session: {ex.Message}";
             return false;
         }
-    }
-
-    private bool TryParseLegacyProfile(
-        string json,
-        DateTimeOffset now,
-        out List<StoredPairingDocumentProfile> profiles,
-        out bool shouldRewrite,
-        out string error)
-    {
-        profiles = [];
-        shouldRewrite = true;
-
-        if (!configDocumentService.TryParseDocument(json, out var document, out error) || document is null)
-        {
-            return false;
-        }
-
-        var profile = CreateProfile(document, ResolveLastConnectedAt(document, now));
-        if (profile.ExpiresAtUtc > now)
-        {
-            profiles.Add(profile);
-        }
-
-        return true;
     }
 
     private StoredPairingDocumentProfile CreateProfile(StoredPairingDocumentCacheEntry entry, DateTimeOffset now)

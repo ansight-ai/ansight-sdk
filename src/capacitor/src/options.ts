@@ -238,13 +238,11 @@ export class AnsightOptionsBuilder implements AnsightOptionsBuilderApi {
 
   withBundledHostConnection(
     options: {
-      bundledDeveloperConfigJson?: string;
       bundledConfigJson?: string;
     } = {},
   ): this {
     return this.configureHostConnection((current) => ({
       ...current,
-      bundledDeveloperConfigJson: options.bundledDeveloperConfigJson,
       bundledConfigJson: options.bundledConfigJson,
     }));
   }

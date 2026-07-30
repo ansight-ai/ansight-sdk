@@ -139,7 +139,6 @@ class AnsightHostConnectionResult {
     this.configId,
     this.appId,
     this.resolvedHostAddress,
-    this.usedEmbeddedDeveloperPairing,
     this.discoverySource,
     this.hostId,
     this.hostName,
@@ -156,7 +155,6 @@ class AnsightHostConnectionResult {
   final String? configId;
   final String? appId;
   final String? resolvedHostAddress;
-  final bool? usedEmbeddedDeveloperPairing;
   final String? discoverySource;
   final String? hostId;
   final String? hostName;
@@ -174,9 +172,6 @@ class AnsightHostConnectionResult {
         configId: _nullableString(json['configId']),
         appId: _nullableString(json['appId']),
         resolvedHostAddress: _nullableString(json['resolvedHostAddress']),
-        usedEmbeddedDeveloperPairing: _nullableBool(
-          json['usedEmbeddedDeveloperPairing'],
-        ),
         discoverySource: _nullableString(json['discoverySource']),
         hostId: _nullableString(json['hostId']),
         hostName: _nullableString(json['hostName']),

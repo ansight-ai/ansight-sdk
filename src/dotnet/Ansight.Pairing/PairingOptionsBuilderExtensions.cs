@@ -13,7 +13,8 @@ public static class PairingOptionsBuilderExtensions
         return builder.ConfigureHostConnection(hostConnection =>
             hostConnection.UseConfigReader(new PlatformHostConnectionConfigReader(currentActivityProvider)));
     }
-#else
+#endif
+
     public static Options.OptionsBuilder WithPlatformPairing(this Options.OptionsBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
@@ -21,5 +22,4 @@ public static class PairingOptionsBuilderExtensions
         return builder.ConfigureHostConnection(hostConnection =>
             hostConnection.UseConfigReader(new PlatformHostConnectionConfigReader()));
     }
-#endif
 }

@@ -104,9 +104,6 @@ export interface AnsightOptions {
    * `hostAutoProbe`, and `hostConnection` explicitly for the workflow.
    */
   useNativeAllInOneDefaults?: boolean;
-  pairingConfig?: string | object;
-  bundledPairingConfig?: string | object;
-  pairingConfigJson?: string;
   clientName?: string;
   sampleFrequencyMilliseconds?: number;
   retentionPeriodSeconds?: number;
@@ -141,7 +138,6 @@ export interface AnsightOptions {
   hostConnection?: {
     savedConfigKey?: string;
     bundledConfigJson?: string;
-    bundledDeveloperConfigJson?: string;
     discoveryPort?: number;
     allowCellularConnections?: boolean;
     connectionProfileRetentionSeconds?: number;
@@ -209,7 +205,6 @@ export interface AnsightHostConnectionResult extends AnsightOperationResult {
   configId?: string;
   appId?: string;
   resolvedHostAddress?: string;
-  usedEmbeddedDeveloperPairing?: boolean;
   discoverySource?: string;
   hostId?: string;
   hostName?: string;
@@ -290,7 +285,6 @@ export class AnsightOptionsBuilder {
     ) => NonNullable<AnsightOptions["hostConnection"]> | void
   ): this;
   withBundledHostConnection(options?: {
-    bundledDeveloperConfigJson?: string;
     bundledConfigJson?: string;
   }): this;
   withHostConnectionDiscoveryPort(discoveryPort: number): this;
@@ -475,6 +469,10 @@ export interface AnsightConnectOptions {
   hostAddressOverride?: string;
 }
 
+export interface AnsightScanPairingOptions extends AnsightConnectOptions {
+  title?: string;
+}
+
 export interface AnsightOpenSessionOptions extends AnsightConnectOptions {}
 
 export interface AnsightSavePairingOptions {
@@ -516,6 +514,9 @@ export function screenViewed(name: string, details?: Record<string, string>): Pr
 export function trackRoute(name: string, details?: Record<string, string>): Promise<AnsightDebugSnapshot>;
 export function setAppLifecycleState(state: AnsightLifecycleState): Promise<AnsightDebugSnapshot>;
 export function connect(pairingPayload?: string | object | null, options?: AnsightConnectOptions): Promise<AnsightHostConnectionResult>;
+/** Scans a one-use Studio invite, registers this installation, and saves automatic reconnect state. */
+export function enrollFromQrCode(options?: AnsightScanPairingOptions): Promise<AnsightHostConnectionResult>;
+export function scanPairingQrCode(options?: AnsightScanPairingOptions): Promise<AnsightHostConnectionResult>;
 export function openSession(pairingPayload: string | object, options?: AnsightOpenSessionOptions): Promise<AnsightHostConnectionResult>;
 export function disconnect(): Promise<AnsightHostConnectionResult>;
 export function completeSession(): Promise<AnsightOperationResult>;
@@ -586,6 +587,8 @@ declare const Ansight: {
   trackRoute: typeof trackRoute;
   setAppLifecycleState: typeof setAppLifecycleState;
   connect: typeof connect;
+  enrollFromQrCode: typeof enrollFromQrCode;
+  scanPairingQrCode: typeof scanPairingQrCode;
   openSession: typeof openSession;
   disconnect: typeof disconnect;
   completeSession: typeof completeSession;

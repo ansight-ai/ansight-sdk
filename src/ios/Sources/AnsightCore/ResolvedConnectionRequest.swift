@@ -11,5 +11,4 @@ import UIKit
 struct ResolvedConnectionRequest {
     let document: ParsedPairingDocument
     let source: HostConnectionSource
-    let usedEmbeddedDeveloperPairing: Bool
 }

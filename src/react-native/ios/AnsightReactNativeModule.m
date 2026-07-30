@@ -47,6 +47,10 @@ RCT_EXTERN_METHOD(connect:(NSString *)pairingPayload
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 
+RCT_EXTERN_METHOD(scanPairingQrCode:(NSDictionary *)options
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+
 RCT_EXTERN_METHOD(openSession:(NSString *)pairingPayload
                   options:(NSDictionary *)options
                   resolver:(RCTPromiseResolveBlock)resolve

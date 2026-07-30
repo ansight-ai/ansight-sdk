@@ -33,30 +33,22 @@ This package version expects matching native SDK packages:
 ```ts
 import Ansight from "@ansight/react-native";
 
-const isDevelopmentOnly = __DEV__;
-
 await Ansight.initializeAndActivate({
-  useNativeAllInOneDefaults: isDevelopmentOnly,
+  useNativeAllInOneDefaults: __DEV__,
   clientName: "My React Native App",
-  hostAutoProbe: {
-    enabled: isDevelopmentOnly,
-    initialDelayMilliseconds: 1000,
-    probeIntervalMilliseconds: 5000,
-    reconnectDelayMilliseconds: 10000,
-    clientName: "My React Native App",
-  },
-  hostConnection: isDevelopmentOnly ? {
-    bundledDeveloperConfigJson: process.env.EXPO_PUBLIC_ANSIGHT_PAIRING_CONFIG_JSON,
-  } : undefined,
-  toolGuard: isDevelopmentOnly ? "readOnly" : "disabled",
+  toolGuard: __DEV__ ? "readOnly" : "disabled",
   lifecycle: true,
 });
 
-await Ansight.connect(null, {
+await Ansight.enrollFromQrCode({
   clientName: "My React Native App",
   expectedAppId: "com.example.app",
 });
 ```
+
+No pairing file, environment variable, or host address is required. The scan
+registers a random app-installation id and saves the registration; remembered
+connections then reconnect automatically.
 
 `useNativeAllInOneDefaults` defaults to `false`. It only applies the native
 iOS/Android all-in-one defaults: 400 ms sampling, 120 second retention, FPS,
@@ -92,7 +84,6 @@ The TypeScript `AnsightOptions` surface mirrors Android `AnsightOptions`, iOS
 | Option | Purpose |
 | --- | --- |
 | `useNativeAllInOneDefaults` | Applies native iOS/Android all-in-one defaults when true. Defaults to false. This enables the native visual-tree/screenshot tools required by Studio visual tree inspection unless `remoteTools.visualTree` is explicitly false. Configure `toolGuard`, capture options, and `hostConnection` separately. |
-| `pairingConfigJson` | Legacy top-level pairing JSON. Prefer `hostConnection.*`. |
 | `clientName` | Default client name for host auto-probe and connections. |
 | `sampleFrequencyMilliseconds` | Built-in telemetry sampling interval. |
 | `retentionPeriodSeconds` | Local metric/event retention window. |
@@ -107,14 +98,14 @@ The TypeScript `AnsightOptions` surface mirrors Android `AnsightOptions`, iOS
 | `toolGuard` | `"disabled"`, `"readOnly"`, `"readWrite"`, or `"fullAccess"`. |
 | `customProperties` | Grouped string properties sent with `session.open`. |
 | `hostAutoProbe` | Remembered-host retry settings for reconnecting after the host disappears and later reappears. |
-| `hostConnection` | Saved, bundled, and developer pairing settings. |
+| `hostConnection` | Enrollment reconnect and network policy. |
 | `secureStorage` | Compatibility alias for native secure-storage allow-list settings. |
 | `remoteTools` | Native visual tree, file, database, preferences, reflection, and secure-storage tool options. |
 | `lifecycle` | JS AppState tracking toggle. Defaults to true. |
 
 Cellular host connections are disabled by default. The restriction applies to
-bundled configs, QR/payload flows, remembered/saved profiles, and manual
-connections. Opt in only for a trusted development host or personal hotspot:
+enrollment and reconnect requests. Opt in only for a trusted development host
+or personal hotspot:
 
 ```ts
 const options = Ansight.createOptionsBuilder()
@@ -124,7 +115,7 @@ const options = Ansight.createOptionsBuilder()
 
 You can also set `hostConnection.allowCellularConnections: true` directly.
 This may consume mobile data and permits connection attempts over a broader or
-carrier-managed network; signed pairing-config validation still applies.
+carrier-managed network; use it only with a trusted development host.
 
 Example:
 
@@ -206,36 +197,35 @@ compatibility alias for `remoteTools.secureStorage`.
 
 ## Host Connection
 
-Use `connect(null, options)` for the default automatic flow:
+Scan the QR displayed by Studio for the normal first connection:
 
 ```ts
-await Ansight.connect(null, {
+await Ansight.enrollFromQrCode({
   clientName: "My React Native App",
   expectedAppId: "com.example.app",
 });
 ```
 
-Automatic connection tries:
-
-1. `hostConnection.bundledDeveloperConfigJson`
-2. native remembered host profiles, newest first
-3. saved pairing config
-4. `hostConnection.bundledConfigJson`
-
-Use explicit payloads for QR, paste, or app-owned import flows:
+After enrollment, `connect(null, options)` and host auto-probe use the
+remembered registration:
 
 ```ts
-await Ansight.connect(pairingJson, {
+await Ansight.connect(null, { clientName: "My React Native App" });
+```
+
+Automatic connection uses the app-private registration created by the first
+successful enrollment scan.
+
+If the app already owns a scanner, pass its result through the explicit payload
+API:
+
+```ts
+await Ansight.connect(enrollmentPayload, {
   clientName: "My React Native App",
   expectedAppId: "com.example.app",
   hostAddressOverride: "192.168.1.20",
 });
 
-await Ansight.savePairingConfig(pairingJson, {
-  expectedAppId: "com.example.app",
-});
-
-await Ansight.clearSavedPairing();
 await Ansight.clearCachedSession();
 await Ansight.disconnect();
 ```

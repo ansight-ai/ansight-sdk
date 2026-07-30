@@ -7,13 +7,6 @@ import 'package:flutter/material.dart';
 
 import 'harness_fixtures.dart';
 
-const String _bundledPairingConfigBase64 = String.fromEnvironment(
-  'ANSIGHT_PAIRING_CONFIG_BASE64',
-);
-final String _bundledPairingConfigJson =
-    _bundledPairingConfigBase64.trim().isEmpty
-    ? ''
-    : utf8.decode(base64Decode(_bundledPairingConfigBase64));
 const AnsightChannel _harnessMetricChannel = AnsightChannel(
   id: 42,
   name: 'Flutter harness operations',
@@ -23,6 +16,10 @@ const AnsightChannel _harnessMetricChannel = AnsightChannel(
   source: 'flutter',
   group: 'harness',
   kind: 'scenario',
+);
+
+const String _harnessEnrollmentInviteBase64 = String.fromEnvironment(
+  'ANSIGHT_ENROLLMENT_INVITE_BASE64',
 );
 
 void main() {
@@ -99,9 +96,6 @@ class _HarnessHomeState extends State<HarnessHome>
   int _metricValue = 10;
 
   AnsightOptions get _harnessOptions => AnsightOptions.developer(
-    pairingConfigJson: _bundledPairingConfigJson.trim().isEmpty
-        ? null
-        : _bundledPairingConfigJson,
     clientName: 'Ansight Flutter Harness',
     toolGuard: AnsightToolGuard.fullAccess,
   );
@@ -156,6 +150,34 @@ class _HarnessHomeState extends State<HarnessHome>
     await _registerHarnessTools();
     await _registerArtifactProvider();
     await _writeStateFixture();
+    if (_harnessEnrollmentInviteBase64.isNotEmpty) {
+      final payload = utf8.decode(
+        base64Decode(_harnessEnrollmentInviteBase64),
+      );
+      _pairingController.text = payload;
+      var result = await _ansight.connect(
+        pairingPayload: payload,
+        clientName: 'Ansight Flutter Harness',
+        expectedAppId: 'ai.ansight.flutter.harness',
+      );
+      if (!result.success) {
+        result = await _ansight.connect(
+          clientName: 'Ansight Flutter Harness',
+          expectedAppId: 'ai.ansight.flutter.harness',
+        );
+      }
+      if (!result.success) {
+        throw StateError(result.message);
+      }
+    } else {
+      final reconnect = await _ansight.connect(
+        clientName: 'Ansight Flutter Harness',
+        expectedAppId: 'ai.ansight.flutter.harness',
+      );
+      if (!reconnect.success) {
+        _append(reconnect.message);
+      }
+    }
     _connection = await _ansight.hostConnectionStatus();
     _initialized = true;
     return 'runtime=${_snapshot!.active}, tools=${_snapshot!.registeredTools}';
@@ -461,9 +483,9 @@ class _HarnessHomeState extends State<HarnessHome>
     return result;
   }
 
-  Future<void> _scanPairingQrCode() => _run(
-    'Scan pairing QR',
-    () => _ansight.scanPairingQrCode(
+  Future<void> _scanEnrollmentQrCode() => _run(
+    'Scan enrollment QR',
+    () => _ansight.enrollFromQrCode(
       clientName: 'Ansight Flutter Harness',
       expectedAppId: 'ai.ansight.flutter.harness',
     ),
@@ -475,7 +497,7 @@ class _HarnessHomeState extends State<HarnessHome>
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
         key: const Key('pairing-dialog'),
-        title: const Text('Pair with Ansight Studio'),
+        title: const Text('Enroll with Ansight Studio'),
         content: SizedBox(
           width: 520,
           child: Column(
@@ -483,8 +505,8 @@ class _HarnessHomeState extends State<HarnessHome>
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               const Text(
-                'Scan a signed Studio QR code with the native camera flow, '
-                'or paste the pairing payload.',
+                'Scan the one-use Studio enrollment QR. The app reconnects '
+                'automatically after the first successful scan.',
               ),
               const SizedBox(height: 14),
               TextField(
@@ -530,7 +552,7 @@ class _HarnessHomeState extends State<HarnessHome>
     }
     switch (result.action) {
       case PairingDialogAction.scanQr:
-        await _scanPairingQrCode();
+        await _scanEnrollmentQrCode();
         break;
       case PairingDialogAction.connectPayload:
         _pairingController.text = result.payload ?? '';
@@ -860,7 +882,7 @@ class _HarnessHomeState extends State<HarnessHome>
       actions: <Widget>[
         IconButton(
           key: const Key('open-pairing-dialog'),
-          tooltip: 'Pair with Studio',
+          tooltip: 'Enroll with Studio',
           onPressed: _busy ? null : _showPairingDialog,
           icon: const Icon(Icons.qr_code_scanner),
         ),
@@ -1053,22 +1075,9 @@ class _HarnessHomeState extends State<HarnessHome>
             ],
           ),
           _section(
-            'Host pairing and sessions',
-            'Paste JSON, a QR-decoded payload, or a pairing path.',
+            'Host enrollment and sessions',
+            'Scan once for normal use; payload controls exercise the lower-level test surface.',
             <Widget>[
-              Chip(
-                key: const Key('pairing-config-status'),
-                avatar: Icon(
-                  _bundledPairingConfigJson.trim().isEmpty
-                      ? Icons.link_off
-                      : Icons.verified_user,
-                ),
-                label: Text(
-                  _bundledPairingConfigJson.trim().isEmpty
-                      ? 'No bundled pairing config'
-                      : 'Signed pairing config bundled for this run',
-                ),
-              ),
               SizedBox(
                 width: 560,
                 child: TextField(
@@ -1077,14 +1086,14 @@ class _HarnessHomeState extends State<HarnessHome>
                   minLines: 2,
                   maxLines: 5,
                   decoration: const InputDecoration(
-                    labelText: 'Pairing payload',
-                    hintText: '{"hostAddress":"…"}',
+                    labelText: 'Enrollment payload',
+                    hintText: 'ans2… or {"schema":"ansight.enrollment-invite.v2",…}',
                     border: OutlineInputBorder(),
                   ),
                 ),
               ),
               _button(
-                'QR pairing dialog',
+                'QR enrollment dialog',
                 _showPairingDialog,
                 key: const Key('show-pairing-dialog'),
               ),
@@ -1116,9 +1125,9 @@ class _HarnessHomeState extends State<HarnessHome>
                 ),
               ),
               _button(
-                'Save pairing',
+                'Save enrollment',
                 () => _run(
-                  'Save pairing',
+                  'Save enrollment',
                   () => _ansight.savePairingConfig(_pairingPayload),
                 ),
               ),
@@ -1135,8 +1144,9 @@ class _HarnessHomeState extends State<HarnessHome>
                 () => _run('Close session', _ansight.closeSession),
               ),
               _button(
-                'Clear saved pairing',
-                () => _run('Clear saved pairing', _ansight.clearSavedPairing),
+                'Clear saved enrollment',
+                () =>
+                    _run('Clear saved enrollment', _ansight.clearSavedPairing),
               ),
               _button(
                 'Clear cached session',

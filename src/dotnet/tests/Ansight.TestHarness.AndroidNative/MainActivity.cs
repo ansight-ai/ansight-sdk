@@ -1,6 +1,7 @@
 using Android.App;
 using Android.OS;
 using Android.Widget;
+using Ansight.TestHarness.Native;
 
 namespace Ansight.TestHarness.AndroidNative;
 
@@ -28,13 +29,31 @@ public class MainActivity : Activity
             Orientation = Orientation.Vertical
         };
 
-        layout.AddView(BuildButton("Activate", Runtime.Activate));
-        layout.AddView(BuildButton("Deactivate", Runtime.Deactivate));
-        layout.AddView(BuildButton("Enable FPS", Runtime.EnableFramesPerSecond));
-        layout.AddView(BuildButton("Disable FPS", Runtime.DisableFramesPerSecond));
+        var nativeBindingStatus = new TextView(this);
+
+        void UpdateNativeBindingStatus()
+        {
+            nativeBindingStatus.Text = NativeBindingDiagnostics.GetStatus();
+        }
+
+        Button BuildRuntimeButton(string text, Action action)
+        {
+            return BuildButton(text, () =>
+            {
+                action();
+                UpdateNativeBindingStatus();
+            });
+        }
+
+        UpdateNativeBindingStatus();
+        layout.AddView(nativeBindingStatus);
+        layout.AddView(BuildRuntimeButton("Activate", Runtime.Activate));
+        layout.AddView(BuildRuntimeButton("Deactivate", Runtime.Deactivate));
+        layout.AddView(BuildRuntimeButton("Enable FPS", Runtime.EnableFramesPerSecond));
+        layout.AddView(BuildRuntimeButton("Disable FPS", Runtime.DisableFramesPerSecond));
         layout.AddView(BuildButton("Trigger .NET GC", TriggerGc));
-        layout.AddView(BuildButton("Create Test Event", () => Runtime.Event("Test Event")));
-        layout.AddView(BuildButton("Clear Data", Runtime.Clear));
+        layout.AddView(BuildRuntimeButton("Create Test Event", () => Runtime.Event("Test Event")));
+        layout.AddView(BuildRuntimeButton("Clear Data", Runtime.Clear));
         SetContentView(layout);
     }
 

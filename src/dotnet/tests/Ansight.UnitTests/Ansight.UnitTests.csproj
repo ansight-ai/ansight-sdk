@@ -38,7 +38,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Resources\bundled-developer-profile.txt" LogicalName="ansight.developer-pairing.json" />
     <EmbeddedResource Include="Resources\bundled-profile.txt" LogicalName="ansight.json" />
   </ItemGroup>
 

@@ -86,7 +86,6 @@ class AnsightOptionsTest {
     @Test
     fun developerDefaultsMatchNativeAggregateDefaults() {
         val options = AnsightDeveloperMode.options(
-            bundledDeveloperConfigJson = "{}",
             clientName = "Validation Client",
         ).validated()
 
@@ -97,7 +96,6 @@ class AnsightOptionsTest {
         assertEquals(AnsightToolGuard.FullAccess, options.toolGuard)
         assertEquals(true, options.hostAutoProbe.enabled)
         assertEquals("Validation Client", options.hostAutoProbe.clientName)
-        assertEquals("{}", options.hostConnection.bundledDeveloperConfigJson)
         assertFalse(options.hostConnection.allowCellularConnections)
         assertEquals(2_000, options.sessionJpegCapture?.intervalMilliseconds)
         assertEquals(60, options.sessionJpegCapture?.quality)
@@ -128,7 +126,7 @@ class AnsightOptionsTest {
             .withTouchCapture(moveCaptureFramesPerSecond = 12)
             .withReadWriteToolAccess()
             .registerCustomProperty(" runtime ", " sdk ", " android ")
-            .withBundledHostConnection(bundledDeveloperConfigJson = "{developer}", bundledConfigJson = "{profile}")
+            .withBundledHostConnection(bundledConfigJson = "{profile}")
             .withHostConnectionDiscoveryPort(45200)
             .withHostConnectionProfileRetentionSeconds(60)
             .withCellularHostConnections()
@@ -147,7 +145,6 @@ class AnsightOptionsTest {
         assertEquals(12, options.touchCapture?.moveCaptureFramesPerSecond)
         assertEquals(AnsightToolGuard.ReadWrite, options.toolGuard)
         assertEquals("android", options.customProperties["runtime"]?.get("sdk"))
-        assertEquals("{developer}", options.hostConnection.bundledDeveloperConfigJson)
         assertEquals("{profile}", options.hostConnection.bundledConfigJson)
         assertEquals(45200, options.hostConnection.discoveryPort)
         assertEquals(60, options.hostConnection.connectionProfileRetentionSeconds)

@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 
-const String _pairingDocumentSchema = 'ansight.pairing-config-document.v1';
-const String _pairingConfigSchema = 'ansight.pairing-config.v1';
+const String _enrollmentDocumentSchema =
+    'ansight.enrollment-invite-document.v2';
+const String _enrollmentInviteSchema = 'ansight.enrollment-invite.v2';
 const int _defaultDiscoveryPort = 45123;
 
 Future<void> main(List<String> arguments) async {
@@ -23,14 +24,14 @@ Future<void> main(List<String> arguments) async {
   Directory? temporaryDirectory;
   var commandExitCode = 0;
   try {
-    if (options.pairingConfigPath != null) {
-      final pairingConfig = await _readPairingConfig(
-        options.pairingConfigPath!,
+    if (options.enrollmentInvitePath != null) {
+      final enrollmentInvite = await _readEnrollmentInvite(
+        options.enrollmentInvitePath!,
       );
       final hostAddress =
           options.hostAddress ?? await _findDevelopmentHostAddress();
       final pairingDocument = buildHarnessPairingDocument(
-        pairingConfig,
+        enrollmentInvite,
         hostAddress: hostAddress,
         discoveryPort: options.discoveryPort,
       );
@@ -43,7 +44,7 @@ Future<void> main(List<String> arguments) async {
       );
       await definesFile.writeAsString(
         jsonEncode(<String, String>{
-          'ANSIGHT_PAIRING_CONFIG_BASE64': base64Encode(
+          'ANSIGHT_ENROLLMENT_INVITE_BASE64': base64Encode(
             utf8.encode(jsonEncode(pairingDocument)),
           ),
         }),
@@ -52,7 +53,7 @@ Future<void> main(List<String> arguments) async {
       flutterArguments.add('--dart-define-from-file=${definesFile.path}');
 
       stdout.writeln(
-        'Using signed pairing config with discovery host '
+        'Using Studio enrollment invite with discovery host '
         '$hostAddress:${options.discoveryPort}.',
       );
     }
@@ -82,11 +83,13 @@ Future<void> main(List<String> arguments) async {
   exitCode = commandExitCode;
 }
 
-Future<Map<String, Object?>> _readPairingConfig(String path) async {
+Future<Map<String, Object?>> _readEnrollmentInvite(String path) async {
   final source = await File(path).readAsString();
   final decoded = jsonDecode(source);
   if (decoded is! Map<String, Object?>) {
-    throw const FormatException('Pairing config must contain a JSON object.');
+    throw const FormatException(
+      'Enrollment invite must contain a JSON object.',
+    );
   }
   return decoded;
 }
@@ -98,20 +101,20 @@ Map<String, Object?> buildHarnessPairingDocument(
 }) {
   final schema = source['schema'];
   final Map<String, Object?> document;
-  if (schema == _pairingConfigSchema) {
+  if (schema == _enrollmentInviteSchema) {
     document = <String, Object?>{
-      'schema': _pairingDocumentSchema,
-      'config': source,
+      'schema': _enrollmentDocumentSchema,
+      'invite': source,
     };
-  } else if (schema == _pairingDocumentSchema) {
+  } else if (schema == _enrollmentDocumentSchema) {
     document = Map<String, Object?>.from(source);
-    if (document['config'] is! Map<String, Object?>) {
+    if (document['invite'] is! Map<String, Object?>) {
       throw const FormatException(
-        'Pairing document must contain a config object.',
+        'Enrollment document must contain an invite object.',
       );
     }
   } else {
-    throw FormatException('Unsupported pairing schema: $schema');
+    throw FormatException('Unsupported enrollment schema: $schema');
   }
 
   final existingDiscovery = document['discovery'];
@@ -198,7 +201,7 @@ class _HostAddressCandidate {
 class _HarnessLaunchOptions {
   const _HarnessLaunchOptions({
     required this.deviceId,
-    required this.pairingConfigPath,
+    required this.enrollmentInvitePath,
     required this.hostAddress,
     required this.discoveryPort,
     required this.release,
@@ -208,7 +211,7 @@ class _HarnessLaunchOptions {
 
   factory _HarnessLaunchOptions.parse(List<String> arguments) {
     String? deviceId;
-    String? pairingConfigPath;
+    String? enrollmentInvitePath;
     String? hostAddress;
     var discoveryPort = _defaultDiscoveryPort;
     var release = false;
@@ -230,8 +233,8 @@ class _HarnessLaunchOptions {
         case '-d':
           deviceId = nextValue(argument);
           break;
-        case '--pairing-config':
-          pairingConfigPath = nextValue(argument);
+        case '--enrollment-invite':
+          enrollmentInvitePath = nextValue(argument);
           break;
         case '--host-address':
           hostAddress = nextValue(argument);
@@ -262,7 +265,7 @@ class _HarnessLaunchOptions {
 
     return _HarnessLaunchOptions(
       deviceId: deviceId,
-      pairingConfigPath: pairingConfigPath,
+      enrollmentInvitePath: enrollmentInvitePath,
       hostAddress: hostAddress,
       discoveryPort: discoveryPort,
       release: release,
@@ -272,7 +275,7 @@ class _HarnessLaunchOptions {
   }
 
   final String? deviceId;
-  final String? pairingConfigPath;
+  final String? enrollmentInvitePath;
   final String? hostAddress;
   final int discoveryPort;
   final bool release;
@@ -281,20 +284,20 @@ class _HarnessLaunchOptions {
 }
 
 const String _usage = '''
-Launch the Ansight Flutter harness with optional signed pairing.
+Launch the Ansight Flutter harness with an optional Studio enrollment invite.
 
 Usage:
   dart run tool/run_harness.dart [options] [-- <flutter-run arguments>]
 
 Options:
   -d, --device <id>              Flutter device id.
-      --pairing-config <path>    Studio .ans.json pairing config.
+      --enrollment-invite <path> Studio enrollment-invite JSON.
       --host-address <address>   Studio host LAN address. Auto-detected.
       --discovery-port <port>    Pairing discovery port. Default: 45123.
       --release                  Run a release build.
   -h, --help                     Show this help.
 
-The launcher wraps a signed public config in a pairing document with LAN
-discovery metadata. It never modifies the signed config and removes the
-temporary Dart define file after flutter run exits.
+The launcher wraps an invite in an enrollment document with LAN discovery
+metadata. It never modifies the invite and removes the temporary Dart define
+file after flutter run exits.
 ''';

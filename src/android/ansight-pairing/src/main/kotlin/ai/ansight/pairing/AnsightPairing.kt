@@ -37,7 +37,7 @@ object AnsightPairing {
 
         override fun readConfigPayload(request: HostConnectionRequest): String? {
             val activity = activityProvider()
-                ?: throw IllegalStateException("QR pairing is unavailable because no Android activity is available.")
+                ?: throw IllegalStateException("QR enrollment is unavailable because no Android activity is available.")
             val latch = CountDownLatch(1)
             val payload = AtomicReference<String?>()
             val error = AtomicReference<Throwable?>()
@@ -55,7 +55,7 @@ object AnsightPairing {
             )
 
             if (!latch.await(timeoutMilliseconds.coerceAtLeast(1), TimeUnit.MILLISECONDS)) {
-                throw IllegalStateException("QR pairing timed out before a pairing payload was scanned.")
+                throw IllegalStateException("QR enrollment timed out before an Ansight code was scanned.")
             }
             error.get()?.let { throw it }
             return payload.get()
@@ -68,7 +68,7 @@ object AnsightPairing {
         onError: (Throwable) -> Unit = {},
     ) {
         if (activity.isFinishing || activity.isDestroyed) {
-            onError(IllegalStateException("QR pairing is unavailable because the current Android activity is no longer active."))
+            onError(IllegalStateException("QR enrollment is unavailable because the current Android activity is no longer active."))
             return
         }
 
@@ -84,6 +84,23 @@ object AnsightPairing {
                 .addOnCanceledListener(QrCanceledListener(onPayload))
         }
     }
+
+    @JvmOverloads
+    fun enrollFromQrCode(
+        activity: Activity,
+        clientName: String? = null,
+        expectedAppId: String? = activity.packageName,
+        hostAddressOverride: String? = null,
+        onResult: (HostConnectionResult) -> Unit = {},
+        onError: (Throwable) -> Unit = {},
+    ) = connectFromQrCode(
+        activity = activity,
+        clientName = clientName,
+        expectedAppId = expectedAppId,
+        hostAddressOverride = hostAddressOverride,
+        onResult = onResult,
+        onError = onError,
+    )
 
     @JvmOverloads
     fun connectFromQrCode(
@@ -140,11 +157,11 @@ object AnsightPairing {
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
         }
         val status = TextView(activity).apply {
-            text = "Scan a QR code or paste a pairing payload."
+            text = "Scan the enrollment QR shown in Ansight Studio."
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
         }
         val payloadInput = EditText(activity).apply {
-            hint = "Pairing payload"
+            hint = "Enrollment code"
             minLines = 4
             maxLines = 8
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
@@ -180,7 +197,7 @@ object AnsightPairing {
                             status.text = "Scan canceled."
                         } else {
                             payloadInput.setText(payload)
-                            status.text = "Pairing code detected."
+                            status.text = "Enrollment code detected."
                         }
                     }
                 },
@@ -196,7 +213,7 @@ object AnsightPairing {
         connectButton.setOnClickListener {
             val payload = payloadInput.text?.toString()?.trim().orEmpty()
             if (payload.isBlank()) {
-                status.text = "Paste or scan a pairing payload."
+                status.text = "Scan or paste an enrollment code."
                 return@setOnClickListener
             }
             connectButton.isEnabled = false

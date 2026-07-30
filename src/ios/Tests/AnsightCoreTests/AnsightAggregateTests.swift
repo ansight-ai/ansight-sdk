@@ -85,7 +85,7 @@ final class AnsightAggregateTests: XCTestCase {
     }
 
     func testObjCFacadeInitializesAndSamplesMetricStream() throws {
-        try ANSAnsight.initializeAndActivate(pairingConfigJson: nil, clientName: "ObjC Unit Test")
+        try ANSAnsight.initializeAndActivate(clientName: "ObjC Unit Test")
         defer {
             ANSAnsight.deactivate()
         }

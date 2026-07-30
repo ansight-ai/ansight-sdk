@@ -76,9 +76,6 @@ export interface AnsightRemoteToolsOptions {
 
 export interface AnsightOptions {
   useNativeAllInOneDefaults?: boolean;
-  pairingConfig?: string | object;
-  bundledPairingConfig?: string | object;
-  pairingConfigJson?: string;
   clientName?: string;
   sampleFrequencyMilliseconds?: number;
   retentionPeriodSeconds?: number;
@@ -112,7 +109,6 @@ export interface AnsightOptions {
   hostConnection?: {
     savedConfigKey?: string;
     bundledConfigJson?: string;
-    bundledDeveloperConfigJson?: string;
     discoveryPort?: number;
     allowCellularConnections?: boolean;
     connectionProfileRetentionSeconds?: number;
@@ -165,7 +161,6 @@ export interface AnsightHostConnectionResult extends AnsightOperationResult {
   configId?: string;
   appId?: string;
   resolvedHostAddress?: string;
-  usedEmbeddedDeveloperPairing?: boolean;
   discoverySource?: string;
   hostId?: string;
   hostName?: string;
@@ -457,10 +452,7 @@ export interface AnsightOptionsBuilderApi {
       options: NonNullable<AnsightOptions["hostConnection"]>,
     ) => NonNullable<AnsightOptions["hostConnection"]> | void,
   ): this;
-  withBundledHostConnection(options?: {
-    bundledDeveloperConfigJson?: string;
-    bundledConfigJson?: string;
-  }): this;
+  withBundledHostConnection(options?: { bundledConfigJson?: string }): this;
   withHostConnectionDiscoveryPort(discoveryPort: number): this;
   withCellularHostConnections(allow?: boolean): this;
   withHostConnectionProfileRetentionSeconds(

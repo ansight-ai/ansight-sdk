@@ -1,42 +1,21 @@
-import CryptoKit
 import XCTest
 @_spi(AnsightValidation) @testable import AnsightCore
 @testable import AnsightPairingQR
 
 final class PairingAndRuntimeTests: XCTestCase {
-    func testParseDocumentParsesPairingTicket() throws {
-        let config = TestPairingFactory.signedConfig(
-            configId: "cfg-ticket",
-            oneTimeToken: "token-ticket",
-            challengePubKey: "challenge-ticket"
-        )
-        let documentJson = try TestPairingFactory.ticketJSON(config: config)
+    func testParseDocumentParsesEnrollmentInviteDocument() throws {
+        let config = TestPairingFactory.enrollmentConfig(configId: "invite-document")
+        let documentJson = try TestPairingFactory.documentJSON(config: config)
 
         let document = try PairingConfigDocumentService().parseDocument(documentJson)
 
-        XCTAssertEqual(document.config.configId, "cfg-ticket")
-        XCTAssertEqual(document.config.oneTimeToken, "token-ticket")
-        XCTAssertEqual(document.config.challenge.challengePubKey, "challenge-ticket")
+        XCTAssertEqual(document.config.configId, "invite-document")
+        XCTAssertEqual(document.config.enrollment.accessToken, TestPairingFactory.accessToken)
         XCTAssertEqual(document.discoveryHint?.hostAddress, "127.0.0.1")
     }
 
-    func testParseDocumentAcceptsCompactPairingConfigCode() throws {
-        let compactCode = """
-        apc1:H4sIAAAAAAAC_4VSy27bMBD8FYPXRoKkxkatm9PUQJC4NVADORQ9MOLKIixxaT7sBoH_vUtLkZS4QSFCJHdmZx_cF2aLChrOcsaVldvKxZpLI9U2KlCVchsJLHwDysWHlF2x1sjyl__5jel3gmhFGaBG88IRwLVurdjErwIObAd95w0QuGiByYYAS4i01oNYOIKyZD6PkpTWJkny8_p0_hMN_mhpwL7lZZc8VLCRDWxwB4qoLuyjFCukdKjQsK_90z08E0n7p2hHp6uReUlVg9FUfIhYDrde7ESdqHhdA0FBktfUQvbt6-3PRbTOpjM2wvtQvaULaGDvqa61QSx_qKU0FJ9aznJnPFAE2tqEGxShewIOUKMGM_ieS73wpZbXNR4fuLqVtsADmOdelB5AcedNEBzOBIiB-o9Z6NGokq-jY9Gb4qzjvJAY7U3XxYUQ9FwWLMt_sUk6z-J09iVO4zSZEIPW2BSuSRy-Kfs9SmONhoq_nqbZ51a1m6EVd66CY7TixQ3ijtyPspTvBuxRLmV4A65DeR9NWNpNzun0F_eMyGk2AwAA
-        """
-
-        let document = try PairingConfigDocumentService().parseDocument(compactCode)
-
-        XCTAssertEqual(document.config.configId, "cfg-compact")
-        XCTAssertEqual(document.discoveryHint?.source, "studio-qr")
-        XCTAssertEqual(document.discoveryHint?.hostAddresses, ["192.168.1.10", "10.0.0.5"])
-        XCTAssertEqual(document.discoveryHint?.discoveryPort, 45123)
-        XCTAssertEqual(document.discoveryHint?.hostName, "Matthew-MacBook")
-        XCTAssertEqual(document.discoveryHint?.wifiName, "Ansight WiFi")
-    }
-
-    func testCompactPairingConfigCodeRoundTripsSignedDocument() throws {
-        let config = TestPairingFactory.signedConfig(configId: "cfg-compact-signed")
+    func testCompactEnrollmentCodeRoundTrips() throws {
+        let config = TestPairingFactory.enrollmentConfig(configId: "invite-compact")
         let configDocument = PairingConfigDocument(
             config: config,
             discovery: PairingDiscoveryHint(
@@ -52,14 +31,15 @@ final class PairingAndRuntimeTests: XCTestCase {
             expectedAppId: config.appId
         )
 
-        XCTAssertEqual(document.config.configId, "cfg-compact-signed")
+        XCTAssertTrue(compactCode.hasPrefix("ans2:"))
+        XCTAssertEqual(document.config.configId, "invite-compact")
         XCTAssertEqual(document.discoveryHint?.hostAddresses, ["127.0.0.1", "127.0.0.2"])
         XCTAssertEqual(document.discoveryHint?.discoveryPort, 45123)
     }
 
     func testOpenSessionUsesTicketDiscoveryHint() throws {
-        let config = TestPairingFactory.signedConfig()
-        let documentJson = try TestPairingFactory.ticketJSON(config: config)
+        let config = TestPairingFactory.enrollmentConfig()
+        let documentJson = try TestPairingFactory.documentJSON(config: config)
         XCTAssertNoThrow(
             try PairingConfigDocumentService().validateDocument(
                 ParsedPairingDocument(config: config),
@@ -82,24 +62,18 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertTrue(result.success)
         XCTAssertEqual(result.configId, config.configId)
         XCTAssertEqual(result.resolvedHostAddress, "127.0.0.1")
-        XCTAssertFalse(result.usedEmbeddedDeveloperPairing)
     }
 
-    func testParseDocumentRejectsLegacyBootstrapPayload() {
-        let bootstrapJson = """
-        {
-          "schema": "ansight.pairing-bootstrap.v1",
-          "pairingConfig": {}
-        }
-        """
+    func testParseDocumentRejectsUnsupportedSchema() {
+        let bootstrapJson = #"{"schema":"unsupported.enrollment","invite":{}}"#
 
         XCTAssertThrowsError(try PairingConfigDocumentService().parseDocument(bootstrapJson)) { error in
-            XCTAssertTrue((error as NSError).localizedDescription.contains("no longer supported"))
+            XCTAssertTrue((error as NSError).localizedDescription.contains("Unsupported enrollment invite schema"))
         }
     }
 
-    func testParseDocumentAcceptsBarePairingConfigPayload() throws {
-        let config = TestPairingFactory.signedConfig()
+    func testParseDocumentAcceptsBareEnrollmentInvitePayload() throws {
+        let config = TestPairingFactory.enrollmentConfig()
         let configJson = String(decoding: try JSONEncoder().encode(config), as: UTF8.self)
 
         let document = try PairingConfigDocumentService().parseDocument(configJson)
@@ -108,32 +82,17 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertNil(document.discoveryHint)
     }
 
-    func testParseDocumentAcceptsStudioPublicConfigWithoutDiscoveryPort() throws {
-        let config = TestPairingFactory.signedConfig()
-        let configJson = try TestPairingFactory.studioPublicConfigJSON(config: config)
+    func testValidationAllowsReconnectAfterInviteExpiry() throws {
+        var config = TestPairingFactory.enrollmentConfig()
+        config.expiresAt = "2020-01-01T00:00:00Z"
+        config.enrollment.expiresAt = config.expiresAt
 
-        let document = try PairingConfigDocumentService().parseAndValidateDocument(configJson, expectedAppId: config.appId)
-
-        XCTAssertEqual(document.config.configId, config.configId)
-        XCTAssertEqual(document.config.host.discoveryPort, PairingProtocolDefaults.discoveryPort)
-    }
-
-    func testPairingCanonicalJsonMatchesStudioEscaping() {
-        var config = TestPairingFactory.signedConfig(
-            oneTimeToken: "token+value",
-            challengePubKey: "challenge+key"
+        XCTAssertNoThrow(
+            try PairingConfigDocumentService().validateDocument(
+                ParsedPairingDocument(config: config),
+                expectedAppId: config.appId
+            )
         )
-        config.issuedAt = "2026-06-14T00:31:47.473808+00:00"
-        config.expiresAt = "2026-06-15T00:31:47.473808+00:00"
-
-        let signable = PairingCanonicalJSON.serializePairingConfigForSignature(config)
-
-        XCTAssertTrue(signable.contains(#""issuedAt":"2026-06-14T00:31:47.473808+00:00""#))
-        XCTAssertTrue(signable.contains(#""expiresAt":"2026-06-15T00:31:47.473808+00:00""#))
-        XCTAssertTrue(signable.contains(#""oneTimeToken":"token\u002Bvalue""#))
-        XCTAssertTrue(signable.contains(#""challengePubKey":"challenge\u002Bkey""#))
-        XCTAssertFalse(signable.contains(#""trust":"#))
-        XCTAssertFalse(signable.contains(#""issuedAt":"2026-06-14T00:31:47.473808\u002B00:00""#))
     }
 
     func testPairingConnectorReturnsWifiRequiredWhenWifiPreflightReportsNotConnected() async {
@@ -143,7 +102,7 @@ final class PairingAndRuntimeTests: XCTestCase {
             wifiStatusProvider: { .notConnected }
         )
         let document = ParsedPairingDocument(
-            config: TestPairingFactory.signedConfig(configId: "cfg-wifi-required"),
+            config: TestPairingFactory.enrollmentConfig(configId: "cfg-wifi-required"),
             discoveryHint: PairingDiscoveryHint(
                 hostAddress: "127.0.0.1",
                 discoveryPort: 45123,
@@ -155,8 +114,8 @@ final class PairingAndRuntimeTests: XCTestCase {
 
         XCTAssertFalse(attempt.success)
         XCTAssertEqual(attempt.failureCode, PairingFailureCodes.wifiRequired)
-        XCTAssertTrue(attempt.message.contains("not connected to Wi-Fi"))
-        XCTAssertTrue(attempt.message.contains("Last known host Wi-Fi: Studio Wi-Fi"))
+        XCTAssertTrue(attempt.message.contains("same Wi-Fi"))
+        XCTAssertTrue(attempt.message.contains("Last known Studio Wi-Fi: Studio Wi-Fi"))
         XCTAssertEqual(datagramClient.requestCount, 0)
     }
 
@@ -167,7 +126,7 @@ final class PairingAndRuntimeTests: XCTestCase {
             wifiStatusProvider: { .cellular }
         )
         let document = ParsedPairingDocument(
-            config: TestPairingFactory.signedConfig(configId: "cfg-cellular-disabled"),
+            config: TestPairingFactory.enrollmentConfig(configId: "cfg-cellular-disabled"),
             discoveryHint: PairingDiscoveryHint(hostAddress: "127.0.0.1", discoveryPort: 45_123)
         )
 
@@ -175,14 +134,15 @@ final class PairingAndRuntimeTests: XCTestCase {
 
         XCTAssertFalse(attempt.success)
         XCTAssertEqual(attempt.failureCode, PairingFailureCodes.wifiRequired)
-        XCTAssertTrue(attempt.message.contains("allowCellularConnections"))
+        XCTAssertTrue(attempt.message.contains("Cellular"))
         XCTAssertEqual(datagramClient.requestCount, 0)
     }
 
     func testPairingConnectorAttemptsCellularWhenCellularConnectionsAreEnabled() async throws {
         let response = ConnectResponse(
-            type: "CONNECT_RESP",
-            ver: 1,
+            type: "ENROLLMENT_RESULT",
+            ver: 2,
+            requestId: "",
             accepted: false,
             reason: "pairing-required",
             reasonMessage: "Need WebSocket handoff",
@@ -201,7 +161,7 @@ final class PairingAndRuntimeTests: XCTestCase {
             wifiStatusProvider: { .cellular }
         )
         let document = ParsedPairingDocument(
-            config: TestPairingFactory.signedConfig(configId: "cfg-cellular-enabled"),
+            config: TestPairingFactory.enrollmentConfig(configId: "cfg-cellular-enabled"),
             discoveryHint: PairingDiscoveryHint(hostAddress: "127.0.0.1", discoveryPort: 45_123)
         )
         let options = PairingConnectionOptions(allowCellularConnections: true)
@@ -236,8 +196,9 @@ final class PairingAndRuntimeTests: XCTestCase {
 
     func testPairingConnectorUsesSimulatorLocalHostWhenWifiPreflightReportsNotConnected() async throws {
         let response = ConnectResponse(
-            type: "CONNECT_RESP",
-            ver: 1,
+            type: "ENROLLMENT_RESULT",
+            ver: 2,
+            requestId: "",
             accepted: false,
             reason: "pairing-required",
             reasonMessage: "Need WebSocket handoff",
@@ -257,7 +218,7 @@ final class PairingAndRuntimeTests: XCTestCase {
             simulatorLocalHostAddressProvider: { "127.0.0.1" }
         )
         let document = ParsedPairingDocument(
-            config: TestPairingFactory.signedConfig(configId: "cfg-simulator-localhost"),
+            config: TestPairingFactory.enrollmentConfig(configId: "cfg-simulator-localhost"),
             discoveryHint: PairingDiscoveryHint(
                 discoveryPort: 45123,
                 wifiName: "Studio Wi-Fi"
@@ -279,7 +240,7 @@ final class PairingAndRuntimeTests: XCTestCase {
             wifiStatusProvider: { .connected }
         )
         let document = ParsedPairingDocument(
-            config: TestPairingFactory.signedConfig(configId: "cfg-wifi-timeout"),
+            config: TestPairingFactory.enrollmentConfig(configId: "cfg-wifi-timeout"),
             discoveryHint: PairingDiscoveryHint(
                 hostAddress: "127.0.0.1",
                 discoveryPort: 45123,
@@ -291,15 +252,16 @@ final class PairingAndRuntimeTests: XCTestCase {
 
         XCTAssertFalse(attempt.success)
         XCTAssertEqual(attempt.failureCode, PairingFailureCodes.udpBootstrapTimeout)
-        XCTAssertTrue(attempt.message.contains("Last known host Wi-Fi: Studio Wi-Fi"))
-        XCTAssertTrue(attempt.message.contains("remembered host address may be stale"))
+        XCTAssertTrue(attempt.message.contains("Last known Studio Wi-Fi: Studio Wi-Fi"))
+        XCTAssertTrue(attempt.message.contains("Scan a fresh QR code"))
         XCTAssertEqual(datagramClient.requestCount, 1)
     }
 
     func testPairingConnectorTriesNextDiscoveryAddressWhenFirstTimesOut() async throws {
         let response = ConnectResponse(
-            type: "CONNECT_RESP",
-            ver: 1,
+            type: "ENROLLMENT_RESULT",
+            ver: 2,
+            requestId: "",
             accepted: false,
             reason: "pairing-required",
             reasonMessage: "Need WebSocket handoff",
@@ -320,7 +282,7 @@ final class PairingAndRuntimeTests: XCTestCase {
             wifiStatusProvider: { .connected }
         )
         let document = ParsedPairingDocument(
-            config: TestPairingFactory.signedConfig(configId: "cfg-multi-address"),
+            config: TestPairingFactory.enrollmentConfig(configId: "cfg-multi-address"),
             discoveryHint: PairingDiscoveryHint(
                 hostAddresses: ["192.0.2.1", "127.0.0.1"],
                 discoveryPort: 45123,
@@ -358,7 +320,7 @@ final class PairingAndRuntimeTests: XCTestCase {
     }
 
     func testParseDocumentAcceptsPairingConfigDocumentPayload() throws {
-        let config = TestPairingFactory.signedConfig(configId: "cfg-document")
+        let config = TestPairingFactory.enrollmentConfig(configId: "cfg-document")
         let configDocument = PairingConfigDocument(
             config: config,
             discovery: PairingDiscoveryHint(source: "document-test", hostAddress: "127.0.0.2", discoveryPort: 45123)
@@ -373,10 +335,6 @@ final class PairingAndRuntimeTests: XCTestCase {
     }
 
     func testAutoConnectionUsesCachedPairingProfileBeforeSavedConfig() throws {
-        try XCTSkipIf(
-            AnsightDeveloperMode.embeddedPairingJson != nil,
-            "Embedded developer pairing intentionally takes precedence over cached test stores."
-        )
         let savedStore = MemoryPairingConfigStore()
         let cachedStore = MemoryPairingConfigStore()
         try savedStore.save(TestPairingFactory.configDocumentJSON(configId: "cfg-saved", hostAddress: "127.0.0.1"))
@@ -398,10 +356,6 @@ final class PairingAndRuntimeTests: XCTestCase {
     }
 
     func testAutoConnectionOrdersCachedPairingProfilesNewestFirst() throws {
-        try XCTSkipIf(
-            AnsightDeveloperMode.embeddedPairingJson != nil,
-            "Embedded developer pairing intentionally takes precedence over cached test stores."
-        )
         let savedStore = MemoryPairingConfigStore()
         let cachedStore = MemoryPairingConfigStore()
         try savedStore.save(TestPairingFactory.configDocumentJSON(configId: "cfg-saved", hostAddress: "127.0.0.1"))
@@ -434,32 +388,21 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertEqual(resolved[2].source, .savedConfig)
     }
 
-    func testLegacySingleCachedPairingProfileMigratesToCollectionDocument() throws {
-        let cachedStore = MemoryPairingConfigStore()
-        try cachedStore.save(
-            TestPairingFactory.cachedProfileJSON(
-                configId: "cfg-legacy",
-                hostAddress: "127.0.0.2",
-                wifiName: "Legacy Wi-Fi"
-            )
-        )
+    func testAutoConnectionClearsInvalidSavedRegistration() throws {
+        let savedStore = MemoryPairingConfigStore()
+        savedStore.save(#"{"schema":"unsupported.enrollment","invite":{}}"#)
 
         try AnsightRuntime.shared.initialize(options: AnsightOptions(hostAutoProbe: .disabledDefault))
         try AnsightRuntime.shared.activate()
-        AnsightRuntime.shared.replacePairingStoresForTesting(saved: MemoryPairingConfigStore(), cached: cachedStore)
-
-        let resolved = try AnsightRuntime.shared.resolveConnectionRequestForTesting(.auto())
-        XCTAssertEqual(resolved.document.config.configId, "cfg-legacy")
-
-        let rewrittenJson = try XCTUnwrap(cachedStore.load())
-        let rewritten = try JSONDecoder.ansightDecoder.decode(
-            CachedPairingProfileCollectionDocument.self,
-            from: Data(rewrittenJson.utf8)
+        AnsightRuntime.shared.replacePairingStoresForTesting(
+            saved: savedStore,
+            cached: MemoryPairingConfigStore()
         )
-        XCTAssertEqual(rewritten.schema, CachedPairingProfileCollectionDocument.schemaName)
-        XCTAssertEqual(rewritten.profiles.count, 1)
-        XCTAssertEqual(rewritten.profiles[0].networkKey, "wifi:Legacy Wi-Fi")
-        XCTAssertEqual(rewritten.profiles[0].wifiName, "Legacy Wi-Fi")
+
+        XCTAssertThrowsError(try AnsightRuntime.shared.resolveConnectionRequestsForTesting(.auto())) { error in
+            XCTAssertTrue(error.localizedDescription.contains("Scan an enrollment QR"))
+        }
+        XCTAssertNil(savedStore.load())
     }
 
     func testCachedPairingProfileSaveRefreshesMatchingWifiNetwork() throws {
@@ -577,10 +520,6 @@ final class PairingAndRuntimeTests: XCTestCase {
     }
 
     func testExpiredCachedPairingProfileFallsBackToSavedConfig() throws {
-        try XCTSkipIf(
-            AnsightDeveloperMode.embeddedPairingJson != nil,
-            "Embedded developer pairing intentionally takes precedence over cached test stores."
-        )
         let savedStore = MemoryPairingConfigStore()
         let cachedStore = MemoryPairingConfigStore()
         try savedStore.save(TestPairingFactory.configDocumentJSON(configId: "cfg-saved", hostAddress: "127.0.0.1"))
@@ -608,10 +547,6 @@ final class PairingAndRuntimeTests: XCTestCase {
     }
 
     func testAutoConnectionRetriesCachedProfilesInResolvedOrder() async throws {
-        try XCTSkipIf(
-            AnsightDeveloperMode.embeddedPairingJson != nil,
-            "Embedded developer pairing intentionally takes precedence over cached test stores."
-        )
         let cachedStore = MemoryPairingConfigStore()
         try cachedStore.save(
             TestPairingFactory.cachedProfileCollectionJSON([
@@ -655,10 +590,6 @@ final class PairingAndRuntimeTests: XCTestCase {
     }
 
     func testAutoConnectionFallsBackFromSavedConfigToBundledConfigWhenSavedConfigIsStale() async throws {
-        try XCTSkipIf(
-            AnsightDeveloperMode.embeddedPairingJson != nil,
-            "Embedded developer pairing intentionally takes precedence over cached test stores."
-        )
         let savedStore = MemoryPairingConfigStore()
         try savedStore.save(TestPairingFactory.configDocumentJSON(configId: "cfg-saved", hostAddress: "127.0.0.2"))
         let bundledJson = try TestPairingFactory.configDocumentJSON(configId: "cfg-bundled", hostAddress: "127.0.0.3")
@@ -765,10 +696,6 @@ final class PairingAndRuntimeTests: XCTestCase {
     }
 
     func testForegroundLifecycleImmediatelyReconnectsCachedSessionWhenDisconnected() async throws {
-        try XCTSkipIf(
-            AnsightDeveloperMode.embeddedPairingJson != nil,
-            "Embedded developer pairing intentionally takes precedence over cached test stores."
-        )
         let cachedStore = MemoryPairingConfigStore()
         try cachedStore.save(TestPairingFactory.cachedProfileJSON(configId: "cfg-foreground", hostAddress: "127.0.0.4"))
         let connector = FakePairingSessionConnector(
@@ -1394,19 +1321,6 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertEqual(report.allowBundledTools, expectedAllowBundledTools)
     }
 
-    func testEmbeddedDeveloperPairingIsAvailableWhenExpected() throws {
-        try XCTSkipUnless(
-            ProcessInfo.processInfo.environment["EXPECT_EMBEDDED_PAIRING"] == "true",
-            "Set EXPECT_EMBEDDED_PAIRING=true when building with embedded developer pairing."
-        )
-
-        let embeddedJson = try XCTUnwrap(AnsightDeveloperMode.embeddedPairingJson)
-        let parsed = try PairingConfigDocumentService().parseAndValidateDocument(embeddedJson)
-
-        XCTAssertEqual(parsed.discoveryHint?.source, "developer-pairing-swiftpm")
-        XCTAssertFalse(parsed.config.configId.isEmpty)
-    }
-
     private func readInt32(_ data: Data, at index: Int) -> Int32 {
         var value: Int32 = 0
         _ = withUnsafeMutableBytes(of: &value) { buffer in
@@ -1462,48 +1376,37 @@ private final class HostConnectionStatusRecorder: @unchecked Sendable {
 }
 
 private enum TestPairingFactory {
-    static func signedConfig(
+    static let accessToken = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+
+    static func enrollmentConfig(
         configId: String = "cfg-1",
-        appId: String = "com.ansight.test",
-        oneTimeToken: String = "token-1",
-        challengePubKey: String = "challenge-key"
+        appId: String = "com.ansight.test"
     ) -> PairingConfig {
-        let privateKey = P256.Signing.PrivateKey()
         let issuedAt = timestamp(Date().addingTimeInterval(-60))
         let expiresAt = timestamp(Date().addingTimeInterval(600))
-
-        var config = PairingConfig(
+        return PairingConfig(
             configId: configId,
             appId: appId,
             appName: "Ansight Tests",
             issuedAt: issuedAt,
             expiresAt: expiresAt,
-            oneTimeToken: oneTimeToken,
             host: PairingHost(
                 hostId: "host-1",
                 hostName: "test-host",
-                discoveryPort: 45123,
-                hostPubKey: privateKey.publicKey.derRepresentation.base64EncodedString(),
-                hostPubKeyFingerprint: "fingerprint-1"
+                discoveryPort: 45123
             ),
-            challenge: PairingChallenge(
-                alg: "ECDH-P256",
-                challengePubKey: challengePubKey,
-                requireProofOnFirstPair: true
-            ),
-            signature: ""
+            enrollment: PairingEnrollment(
+                accessToken: accessToken,
+                expiresAt: expiresAt,
+                grantExpiresAt: timestamp(Date().addingTimeInterval(86_400))
+            )
         )
-
-        let signable = PairingCanonicalJSON.serializePairingConfigForSignature(config)
-        let signature = try! privateKey.signature(for: Data(signable.utf8))
-        config.signature = signature.derRepresentation.base64EncodedString()
-        return config
     }
 
-    static func ticketJSON(
+    static func documentJSON(
         config: PairingConfig
     ) throws -> String {
-        let ticket = PairingTicket(
+        let document = PairingConfigDocument(
             config: config,
             discovery: PairingDiscoveryHint(
                 source: "unit-test",
@@ -1515,31 +1418,7 @@ private enum TestPairingFactory {
             )
         )
 
-        let data = try JSONEncoder().encode(ticket)
-        return String(decoding: data, as: UTF8.self)
-    }
-
-    static func studioPublicConfigJSON(config: PairingConfig) throws -> String {
-        let object: [String: Any] = [
-            "schema": config.schema,
-            "configId": config.configId,
-            "appId": config.appId,
-            "appName": config.appName,
-            "issuedAt": config.issuedAt,
-            "expiresAt": config.expiresAt,
-            "oneTimeToken": config.oneTimeToken,
-            "host": [
-                "hostPubKey": config.host.hostPubKey,
-                "hostPubKeyFingerprint": config.host.hostPubKeyFingerprint,
-            ],
-            "challenge": [
-                "alg": config.challenge.alg,
-                "challengePubKey": config.challenge.challengePubKey,
-                "requireProofOnFirstPair": config.challenge.requireProofOnFirstPair,
-            ],
-            "signature": config.signature,
-        ]
-        let data = try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+        let data = try JSONEncoder().encode(document)
         return String(decoding: data, as: UTF8.self)
     }
 
@@ -1571,7 +1450,9 @@ private enum TestPairingFactory {
             expiresAt: expiresAt,
             appId: appId
         )
-        let data = try JSONEncoder.ansightEncoder.encode(profile)
+        let data = try JSONEncoder.ansightEncoder.encode(
+            CachedPairingProfileCollectionDocument(profiles: [profile])
+        )
         return String(decoding: data, as: UTF8.self)
     }
 
@@ -1607,7 +1488,7 @@ private enum TestPairingFactory {
         appId: String? = nil
     ) -> PairingConfigDocument {
         PairingConfigDocument(
-            config: signedConfig(configId: configId, appId: appId ?? runtimeAppId()),
+            config: enrollmentConfig(configId: configId, appId: appId ?? runtimeAppId()),
             discovery: PairingDiscoveryHint(
                 source: "unit-test",
                 hostAddress: hostAddress,

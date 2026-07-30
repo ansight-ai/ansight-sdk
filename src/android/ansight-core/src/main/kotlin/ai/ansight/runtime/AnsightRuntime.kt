@@ -22,6 +22,7 @@ object AnsightRuntime {
     private val connector = PairingSessionConnector(
         simulatorLocalHostAddressProvider = { PairingSimulatorLocalHostAddress.resolve() },
         networkStatusProvider = { PairingNetworkPreflight.getStatus(application) },
+        applicationProvider = { application },
     )
     private var options: AnsightOptions = AnsightOptions()
     private var initialized = false
@@ -68,8 +69,13 @@ object AnsightRuntime {
     private val touches = mutableListOf<RecordedTouch>()
     private val channels = linkedMapOf<Int, AnsightChannel>()
     private val metricStreams = linkedMapOf<Int, AnsightMetricStream>()
+    private val externallyManagedMetricChannels = mutableSetOf<Int>()
     private val tools = linkedMapOf<String, AnsightToolDescriptor>()
     private val toolRegistry = AndroidToolRegistry()
+    private var externalToolProtocolHandler: ExternalToolProtocolHandler? = null
+    private var externalToolProtocolResponseSentHandler: ((String) -> Unit)? = null
+    private var externalToolIds: List<String> = emptyList()
+    private var externalToolCategories: List<String> = emptyList()
     private val hostConnectionStatusListeners = linkedMapOf<Int, HostConnectionStatusListener>()
     private val nextHostConnectionStatusListenerId = AtomicInteger(1)
     private var lastPublishedHostConnectionStatus: HostConnectionStatus? = null
@@ -86,11 +92,16 @@ object AnsightRuntime {
             channels.clear()
             channels.putAll(makeChannelDictionary(validated))
             metricStreams.clear()
+            externallyManagedMetricChannels.clear()
             metrics.clear()
             events.clear()
             touches.clear()
             tools.clear()
             toolRegistry.clear()
+            externalToolProtocolHandler = null
+            externalToolProtocolResponseSentHandler = null
+            externalToolIds = emptyList()
+            externalToolCategories = emptyList()
             validated.initialTools.forEach { tool -> registerToolLocked(tool) }
             if (validated.artifactProviders.isNotEmpty()) {
                 AndroidArtifactTools.create { this.options.artifactProviders }
@@ -234,6 +245,18 @@ object AnsightRuntime {
         }
     }
 
+    fun setMetricChannelExternallyManaged(channel: Int, externallyManaged: Boolean) {
+        synchronized(lock) {
+            require(initialized) { "AnsightRuntime must be initialized before configuring metric channels." }
+            require(channels.containsKey(channel)) { "Metric channel $channel is not configured." }
+            if (externallyManaged) {
+                externallyManagedMetricChannels += channel
+            } else {
+                externallyManagedMetricChannels -= channel
+            }
+        }
+    }
+
     fun metric(value: Long, channel: Int = AnsightChannels.Unspecified) {
         synchronized(lock) {
             require(initialized) { "AnsightRuntime must be initialized before recording metrics." }
@@ -272,7 +295,11 @@ object AnsightRuntime {
         streamPendingTelemetry()
     }
 
-    fun screenViewed(name: String, details: Map<String, String> = emptyMap()) {
+    fun screenViewed(
+        name: String,
+        details: Map<String, String> = emptyMap(),
+        channel: Int = AnsightChannels.Lifecycle,
+    ) {
         val trimmedName = name.trim()
         require(trimmedName.isNotBlank()) { "Screen name must not be blank." }
 
@@ -289,7 +316,7 @@ object AnsightRuntime {
                     label = trimmedName,
                     type = AnsightEventType.ScreenViewed,
                     details = detailsText,
-                    channel = AnsightChannels.Lifecycle,
+                    channel = validateChannel(channel),
                     sequence = ++nextEventSequence,
                 ),
             )
@@ -442,16 +469,13 @@ object AnsightRuntime {
     fun clearSavedPairingConfig(): HostConnectionResult {
         val app = synchronized(lock) { application }
             ?: return HostConnectionResult.failure("AnsightRuntime is not initialized.", HostConnectionActionKind.ClearSavedConfig)
-        app.getSharedPreferences(options.hostConnection.savedConfigKey, Application.MODE_PRIVATE)
-            .edit()
-            .clear()
-            .apply()
+        clearStoredPairingProfile(app)
         synchronized(lock) {
             stopAutoProbeLocked()
-            sessionMessage = "Saved pairing config cleared."
+            sessionMessage = "Saved Studio registration cleared."
         }
         val result = HostConnectionResult.success(
-            "Saved pairing config cleared.",
+            "Saved Studio registration cleared.",
             kind = HostConnectionActionKind.ClearSavedConfig,
             source = HostConnectionSource.SavedConfig,
         )
@@ -487,7 +511,6 @@ object AnsightRuntime {
                 status.summaryMessage,
                 kind = HostConnectionActionKind.NotifyConfigChanged,
                 source = when {
-                    options.hostConnection.bundledDeveloperConfigJson != null -> HostConnectionSource.BundledDeveloperConfig
                     options.hostConnection.bundledConfigJson != null -> HostConnectionSource.BundledConfig
                     else -> HostConnectionSource.ConfigReader
                 },
@@ -507,7 +530,7 @@ object AnsightRuntime {
             PairingConfigDocumentService.parseAndValidateDocument(pairingJson, normalizedExpectedAppId)
             savePairingConfigLocked(app, pairingJson)
             startAutoProbeIfNeeded(app)
-            val result = HostConnectionResult.success("Saved pairing config.", source = HostConnectionSource.SavedConfig)
+            val result = HostConnectionResult.success("Saved Studio registration.", source = HostConnectionSource.SavedConfig)
             publishHostConnectionStatusIfChanged()
             result
         } catch (ex: Exception) {
@@ -628,6 +651,38 @@ object AnsightRuntime {
     fun isToolRegistered(toolId: String): Boolean =
         synchronized(lock) { toolRegistry.contains(toolId) }
 
+    fun setExternalToolProtocolHandler(handler: ExternalToolProtocolHandler?) {
+        synchronized(lock) {
+            externalToolProtocolHandler = handler
+            sessionMessage = if (handler == null) {
+                "External tool protocol handler cleared."
+            } else {
+                "External tool protocol handler registered."
+            }
+        }
+    }
+
+    fun setExternalToolProtocolCallback(handler: ((String) -> String?)?) {
+        setExternalToolProtocolHandler(
+            handler?.let { callback ->
+                ExternalToolProtocolHandler { requestJson -> callback(requestJson) }
+            },
+        )
+    }
+
+    fun setExternalToolProtocolResponseSentCallback(handler: ((String) -> Unit)?) {
+        synchronized(lock) {
+            externalToolProtocolResponseSentHandler = handler
+        }
+    }
+
+    fun setExternalToolCatalog(toolIds: List<String>, toolCategories: List<String>) {
+        synchronized(lock) {
+            externalToolIds = toolIds.distinct()
+            externalToolCategories = toolCategories.distinct()
+        }
+    }
+
     @JvmOverloads
     fun registerTool(tool: AnsightToolDescriptor, replaceExisting: Boolean = false) {
         require(tool.id.isNotBlank()) { "Tool id must not be blank." }
@@ -672,6 +727,23 @@ object AnsightRuntime {
             PairingControlActions.ClientLog,
             JSONObject().put("data", trimmed),
         )
+    }
+
+    fun sendControlRequest(action: String, payload: JSONObject?): OperationResult {
+        val normalizedAction = action.trim()
+        if (normalizedAction.isEmpty()) {
+            return OperationResult.failure("A control request action is required.")
+        }
+
+        val transport = synchronized(lock) { liveTransport }
+            ?: return OperationResult.failure("WebSocket session is not open.")
+        return transport.sendControlRequest(normalizedAction, payload)
+    }
+
+    fun sendBinaryData(bytes: ByteArray): OperationResult {
+        val transport = synchronized(lock) { liveTransport }
+            ?: return OperationResult.failure("WebSocket session is not open.")
+        return transport.sendData(bytes)
     }
 
     fun updateCustomProperties(customProperties: Map<String, Map<String, String>>): OperationResult {
@@ -844,26 +916,40 @@ object AnsightRuntime {
         val app = synchronized(lock) { application ?: error("AnsightRuntime has no application context.") }
         val candidates = resolveConnectionCandidates(app, request)
         if (candidates.isEmpty()) {
-            AnsightLogger.warning("No pairing config is available for ${request.kind}.")
+            AnsightLogger.warning("No Studio registration is available for ${request.kind}.")
             return HostConnectionResult.failure(
-                "No pairing config is available.",
+                "No Studio registration is available. Scan an enrollment QR in Ansight Studio.",
                 kind = HostConnectionActionKind.Connect,
                 source = sourceFor(request.kind),
-                reasonCode = PairingFailureCodes.PairingRequired,
+                reasonCode = PairingFailureCodes.EnrollmentRequired,
             )
         }
 
         var lastResult: HostConnectionResult? = null
-        for (candidate in candidates) {
+        var finalCandidateWasClearedSavedRegistration = false
+        for ((index, candidate) in candidates.withIndex()) {
             val result = connectCandidate(app, request, candidate)
             if (result.success) {
                 return result
             }
-            if (request.kind == HostConnectionRequestKind.Auto &&
-                candidate.source == HostConnectionSource.CachedSession &&
-                shouldClearCachedPairingProfile(result.reasonCode)
-            ) {
-                clearCachedPairingProfile(app, candidate.networkKey)
+            if (request.kind == HostConnectionRequestKind.Auto) {
+                when (candidate.source) {
+                    HostConnectionSource.CachedSession -> {
+                        if (shouldClearCachedPairingProfile(result.reasonCode)) {
+                            clearCachedPairingProfile(app, candidate.networkKey)
+                        }
+                    }
+                    HostConnectionSource.SavedConfig -> {
+                        if (shouldClearStoredPairingProfile(result.reasonCode)) {
+                            clearStoredPairingProfile(app)
+                            finalCandidateWasClearedSavedRegistration = index == candidates.lastIndex
+                            AnsightLogger.warning(
+                                "Saved Studio registration is invalid and was cleared. Scan a fresh enrollment QR code.",
+                            )
+                        }
+                    }
+                    else -> Unit
+                }
             }
             lastResult = result
             if (request.kind != HostConnectionRequestKind.Auto) {
@@ -871,11 +957,26 @@ object AnsightRuntime {
             }
         }
 
+        if (finalCandidateWasClearedSavedRegistration) {
+            val message = "No Studio registration is available. Scan an enrollment QR in Ansight Studio."
+            synchronized(lock) {
+                connectionState = HostConnectionState.Disconnected
+                sessionMessage = message
+            }
+            publishHostConnectionStatusIfChanged()
+            return HostConnectionResult.failure(
+                message,
+                kind = HostConnectionActionKind.Connect,
+                source = HostConnectionSource.AutoProbe,
+                reasonCode = PairingFailureCodes.EnrollmentRequired,
+            )
+        }
+
         return lastResult ?: HostConnectionResult.failure(
-            "No pairing config is available.",
+            "No Studio registration is available. Scan an enrollment QR in Ansight Studio.",
             kind = HostConnectionActionKind.Connect,
             source = sourceFor(request.kind),
-            reasonCode = PairingFailureCodes.PairingRequired,
+            reasonCode = PairingFailureCodes.EnrollmentRequired,
         )
     }
 
@@ -942,7 +1043,6 @@ object AnsightRuntime {
                 configId = document.config.configId,
                 appId = document.config.appId,
                 resolvedHostAddress = attempt.hostAddress,
-                usedEmbeddedDeveloperPairing = candidate.usedEmbeddedDeveloperPairing,
                 discoverySource = document.discoveryHint?.source,
                 reasonCode = attempt.failureCode ?: attempt.connectResponse?.reason,
                 hostId = attempt.connectResponse?.hostId,
@@ -1051,7 +1151,6 @@ object AnsightRuntime {
             configId = document.config.configId,
             appId = document.config.appId,
             resolvedHostAddress = attempt.hostAddress,
-            usedEmbeddedDeveloperPairing = candidate.usedEmbeddedDeveloperPairing,
             discoverySource = document.discoveryHint?.source,
             reasonCode = attempt.connectResponse.reason,
             hostId = attempt.connectResponse.hostId,
@@ -1095,16 +1194,9 @@ object AnsightRuntime {
                 saved()?.let { ResolvedConnectionCandidate(it, HostConnectionSource.SavedConfig) },
             )
             HostConnectionRequestKind.BundledConfig -> listOfNotNull(
-                options.hostConnection.bundledDeveloperConfigJson?.let {
-                    ResolvedConnectionCandidate(it, HostConnectionSource.BundledDeveloperConfig, usedEmbeddedDeveloperPairing = true)
-                },
                 options.hostConnection.bundledConfigJson?.let { ResolvedConnectionCandidate(it, HostConnectionSource.BundledConfig) },
             )
-            HostConnectionRequestKind.Auto -> listOfNotNull(
-                options.hostConnection.bundledDeveloperConfigJson?.let {
-                    ResolvedConnectionCandidate(it, HostConnectionSource.BundledDeveloperConfig, usedEmbeddedDeveloperPairing = true)
-                },
-            ) + cached() + listOfNotNull(
+            HostConnectionRequestKind.Auto -> cached() + listOfNotNull(
                 saved()?.let { ResolvedConnectionCandidate(it, HostConnectionSource.SavedConfig) },
                 options.hostConnection.bundledConfigJson?.let { ResolvedConnectionCandidate(it, HostConnectionSource.BundledConfig) },
             )
@@ -1132,8 +1224,16 @@ object AnsightRuntime {
     private fun sendSessionProperties(): OperationResult {
         val payload = synchronized(lock) {
             val visibleTools = toolRegistry.visible(options.toolGuard)
-            val toolIds = visibleTools.map { it.definition.id }
-            val toolCategories = visibleTools.map { it.definition.category }.distinct()
+            val toolIds = if (externalToolProtocolHandler == null) {
+                visibleTools.map { it.definition.id }
+            } else {
+                externalToolIds
+            }
+            val toolCategories = if (externalToolProtocolHandler == null) {
+                visibleTools.map { it.definition.category }.distinct()
+            } else {
+                externalToolCategories
+            }
             val capabilities = (
                 listOf(
                     "runtime",
@@ -1211,8 +1311,47 @@ object AnsightRuntime {
             return
         }
         when (json.optionalString("type")) {
-            ToolProtocol.QueryType -> sendToolCatalog(json)
-            ToolProtocol.CallType -> executeToolCall(json)
+            ToolProtocol.QueryType, ToolProtocol.CallType -> {
+                val externalHandler = synchronized(lock) { externalToolProtocolHandler }
+                if (externalHandler == null) {
+                    if (json.optionalString("type") == ToolProtocol.QueryType) {
+                        sendToolCatalog(json)
+                    } else {
+                        executeToolCall(json)
+                    }
+                } else {
+                    executeExternalToolProtocol(text, json, externalHandler)
+                }
+            }
+        }
+    }
+
+    private fun executeExternalToolProtocol(
+        messageJson: String,
+        request: JSONObject,
+        handler: ExternalToolProtocolHandler,
+    ) {
+        Thread {
+            val response = try {
+                handler.handle(messageJson)
+            } catch (ex: Exception) {
+                toolErrorEnvelope(
+                    request,
+                    "tool_execution_exception",
+                    ex.message ?: "External tool execution failed.",
+                ).toString()
+            }
+            if (!response.isNullOrBlank()) {
+                val sendResult = synchronized(lock) { liveTransport }?.sendText(response)
+                if (sendResult?.success == true) {
+                    synchronized(lock) { externalToolProtocolResponseSentHandler }
+                        ?.invoke(messageJson)
+                }
+            }
+        }.apply {
+            name = "AnsightAndroidExternalToolCall"
+            isDaemon = true
+            start()
         }
     }
 
@@ -1556,13 +1695,22 @@ object AnsightRuntime {
                 return
             }
 
-            if (options.defaultMemoryChannels.javaHeap) {
+            if (
+                options.defaultMemoryChannels.javaHeap &&
+                AnsightChannels.JavaHeap !in externallyManagedMetricChannels
+            ) {
                 recordMetricLocked(AndroidMetricSampler.javaHeapBytes(), AnsightChannels.JavaHeap)
             }
-            if (options.defaultMemoryChannels.nativeHeap) {
+            if (
+                options.defaultMemoryChannels.nativeHeap &&
+                AnsightChannels.NativeHeap !in externallyManagedMetricChannels
+            ) {
                 recordMetricLocked(AndroidMetricSampler.nativeHeapBytes(), AnsightChannels.NativeHeap)
             }
-            if (options.defaultMemoryChannels.rss) {
+            if (
+                options.defaultMemoryChannels.rss &&
+                AnsightChannels.Rss !in externallyManagedMetricChannels
+            ) {
                 val rss = AndroidMetricSampler.rssBytes()
                 if (rss > 0) {
                     recordMetricLocked(rss, AnsightChannels.Rss)
@@ -1759,7 +1907,7 @@ object AnsightRuntime {
         val connected = sessionOpen && liveTransport?.isOpen == true && connectionState == HostConnectionState.Connected
         val hasSaved = app?.let { loadSavedPairingConfig(it) != null } ?: false
         val hasCached = app?.let { loadCachedPairingProfiles(it).isNotEmpty() } ?: false
-        val hasBundled = options.hostConnection.bundledConfigJson != null || options.hostConnection.bundledDeveloperConfigJson != null
+        val hasBundled = options.hostConnection.bundledConfigJson != null
         return HostConnectionStatus(
             isRuntimeActive = active,
             isConnected = connected,
@@ -1879,7 +2027,7 @@ object AnsightRuntime {
                 "No remembered Ansight host profile is available.",
                 kind = HostConnectionActionKind.Connect,
                 source = HostConnectionSource.CachedSession,
-                reasonCode = PairingFailureCodes.PairingRequired,
+                reasonCode = PairingFailureCodes.EnrollmentRequired,
             )
         }
 
@@ -1899,7 +2047,7 @@ object AnsightRuntime {
             "No remembered Ansight host profile is available.",
             kind = HostConnectionActionKind.Connect,
             source = HostConnectionSource.CachedSession,
-            reasonCode = PairingFailureCodes.PairingRequired,
+            reasonCode = PairingFailureCodes.EnrollmentRequired,
         )
     }
 
@@ -2035,18 +2183,26 @@ object AnsightRuntime {
     private fun reasonCodeFor(error: Throwable): String? {
         val message = error.message.orEmpty()
         return when {
-            message.contains("expired", ignoreCase = true) -> PairingFailureCodes.PairingTokenExpired
-            message.contains("signature", ignoreCase = true) -> PairingFailureCodes.PairingProofInvalid
-            message.contains("appId", ignoreCase = true) -> PairingFailureCodes.PairingRequired
+            message.contains("expired", ignoreCase = true) -> PairingFailureCodes.RegistrationExpired
+            message.contains("appId", ignoreCase = true) -> PairingFailureCodes.EnrollmentRequired
+            error is IllegalArgumentException -> PairingFailureCodes.EnrollmentRequired
             else -> null
         }
     }
 
+    private fun shouldClearStoredPairingProfile(reasonCode: String?): Boolean =
+        reasonCode == PairingFailureCodes.EnrollmentRequired ||
+            reasonCode == PairingFailureCodes.EnrollmentExpired ||
+            reasonCode == PairingFailureCodes.EnrollmentConsumed ||
+            reasonCode == PairingFailureCodes.AccessTokenInvalid ||
+            reasonCode == PairingFailureCodes.RegistrationExpired
+
     private fun shouldClearCachedPairingProfile(reasonCode: String?): Boolean =
-        reasonCode == PairingFailureCodes.PairingRequired ||
-            reasonCode == PairingFailureCodes.PairingTokenInvalid ||
-            reasonCode == PairingFailureCodes.PairingTokenExpired ||
-            reasonCode == PairingFailureCodes.PairingProofInvalid ||
+        reasonCode == PairingFailureCodes.EnrollmentRequired ||
+            reasonCode == PairingFailureCodes.EnrollmentExpired ||
+            reasonCode == PairingFailureCodes.EnrollmentConsumed ||
+            reasonCode == PairingFailureCodes.AccessTokenInvalid ||
+            reasonCode == PairingFailureCodes.RegistrationExpired ||
             reasonCode == PairingFailureCodes.UdpBootstrapFailed ||
             reasonCode == PairingFailureCodes.UdpBootstrapTimeout ||
             reasonCode == PairingFailureCodes.HostAddressRequired
@@ -2056,6 +2212,13 @@ object AnsightRuntime {
             .getString("payload", null)
             ?.trim()
             ?.ifBlank { null }
+    }
+
+    private fun clearStoredPairingProfile(app: Application) {
+        app.getSharedPreferences(options.hostConnection.savedConfigKey, Application.MODE_PRIVATE)
+            .edit()
+            .clear()
+            .apply()
     }
 
     private fun savePairingConfigLocked(app: Application, payload: String) {
@@ -2070,10 +2233,6 @@ object AnsightRuntime {
         val preferences = app.getSharedPreferences(cachedPairingProfileKey(), Application.MODE_PRIVATE)
         val loadResult = CachedPairingProfilesCodec.load(
             profilesJson = preferences.getString("profiles", null),
-            legacyPayload = preferences.getString("payload", null),
-            legacyHostAddress = preferences.getString("hostAddress", null),
-            legacyCachedAtEpochMs = preferences.getLong("cachedAtEpochMs", 0L),
-            legacyExpiresAtEpochMs = preferences.getLong("expiresAtEpochMs", 0L),
             nowEpochMs = System.currentTimeMillis(),
         )
         if (loadResult.shouldRewrite) {
@@ -2179,7 +2338,6 @@ object AnsightRuntime {
         val payload: String,
         val source: HostConnectionSource,
         val shouldSaveOnSuccess: Boolean = false,
-        val usedEmbeddedDeveloperPairing: Boolean = false,
         val hostAddressOverride: String? = null,
         val networkKey: String? = null,
     )

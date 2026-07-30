@@ -6,6 +6,8 @@ cd "$(dirname "$0")"
 configuration="${1:-Release}"
 products_dir="$(pwd)/products"
 projects=(
+  "Ansight.Native.Android.Binding/Ansight.Native.Android.Binding.csproj"
+  "Ansight.Native.Apple.Binding/Ansight.Native.Apple.Binding.csproj"
   "Ansight.Core/Ansight.Core.csproj"
   "Ansight.Annotations/Ansight.Annotations.csproj"
   "Ansight.OfflineCapture/Ansight.OfflineCapture.csproj"

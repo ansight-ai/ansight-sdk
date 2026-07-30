@@ -2,8 +2,7 @@ import Foundation
 import zlib
 
 public enum PairingConfigCodeGenerator {
-    public static let formatPrefix = "apc1"
-    public static let legacyFormatPrefix = "apt1"
+    public static let formatPrefix = "ans2"
 
     public static func serialize(_ document: PairingConfigDocument) throws -> String {
         let jsonData = try JSONEncoder.ansightEncoder.encode(document)
@@ -13,32 +12,20 @@ public enum PairingConfigCodeGenerator {
 
     public static func tryParse(_ payload: String) -> PairingConfigDocument? {
         let normalizedPayload = payload.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let prefix = compactPrefix(in: normalizedPayload) else {
+        guard normalizedPayload.hasPrefix("\(formatPrefix):") else {
             return nil
         }
 
-        let encodedPayload = normalizedPayload.dropFirst(prefix.count + 1)
+        let encodedPayload = normalizedPayload.dropFirst(formatPrefix.count + 1)
         guard let compressedData = base64UrlDecode(String(encodedPayload)),
               let jsonData = try? gunzip(compressedData),
               let document = try? JSONDecoder.ansightDecoder.decode(PairingConfigDocument.self, from: jsonData),
-              document.schema == PairingConfigDocument.schemaName || document.schema == PairingConfigDocument.legacySchemaName
+              document.schema == PairingConfigDocument.schemaName
         else {
             return nil
         }
 
         return document
-    }
-
-    private static func compactPrefix(in payload: String) -> String? {
-        if payload.hasPrefix("\(formatPrefix):") {
-            return formatPrefix
-        }
-
-        if payload.hasPrefix("\(legacyFormatPrefix):") {
-            return legacyFormatPrefix
-        }
-
-        return nil
     }
 
     private static func base64UrlEncode(_ data: Data) -> String {
@@ -105,7 +92,7 @@ public enum PairingConfigCodeGenerator {
                 }
 
                 guard status == Z_OK || status == Z_STREAM_END else {
-                    throw PairingDocumentError.invalidDocument("Failed to gzip pairing config document.")
+                    throw PairingDocumentError.invalidDocument("Failed to gzip enrollment invite.")
                 }
 
                 let written = chunkSize - Int(stream.avail_out)
@@ -151,7 +138,7 @@ public enum PairingConfigCodeGenerator {
                 }
 
                 guard status == Z_OK || status == Z_STREAM_END else {
-                    throw PairingDocumentError.invalidDocument("Failed to decompress compact pairing config code.")
+                    throw PairingDocumentError.invalidDocument("Failed to decompress enrollment QR code.")
                 }
 
                 let written = chunkSize - Int(stream.avail_out)

@@ -182,12 +182,10 @@ class AnsightOptionsBuilder @JvmOverloads constructor(
 
     @JvmOverloads
     fun withBundledHostConnection(
-        bundledDeveloperConfigJson: String? = null,
         bundledConfigJson: String? = null,
     ): AnsightOptionsBuilder {
         return configureHostConnection { hostConnection ->
             hostConnection.copy(
-                bundledDeveloperConfigJson = bundledDeveloperConfigJson,
                 bundledConfigJson = bundledConfigJson,
             )
         }

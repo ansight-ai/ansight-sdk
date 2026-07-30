@@ -14,7 +14,7 @@ matrix, including framework-specific and .NET-only workflows.
 | --- | --- | --- | --- | --- | --- |
 | Core runtime | `Ansight.Core` | `ai.ansight:ansight-core-android` | `AnsightCore` | Native dependency | Native dependency |
 | All-in-one runtime | `Ansight` | `ai.ansight:ansight-android` | `Ansight` | `@ansight/react-native` | `@ansight/capacitor` |
-| Pairing UI | `Ansight.Pairing` | `ai.ansight:ansight-pairing-android` | `AnsightPairingQR` | App-owned payload flow | App-owned payload flow |
+| Pairing UI | `Ansight.Pairing` | `ai.ansight:ansight-pairing-android` | `AnsightPairingQR` | Native QR bridge | Native QR bridge |
 | App artifact providers | `Ansight.Core` | `ai.ansight:ansight-core-android` | `AnsightCore` | JavaScript plus native bridge | JavaScript plus native bridge |
 | Visual tree tools | `Ansight.Tools.VisualTree` | `ai.ansight:ansight-tools-visualtree-android` | `AnsightToolsVisualTree` | Native tools plus React tools | Native tools plus DOM tools |
 | File tools | `Ansight.Tools.FileSystem` | `ai.ansight:ansight-tools-filesystem-android` | `AnsightToolsFileSystem` | Native bridge | Native bridge |
@@ -40,6 +40,25 @@ custom tools, and artifact providers.
 React Native receives the suite through the native aggregate defaults but does
 not currently expose suite-specific JavaScript options.
 
+## .NET Native Ownership
+
+The .NET mobile targets use the same native runtime implementations as the
+Android and iOS SDKs. `Ansight.Core` brings the internal Android or Apple
+binding transitively; an app does not configure a bridge package.
+
+| Responsibility | .NET Android | .NET iOS / Mac Catalyst |
+| --- | --- | --- |
+| Runtime and telemetry buffer | Kotlin runtime | Swift runtime |
+| Enrollment and secure saved registration | Kotlin runtime | Swift runtime |
+| Host auto-connect and reconnect | Kotlin runtime | Swift runtime |
+| WebSocket, telemetry streaming, JPEG/touch capture, and binary transfer | Kotlin runtime | Swift runtime |
+| C# API, CLR heap sample, MAUI hooks, and managed tool execution | .NET facade over native runtime | .NET facade over native runtime |
+| `IDataSink` reads and update events | Projection of native buffer | Projection of native buffer |
+
+This is a single-owner design: managed tools execute through a callback from the
+native tool protocol, then native code sends the response on its existing
+session. The .NET facade does not start a second pairing connection.
+
 ## All-In-One Defaults
 
 The all-in-one/developer preset is intended to be equivalent across .NET,
@@ -55,7 +74,7 @@ Android, and iOS:
 | Touch capture | Enabled |
 | Host auto-probe | Enabled |
 | Tool guard | Full access in native all-in-one presets |
-| Bundled developer config | Preferred over saved and plain bundled configs |
+| Enrollment reconnect | Uses app-private registration state after the first QR scan |
 | Standard tools | Registered by aggregate/all-in-one packages |
 
 React Native defaults to core mode unless `useNativeAllInOneDefaults: true` is
@@ -91,8 +110,8 @@ all-in-one/developer preset.
 
 Cellular host connections are explicitly opt-in and default to disabled in
 every SDK and all-in-one/developer preset. The policy is enforced by the shared
-connector, so it covers bundled developer configs, QR scans, remembered/saved
-profiles, and manual connection requests.
+connector, so it covers enrollment scans, remembered registrations, and
+explicit test connection requests.
 
 | SDK | Builder opt-in | Option |
 | --- | --- | --- |
@@ -104,8 +123,8 @@ profiles, and manual connection requests.
 | Capacitor | `withCellularHostConnections()` | `hostConnection.allowCellularConnections` |
 
 Opting in can consume mobile data and permits discovery/session connection
-attempts over a broader or carrier-managed network. Signed pairing configs
-remain mandatory; use the option only with a trusted host or personal hotspot.
+attempts over a broader or carrier-managed network. Use the option only with a
+trusted Studio host or personal hotspot.
 
 ## Quickstart Equivalents
 
@@ -115,13 +134,11 @@ remain mandatory; use the option only with a trusted host or personal hotspot.
 using Ansight;
 
 var options = Options.CreateBuilder()
-    .WithAnsightSdk(ansight =>
-    {
-        ansight.WithBundledHostConnection(typeof(App).Assembly);
-    })
+    .WithAnsightSdk()
     .Build();
 
 Runtime.InitializeAndActivate(options);
+await Runtime.HostConnection.ConnectAsync(HostConnectionRequest.QrCode());
 ```
 
 Android:
@@ -129,13 +146,8 @@ Android:
 ```kotlin
 import ai.ansight.Ansight
 
-Ansight.initializeAndActivate(
-    application = application,
-    options = Ansight.developerOptions(
-        bundledDeveloperConfigJson = BuildConfig.ANSIGHT_DEVELOPER_PAIRING_JSON,
-        clientName = "Android App",
-    ),
-)
+Ansight.initializeAndActivate(application)
+Ansight.enrollFromQrCode(activity)
 ```
 
 iOS:
@@ -144,7 +156,7 @@ iOS:
 import Ansight
 
 try AnsightRuntime.shared.initializeAndActivateAnsightSdk()
-await AnsightRuntime.shared.connect(.auto(clientName: "iOS App"))
+await AnsightRuntime.shared.connect(.qrCode(title: "Scan Ansight Enrollment QR"))
 ```
 
 React Native:
@@ -152,18 +164,13 @@ React Native:
 ```ts
 import Ansight from "@ansight/react-native";
 
-const isDevelopmentOnly = __DEV__;
-
 await Ansight.initializeAndActivate({
-  useNativeAllInOneDefaults: isDevelopmentOnly,
+  useNativeAllInOneDefaults: __DEV__,
   clientName: "React Native App",
-  hostConnection: isDevelopmentOnly ? {
-    bundledDeveloperConfigJson: process.env.EXPO_PUBLIC_ANSIGHT_PAIRING_CONFIG_JSON,
-  } : undefined,
-  toolGuard: isDevelopmentOnly ? "readOnly" : "disabled",
+  toolGuard: __DEV__ ? "readOnly" : "disabled",
 });
 
-await Ansight.connect(null, { clientName: "React Native App" });
+await Ansight.scanPairingQrCode({ clientName: "React Native App" });
 ```
 
 Capacitor:
@@ -180,7 +187,7 @@ await Ansight.initializeAndActivate(
     .build(),
 );
 
-await Ansight.connect(null, { clientName: "Capacitor App" });
+await Ansight.enrollFromQrCode({ clientName: "Capacitor App" });
 ```
 
 The Capacitor facade intentionally follows the React Native camel-case runtime
@@ -202,6 +209,7 @@ Future<void> main() async {
     ),
   );
   await AnsightFlutterInstrumentation.instance.install();
+  await Ansight.instance.enrollFromQrCode(clientName: 'Flutter App');
   runApp(const App());
 }
 ```
@@ -261,39 +269,23 @@ the maps below with idiomatic Dart naming.
 
 ## Host Connection
 
-Automatic connection resolves candidate configs in this order:
-
-1. Bundled developer config.
-2. Remembered host profiles, newest first.
-3. Saved config.
-4. Plain bundled config.
-
-Explicit requests such as payload, QR, file, saved, and bundled config bypass
-that default order and use the requested source.
+QR is the first-use path. It exchanges a one-use enrollment invite for an
+app-installation registration. Automatic connection then uses app-private
+registration state on later launches.
 
 | Concept | .NET | Android | iOS | React Native |
 | --- | --- | --- | --- | --- |
 | Auto connect | `HostConnectionRequest.Auto()` | `HostConnectionRequest()` or `Auto` | `.auto(...)` | `connect(null, options)` |
+| QR enrollment | `HostConnectionRequest.QrCode()` | `Ansight.enrollFromQrCode(...)` | `.qrCode(...)` | `enrollFromQrCode(...)` |
 | Payload connect | `PayloadText(json)` | `HostConnectionRequest.payload(json)` | `.payloadText(json, ...)` | `connect(json, options)` |
-| Saved config | `SaveConfigAsync(...)` / `SavedConfig()` | `savePairingConfig(...)` / `SavedConfig` | `savePairingConfig(...)` / `.savedConfig()` | `savePairingConfig(...)` |
-| Clear saved | `ClearSavedConfigAsync()` | `clearSavedPairingConfig()` | `clearSavedPairing()` | `clearSavedPairing()` |
-| Clear cached profile | `ClearCachedSessionAsync()` | `clearCachedSession()` | `clearCachedSession()` | `clearCachedSession()` |
-| Developer bundled config | `ansight.developer-pairing.json` | `bundledDeveloperConfigJson` | `bundledDeveloperConfigJson` | `hostConnection.bundledDeveloperConfigJson` |
-| Plain bundled config | `ansight.json` | `bundledConfigJson` | `bundledConfigJson` | `hostConnection.bundledConfigJson` |
+| Clear registration | `ClearCachedSessionAsync()` | `clearCachedSession()` | `clearCachedSession()` | `clearCachedSession()` |
 | Expected app id | Request option | `expectedAppId` on save/open paths | request option | `expectedAppId` |
 | Host override | Request option | `hostAddressOverride` | request option | `hostAddressOverride` |
 | Simulator host fallback | yes | Android emulator host address | iOS Simulator localhost | inherited from native runtime |
 
-Use developer pairing only for local development. Release, CI, TestFlight, App
-Store, Play Store, and other distributable builds should not embed developer
-pairing resources.
-
-The .NET MSBuild generator requires a signed source pairing JSON (the default
-path is `ansight.json`) whenever `AnsightDeveloperPairingEnabled=true`. The iOS
-build plugin uses `ANSIGHT_DEVELOPER_PAIRING_ENABLED` and the optional
-`ANSIGHT_DEVELOPER_PAIRING_SOURCE_FILE`. Android and React Native accept pairing
-JSON supplied by the app or build configuration; they do not ship an equivalent
-Android source scanner/generator in this repository.
+Keep enrollment UI and remote tools in local-development builds. The flow has
+no build-time generation, embedded payload, signing key, certificate, or
+manually configured host address.
 
 ## Screenshot Capture Ownership
 

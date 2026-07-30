@@ -549,19 +549,12 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
 
     private fun buildOptions(map: JSONObject): AnsightOptions {
         val useDefaults = map.booleanValue("useNativeAllInOneDefaults", false)
-        val pairingConfigJson = map.stringValue("pairingConfigJson")
         var result = if (useDefaults) {
             AnsightDeveloperMode.options(
-                bundledDeveloperConfigJson = pairingConfigJson,
                 clientName = map.stringValue("clientName"),
             )
         } else {
             AnsightOptions()
-        }
-        if (!useDefaults && !pairingConfigJson.isNullOrBlank()) {
-            result = result.copy(
-                hostConnection = result.hostConnection.copy(bundledConfigJson = pairingConfigJson),
-            )
         }
         if (map.hasValue("sampleFrequencyMilliseconds")) {
             result = result.copy(
@@ -666,9 +659,6 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
                         host.stringValue("savedConfigKey") ?: result.hostConnection.savedConfigKey,
                     bundledConfigJson =
                         host.stringValue("bundledConfigJson") ?: result.hostConnection.bundledConfigJson,
-                    bundledDeveloperConfigJson =
-                        host.stringValue("bundledDeveloperConfigJson")
-                            ?: result.hostConnection.bundledDeveloperConfigJson,
                     discoveryPort =
                         host.optionalInt("discoveryPort") ?: result.hostConnection.discoveryPort,
                     allowCellularConnections = host.booleanValue(
@@ -853,7 +843,6 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
             .putValue("configId", value.configId)
             .putValue("appId", value.appId)
             .putValue("resolvedHostAddress", value.resolvedHostAddress)
-            .putValue("usedEmbeddedDeveloperPairing", value.usedEmbeddedDeveloperPairing)
             .putValue("discoverySource", value.discoverySource)
             .putValue("reasonCode", value.reasonCode)
             .putValue("hostId", value.hostId)
@@ -874,7 +863,6 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
                 putValue("hostId", it.hostId)
                 putValue("hostName", it.hostName)
                 putValue("accepted", it.accepted)
-                putValue("usedEmbeddedDeveloperPairing", it.usedEmbeddedDeveloperPairing)
                 putValue("discoverySource", it.discoverySource)
             }
         }

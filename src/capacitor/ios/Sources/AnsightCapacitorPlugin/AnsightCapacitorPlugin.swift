@@ -238,7 +238,7 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func scanPairingQrCode(_ call: CAPPluginCall) {
         Task {
             let request = HostConnectionRequest.qrCode(
-                title: call.getString("title") ?? "Scan Ansight Pairing QR",
+                title: call.getString("title") ?? "Scan Ansight Enrollment QR",
                 clientName: call.getString("clientName"),
                 expectedAppId: call.getString("expectedAppId"),
                 hostAddressOverride: call.getString("hostAddressOverride"),
@@ -544,13 +544,6 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
     private func buildOptions(_ dictionary: NSDictionary?) throws -> AnsightOptions {
         let useDefaults = boolValue(dictionary, "useNativeAllInOneDefaults", defaultValue: false)
         var options = useDefaults ? AnsightOptions.ansightDeveloperDefaults : AnsightOptions()
-        if let value = stringValue(dictionary, "pairingConfigJson") {
-            if useDefaults {
-                options.hostConnection.bundledDeveloperConfigJson = value
-            } else {
-                options.hostConnection.bundledConfigJson = value
-            }
-        }
         if let value = stringValue(dictionary, "clientName") {
             options.hostAutoProbe.clientName = value
         }
@@ -670,8 +663,6 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
                     "allowCellularConnections",
                     defaultValue: options.hostConnection.allowCellularConnections
                 ),
-                bundledDeveloperConfigJson: stringValue(host, "bundledDeveloperConfigJson")
-                    ?? options.hostConnection.bundledDeveloperConfigJson,
                 bundledConfigJson: stringValue(host, "bundledConfigJson")
                     ?? options.hostConnection.bundledConfigJson
             )
@@ -812,7 +803,6 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
         if let value = result.reasonCode ?? result.openSession?.reasonCode { dictionary["reasonCode"] = value }
         if let session = result.openSession {
             dictionary["accepted"] = session.accepted
-            dictionary["usedEmbeddedDeveloperPairing"] = session.usedEmbeddedDeveloperPairing
             if let value = session.sessionId { dictionary["sessionId"] = value }
             if let value = session.configId { dictionary["configId"] = value }
             if let value = session.appId { dictionary["appId"] = value }
@@ -829,7 +819,6 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
             "success": result.success,
             "message": result.message,
             "accepted": result.accepted,
-            "usedEmbeddedDeveloperPairing": result.usedEmbeddedDeveloperPairing,
         ]
         if let value = result.sessionId { dictionary["sessionId"] = value }
         if let value = result.configId { dictionary["configId"] = value }
@@ -871,7 +860,6 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
                 "savedConfigKey": options.hostConnection.savedConfigKey,
                 "connectionProfileRetentionSeconds": options.hostConnection.connectionProfileRetentionSeconds,
                 "allowCellularConnections": options.hostConnection.allowCellularConnections,
-                "hasBundledDeveloperConfigJson": options.hostConnection.bundledDeveloperConfigJson != nil,
                 "hasBundledConfigJson": options.hostConnection.bundledConfigJson != nil,
             ],
         ]

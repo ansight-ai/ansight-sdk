@@ -27,7 +27,6 @@
         <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
         <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
         <AnsightRemoteToolsPolicy>Allowed</AnsightRemoteToolsPolicy>
-        <AnsightDeveloperPairingEnabled Condition="'$(Configuration)' == 'Debug'">true</AnsightDeveloperPairingEnabled>
     </PropertyGroup>
 
     <ItemGroup>
@@ -60,6 +59,16 @@
 
     <ItemGroup>
       <ProjectReference Include="..\..\Ansight.Maui\Ansight.Maui.csproj" />
+      <Compile Include="..\NativeBindingDiagnostics.cs" Link="NativeBindingDiagnostics.cs" />
+    </ItemGroup>
+
+    <!-- Intentionally direct: the harness reads binding state to verify Ansight.Maui selected the native runtime. -->
+    <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+      <ProjectReference Include="..\..\Ansight.Native.Android.Binding\Ansight.Native.Android.Binding.csproj" />
+    </ItemGroup>
+
+    <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' Or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
+      <ProjectReference Include="..\..\Ansight.Native.Apple.Binding\Ansight.Native.Apple.Binding.csproj" />
     </ItemGroup>
 
     <!-- Source project references do not import Ansight.Maui's packaged buildTransitive assets. -->

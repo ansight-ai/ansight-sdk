@@ -33,7 +33,10 @@ from typing import Any
 DEFAULT_TEST_APPS_ROOT = Path("/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/ios")
 DEFAULT_SDK_PACKAGE = Path("/Users/matthewrobbins/Development/git/ansight-sdk/src/ios")
 DEFAULT_OUTPUT_ROOT = Path("/Users/matthewrobbins/Development/git/ansight-sdk/.ansight-validation")
-DEFAULT_STUDIO_DAEMON = Path("/Applications/Ansight.app/Contents/Helpers/ansight-daemon")
+DEFAULT_STUDIO_DAEMON = (
+    Path(__file__).resolve().parents[2]
+    / "ansight/ansight.studio/Ansight.McpStdio/bin/Debug/net10.0/ansight-daemon"
+)
 BUILD_SETTINGS_TIMEOUT_SECONDS = 120
 BUILD_TIMEOUT_SECONDS = 900
 SKIP_PACKAGE_PLUGIN_VALIDATION = False
@@ -86,7 +89,7 @@ class AppProject:
     target_name: str | None = None
     bundle_id: str | None = None
     app_name: str | None = None
-    pairing_config_id: str | None = None
+    enrollment_invite_id: str | None = None
 
 
 @dataclasses.dataclass
@@ -96,7 +99,7 @@ class ValidationResult:
     scheme: str | None
     bundle_id: str | None
     app_name: str | None = None
-    pairing_config_id: str | None = None
+    enrollment_invite_id: str | None = None
     prepared: bool = False
     built: bool = False
     installed: bool = False
@@ -109,6 +112,11 @@ class ValidationResult:
     studio_fps_sample_count: int | None = None
     studio_image_count: int | None = None
     studio_tool_count: int | None = None
+    auto_reconnect_verified: bool = False
+    auto_reconnect_session_id: str | None = None
+    auto_reconnect_status: str | None = None
+    auto_reconnect_tool_count: int | None = None
+    auto_reconnect_error: str | None = None
     studio_icon_image_path: str | None = None
     studio_icon_synced: bool = False
     studio_session_icon_synced: bool = False
@@ -371,7 +379,7 @@ def summarize_error(error: Exception | str, max_chars: int = 600) -> str:
         r"\*\* BUILD FAILED \*\*",
         r"Timed out waiting[^\n]+",
         r"No live Studio session[^\n]+",
-        r"No pairing config[^\n]+",
+        r"No enrollment invite[^\n]+",
     ]
     matches: list[str] = []
     for pattern in preferred_patterns:
@@ -708,7 +716,7 @@ def normalize_build_settings(
         settings.setdefault("CLANG_ENABLE_MODULES", "YES")
         settings.setdefault("ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES", "YES")
         current_target = str(settings.get("IPHONEOS_DEPLOYMENT_TARGET", "")).strip()
-        if not current_target or version_tuple(current_target) < (15, 0):
+        if current_target and version_tuple(current_target) < (15, 0):
             settings["IPHONEOS_DEPLOYMENT_TARGET"] = "15.0"
         if validation_app_icon_name:
             settings["ASSETCATALOG_COMPILER_APPICON_NAME"] = validation_app_icon_name
@@ -723,54 +731,52 @@ def version_tuple(value: str) -> tuple[int, int]:
     return first, second
 
 
-def find_pairing_config(
-    pairing_config_dir: Path,
+def find_enrollment_invite(
+    enrollment_invite_dir: Path,
     bundle_id: str,
     explicit_path: Path | None,
     host_address: str,
     discovery_port: int,
-) -> str:
+) -> str | None:
     if explicit_path:
-        return normalize_pairing_config(
+        return normalize_enrollment_invite(
             explicit_path.read_text(encoding="utf-8"),
             host_address,
             discovery_port,
         )
 
     candidates = [
-        pairing_config_dir / f"{bundle_id}.json",
-        pairing_config_dir / f"{bundle_id.lower()}.json",
-        pairing_config_dir / f"{slugify(bundle_id)}.json",
-        pairing_config_dir / f"{bundle_id.lower()}.ans.json",
-        pairing_config_dir / f"{slugify(bundle_id)}.ans.json",
+        enrollment_invite_dir / f"{bundle_id}.json",
+        enrollment_invite_dir / f"{bundle_id.lower()}.json",
+        enrollment_invite_dir / f"{slugify(bundle_id)}.json",
+        enrollment_invite_dir / f"{bundle_id.lower()}.ans.json",
+        enrollment_invite_dir / f"{slugify(bundle_id)}.ans.json",
     ]
     for candidate in candidates:
         if candidate.exists():
-            return normalize_pairing_config(
+            return normalize_enrollment_invite(
                 candidate.read_text(encoding="utf-8"),
                 host_address,
                 discovery_port,
             )
 
-    for candidate in sorted(pairing_config_dir.glob("*.json")) + sorted(pairing_config_dir.glob("*.ans.json")):
+    for candidate in sorted(enrollment_invite_dir.glob("*.json")) + sorted(enrollment_invite_dir.glob("*.ans.json")):
         try:
             config = json.loads(candidate.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             continue
-        if config.get("appId") == bundle_id:
-            return normalize_pairing_config(
+        invite = config.get("invite") if isinstance(config.get("invite"), dict) else config
+        if invite.get("appId") == bundle_id:
+            return normalize_enrollment_invite(
                 json.dumps(config, indent=2),
                 host_address,
                 discovery_port,
             )
 
-    raise RuntimeError(
-        f"No pairing config for {bundle_id} in {pairing_config_dir}. "
-        f"Issue one from Ansight Studio and save it as {bundle_id}.json."
-    )
+    return None
 
 
-def normalize_pairing_config(raw_json: str, host_address: str, discovery_port: int) -> str:
+def normalize_enrollment_invite(raw_json: str, host_address: str, discovery_port: int) -> str:
     config = json.loads(raw_json)
     schema = config.get("schema")
     discovery = {
@@ -780,17 +786,19 @@ def normalize_pairing_config(raw_json: str, host_address: str, discovery_port: i
         "discoveryPort": discovery_port,
     }
 
-    if schema == "ansight.pairing-config.v1":
+    if schema == "ansight.enrollment-invite.v2":
         return json.dumps(
             {
-                "schema": "ansight.pairing-config-document.v1",
-                "config": config,
+                "schema": "ansight.enrollment-invite-document.v2",
+                "invite": config,
                 "discovery": discovery,
             },
             indent=2,
         )
 
-    if schema in {"ansight.pairing-config-document.v1", "ansight.pairing-ticket.v1"}:
+    if schema == "ansight.enrollment-invite-document.v2":
+        if not isinstance(config.get("invite"), dict):
+            raise RuntimeError("Enrollment document must contain an invite object.")
         if not config.get("discovery"):
             config["discovery"] = discovery
         else:
@@ -800,7 +808,7 @@ def normalize_pairing_config(raw_json: str, host_address: str, discovery_port: i
             config["discovery"].setdefault("discoveryPort", discovery_port)
         return json.dumps(config, indent=2)
 
-    raise RuntimeError(f"Unsupported pairing config schema: {schema!r}")
+    raise RuntimeError(f"Unsupported enrollment invite schema: {schema!r}")
 
 
 def swift_string_literal(value: str) -> str:
@@ -811,7 +819,7 @@ def write_validation_sources(
     project_root: Path,
     app_name: str,
     bundle_id: str,
-    pairing_config_json: str,
+    enrollment_invite_json: str | None,
     inject_validation_route_resolver: bool,
     inject_validation_touch_input: bool,
     inject_validation_input_overlay: bool,
@@ -1027,6 +1035,25 @@ def write_validation_sources(
     }}
 """
 
+    enrollment_invite_declaration = ""
+    host_connection_options = """
+            options.hostConnection = AnsightHostConnectionOptions(
+                savedConfigKey: "ai.ansight.validation.\\(expectedBundleId)"
+            )
+"""
+    if enrollment_invite_json:
+        enrollment_invite_declaration = f"""
+    private static let enrollmentInviteJson = ###\"\"\"
+{enrollment_invite_json.rstrip()}
+\"\"\"###
+"""
+        host_connection_options = """
+            options.hostConnection = AnsightHostConnectionOptions(
+                savedConfigKey: "ai.ansight.validation.\\(expectedBundleId)",
+                bundledConfigJson: enrollmentInviteJson
+            )
+"""
+
     swift_file.write_text(
         f"""{validation_imports}
 import Foundation
@@ -1043,9 +1070,7 @@ private enum AnsightValidationBootstrap {{
     private static let appName = {swift_string_literal(app_name)}
     private static let expectedBundleId = {swift_string_literal(bundle_id)}
 {validation_input_overlay_storage.rstrip()}
-    private static let pairingConfigJson = ###\"\"\"
-{pairing_config_json.rstrip()}
-\"\"\"###
+{enrollment_invite_declaration.rstrip()}
 
     static func start() {{
         lock.lock()
@@ -1069,10 +1094,7 @@ private enum AnsightValidationBootstrap {{
         do {{
 {validation_route_resolver.rstrip()}
             var options = AnsightOptions.ansightDeveloperDefaults
-            options.hostConnection = AnsightHostConnectionOptions(
-                savedConfigKey: "ai.ansight.validation.\\(expectedBundleId)",
-                bundledConfigJson: pairingConfigJson
-            )
+{host_connection_options.rstrip()}
             options.hostAutoProbe = .disabledDefault
             options.customProperties = [
                 "ansightValidation": [
@@ -1102,7 +1124,7 @@ private enum AnsightValidationBootstrap {{
         }}
 
         _Concurrency.Task {{
-            let result = await runtime.connect(.bundledConfig(clientName: "Ansight SDK Validation - \\(appName)"))
+            let result = await runtime.connect(.auto(clientName: "Ansight SDK Validation - \\(appName)"))
             if result.success {{
                 NSLog("[AnsightValidation] connected: \\(result.message)")
 {validation_touch_probe_call.rstrip()}
@@ -1427,42 +1449,42 @@ def utc_now_iso() -> str:
     return dt.datetime.now(dt.timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
-def write_issued_pairing_config(
+def write_issued_enrollment_invite(
     studio: StudioMCPClient,
     app: AppProject,
-    pairing_config_dir: Path,
+    enrollment_invite_dir: Path,
     duration: str,
 ) -> Path:
     if not app.bundle_id:
-        raise RuntimeError("Cannot issue Studio pairing config before resolving the bundle id.")
+        raise RuntimeError("Cannot issue a Studio enrollment invite before resolving the bundle id.")
 
     issued = studio.call_tool(
-        "ansight_issue_pairing_config",
+        "ansight_issue_enrollment_invite",
         {
             "appId": app.bundle_id,
             "appName": app.app_name or app.slug,
             "duration": duration,
         },
     )
-    app.pairing_config_id = issued.get("configId")
+    app.enrollment_invite_id = issued.get("inviteId")
 
-    config_json = issued.get("configJson")
-    if not config_json and isinstance(issued.get("config"), dict):
-        config_json = json.dumps(issued["config"], indent=2)
-    if not isinstance(config_json, str) or not config_json.strip():
-        raise RuntimeError("Ansight Studio did not return a pairing config JSON payload.")
+    invite_json = issued.get("inviteJson")
+    if not invite_json and isinstance(issued.get("invite"), dict):
+        invite_json = json.dumps(issued["invite"], indent=2)
+    if not isinstance(invite_json, str) or not invite_json.strip():
+        raise RuntimeError("Ansight Studio did not return an enrollment invite JSON payload.")
 
-    pairing_config_dir.mkdir(parents=True, exist_ok=True)
-    path = pairing_config_dir / f"{app.bundle_id.lower()}.ans.json"
-    path.write_text(config_json, encoding="utf-8")
+    enrollment_invite_dir.mkdir(parents=True, exist_ok=True)
+    path = enrollment_invite_dir / f"{app.bundle_id.lower()}.ans.json"
+    path.write_text(invite_json, encoding="utf-8")
     return path
 
 
 def prepare_project(
     app: AppProject,
     sdk_package: Path,
-    pairing_config_dir: Path,
-    explicit_pairing_config: Path | None,
+    enrollment_invite_dir: Path,
+    explicit_enrollment_invite: Path | None,
     host_address: str,
     discovery_port: int,
     configuration: str,
@@ -1492,10 +1514,10 @@ def prepare_project(
     app.bundle_id = bundle_id
     app.app_name = settings.get("FULL_PRODUCT_NAME", target_name).removesuffix(".app")
 
-    pairing_config_json = find_pairing_config(
-        pairing_config_dir,
+    enrollment_invite_json = find_enrollment_invite(
+        enrollment_invite_dir,
         bundle_id,
-        explicit_pairing_config,
+        explicit_enrollment_invite,
         host_address,
         discovery_port,
     )
@@ -1503,7 +1525,7 @@ def prepare_project(
         app.root,
         app.app_name or target_name,
         bundle_id,
-        pairing_config_json,
+        enrollment_invite_json,
         inject_validation_route_resolver,
         inject_validation_touch_input,
         inject_validation_input_overlay,
@@ -1613,7 +1635,7 @@ def build_app(
     configuration: str,
     destination: str,
     derived_data_path: Path,
-    deployment_target: str,
+    deployment_target: str | None,
     exclude_simulator_arm64: bool,
     relax_warnings: bool,
     skip_unavailable_actions: bool,
@@ -1632,8 +1654,9 @@ def build_app(
         *xcode_validation_flags(),
         "build",
         "CODE_SIGNING_ALLOWED=NO",
-        f"IPHONEOS_DEPLOYMENT_TARGET={deployment_target}",
     ]
+    if deployment_target:
+        command.append(f"IPHONEOS_DEPLOYMENT_TARGET={deployment_target}")
     if skip_unavailable_actions:
         command.insert(command.index("build"), "-skipUnavailableActions")
     if exclude_simulator_arm64:
@@ -1650,7 +1673,6 @@ def build_app(
         )
     env = {
         "ANSIGHT_ALLOW_REMOTE_TOOLS": "true",
-        "ANSIGHT_DEVELOPER_PAIRING_ENABLED": "false",
     }
     result = run(command, cwd=app.root, env=env, timeout=BUILD_TIMEOUT_SECONDS)
     if result.returncode != 0:
@@ -1692,18 +1714,32 @@ def install_cocoapods_dependencies(app: AppProject, timeout_seconds: int) -> boo
     return True
 
 
-def install_and_launch(app: AppProject, app_path: Path, destination_id: str) -> None:
+def install_and_launch(
+    app: AppProject,
+    app_path: Path,
+    destination_id: str,
+    clear_existing: bool = False,
+) -> None:
     if not app.bundle_id:
         raise RuntimeError("App bundle id is not resolved.")
+    if clear_existing:
+        run(["xcrun", "simctl", "uninstall", destination_id, app.bundle_id], check=False, timeout=60)
     run(["xcrun", "simctl", "install", destination_id, str(app_path)], check=True, timeout=180)
     run(["xcrun", "simctl", "terminate", destination_id, app.bundle_id], check=False, timeout=30)
     run(["xcrun", "simctl", "launch", destination_id, app.bundle_id], check=True, timeout=60)
 
 
+def terminate_and_launch(app: AppProject, destination_id: str) -> None:
+    if not app.bundle_id:
+        raise RuntimeError("App bundle id is not resolved.")
+    run(["xcrun", "simctl", "terminate", destination_id, app.bundle_id], check=False, timeout=30)
+    run(["xcrun", "simctl", "launch", destination_id, app.bundle_id], check=True, timeout=60)
+
+
 def select_studio_session(app: AppProject, sessions: list[dict[str, Any]]) -> dict[str, Any] | None:
-    if app.pairing_config_id:
+    if app.enrollment_invite_id:
         for session in sessions:
-            if session.get("configId") == app.pairing_config_id:
+            if session.get("configId") == app.enrollment_invite_id:
                 return session
     if not sessions:
         return None
@@ -1822,6 +1858,70 @@ def verify_studio_session(
 
     result.studio_error = last_error or "Studio verification timed out."
     raise RuntimeError(result.studio_error)
+
+
+def verify_studio_reconnect(
+    studio: StudioMCPClient,
+    app: AppProject,
+    result: ValidationResult,
+    previous_session_id: str,
+    wait_seconds: int,
+    poll_interval_seconds: float,
+    min_tools: int,
+) -> None:
+    if not app.bundle_id:
+        raise RuntimeError("Cannot verify Studio reconnect before resolving the bundle id.")
+
+    deadline = time.monotonic() + wait_seconds
+    last_error: str | None = None
+    while time.monotonic() <= deadline:
+        try:
+            sessions_result = studio.call_tool(
+                "ansight_list_sessions",
+                {
+                    "appId": app.bundle_id,
+                    "liveOnly": True,
+                    "includeHistorical": False,
+                    "limit": 25,
+                },
+            )
+            sessions = sessions_result.get("sessions", [])
+            candidates = [
+                session
+                for session in (sessions if isinstance(sessions, list) else [])
+                if session.get("sessionId") != previous_session_id
+            ]
+            session = select_studio_session(app, candidates)
+            if session:
+                session_id = session.get("sessionId")
+                status = session.get("status")
+                tool_count = verify_studio_tool_catalog(
+                    studio,
+                    session_id if isinstance(session_id, str) else None,
+                )
+                result.auto_reconnect_session_id = session_id
+                result.auto_reconnect_status = status
+                result.auto_reconnect_tool_count = tool_count
+
+                failures: list[str] = []
+                if status != "WebSocket Open":
+                    failures.append(f"session status is {status!r}")
+                if tool_count < min_tools:
+                    failures.append(f"tool count {tool_count} < {min_tools}")
+                if not failures:
+                    result.auto_reconnect_verified = True
+                    result.auto_reconnect_error = None
+                    return
+                last_error = "; ".join(failures)
+            else:
+                last_error = "No new live Studio session appeared after the no-invite relaunch."
+        except Exception as error:
+            last_error = str(error)
+
+        time.sleep(poll_interval_seconds)
+
+    result.auto_reconnect_error = last_error or "Studio reconnect verification timed out."
+    raise RuntimeError(result.auto_reconnect_error)
 
 
 def update_studio_result_fields(result: ValidationResult, session: dict[str, Any]) -> None:
@@ -2337,11 +2437,15 @@ def build_validation_summary(results: list[ValidationResult]) -> dict[str, Any]:
         "failureCategoryCounts": count_by(classify_validation_failure(result) for result in failed_results),
         "sdkRuntimeReachedCount": sum(1 for result in results if validation_reached_sdk_runtime(result)),
         "studioVerifiedCount": sum(1 for result in results if result.studio_verified),
+        "autoReconnectVerifiedCount": sum(1 for result in results if result.auto_reconnect_verified),
         "preRuntimeFailureCount": sum(1 for result in failed_results if not validation_reached_sdk_runtime(result)),
         "studioVerificationFailureCount": sum(
             1
             for result in failed_results
             if result.failure_stage == "studio_verification" or (result.launched and not result.studio_verified)
+        ),
+        "autoReconnectFailureCount": sum(
+            1 for result in failed_results if result.failure_stage == "auto_reconnect"
         ),
         "verificationGates": {
             "fps": build_gate_summary(results, lambda result: (result.studio_fps_sample_count or 0) > 0),
@@ -2436,7 +2540,7 @@ def classify_validation_failure(result: ValidationResult) -> str:
         return "missing_pods"
     if "has been renamed" in text or "@propertydelegate" in text or "bindableobject" in text or "uiimageorientation" in text:
         return "stale_swift_api"
-    if result.failure_stage in {"resolving", "issuing_pairing_config"}:
+    if result.failure_stage in {"resolving", "issuing_enrollment_invite"}:
         return "resolution"
     if result.failure_stage == "pod_install":
         return "pod_install"
@@ -2487,14 +2591,18 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="When --merge-results is used, skip apps that already have studio_verified=true in the merged results.",
     )
-    parser.add_argument("--pairing-config-dir", type=Path, default=DEFAULT_OUTPUT_ROOT / "pairing-configs")
-    parser.add_argument("--pairing-config", type=Path, default=None, help="Use one explicit pairing config JSON for the selected app.")
-    parser.add_argument("--host-address", default="127.0.0.1", help="Host address to add to Studio pairing configs for simulator validation.")
+    parser.add_argument("--enrollment-invite-dir", type=Path, default=DEFAULT_OUTPUT_ROOT / "enrollment-invites")
+    parser.add_argument("--enrollment-invite", type=Path, default=None, help="Use one explicit enrollment invite JSON for the selected app.")
+    parser.add_argument("--host-address", default="127.0.0.1", help="Host address to add to enrollment invites for simulator validation.")
     parser.add_argument("--discovery-port", type=int, default=45123)
     parser.add_argument("--app", action="append", default=[], help="App slug, substring, root path, or xcodeproj path to validate. Repeatable.")
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--configuration", default="Debug")
-    parser.add_argument("--deployment-target", default="15.0", help="IPHONEOS_DEPLOYMENT_TARGET override passed to xcodebuild.")
+    parser.add_argument(
+        "--deployment-target",
+        default=None,
+        help="Optional IPHONEOS_DEPLOYMENT_TARGET override passed to xcodebuild.",
+    )
     parser.add_argument("--build-settings-timeout-seconds", type=int, default=BUILD_SETTINGS_TIMEOUT_SECONDS)
     parser.add_argument("--build-timeout-seconds", type=int, default=BUILD_TIMEOUT_SECONDS)
     parser.add_argument("--simulator", default=None, help="Simulator UDID. Defaults to the first booted iOS simulator.")
@@ -2550,8 +2658,8 @@ def parse_args() -> argparse.Namespace:
         help="Inject a magenta UITextField inputView overlay for validating picker-like screenshot capture.",
     )
     parser.add_argument("--studio-daemon", type=Path, default=DEFAULT_STUDIO_DAEMON)
-    parser.add_argument("--studio-issue-configs", action="store_true", help="Issue fresh Ansight Studio pairing configs for each app before preparing.")
-    parser.add_argument("--studio-config-duration", default="12h", help="Lifetime for pairing configs issued with --studio-issue-configs.")
+    parser.add_argument("--studio-issue-invites", action="store_true", help="Issue fresh Ansight Studio enrollment invites for each app before preparing.")
+    parser.add_argument("--studio-invite-duration", default="12h", help="Lifetime for enrollment invites issued with --studio-issue-invites.")
     parser.add_argument("--studio-verify", action="store_true", help="After launch, verify the live session through Ansight Studio MCP.")
     parser.add_argument("--studio-wait-seconds", type=int, default=25)
     parser.add_argument("--studio-poll-interval", type=float, default=2.0)
@@ -2617,9 +2725,9 @@ def main() -> int:
         args.summarize_results = args.summarize_results.expanduser().resolve()
     if args.merge_results:
         args.merge_results = args.merge_results.expanduser().resolve()
-    args.pairing_config_dir = args.pairing_config_dir.expanduser().resolve()
-    if args.pairing_config:
-        args.pairing_config = args.pairing_config.expanduser().resolve()
+    args.enrollment_invite_dir = args.enrollment_invite_dir.expanduser().resolve()
+    if args.enrollment_invite:
+        args.enrollment_invite = args.enrollment_invite.expanduser().resolve()
     args.studio_daemon = args.studio_daemon.expanduser().resolve()
     BUILD_SETTINGS_TIMEOUT_SECONDS = args.build_settings_timeout_seconds
     BUILD_TIMEOUT_SECONDS = args.build_timeout_seconds
@@ -2716,7 +2824,7 @@ def main() -> int:
     results: list[ValidationResult] = list(merged_seed_results)
     studio_client: StudioMCPClient | None = None
     try:
-        if args.studio_issue_configs or args.studio_verify:
+        if args.studio_issue_invites or args.studio_verify:
             studio_client = StudioMCPClient(args.studio_daemon)
             studio_client.start()
 
@@ -2740,11 +2848,11 @@ def main() -> int:
                         args.pod_install_timeout_seconds,
                     )
 
-                if args.studio_issue_configs:
+                if args.studio_issue_invites or args.studio_verify:
                     stage = "resolving"
                     if studio_client is None:
                         raise RuntimeError("Studio MCP client was not started.")
-                    print(f"==> Resolving {project.slug} for Studio pairing")
+                    print(f"==> Resolving {project.slug} for Studio enrollment")
                     resolved = resolve_project_identity(
                         project,
                         args.configuration,
@@ -2754,23 +2862,23 @@ def main() -> int:
                     result.scheme = resolved.scheme
                     result.bundle_id = resolved.bundle_id
                     result.app_name = resolved.app_name
-                    stage = "issuing_pairing_config"
-                    print(f"==> Issuing Studio pairing config for {project.slug} ({project.bundle_id})")
-                    write_issued_pairing_config(
+                    stage = "issuing_enrollment_invite"
+                    print(f"==> Issuing Studio enrollment invite for {project.slug} ({project.bundle_id})")
+                    write_issued_enrollment_invite(
                         studio_client,
                         project,
-                        args.pairing_config_dir,
-                        args.studio_config_duration,
+                        args.enrollment_invite_dir,
+                        args.studio_invite_duration,
                     )
-                    result.pairing_config_id = project.pairing_config_id
+                    result.enrollment_invite_id = project.enrollment_invite_id
 
                 stage = "preparing"
                 print(f"==> Preparing {project.slug}")
                 prepared = prepare_project(
                     project,
                     args.sdk_package,
-                    args.pairing_config_dir,
-                    args.pairing_config,
+                    args.enrollment_invite_dir,
+                    args.enrollment_invite,
                     args.host_address,
                     args.discovery_port,
                     args.configuration,
@@ -2789,7 +2897,7 @@ def main() -> int:
                 result.scheme = prepared.scheme
                 result.bundle_id = prepared.bundle_id
                 result.app_name = prepared.app_name
-                result.pairing_config_id = prepared.pairing_config_id or result.pairing_config_id
+                result.enrollment_invite_id = prepared.enrollment_invite_id or result.enrollment_invite_id
 
                 if args.prepare_only:
                     result.status = "prepared"
@@ -2818,7 +2926,12 @@ def main() -> int:
 
                 stage = "installing_launching"
                 print(f"==> Installing and launching {project.slug}")
-                install_and_launch(project, app_path, destination_id)
+                install_and_launch(
+                    project,
+                    app_path,
+                    destination_id,
+                    clear_existing=args.studio_verify,
+                )
                 result.installed = True
                 result.launched = True
                 result.launched_at_utc = utc_now_iso()
@@ -2845,6 +2958,21 @@ def main() -> int:
                         args.studio_require_binary_download_artifact,
                         args.studio_require_touch_input,
                         args.studio_require_input_overlay,
+                    )
+                    first_session_id = result.studio_session_id
+                    if not first_session_id:
+                        raise RuntimeError("Initial Studio verification returned no session id.")
+                    stage = "auto_reconnect"
+                    print(f"==> Relaunching {project.slug} without another enrollment invite")
+                    terminate_and_launch(project, destination_id)
+                    verify_studio_reconnect(
+                        studio_client,
+                        project,
+                        result,
+                        first_session_id,
+                        args.studio_wait_seconds,
+                        args.studio_poll_interval,
+                        args.studio_min_tools,
                     )
                     result.status = "verified"
                 else:

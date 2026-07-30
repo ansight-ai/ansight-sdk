@@ -4,9 +4,9 @@ internal sealed class PairingBinaryTransferHub
 {
     private readonly Lock gate = new();
     private readonly Dictionary<string, PendingBinaryTransfer> pendingTransfers = new(StringComparer.Ordinal);
-    private PairingSessionTransport? transport;
+    private IPairingBinaryTransport? transport;
 
-    internal void AttachTransport(PairingSessionTransport transport)
+    internal void AttachTransport(IPairingBinaryTransport transport)
     {
         ArgumentNullException.ThrowIfNull(transport);
 
@@ -17,7 +17,7 @@ internal sealed class PairingBinaryTransferHub
         }
     }
 
-    internal void DetachTransport(PairingSessionTransport transport)
+    internal void DetachTransport(IPairingBinaryTransport transport)
     {
         ArgumentNullException.ThrowIfNull(transport);
 
@@ -62,7 +62,7 @@ internal sealed class PairingBinaryTransferHub
     internal bool TryStartQueuedTransfer(string requestId)
     {
         PendingBinaryTransfer? transfer;
-        PairingSessionTransport? transport;
+        IPairingBinaryTransport? transport;
 
         lock (gate)
         {
@@ -120,7 +120,7 @@ internal sealed class PairingBinaryTransferHub
 
         internal PendingBinaryTransfer(
             string description,
-            Func<PairingSessionTransport, CancellationToken, Task> startAsync,
+            Func<IPairingBinaryTransport, CancellationToken, Task> startAsync,
             Action? abandon = null)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(description);
@@ -133,7 +133,7 @@ internal sealed class PairingBinaryTransferHub
 
         internal string Description { get; }
 
-        internal Func<PairingSessionTransport, CancellationToken, Task> StartAsync { get; }
+        internal Func<IPairingBinaryTransport, CancellationToken, Task> StartAsync { get; }
 
         internal void Abandon()
         {

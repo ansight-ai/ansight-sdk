@@ -1,29 +1,29 @@
 namespace Ansight.Pairing.Models;
 
 /// <summary>
-/// Handshake request sent to the host before a live pairing WebSocket session is opened.
+/// Enrollment connection request sent before a live WebSocket session is opened.
 /// </summary>
 public sealed class ConnectRequest
 {
     /// <summary>
     /// Protocol message type identifier.
     /// </summary>
-    public required string Type { get; set; }
+    public string Type { get; set; } = "ENROLLMENT_CONNECT";
 
     /// <summary>
     /// Handshake protocol version.
     /// </summary>
-    public required int Ver { get; set; }
+    public int Ver { get; set; } = 2;
 
     /// <summary>
-    /// Unique identifier of the pairing config being used.
+    /// Correlates the UDP response with this request.
     /// </summary>
-    public required string ConfigId { get; set; }
+    public required string RequestId { get; set; }
 
     /// <summary>
-    /// One-time token that authorizes the connection attempt.
+    /// Unique identifier of the enrollment invite being used.
     /// </summary>
-    public required string OneTimeToken { get; set; }
+    public required string InviteId { get; set; }
 
     /// <summary>
     /// App identifier expected by the pairing config.
@@ -31,9 +31,19 @@ public sealed class ConnectRequest
     public required string AppId { get; set; }
 
     /// <summary>
-    /// Human-readable name presented to the host for this client.
+    /// Stable identifier generated once for this SDK installation.
     /// </summary>
-    public required string ClientName { get; set; }
+    public required string DeviceId { get; set; }
+
+    /// <summary>
+    /// Human-readable name presented to Studio for this device.
+    /// </summary>
+    public required string DeviceName { get; set; }
+
+    /// <summary>
+    /// Opaque access token carried by the scanned QR.
+    /// </summary>
+    public required string AccessToken { get; set; }
 
     /// <summary>
     /// Process-lifetime identifier for the SDK runtime instance.

@@ -1,6 +1,7 @@
 # Ansight Docs
 
 - [Current Feature Catalog](features.md)
+- [Install once, scan once](getting-started.md)
 - [Cross-SDK API Parity](sdk-api-parity.md)
 - [Protocol](protocol.md)
 
