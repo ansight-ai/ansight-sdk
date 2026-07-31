@@ -27,17 +27,22 @@
     <AndroidLibrary Include="$(AnsightAndroidSourceDirectory)/ansight-core/build/outputs/aar/ansight-core-release.aar"
                     Bind="false"
                     Pack="true" />
+    <AndroidJavaLibrary Include="$(AnsightAndroidSourceDirectory)/ansight-core/build/dotnet-runtime/Java-WebSocket-*.jar"
+                        Bind="false"
+                        Pack="true" />
+    <AndroidJavaLibrary Include="$(AnsightAndroidSourceDirectory)/ansight-core/build/dotnet-runtime/slf4j-api-*.jar"
+                        Bind="false"
+                        Pack="true" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Square.OkHttp3" Version="4.9.3.2" />
     <PackageReference Include="Xamarin.Kotlin.StdLib" Version="2.0.21.4" />
   </ItemGroup>
 
   <Target Name="BuildAnsightAndroidNativeLibraries"
           BeforeTargets="_ResolveLibraryProjectImports;Pack"
           Condition="'$(DesignTimeBuild)' != 'true'">
-    <Exec Command="&quot;$(AnsightAndroidSourceDirectory)/gradlew&quot; -p &quot;$(AnsightAndroidSourceDirectory)&quot; :ansight-core:assembleRelease :ansight-dotnet-bridge:assembleRelease"
+    <Exec Command="&quot;$(AnsightAndroidSourceDirectory)/gradlew&quot; -p &quot;$(AnsightAndroidSourceDirectory)&quot; :ansight-core:assembleRelease :ansight-core:copyDotnetRuntimeDependencies :ansight-dotnet-bridge:assembleRelease"
           WorkingDirectory="$(AnsightAndroidSourceDirectory)" />
   </Target>
 

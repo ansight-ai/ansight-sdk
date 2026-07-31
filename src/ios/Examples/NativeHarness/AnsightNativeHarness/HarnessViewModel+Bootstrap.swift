@@ -17,7 +17,7 @@ extension HarnessViewModel {
             let result = await AnsightRuntime.shared.connect(.auto(clientName: HarnessConstants.clientName))
             connectionMessage = result.success
                 ? result.message
-                : "Initialized. Scan an enrollment QR once; later launches reconnect automatically."
+                : "Initialized. Waiting for an authenticated local Studio; physical devices enroll by QR once."
         } catch {
             connectionMessage = error.localizedDescription
         }

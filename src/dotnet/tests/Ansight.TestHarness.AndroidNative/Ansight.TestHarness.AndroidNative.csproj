@@ -11,7 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Ansight.Core\Ansight.Core.csproj" />
+    <ProjectReference Include="..\..\Ansight\Ansight.csproj" />
     <!-- Intentionally direct: this harness reads binding state to verify Core selected the native runtime. -->
     <ProjectReference Include="..\..\Ansight.Native.Android.Binding\Ansight.Native.Android.Binding.csproj" />
     <Compile Include="..\NativeBindingDiagnostics.cs" Link="NativeBindingDiagnostics.cs" />

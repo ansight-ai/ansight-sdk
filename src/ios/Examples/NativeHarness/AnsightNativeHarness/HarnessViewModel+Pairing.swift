@@ -16,7 +16,7 @@ extension HarnessViewModel {
     func clearPairingState() {
         AnsightRuntime.shared.clearSavedPairing()
         AnsightRuntime.shared.clearCachedSession()
-        connectionMessage = "Saved pairing config and cached pairing session cleared."
+        connectionMessage = "Saved registration and cached session cleared."
         refresh()
     }
 }

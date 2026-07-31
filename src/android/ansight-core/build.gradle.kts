@@ -53,6 +53,16 @@ dependencies {
     testImplementation("org.json:json:20240303")
 }
 
+val copyDotnetRuntimeDependencies by tasks.registering(Copy::class) {
+    from(configurations.named("releaseRuntimeClasspath"))
+    include("Java-WebSocket-*.jar", "slf4j-api-*.jar")
+    into(layout.buildDirectory.dir("dotnet-runtime"))
+}
+
+tasks.matching { it.name == "assembleRelease" }.configureEach {
+    finalizedBy(copyDotnetRuntimeDependencies)
+}
+
 afterEvaluate {
     publishing {
         publications {

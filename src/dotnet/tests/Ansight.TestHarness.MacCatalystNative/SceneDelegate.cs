@@ -25,8 +25,7 @@ public class SceneDelegate : UIResponder, IUIWindowSceneDelegate
         Window = window;
 
         var options = Options.CreateBuilder()
-            .WithFramesPerSecond()
-            .WithSessionJpegCapture()
+            .WithAnsightSdk()
             .WithHostAutoProbe(new HostAutoProbeOptions
             {
                 InitialDelay = TimeSpan.FromSeconds(1),

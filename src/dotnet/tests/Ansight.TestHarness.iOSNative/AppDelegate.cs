@@ -16,7 +16,7 @@ public class AppDelegate : UIApplicationDelegate
         Window.MakeKeyAndVisible();
 
         var options = Options.CreateBuilder()
-            .WithFramesPerSecond()
+            .WithAnsightSdk()
             .WithHostAutoProbe(new HostAutoProbeOptions
             {
                 InitialDelay = TimeSpan.FromSeconds(1),

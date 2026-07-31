@@ -13,7 +13,7 @@ public class MainActivity : Activity
         base.OnCreate(savedInstanceState);
 
         var options = Options.CreateBuilder()
-            .WithFramesPerSecond()
+            .WithAnsightSdk()
             .WithHostAutoProbe(new HostAutoProbeOptions
             {
                 InitialDelay = TimeSpan.FromSeconds(1),
@@ -33,7 +33,10 @@ public class MainActivity : Activity
 
         void UpdateNativeBindingStatus()
         {
-            nativeBindingStatus.Text = NativeBindingDiagnostics.GetStatus();
+            var hostStatus = Runtime.HostConnection.Status;
+            nativeBindingStatus.Text =
+                $"{NativeBindingDiagnostics.GetStatus()}\n" +
+                $"Studio: {hostStatus.ConnectionState} • {hostStatus.SummaryMessage}";
         }
 
         Button BuildRuntimeButton(string text, Action action)
@@ -46,6 +49,8 @@ public class MainActivity : Activity
         }
 
         UpdateNativeBindingStatus();
+        Runtime.HostConnection.StatusChanged += (_, _) =>
+            RunOnUiThread(UpdateNativeBindingStatus);
         layout.AddView(nativeBindingStatus);
         layout.AddView(BuildRuntimeButton("Activate", Runtime.Activate));
         layout.AddView(BuildRuntimeButton("Deactivate", Runtime.Deactivate));
