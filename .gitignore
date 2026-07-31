@@ -17,6 +17,7 @@
 src/dotnet/tests/Ansight.TestHarness/ansight.json
 .build/
 .swiftpm/
+.cxx/
 build/
 tmp/
 src/ios/Examples/NativeHarness/Build/
