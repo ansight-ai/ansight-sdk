@@ -1,5 +1,10 @@
 allprojects {
     repositories {
+        val ansightLocalMaven =
+            rootProject.file("../../../../.ansight-validation/local-maven")
+        if (ansightLocalMaven.exists()) {
+            maven { url = uri(ansightLocalMaven) }
+        }
         google()
         mavenCentral()
     }

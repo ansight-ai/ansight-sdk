@@ -31,13 +31,13 @@ await Ansight.initializeAndActivate(
     .registerCustomProperty('app', 'flavour', 'development')
     .build(),
 );
-
-await Ansight.enrollFromQrCode({ clientName: 'Capacitor app' });
 ```
 
-No pairing file, build variable, or host address is required. The first scan
-stores this app installation's registration; automatic connection and host
-auto-probe use it on later launches.
+The native iOS Simulator or Android emulator runtime registers automatically
+with a running, signed-in Studio. No pairing file, build variable, host address,
+or build-time Studio probe is required. On a physical device, call
+`Ansight.enrollFromQrCode(...)` once; later launches use the saved
+app-installation registration.
 
 Use `.withAnsightSdk()` or `.withAllToolAccess()` only in trusted development
 builds. Do not ship unrestricted remote tools in

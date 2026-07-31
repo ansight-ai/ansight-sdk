@@ -39,16 +39,11 @@ await Ansight.initializeAndActivate({
   toolGuard: __DEV__ ? "readOnly" : "disabled",
   lifecycle: true,
 });
-
-await Ansight.enrollFromQrCode({
-  clientName: "My React Native App",
-  expectedAppId: "com.example.app",
-});
 ```
 
-No pairing file, environment variable, or host address is required. The scan
-registers a random app-installation id and saves the registration; remembered
-connections then reconnect automatically.
+The native iOS Simulator or Android emulator runtime registers automatically
+with a running, signed-in Studio. No pairing file, environment variable, host
+address, or build-time Studio probe is required.
 
 `useNativeAllInOneDefaults` defaults to `false`. It only applies the native
 iOS/Android all-in-one defaults: 400 ms sampling, 120 second retention, FPS,
@@ -197,7 +192,8 @@ compatibility alias for `remoteTools.secureStorage`.
 
 ## Host Connection
 
-Scan the QR displayed by Studio for the normal first connection:
+No connection call is needed for a simulator or emulator. On a physical
+device, scan the QR displayed by Studio once:
 
 ```ts
 await Ansight.enrollFromQrCode({
@@ -206,15 +202,15 @@ await Ansight.enrollFromQrCode({
 });
 ```
 
-After enrollment, `connect(null, options)` and host auto-probe use the
-remembered registration:
+After physical-device enrollment, `connect(null, options)` and the runtime
+connection loop use the remembered registration:
 
 ```ts
 await Ansight.connect(null, { clientName: "My React Native App" });
 ```
 
-Automatic connection uses the app-private registration created by the first
-successful enrollment scan.
+When Studio is closed or signed out, automatic attempts remain dormant and
+retry later without failing the React Native app.
 
 If the app already owns a scanner, pass its result through the explicit payload
 API:

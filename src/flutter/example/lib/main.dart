@@ -18,10 +18,6 @@ const AnsightChannel _harnessMetricChannel = AnsightChannel(
   kind: 'scenario',
 );
 
-const String _harnessEnrollmentInviteBase64 = String.fromEnvironment(
-  'ANSIGHT_ENROLLMENT_INVITE_BASE64',
-);
-
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const AnsightHarnessApp());
@@ -150,33 +146,12 @@ class _HarnessHomeState extends State<HarnessHome>
     await _registerHarnessTools();
     await _registerArtifactProvider();
     await _writeStateFixture();
-    if (_harnessEnrollmentInviteBase64.isNotEmpty) {
-      final payload = utf8.decode(
-        base64Decode(_harnessEnrollmentInviteBase64),
-      );
-      _pairingController.text = payload;
-      var result = await _ansight.connect(
-        pairingPayload: payload,
-        clientName: 'Ansight Flutter Harness',
-        expectedAppId: 'ai.ansight.flutter.harness',
-      );
-      if (!result.success) {
-        result = await _ansight.connect(
-          clientName: 'Ansight Flutter Harness',
-          expectedAppId: 'ai.ansight.flutter.harness',
-        );
-      }
-      if (!result.success) {
-        throw StateError(result.message);
-      }
-    } else {
-      final reconnect = await _ansight.connect(
-        clientName: 'Ansight Flutter Harness',
-        expectedAppId: 'ai.ansight.flutter.harness',
-      );
-      if (!reconnect.success) {
-        _append(reconnect.message);
-      }
+    final reconnect = await _ansight.connect(
+      clientName: 'Ansight Flutter Harness',
+      expectedAppId: 'ai.ansight.flutter.harness',
+    );
+    if (!reconnect.success) {
+      _append(reconnect.message);
     }
     _connection = await _ansight.hostConnectionStatus();
     _initialized = true;

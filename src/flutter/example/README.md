@@ -6,28 +6,22 @@ inspection, navigation, errors, pairing and sessions, properties, custom tools,
 artifact providers, binary transfer, native options and capabilities, and
 runtime logs.
 
-Run it without automatic pairing:
+Run it on a simulator or emulator while Studio is open and signed in:
 
 ```shell
 flutter run
 ```
 
-For a device-safe enrolled run, use the package launcher from `src/flutter/`.
-It wraps Studio's enrollment invite in a document containing the current
-development host address. The invite is not modified, and the temporary
-compiler-defines file is deleted when `flutter run` exits:
+The SDK enrolls at runtime; the launcher does not request or inject a Studio
+invite:
 
 ```shell
-dart run tool/run_harness.dart \
-  --device <device-id> \
-  --enrollment-invite "/path/to/ai.ansight.flutter.harness.json" \
-  --release
+dart run tool/run_harness.dart --device <device-id>
 ```
 
-Pass `--host-address <lan-ip>` if the automatically selected interface is not
-the one shared with the device. On first launch, accept the platform's local
-network permission. The app id on Android and iOS is
-`ai.ansight.flutter.harness`.
+For a physical phone, scan a Studio QR once from the harness's QR action and
+accept the platform's local-network permission. The app id on Android and iOS
+is `ai.ansight.flutter.harness`.
 
 The app exposes pairing from the QR icon in the app bar and from
 `Host pairing and sessions` → `QR pairing dialog`. The dialog can invoke each

@@ -803,8 +803,7 @@ function createHarnessOptions() {
           captureAppLifecycle: true,
           captureScreenViews: true,
           minimumScreenViewIntervalMilliseconds: 50,
-        })
-        .withoutHostAutoProbe();
+        });
     })
     .withVisualTreeTools()
     .withFileSystemTools()
@@ -1081,7 +1080,8 @@ async function ensureJavaScriptSurface(): Promise<void> {
 }
 
 async function ensureLiveConnection(): Promise<unknown> {
-  if (prefersNativeSavedPairing()) {
+  const pairingPayload = pairingJson();
+  if (!pairingPayload || prefersNativeSavedPairing()) {
     return requireSuccess(
       await Ansight.connect(undefined, {
         clientName,
@@ -1090,9 +1090,8 @@ async function ensureLiveConnection(): Promise<unknown> {
     );
   }
 
-  const config = pairingOrThrow();
   return requireSuccess(
-    await Ansight.connect(config, {
+    await Ansight.connect(pairingPayload, {
       clientName,
       expectedAppId: appId,
     }),
@@ -1137,9 +1136,15 @@ async function restoreHarness(connectWhenConfigured = true): Promise<unknown> {
       renderer: scene3D.getState().renderer,
     },
   });
-  if (connectWhenConfigured && pairingConfigured()) {
-    const connection = asObject(await ensureLiveConnection());
-    harnessState.lastConnectionMessage = `success=${String(connection.success ?? true)} ${String(connection.message ?? "Connected")}`;
+  if (connectWhenConfigured) {
+    try {
+      const connection = asObject(await ensureLiveConnection());
+      harnessState.lastConnectionMessage = `success=${String(connection.success ?? true)} ${String(connection.message ?? "Connected")}`;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      harnessState.lastConnectionMessage = message;
+      log("Runtime enrollment is waiting for Studio.", message);
+    }
   }
   await Ansight.screenViewed("Harness.Runtime", {
     source: "bootstrap.connected",
@@ -1842,13 +1847,13 @@ const tests: TestCase[] = [
     group: "Host connection",
     name: "Configuration changed",
     description:
-      "Notifies native auto-probe state that pairing configuration changed.",
+      "Notifies the native runtime that saved registration state changed.",
     run: () => Ansight.notifyHostConnectionConfigChanged(),
   },
   {
     id: "save-pairing",
     group: "Pairing and sessions",
-    name: "Save pairing config",
+    name: "Save registration payload",
     description: "Validates and saves the supplied pairing document.",
     pairing: true,
     run: () =>

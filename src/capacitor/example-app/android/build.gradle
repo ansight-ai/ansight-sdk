@@ -21,6 +21,11 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        def localAnsightRepository =
+                rootProject.file("../../../../.ansight-validation/local-maven")
+        if (localAnsightRepository.exists()) {
+            maven { url localAnsightRepository.toURI() }
+        }
     }
 }
 

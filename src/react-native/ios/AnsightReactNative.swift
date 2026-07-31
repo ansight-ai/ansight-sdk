@@ -429,7 +429,7 @@ final class AnsightReactNative: RCTEventEmitter {
         AnsightRuntime.shared.clearSavedPairing()
         resolve(hostConnectionResultDictionary(HostConnectionResult(
             success: true,
-            message: "Saved pairing config cleared.",
+            message: "Saved registration cleared.",
             kind: .savedConfig,
             source: .savedConfig
         )))

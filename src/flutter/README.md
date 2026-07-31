@@ -42,9 +42,6 @@ Future<void> main() async {
     ),
   );
   await AnsightFlutterInstrumentation.instance.install();
-  await Ansight.instance.enrollFromQrCode(
-    clientName: 'My Flutter App',
-  );
 
   runApp(const MyApp());
 }
@@ -53,6 +50,10 @@ Future<void> main() async {
 `install()` is idempotent. By default it captures Flutter errors, frame
 timings, app lifecycle changes, and exposes Flutter widget inspection tools.
 Its options can disable any of those integrations.
+
+The native iOS Simulator or Android emulator runtime registers automatically
+with a running, signed-in Studio. No build-time Studio probe or enrollment
+payload is required.
 
 Add the navigator observer to record route changes and screen views:
 
@@ -93,7 +94,8 @@ snapshots, recorded metrics/events, and log and connection-status streams.
 
 ## Pairing and sessions
 
-Scan the QR displayed by Studio for the normal first connection:
+No connection call is needed for a simulator or emulator. On a physical
+device, scan the QR displayed by Studio once:
 
 ```dart
 final result = await Ansight.instance.enrollFromQrCode(
@@ -102,8 +104,8 @@ final result = await Ansight.instance.enrollFromQrCode(
 );
 ```
 
-No pairing file, build variable, or host address is required. The first scan
-stores this app installation's registration; remembered connections then
+No pairing file, build variable, or host address is required. The physical
+device's first scan stores its app-installation registration; later launches
 reconnect automatically.
 
 For advanced paste, file-import, CI, or custom-UI flows, pairing payloads may be
@@ -117,9 +119,9 @@ final result = await Ansight.instance.openSession(
 );
 ```
 
-Saved pairing, automatic host probing, bundled development configuration, and
-host-address overrides are available through `AnsightOptions` and the
-connection APIs.
+Saved enrollment, automatic runtime connection, and host-address overrides are
+available through `AnsightOptions` and the connection APIs. Bundling an
+enrollment payload is not part of the normal setup.
 
 Cellular host connections are disabled by default for bundled configs, QR
 scans, remembered/saved profiles, and manual connections. Enable them only for
