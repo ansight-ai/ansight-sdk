@@ -67,6 +67,6 @@ repositories {
 dependencies {
   implementation("com.facebook.react:react-android")
   def ansightAndroidVersion =
-      findProperty("ansightAndroidVersion") ?: "1.0.2-preview.8"
-  implementation("ai.ansight:ansight-android:$ansightAndroidVersion")
+      findProperty("ansightAndroidVersion") ?: "1.1.0-preview.1"
+  implementation("ai.ansight:ansight-android:1.1.0-preview.1")
 }

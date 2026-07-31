@@ -84,7 +84,13 @@ NODE
 perl -0pi -e 's/(ai\.ansight:ansight-android:)[^")]+/$1$ENV{VERSION}/g' \
   "${repo_root}/src/react-native/android/build.gradle"
 
+perl -0pi -e 's/(findProperty\("ansightAndroidVersion"\)\s*\?:\s*")[^"]+(")/$1$ENV{VERSION}$2/g' \
+  "${repo_root}/src/react-native/android/build.gradle"
+
 perl -0pi -e 's/(ai\.ansight:ansight-android:)[^"]+/$1$ENV{VERSION}/g' \
+  "${repo_root}/src/capacitor/android/build.gradle"
+
+perl -0pi -e 's/(findProperty\("ansightAndroidVersion"\)\s*\?:\s*")[^"]+(")/$1$ENV{VERSION}$2/g' \
   "${repo_root}/src/capacitor/android/build.gradle"
 
 perl -0pi -e 's/(s\.version\s*=\s*'\''|s\.version\s*=\s*")[^'\''"]+(['\''"])/$1$ENV{VERSION}$2/g' \
@@ -97,6 +103,9 @@ perl -0pi -e 's/^version:\s*\S+/version: $ENV{VERSION}/m' \
   "${repo_root}/src/flutter/pubspec.yaml"
 
 perl -0pi -e 's/^(version\s*=\s*")[^"]+(")/$1$ENV{VERSION}$2/m; s/(ai\.ansight:ansight-android:)[^"]+/$1$ENV{VERSION}/g' \
+  "${repo_root}/src/flutter/android/build.gradle"
+
+perl -0pi -e 's/(findProperty\("ansightAndroidVersion"\)\s*\?:\s*")[^"]+(")/$1$ENV{VERSION}$2/g' \
   "${repo_root}/src/flutter/android/build.gradle"
 
 perl -0pi -e 's/(s\.version\s*=\s*'\''|s\.version\s*=\s*")[^'\''"]+(['\''"])/$1$ENV{VERSION}$2/g' \

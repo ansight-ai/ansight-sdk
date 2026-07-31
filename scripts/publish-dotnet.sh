@@ -59,7 +59,12 @@ if [[ "${publish}" == "true" && -z "${ANSIGHT_NUGET_API_KEY:-}" ]]; then
 fi
 
 if [[ "${skip_build}" != "true" ]]; then
-  dotnet build "${repo_root}/src/dotnet/Ansight.Sdk.sln" -c "${configuration}" --nologo
+  dotnet build \
+    "${repo_root}/src/dotnet/Ansight.Sdk.sln" \
+    -c "${configuration}" \
+    --nologo \
+    -p:BuildInParallel=false \
+    -maxcpucount:1
 fi
 
 if [[ "${publish}" == "true" ]]; then

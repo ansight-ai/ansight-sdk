@@ -3,7 +3,7 @@ plugins {
 }
 
 group = providers.gradleProperty("ansightAndroidGroup").orElse("ai.ansight").get()
-version = providers.gradleProperty("ansightAndroidVersion").orElse("1.0.2-preview.8").get()
+version = providers.gradleProperty("ansightAndroidVersion").orElse("1.1.0-preview.1").get()
 
 android {
     namespace = "ai.ansight.dotnet"

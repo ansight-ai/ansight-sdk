@@ -71,6 +71,10 @@ add_version \
   "$(extract_first 'ai\.ansight:ansight-android:([^")]+)' "${repo_root}/src/react-native/android/build.gradle")"
 
 add_version \
+  "react-native:android fallback" \
+  "$(extract_first 'findProperty\("ansightAndroidVersion"\)\s*\?:\s*"([^"]+)"' "${repo_root}/src/react-native/android/build.gradle")"
+
+add_version \
   "capacitor:package.json" \
   "$(extract_first '"version"\s*:\s*"([^"]+)"' "${repo_root}/src/capacitor/package.json")"
 
@@ -81,6 +85,10 @@ add_version \
 add_version \
   "capacitor:android dependency" \
   "$(extract_first 'ai\.ansight:ansight-android:([^"]+)' "${repo_root}/src/capacitor/android/build.gradle")"
+
+add_version \
+  "capacitor:android fallback" \
+  "$(extract_first 'findProperty\("ansightAndroidVersion"\)\s*\?:\s*"([^"]+)"' "${repo_root}/src/capacitor/android/build.gradle")"
 
 add_version \
   "capacitor:CocoaPods" \
@@ -101,6 +109,10 @@ add_version \
 add_version \
   "flutter:Android dependency" \
   "$(extract_first 'ai\.ansight:ansight-android:([^"]+)' "${repo_root}/src/flutter/android/build.gradle")"
+
+add_version \
+  "flutter:Android fallback" \
+  "$(extract_first 'findProperty\("ansightAndroidVersion"\)\s*\?:\s*"([^"]+)"' "${repo_root}/src/flutter/android/build.gradle")"
 
 add_version \
   "flutter:CocoaPods" \

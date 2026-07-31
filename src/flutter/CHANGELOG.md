@@ -1,3 +1,11 @@
+## 1.1.0-preview.1
+
+- Add zero-touch local Studio enrollment for developer builds.
+- Add generic one-use physical-device enrollment QR support across Android,
+  iOS, .NET, React Native, Capacitor, and Flutter.
+- Bind generic enrollment grants to the scanning app and installation while
+  preserving automatic reconnects.
+
 ## 1.0.2-preview.8
 
 - Add an explicit, default-off cellular host-connection policy across native
