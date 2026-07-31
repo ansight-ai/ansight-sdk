@@ -160,8 +160,14 @@ class ValidationResult:
 
 
 class StudioMCPClient:
-    def __init__(self, daemon_path: Path, request_timeout_seconds: int = 15) -> None:
+    def __init__(
+        self,
+        daemon_path: Path,
+        mcp_url: str | None = None,
+        request_timeout_seconds: int = 15,
+    ) -> None:
         self.daemon_path = daemon_path
+        self.mcp_url = mcp_url
         self.request_timeout_seconds = request_timeout_seconds
         self.process: subprocess.Popen[str] | None = None
         self.next_request_id = 0
@@ -177,8 +183,12 @@ class StudioMCPClient:
         if self.process is not None:
             return
 
+        command = [str(self.daemon_path), "mcp-stdio"]
+        if self.mcp_url:
+            command.extend(["--mcp-url", self.mcp_url])
+
         self.process = subprocess.Popen(
-            [str(self.daemon_path), "mcp-stdio"],
+            command,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -249,6 +259,7 @@ class StudioMCPClient:
                 raise RuntimeError(message["error"])
             return message.get("result", {})
 
+        self.close()
         raise RuntimeError(f"Timed out waiting for Ansight Studio MCP response to {method}.")
 
     def call_tool(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
@@ -272,8 +283,11 @@ class StudioMCPClient:
         return result
 
     def require_process(self) -> subprocess.Popen[str]:
+        if self.process is None or self.process.poll() is not None:
+            self.process = None
+            self.start()
         if self.process is None:
-            raise RuntimeError("Ansight Studio MCP client is not started.")
+            raise RuntimeError("Ansight Studio MCP client could not be started.")
         return self.process
 
 
@@ -731,86 +745,6 @@ def version_tuple(value: str) -> tuple[int, int]:
     return first, second
 
 
-def find_enrollment_invite(
-    enrollment_invite_dir: Path,
-    bundle_id: str,
-    explicit_path: Path | None,
-    host_address: str,
-    discovery_port: int,
-) -> str | None:
-    if explicit_path:
-        return normalize_enrollment_invite(
-            explicit_path.read_text(encoding="utf-8"),
-            host_address,
-            discovery_port,
-        )
-
-    candidates = [
-        enrollment_invite_dir / f"{bundle_id}.json",
-        enrollment_invite_dir / f"{bundle_id.lower()}.json",
-        enrollment_invite_dir / f"{slugify(bundle_id)}.json",
-        enrollment_invite_dir / f"{bundle_id.lower()}.ans.json",
-        enrollment_invite_dir / f"{slugify(bundle_id)}.ans.json",
-    ]
-    for candidate in candidates:
-        if candidate.exists():
-            return normalize_enrollment_invite(
-                candidate.read_text(encoding="utf-8"),
-                host_address,
-                discovery_port,
-            )
-
-    for candidate in sorted(enrollment_invite_dir.glob("*.json")) + sorted(enrollment_invite_dir.glob("*.ans.json")):
-        try:
-            config = json.loads(candidate.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            continue
-        invite = config.get("invite") if isinstance(config.get("invite"), dict) else config
-        if invite.get("appId") == bundle_id:
-            return normalize_enrollment_invite(
-                json.dumps(config, indent=2),
-                host_address,
-                discovery_port,
-            )
-
-    return None
-
-
-def normalize_enrollment_invite(raw_json: str, host_address: str, discovery_port: int) -> str:
-    config = json.loads(raw_json)
-    schema = config.get("schema")
-    discovery = {
-        "schema": "ansight.discovery-hint.v1",
-        "source": "ios-test-app-validator",
-        "hostAddresses": [host_address],
-        "discoveryPort": discovery_port,
-    }
-
-    if schema == "ansight.enrollment-invite.v2":
-        return json.dumps(
-            {
-                "schema": "ansight.enrollment-invite-document.v2",
-                "invite": config,
-                "discovery": discovery,
-            },
-            indent=2,
-        )
-
-    if schema == "ansight.enrollment-invite-document.v2":
-        if not isinstance(config.get("invite"), dict):
-            raise RuntimeError("Enrollment document must contain an invite object.")
-        if not config.get("discovery"):
-            config["discovery"] = discovery
-        else:
-            config["discovery"].setdefault("schema", "ansight.discovery-hint.v1")
-            config["discovery"].setdefault("source", "ios-test-app-validator")
-            config["discovery"].setdefault("hostAddresses", [host_address])
-            config["discovery"].setdefault("discoveryPort", discovery_port)
-        return json.dumps(config, indent=2)
-
-    raise RuntimeError(f"Unsupported enrollment invite schema: {schema!r}")
-
-
 def swift_string_literal(value: str) -> str:
     return json.dumps(value, ensure_ascii=False)
 
@@ -819,7 +753,6 @@ def write_validation_sources(
     project_root: Path,
     app_name: str,
     bundle_id: str,
-    enrollment_invite_json: str | None,
     inject_validation_route_resolver: bool,
     inject_validation_touch_input: bool,
     inject_validation_input_overlay: bool,
@@ -1035,22 +968,9 @@ def write_validation_sources(
     }}
 """
 
-    enrollment_invite_declaration = ""
     host_connection_options = """
             options.hostConnection = AnsightHostConnectionOptions(
                 savedConfigKey: "ai.ansight.validation.\\(expectedBundleId)"
-            )
-"""
-    if enrollment_invite_json:
-        enrollment_invite_declaration = f"""
-    private static let enrollmentInviteJson = ###\"\"\"
-{enrollment_invite_json.rstrip()}
-\"\"\"###
-"""
-        host_connection_options = """
-            options.hostConnection = AnsightHostConnectionOptions(
-                savedConfigKey: "ai.ansight.validation.\\(expectedBundleId)",
-                bundledConfigJson: enrollmentInviteJson
             )
 """
 
@@ -1070,7 +990,6 @@ private enum AnsightValidationBootstrap {{
     private static let appName = {swift_string_literal(app_name)}
     private static let expectedBundleId = {swift_string_literal(bundle_id)}
 {validation_input_overlay_storage.rstrip()}
-{enrollment_invite_declaration.rstrip()}
 
     static func start() {{
         lock.lock()
@@ -1449,44 +1368,9 @@ def utc_now_iso() -> str:
     return dt.datetime.now(dt.timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
-def write_issued_enrollment_invite(
-    studio: StudioMCPClient,
-    app: AppProject,
-    enrollment_invite_dir: Path,
-    duration: str,
-) -> Path:
-    if not app.bundle_id:
-        raise RuntimeError("Cannot issue a Studio enrollment invite before resolving the bundle id.")
-
-    issued = studio.call_tool(
-        "ansight_issue_enrollment_invite",
-        {
-            "appId": app.bundle_id,
-            "appName": app.app_name or app.slug,
-            "duration": duration,
-        },
-    )
-    app.enrollment_invite_id = issued.get("inviteId")
-
-    invite_json = issued.get("inviteJson")
-    if not invite_json and isinstance(issued.get("invite"), dict):
-        invite_json = json.dumps(issued["invite"], indent=2)
-    if not isinstance(invite_json, str) or not invite_json.strip():
-        raise RuntimeError("Ansight Studio did not return an enrollment invite JSON payload.")
-
-    enrollment_invite_dir.mkdir(parents=True, exist_ok=True)
-    path = enrollment_invite_dir / f"{app.bundle_id.lower()}.ans.json"
-    path.write_text(invite_json, encoding="utf-8")
-    return path
-
-
 def prepare_project(
     app: AppProject,
     sdk_package: Path,
-    enrollment_invite_dir: Path,
-    explicit_enrollment_invite: Path | None,
-    host_address: str,
-    discovery_port: int,
     configuration: str,
     destination: str | None,
     derived_data_path: Path | None,
@@ -1512,20 +1396,13 @@ def prepare_project(
     if not bundle_id:
         raise RuntimeError(f"Could not resolve bundle identifier for {app.slug}.")
     app.bundle_id = bundle_id
-    app.app_name = settings.get("FULL_PRODUCT_NAME", target_name).removesuffix(".app")
+    product_name = settings.get("FULL_PRODUCT_NAME", target_name).removesuffix(".app")
+    app.app_name = f"{product_name} [{app.slug}]"
 
-    enrollment_invite_json = find_enrollment_invite(
-        enrollment_invite_dir,
-        bundle_id,
-        explicit_enrollment_invite,
-        host_address,
-        discovery_port,
-    )
     write_validation_sources(
         app.root,
         app.app_name or target_name,
         bundle_id,
-        enrollment_invite_json,
         inject_validation_route_resolver,
         inject_validation_touch_input,
         inject_validation_input_overlay,
@@ -2540,7 +2417,7 @@ def classify_validation_failure(result: ValidationResult) -> str:
         return "missing_pods"
     if "has been renamed" in text or "@propertydelegate" in text or "bindableobject" in text or "uiimageorientation" in text:
         return "stale_swift_api"
-    if result.failure_stage in {"resolving", "issuing_enrollment_invite"}:
+    if result.failure_stage == "resolving":
         return "resolution"
     if result.failure_stage == "pod_install":
         return "pod_install"
@@ -2589,12 +2466,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--skip-verified-results",
         action="store_true",
-        help="When --merge-results is used, skip apps that already have studio_verified=true in the merged results.",
+        help="When --merge-results is used, skip apps whose merged result is fully verified, including reconnect.",
     )
-    parser.add_argument("--enrollment-invite-dir", type=Path, default=DEFAULT_OUTPUT_ROOT / "enrollment-invites")
-    parser.add_argument("--enrollment-invite", type=Path, default=None, help="Use one explicit enrollment invite JSON for the selected app.")
-    parser.add_argument("--host-address", default="127.0.0.1", help="Host address to add to enrollment invites for simulator validation.")
-    parser.add_argument("--discovery-port", type=int, default=45123)
     parser.add_argument("--app", action="append", default=[], help="App slug, substring, root path, or xcodeproj path to validate. Repeatable.")
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--configuration", default="Debug")
@@ -2658,8 +2531,11 @@ def parse_args() -> argparse.Namespace:
         help="Inject a magenta UITextField inputView overlay for validating picker-like screenshot capture.",
     )
     parser.add_argument("--studio-daemon", type=Path, default=DEFAULT_STUDIO_DAEMON)
-    parser.add_argument("--studio-issue-invites", action="store_true", help="Issue fresh Ansight Studio enrollment invites for each app before preparing.")
-    parser.add_argument("--studio-invite-duration", default="12h", help="Lifetime for enrollment invites issued with --studio-issue-invites.")
+    parser.add_argument(
+        "--studio-mcp-url",
+        default=None,
+        help="Optional Studio MCP endpoint override, for example https://localhost:46125/mcp/.",
+    )
     parser.add_argument("--studio-verify", action="store_true", help="After launch, verify the live session through Ansight Studio MCP.")
     parser.add_argument("--studio-wait-seconds", type=int, default=25)
     parser.add_argument("--studio-poll-interval", type=float, default=2.0)
@@ -2725,9 +2601,6 @@ def main() -> int:
         args.summarize_results = args.summarize_results.expanduser().resolve()
     if args.merge_results:
         args.merge_results = args.merge_results.expanduser().resolve()
-    args.enrollment_invite_dir = args.enrollment_invite_dir.expanduser().resolve()
-    if args.enrollment_invite:
-        args.enrollment_invite = args.enrollment_invite.expanduser().resolve()
     args.studio_daemon = args.studio_daemon.expanduser().resolve()
     BUILD_SETTINGS_TIMEOUT_SECONDS = args.build_settings_timeout_seconds
     BUILD_TIMEOUT_SECONDS = args.build_timeout_seconds
@@ -2750,18 +2623,18 @@ def main() -> int:
             project
             for project in projects
             if merged_seed_by_slug.get(project.slug) is not None
-            and bool(merged_seed_by_slug[project.slug].studio_verified)
+            and merged_seed_by_slug[project.slug].status == "verified"
         ]
         projects = [
             project
             for project in projects
             if not (
                 merged_seed_by_slug.get(project.slug) is not None
-                and bool(merged_seed_by_slug[project.slug].studio_verified)
+                and merged_seed_by_slug[project.slug].status == "verified"
             )
         ]
         for project in skipped_projects:
-            print(f"==> Skipping {project.slug}; existing merged result is Studio verified.")
+            print(f"==> Skipping {project.slug}; existing merged result is fully verified.")
 
     if args.limit is not None:
         projects = projects[: args.limit]
@@ -2824,8 +2697,8 @@ def main() -> int:
     results: list[ValidationResult] = list(merged_seed_results)
     studio_client: StudioMCPClient | None = None
     try:
-        if args.studio_issue_invites or args.studio_verify:
-            studio_client = StudioMCPClient(args.studio_daemon)
+        if args.studio_verify:
+            studio_client = StudioMCPClient(args.studio_daemon, args.studio_mcp_url)
             studio_client.start()
 
         for project in projects:
@@ -2848,39 +2721,11 @@ def main() -> int:
                         args.pod_install_timeout_seconds,
                     )
 
-                if args.studio_issue_invites or args.studio_verify:
-                    stage = "resolving"
-                    if studio_client is None:
-                        raise RuntimeError("Studio MCP client was not started.")
-                    print(f"==> Resolving {project.slug} for Studio enrollment")
-                    resolved = resolve_project_identity(
-                        project,
-                        args.configuration,
-                        destination,
-                        derived_data_path,
-                    )
-                    result.scheme = resolved.scheme
-                    result.bundle_id = resolved.bundle_id
-                    result.app_name = resolved.app_name
-                    stage = "issuing_enrollment_invite"
-                    print(f"==> Issuing Studio enrollment invite for {project.slug} ({project.bundle_id})")
-                    write_issued_enrollment_invite(
-                        studio_client,
-                        project,
-                        args.enrollment_invite_dir,
-                        args.studio_invite_duration,
-                    )
-                    result.enrollment_invite_id = project.enrollment_invite_id
-
                 stage = "preparing"
                 print(f"==> Preparing {project.slug}")
                 prepared = prepare_project(
                     project,
                     args.sdk_package,
-                    args.enrollment_invite_dir,
-                    args.enrollment_invite,
-                    args.host_address,
-                    args.discovery_port,
                     args.configuration,
                     destination,
                     derived_data_path,
@@ -2963,7 +2808,7 @@ def main() -> int:
                     if not first_session_id:
                         raise RuntimeError("Initial Studio verification returned no session id.")
                     stage = "auto_reconnect"
-                    print(f"==> Relaunching {project.slug} without another enrollment invite")
+                    print(f"==> Relaunching {project.slug} without configuration")
                     terminate_and_launch(project, destination_id)
                     verify_studio_reconnect(
                         studio_client,
