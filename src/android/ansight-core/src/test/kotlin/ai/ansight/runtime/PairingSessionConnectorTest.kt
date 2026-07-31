@@ -13,6 +13,21 @@ import kotlin.concurrent.thread
 
 class PairingSessionConnectorTest {
     @Test
+    fun validateDocumentAcceptsGenericInviteForRuntimePackage() {
+        val document = pairingDocument(45_123).copy(
+            config = pairingConfig(45_123).copy(
+                appId = PairingConfig.AnyAppId,
+                appName = "Any Ansight app",
+            ),
+        )
+
+        PairingConfigDocumentService.validateDocument(
+            document,
+            expectedAppId = "ai.ansight.actual",
+        )
+    }
+
+    @Test
     fun connectRejectsCellularWhenCellularConnectionsAreDisabled() {
         val result = connector(PairingNetworkPreflightStatus.Cellular).connect(
             document = pairingDocument(45_123),

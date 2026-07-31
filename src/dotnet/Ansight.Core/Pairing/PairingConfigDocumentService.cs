@@ -195,6 +195,7 @@ internal sealed class PairingConfigDocumentService
 
         var normalizedExpected = expectedAppId?.Trim();
         if (!string.IsNullOrWhiteSpace(normalizedExpected)
+            && !string.Equals(config.AppId.Trim(), PairingConfig.AnyAppId, StringComparison.Ordinal)
             && !string.Equals(config.AppId.Trim(), normalizedExpected, StringComparison.Ordinal))
         {
             error =

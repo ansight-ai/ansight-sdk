@@ -189,6 +189,66 @@ public sealed class PairingSessionConnectorTests
     }
 
     [Fact]
+    public async Task ConnectAsync_WhenGenericInviteIsUsed_SendsRuntimeAppId()
+    {
+        using var listener = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        var listenerEndPoint = (IPEndPoint)listener.Client.LocalEndPoint!;
+        var connector = new PairingSessionConnector(() => PairingWifiPreflightStatus.Connected);
+        var config = PairingTestDocumentFactory.CreateEnrollmentInvite(
+            appId: PairingConfig.AnyAppId,
+            appName: "Any Ansight app",
+            discoveryPort: listenerEndPoint.Port);
+        var document = new ParsedPairingDocument
+        {
+            Config = config,
+            DiscoveryHint = PairingTestDocumentFactory.CreateDiscoveryHint(
+                hostAddress: IPAddress.Loopback.ToString(),
+                discoveryPort: listenerEndPoint.Port)
+        };
+
+        var connectTask = connector.ConnectAsync(
+            document,
+            "Unit Test App",
+            new PairingConnectionOptions
+            {
+                DeviceAppProfile = new DeviceAppProfile
+                {
+                    App = new DeviceApplicationProfile
+                    {
+                        AppId = "com.example.runtime-app"
+                    }
+                }
+            },
+            progress: null,
+            CancellationToken.None);
+
+        var request = await listener.ReceiveAsync();
+        var parsedRequest = JsonSerializer.Deserialize<ConnectRequest>(request.Buffer, PairingJson.Compact);
+
+        Assert.NotNull(parsedRequest);
+        Assert.Equal("com.example.runtime-app", parsedRequest!.AppId);
+
+        var payload = JsonSerializer.SerializeToUtf8Bytes(
+            new ConnectResponse
+            {
+                Type = "ENROLLMENT_RESULT",
+                Ver = 2,
+                RequestId = parsedRequest.RequestId,
+                Accepted = false,
+                Reason = "pairing-required",
+                ReasonMessage = "Need WebSocket handoff",
+                HostId = "host-1",
+                HostName = "Host",
+                Message = "Rejected"
+            },
+            PairingJson.Compact);
+        await listener.SendAsync(payload, payload.Length, request.RemoteEndPoint);
+
+        var result = await connectTask;
+        Assert.False(result.Success);
+    }
+
+    [Fact]
     public async Task ConnectAsync_WhenCellularConnectionsAreEnabled_AttemptsTheHostConnection()
     {
         using var listener = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
@@ -272,6 +332,7 @@ public sealed class PairingSessionConnectorTests
             parameters:
             [
                 config,
+                config.AppId,
                 "Unit Test App",
                 IPAddress.Loopback,
                 listenerEndPoint.Port,

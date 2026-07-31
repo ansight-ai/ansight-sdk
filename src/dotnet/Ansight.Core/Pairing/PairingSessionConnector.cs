@@ -42,6 +42,17 @@ internal sealed class PairingSessionConnector
 
         var simulatorLocalHostAddress = ResolveSimulatorLocalHostAddress();
         var config = document.Config;
+        var enrollmentAppId = PairingConfig.AnyAppId.Equals(config.AppId.Trim(), StringComparison.Ordinal)
+            ? options?.DeviceAppProfile?.App?.AppId?.Trim()
+            : config.AppId.Trim();
+        if (string.IsNullOrWhiteSpace(enrollmentAppId)
+            || PairingConfig.AnyAppId.Equals(enrollmentAppId, StringComparison.Ordinal))
+        {
+            return PairingConnectionAttempt.FromFailure(
+                "Ansight could not resolve this app's identifier for generic enrollment.",
+                PairingFailureCodes.EnrollmentRequired);
+        }
+
         var hostAddressCandidates = PairingDiscoveryHintHostAddresses.ResolveCandidates(
             document.DiscoveryHint,
             options?.HostAddressOverride,
@@ -147,6 +158,7 @@ internal sealed class PairingSessionConnector
             {
                 connectResponse = await SendConnectRequestAsync(
                     config,
+                    enrollmentAppId,
                     clientName,
                     hostAddress!,
                     discoveryPort,
@@ -280,6 +292,7 @@ internal sealed class PairingSessionConnector
 
     private static async Task<ConnectResponse?> SendConnectRequestAsync(
         PairingConfig config,
+        string appId,
         string clientName,
         IPAddress hostAddress,
         int discoveryPort,
@@ -297,8 +310,8 @@ internal sealed class PairingSessionConnector
                 ? PairingEnrollmentModes.Local
                 : PairingEnrollmentModes.Invite,
             InviteId = config.ConfigId,
-            AppId = config.AppId,
-            DeviceId = PairingDeviceIdentity.GetOrCreate(config.AppId),
+            AppId = appId,
+            DeviceId = PairingDeviceIdentity.GetOrCreate(appId),
             DeviceName = clientName,
             AccessToken = config.Enrollment?.Secret
                           ?? throw new InvalidOperationException(

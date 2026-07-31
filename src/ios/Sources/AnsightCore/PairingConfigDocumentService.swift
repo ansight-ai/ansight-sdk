@@ -78,6 +78,7 @@ public struct PairingConfigDocumentService: Sendable {
 
         let normalizedExpected = expectedAppId?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if !normalizedExpected.isEmpty,
+           config.appId.trimmingCharacters(in: .whitespacesAndNewlines) != PairingConfig.anyAppId,
            config.appId.trimmingCharacters(in: .whitespacesAndNewlines) != normalizedExpected {
             throw PairingDocumentError.invalidDocument(
                 "Enrollment invite appId '\(config.appId)' does not match expected app id '\(normalizedExpected)'."

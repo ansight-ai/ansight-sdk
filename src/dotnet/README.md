@@ -39,8 +39,9 @@ work against the same recorded data.
 The bridge packages are implementation details; applications do not install or
 configure them separately. Install the SDK and initialize it. Simulator,
 Mac Catalyst, and desktop runtimes register automatically with a running,
-signed-in Studio; physical devices scan one Studio enrollment QR and then
-reconnect from app-private registration state.
+signed-in Studio; physical devices scan the generic one-use QR from Studio's
+**Pair Any App** screen and then reconnect from app-private registration state.
+The runtime app id is registered automatically after the scan.
 
 ## All-In-One
 

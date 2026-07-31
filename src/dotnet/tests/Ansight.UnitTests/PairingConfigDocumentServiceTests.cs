@@ -59,6 +59,22 @@ public sealed class PairingConfigDocumentServiceTests
     }
 
     [Fact]
+    public void TryValidateDocument_AcceptsGenericInviteForRuntimeApp()
+    {
+        var document = new ParsedPairingDocument
+        {
+            Config = PairingTestDocumentFactory.CreateEnrollmentInvite(
+                appId: PairingConfig.AnyAppId,
+                appName: "Any Ansight app")
+        };
+
+        var success = new PairingConfigDocumentService()
+            .TryValidateDocument(document, "com.ansight.actual", out var error);
+
+        Assert.True(success, error);
+    }
+
+    [Fact]
     public void TryValidateConfig_AcceptsCurrentEnrollmentInvite()
     {
         var invite = PairingTestDocumentFactory.CreateEnrollmentInvite(appId: "com.ansight.test");

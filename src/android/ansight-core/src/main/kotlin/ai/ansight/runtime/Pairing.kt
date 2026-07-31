@@ -45,6 +45,7 @@ data class PairingConfig(
 ) {
     companion object {
         const val SchemaName = "ansight.enrollment-invite.v2"
+        const val AnyAppId = "*"
 
         fun fromJson(json: JSONObject): PairingConfig = PairingConfig(
             schema = json.requiredString("schema"),
@@ -205,7 +206,7 @@ object PairingConfigDocumentService {
 
         val normalizedExpected = expectedAppId?.trim().orEmpty()
         if (normalizedExpected.isNotEmpty()) {
-            require(config.appId.trim() == normalizedExpected) {
+            require(config.appId.trim() == PairingConfig.AnyAppId || config.appId.trim() == normalizedExpected) {
                 "Enrollment invite appId '${config.appId.trim()}' does not match expected app id '$normalizedExpected'."
             }
         }
@@ -560,10 +561,25 @@ class PairingSessionConnector(
         }
 
         val deviceId = AndroidPairingDeviceIdentity.resolve(applicationProvider())
+        val enrollmentAppId = if (document.config.appId.trim() == PairingConfig.AnyAppId) {
+            applicationProvider()?.packageName?.trim()?.ifBlank { null }
+        } else {
+            document.config.appId.trim().ifBlank { null }
+        } ?: return PairingConnectionAttempt.failure(
+            "Ansight could not resolve this app's package id for generic enrollment.",
+            PairingFailureCodes.EnrollmentRequired,
+        )
         var lastFailure: PairingConnectionAttempt? = null
         for (hostAddress in hostAddressCandidates) {
             val connectResponse = try {
-                sendConnectRequest(document.config, clientName, deviceId, hostAddress, discoveryPort)
+                sendConnectRequest(
+                    document.config,
+                    enrollmentAppId,
+                    clientName,
+                    deviceId,
+                    hostAddress,
+                    discoveryPort,
+                )
             } catch (ex: Exception) {
                 lastFailure = PairingConnectionAttempt.failure(
                     "UDP enrollment failed for $hostAddress: ${ex.message}",
@@ -616,6 +632,7 @@ class PairingSessionConnector(
 
     private fun sendConnectRequest(
         config: PairingConfig,
+        appId: String,
         deviceName: String,
         deviceId: String,
         hostAddress: String,
@@ -634,7 +651,7 @@ class PairingSessionConnector(
                     PairingEnrollmentModes.Invite
                 },
                 inviteId = config.configId,
-                appId = config.appId,
+                appId = appId,
                 deviceId = deviceId,
                 deviceName = deviceName,
                 accessToken = config.enrollment.accessToken,

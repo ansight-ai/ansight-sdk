@@ -3,6 +3,20 @@ import XCTest
 @testable import AnsightPairingQR
 
 final class PairingAndRuntimeTests: XCTestCase {
+    func testValidationAcceptsGenericInviteForRuntimeBundle() throws {
+        let config = TestPairingFactory.enrollmentConfig(
+            configId: "invite-any-app",
+            appId: PairingConfig.anyAppId
+        )
+
+        XCTAssertNoThrow(
+            try PairingConfigDocumentService().validateDocument(
+                ParsedPairingDocument(config: config),
+                expectedAppId: "com.example.actual"
+            )
+        )
+    }
+
     func testParseDocumentParsesEnrollmentInviteDocument() throws {
         let config = TestPairingFactory.enrollmentConfig(configId: "invite-document")
         let documentJson = try TestPairingFactory.documentJSON(config: config)

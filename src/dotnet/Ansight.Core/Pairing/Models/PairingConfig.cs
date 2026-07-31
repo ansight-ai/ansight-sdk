@@ -13,6 +13,12 @@ public sealed class PairingConfig
     public const string SchemaName = "ansight.enrollment-invite.v2";
 
     /// <summary>
+    /// App identifier used by a generic one-use invite. Studio binds the grant
+    /// to the actual app identifier supplied by the scanning installation.
+    /// </summary>
+    public const string AnyAppId = "*";
+
+    /// <summary>
     /// Schema identifier for the config payload.
     /// </summary>
     public required string Schema { get; set; }

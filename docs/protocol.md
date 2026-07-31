@@ -13,8 +13,9 @@ The default developer flow is deliberately small:
 1. The app initializes and activates the SDK.
 2. A host-local runtime registers automatically with a running, signed-in
    Studio through loopback.
-3. A physical device scans a short-lived, one-use enrollment QR once.
-4. Later launches reconnect automatically while the registration is valid.
+3. Studio shows one generic, short-lived, one-use enrollment QR.
+4. A physical app scans it and registers itself automatically.
+5. Later launches reconnect automatically while the registration is valid.
 
 There are no certificates, signing keys, pairing files, host-address fields, or
 approval services for the developer to configure.
@@ -46,8 +47,8 @@ Document schema: `ansight.enrollment-invite-document.v2`
   "invite": {
     "schema": "ansight.enrollment-invite.v2",
     "inviteId": "invite_123",
-    "appId": "com.example.app",
-    "appName": "Example",
+    "appId": "*",
+    "appName": "Any Ansight app",
     "issuedAt": "2026-07-30T01:00:00Z",
     "expiresAt": "2026-07-30T01:10:00Z",
     "minProtocolVersion": 2,
@@ -88,6 +89,13 @@ ans2:<base64url(gzip(utf8-json-enrollment-invite-document))>
 
 The base64url value is unpadded.
 
+`appId: "*"` is the v2 any-app target. Studio uses it for the generic QR.
+The invite does not pre-register an app and the SDK never sends `*` as its
+runtime identity. The scanning SDK supplies its real package or bundle id in
+`ENROLLMENT_CONNECT`; Studio creates the app record after successful
+authorization. Existing app-specific v2 invites retain their exact app-id
+check.
+
 ### Installation identity
 
 Each SDK generates a random, stable `deviceId` and local enrollment token in
@@ -108,7 +116,9 @@ The first successful use of an invite atomically binds its access token to:
 - `appId`
 - `deviceId`
 
-The same app installation can reconnect with that saved invite and device id.
+For a generic invite, `appId` is the scanning app's runtime package or bundle
+id, not the `*` target carried by the QR. The same app installation can
+reconnect with that saved invite and device id.
 A different installation cannot claim the consumed invite. Clearing app data
 or removing the saved registration creates a new installation identity and
 requires a fresh QR.

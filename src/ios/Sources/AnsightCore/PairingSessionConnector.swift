@@ -75,6 +75,21 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
         }
 
         let deviceId = PairingDeviceIdentity.resolve()
+        let enrollmentAppId: String
+        if document.config.appId.trimmingCharacters(in: .whitespacesAndNewlines) == PairingConfig.anyAppId {
+            enrollmentAppId = Bundle.main.bundleIdentifier?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        } else {
+            enrollmentAppId = document.config.appId
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        guard !enrollmentAppId.isEmpty, enrollmentAppId != PairingConfig.anyAppId else {
+            return .failure(
+                "Ansight could not resolve this app's bundle id for generic enrollment.",
+                code: PairingFailureCodes.enrollmentRequired
+            )
+        }
+
         let isLocalEnrollment = document.config.configId.hasPrefix(
             PairingEnrollmentModes.localConfigPrefix
         )
@@ -88,7 +103,7 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
                     ? PairingEnrollmentModes.local
                     : PairingEnrollmentModes.invite,
                 inviteId: document.config.configId,
-                appId: document.config.appId,
+                appId: enrollmentAppId,
                 deviceId: deviceId,
                 deviceName: clientName,
                 accessToken: document.config.enrollment.accessToken

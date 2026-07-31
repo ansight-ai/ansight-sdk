@@ -90,7 +90,9 @@ signed-in Studio on the same Mac. No pairing file, build environment variable,
 host address, or build-time Studio process is required. If Studio is
 unavailable, the SDK keeps retrying without affecting the app.
 
-On a physical iPhone, call `.qrCode(...)` once. The in-app scanner requires
+On a physical iPhone, open Studio's **Pair Any App** screen and call
+`.qrCode(...)` once to scan the generic one-use QR. Studio registers the
+runtime bundle id automatically; no app entry is required first. The scanner requires
 `NSCameraUsageDescription`, and direct Studio access uses Apple's Local Network
 privacy control. Later launches reconnect from app-private registration state.
 Ansight does not add Bluetooth, location, Bonjour discovery, contacts, photos,

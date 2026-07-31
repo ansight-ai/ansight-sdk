@@ -13,10 +13,11 @@ dormant and retries later without failing or delaying the app.
 Host-local discovery checks the supported installed and source-build Studio
 ports with short loopback-only timeouts before considering older stored state.
 
-A physical phone cannot use the host's loopback interface. On a physical
-device, scan a short-lived Studio enrollment QR once. The SDK saves the
-registration in app-private storage and reconnects automatically on later
-launches.
+A physical phone cannot use the host's loopback interface. Open Studio's
+**Pair Any App** screen and scan its generic one-use QR. No app entry or
+app-specific invite is created first: the scanning SDK sends its runtime app
+identity, Studio registers it after authorization, and the SDK saves the
+app-scoped registration in private storage for later reconnects.
 
 ## Android
 
@@ -122,5 +123,6 @@ Scan a new QR when:
 - the registration expired or Studio revoked it;
 - a different phone tries to use an invite that was already consumed.
 
-The QR is one-use for initial registration. The registered phone does not need
-to rescan merely because the original QR later expires.
+The generic QR is claimed by the first scanning app installation. The
+registered phone does not need to rescan merely because the original QR later
+expires.

@@ -8,6 +8,7 @@ enum PairingEnrollmentModes {
 
 public struct PairingConfig: Sendable, Codable, Equatable {
     public static let schemaName = "ansight.enrollment-invite.v2"
+    public static let anyAppId = "*"
 
     public var schema: String
     public var configId: String

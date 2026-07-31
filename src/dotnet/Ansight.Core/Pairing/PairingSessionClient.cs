@@ -282,7 +282,14 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
             $"Config validated. ConfigId: {config.ConfigId}",
             source: HostConnectionSource.Payload);
 
-        var connectionAttempt = await connector.ConnectAsync(sessionDocument, clientName, options, progress, cancellationToken);
+        var connectionOptions = options?.Clone() ?? new PairingConnectionOptions();
+        connectionOptions.DeviceAppProfile = deviceAppProfile;
+        var connectionAttempt = await connector.ConnectAsync(
+            sessionDocument,
+            clientName,
+            connectionOptions,
+            progress,
+            cancellationToken);
         if (!connectionAttempt.Success)
         {
             return connectionAttempt.Accepted

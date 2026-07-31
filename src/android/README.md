@@ -53,14 +53,17 @@ An emulator now registers automatically with a running, signed-in Studio on the
 host. There is no build-time Studio probe. If Studio is unavailable, the SDK
 keeps retrying without affecting the app.
 
-On a physical device, scan the enrollment QR once from a developer-only screen:
+On a physical device, open Studio's **Pair Any App** screen and scan its
+generic one-use QR from a developer-only screen:
 
 ```kotlin
 Ansight.enrollFromQrCode(activity)
 ```
 
-The physical-device scan registers a random app-installation id and stores the
-registration in app-private storage. Later launches reconnect automatically.
+No app registration is required in Studio beforehand. The physical-device
+scan sends the runtime package id, registers a random app-installation id, and
+stores the resulting app-scoped registration in private storage. Later
+launches reconnect automatically.
 Google Code Scanner owns the camera interaction, so the app does not need the
 `CAMERA` permission.
 
