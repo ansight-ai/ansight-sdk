@@ -10,9 +10,10 @@ protocol. Older pairing handshakes and pairing-config formats are not accepted.
 
 The default developer flow is deliberately small:
 
-1. Studio displays a short-lived, one-use enrollment QR.
-2. The app scans it.
-3. The SDK registers that app installation and saves the enrollment state.
+1. The app initializes and activates the SDK.
+2. A host-local runtime registers automatically with a running, signed-in
+   Studio through loopback.
+3. A physical device scans a short-lived, one-use enrollment QR once.
 4. Later launches reconnect automatically while the registration is valid.
 
 There are no certificates, signing keys, pairing files, host-address fields, or
@@ -89,8 +90,17 @@ The base64url value is unpadded.
 
 ### Installation identity
 
-Each SDK generates a random, stable `deviceId` in app-private storage. It does
-not use a hardware identifier and does not require a platform permission.
+Each SDK generates a random, stable `deviceId` and local enrollment token in
+app-private storage. It does not use a hardware identifier and does not require
+a platform permission.
+
+For host-local runtimes, Studio creates or reuses a local grant keyed by the
+app id, installation id, and token. Local enrollment is accepted only when the
+UDP request originated from loopback and Studio has an authenticated account.
+The SDK checks its well-known installed and source-build Studio ports with
+short loopback-only timeouts before trying older stored registrations. It
+retries while active, so Studio does not need to be running during the app
+build or initial launch.
 
 The first successful use of an invite atomically binds its access token to:
 
@@ -127,6 +137,7 @@ discovery port.
   "type": "ENROLLMENT_CONNECT",
   "ver": 2,
   "requestId": "request_123",
+  "enrollmentMode": "invite",
   "inviteId": "invite_123",
   "appId": "com.example.app",
   "deviceId": "installation_123",
@@ -136,9 +147,14 @@ discovery port.
 }
 ```
 
-Required properties are `type`, `ver`, `requestId`, `inviteId`, `appId`,
-`deviceId`, and `accessToken`. `processSessionId` remains stable for the life of
-the app process.
+Required properties are `type`, `ver`, `requestId`, `enrollmentMode`,
+`inviteId`, `appId`, `deviceId`, and `accessToken`. `processSessionId` remains
+stable for the life of the app process.
+
+`enrollmentMode` is `invite` for QR and saved physical-device registrations.
+It is `local` for automatic host-local registration. A local request uses an
+SDK-generated `local:<appId>` identifier and stable app-private token; it does
+not contain or depend on an invite issued at build time.
 
 ### UDP enrollment result
 
@@ -287,6 +303,8 @@ cannot raise permissions beyond the app's local configuration.
 
 - Enrollment invites are bearer secrets. Do not publish, log, or ship them in
   production resources.
+- Local enrollment is rejected unless the datagram source is loopback and
+  Studio is authenticated.
 - The host consumes first registration atomically.
 - A registered installation reconnects with its saved state and does not need
   the original QR to remain unexpired.

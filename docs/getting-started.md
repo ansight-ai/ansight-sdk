@@ -1,34 +1,37 @@
-# Install once, scan once
+# Install once, run
 
 Ansight's default development connection flow is:
 
 1. Install the SDK and initialize its developer preset.
-2. Show the enrollment QR in Ansight Studio.
-3. Scan it once on the phone.
-4. Launch the app normally from then on.
+2. Run the app while Ansight Studio is open and signed in.
 
-The first scan registers a random app-installation id and saves the registration
-in app-private storage. Later launches reconnect automatically while that
-registration remains valid.
+Simulators, emulators, Mac Catalyst apps, and desktop apps register
+automatically through loopback. There is no pairing config, Studio build probe,
+generated file, certificate, signing key, host address, build constant, or
+approval service to set up. If Studio is closed or signed out, the SDK remains
+dormant and retries later without failing or delaying the app.
+Host-local discovery checks the supported installed and source-build Studio
+ports with short loopback-only timeouts before considering older stored state.
 
-There is no pairing config, certificate, signing key, host address, copied
-file, build constant, or approval service to set up. The QR contains the
-one-use enrollment secret and Studio's current LAN addresses.
+A physical phone cannot use the host's loopback interface. On a physical
+device, scan a short-lived Studio enrollment QR once. The SDK saves the
+registration in app-private storage and reconnects automatically on later
+launches.
 
 ## Android
 
-Install the aggregate Android artifact, initialize the runtime, and invoke the
-scanner from a developer-only screen:
+Install the aggregate Android artifact and initialize the runtime:
 
 ```kotlin
 Ansight.initializeAndActivate(application)
-Ansight.enrollFromQrCode(activity)
 ```
 
-The SDK declares the ordinary network permissions it actually uses. Its
-developer WebSocket transport does not change the host app's
-`usesCleartextTraffic` or network-security policy. Google Code Scanner performs
-the scan, so the host app does not need to request `CAMERA`.
+Android emulators connect automatically. For a physical device, invoke
+`Ansight.enrollFromQrCode(activity)` from a developer-only screen. Google Code
+Scanner owns the camera interaction, so the host app does not need to request
+`CAMERA`. The SDK declares only the ordinary network permissions it uses and
+does not change the host app's `usesCleartextTraffic` or network-security
+policy.
 
 Kotlin source projects need Kotlin Gradle plugin 1.8 or newer.
 
@@ -38,13 +41,13 @@ Install the aggregate `Ansight` Swift package:
 
 ```swift
 try AnsightRuntime.shared.initializeAndActivateAnsightSdk()
-await AnsightRuntime.shared.connect(.qrCode(title: "Scan Ansight Enrollment QR"))
 ```
 
-An SDK-owned camera scanner requires `NSCameraUsageDescription`. A physical
-iPhone connecting directly to Studio also triggers Apple's Local Network
-privacy control. These are required by iOS for the features being used; Ansight
-does not request Bluetooth, location, contacts, photos, or Bonjour discovery.
+iOS Simulator and Mac Catalyst connect automatically. A physical iPhone uses
+`await AnsightRuntime.shared.connect(.qrCode(...))` once. The SDK-owned scanner
+requires `NSCameraUsageDescription`, and direct LAN access triggers Apple's
+Local Network privacy control. Ansight does not request Bluetooth, location,
+contacts, photos, or Bonjour discovery.
 
 ## React Native
 
@@ -52,8 +55,10 @@ does not request Bluetooth, location, contacts, photos, or Bonjour discovery.
 await Ansight.initializeAndActivate({
   useNativeAllInOneDefaults: __DEV__,
 });
-await Ansight.enrollFromQrCode();
 ```
+
+The native simulator/emulator runtime connects automatically. Call
+`Ansight.enrollFromQrCode()` only on a physical device.
 
 ## Capacitor
 
@@ -61,16 +66,20 @@ await Ansight.enrollFromQrCode();
 await Ansight.initializeAndActivate(
   Ansight.createOptionsBuilder().withAnsightDefaults().build(),
 );
-await Ansight.enrollFromQrCode();
 ```
+
+The native simulator/emulator runtime connects automatically. Call
+`Ansight.enrollFromQrCode()` only on a physical device.
 
 ## Flutter
 
 ```dart
 await Ansight.instance.initializeAndActivate(AnsightOptions.developer());
 await AnsightFlutterInstrumentation.instance.install();
-await Ansight.instance.enrollFromQrCode();
 ```
+
+The native simulator/emulator runtime connects automatically. Call
+`Ansight.instance.enrollFromQrCode()` only on a physical device.
 
 ## .NET and MAUI
 
@@ -83,20 +92,20 @@ var options = Options.CreateBuilder()
     .Build();
 
 Runtime.InitializeAndActivate(options);
-await Runtime.HostConnection.ConnectAsync(
-    HostConnectionRequest.QrCode());
 ```
 
-The exact runtime entry point varies between the portable, MAUI, and native
-binding packages, but they all use the same stored installation id and
-enrollment protocol.
+Simulator and Mac Catalyst targets connect automatically through the native
+bridge. Use `HostConnectionRequest.QrCode()` once for a physical device. The
+exact initialization entry point varies between the portable, MAUI, and native
+binding packages, but all use the same runtime enrollment protocol.
 
 ## Network model
 
-Enrollment uses UDP followed by `ws://` on the local network. No certificate is
-needed. This is the lowest-friction path for local development, but traffic is
-not encrypted or authenticated against an active network attacker. Use it only
-on a network you trust.
+Enrollment uses UDP followed by `ws://`. Local automatic enrollment is accepted
+only from loopback and only while Studio is signed in. Physical-device
+enrollment uses a one-use bearer invite over the local network. No certificate
+is needed. Traffic is not encrypted or authenticated against an active network
+attacker, so use physical-device connections only on a network you trust.
 
 Android manifest integration is automatic. The iOS client uses
 Network.framework directly, so it does not need an ATS clear-text exception.
@@ -104,11 +113,11 @@ iOS camera and Local Network privacy descriptions cannot be injected into the
 final app by Swift Package Manager, so the app must provide the descriptions
 when it invokes those features.
 
-## When a fresh scan is required
+## When a physical device needs a fresh scan
 
 Scan a new QR when:
 
-- this installation has never registered;
+- this physical installation has never registered;
 - app storage was cleared or the app was reinstalled;
 - the registration expired or Studio revoked it;
 - a different phone tries to use an invite that was already consumed.

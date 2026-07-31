@@ -4,6 +4,7 @@ internal static class PairingDeviceIdentity
 {
     private static readonly Lock gate = new();
     private static readonly Dictionary<string, string> identities = new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, string> accessTokens = new(StringComparer.Ordinal);
 
     public static string GetOrCreate(string appId)
     {
@@ -15,7 +16,7 @@ internal static class PairingDeviceIdentity
                 return identity;
             }
 
-            var path = ResolvePath(normalizedAppId);
+            var path = ResolvePath(normalizedAppId, ".txt");
             identity = TryRead(path) ?? PairingCrypto.CreateBase64UrlRandom(16);
             identities[normalizedAppId] = identity;
             TryPersist(path, identity);
@@ -23,7 +24,25 @@ internal static class PairingDeviceIdentity
         }
     }
 
-    private static string ResolvePath(string appId)
+    public static string GetOrCreateAccessToken(string appId)
+    {
+        var normalizedAppId = string.IsNullOrWhiteSpace(appId) ? "app" : appId.Trim();
+        lock (gate)
+        {
+            if (accessTokens.TryGetValue(normalizedAppId, out var accessToken))
+            {
+                return accessToken;
+            }
+
+            var path = ResolvePath(normalizedAppId, ".token");
+            accessToken = TryRead(path) ?? PairingCrypto.CreateBase64UrlRandom(32);
+            accessTokens[normalizedAppId] = accessToken;
+            TryPersist(path, accessToken);
+            return accessToken;
+        }
+    }
+
+    private static string ResolvePath(string appId, string extension)
     {
         var root = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         if (string.IsNullOrWhiteSpace(root))
@@ -34,7 +53,7 @@ internal static class PairingDeviceIdentity
         var safeAppId = string.Concat(
             appId.Select(character =>
                 Path.GetInvalidFileNameChars().Contains(character) ? '_' : character));
-        return Path.Combine(root, "Ansight", "device-identities", $"{safeAppId}.txt");
+        return Path.Combine(root, "Ansight", "device-identities", $"{safeAppId}{extension}");
     }
 
     private static string? TryRead(string path)

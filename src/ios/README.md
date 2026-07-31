@@ -83,15 +83,16 @@ suites:
 import Ansight
 
 try AnsightRuntime.shared.initializeAndActivateAnsightSdk()
-await AnsightRuntime.shared.connect(.qrCode(title: "Scan Ansight Enrollment QR"))
 ```
 
-No pairing file, build environment variable, or host address is required. The
-first scan registers a random app-installation id and saves the registration.
-Later launches reconnect automatically.
+The iOS Simulator and Mac Catalyst register automatically with a running,
+signed-in Studio on the same Mac. No pairing file, build environment variable,
+host address, or build-time Studio process is required. If Studio is
+unavailable, the SDK keeps retrying without affecting the app.
 
-The in-app scanner requires `NSCameraUsageDescription`. A physical iPhone
-connecting directly to Studio also uses Apple's Local Network privacy control.
+On a physical iPhone, call `.qrCode(...)` once. The in-app scanner requires
+`NSCameraUsageDescription`, and direct Studio access uses Apple's Local Network
+privacy control. Later launches reconnect from app-private registration state.
 Ansight does not add Bluetooth, location, Bonjour discovery, contacts, photos,
 or associated-domains access.
 
@@ -166,11 +167,11 @@ let result = await AnsightRuntime.shared.connect(
 )
 ```
 
-This is the default first-use flow. After a successful scan, `.auto(...)`
-reconnects with the stored registration.
+This is the physical-device first-use flow. After a successful scan,
+`.auto(...)` reconnects with the stored registration.
 
-Automatic connection uses the app-private registration created by the first
-successful enrollment scan.
+For iOS Simulator and Mac Catalyst, activation automatically performs local
+enrollment and connection; no explicit `connect` call is required.
 
 Host auto-probe is enabled by default while the runtime is active. It remembers
 previous host connections and retries them so the app can reconnect after the

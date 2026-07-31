@@ -9,6 +9,7 @@ import java.net.DatagramSocket
 import java.net.InetAddress
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import java.security.SecureRandom
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.util.Base64
@@ -17,8 +18,17 @@ import java.util.zip.GZIPInputStream
 
 object PairingProtocolDefaults {
     const val DiscoveryPort = 45_123
+    const val DeveloperDiscoveryPort = 46_123
     const val WebSocketPort = 45_124
     const val WebSocketPath = "/ws"
+
+    val LocalDiscoveryPorts = listOf(DiscoveryPort, DeveloperDiscoveryPort)
+}
+
+internal object PairingEnrollmentModes {
+    const val Invite = "invite"
+    const val Local = "local"
+    const val LocalConfigPrefix = "local:"
 }
 
 data class PairingConfig(
@@ -243,6 +253,7 @@ internal object PairingConfigCodeGenerator {
 
 data class ConnectRequest(
     val requestId: String,
+    val enrollmentMode: String = PairingEnrollmentModes.Invite,
     val inviteId: String,
     val appId: String,
     val deviceId: String,
@@ -254,6 +265,7 @@ data class ConnectRequest(
         .put("type", "ENROLLMENT_CONNECT")
         .put("ver", 2)
         .put("requestId", requestId)
+        .put("enrollmentMode", enrollmentMode)
         .put("inviteId", inviteId)
         .put("appId", appId)
         .put("deviceId", deviceId)
@@ -312,7 +324,9 @@ object ProcessSessionIdentity {
 internal object AndroidPairingDeviceIdentity {
     private const val PreferencesName = "ai.ansight.enrollment"
     private const val DeviceIdKey = "deviceId"
+    private const val AccessTokenKey = "localAccessToken"
     private val processFallback = "android.${UUID.randomUUID().toString().replace("-", "")}"
+    private val processAccessTokenFallback = createAccessToken()
 
     fun resolve(application: Application?): String {
         if (application == null) {
@@ -326,6 +340,75 @@ internal object AndroidPairingDeviceIdentity {
             preferences.edit().putString(DeviceIdKey, deviceId).apply()
             return deviceId
         }
+    }
+
+    fun resolveAccessToken(application: Application?): String {
+        if (application == null) {
+            return processAccessTokenFallback
+        }
+
+        val preferences = application.getSharedPreferences(PreferencesName, Application.MODE_PRIVATE)
+        synchronized(this) {
+            preferences.getString(AccessTokenKey, null)?.trim()?.ifBlank { null }?.let { return it }
+            return createAccessToken().also { accessToken ->
+                preferences.edit().putString(AccessTokenKey, accessToken).apply()
+            }
+        }
+    }
+
+    private fun createAccessToken(): String {
+        val bytes = ByteArray(32)
+        SecureRandom().nextBytes(bytes)
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+    }
+}
+
+internal object LocalPairingDocumentFactory {
+    fun createPayload(
+        application: Application,
+        appName: String,
+        hostAddress: String,
+        discoveryPort: Int,
+    ): String {
+        val now = Instant.now()
+        val expiresAt = now.plusSeconds(10L * 365L * 24L * 60L * 60L).toString()
+        val invite = JSONObject()
+            .put("schema", PairingConfig.SchemaName)
+            .put("inviteId", "${PairingEnrollmentModes.LocalConfigPrefix}${application.packageName}")
+            .put("appId", application.packageName)
+            .put("appName", appName)
+            .put("issuedAt", now.toString())
+            .put("expiresAt", expiresAt)
+            .put("minProtocolVersion", 2)
+            .put("allowedTransports", JSONArray().put("ws"))
+            .put(
+                "host",
+                JSONObject()
+                    .put("hostName", "Local Ansight Studio")
+                    .put("discoveryPort", discoveryPort),
+            )
+            .put(
+                "enrollment",
+                JSONObject()
+                    .put("accessToken", AndroidPairingDeviceIdentity.resolveAccessToken(application))
+                    .put("expiresAt", expiresAt)
+                    .put("grantExpiresAt", expiresAt)
+                    .put("maxUses", 1)
+                    .put("maxScopes", JSONArray().put("Read"))
+                    .put("allowCritical", false),
+            )
+        val discovery = JSONObject()
+            .put("schema", "ansight.discovery-hint.v1")
+            .put("source", "runtime-local")
+            .put("hostAddresses", JSONArray().put(hostAddress))
+            .put("discoveryPort", discoveryPort)
+            .put("hostName", "Local Ansight Studio")
+            .put("capturedAt", now.toString())
+        return JSONObject()
+            .put("schema", PairingConfigDocumentService.ConfigDocumentSchemaName)
+            .put("invite", invite)
+            .put("discovery", discovery)
+            .toString()
     }
 }
 
@@ -425,6 +508,8 @@ class PairingSessionConnector(
     ) : this(simulatorLocalHostAddressProvider, applicationProvider) {
         this.networkStatusProvider = networkStatusProvider
     }
+
+    internal fun localHostAddress(): String? = resolveSimulatorLocalHostAddress()
 
     fun connect(
         document: ParsedPairingDocument,
@@ -539,9 +624,15 @@ class PairingSessionConnector(
         val address = InetAddress.getByName(hostAddress)
         val requestId = UUID.randomUUID().toString().replace("-", "")
         DatagramSocket().use { socket ->
-            socket.soTimeout = 5_000
+            val isLocalEnrollment = config.configId.startsWith(PairingEnrollmentModes.LocalConfigPrefix)
+            socket.soTimeout = if (isLocalEnrollment) 1_000 else 5_000
             val request = ConnectRequest(
                 requestId = requestId,
+                enrollmentMode = if (isLocalEnrollment) {
+                    PairingEnrollmentModes.Local
+                } else {
+                    PairingEnrollmentModes.Invite
+                },
                 inviteId = config.configId,
                 appId = config.appId,
                 deviceId = deviceId,

@@ -116,6 +116,7 @@ public sealed class PairingSessionConnectorTests
 
         Assert.NotNull(parsedRequest);
         Assert.Equal(config.ConfigId, parsedRequest!.InviteId);
+        Assert.Equal(PairingEnrollmentModes.Invite, parsedRequest.EnrollmentMode);
 
         var payload = JsonSerializer.SerializeToUtf8Bytes(
             new ConnectResponse
@@ -137,6 +138,54 @@ public sealed class PairingSessionConnectorTests
         Assert.False(result.Success);
         Assert.False(result.Accepted);
         Assert.Equal(IPAddress.Loopback, result.HostAddress);
+    }
+
+    [Fact]
+    public async Task ConnectAsync_WhenRuntimeLocalDocumentIsUsed_SendsLocalEnrollmentMode()
+    {
+        using var listener = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        var listenerEndPoint = (IPEndPoint)listener.Client.LocalEndPoint!;
+        var connector = new PairingSessionConnector(
+            () => PairingWifiPreflightStatus.NotConnected,
+            () => IPAddress.Loopback.ToString());
+        var config = PairingTestDocumentFactory.CreateEnrollmentInvite(discoveryPort: listenerEndPoint.Port);
+        config.ConfigId = $"{PairingEnrollmentModes.LocalConfigPrefix}{config.AppId}";
+        var document = new ParsedPairingDocument
+        {
+            Config = config
+        };
+
+        var connectTask = connector.ConnectAsync(
+            document,
+            "Unit Test App",
+            options: null,
+            progress: null,
+            CancellationToken.None);
+
+        var request = await listener.ReceiveAsync();
+        var parsedRequest = JsonSerializer.Deserialize<ConnectRequest>(request.Buffer, PairingJson.Compact);
+
+        Assert.NotNull(parsedRequest);
+        Assert.Equal(PairingEnrollmentModes.Local, parsedRequest!.EnrollmentMode);
+
+        var payload = JsonSerializer.SerializeToUtf8Bytes(
+            new ConnectResponse
+            {
+                Type = "ENROLLMENT_RESULT",
+                Ver = 2,
+                RequestId = parsedRequest.RequestId,
+                Accepted = false,
+                Reason = "pairing-required",
+                ReasonMessage = "Need WebSocket handoff",
+                HostId = "host-1",
+                HostName = "Host",
+                Message = "Rejected"
+            },
+            PairingJson.Compact);
+        await listener.SendAsync(payload, payload.Length, request.RemoteEndPoint);
+
+        var result = await connectTask;
+        Assert.False(result.Success);
     }
 
     [Fact]

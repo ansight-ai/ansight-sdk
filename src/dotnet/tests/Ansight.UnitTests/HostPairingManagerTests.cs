@@ -217,6 +217,32 @@ public sealed class HostPairingManagerTests
     }
 
     [Fact]
+    public async Task AutoConnectAsync_WhenLocalEnrollmentIsAvailable_DoesNotTouchStaleSavedConfig()
+    {
+        var savedConfigPath = CreateTempFilePath();
+        var savedDocument = CreateDocument(configId: "cfg-stale", hostAddress: "192.168.1.10");
+
+        using var hostConnection = new FakeHostConnection
+        {
+            CanAttemptLocalEnrollment = true
+        };
+        hostConnection.ConnectResults.Enqueue(HostSessionActionResult.FromFailure(
+            "Saved registration timed out.",
+            source: HostConnectionSource.SavedConfig,
+            reasonCode: PairingFailureCodes.UdpBootstrapTimeout));
+        hostConnection.LocalEnrollmentResults.Enqueue(
+            CreateSuccessConnectionResult("Connected using local enrollment."));
+        using var manager = CreateManager(hostConnection, savedConfigPath);
+        SaveSavedConfig(savedConfigPath, savedDocument);
+
+        var result = await manager.ConnectAsync(HostConnectionRequest.Auto());
+
+        Assert.True(result.Success);
+        Assert.Equal(1, hostConnection.LocalEnrollmentCallCount);
+        Assert.Empty(hostConnection.ConnectDocuments);
+    }
+
+    [Fact]
     public async Task ConnectFromPayloadAsync_WhenPayloadIsInvalid_DoesNotOverwriteSavedConfig()
     {
         var savedConfigPath = CreateTempFilePath();
@@ -534,7 +560,7 @@ public sealed class HostPairingManagerTests
             configuredOptions,
             new StoredHostPairingConfigStore("unit-test", savedConfigPath),
             isRuntimeActive: () => true,
-            simulatorLocalHostAddressProvider: simulatorLocalHostAddressProvider);
+            simulatorLocalHostAddressProvider: simulatorLocalHostAddressProvider ?? (() => null));
     }
 
     private static ParsedPairingDocument CreateDocument(
@@ -637,6 +663,8 @@ public sealed class HostPairingManagerTests
 
         public bool HasCachedProfile { get; set; }
 
+        public bool CanAttemptLocalEnrollment { get; set; }
+
         public string StatusSummary { get; private set; } = "No Ansight host session is connected.";
 
         public List<ParsedPairingDocument> ConnectDocuments { get; } = new();
@@ -645,7 +673,11 @@ public sealed class HostPairingManagerTests
 
         public Queue<HostSessionActionResult> CachedConnectResults { get; } = new();
 
+        public Queue<HostSessionActionResult> LocalEnrollmentResults { get; } = new();
+
         public int CachedConnectCallCount { get; private set; }
+
+        public int LocalEnrollmentCallCount { get; private set; }
 
         public int ClearCachedProfileCallCount { get; private set; }
 
@@ -698,6 +730,19 @@ public sealed class HostPairingManagerTests
             var result = CachedConnectResults.Count > 0
                 ? CachedConnectResults.Dequeue()
                 : HostSessionActionResult.FromFailure("No cached profile.");
+            ApplyState(result);
+            return Task.FromResult(result);
+        }
+
+        public Task<HostSessionActionResult> ConnectUsingLocalEnrollmentAsync(
+            string? clientName = null,
+            IProgress<HostConnectionProgressUpdate>? progress = null,
+            CancellationToken cancellationToken = default)
+        {
+            LocalEnrollmentCallCount++;
+            var result = LocalEnrollmentResults.Count > 0
+                ? LocalEnrollmentResults.Dequeue()
+                : HostSessionActionResult.FromFailure("Local enrollment failed.");
             ApplyState(result);
             return Task.FromResult(result);
         }

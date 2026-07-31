@@ -55,6 +55,10 @@ internal sealed class HostSessionManager : IHostSessionConnection, IHostAutoProb
 
     bool IHostAutoProbeSessionClient.HasCachedProfile => HasCachedProfile;
 
+    public bool CanAttemptLocalEnrollment => sessionClient.CanAttemptLocalEnrollment;
+
+    bool IHostAutoProbeSessionClient.CanAttemptLocalEnrollment => CanAttemptLocalEnrollment;
+
     public string StatusSummary
     {
         get
@@ -116,6 +120,20 @@ internal sealed class HostSessionManager : IHostSessionConnection, IHostAutoProb
         IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
         => ConnectUsingCachedProfileCoreAsync(clientName, progress, cancellationToken);
+
+    Task<HostSessionActionResult> IHostAutoProbeSessionClient.ConnectAutomaticallyAsync(
+        string? clientName,
+        IProgress<HostConnectionProgressUpdate>? progress,
+        CancellationToken cancellationToken)
+        => ConnectAutomaticallyCoreAsync(clientName, progress, cancellationToken);
+
+    public Task<HostSessionActionResult> ConnectUsingLocalEnrollmentAsync(
+        string? clientName = null,
+        IProgress<HostConnectionProgressUpdate>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        return ConnectUsingLocalEnrollmentCoreAsync(clientName, progress, cancellationToken);
+    }
 
     public Task<OperationResult> SendClientLogAsync(
         string logLine,
@@ -257,6 +275,50 @@ internal sealed class HostSessionManager : IHostSessionConnection, IHostAutoProb
                 options: null,
                 effectiveProgress,
                 effectiveCancellationToken),
+            clientName,
+            progress,
+            cancellationToken);
+    }
+
+    private async Task<HostSessionActionResult> ConnectAutomaticallyCoreAsync(
+        string? clientName,
+        IProgress<HostConnectionProgressUpdate>? progress,
+        CancellationToken cancellationToken)
+    {
+        if (HasCachedProfile)
+        {
+            var cachedResult = await ConnectUsingCachedProfileCoreAsync(
+                clientName,
+                progress,
+                cancellationToken);
+            if (cachedResult.Success || !CanAttemptLocalEnrollment)
+            {
+                return cachedResult;
+            }
+        }
+
+        return await ConnectUsingLocalEnrollmentCoreAsync(
+            clientName,
+            progress,
+            cancellationToken);
+    }
+
+    private Task<HostSessionActionResult> ConnectUsingLocalEnrollmentCoreAsync(
+        string? clientName,
+        IProgress<HostConnectionProgressUpdate>? progress,
+        CancellationToken cancellationToken)
+    {
+        return ConnectCoreAsync(
+            reuseExistingConnection: true,
+            "Looking for an authenticated Ansight Studio on this computer.",
+            HostConnectionActionKind.AutoConnect,
+            HostConnectionSource.AutoProbe,
+            (resolvedClientName, effectiveProgress, effectiveCancellationToken) =>
+                sessionClient.OpenLocalSessionAsync(
+                    resolvedClientName,
+                    options: null,
+                    effectiveProgress,
+                    effectiveCancellationToken),
             clientName,
             progress,
             cancellationToken);

@@ -14,6 +14,8 @@ internal interface IHostSessionConnection
 
     bool HasCachedProfile { get; }
 
+    bool CanAttemptLocalEnrollment => false;
+
     string StatusSummary { get; }
 
     event EventHandler<HostSessionStatusChangedEventArgs>? StatusChanged;
@@ -31,6 +33,16 @@ internal interface IHostSessionConnection
         string? clientName = null,
         IProgress<HostConnectionProgressUpdate>? progress = null,
         CancellationToken cancellationToken = default);
+
+    Task<HostSessionActionResult> ConnectUsingLocalEnrollmentAsync(
+        string? clientName = null,
+        IProgress<HostConnectionProgressUpdate>? progress = null,
+        CancellationToken cancellationToken = default)
+        => Task.FromResult(HostSessionActionResult.FromFailure(
+            "Automatic local enrollment is unavailable.",
+            kind: HostConnectionActionKind.AutoConnect,
+            source: HostConnectionSource.AutoProbe,
+            reasonCode: PairingFailureCodes.EnrollmentUnavailable));
 
     Task<OperationResult> SendClientLogAsync(
         string logLine,

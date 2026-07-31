@@ -215,6 +215,22 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
                     HostConnectionSource.HostConnection);
             }
 
+            HostConnectionResult? localEnrollmentResult = null;
+            if (hostConnection.CanAttemptLocalEnrollment)
+            {
+                var localResult = await hostConnection.ConnectUsingLocalEnrollmentAsync(
+                    clientName,
+                    progress,
+                    cancellationToken);
+                localEnrollmentResult = ToPairingResult(
+                    localResult,
+                    HostConnectionActionKind.AutoConnect);
+                if (localEnrollmentResult.Success)
+                {
+                    return localEnrollmentResult;
+                }
+            }
+
             if (hostConnection.HasCachedProfile)
             {
                 var cachedProfileResult = await hostConnection.ConnectUsingCachedProfileAsync(clientName, progress, cancellationToken);
@@ -231,17 +247,25 @@ internal sealed class HostPairingManager : IHostConnection, IDisposable
                     progress,
                     cancellationToken,
                     HostConnectionActionKind.AutoConnect);
-                if (savedConfigResult.Success || !ShouldRetryWithBundledConfig(savedConfigResult.Source, savedConfigResult.ReasonCode))
+                if (savedConfigResult.Success ||
+                    (localEnrollmentResult is null &&
+                     !ShouldRetryWithBundledConfig(savedConfigResult.Source, savedConfigResult.ReasonCode)))
                 {
                     return savedConfigResult;
                 }
             }
 
-            return await ConnectUsingStandardBundledConfigCoreAsync(
+            var bundledResult = await ConnectUsingStandardBundledConfigCoreAsync(
                 clientName,
                 progress,
                 cancellationToken,
                 HostConnectionActionKind.AutoConnect);
+            if (bundledResult.Success)
+            {
+                return bundledResult;
+            }
+
+            return localEnrollmentResult ?? bundledResult;
         }
         finally
         {

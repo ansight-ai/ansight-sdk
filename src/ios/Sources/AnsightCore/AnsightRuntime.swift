@@ -798,7 +798,14 @@ public final class AnsightRuntime: @unchecked Sendable {
                 return result
             }
 
-            AnsightLogger.warning(result.message)
+            if request.kind == .auto,
+               resolvedRequest.document.config.configId.hasPrefix(
+                   PairingEnrollmentModes.localConfigPrefix
+               ) {
+                AnsightLogger.debug(result.message)
+            } else {
+                AnsightLogger.warning(result.message)
+            }
             lastResult = result
             cleanUpFailedAutoConnectionCandidate(resolvedRequest, result: result)
             guard shouldTryNextAutoConnectionCandidate(
@@ -994,7 +1001,15 @@ public final class AnsightRuntime: @unchecked Sendable {
         streamPendingTelemetry()
 
         startScreenCaptureIfNeeded()
-        savePairingDocument(resolvedRequest.document, connectedHostAddress: attempt.hostAddress, connectResponse: connectResponse)
+        if !resolvedRequest.document.config.configId.hasPrefix(
+            PairingEnrollmentModes.localConfigPrefix
+        ) {
+            savePairingDocument(
+                resolvedRequest.document,
+                connectedHostAddress: attempt.hostAddress,
+                connectResponse: connectResponse
+            )
+        }
 
         let open = OpenSessionResult(
             success: true,
@@ -1078,22 +1093,11 @@ public final class AnsightRuntime: @unchecked Sendable {
         }
 
         switch resolvedRequest.source {
-        case .cachedSession:
+        case .cachedSession, .savedConfig, .bundledConfig, .autoProbe:
             return true
-        case .savedConfig:
-            return shouldRetryWithBundledConfig(reasonCode: result.reasonCode)
         default:
             return false
         }
-    }
-
-    private func shouldRetryWithBundledConfig(reasonCode: String?) -> Bool {
-        guard let reasonCode, !reasonCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return false
-        }
-
-        return Self.storedProfileResetReasonCodes.contains(reasonCode) ||
-            reasonCode == PairingFailureCodes.hostAddressRequired
     }
 
     private func shouldClearCachedPairingProfile(reasonCode: String?) -> Bool {
@@ -2267,7 +2271,8 @@ public final class AnsightRuntime: @unchecked Sendable {
                         }
                     }
 
-                    guard self.hasCachedPairingProfileLocked else {
+                    guard self.hasCachedPairingProfileLocked ||
+                            self.connector.localHostAddress != nil else {
                         return autoOptions.probeIntervalMilliseconds
                     }
 
@@ -2285,7 +2290,12 @@ public final class AnsightRuntime: @unchecked Sendable {
                     continue
                 }
 
-                let result = await self.connectCachedPairingProfileForAutoProbe(clientName: autoOptions.clientName)
+                let result = await self.connect(
+                    .auto(
+                        clientName: autoOptions.clientName,
+                        sourceDescription: "runtime-enrollment"
+                    )
+                )
                 if result.success {
                     continue
                 }
@@ -2796,6 +2806,29 @@ public final class AnsightRuntime: @unchecked Sendable {
         switch request.kind {
         case .auto:
             var resolvedRequests: [ResolvedConnectionRequest] = []
+            if let localHostAddress = lock.withLock({ connector.localHostAddress }) {
+                let bundleAppId = Bundle.main.bundleIdentifier?
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                let appId = bundleAppId?.isEmpty == false
+                    ? bundleAppId!
+                    : ProcessInfo.processInfo.processName
+                let configuredDiscoveryPort = lock.withLock {
+                    options.hostConnection.discoveryPort
+                }
+                let discoveryPorts = configuredDiscoveryPort.map { [$0] }
+                    ?? PairingProtocolDefaults.localDiscoveryPorts
+                resolvedRequests.append(contentsOf: discoveryPorts.map { discoveryPort in
+                    ResolvedConnectionRequest(
+                        document: LocalPairingDocumentFactory.create(
+                            appId: appId,
+                            appName: resolveClientName(request.clientName),
+                            hostAddress: localHostAddress,
+                            discoveryPort: discoveryPort
+                        ),
+                        source: .autoProbe
+                    )
+                })
+            }
             resolvedRequests.append(contentsOf: cachedPairingProfiles())
             if let savedJson = savedPairingStore.load(), !savedJson.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 do {

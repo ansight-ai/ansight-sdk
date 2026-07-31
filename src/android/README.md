@@ -49,13 +49,17 @@ class MyApplication : Application() {
 }
 ```
 
-From a developer-only screen, scan the enrollment QR displayed by Studio:
+An emulator now registers automatically with a running, signed-in Studio on the
+host. There is no build-time Studio probe. If Studio is unavailable, the SDK
+keeps retrying without affecting the app.
+
+On a physical device, scan the enrollment QR once from a developer-only screen:
 
 ```kotlin
 Ansight.enrollFromQrCode(activity)
 ```
 
-The first scan registers a random app-installation id and stores the
+The physical-device scan registers a random app-installation id and stores the
 registration in app-private storage. Later launches reconnect automatically.
 Google Code Scanner owns the camera interaction, so the app does not need the
 `CAMERA` permission.
@@ -137,8 +141,8 @@ val result = AnsightRuntime.connect(
 )
 ```
 
-Automatic connection uses the app-private registration created by the first
-successful enrollment scan.
+Automatic connection registers an emulator through its host address or uses a
+physical device's saved enrollment.
 
 Cellular host connections are disabled by default. Enrollment and reconnect
 requests use the same restriction. Opt in only for a trusted development host
@@ -176,7 +180,7 @@ val options = AnsightOptions.createBuilder()
 Use `withoutHostAutoProbe()` for flows where reconnects should only happen
 after an explicit app action.
 
-The all-in-one package exposes the normal enrollment flow:
+The all-in-one package exposes QR enrollment for physical devices:
 
 ```kotlin
 Ansight.enrollFromQrCode(

@@ -19,8 +19,8 @@ Current SDK features include:
 
 - live and retained metrics, events, lifecycle, screen-view, memory, FPS, and
   battery telemetry
-- one-scan enrollment with an app-local installation id and automatic
-  reconnect, with no pairing config or certificate setup
+- zero-touch Studio enrollment for simulators, emulators, and desktop apps,
+  plus one-scan enrollment for physical devices
 - live screenshots, host-owned simulator/emulator capture, touch capture,
   session properties, device profiles, and app-provided logs
 - guarded native tools for UI, files, file descriptors, preferences, secure
@@ -35,12 +35,12 @@ Current SDK features include:
 - Flutter widget-tree inspection, navigation and lifecycle tracking, Dart
   tools and artifacts, frame timing, and framework error capture
 
-All SDKs expose the host auto-probe options used by the .NET runtime. Host
-auto-probe remembers previous host connections and retries them while the
-runtime is active, so an app can reconnect after the host disappears and later
-reappears. The shared options control enable/disable, initial probe delay,
-disconnected probe interval, retry delay after a lost session, and the optional
-client name used for retry attempts.
+All SDKs start the same runtime connection loop when activated. A simulator,
+emulator, Mac Catalyst app, or desktop app registers with a signed-in Studio on
+the same machine without a QR or build-time configuration. Physical devices
+scan one short-lived Studio QR once, then reconnect from app-private
+registration state. If Studio is closed or signed out, the attempt is ignored
+and retried without affecting the app.
 
 > **Important:** Screen capture is not free. Periodic or manual screenshot/JPEG
 > capture will result in an FPS drop while frames are being rendered, encoded,
@@ -49,7 +49,7 @@ client name used for retry attempts.
 
 ## Docs
 
-- [Install once, scan once](docs/getting-started.md)
+- [Install once, run](docs/getting-started.md)
 - [Current Feature Catalog](docs/features.md)
 - [Cross-SDK API Parity](docs/sdk-api-parity.md)
 - [.NET SDK Guide](src/dotnet/README.md)

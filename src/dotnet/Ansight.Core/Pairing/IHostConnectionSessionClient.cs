@@ -10,6 +10,8 @@ internal interface IHostConnectionSessionClient : IDisposable
 
     bool HasCachedPairingProfile { get; }
 
+    bool CanAttemptLocalEnrollment => false;
+
     bool TryParseAndValidateDocument(string configJson, out ParsedPairingDocument? document, out string error);
 
     Task<OpenSessionResult> OpenSessionAsync(
@@ -24,6 +26,15 @@ internal interface IHostConnectionSessionClient : IDisposable
         PairingConnectionOptions? options,
         IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken);
+
+    Task<OpenSessionResult> OpenLocalSessionAsync(
+        string? clientName,
+        PairingConnectionOptions? options,
+        IProgress<HostConnectionProgressUpdate>? progress,
+        CancellationToken cancellationToken)
+        => Task.FromResult(OpenSessionResult.FromFailure(
+            "Automatic local enrollment is unavailable.",
+            PairingFailureCodes.EnrollmentUnavailable));
 
     Task<OperationResult> StartMetricsStreamingAsync(
         IDataSink dataSink,

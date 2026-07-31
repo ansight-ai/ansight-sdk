@@ -28,14 +28,16 @@ Legend:
 | App-provided live-session logs | Yes | Yes | Yes | Native | Native |
 | Grouped session/custom properties and live mutations | Yes | Yes | Yes | Native | Native |
 | App-private enrollment registration | Yes | Yes | Yes | Native | Native |
+| Zero-touch host-local enrollment | Yes | Yes | Yes | Native | Native |
 | Remembered host profiles and host auto-probe | Yes | Yes | Yes | Native | Native |
 | Explicit payload connection | Yes | Yes | Yes | Yes | Yes |
 | SDK-owned enrollment UI | Android/iOS QR via `Ansight.Pairing` | QR scanner | UIKit QR scanner | Native QR bridge | Native QR bridge |
 | Connection status, capabilities, and change listeners | Yes | Yes | Yes | Native | Native |
 | SDK diagnostic log callbacks | Yes | Yes | Yes | Native listener | Native listener |
 
-Automatic connection uses the app-private registration created by the first QR
-scan.
+Automatic connection registers host-local runtimes directly with a signed-in
+Studio. Physical devices use the app-private registration created by their
+first QR scan.
 
 ## Capture and diagnostics
 
@@ -118,7 +120,8 @@ capture starts only after the app configures and initializes an
 
 | Capability | .NET / MAUI | Android | iOS | React Native | Capacitor |
 | --- | --- | --- | --- | --- | --- |
-| Normal enrollment setup | Install package + scan QR | Install package + scan QR | Install package + scan QR | Install package + scan QR | Install package + scan QR |
+| Simulator/emulator/desktop enrollment | Install + initialize | Install + initialize | Install + initialize | Install + initialize | Install + initialize |
+| Physical-device enrollment | Install + scan once | Install + scan once | Install + scan once | Install + scan once | Install + scan once |
 | Detect bundled remote-tool implementations | `AnsightRemoteToolsPolicy` | No SDK build scanner | Build tool; requires `ANSIGHT_ALLOW_REMOTE_TOOLS=true` | Native build rules apply | Native build rules apply |
 | Hard-disable annotated feedback in Release builds | Yes | Not available | Not available | Not available | Not available |
 

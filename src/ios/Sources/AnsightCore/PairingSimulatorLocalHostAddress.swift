@@ -2,7 +2,7 @@ import Foundation
 
 enum PairingSimulatorLocalHostAddress {
     static func resolve() -> String? {
-        #if targetEnvironment(simulator)
+        #if targetEnvironment(simulator) || targetEnvironment(macCatalyst) || os(macOS)
         return "127.0.0.1"
         #else
         return nil

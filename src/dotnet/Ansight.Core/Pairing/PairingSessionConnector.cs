@@ -16,7 +16,7 @@ internal sealed class PairingSessionConnector
     }
 
     internal PairingSessionConnector(Func<PairingWifiPreflightStatus> wifiStatusProvider)
-        : this(wifiStatusProvider, PairingSimulatorLocalHostAddress.Resolve)
+        : this(wifiStatusProvider, () => null)
     {
     }
 
@@ -28,6 +28,8 @@ internal sealed class PairingSessionConnector
         this.simulatorLocalHostAddressProvider = simulatorLocalHostAddressProvider
                                                  ?? throw new ArgumentNullException(nameof(simulatorLocalHostAddressProvider));
     }
+
+    internal string? LocalHostAddress => ResolveSimulatorLocalHostAddress();
 
     public async Task<PairingConnectionAttempt> ConnectAsync(
         ParsedPairingDocument document,
@@ -134,7 +136,11 @@ internal sealed class PairingSessionConnector
                 source: HostConnectionSource.HostConnection);
 
             using var connectTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            connectTimeout.CancelAfter(TimeSpan.FromSeconds(5));
+            connectTimeout.CancelAfter(config.ConfigId.StartsWith(
+                PairingEnrollmentModes.LocalConfigPrefix,
+                StringComparison.Ordinal)
+                ? TimeSpan.FromSeconds(1)
+                : TimeSpan.FromSeconds(5));
 
             ConnectResponse? connectResponse;
             try
@@ -285,6 +291,11 @@ internal sealed class PairingSessionConnector
         var request = new ConnectRequest
         {
             RequestId = requestId,
+            EnrollmentMode = config.ConfigId.StartsWith(
+                PairingEnrollmentModes.LocalConfigPrefix,
+                StringComparison.Ordinal)
+                ? PairingEnrollmentModes.Local
+                : PairingEnrollmentModes.Invite,
             InviteId = config.ConfigId,
             AppId = config.AppId,
             DeviceId = PairingDeviceIdentity.GetOrCreate(config.AppId),

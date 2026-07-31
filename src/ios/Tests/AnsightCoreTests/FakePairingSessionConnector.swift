@@ -5,18 +5,26 @@ final class FakePairingSessionConnector: PairingSessionConnecting, @unchecked Se
     private let lock = NSLock()
     private let attemptsByConfigId: [String: PairingConnectionAttempt]
     private let responseDelayNanoseconds: UInt64
+    let localHostAddress: String?
     private var configIds: [String] = []
+    private var discoveryPorts: [Int] = []
 
     init(
         attemptsByConfigId: [String: PairingConnectionAttempt],
-        responseDelayNanoseconds: UInt64 = 0
+        responseDelayNanoseconds: UInt64 = 0,
+        localHostAddress: String? = nil
     ) {
         self.attemptsByConfigId = attemptsByConfigId
         self.responseDelayNanoseconds = responseDelayNanoseconds
+        self.localHostAddress = localHostAddress
     }
 
     var attemptedConfigIds: [String] {
         lock.withLock { configIds }
+    }
+
+    var attemptedDiscoveryPorts: [Int] {
+        lock.withLock { discoveryPorts }
     }
 
     func connect(
@@ -26,6 +34,11 @@ final class FakePairingSessionConnector: PairingSessionConnecting, @unchecked Se
     ) async -> PairingConnectionAttempt {
         lock.withLock {
             configIds.append(document.config.configId)
+            discoveryPorts.append(
+                options?.discoveryPort
+                    ?? document.discoveryHint?.discoveryPort
+                    ?? document.config.host.discoveryPort
+            )
         }
 
         if responseDelayNanoseconds > 0 {

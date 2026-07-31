@@ -6,6 +6,8 @@ final class FakePairingDatagramClient: PairingDatagramClient, @unchecked Sendabl
     private let responseProvider: @Sendable (String, Int) -> Data?
     private var requestCounter = 0
     private var hosts: [String] = []
+    private var requests: [Data] = []
+    private var timeouts: [TimeInterval] = []
 
     init(responseData: Data? = nil) {
         self.responseProvider = { _, _ in responseData }
@@ -23,10 +25,20 @@ final class FakePairingDatagramClient: PairingDatagramClient, @unchecked Sendabl
         lock.withLock { hosts }
     }
 
+    var requestedData: [Data] {
+        lock.withLock { requests }
+    }
+
+    var requestedTimeouts: [TimeInterval] {
+        lock.withLock { timeouts }
+    }
+
     func sendConnectRequest(_ data: Data, host: String, port: Int, timeoutSeconds: TimeInterval) async throws -> Data? {
         lock.withLock {
             requestCounter += 1
             hosts.append(host)
+            requests.append(data)
+            timeouts.append(timeoutSeconds)
         }
         let response = responseProvider(host, port)
         guard let response,

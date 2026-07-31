@@ -13,7 +13,7 @@ struct AnsightBuildToolPlugin: BuildToolPlugin {
 
         return [
             .buildCommand(
-                displayName: "Generating Ansight developer build artifacts",
+                displayName: "Checking Ansight remote-tool policy",
                 executable: try context.tool(named: "AnsightBuildTool").url,
                 arguments: [
                     "--output-file", outputFile.path,

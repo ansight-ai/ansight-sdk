@@ -7,17 +7,24 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
     private let simulatorLocalHostAddressProvider: @Sendable () -> String?
 
     public convenience init() {
-        self.init(datagramClient: NetworkPairingDatagramClient())
+        self.init(
+            datagramClient: NetworkPairingDatagramClient(),
+            simulatorLocalHostAddressProvider: PairingSimulatorLocalHostAddress.resolve
+        )
     }
 
     init(
         datagramClient: any PairingDatagramClient,
         wifiStatusProvider: @escaping @Sendable () -> PairingWifiPreflightStatus = PairingWifiPreflight.getStatus,
-        simulatorLocalHostAddressProvider: @escaping @Sendable () -> String? = PairingSimulatorLocalHostAddress.resolve
+        simulatorLocalHostAddressProvider: @escaping @Sendable () -> String? = { nil }
     ) {
         self.datagramClient = datagramClient
         self.wifiStatusProvider = wifiStatusProvider
         self.simulatorLocalHostAddressProvider = simulatorLocalHostAddressProvider
+    }
+
+    var localHostAddress: String? {
+        normalizedHostAddress(simulatorLocalHostAddressProvider())
     }
 
     func connect(
@@ -68,11 +75,18 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
         }
 
         let deviceId = PairingDeviceIdentity.resolve()
+        let isLocalEnrollment = document.config.configId.hasPrefix(
+            PairingEnrollmentModes.localConfigPrefix
+        )
+        let discoveryTimeoutSeconds: TimeInterval = isLocalEnrollment ? 1 : 5
         var lastFailure: PairingConnectionAttempt?
         for hostAddress in hostAddressCandidates {
             let requestId = UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
             let request = ConnectRequest(
                 requestId: requestId,
+                enrollmentMode: isLocalEnrollment
+                    ? PairingEnrollmentModes.local
+                    : PairingEnrollmentModes.invite,
                 inviteId: document.config.configId,
                 appId: document.config.appId,
                 deviceId: deviceId,
@@ -95,7 +109,7 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
                     requestData,
                     host: hostAddress,
                     port: discoveryPort,
-                    timeoutSeconds: 5
+                    timeoutSeconds: discoveryTimeoutSeconds
                 )
             } catch {
                 lastFailure = .failure(
@@ -197,8 +211,9 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
     }
 }
 
-private enum PairingDeviceIdentity {
+enum PairingDeviceIdentity {
     private static let key = "ai.ansight.enrollment.device-id"
+    private static let accessTokenKey = "ai.ansight.enrollment.local-access-token"
     private static let lock = NSLock()
 
     static func resolve() -> String {
@@ -214,5 +229,24 @@ private enum PairingDeviceIdentity {
         let deviceId = "apple.\(UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased())"
         UserDefaults.standard.set(deviceId, forKey: key)
         return deviceId
+    }
+
+    static func resolveAccessToken() -> String {
+        lock.lock()
+        defer { lock.unlock() }
+
+        if let existing = UserDefaults.standard.string(forKey: accessTokenKey)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+           !existing.isEmpty {
+            return existing
+        }
+
+        let bytes = Data((0..<32).map { _ in UInt8.random(in: .min ... .max) })
+        let accessToken = bytes.base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+        UserDefaults.standard.set(accessToken, forKey: accessTokenKey)
+        return accessToken
     }
 }

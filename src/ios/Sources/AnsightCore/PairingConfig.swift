@@ -1,5 +1,11 @@
 import Foundation
 
+enum PairingEnrollmentModes {
+    static let invite = "invite"
+    static let local = "local"
+    static let localConfigPrefix = "local:"
+}
+
 public struct PairingConfig: Sendable, Codable, Equatable {
     public static let schemaName = "ansight.enrollment-invite.v2"
 
@@ -49,6 +55,46 @@ public struct PairingConfig: Sendable, Codable, Equatable {
         case allowedTransports
         case host
         case enrollment
+    }
+}
+
+enum LocalPairingDocumentFactory {
+    static func create(
+        appId: String,
+        appName: String,
+        hostAddress: String,
+        discoveryPort: Int
+    ) -> ParsedPairingDocument {
+        let now = Date()
+        let expiresAt = now.addingTimeInterval(10 * 365 * 24 * 60 * 60)
+        let nowValue = AnsightClock.isoString(from: now)
+        let expiresAtValue = AnsightClock.isoString(from: expiresAt)
+        return ParsedPairingDocument(
+            config: PairingConfig(
+                configId: "\(PairingEnrollmentModes.localConfigPrefix)\(appId)",
+                appId: appId,
+                appName: appName,
+                issuedAt: nowValue,
+                expiresAt: expiresAtValue,
+                host: PairingHost(
+                    hostId: nil,
+                    hostName: "Local Ansight Studio",
+                    discoveryPort: discoveryPort
+                ),
+                enrollment: PairingEnrollment(
+                    accessToken: PairingDeviceIdentity.resolveAccessToken(),
+                    expiresAt: expiresAtValue,
+                    grantExpiresAt: expiresAtValue
+                )
+            ),
+            discoveryHint: PairingDiscoveryHint(
+                source: "runtime-local",
+                hostAddresses: [hostAddress],
+                discoveryPort: discoveryPort,
+                hostName: "Local Ansight Studio",
+                capturedAt: nowValue
+            )
+        )
     }
 }
 

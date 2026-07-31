@@ -33,8 +33,10 @@ internal static class PairingSimulatorLocalHostAddress
         return ResolveAppleIsSimulator()
             ? "127.0.0.1"
             : null;
+#elif MACCATALYST || MACOS
+        return "127.0.0.1";
 #else
-        return null;
+        return "127.0.0.1";
 #endif
     }
 

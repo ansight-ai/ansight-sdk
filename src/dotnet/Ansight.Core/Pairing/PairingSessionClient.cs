@@ -107,6 +107,8 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
 
     internal bool HasCachedPairingProfile => storedPairingDocumentCache.HasCachedDocument;
 
+    internal bool CanAttemptLocalEnrollment => !string.IsNullOrWhiteSpace(connector.LocalHostAddress);
+
     event EventHandler? IHostConnectionSessionClient.SessionClosed
     {
         add => SessionClosed += value;
@@ -116,6 +118,8 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
     bool IHostConnectionSessionClient.IsSessionOpen => IsSessionOpen;
 
     bool IHostConnectionSessionClient.HasCachedPairingProfile => HasCachedPairingProfile;
+
+    bool IHostConnectionSessionClient.CanAttemptLocalEnrollment => CanAttemptLocalEnrollment;
 
     bool IHostConnectionSessionClient.TryParseAndValidateDocument(
         string configJson,
@@ -330,11 +334,16 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
             await jpegStreamer.StartAsync(progress);
             try
             {
-                storedPairingDocumentCache.Save(CreateCachedDocument(
-                    sessionDocument,
-                    connectionAttempt.HostAddress,
-                    connectionAttempt.ConnectResponse,
-                    discoveryPort));
+                if (!config.ConfigId.StartsWith(
+                        PairingEnrollmentModes.LocalConfigPrefix,
+                        StringComparison.Ordinal))
+                {
+                    storedPairingDocumentCache.Save(CreateCachedDocument(
+                        sessionDocument,
+                        connectionAttempt.HostAddress,
+                        connectionAttempt.ConnectResponse,
+                        discoveryPort));
+                }
             }
             catch (Exception ex)
             {
@@ -676,6 +685,59 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         return lastResult ?? OpenSessionResult.FromFailure(error);
     }
 
+    internal async Task<OpenSessionResult> OpenLocalSessionAsync(
+        string? clientName,
+        PairingConnectionOptions? options,
+        IProgress<HostConnectionProgressUpdate>? progress,
+        CancellationToken cancellationToken)
+    {
+        var hostAddress = connector.LocalHostAddress;
+        if (string.IsNullOrWhiteSpace(hostAddress))
+        {
+            return OpenSessionResult.FromFailure(
+                "Automatic local enrollment is available only to desktop apps and simulators.",
+                PairingFailureCodes.EnrollmentUnavailable);
+        }
+
+        var baselineProfile = deviceAppProfileResolver.Resolve(options?.DeviceAppProfile);
+        var appId = deviceAppProfileResolver.ResolveExpectedAppId(baselineProfile)
+                    ?? Assembly.GetEntryAssembly()?.GetName().Name
+                    ?? "ansight-app";
+        var resolvedClientName = ResolveClientName(clientName, baselineProfile);
+        int[] discoveryPorts = options?.DiscoveryPort is { } configuredDiscoveryPort
+            ? [configuredDiscoveryPort]
+            :
+            [
+                PairingProtocolDefaults.DiscoveryPort,
+                PairingProtocolDefaults.DeveloperDiscoveryPort
+            ];
+        OpenSessionResult? lastResult = null;
+        foreach (var discoveryPort in discoveryPorts)
+        {
+            var document = LocalPairingDocumentFactory.Create(
+                appId,
+                resolvedClientName,
+                hostAddress,
+                discoveryPort);
+            var connectionOptions = options?.Clone() ?? new PairingConnectionOptions();
+            connectionOptions.DiscoveryPort = discoveryPort;
+            lastResult = await OpenSessionAsync(
+                document,
+                resolvedClientName,
+                connectionOptions,
+                progress,
+                cancellationToken);
+            if (lastResult.Success)
+            {
+                return lastResult;
+            }
+        }
+
+        return lastResult ?? OpenSessionResult.FromFailure(
+            "No authenticated Ansight Studio was found on this computer.",
+            PairingFailureCodes.EnrollmentUnavailable);
+    }
+
     internal void ClearCachedPairingProfile()
     {
         storedPairingDocumentCache.Clear();
@@ -695,6 +757,13 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
         => OpenCachedSessionAsync(clientName, options, progress, cancellationToken);
+
+    Task<OpenSessionResult> IHostConnectionSessionClient.OpenLocalSessionAsync(
+        string? clientName,
+        PairingConnectionOptions? options,
+        IProgress<HostConnectionProgressUpdate>? progress,
+        CancellationToken cancellationToken)
+        => OpenLocalSessionAsync(clientName, options, progress, cancellationToken);
 
     void IHostConnectionSessionClient.ClearCachedPairingProfile()
         => ClearCachedPairingProfile();

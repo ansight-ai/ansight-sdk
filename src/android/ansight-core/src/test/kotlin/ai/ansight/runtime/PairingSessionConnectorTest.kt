@@ -39,6 +39,7 @@ class PairingSessionConnectorTest {
             assertNotEquals(PairingFailureCodes.WifiRequired, result.failureCode)
             assertEquals("ENROLLMENT_CONNECT", server.request?.getString("type"))
             assertEquals(2, server.request?.getInt("ver"))
+            assertEquals(PairingEnrollmentModes.Invite, server.request?.getString("enrollmentMode"))
             assertEquals("invite-multi-address", server.request?.getString("inviteId"))
             assertEquals("Unit Test App", server.request?.getString("deviceName"))
             assertTrue(server.request?.getString("deviceId")?.startsWith("android.") == true)
@@ -65,6 +66,29 @@ class PairingSessionConnectorTest {
             assertFalse(result.success)
             assertEquals("127.0.0.1", result.hostAddress)
             assertEquals("Registration required", result.message)
+        } finally {
+            server.close()
+        }
+    }
+
+    @Test
+    fun connectUsesLocalEnrollmentModeForRuntimeLocalDocument() {
+        val server = EnrollmentResponder()
+        try {
+            val result = PairingSessionConnector(
+                simulatorLocalHostAddressProvider = { "127.0.0.1" },
+                networkStatusProvider = { PairingNetworkPreflightStatus.Unknown },
+            ).connect(
+                document = ParsedPairingDocument(
+                    config = pairingConfig(server.port).copy(configId = "local:ai.ansight.test"),
+                    discoveryHint = PairingDiscoveryHint(discoveryPort = server.port),
+                ),
+                clientName = "Unit Test App",
+            )
+
+            assertFalse(result.success)
+            assertEquals(PairingEnrollmentModes.Local, server.request?.getString("enrollmentMode"))
+            assertEquals("local:ai.ansight.test", server.request?.getString("inviteId"))
         } finally {
             server.close()
         }

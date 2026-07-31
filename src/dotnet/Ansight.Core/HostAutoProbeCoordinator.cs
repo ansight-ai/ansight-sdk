@@ -99,13 +99,14 @@ internal sealed class HostAutoProbeCoordinator : IDisposable
                     }
                 }
 
-                if (!autoProbeSessionClient.HasCachedProfile)
+                if (!autoProbeSessionClient.HasCachedProfile
+                    && !autoProbeSessionClient.CanAttemptLocalEnrollment)
                 {
                     await Task.Delay(options.ProbeInterval, cancellationToken);
                     continue;
                 }
 
-                var sessionResult = await autoProbeSessionClient.ConnectUsingCachedProfileAsync(
+                var sessionResult = await autoProbeSessionClient.ConnectAutomaticallyAsync(
                     options.ClientName,
                     progress,
                     cancellationToken);

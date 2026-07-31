@@ -21,6 +21,11 @@ public sealed class ConnectRequest
     public required string RequestId { get; set; }
 
     /// <summary>
+    /// Enrollment mode requested by the runtime.
+    /// </summary>
+    public string EnrollmentMode { get; set; } = PairingEnrollmentModes.Invite;
+
+    /// <summary>
     /// Unique identifier of the enrollment invite being used.
     /// </summary>
     public required string InviteId { get; set; }

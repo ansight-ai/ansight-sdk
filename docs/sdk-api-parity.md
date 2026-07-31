@@ -74,7 +74,7 @@ Android, and iOS:
 | Touch capture | Enabled |
 | Host auto-probe | Enabled |
 | Tool guard | Full access in native all-in-one presets |
-| Enrollment reconnect | Uses app-private registration state after the first QR scan |
+| Enrollment reconnect | Registers host-local runtimes automatically; physical devices reconnect after one QR scan |
 | Standard tools | Registered by aggregate/all-in-one packages |
 
 React Native defaults to core mode unless `useNativeAllInOneDefaults: true` is
@@ -90,12 +90,11 @@ auto-probe, and host connection remain separate controls.
 
 ## Host Auto-Probe Parity
 
-Host auto-probe is the SDK-owned remembered-host retry behavior. While the
-runtime is active, it retries previous host connections so an app can reconnect
-after the host disappears and later reappears. Probing pauses while a live
-session is connected and waits for the retry delay before trying again after a
-session is lost. It is enabled by the default runtime options and by each
-all-in-one/developer preset.
+Host auto-probe is the SDK-owned runtime connection loop. While active, it
+attempts loopback enrollment for host-local runtimes and retries remembered
+registrations. It pauses while a live session is connected and waits for the
+retry delay before trying again after a session is lost. It is enabled by the
+default runtime options and by each all-in-one/developer preset.
 
 | Concept | .NET | Android | iOS | React Native |
 | --- | --- | --- | --- | --- |
@@ -138,7 +137,6 @@ var options = Options.CreateBuilder()
     .Build();
 
 Runtime.InitializeAndActivate(options);
-await Runtime.HostConnection.ConnectAsync(HostConnectionRequest.QrCode());
 ```
 
 Android:
@@ -147,7 +145,6 @@ Android:
 import ai.ansight.Ansight
 
 Ansight.initializeAndActivate(application)
-Ansight.enrollFromQrCode(activity)
 ```
 
 iOS:
@@ -156,7 +153,6 @@ iOS:
 import Ansight
 
 try AnsightRuntime.shared.initializeAndActivateAnsightSdk()
-await AnsightRuntime.shared.connect(.qrCode(title: "Scan Ansight Enrollment QR"))
 ```
 
 React Native:
@@ -170,7 +166,6 @@ await Ansight.initializeAndActivate({
   toolGuard: __DEV__ ? "readOnly" : "disabled",
 });
 
-await Ansight.scanPairingQrCode({ clientName: "React Native App" });
 ```
 
 Capacitor:
@@ -187,7 +182,6 @@ await Ansight.initializeAndActivate(
     .build(),
 );
 
-await Ansight.enrollFromQrCode({ clientName: "Capacitor App" });
 ```
 
 The Capacitor facade intentionally follows the React Native camel-case runtime
@@ -269,9 +263,9 @@ the maps below with idiomatic Dart naming.
 
 ## Host Connection
 
-QR is the first-use path. It exchanges a one-use enrollment invite for an
-app-installation registration. Automatic connection then uses app-private
-registration state on later launches.
+Host-local runtimes enroll automatically through loopback when Studio is open
+and signed in. Physical devices exchange one QR invite for an app-installation
+registration, then reconnect from app-private state.
 
 | Concept | .NET | Android | iOS | React Native |
 | --- | --- | --- | --- | --- |

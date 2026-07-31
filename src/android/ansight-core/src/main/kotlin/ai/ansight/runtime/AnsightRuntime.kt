@@ -261,7 +261,6 @@ object AnsightRuntime {
         synchronized(lock) {
             require(initialized) { "AnsightRuntime must be initialized before recording metrics." }
             recordMetricLocked(value, validateChannel(channel))
-            sessionMessage = "Recorded metric $value."
         }
         streamPendingTelemetry()
     }
@@ -1035,7 +1034,13 @@ object AnsightRuntime {
                 sessionMessage = attempt.message
             }
             publishHostConnectionStatusIfChanged()
-            AnsightLogger.warning(attempt.message)
+            if (originalRequest.kind == HostConnectionRequestKind.Auto &&
+                document.config.configId.startsWith(PairingEnrollmentModes.LocalConfigPrefix)
+            ) {
+                AnsightLogger.debug(attempt.message)
+            } else {
+                AnsightLogger.warning(attempt.message)
+            }
             val open = OpenSessionResult(
                 success = false,
                 accepted = attempt.accepted,
@@ -1138,10 +1143,12 @@ object AnsightRuntime {
         startSessionJpegCaptureIfNeeded()
         streamPendingTelemetry()
 
-        if (candidate.shouldSaveOnSuccess) {
-            savePairingConfigLocked(app, candidate.payload)
+        if (!document.config.configId.startsWith(PairingEnrollmentModes.LocalConfigPrefix)) {
+            if (candidate.shouldSaveOnSuccess) {
+                savePairingConfigLocked(app, candidate.payload)
+            }
+            saveCachedPairingProfile(app, candidate.payload, attempt.hostAddress, document)
         }
-        saveCachedPairingProfile(app, candidate.payload, attempt.hostAddress, document)
 
         val open = OpenSessionResult(
             success = true,
@@ -1167,6 +1174,27 @@ object AnsightRuntime {
     private fun resolveConnectionCandidates(app: Application, request: HostConnectionRequest): List<ResolvedConnectionCandidate> {
         val saved = { loadSavedPairingConfig(app) }
         val cached = { loadCachedPairingProfiles(app) }
+        val local: () -> List<ResolvedConnectionCandidate> = local@{
+            val hostAddress = connector.localHostAddress() ?: return@local emptyList()
+            val clientName = request.clientName?.trim()?.ifBlank { null }
+                ?: options.hostAutoProbe.clientName?.trim()?.ifBlank { null }
+                ?: DeviceAppProfileCollector.collect(app, profileSeq = 0).app.appName
+                ?: app.packageName
+            val discoveryPorts = options.hostConnection.discoveryPort?.let(::listOf)
+                ?: PairingProtocolDefaults.LocalDiscoveryPorts
+            discoveryPorts.map { discoveryPort ->
+                ResolvedConnectionCandidate(
+                    payload = LocalPairingDocumentFactory.createPayload(
+                        application = app,
+                        appName = clientName,
+                        hostAddress = hostAddress,
+                        discoveryPort = discoveryPort,
+                    ),
+                    source = HostConnectionSource.AutoProbe,
+                    hostAddressOverride = hostAddress,
+                )
+            }
+        }
         return when (request.kind) {
             HostConnectionRequestKind.Payload,
             HostConnectionRequestKind.Config -> listOfNotNull(
@@ -1196,10 +1224,13 @@ object AnsightRuntime {
             HostConnectionRequestKind.BundledConfig -> listOfNotNull(
                 options.hostConnection.bundledConfigJson?.let { ResolvedConnectionCandidate(it, HostConnectionSource.BundledConfig) },
             )
-            HostConnectionRequestKind.Auto -> cached() + listOfNotNull(
-                saved()?.let { ResolvedConnectionCandidate(it, HostConnectionSource.SavedConfig) },
-                options.hostConnection.bundledConfigJson?.let { ResolvedConnectionCandidate(it, HostConnectionSource.BundledConfig) },
-            )
+            HostConnectionRequestKind.Auto ->
+                local() +
+                    cached() +
+                    listOfNotNull(
+                        saved()?.let { ResolvedConnectionCandidate(it, HostConnectionSource.SavedConfig) },
+                        options.hostConnection.bundledConfigJson?.let { ResolvedConnectionCandidate(it, HostConnectionSource.BundledConfig) },
+                    )
         }
     }
 
@@ -1957,7 +1988,7 @@ object AnsightRuntime {
             if (!initialized || !active || !options.hostAutoProbe.enabled || autoProbeTask != null) {
                 return
             }
-            if (loadCachedPairingProfiles(app).isEmpty()) {
+            if (loadCachedPairingProfiles(app).isEmpty() && connector.localHostAddress() == null) {
                 return
             }
 
@@ -1992,13 +2023,13 @@ object AnsightRuntime {
                 continue
             }
 
-            val app = synchronized(lock) { application } ?: return
+            synchronized(lock) { application } ?: return
             val request = HostConnectionRequest(
                 kind = HostConnectionRequestKind.Auto,
                 clientName = options.hostAutoProbe.clientName,
             )
             val result = try {
-                connectUsingCachedProfilesForAutoProbe(app, request)
+                connectInternal(request)
             } catch (ex: Exception) {
                 synchronized(lock) {
                     sessionMessage = ex.message ?: "Host auto-probe failed."

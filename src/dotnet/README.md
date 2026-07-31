@@ -37,9 +37,10 @@ buffer, so existing snapshot, event, and offline-capture consumers continue to
 work against the same recorded data.
 
 The bridge packages are implementation details; applications do not install or
-configure them separately. Normal setup is still install the SDK, initialize it,
-and scan the Studio enrollment QR once. The saved app-installation registration
-is then used for automatic reconnect.
+configure them separately. Install the SDK and initialize it. Simulator,
+Mac Catalyst, and desktop runtimes register automatically with a running,
+signed-in Studio; physical devices scan one Studio enrollment QR and then
+reconnect from app-private registration state.
 
 ## All-In-One
 
@@ -51,14 +52,12 @@ var options = Options.CreateBuilder()
     .Build();
 
 Runtime.InitializeAndActivate(options);
-await Runtime.HostConnection.ConnectAsync(HostConnectionRequest.QrCode());
 ```
 
-The all-in-one package registers platform QR pairing automatically, including
-tracking the current Android activity. No pairing file, MSBuild property, host
-address, or activity-provider callback is required. The first scan registers a
-random app-installation id and saves the registration; later launches reconnect
-automatically.
+The all-in-one package starts runtime enrollment automatically and registers
+platform QR support for physical devices, including current Android activity
+tracking. No pairing file, MSBuild property, host address, Studio build probe,
+or activity-provider callback is required.
 
 The all-in-one packages include annotations but do not enable them by default. To expose an in-app feedback action, opt in explicitly; the runtime activates it only for a Debug application build:
 
@@ -86,7 +85,7 @@ encrypted export, annotation-bundle storage, and team upload.
 - 120s retention
 - live JPEG capture every 2000ms at quality 60 and max width 480
 - host auto-probe enabled
-- remembered host registration, with bundled enrollment input available as an advanced override
+- automatic host-local registration and remembered physical-device enrollment
 - all non-MAUI remote tools registered
 - full tool access enabled
 
@@ -303,10 +302,10 @@ Use `WithoutHostAutoProbe()` for flows where reconnects should only happen after
 
 ## Enrollment setup
 
-QR enrollment is the complete development setup. Install the SDK, initialize
-it, and open `HostConnectionRequest.QrCode()` from a developer-only surface.
-No build target, pairing file, certificate, signing key, or host address is
-required.
+Install the SDK and initialize it. Host-local runtimes enroll automatically
+while Studio is open and signed in. Open `HostConnectionRequest.QrCode()` only
+from a physical device's developer-only surface. No build target, Studio build
+probe, pairing file, certificate, signing key, or host address is required.
 
 ## Build-Time Remote Tool Enforcement
 

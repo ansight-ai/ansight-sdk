@@ -233,6 +233,46 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertNotEqual(attempt.failureCode, PairingFailureCodes.wifiRequired)
     }
 
+    func testPairingConnectorUsesLocalEnrollmentModeForRuntimeLocalDocument() async throws {
+        let response = ConnectResponse(
+            type: "ENROLLMENT_RESULT",
+            ver: 2,
+            requestId: "",
+            accepted: false,
+            reason: "pairing-required",
+            reasonMessage: "Need WebSocket handoff",
+            hostId: "host-1",
+            hostName: "Host",
+            hostWifiName: nil,
+            message: "Rejected",
+            webSocketPort: nil,
+            webSocketPath: nil,
+            webSocketToken: nil
+        )
+        let datagramClient = FakePairingDatagramClient(
+            responseData: try JSONEncoder.ansightEncoder.encode(response)
+        )
+        let connector = PairingSessionConnector(
+            datagramClient: datagramClient,
+            wifiStatusProvider: { .notConnected },
+            simulatorLocalHostAddressProvider: { "127.0.0.1" }
+        )
+        var config = TestPairingFactory.enrollmentConfig()
+        config.configId = "local:\(config.appId)"
+
+        let attempt = await connector.connect(
+            document: ParsedPairingDocument(config: config),
+            clientName: "Unit Test",
+            options: nil
+        )
+
+        XCTAssertFalse(attempt.success)
+        let requestData = try XCTUnwrap(datagramClient.requestedData.first)
+        let request = try JSONDecoder().decode(ConnectRequest.self, from: requestData)
+        XCTAssertEqual(request.enrollmentMode, PairingEnrollmentModes.local)
+        XCTAssertEqual(datagramClient.requestedTimeouts, [1])
+    }
+
     func testPairingConnectorUdpTimeoutMessageIncludesHostNetworkHint() async {
         let datagramClient = FakePairingDatagramClient(responseData: nil)
         let connector = PairingSessionConnector(
@@ -251,6 +291,7 @@ final class PairingAndRuntimeTests: XCTestCase {
         let attempt = await connector.connect(document: document, clientName: "Unit Test", options: nil)
 
         XCTAssertFalse(attempt.success)
+        XCTAssertEqual(datagramClient.requestedTimeouts, [5])
         XCTAssertEqual(attempt.failureCode, PairingFailureCodes.udpBootstrapTimeout)
         XCTAssertTrue(attempt.message.contains("Last known Studio Wi-Fi: Studio Wi-Fi"))
         XCTAssertTrue(attempt.message.contains("Scan a fresh QR code"))
@@ -334,7 +375,7 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertEqual(document.discoveryHint?.discoveryPort, 45123)
     }
 
-    func testAutoConnectionUsesCachedPairingProfileBeforeSavedConfig() throws {
+    func testAutoConnectionPrioritizesLocalStudioBeforeStoredProfiles() throws {
         let savedStore = MemoryPairingConfigStore()
         let cachedStore = MemoryPairingConfigStore()
         try savedStore.save(TestPairingFactory.configDocumentJSON(configId: "cfg-saved", hostAddress: "127.0.0.1"))
@@ -349,10 +390,15 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertTrue(status.hasCachedSession)
         XCTAssertEqual(status.summaryKind, .disconnectedMultipleConfigsAvailable)
 
-        let resolved = try AnsightRuntime.shared.resolveConnectionRequestForTesting(.auto())
-        XCTAssertEqual(resolved.source, .cachedSession)
-        XCTAssertEqual(resolved.document.config.configId, "cfg-cached")
-        XCTAssertEqual(resolved.document.discoveryHint?.hostAddress, "127.0.0.2")
+        let resolved = try AnsightRuntime.shared.resolveConnectionRequestsForTesting(.auto())
+        XCTAssertEqual(
+            resolved.map(\.source),
+            [.autoProbe, .autoProbe, .cachedSession, .savedConfig]
+        )
+        XCTAssertEqual(resolved[0].document.config.host.discoveryPort, PairingProtocolDefaults.discoveryPort)
+        XCTAssertEqual(resolved[1].document.config.host.discoveryPort, PairingProtocolDefaults.developerDiscoveryPort)
+        XCTAssertEqual(resolved[2].document.config.configId, "cfg-cached")
+        XCTAssertEqual(resolved[3].document.config.configId, "cfg-saved")
     }
 
     func testAutoConnectionOrdersCachedPairingProfilesNewestFirst() throws {
@@ -382,10 +428,21 @@ final class PairingAndRuntimeTests: XCTestCase {
 
         let resolved = try AnsightRuntime.shared.resolveConnectionRequestsForTesting(.auto())
 
-        XCTAssertEqual(resolved.map { $0.document.config.configId }, ["cfg-office", "cfg-home", "cfg-saved"])
-        XCTAssertEqual(resolved[0].source, .cachedSession)
-        XCTAssertEqual(resolved[1].source, .cachedSession)
-        XCTAssertEqual(resolved[2].source, .savedConfig)
+        XCTAssertEqual(
+            resolved.map { $0.document.config.configId },
+            [
+                "local:com.apple.dt.xctest.tool",
+                "local:com.apple.dt.xctest.tool",
+                "cfg-office",
+                "cfg-home",
+                "cfg-saved",
+            ]
+        )
+        XCTAssertEqual(resolved[0].source, .autoProbe)
+        XCTAssertEqual(resolved[1].source, .autoProbe)
+        XCTAssertEqual(resolved[2].source, .cachedSession)
+        XCTAssertEqual(resolved[3].source, .cachedSession)
+        XCTAssertEqual(resolved[4].source, .savedConfig)
     }
 
     func testAutoConnectionClearsInvalidSavedRegistration() throws {
@@ -399,9 +456,20 @@ final class PairingAndRuntimeTests: XCTestCase {
             cached: MemoryPairingConfigStore()
         )
 
-        XCTAssertThrowsError(try AnsightRuntime.shared.resolveConnectionRequestsForTesting(.auto())) { error in
-            XCTAssertTrue(error.localizedDescription.contains("Scan an enrollment QR"))
-        }
+        let resolved = try AnsightRuntime.shared.resolveConnectionRequestsForTesting(.auto())
+
+        XCTAssertEqual(
+            resolved.map { $0.document.config.configId },
+            [
+                "local:com.apple.dt.xctest.tool",
+                "local:com.apple.dt.xctest.tool",
+            ]
+        )
+        XCTAssertEqual(
+            resolved.map { $0.document.config.host.discoveryPort },
+            PairingProtocolDefaults.localDiscoveryPorts
+        )
+        XCTAssertEqual(resolved[0].source, .autoProbe)
         XCTAssertNil(savedStore.load())
     }
 
@@ -427,7 +495,14 @@ final class PairingAndRuntimeTests: XCTestCase {
         )
 
         let resolved = try AnsightRuntime.shared.resolveConnectionRequestsForTesting(.auto())
-        XCTAssertEqual(resolved.map { $0.document.config.configId }, ["cfg-home-new"])
+        XCTAssertEqual(
+            resolved.map { $0.document.config.configId },
+            [
+                "local:com.apple.dt.xctest.tool",
+                "local:com.apple.dt.xctest.tool",
+                "cfg-home-new",
+            ]
+        )
 
         let json = try XCTUnwrap(cachedStore.load())
         let collection = try JSONDecoder.ansightDecoder.decode(
@@ -519,7 +594,7 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertEqual(recorder.statuses.count, 4)
     }
 
-    func testExpiredCachedPairingProfileFallsBackToSavedConfig() throws {
+    func testExpiredCachedPairingProfileIsRemovedWithoutDisplacingLocalPriority() throws {
         let savedStore = MemoryPairingConfigStore()
         let cachedStore = MemoryPairingConfigStore()
         try savedStore.save(TestPairingFactory.configDocumentJSON(configId: "cfg-saved", hostAddress: "127.0.0.1"))
@@ -535,9 +610,12 @@ final class PairingAndRuntimeTests: XCTestCase {
         try AnsightRuntime.shared.activate()
         AnsightRuntime.shared.replacePairingStoresForTesting(saved: savedStore, cached: cachedStore)
 
-        let resolved = try AnsightRuntime.shared.resolveConnectionRequestForTesting(.auto())
-        XCTAssertEqual(resolved.source, .savedConfig)
-        XCTAssertEqual(resolved.document.config.configId, "cfg-saved")
+        let resolved = try AnsightRuntime.shared.resolveConnectionRequestsForTesting(.auto())
+        XCTAssertEqual(
+            resolved.map(\.source),
+            [.autoProbe, .autoProbe, .savedConfig]
+        )
+        XCTAssertEqual(resolved[2].document.config.configId, "cfg-saved")
         XCTAssertNil(cachedStore.load())
 
         let status = AnsightRuntime.shared.hostConnectionStatus()
@@ -587,6 +665,82 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertEqual(result.reasonCode, PairingFailureCodes.udpBootstrapFailed)
         XCTAssertEqual(result.openSession?.configId, "cfg-home")
         XCTAssertNil(cachedStore.load())
+    }
+
+    func testAutoConnectionTriesEveryWellKnownLocalStudioPort() async throws {
+        try AnsightRuntime.shared.initialize(options: AnsightOptions(hostAutoProbe: .disabledDefault))
+        try AnsightRuntime.shared.activate()
+        AnsightRuntime.shared.replacePairingStoresForTesting(
+            saved: MemoryPairingConfigStore(),
+            cached: MemoryPairingConfigStore()
+        )
+        let connector = FakePairingSessionConnector(
+            attemptsByConfigId: [:],
+            localHostAddress: "127.0.0.1"
+        )
+        AnsightRuntime.shared.replaceConnectorForTesting(connector)
+        defer {
+            AnsightRuntime.shared.replaceConnectorForTesting(PairingSessionConnector())
+        }
+
+        let result = await AnsightRuntime.shared.connect(.auto(clientName: "Unit Test"))
+
+        XCTAssertFalse(result.success)
+        XCTAssertEqual(
+            connector.attemptedDiscoveryPorts,
+            PairingProtocolDefaults.localDiscoveryPorts
+        )
+        XCTAssertEqual(result.source, .autoProbe)
+    }
+
+    func testAutoConnectionTriesLocalStudioPortsBeforeStaleSavedRegistration() async throws {
+        let savedStore = MemoryPairingConfigStore()
+        try savedStore.save(
+            TestPairingFactory.configDocumentJSON(
+                configId: "cfg-stale",
+                hostAddress: "127.0.0.2"
+            )
+        )
+        try AnsightRuntime.shared.initialize(options: AnsightOptions(hostAutoProbe: .disabledDefault))
+        try AnsightRuntime.shared.activate()
+        AnsightRuntime.shared.replacePairingStoresForTesting(
+            saved: savedStore,
+            cached: MemoryPairingConfigStore()
+        )
+        let connector = FakePairingSessionConnector(
+            attemptsByConfigId: [
+                "cfg-stale": .failure(
+                    "Saved registration timed out.",
+                    code: PairingFailureCodes.udpBootstrapTimeout
+                ),
+            ],
+            localHostAddress: "127.0.0.1"
+        )
+        AnsightRuntime.shared.replaceConnectorForTesting(connector)
+        defer {
+            AnsightRuntime.shared.replaceConnectorForTesting(PairingSessionConnector())
+        }
+
+        let result = await AnsightRuntime.shared.connect(.auto(clientName: "Unit Test"))
+
+        XCTAssertFalse(result.success)
+        XCTAssertEqual(
+            connector.attemptedConfigIds,
+            [
+                "local:com.apple.dt.xctest.tool",
+                "local:com.apple.dt.xctest.tool",
+                "cfg-stale",
+            ]
+        )
+        XCTAssertEqual(
+            connector.attemptedDiscoveryPorts,
+            [
+                PairingProtocolDefaults.discoveryPort,
+                PairingProtocolDefaults.developerDiscoveryPort,
+                PairingProtocolDefaults.discoveryPort,
+            ]
+        )
+        XCTAssertEqual(result.source, .savedConfig)
     }
 
     func testAutoConnectionFallsBackFromSavedConfigToBundledConfigWhenSavedConfigIsStale() async throws {
