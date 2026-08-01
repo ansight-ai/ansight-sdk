@@ -20,4 +20,10 @@ public sealed class SessionJpegCaptureOptions
     /// Optional maximum output width in pixels. When null, the full window width is used. Larger widths generally increase capture cost.
     /// </summary>
     public int? MaxWidth { get; set; } = 720;
+
+    /// <summary>
+    /// Captures GPU-backed surfaces such as Metal and SceneKit content on supported Apple platforms.
+    /// Disable this to use a lower-overhead capture path when those surfaces are not required.
+    /// </summary>
+    public bool CaptureGpuBackedSurfaces { get; set; } = true;
 }

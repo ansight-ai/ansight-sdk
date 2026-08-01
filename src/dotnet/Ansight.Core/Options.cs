@@ -271,7 +271,8 @@ public class Options
                     {
                         IntervalMilliseconds = initialOptions.SessionJpegCapture.IntervalMilliseconds,
                         Quality = initialOptions.SessionJpegCapture.Quality,
-                        MaxWidth = initialOptions.SessionJpegCapture.MaxWidth
+                        MaxWidth = initialOptions.SessionJpegCapture.MaxWidth,
+                        CaptureGpuBackedSurfaces = initialOptions.SessionJpegCapture.CaptureGpuBackedSurfaces
                     },
                 TouchCapture = initialOptions.TouchCapture?.Clone(),
                 ToolGuard = initialOptions.ToolGuard ?? ToolGuard.Disabled,
@@ -530,7 +531,34 @@ public class Options
             {
                 IntervalMilliseconds = intervalMilliseconds,
                 Quality = quality,
-                MaxWidth = maxWidth
+                MaxWidth = maxWidth,
+                CaptureGpuBackedSurfaces = true
+            };
+            return this;
+        }
+
+        /// <summary>
+        /// Enables periodic JPEG capture while an Ansight pairing session is open.
+        /// This adds extra rendering, encoding, and transport work and can negatively affect runtime performance.
+        /// </summary>
+        /// <param name="intervalMilliseconds">Capture interval in milliseconds.</param>
+        /// <param name="quality">JPEG encoding quality from 1 to 100.</param>
+        /// <param name="maxWidth">Optional maximum output width in pixels.</param>
+        /// <param name="captureGpuBackedSurfaces">
+        /// Whether supported Apple platforms should include GPU-backed surfaces using the higher-overhead capture path.
+        /// </param>
+        public OptionsBuilder WithSessionJpegCapture(
+            ushort intervalMilliseconds,
+            int quality,
+            int? maxWidth,
+            bool captureGpuBackedSurfaces)
+        {
+            options.SessionJpegCapture = new SessionJpegCaptureOptions
+            {
+                IntervalMilliseconds = intervalMilliseconds,
+                Quality = quality,
+                MaxWidth = maxWidth,
+                CaptureGpuBackedSurfaces = captureGpuBackedSurfaces
             };
             return this;
         }
@@ -547,7 +575,8 @@ public class Options
             {
                 IntervalMilliseconds = sessionJpegCapture.IntervalMilliseconds,
                 Quality = sessionJpegCapture.Quality,
-                MaxWidth = sessionJpegCapture.MaxWidth
+                MaxWidth = sessionJpegCapture.MaxWidth,
+                CaptureGpuBackedSurfaces = sessionJpegCapture.CaptureGpuBackedSurfaces
             };
             return this;
         }

@@ -64,7 +64,7 @@ internal static class NativeRuntimeOptionsJson
             ["intervalMilliseconds"] = options.IntervalMilliseconds,
             ["quality"] = options.Quality,
             ["maxWidth"] = options.MaxWidth,
-            ["captureGpuBackedSurfaces"] = true
+            ["captureGpuBackedSurfaces"] = options.CaptureGpuBackedSurfaces
         };
     }
 

@@ -29,6 +29,7 @@ public sealed class AnsightAllInOneTests
         Assert.Equal(2000, options.SessionJpegCapture.IntervalMilliseconds);
         Assert.Equal(60, options.SessionJpegCapture.Quality);
         Assert.Equal(480, options.SessionJpegCapture.MaxWidth);
+        Assert.True(options.SessionJpegCapture.CaptureGpuBackedSurfaces);
         Assert.NotNull(options.TouchCapture);
         Assert.True(options.HostAutoProbe.Enabled);
         Assert.Equal(bundledConfigAssembly, options.HostConnection.BundledConfigAssembly);

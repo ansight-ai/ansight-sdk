@@ -174,10 +174,15 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
                 )
             }
 
-            var components = URLComponents()
-            components.scheme = "ws"
-            components.host = hostAddress
-            components.port = webSocketPort
+            let authorityHost = Self.urlAuthorityHost(hostAddress)
+            guard var components = URLComponents(
+                string: "ws://\(authorityHost):\(webSocketPort)"
+            ) else {
+                return .failure(
+                    "Studio WebSocket handoff was not a valid URL.",
+                    code: PairingFailureCodes.webSocketHandoffUnavailable
+                )
+            }
             components.path = webSocketPath.hasPrefix("/") ? webSocketPath : "/\(webSocketPath)"
             components.queryItems = [URLQueryItem(name: "token", value: webSocketToken)]
             guard let url = components.url else {
@@ -203,6 +208,16 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
             return nil
         }
         return candidate
+    }
+
+    private static func urlAuthorityHost(_ hostAddress: String) -> String {
+        guard hostAddress.contains(":"),
+              !hostAddress.hasPrefix("["),
+              !hostAddress.hasSuffix("]")
+        else {
+            return hostAddress
+        }
+        return "[\(hostAddress)]"
     }
 
     private static func hasSimulatorLocalHostCandidate(

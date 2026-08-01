@@ -13,7 +13,11 @@ public sealed class NativeRuntimeOptionsJsonTests
             .WithSampleFrequencyMilliseconds(750)
             .WithRetentionPeriodSeconds(120)
             .AddAdditionalChannel(new Channel(42, "Latency", Color.FromArgb(17, 34, 51)))
-            .WithSessionJpegCapture(intervalMilliseconds: 1_500, quality: 80, maxWidth: 640)
+            .WithSessionJpegCapture(
+                intervalMilliseconds: 1_500,
+                quality: 80,
+                maxWidth: 640,
+                captureGpuBackedSurfaces: false)
             .WithTouchCapture(
                 captureMoveEvents: false,
                 captureCancelEvents: true,
@@ -30,6 +34,7 @@ public sealed class NativeRuntimeOptionsJsonTests
         Assert.Equal(42, json["additionalChannels"]![0]!["id"]!.GetValue<int>());
         Assert.Equal("#112233", json["additionalChannels"]![0]!["color"]!.GetValue<string>());
         Assert.Equal(1_500, json["sessionJpegCapture"]!["intervalMilliseconds"]!.GetValue<int>());
+        Assert.False(json["sessionJpegCapture"]!["captureGpuBackedSurfaces"]!.GetValue<bool>());
         Assert.False(json["touchCapture"]!["captureMoveEvents"]!.GetValue<bool>());
         Assert.Equal(6.5, json["touchCapture"]!["moveCaptureDistanceThreshold"]!.GetValue<double>());
         Assert.Equal("true", json["customProperties"]!["flags"]!["beta"]!.GetValue<string>());
@@ -52,6 +57,25 @@ public sealed class NativeRuntimeOptionsJsonTests
 
         Assert.Null(json["sessionJpegCapture"]);
         Assert.Null(json["touchCapture"]);
+    }
+
+    [Fact]
+    public void SessionJpegCapture_PreservesGpuBackedSurfaceOptionAcrossBuilders()
+    {
+        var configuredOptions = Options.CreateBuilder()
+            .WithSessionJpegCapture(new SessionJpegCaptureOptions
+            {
+                IntervalMilliseconds = 1_000,
+                Quality = 50,
+                MaxWidth = 480,
+                CaptureGpuBackedSurfaces = false
+            })
+            .Build();
+
+        var copiedOptions = Options.CreateBuilder(configuredOptions).Build();
+
+        Assert.NotNull(copiedOptions.SessionJpegCapture);
+        Assert.False(copiedOptions.SessionJpegCapture.CaptureGpuBackedSurfaces);
     }
 
     [Fact]

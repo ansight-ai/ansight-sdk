@@ -183,6 +183,10 @@ var options = Options.CreateBuilder()
 Runtime.InitializeAndActivate(options);
 ```
 
+Set `SessionJpegCaptureOptions.CaptureGpuBackedSurfaces` to `false` to use the
+lower-overhead capture path on supported Apple platforms when Metal or SceneKit
+content is not required. It defaults to `true`.
+
 Battery level telemetry is disabled by default; `WithBatteryLevel()` only emits on platforms that expose a battery API.
 
 Install `Ansight.Core` for this lower-level surface. Add `Ansight.Pairing` separately if the app should own native QR acquisition while staying on the core package set.

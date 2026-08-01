@@ -90,7 +90,8 @@ public sealed class OfflineCaptureOptions
                 {
                     IntervalMilliseconds = SessionJpegCaptureOverride.IntervalMilliseconds,
                     Quality = SessionJpegCaptureOverride.Quality,
-                    MaxWidth = SessionJpegCaptureOverride.MaxWidth
+                    MaxWidth = SessionJpegCaptureOverride.MaxWidth,
+                    CaptureGpuBackedSurfaces = SessionJpegCaptureOverride.CaptureGpuBackedSurfaces
                 },
             MaximumQueuedRecords = MaximumQueuedRecords
         };

@@ -60,7 +60,8 @@ public sealed class OfflineCaptureTests
             {
                 IntervalMilliseconds = 500,
                 Quality = 55,
-                MaxWidth = 320
+                MaxWidth = 320,
+                CaptureGpuBackedSurfaces = false
             };
         });
 
@@ -73,6 +74,7 @@ public sealed class OfflineCaptureTests
         Assert.Equal(500, optionsSnapshot.SessionJpegCaptureOverride.IntervalMilliseconds);
         Assert.Equal(55, optionsSnapshot.SessionJpegCaptureOverride.Quality);
         Assert.Equal(320, optionsSnapshot.SessionJpegCaptureOverride.MaxWidth);
+        Assert.False(optionsSnapshot.SessionJpegCaptureOverride.CaptureGpuBackedSurfaces);
 
         using var manifest = await ReadJsonDocumentAsync(Path.Combine(session.DirectoryPath, "manifest.json"));
         Assert.True(manifest.RootElement.GetProperty("SessionJpegCaptureEnabled").GetBoolean());

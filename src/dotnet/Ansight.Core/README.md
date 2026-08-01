@@ -46,6 +46,10 @@ Runtime.ScreenViewed("CheckoutPage");
 
 When `WithSessionJpegCapture(...)` is enabled, the pairing client will capture the app's own root window/view as a JPEG and stream it over live Ansight pairing sessions. Capture remains client-driven, but the next interval is delayed until the previous frame has finished encoding and sending so the stream self-throttles under load. Connected tooling can inspect the latest live frame or correlate historical frames with the telemetry timeline.
 
+On supported Apple platforms, `SessionJpegCaptureOptions.CaptureGpuBackedSurfaces`
+defaults to `true` so Metal and SceneKit content is included. Set it to `false`
+to use the lower-overhead capture path when that content is not required.
+
 > **Important:** Screen capture will result in an FPS drop while frames are
 > captured, encoded, and transported. Disable session JPEG capture for
 > performance-focused runs unless visual evidence is required.

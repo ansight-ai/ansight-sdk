@@ -3,6 +3,21 @@ import XCTest
 @testable import AnsightPairingQR
 
 final class PairingAndRuntimeTests: XCTestCase {
+    func testLatestValueBufferReplacesOnlyThePendingValue() async {
+        let buffer = AnsightLatestValueBuffer<Int>()
+
+        let replacedFirstValue = await buffer.submit(1)
+        let replacedSecondValue = await buffer.submit(2)
+        let deliveredValue = await buffer.next()
+        await buffer.finish()
+        let valueAfterFinish = await buffer.next()
+
+        XCTAssertFalse(replacedFirstValue)
+        XCTAssertTrue(replacedSecondValue)
+        XCTAssertEqual(deliveredValue, 2)
+        XCTAssertNil(valueAfterFinish)
+    }
+
     func testValidationAcceptsGenericInviteForRuntimeBundle() throws {
         let config = TestPairingFactory.enrollmentConfig(
             configId: "invite-any-app",
@@ -350,6 +365,46 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertFalse(attempt.success)
         XCTAssertEqual(attempt.hostAddress, "127.0.0.1")
         XCTAssertEqual(datagramClient.requestedHosts, ["192.0.2.1", "127.0.0.1"])
+    }
+
+    func testPairingConnectorBuildsWebSocketURLForIPv6Host() async throws {
+        let response = ConnectResponse(
+            type: "ENROLLMENT_RESULT",
+            ver: 2,
+            requestId: "",
+            accepted: true,
+            reason: "Ok",
+            reasonMessage: nil,
+            hostId: "host-1",
+            hostName: "Host",
+            hostWifiName: nil,
+            message: "Accepted",
+            webSocketPort: 56_598,
+            webSocketPath: "/ws",
+            webSocketToken: "test-token"
+        )
+        let datagramClient = FakePairingDatagramClient(
+            responseData: try JSONEncoder.ansightEncoder.encode(response)
+        )
+        let connector = PairingSessionConnector(
+            datagramClient: datagramClient,
+            wifiStatusProvider: { .connected }
+        )
+        let document = ParsedPairingDocument(
+            config: TestPairingFactory.enrollmentConfig(configId: "cfg-ipv6"),
+            discoveryHint: PairingDiscoveryHint(
+                hostAddress: "2405:6e00:c38:9be7:fdb7:47fd:7cc0:42ca",
+                discoveryPort: 45_123
+            )
+        )
+
+        let attempt = await connector.connect(document: document, clientName: "Unit Test", options: nil)
+
+        XCTAssertTrue(attempt.success)
+        XCTAssertEqual(
+            attempt.webSocketURL?.absoluteString,
+            "ws://[2405:6e00:c38:9be7:fdb7:47fd:7cc0:42ca]:56598/ws?token=test-token"
+        )
     }
 
     func testSessionJpegWireProtocolEncodesHostHeader() {
@@ -1156,6 +1211,53 @@ final class PairingAndRuntimeTests: XCTestCase {
                 renderMilliseconds: 18
             ),
             720
+        )
+    }
+
+    func testAdaptiveScreenCaptureIntervalBacksOffAndRecovers() {
+        XCTAssertEqual(
+            AnsightRuntime.adaptiveScreenCaptureIntervalMilliseconds(
+                configuredIntervalMilliseconds: 1_000,
+                currentIntervalMilliseconds: 1_000,
+                renderMilliseconds: 18
+            ),
+            1_500
+        )
+
+        XCTAssertEqual(
+            AnsightRuntime.adaptiveScreenCaptureIntervalMilliseconds(
+                configuredIntervalMilliseconds: 1_000,
+                currentIntervalMilliseconds: 1_500,
+                renderMilliseconds: 18
+            ),
+            2_250
+        )
+
+        XCTAssertEqual(
+            AnsightRuntime.adaptiveScreenCaptureIntervalMilliseconds(
+                configuredIntervalMilliseconds: 1_000,
+                currentIntervalMilliseconds: 5_000,
+                renderMilliseconds: 18
+            ),
+            5_000
+        )
+
+        XCTAssertEqual(
+            AnsightRuntime.adaptiveScreenCaptureIntervalMilliseconds(
+                configuredIntervalMilliseconds: 1_000,
+                currentIntervalMilliseconds: 2_250,
+                renderMilliseconds: 10
+            ),
+            1_625
+        )
+
+        XCTAssertEqual(
+            AnsightRuntime.adaptiveScreenCaptureIntervalMilliseconds(
+                configuredIntervalMilliseconds: 1_000,
+                currentIntervalMilliseconds: 1_000,
+                renderMilliseconds: nil
+            ),
+            1_000
         )
     }
 

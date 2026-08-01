@@ -252,7 +252,7 @@ the maps below with idiomatic Dart naming.
 | Battery | `WithBatteryLevel()` | `enableBatteryLevel` | `enableBatteryLevel` | `enableBatteryLevel` |
 | Memory channels | `DefaultMemoryChannels` | `defaultMemoryChannels` | `defaultMemoryChannels` | `defaultMemoryChannels` |
 | Custom channels | `AddAdditionalChannel(...)` | `additionalChannels` | `additionalChannels` | `additionalChannels` |
-| JPEG capture | `WithSessionJpegCapture(...)` | `sessionJpegCapture` with `captureGpuBackedSurfaces` parity flag | `sessionJpegCapture.captureGpuBackedSurfaces` | `sessionJpegCapture.captureGpuBackedSurfaces` |
+| JPEG capture | `WithSessionJpegCapture(...)` / `SessionJpegCaptureOptions.CaptureGpuBackedSurfaces` | `sessionJpegCapture` with `captureGpuBackedSurfaces` parity flag | `sessionJpegCapture.captureGpuBackedSurfaces` | `sessionJpegCapture.captureGpuBackedSurfaces` |
 | Touch capture | `WithTouchCapture(...)` | `touchCapture` | `touchCapture` | `touchCapture` |
 | Tool guard | `WithReadOnlyToolAccess()` etc. | `toolGuard` | `toolGuard` | `toolGuard` |
 | Custom properties | `RegisterCustomProperty(...)` / runtime mutations | `customProperties` | `customProperties` | `customProperties` |

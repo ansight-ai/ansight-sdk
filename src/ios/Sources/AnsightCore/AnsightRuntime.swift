@@ -32,6 +32,7 @@ public final class AnsightRuntime: @unchecked Sendable {
 
     private static let screenCaptureRenderBudgetMilliseconds = 14
     private static let screenCaptureMinimumAdaptiveMaxWidth = 720
+    private static let screenCaptureMaximumAdaptiveIntervalMilliseconds = 5_000
 
     private let lock = NSLock()
     private let pairingDocumentService = PairingConfigDocumentService()
@@ -475,6 +476,19 @@ public final class AnsightRuntime: @unchecked Sendable {
     }
 
     private func captureAndSendScreenFrame(options captureOptions: AnsightSessionJpegCaptureOptions) async -> ScreenCaptureSendResult {
+        let preparation = await prepareScreenFrame(options: captureOptions)
+        guard let preparedFrame = preparation.preparedFrame else {
+            return ScreenCaptureSendResult(
+                operationResult: preparation.operationResult,
+                renderMilliseconds: preparation.renderMilliseconds,
+                frameWidth: preparation.frameWidth
+            )
+        }
+
+        return await sendPreparedScreenFrame(preparedFrame)
+    }
+
+    private func prepareScreenFrame(options captureOptions: AnsightSessionJpegCaptureOptions) async -> ScreenCapturePreparationResult {
         guard lock.withLock({ initialized && active && sessionOpen && connectionState == .connected }),
               liveTransport.isOpen
         else {
@@ -482,7 +496,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             lock.withLock {
                 lastScreenCaptureMessage = message
             }
-            return ScreenCaptureSendResult(operationResult: .failure(message))
+            return ScreenCapturePreparationResult(operationResult: .failure(message))
         }
 
         do {
@@ -490,29 +504,30 @@ public final class AnsightRuntime: @unchecked Sendable {
             let capture = try await AnsightScreenCapture.capture(options: captureOptions)
             let frame = capture.frame
             let payload = SessionJpegWireProtocol.encode(frame)
-            let sendStarted = AnsightTiming.now()
-            let result = await liveTransport.sendData(payload)
-            let sendMilliseconds = AnsightTiming.elapsedMilliseconds(since: sendStarted)
+            let readyAt = AnsightTiming.now()
             let totalMilliseconds = AnsightTiming.elapsedMilliseconds(since: captureStarted)
-            let message = result.success
-                ? "Captured and sent screen frame \(frame.width)x\(frame.height) (\(frame.jpegData.count) bytes, render \(capture.renderMilliseconds) ms, encode \(capture.encodeMilliseconds) ms, send \(sendMilliseconds) ms)."
-                : result.message
+            let message = "Captured screen frame \(frame.width)x\(frame.height) (\(frame.jpegData.count) bytes, render \(capture.renderMilliseconds) ms, encode \(capture.encodeMilliseconds) ms); queued for delivery."
 
             lock.withLock {
                 screenFramesCaptured += 1
-                if result.success {
-                    screenFramesSent += 1
-                }
                 lastScreenCaptureMessage = message
                 lastScreenCaptureRenderMilliseconds = capture.renderMilliseconds
                 lastScreenCaptureEncodeMilliseconds = capture.encodeMilliseconds
-                lastScreenCaptureSendMilliseconds = sendMilliseconds
+                lastScreenCaptureSendMilliseconds = nil
                 lastScreenCaptureTotalMilliseconds = totalMilliseconds
                 sessionMessage = message
             }
 
-            return ScreenCaptureSendResult(
-                operationResult: OperationResult(success: result.success, message: message),
+            return ScreenCapturePreparationResult(
+                operationResult: .success(message),
+                preparedFrame: PreparedScreenFrame(
+                    frame: frame,
+                    payload: payload,
+                    captureStarted: captureStarted,
+                    readyAt: readyAt,
+                    renderMilliseconds: capture.renderMilliseconds,
+                    encodeMilliseconds: capture.encodeMilliseconds
+                ),
                 renderMilliseconds: capture.renderMilliseconds,
                 frameWidth: frame.width
             )
@@ -526,8 +541,38 @@ public final class AnsightRuntime: @unchecked Sendable {
                 lastScreenCaptureTotalMilliseconds = nil
                 sessionMessage = message
             }
-            return ScreenCaptureSendResult(operationResult: .failure(message))
+            return ScreenCapturePreparationResult(operationResult: .failure(message))
         }
+    }
+
+    private func sendPreparedScreenFrame(_ preparedFrame: PreparedScreenFrame) async -> ScreenCaptureSendResult {
+        let queueMilliseconds = AnsightTiming.elapsedMilliseconds(since: preparedFrame.readyAt)
+        let sendStarted = AnsightTiming.now()
+        let result = await liveTransport.sendData(preparedFrame.payload)
+        let sendMilliseconds = AnsightTiming.elapsedMilliseconds(since: sendStarted)
+        let totalMilliseconds = AnsightTiming.elapsedMilliseconds(since: preparedFrame.captureStarted)
+        let frame = preparedFrame.frame
+        let message = result.success
+            ? "Captured and sent screen frame \(frame.width)x\(frame.height) (\(frame.jpegData.count) bytes, render \(preparedFrame.renderMilliseconds) ms, encode \(preparedFrame.encodeMilliseconds) ms, queued \(queueMilliseconds) ms, send \(sendMilliseconds) ms)."
+            : result.message
+
+        lock.withLock {
+            if result.success {
+                screenFramesSent += 1
+            }
+            lastScreenCaptureMessage = message
+            lastScreenCaptureRenderMilliseconds = preparedFrame.renderMilliseconds
+            lastScreenCaptureEncodeMilliseconds = preparedFrame.encodeMilliseconds
+            lastScreenCaptureSendMilliseconds = sendMilliseconds
+            lastScreenCaptureTotalMilliseconds = totalMilliseconds
+            sessionMessage = message
+        }
+
+        return ScreenCaptureSendResult(
+            operationResult: OperationResult(success: result.success, message: message),
+            renderMilliseconds: preparedFrame.renderMilliseconds,
+            frameWidth: frame.width
+        )
     }
 
     public func registerMetricChannel(_ channel: AnsightChannel) throws {
@@ -2390,6 +2435,17 @@ public final class AnsightRuntime: @unchecked Sendable {
 
     private func runScreenCaptureLoop(options: AnsightSessionJpegCaptureOptions, generation: Int) async {
         var captureOptions = options
+        let sendBuffer = AnsightLatestValueBuffer<PreparedScreenFrame>()
+        let sendTask = Task { [weak self] in
+            while !Task.isCancelled,
+                  let preparedFrame = await sendBuffer.next() {
+                guard let self else {
+                    break
+                }
+
+                _ = await self.sendPreparedScreenFrame(preparedFrame)
+            }
+        }
 
         while !Task.isCancelled {
             guard liveTransport.isOpen,
@@ -2398,22 +2454,41 @@ public final class AnsightRuntime: @unchecked Sendable {
                 break
             }
 
-            let result = await captureAndSendScreenFrame(options: captureOptions)
-            if !result.operationResult.success && !liveTransport.isOpen {
+            let preparation = await prepareScreenFrame(options: captureOptions)
+            if !preparation.operationResult.success && !liveTransport.isOpen {
                 break
+            }
+
+            if let preparedFrame = preparation.preparedFrame {
+                let replacedPendingFrame = await sendBuffer.submit(preparedFrame)
+                if replacedPendingFrame {
+                    lock.withLock {
+                        lastScreenCaptureMessage = "Replaced a stale pending screen frame because delivery is slower than capture."
+                        sessionMessage = lastScreenCaptureMessage
+                    }
+                }
             }
 
             if let adjustedMaxWidth = Self.adaptiveScreenCaptureMaxWidth(
                 configuredMaxWidth: options.maxWidth,
                 currentMaxWidth: captureOptions.maxWidth,
-                frameWidth: result.frameWidth,
-                renderMilliseconds: result.renderMilliseconds
+                frameWidth: preparation.frameWidth,
+                renderMilliseconds: preparation.renderMilliseconds
             ) {
                 captureOptions.maxWidth = adjustedMaxWidth
             }
 
+            captureOptions.intervalMilliseconds = Self.adaptiveScreenCaptureIntervalMilliseconds(
+                configuredIntervalMilliseconds: options.intervalMilliseconds,
+                currentIntervalMilliseconds: captureOptions.intervalMilliseconds,
+                renderMilliseconds: preparation.renderMilliseconds
+            )
+
             try? await Task.sleep(nanoseconds: UInt64(captureOptions.intervalMilliseconds) * 1_000_000)
         }
+
+        await sendBuffer.finish()
+        await sendTask.value
 
         lock.withLock {
             if screenCaptureGeneration == generation {
@@ -2448,6 +2523,34 @@ public final class AnsightRuntime: @unchecked Sendable {
             return currentMaxWidth
         }
         return nextWidth
+    }
+
+    static func adaptiveScreenCaptureIntervalMilliseconds(
+        configuredIntervalMilliseconds: Int,
+        currentIntervalMilliseconds: Int,
+        renderMilliseconds: Int?
+    ) -> Int {
+        let configuredInterval = max(250, configuredIntervalMilliseconds)
+        let currentInterval = max(configuredInterval, currentIntervalMilliseconds)
+        guard let renderMilliseconds else {
+            return currentInterval
+        }
+
+        if renderMilliseconds > screenCaptureRenderBudgetMilliseconds {
+            let maximumInterval = max(
+                configuredInterval,
+                screenCaptureMaximumAdaptiveIntervalMilliseconds
+            )
+            let increasedInterval = Int((Double(currentInterval) * 1.5).rounded(.up))
+            return min(maximumInterval, max(currentInterval + 250, increasedInterval))
+        }
+
+        guard currentInterval > configuredInterval else {
+            return configuredInterval
+        }
+
+        let recoveryStep = max(250, (currentInterval - configuredInterval) / 2)
+        return max(configuredInterval, currentInterval - recoveryStep)
     }
 
     private func openLiveTransportSession(url: URL, config: PairingConfig, clientName: String) async -> LiveSessionOpenAttempt {
@@ -3143,6 +3246,34 @@ public final class AnsightRuntime: @unchecked Sendable {
             frameWidth: Int? = nil
         ) {
             self.operationResult = operationResult
+            self.renderMilliseconds = renderMilliseconds
+            self.frameWidth = frameWidth
+        }
+    }
+
+    private struct PreparedScreenFrame: Sendable {
+        let frame: AnsightCapturedScreenFrame
+        let payload: Data
+        let captureStarted: TimeInterval
+        let readyAt: TimeInterval
+        let renderMilliseconds: Int
+        let encodeMilliseconds: Int
+    }
+
+    private struct ScreenCapturePreparationResult {
+        let operationResult: OperationResult
+        let preparedFrame: PreparedScreenFrame?
+        let renderMilliseconds: Int?
+        let frameWidth: Int?
+
+        init(
+            operationResult: OperationResult,
+            preparedFrame: PreparedScreenFrame? = nil,
+            renderMilliseconds: Int? = nil,
+            frameWidth: Int? = nil
+        ) {
+            self.operationResult = operationResult
+            self.preparedFrame = preparedFrame
             self.renderMilliseconds = renderMilliseconds
             self.frameWidth = frameWidth
         }

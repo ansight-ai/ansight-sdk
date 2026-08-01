@@ -109,7 +109,8 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
         {
             IntervalMilliseconds = configured.IntervalMilliseconds,
             Quality = configured.Quality,
-            MaxWidth = configured.MaxWidth
+            MaxWidth = configured.MaxWidth,
+            CaptureGpuBackedSurfaces = configured.CaptureGpuBackedSurfaces
         };
     }
 

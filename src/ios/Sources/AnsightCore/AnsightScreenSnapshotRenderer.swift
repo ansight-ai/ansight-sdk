@@ -21,8 +21,8 @@ public enum AnsightScreenSnapshotRenderer {
             maxWidth: maxWidth,
             afterScreenUpdates: afterScreenUpdates,
             // Keep the intermediate bitmap transparent even for JPEG output.
-            // On physical devices, an opaque UIGraphicsImageRenderer can make
-            // drawHierarchy omit CAMetalLayer content such as Flutter/Impeller.
+            // On physical devices, an opaque bitmap can make drawHierarchy
+            // omit CAMetalLayer content such as Flutter/Impeller.
             // ImageIO removes the alpha channel when the bitmap is encoded.
             opaque: false,
             renderMode: .hierarchy
@@ -147,23 +147,21 @@ public enum AnsightScreenSnapshotRenderer {
 
         let geometry = renderGeometry(for: referenceWindow, maxWidth: maxWidth)
         let outputBounds = CGRect(origin: .zero, size: geometry.targetSize)
-        let format = rendererFormat(opaque: opaque)
-
-        let windowSnapshot = imageRenderer(size: geometry.targetSize, format: format).image { context in
-            prepareOutput(in: context.cgContext, bounds: outputBounds, opaque: opaque)
-            context.cgContext.scaleBy(x: geometry.scaleX, y: geometry.scaleY)
+        let windowSnapshot = bitmapImage(size: geometry.targetSize, opaque: opaque) { context in
+            prepareOutput(in: context, bounds: outputBounds, opaque: opaque)
+            context.scaleBy(x: geometry.scaleX, y: geometry.scaleY)
             for window in windows where window.screen === referenceWindow.screen {
                 draw(
                     window: window,
                     relativeTo: referenceWindow,
                     afterScreenUpdates: afterScreenUpdates,
                     renderMode: renderMode,
-                    context: context.cgContext
+                    context: context
                 )
             }
         }
 
-        if windowSnapshot.cgImage != nil {
+        if let windowSnapshot, windowSnapshot.cgImage != nil {
             return windowSnapshot
         }
 
@@ -210,8 +208,7 @@ public enum AnsightScreenSnapshotRenderer {
         }
 
         let outputBounds = CGRect(origin: .zero, size: geometry.targetSize)
-        let format = rendererFormat(opaque: opaque)
-        let image = imageRenderer(size: geometry.targetSize, format: format).image { _ in
+        let image = bitmapImage(size: geometry.targetSize, opaque: opaque) { _ in
             UIImage(cgImage: renderedImage.cgImage).draw(in: outputBounds)
             for snapshot in snapshots {
                 snapshot.image.draw(
@@ -225,7 +222,7 @@ public enum AnsightScreenSnapshotRenderer {
             }
         }
 
-        guard let cgImage = image.cgImage else {
+        guard let cgImage = image?.cgImage else {
             return renderedImage
         }
 
@@ -288,13 +285,11 @@ public enum AnsightScreenSnapshotRenderer {
         snapshotView.frame = bounds
 
         let outputBounds = CGRect(origin: .zero, size: targetSize)
-        let format = rendererFormat(opaque: opaque)
-
-        return imageRenderer(size: targetSize, format: format).image { context in
-            prepareOutput(in: context.cgContext, bounds: outputBounds, opaque: opaque)
-            context.cgContext.scaleBy(x: targetSize.width / bounds.width, y: targetSize.height / bounds.height)
+        return bitmapImage(size: targetSize, opaque: opaque) { context in
+            prepareOutput(in: context, bounds: outputBounds, opaque: opaque)
+            context.scaleBy(x: targetSize.width / bounds.width, y: targetSize.height / bounds.height)
             if !snapshotView.drawHierarchy(in: bounds, afterScreenUpdates: true) {
-                snapshotView.layer.render(in: context.cgContext)
+                snapshotView.layer.render(in: context)
             }
         }
     }
@@ -394,30 +389,6 @@ public enum AnsightScreenSnapshotRenderer {
         context.restoreGState()
     }
 
-    @MainActor
-    private static var cachedRenderer: CachedImageRenderer?
-
-    @MainActor
-    private static func imageRenderer(size: CGSize, format: UIGraphicsImageRendererFormat) -> UIGraphicsImageRenderer {
-        let width = max(1, Int(size.width.rounded()))
-        let height = max(1, Int(size.height.rounded()))
-        let opaque = format.opaque
-        if let cachedRenderer, cachedRenderer.matches(width: width, height: height, opaque: opaque) {
-            return cachedRenderer.renderer
-        }
-
-        let renderer = UIGraphicsImageRenderer(size: size, format: format)
-        cachedRenderer = CachedImageRenderer(width: width, height: height, opaque: opaque, renderer: renderer)
-        return renderer
-    }
-
-    private static func rendererFormat(opaque: Bool) -> UIGraphicsImageRendererFormat {
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 1
-        format.opaque = opaque
-        return format
-    }
-
     private static func renderGeometry(for window: UIWindow, maxWidth: Int?) -> RenderGeometry {
         let bounds = window.bounds
         let scale = window.screen.scale > 0 ? window.screen.scale : UIScreen.main.scale
@@ -441,6 +412,56 @@ public enum AnsightScreenSnapshotRenderer {
             return sourcePixelWidth
         }
         return maxWidth
+    }
+
+    private static func bitmapImage(
+        size: CGSize,
+        opaque: Bool,
+        draw: (CGContext) -> Void
+    ) -> UIImage? {
+        let width = max(1, Int(size.width.rounded()))
+        let height = max(1, Int(size.height.rounded()))
+        let bytesPerPixel = 4
+        let bytesPerRow = bytesPerPixel * width
+        let byteCount = height * bytesPerRow
+
+        guard let rawData = calloc(byteCount, MemoryLayout<UInt8>.size) else {
+            return nil
+        }
+        defer {
+            free(rawData)
+        }
+
+        var bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue
+        if opaque {
+            bitmapInfo = CGImageAlphaInfo.noneSkipLast.rawValue
+        }
+
+        guard let context = CGContext(
+            data: rawData,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: bytesPerRow,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: bitmapInfo
+        ) else {
+            return nil
+        }
+
+        // UIKit draws in a top-left coordinate system. A fresh bitmap context
+        // is bottom-left, so align it before making it the current context.
+        context.translateBy(x: 0, y: CGFloat(height))
+        context.scaleBy(x: 1, y: -1)
+        UIGraphicsPushContext(context)
+        draw(context)
+        UIGraphicsPopContext()
+
+        guard let image = context.makeImage() else {
+            return nil
+        }
+
+        return UIImage(cgImage: image, scale: 1, orientation: .up)
     }
 
     private static func prepareOutput(in context: CGContext, bounds: CGRect, opaque: Bool) {
@@ -476,23 +497,13 @@ public enum AnsightScreenSnapshotRenderer {
         let scaleY: CGFloat
     }
 
-    private struct CachedImageRenderer {
-        let width: Int
-        let height: Int
-        let opaque: Bool
-        let renderer: UIGraphicsImageRenderer
-
-        func matches(width: Int, height: Int, opaque: Bool) -> Bool {
-            self.width == width && self.height == height && self.opaque == opaque
-        }
-    }
-
     #if canImport(WebKit)
     private struct WebViewSnapshot {
         let frame: CGRect
         let image: UIImage
     }
     #endif
+
     #endif
 }
 
