@@ -128,17 +128,102 @@ final class AnsightLifecycleObserver: @unchecked Sendable {
                 self?.recordLifecycleState(.background)
             }
         )
+        notificationObservers.append(
+            center.addObserver(
+                forName: UIScene.didActivateNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                let sceneIdentifier = (notification.object as? UIScene).map(ObjectIdentifier.init)
+                MainActor.assumeIsolated {
+                    self?.captureCurrentApplicationState(
+                        transitioningSceneIdentifier: sceneIdentifier,
+                        transitionState: .foreground
+                    )
+                }
+            }
+        )
+        notificationObservers.append(
+            center.addObserver(
+                forName: UIScene.willEnterForegroundNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                let sceneIdentifier = (notification.object as? UIScene).map(ObjectIdentifier.init)
+                MainActor.assumeIsolated {
+                    self?.captureCurrentApplicationState(
+                        transitioningSceneIdentifier: sceneIdentifier,
+                        transitionState: .foreground
+                    )
+                }
+            }
+        )
+        notificationObservers.append(
+            center.addObserver(
+                forName: UIScene.didEnterBackgroundNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                let sceneIdentifier = (notification.object as? UIScene).map(ObjectIdentifier.init)
+                MainActor.assumeIsolated {
+                    self?.captureCurrentApplicationState(
+                        transitioningSceneIdentifier: sceneIdentifier,
+                        transitionState: .background
+                    )
+                }
+            }
+        )
     }
 
     @MainActor
-    private func captureCurrentApplicationState() {
-        switch UIApplication.shared.applicationState {
-        case .active, .inactive:
-            recordLifecycleState(.foreground)
+    private func captureCurrentApplicationState(
+        transitioningSceneIdentifier: ObjectIdentifier? = nil,
+        transitionState: AppLifecycleState? = nil
+    ) {
+        let application = UIApplication.shared
+        var sceneStates = application.connectedScenes.compactMap { scene -> UIScene.ActivationState? in
+            if let transitioningSceneIdentifier,
+               ObjectIdentifier(scene) == transitioningSceneIdentifier {
+                return nil
+            }
+            return scene.activationState
+        }
+        switch transitionState {
+        case .foreground:
+            sceneStates.append(.foregroundInactive)
         case .background:
-            recordLifecycleState(.background)
-        @unknown default:
+            sceneStates.append(.background)
+        case .unknown, nil:
             break
+        }
+        if let state = Self.resolveLifecycleState(
+            sceneStates: sceneStates,
+            applicationState: application.applicationState,
+            fallbackState: transitionState
+        ) {
+            recordLifecycleState(state)
+        }
+    }
+
+    static func resolveLifecycleState(
+        sceneStates: [UIScene.ActivationState],
+        applicationState: UIApplication.State,
+        fallbackState: AppLifecycleState? = nil
+    ) -> AppLifecycleState? {
+        if sceneStates.contains(.foregroundActive) || sceneStates.contains(.foregroundInactive) {
+            return .foreground
+        }
+        if sceneStates.contains(.background) {
+            return .background
+        }
+
+        switch applicationState {
+        case .active, .inactive:
+            return .foreground
+        case .background:
+            return .background
+        @unknown default:
+            return fallbackState
         }
     }
 
