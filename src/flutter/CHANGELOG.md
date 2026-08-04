@@ -1,3 +1,8 @@
+## 1.2.0-preview.2
+
+- Align Flutter package metadata and native dependencies with the
+  1.2.0-preview.2 SDK family.
+
 ## 1.2.0-preview.1
 
 - Add platform-neutral foreground, background, opacity, displayed text, and

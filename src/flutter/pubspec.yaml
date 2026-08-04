@@ -1,6 +1,6 @@
 name: ansight_flutter
 description: Cross-platform observability, inspection, and remote tooling for Flutter applications.
-version: 1.2.0-preview.1
+version: 1.2.0-preview.2
 homepage: https://github.com/ansight-ai/ansight-sdk
 repository: https://github.com/ansight-ai/ansight-sdk
 issue_tracker: https://github.com/ansight-ai/ansight-sdk/issues
