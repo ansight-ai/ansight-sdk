@@ -1481,21 +1481,33 @@ internal static partial class MauiToolHelpers
     {
         var visual = new JsonObject
         {
-            ["opacity"] = element is VisualElement visualElement
-                ? Math.Clamp(visualElement.Opacity, 0d, 1d)
-                : 1d
+            ["opacity"] = GetElementOpacity(element)
         };
 
-        AddVisualString(visual, "foreground", GetForegroundColor(element)?.ToArgbHex());
-        AddVisualString(visual, "background", GetBackgroundColor(element)?.ToArgbHex());
-        AddVisualString(visual, "text", GetElementLabel(element));
-        if (GetElementValue(element) is { } value)
-        {
-            visual["value"] = value;
-        }
+        TryAddVisualString(visual, "foreground", () => GetForegroundColor(element)?.ToArgbHex());
+        TryAddVisualString(visual, "background", () => GetBackgroundColor(element)?.ToArgbHex());
+        TryAddVisualString(visual, "text", () => GetElementLabel(element));
+        TryAddVisualString(visual, "value", () => GetElementValue(element));
 
         return visual;
     }
+
+    private static double GetElementOpacity(Element element)
+    {
+        try
+        {
+            return ReadElementOpacity(element);
+        }
+        catch (Exception)
+        {
+            return 1d;
+        }
+    }
+
+    private static double ReadElementOpacity(Element element)
+        => element is VisualElement visualElement
+            ? Math.Clamp(visualElement.Opacity, 0d, 1d)
+            : 1d;
 
     private static Color? GetForegroundColor(Element element)
     {
@@ -1530,8 +1542,8 @@ internal static partial class MauiToolHelpers
             Editor editor => CreateVisualStringValue(editor.Text),
             SearchBar searchBar => CreateVisualStringValue(searchBar.Text),
             Picker { SelectedItem: not null } picker => CreateVisualStringValue(picker.SelectedItem.ToString()),
-            DatePicker datePicker => datePicker.Date.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
-            TimePicker timePicker => timePicker.Time.ToString("c", System.Globalization.CultureInfo.InvariantCulture),
+            DatePicker datePicker => CreateDatePickerValue(datePicker),
+            TimePicker timePicker => CreateTimePickerValue(timePicker),
             CheckBox checkBox => checkBox.IsChecked ? "true" : "false",
             Switch toggle => toggle.IsToggled ? "true" : "false",
             Slider slider => CreateCompactNumber(slider.Value).ToString(System.Globalization.CultureInfo.InvariantCulture),
@@ -1542,6 +1554,32 @@ internal static partial class MauiToolHelpers
 
     private static string? CreateVisualStringValue(string? value)
         => CreateSafeLabel(value);
+
+    private static string? CreateDatePickerValue(DatePicker datePicker)
+    {
+        return TryGetBindablePropertyValue(datePicker, DatePicker.DateProperty, out var value) && value is DateTime date
+            ? date.ToString("O", System.Globalization.CultureInfo.InvariantCulture)
+            : null;
+    }
+
+    private static string? CreateTimePickerValue(TimePicker timePicker)
+    {
+        return TryGetBindablePropertyValue(timePicker, TimePicker.TimeProperty, out var value) && value is TimeSpan time
+            ? time.ToString("c", System.Globalization.CultureInfo.InvariantCulture)
+            : null;
+    }
+
+    private static void TryAddVisualString(JsonObject visual, string propertyName, Func<string?> valueFactory)
+    {
+        try
+        {
+            AddVisualString(visual, propertyName, valueFactory());
+        }
+        catch (Exception)
+        {
+            // Visual presentation is best-effort and must not prevent tree capture.
+        }
+    }
 
     private static void AddVisualString(JsonObject visual, string propertyName, string? value)
     {
@@ -1573,7 +1611,19 @@ internal static partial class MauiToolHelpers
 
     internal static string? GetElementLabel(Element element)
     {
-        string? label = element switch
+        try
+        {
+            return ReadElementLabel(element);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    private static string? ReadElementLabel(Element element)
+    {
+        return element switch
         {
             Entry entry => CreateInputPlaceholderLabel(entry.Placeholder, entry.IsPassword),
             Editor editor => CreateSafeLabel(editor.Placeholder),
@@ -1587,8 +1637,6 @@ internal static partial class MauiToolHelpers
             MenuItem menuItem => CreateSafeLabel(menuItem.Text),
             _ => null
         };
-
-        return label;
     }
 
     internal static string GetElementId(Element element) => element.Id.ToString("N");

@@ -81,8 +81,10 @@ public sealed class GetBindingsTool : ITool
 
                 if (includeValues)
                 {
-                    var value = bindable.GetValue(descriptor.BindableProperty);
-                    bindingJson["value"] = CreateValueSnapshot(value, descriptor.BindableProperty.ReturnType, DefaultObjectDepth, DefaultMaxItems, DefaultMaxProperties);
+                    if (TryGetBindablePropertyValue(bindable, descriptor.BindableProperty, out var value))
+                    {
+                        bindingJson["value"] = CreateValueSnapshot(value, descriptor.BindableProperty.ReturnType, DefaultObjectDepth, DefaultMaxItems, DefaultMaxProperties);
+                    }
                 }
 
                 bindings.Add(bindingJson);

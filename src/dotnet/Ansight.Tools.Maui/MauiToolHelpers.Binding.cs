@@ -72,8 +72,22 @@ internal static partial class MauiToolHelpers
         {
             foreach (var field in currentType.GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly))
             {
-                if (!typeof(BindableProperty).IsAssignableFrom(field.FieldType) ||
-                    field.GetValue(null) is not BindableProperty bindableProperty)
+                if (!typeof(BindableProperty).IsAssignableFrom(field.FieldType))
+                {
+                    continue;
+                }
+
+                BindableProperty? bindableProperty;
+                try
+                {
+                    bindableProperty = field.GetValue(null) as BindableProperty;
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
+
+                if (bindableProperty == null)
                 {
                     continue;
                 }
@@ -84,8 +98,22 @@ internal static partial class MauiToolHelpers
             foreach (var property in currentType.GetProperties(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly))
             {
                 if (!typeof(BindableProperty).IsAssignableFrom(property.PropertyType) ||
-                    property.GetIndexParameters().Length > 0 ||
-                    property.GetValue(null) is not BindableProperty bindableProperty)
+                    property.GetIndexParameters().Length > 0)
+                {
+                    continue;
+                }
+
+                BindableProperty? bindableProperty;
+                try
+                {
+                    bindableProperty = property.GetValue(null) as BindableProperty;
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
+
+                if (bindableProperty == null)
                 {
                     continue;
                 }
@@ -95,6 +123,23 @@ internal static partial class MauiToolHelpers
         }
 
         return descriptors;
+    }
+
+    internal static bool TryGetBindablePropertyValue(
+        BindableObject bindable,
+        BindableProperty bindableProperty,
+        out object? value)
+    {
+        try
+        {
+            value = bindable.GetValue(bindableProperty);
+            return true;
+        }
+        catch (Exception)
+        {
+            value = null;
+            return false;
+        }
     }
 
     internal static void AddDescriptor(
@@ -326,7 +371,15 @@ internal static partial class MauiToolHelpers
                 continue;
             }
 
-            command = property.GetValue(target) as ICommand;
+            try
+            {
+                command = property.GetValue(target) as ICommand;
+            }
+            catch (Exception)
+            {
+                continue;
+            }
+
             matchedPropertyName = property.Name;
 
             var parameterPropertyName = property.Name.EndsWith("Command", StringComparison.Ordinal)

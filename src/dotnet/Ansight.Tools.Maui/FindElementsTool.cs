@@ -159,7 +159,11 @@ public sealed class FindElementsTool : ITool
 
                     if (!string.IsNullOrWhiteSpace(propertyValueJson))
                     {
-                        var value = bindable.GetValue(descriptor.BindableProperty);
+                        if (!TryGetBindablePropertyValue(bindable, descriptor.BindableProperty, out var value))
+                        {
+                            continue;
+                        }
+
                         if (!AreValuesEquivalent(value, descriptor.BindableProperty.ReturnType, propertyValueJson))
                         {
                             continue;
