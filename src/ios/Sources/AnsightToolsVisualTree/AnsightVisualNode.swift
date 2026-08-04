@@ -9,6 +9,7 @@ internal struct AnsightVisualNode: Sendable {
     let enabled: Bool
     let focusable: Bool
     let bounds: AnsightVisualTreeBounds?
+    let visual: [String: JSONValue]
     let properties: [String: JSONValue]
     let children: [AnsightVisualNode]
 
@@ -55,6 +56,7 @@ internal struct AnsightVisualNode: Sendable {
             "enabled": .bool(enabled),
             "focusable": .bool(focusable),
             "childCount": .integer(Int64(children.count)),
+            "visual": .object(visual),
         ]
 
         if includeBounds, let bounds {

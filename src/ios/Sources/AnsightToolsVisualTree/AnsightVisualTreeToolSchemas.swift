@@ -210,6 +210,7 @@ internal enum AnsightVisualTreeToolSchemas {
             "enabled": boolean("Whether the node is enabled."),
             "focusable": boolean("Whether the node can receive focus."),
             "childCount": integer("Number of direct children."),
+            "visual": visualPresentation,
             "bounds": bounds,
             "properties": objectJSON(
                 description: "Additional implementation-specific node properties.",
@@ -218,7 +219,19 @@ internal enum AnsightVisualTreeToolSchemas {
             ),
             "children": array(genericObject, "Nested child nodes.", nullable: true),
         ],
-        required: ["id", "type", "visible", "enabled", "focusable", "childCount"]
+        required: ["id", "type", "visible", "enabled", "focusable", "childCount", "visual"]
+    )
+
+    private static let visualPresentation = objectJSON(
+        description: "Small platform-neutral presentation snapshot used to approximate the rendered node.",
+        properties: [
+            "foreground": string("Resolved foreground color as #AARRGGBB, when available.", nullable: true),
+            "background": string("Resolved solid background color as #AARRGGBB, when available.", nullable: true),
+            "opacity": number("Node-local opacity from zero through one."),
+            "text": string("Bounded displayed text or placeholder, when available.", nullable: true),
+            "value": string("Bounded display value. Secure text values are omitted.", nullable: true),
+        ],
+        required: ["opacity"]
     )
 
     private static let overlayRect = objectJSON(

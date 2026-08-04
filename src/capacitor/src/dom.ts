@@ -21,6 +21,13 @@ interface DomNode {
   focusable: boolean;
   childCount: number;
   bounds: { x: number; y: number; width: number; height: number };
+  visual: {
+    foreground?: string;
+    background?: string;
+    opacity: number;
+    text?: string;
+    value?: string;
+  };
   properties: Record<string, unknown>;
   children: DomNode[];
 }
@@ -80,6 +87,85 @@ function attributes(element: Element): Record<string, string> {
   );
 }
 
+function computedColorToArgbHex(value: string): string | undefined {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return undefined;
+  if (normalized === "transparent") return "#00000000";
+
+  const components = normalized.match(/[\d.]+%?/g);
+  if (!components || components.length < 3) return undefined;
+  const channel = (component: string): number => {
+    const parsed = Number.parseFloat(component);
+    const value = component.endsWith("%") ? (parsed * 255) / 100 : parsed;
+    return Math.max(0, Math.min(255, Math.round(value)));
+  };
+  const alpha =
+    components.length > 3
+      ? Math.max(
+          0,
+          Math.min(
+            255,
+            Math.round(
+              (components[3].endsWith("%")
+                ? Number.parseFloat(components[3]) / 100
+                : Number.parseFloat(components[3])) * 255,
+            ),
+          ),
+        )
+      : 255;
+  return `#${[
+    alpha,
+    channel(components[0]),
+    channel(components[1]),
+    channel(components[2]),
+  ]
+    .map((component) => component.toString(16).padStart(2, "0"))
+    .join("")}`.toUpperCase();
+}
+
+function displayedText(element: Element): string | undefined {
+  if (element instanceof HTMLInputElement) {
+    return element.placeholder?.trim() || undefined;
+  }
+  if (element instanceof HTMLTextAreaElement) {
+    return element.placeholder?.trim() || undefined;
+  }
+  if (element instanceof HTMLSelectElement) {
+    return element.selectedOptions[0]?.textContent?.trim() || undefined;
+  }
+
+  const shouldReadDescendants = ["BUTTON", "A", "SUMMARY", "OPTION"].includes(
+    element.tagName,
+  );
+  const rawText = shouldReadDescendants
+    ? element.textContent
+    : Array.from(element.childNodes)
+        .filter((child) => child.nodeType === Node.TEXT_NODE)
+        .map((child) => child.textContent)
+        .join(" ");
+  const normalized = rawText?.replace(/\s+/g, " ").trim();
+  return normalized ? normalized.slice(0, 240) : undefined;
+}
+
+function displayedValue(element: Element): string | undefined {
+  let value: string | undefined;
+  if (element instanceof HTMLInputElement) {
+    if (element.type === "password") return undefined;
+    if (element.type === "checkbox" || element.type === "radio") {
+      return element.checked.toString();
+    }
+    value = element.value;
+  } else if (
+    element instanceof HTMLSelectElement ||
+    element instanceof HTMLTextAreaElement
+  ) {
+    value = element.value;
+  }
+
+  const normalized = value?.replace(/\s+/g, " ").trim();
+  return normalized ? normalized.slice(0, 240) : undefined;
+}
+
 function captureNode(
   element: Element,
   options: Required<
@@ -106,6 +192,7 @@ function captureNode(
   const disabled =
     element.hasAttribute("disabled") ||
     element.getAttribute("aria-disabled") === "true";
+  const parsedOpacity = Number.parseFloat(style.opacity);
 
   return {
     id: nodeId(element),
@@ -125,16 +212,20 @@ function captureNode(
       width: rect.width,
       height: rect.height,
     },
+    visual: {
+      foreground: computedColorToArgbHex(style.color),
+      background: computedColorToArgbHex(style.backgroundColor),
+      opacity: Number.isFinite(parsedOpacity)
+        ? Math.max(0, Math.min(1, parsedOpacity))
+        : 1,
+      text: options.includeText ? displayedText(element) : undefined,
+      value: options.includeText ? displayedValue(element) : undefined,
+    },
     properties: {
       id: element.id || undefined,
       role: element.getAttribute("role") ?? undefined,
       className: element.getAttribute("class") ?? undefined,
-      value:
-        element instanceof HTMLInputElement ||
-        element instanceof HTMLSelectElement ||
-        element instanceof HTMLTextAreaElement
-          ? element.value
-          : undefined,
+      value: options.includeText ? displayedValue(element) : undefined,
       checked:
         element instanceof HTMLInputElement ? element.checked : undefined,
       attributes: options.includeAttributes ? attributes(element) : undefined,

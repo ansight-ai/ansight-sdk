@@ -9,7 +9,9 @@ using System.Text.Json.Nodes;
 #if ANDROID
 using Android.App;
 using Android.Graphics;
+using Android.Graphics.Drawables;
 using Android.OS;
+using Android.Text.Method;
 using Android.Views;
 using Android.Widget;
 #elif IOS || MACCATALYST
@@ -241,6 +243,17 @@ internal static partial class VisualTreeSupport
     private static string GetRequiredString(IReadOnlyDictionary<string, string> arguments, string key)
         => GetString(arguments, key) ?? throw new InvalidOperationException($"The argument '{key}' is required.");
 
+    private static void AddVisualString(JsonObject visual, string propertyName, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        var normalized = value.Trim();
+        visual[propertyName] = normalized.Length <= 240 ? normalized : normalized[..240] + "...";
+    }
+
     private sealed class VisualNode
     {
         internal VisualNode(
@@ -251,6 +264,7 @@ internal static partial class VisualTreeSupport
             bool isEnabled,
             bool isFocusable,
             JsonObject? bounds,
+            JsonObject visual,
             JsonObject? properties,
             int childCount,
             List<VisualNode> children)
@@ -262,6 +276,7 @@ internal static partial class VisualTreeSupport
             IsEnabled = isEnabled;
             IsFocusable = isFocusable;
             Bounds = bounds;
+            Visual = visual;
             Properties = properties;
             ChildCount = childCount;
             Children = children;
@@ -274,6 +289,7 @@ internal static partial class VisualTreeSupport
         internal bool IsEnabled { get; }
         internal bool IsFocusable { get; }
         internal JsonObject? Bounds { get; }
+        internal JsonObject Visual { get; }
         internal JsonObject? Properties { get; }
         internal int ChildCount { get; }
         internal List<VisualNode> Children { get; }
@@ -342,7 +358,8 @@ internal static partial class VisualTreeSupport
                 ["visible"] = IsVisible,
                 ["enabled"] = IsEnabled,
                 ["focusable"] = IsFocusable,
-                ["childCount"] = ChildCount
+                ["childCount"] = ChildCount,
+                ["visual"] = Visual.DeepClone()
             };
 
             if (includeBounds && Bounds != null)
@@ -704,6 +721,7 @@ internal static partial class VisualTreeSupport
                 ["width"] = view.Width,
                 ["height"] = view.Height
             },
+            visual: CreateAndroidVisual(view),
             properties: properties,
             childCount: childCount,
             children: children);
@@ -713,10 +731,68 @@ internal static partial class VisualTreeSupport
     {
         return view switch
         {
+            EditText editText when editText.TransformationMethod is PasswordTransformationMethod =>
+                editText.Hint?.ToString() ?? view.ContentDescription?.ToString(),
             TextView textView when !string.IsNullOrWhiteSpace(textView.Text) => textView.Text,
             _ => view.ContentDescription?.ToString()
         };
     }
+
+    private static JsonObject CreateAndroidVisual(View view)
+    {
+        var visual = new JsonObject
+        {
+            ["opacity"] = Math.Clamp(view.Alpha, 0f, 1f)
+        };
+
+        if (view is TextView textView)
+        {
+            visual["foreground"] = ToArgbHex(new Android.Graphics.Color(textView.CurrentTextColor));
+            var text = view is EditText editText ? editText.Hint : textView.Text;
+            AddVisualString(visual, "text", text?.ToString());
+        }
+
+        if (TryGetAndroidBackgroundColor(view, out var background))
+        {
+            visual["background"] = ToArgbHex(background);
+        }
+
+        switch (view)
+        {
+            case EditText editText when editText.TransformationMethod is not PasswordTransformationMethod:
+                AddVisualString(visual, "value", editText.Text);
+                break;
+            case CompoundButton compoundButton:
+                visual["value"] = compoundButton.Checked ? "true" : "false";
+                break;
+            case SeekBar seekBar:
+                visual["value"] = seekBar.Progress.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                break;
+        }
+
+        return visual;
+    }
+
+    private static bool TryGetAndroidBackgroundColor(View view, out Android.Graphics.Color color)
+    {
+        if (view.Background is ColorDrawable colorDrawable)
+        {
+            color = colorDrawable.Color;
+            return true;
+        }
+
+        if (view.BackgroundTintList is { } tint)
+        {
+            color = new Android.Graphics.Color(tint.GetColorForState(view.GetDrawableState(), Android.Graphics.Color.Transparent));
+            return true;
+        }
+
+        color = Android.Graphics.Color.Transparent;
+        return false;
+    }
+
+    private static string ToArgbHex(Android.Graphics.Color color)
+        => $"#{unchecked((uint)color.ToArgb()):X8}";
 
     private static async Task<AndroidScreenshotCaptureResult> CaptureScreenshotAsync(string format, int quality, int? maxWidth, bool annotateNodeIds)
     {
@@ -991,6 +1067,7 @@ internal static partial class VisualTreeSupport
                 ["width"] = (double)frame.Width,
                 ["height"] = (double)frame.Height
             },
+            visual: CreateAppleVisual(view),
             properties: properties,
             childCount: subviews.Length,
             children: children);
@@ -1002,11 +1079,84 @@ internal static partial class VisualTreeSupport
         {
             UILabel label when !string.IsNullOrWhiteSpace(label.Text) => label.Text,
             UIButton button when !string.IsNullOrWhiteSpace(button.CurrentTitle) => button.CurrentTitle,
+            UITextField { SecureTextEntry: true } textField => textField.Placeholder ?? view.AccessibilityLabel ?? view.AccessibilityIdentifier,
             UITextField textField when !string.IsNullOrWhiteSpace(textField.Text) => textField.Text,
             UITextView textView when !string.IsNullOrWhiteSpace(textView.Text) => textView.Text,
             _ => view.AccessibilityLabel ?? view.AccessibilityIdentifier
         };
     }
+
+    private static JsonObject CreateAppleVisual(UIView view)
+    {
+        var visual = new JsonObject
+        {
+            ["opacity"] = Math.Clamp((double)view.Alpha, 0d, 1d)
+        };
+
+        if (view.BackgroundColor is { } backgroundColor)
+        {
+            visual["background"] = ToArgbHex(backgroundColor);
+        }
+
+        UIColor? foregroundColor = view switch
+        {
+            UILabel label => label.TextColor,
+            UIButton button => button.TitleColor(UIControlState.Normal),
+            UITextField textField => textField.TextColor,
+            UITextView textView => textView.TextColor,
+            _ => null
+        };
+        if (foregroundColor is not null)
+        {
+            visual["foreground"] = ToArgbHex(foregroundColor);
+        }
+
+        var text = view switch
+        {
+            UILabel label => label.Text,
+            UIButton button => button.CurrentTitle,
+            UITextField textField => textField.Placeholder,
+            _ => null
+        };
+        AddVisualString(visual, "text", text);
+
+        switch (view)
+        {
+            case UITextField { SecureTextEntry: false } textField:
+                AddVisualString(visual, "value", textField.Text);
+                break;
+            case UITextView textView:
+                AddVisualString(visual, "value", textView.Text);
+                break;
+            case UISwitch toggle:
+                visual["value"] = toggle.On ? "true" : "false";
+                break;
+            case UISlider slider:
+                visual["value"] = slider.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                break;
+            case UIStepper stepper:
+                visual["value"] = stepper.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                break;
+        }
+
+        return visual;
+    }
+
+    private static string ToArgbHex(UIColor color)
+    {
+        try
+        {
+            color.GetRGBA(out var red, out var green, out var blue, out var alpha);
+            return $"#{ToColorByte(alpha):X2}{ToColorByte(red):X2}{ToColorByte(green):X2}{ToColorByte(blue):X2}";
+        }
+        catch
+        {
+            return "#00000000";
+        }
+    }
+
+    private static int ToColorByte(nfloat value)
+        => (int)Math.Round(Math.Clamp((double)value, 0d, 1d) * 255d);
 
     private static bool TryCaptureScreenshot(
         string format,

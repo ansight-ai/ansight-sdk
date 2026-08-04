@@ -36,6 +36,19 @@ public sealed class VisualTreeToolsTests
     }
 
     [Fact]
+    public void GetVisualTreeTool_ResultSchema_DeclaresNormalizedVisualPresentation()
+    {
+        var rootSchema = new GetVisualTreeTool().ResultSchema.Properties["root"];
+        var visualSchema = rootSchema.Properties["visual"];
+
+        Assert.Contains("visual", rootSchema.Required);
+        Assert.Equal(
+            ["foreground", "background", "opacity", "text", "value"],
+            visualSchema.Properties.Keys);
+        Assert.Equal(["opacity"], visualSchema.Required);
+    }
+
+    [Fact]
     public async Task GetScreenshotTool_Execute_ReturnsPlatformUnsupportedOnHost()
     {
         var result = await new GetScreenshotTool().Execute(new Dictionary<string, string>());

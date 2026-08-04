@@ -47,6 +47,18 @@ internal static class VisualTreeToolSchemas
         },
         required: new[] { "strokeColor", "strokeWidth", "cornerRadius" });
 
+    private static readonly ToolSchema VisualPresentationSchema = ToolSchema.Object(
+        description: "Small platform-neutral presentation snapshot used to approximate the rendered node.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["foreground"] = ToolSchema.String("Resolved foreground color as #AARRGGBB, when available.", nullable: true),
+            ["background"] = ToolSchema.String("Resolved solid background color as #AARRGGBB, when available.", nullable: true),
+            ["opacity"] = ToolSchema.Number("Node-local opacity from zero through one."),
+            ["text"] = ToolSchema.String("Bounded displayed text or placeholder, when available.", nullable: true),
+            ["value"] = ToolSchema.String("Bounded display value. Secure text values are omitted.", nullable: true)
+        },
+        required: new[] { "opacity" });
+
     private static readonly ToolSchema OverlaySchema = ToolSchema.Object(
         description: "Live diagnostic overlay.",
         properties: new Dictionary<string, ToolSchema>
@@ -77,6 +89,7 @@ internal static class VisualTreeToolSchemas
             ["enabled"] = ToolSchema.Boolean("Whether the node is enabled."),
             ["focusable"] = ToolSchema.Boolean("Whether the node can receive focus."),
             ["childCount"] = ToolSchema.Integer("Number of direct children."),
+            ["visual"] = VisualPresentationSchema,
             ["bounds"] = BoundsSchema,
             ["properties"] = ToolSchema.Object(
                 description: "Additional implementation-specific node properties.",
@@ -84,7 +97,7 @@ internal static class VisualTreeToolSchemas
                 nullable: true),
             ["children"] = ToolSchema.Array(GenericObjectSchema, "Nested child nodes.", nullable: true)
         },
-        required: new[] { "id", "type", "visible", "enabled", "focusable", "childCount" });
+        required: new[] { "id", "type", "visible", "enabled", "focusable", "childCount", "visual" });
 
     internal static ToolSchema GetVisualTreeArguments { get; } = ToolSchema.Object(
         description: "Arguments for retrieving the current visual tree.",

@@ -1,6 +1,15 @@
 "use strict";
 
-const { AppState, NativeEventEmitter, NativeModules, Platform, UIManager, findNodeHandle } = require("react-native");
+const {
+  AppState,
+  NativeEventEmitter,
+  NativeModules,
+  Platform,
+  StyleSheet,
+  UIManager,
+  findNodeHandle,
+  processColor,
+} = require("react-native");
 
 const nativeModule = NativeModules.AnsightReactNative;
 
@@ -1392,6 +1401,56 @@ function summarizeProps(props) {
   return summary;
 }
 
+function reactColorToArgbHex(value) {
+  if (value == null) {
+    return undefined;
+  }
+  try {
+    const processed = typeof processColor === "function" ? processColor(value) : null;
+    if (typeof processed === "number") {
+      return `#${(processed >>> 0).toString(16).padStart(8, "0")}`.toUpperCase();
+    }
+  } catch (_) {
+    // Some dynamic platform colors cannot be represented as one resolved color.
+  }
+  return undefined;
+}
+
+function reactVisualText(fiber, props, maxStringLength) {
+  if (fiber.tag === 6) {
+    return sanitizeString(String(fiber.memoizedProps || fiber.pendingProps || ""), maxStringLength);
+  }
+  const children = summarizeReactChildren(props.children);
+  const candidate = typeof children === "string" || typeof children === "number"
+    ? children
+    : props.placeholder ?? props.title ?? props.accessibilityLabel;
+  return candidate == null ? undefined : sanitizeString(String(candidate), maxStringLength);
+}
+
+function createReactVisual(fiber, props, maxStringLength) {
+  const style = StyleSheet && typeof StyleSheet.flatten === "function"
+    ? StyleSheet.flatten(props && props.style)
+    : props && props.style;
+  const opacity = style && Number.isFinite(Number(style.opacity))
+    ? Math.max(0, Math.min(1, Number(style.opacity)))
+    : 1;
+  const visual = { opacity };
+  const foreground = reactColorToArgbHex(style && style.color);
+  const background = reactColorToArgbHex(style && style.backgroundColor);
+  const text = reactVisualText(fiber, props || {}, maxStringLength);
+  if (foreground) visual.foreground = foreground;
+  if (background) visual.background = background;
+  if (text) visual.text = text;
+
+  if (props && !props.secureTextEntry) {
+    const value = props.value ?? props.defaultValue;
+    if (value != null && ["string", "number", "boolean"].includes(typeof value)) {
+      visual.value = sanitizeString(String(value), maxStringLength);
+    }
+  }
+  return visual;
+}
+
 function nativeTagForFiber(fiber) {
   const stateNode = fiber && fiber.stateNode;
   if (!stateNode) {
@@ -1471,6 +1530,7 @@ function serializeFiber(fiber, context, depth) {
     tag: fiber.tag,
     key: fiber.key == null ? null : String(fiber.key),
     depth,
+    visual: createReactVisual(fiber, props, context.maxStringLength),
     children: [],
   };
 
@@ -1545,6 +1605,7 @@ function createShadowTreeNode(fiber, context, depth) {
     tag: fiber.tag,
     key: fiber.key == null ? null : String(fiber.key),
     depth,
+    visual: createReactVisual(fiber, props, context.maxStringLength),
     children: [],
   };
 

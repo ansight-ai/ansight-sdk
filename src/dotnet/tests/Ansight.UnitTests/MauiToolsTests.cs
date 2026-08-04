@@ -87,6 +87,19 @@ public sealed class MauiToolsTests
             options.Tools.Select(tool => tool.Id));
     }
 
+    [Fact]
+    public void GetVisualTreeTool_ResultSchema_DeclaresNormalizedVisualPresentation()
+    {
+        var rootSchema = new GetVisualTreeTool().ResultSchema.Properties["root"];
+        var visualSchema = rootSchema.Properties["visual"];
+
+        Assert.Contains("visual", rootSchema.Required);
+        Assert.Equal(
+            ["foreground", "background", "opacity", "text", "value"],
+            visualSchema.Properties.Keys);
+        Assert.Equal(["opacity"], visualSchema.Required);
+    }
+
     [Theory]
     [MemberData(nameof(HostUnsupportedTools))]
     public async Task MauiTool_Execute_ReturnsPlatformUnsupportedOnHost(ITool tool, IReadOnlyDictionary<string, string> arguments)

@@ -293,6 +293,7 @@ internal enum AnsightVisualTreeSupport {
                 width: Double(frame.width),
                 height: Double(frame.height)
             ),
+            visual: visualForView(view),
             properties: properties,
             children: view.subviews.map { buildNode(view: $0, window: window, includeProperties: includeProperties) }
         )
@@ -337,8 +338,15 @@ internal enum AnsightVisualTreeSupport {
             return title
         }
 
-        if let textField = view as? UITextField, let text = normalized(textField.text) {
-            return text
+        if let textField = view as? UITextField {
+            if textField.isSecureTextEntry {
+                return normalized(textField.placeholder)
+                    ?? normalized(view.accessibilityLabel)
+                    ?? normalized(view.accessibilityIdentifier)
+            }
+            if let text = normalized(textField.text) {
+                return text
+            }
         }
 
         if let textView = view as? UITextView, let text = normalized(textView.text) {
@@ -346,6 +354,74 @@ internal enum AnsightVisualTreeSupport {
         }
 
         return normalized(view.accessibilityLabel) ?? normalized(view.accessibilityIdentifier)
+    }
+
+    @MainActor
+    private static func visualForView(_ view: UIView) -> [String: JSONValue] {
+        var visual: [String: JSONValue] = [
+            "opacity": .number(Double(max(0, min(1, view.alpha)))),
+        ]
+
+        if let backgroundColor = view.backgroundColor {
+            visual["background"] = .string(hexColor(backgroundColor))
+        }
+        if let foregroundColor = foregroundColor(for: view) {
+            visual["foreground"] = .string(hexColor(foregroundColor))
+        }
+        if let text = visualText(for: view) {
+            visual["text"] = .string(text)
+        }
+
+        switch view {
+        case let textField as UITextField where !textField.isSecureTextEntry:
+            if let value = normalizedVisualText(textField.text) {
+                visual["value"] = .string(value)
+            }
+        case let textView as UITextView:
+            if let value = normalizedVisualText(textView.text) {
+                visual["value"] = .string(value)
+            }
+        case let toggle as UISwitch:
+            visual["value"] = .string(toggle.isOn ? "true" : "false")
+        case let slider as UISlider:
+            visual["value"] = .string(String(slider.value))
+        case let stepper as UIStepper:
+            visual["value"] = .string(String(stepper.value))
+        default:
+            break
+        }
+
+        return visual
+    }
+
+    @MainActor
+    private static func foregroundColor(for view: UIView) -> UIColor? {
+        switch view {
+        case let label as UILabel:
+            return label.textColor
+        case let button as UIButton:
+            return button.titleColor(for: button.state) ?? button.titleColor(for: .normal)
+        case let textField as UITextField:
+            return textField.textColor
+        case let textView as UITextView:
+            return textView.textColor
+        default:
+            return nil
+        }
+    }
+
+    @MainActor
+    private static func visualText(for view: UIView) -> String? {
+        switch view {
+        case let label as UILabel:
+            return normalizedVisualText(label.text)
+        case let button as UIButton:
+            return normalizedVisualText(button.currentTitle)
+        case let textField as UITextField:
+            return normalizedVisualText(textField.placeholder)
+        default:
+            return nil
+        }
     }
 
     @MainActor
@@ -378,6 +454,14 @@ internal enum AnsightVisualTreeSupport {
         }
 
         return value
+    }
+
+    private static func normalizedVisualText(_ value: String?) -> String? {
+        guard let value = normalized(value) else {
+            return nil
+        }
+
+        return value.count <= 240 ? value : String(value.prefix(240)) + "..."
     }
 
     private static func hexColor(_ color: UIColor) -> String {

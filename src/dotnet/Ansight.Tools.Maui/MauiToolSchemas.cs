@@ -26,6 +26,18 @@ internal static class MauiToolSchemas
         "Compact bounds array. Columns are declared once in the visual-tree payload boundsColumns field.",
         nullable: true);
 
+    private static readonly ToolSchema VisualPresentationSchema = ToolSchema.Object(
+        description: "Small platform-neutral presentation snapshot used to approximate the rendered element.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["foreground"] = ToolSchema.String("Resolved foreground color as #AARRGGBB, when available.", nullable: true),
+            ["background"] = ToolSchema.String("Resolved solid background color as #AARRGGBB, when available.", nullable: true),
+            ["opacity"] = ToolSchema.Number("Element-local opacity from zero through one."),
+            ["text"] = ToolSchema.String("Bounded displayed text or placeholder, when available.", nullable: true),
+            ["value"] = ToolSchema.String("Bounded display value. Password values are omitted.", nullable: true)
+        },
+        required: new[] { "opacity" });
+
     private static readonly ToolSchema MauiElementReferenceSchema = ToolSchema.Object(
         description: "Reference to a MAUI element.",
         properties: new Dictionary<string, ToolSchema>
@@ -57,13 +69,14 @@ internal static class MauiToolSchemas
             ["typeId"] = ToolSchema.Integer("Index into the visual tree payload types registry."),
             ["flags"] = ToolSchema.Integer("Compact node flags. Bit values are declared once in the visual tree payload flagBits field."),
             ["childCount"] = ToolSchema.Integer("Number of direct visual children."),
+            ["visual"] = VisualPresentationSchema,
             ["bounds"] = BoundsSchema,
             ["bindingContextTypeId"] = ToolSchema.Integer("Index into the visual tree payload types registry for the binding context type.", nullable: true),
             ["properties"] = GenericObjectSchema,
             ["bindableProperties"] = ToolSchema.Array(GenericObjectSchema, "Bindable property metadata for this element.", nullable: true),
             ["children"] = ToolSchema.Array(GenericObjectSchema, "Nested child nodes.", nullable: true)
         },
-        required: new[] { "id", "type", "typeId", "kind", "flags", "childCount" });
+        required: new[] { "id", "type", "typeId", "kind", "flags", "childCount", "visual" });
 
     private static readonly ToolSchema ValueSnapshotSchema = ToolSchema.Object(
         description: "A bounded runtime value snapshot.",

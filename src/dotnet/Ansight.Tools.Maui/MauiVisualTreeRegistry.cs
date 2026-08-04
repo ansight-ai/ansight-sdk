@@ -185,6 +185,16 @@ public sealed class MauiVisualTreeNode
 
     public string? Title { get; set; }
 
+    public Color? ForegroundColor { get; set; }
+
+    public Color? BackgroundColor { get; set; }
+
+    public double? Opacity { get; set; }
+
+    public string? Text { get; set; }
+
+    public string? Value { get; set; }
+
     public Rect? Bounds { get; set; }
 
     public Rect? AbsoluteBounds { get; set; }

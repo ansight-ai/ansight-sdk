@@ -164,6 +164,7 @@ internal static partial class MauiToolHelpers
         bool parentIsInActivePage)
     {
         var json = CreateCompactElementReference(element, options.TypeRegistry);
+        json["visual"] = CreateElementVisual(element);
         if (!state.TryIncludeNode())
         {
             json["childCount"] = 0;
@@ -589,6 +590,7 @@ internal static partial class MauiToolHelpers
         List<string> customBuilderErrors)
     {
         var json = CreateCompactCustomVisualTreeNodeReference(node, options.TypeRegistry);
+        json["visual"] = CreateCustomVisual(node);
         var flags = 128;
 
         if (node.IsVisible ?? true)
@@ -702,6 +704,20 @@ internal static partial class MauiToolHelpers
         }
 
         return json;
+    }
+
+    private static JsonObject CreateCustomVisual(MauiVisualTreeNode node)
+    {
+        var visual = new JsonObject
+        {
+            ["opacity"] = Math.Clamp(node.Opacity ?? 1d, 0d, 1d)
+        };
+        AddVisualString(visual, "foreground", node.ForegroundColor?.ToArgbHex());
+        AddVisualString(visual, "background", node.BackgroundColor?.ToArgbHex());
+        AddVisualString(visual, "text", CreateSafeLabel(node.Text));
+        AddVisualString(visual, "value", CreateSafeLabel(node.Value));
+
+        return visual;
     }
 
     private static bool TryCreateCustomVisualTreeBounds(MauiVisualTreeNode node, out JsonArray bounds)
@@ -1459,6 +1475,80 @@ internal static partial class MauiToolHelpers
         }
 
         return properties;
+    }
+
+    internal static JsonObject CreateElementVisual(Element element)
+    {
+        var visual = new JsonObject
+        {
+            ["opacity"] = element is VisualElement visualElement
+                ? Math.Clamp(visualElement.Opacity, 0d, 1d)
+                : 1d
+        };
+
+        AddVisualString(visual, "foreground", GetForegroundColor(element)?.ToArgbHex());
+        AddVisualString(visual, "background", GetBackgroundColor(element)?.ToArgbHex());
+        AddVisualString(visual, "text", GetElementLabel(element));
+        if (GetElementValue(element) is { } value)
+        {
+            visual["value"] = value;
+        }
+
+        return visual;
+    }
+
+    private static Color? GetForegroundColor(Element element)
+    {
+        return element switch
+        {
+            Label label => label.TextColor,
+            Button button => button.TextColor,
+            InputView inputView => inputView.TextColor,
+            Picker picker => picker.TextColor,
+            DatePicker datePicker => datePicker.TextColor,
+            TimePicker timePicker => timePicker.TextColor,
+            CheckBox checkBox => checkBox.Color,
+            _ => null
+        };
+    }
+
+    private static Color? GetBackgroundColor(Element element)
+    {
+        if (element is VisualElement { Background: SolidColorBrush brush })
+        {
+            return brush.Color;
+        }
+
+        return element is Page page ? page.BackgroundColor : null;
+    }
+
+    private static string? GetElementValue(Element element)
+    {
+        return element switch
+        {
+            Entry { IsPassword: false } entry => CreateVisualStringValue(entry.Text),
+            Editor editor => CreateVisualStringValue(editor.Text),
+            SearchBar searchBar => CreateVisualStringValue(searchBar.Text),
+            Picker { SelectedItem: not null } picker => CreateVisualStringValue(picker.SelectedItem.ToString()),
+            DatePicker datePicker => datePicker.Date.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
+            TimePicker timePicker => timePicker.Time.ToString("c", System.Globalization.CultureInfo.InvariantCulture),
+            CheckBox checkBox => checkBox.IsChecked ? "true" : "false",
+            Switch toggle => toggle.IsToggled ? "true" : "false",
+            Slider slider => CreateCompactNumber(slider.Value).ToString(System.Globalization.CultureInfo.InvariantCulture),
+            Stepper stepper => CreateCompactNumber(stepper.Value).ToString(System.Globalization.CultureInfo.InvariantCulture),
+            _ => null
+        };
+    }
+
+    private static string? CreateVisualStringValue(string? value)
+        => CreateSafeLabel(value);
+
+    private static void AddVisualString(JsonObject visual, string propertyName, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            visual[propertyName] = value;
+        }
     }
 
     internal static string GetElementKind(Element element)

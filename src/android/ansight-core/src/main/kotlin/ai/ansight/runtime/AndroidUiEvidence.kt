@@ -10,6 +10,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.RectF
+import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
@@ -28,6 +29,10 @@ import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import android.text.method.PasswordTransformationMethod
+import android.widget.CompoundButton
+import android.widget.EditText
+import android.widget.SeekBar
 import android.widget.TextView
 import org.json.JSONArray
 import org.json.JSONObject
@@ -567,7 +572,7 @@ object AndroidUiEvidence {
             .put("id", nodeId)
             .put("type", view.javaClass.name)
             .put("resourceId", view.resourceNameOrNull())
-            .put("text", (view as? TextView)?.text?.toString())
+            .put("text", visualText(view))
             .put("contentDescription", view.contentDescription?.toString())
             .put("visible", view.visibility == View.VISIBLE)
             .put("visibility", visibilityName(view.visibility))
@@ -578,8 +583,9 @@ object AndroidUiEvidence {
                 .put("x", location[0])
                 .put("y", location[1])
                 .put("width", view.width)
-                .put("height", view.height))
+            .put("height", view.height))
             .put("alpha", view.alpha.toDouble())
+            .put("visual", visualForView(view))
             .put("importantForAccessibility", view.importantForAccessibility)
 
         if (view is ViewGroup && depth < maxDepth) {
@@ -593,6 +599,44 @@ object AndroidUiEvidence {
         }
         return json
     }
+
+    private fun visualForView(view: View): JSONObject {
+        val visual = JSONObject()
+            .put("opacity", view.alpha.toDouble().coerceIn(0.0, 1.0))
+        if (view is TextView) {
+            visual.put("foreground", view.currentTextColor.toArgbHex())
+        }
+        view.backgroundColorOrNull()?.let { visual.put("background", it.toArgbHex()) }
+        visual.putVisualString("text", visualText(view))
+
+        when (view) {
+            is EditText -> if (view.transformationMethod !is PasswordTransformationMethod) {
+                visual.putVisualString("value", view.text?.toString())
+            }
+            is CompoundButton -> visual.put("value", view.isChecked.toString())
+            is SeekBar -> visual.put("value", view.progress.toString())
+        }
+
+        return visual
+    }
+
+    private fun visualText(view: View): String? = when (view) {
+        is EditText -> view.hint?.toString()
+        is TextView -> view.text?.toString()
+        else -> null
+    }
+
+    private fun View.backgroundColorOrNull(): Int? {
+        (background as? ColorDrawable)?.let { return it.color }
+        return backgroundTintList?.getColorForState(drawableState, Color.TRANSPARENT)
+    }
+
+    private fun JSONObject.putVisualString(name: String, value: String?) {
+        val normalized = value?.trim()?.takeIf { it.isNotEmpty() } ?: return
+        put(name, if (normalized.length <= 240) normalized else normalized.take(240) + "...")
+    }
+
+    private fun Int.toArgbHex(): String = String.format(Locale.US, "#%08X", this)
 
     private fun View.resourceNameOrNull(): String? {
         if (id == View.NO_ID) {

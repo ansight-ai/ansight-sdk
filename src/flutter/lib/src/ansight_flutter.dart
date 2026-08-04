@@ -513,6 +513,7 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
         ? _globalBounds(renderObject)
         : null;
     final widget = element.widget;
+    final visual = _describeVisual(element, widget, renderObject);
     return <String, Object?>{
       'id': id,
       if (parentId != null) 'parentId': parentId,
@@ -524,6 +525,7 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
       'dirty': element.dirty,
       if (renderObject != null)
         'renderObjectType': renderObject.runtimeType.toString(),
+      'visual': visual,
       if (bounds != null)
         'bounds': <String, Object?>{
           'x': bounds.left,
@@ -533,6 +535,78 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
         },
       'children': _childIds(element),
     };
+  }
+
+  AnsightJson _describeVisual(
+    Element element,
+    Widget widget,
+    RenderObject? renderObject,
+  ) {
+    String? text;
+    Object? value;
+    Color? foreground;
+    Color? background;
+    var opacity = 1.0;
+
+    if (widget is Text) {
+      text = widget.data ?? widget.textSpan?.toPlainText();
+      foreground = widget.style?.color ?? DefaultTextStyle.of(element).style.color;
+    } else if (widget is RichText) {
+      text = widget.text.toPlainText();
+      foreground = widget.text.style?.color;
+    } else if (widget is EditableText) {
+      foreground = widget.style.color;
+      if (!widget.obscureText) {
+        value = widget.controller.text;
+      }
+    }
+
+    if (renderObject is RenderParagraph) {
+      text ??= renderObject.text.toPlainText();
+      foreground ??= renderObject.text.style?.color;
+    } else if (renderObject is RenderEditable) {
+      foreground ??= renderObject.text?.style?.color;
+    }
+
+    if (renderObject is RenderDecoratedBox &&
+        renderObject.decoration is BoxDecoration) {
+      background = (renderObject.decoration as BoxDecoration).color;
+    } else if (widget is ColoredBox) {
+      background = widget.color;
+    }
+
+    if (renderObject is RenderOpacity) {
+      opacity = renderObject.opacity;
+    } else if (widget is Opacity) {
+      opacity = widget.opacity;
+    }
+
+    final normalizedText = _normalizeVisualText(text);
+    final normalizedValue = value is String ? _normalizeVisualText(value) : null;
+    return <String, Object?>{
+      if (foreground != null) 'foreground': _colorToArgbHex(foreground),
+      if (background != null) 'background': _colorToArgbHex(background),
+      'opacity': opacity.clamp(0.0, 1.0),
+      if (normalizedText != null) 'text': normalizedText,
+      if (normalizedValue != null)
+        'value': normalizedValue
+      else if (value != null)
+        'value': value,
+    };
+  }
+
+  String _colorToArgbHex(Color color) =>
+      // ignore: deprecated_member_use
+      '#${color.value.toRadixString(16).padLeft(8, '0').toUpperCase()}';
+
+  String? _normalizeVisualText(String? value) {
+    final normalized = value?.trim();
+    if (normalized == null || normalized.isEmpty) {
+      return null;
+    }
+    return normalized.length <= 240
+        ? normalized
+        : '${normalized.substring(0, 240)}...';
   }
 
   List<String> _childIds(Element element) {
