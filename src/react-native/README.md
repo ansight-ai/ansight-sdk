@@ -10,6 +10,8 @@ JavaScript-backed tools for React component-tree inspection.
 
 ## Install
 
+### React Native CLI
+
 ```sh
 npm install @ansight/react-native
 ```
@@ -22,6 +24,56 @@ npx pod-install
 npx react-native run-ios
 npx react-native run-android
 ```
+
+### Expo development builds
+
+Ansight contains native iOS and Android code, so it requires an Expo
+development build or production/EAS build. It does not run in Expo Go.
+
+```sh
+npx expo install @ansight/react-native
+```
+
+Add the bundled config plugin to the app config. It supplies the iOS camera
+usage description required by QR enrollment and the local-network description
+used when connecting to Ansight Studio:
+
+```json
+{
+  "expo": {
+    "plugins": [
+      [
+        "@ansight/react-native",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to scan an Ansight Studio enrollment QR code.",
+          "localNetworkPermission": "Allow $(PRODUCT_NAME) to connect to Ansight Studio on your local network."
+        }
+      ]
+    ]
+  }
+}
+```
+
+Omit either message to use the default. Set `cameraPermission` to `false` only
+when the app will never call `enrollFromQrCode` or `scanPairingQrCode`. Setting
+a permission option to `false` prevents Ansight from adding that key; it does
+not remove a value supplied by another plugin or by the app.
+
+Generate and rebuild the native projects after installing or updating the SDK
+or changing its plugin options:
+
+```sh
+npx expo prebuild --clean
+npx expo run:ios
+npx expo run:android
+```
+
+EAS Build applies the same plugin during prebuild. Expo Updates can update the
+JavaScript integration after the native binary has been built with a compatible
+version of `@ansight/react-native`.
+
+Expo Web is not currently supported. Do not import this package from a web
+bundle; its API requires the native Ansight module.
 
 This package version expects matching native SDK packages:
 
@@ -527,3 +579,14 @@ The first-party validation app lives in:
 It exercises the native runtime bridge, standard native remote tools,
 JavaScript custom tools, React visual-tree tools, SQLite/file fixtures,
 screenshot capture, and touch/session telemetry.
+
+The current-Expo validation app lives in:
+
+```text
+/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/react-native/ansight-expo-harness
+```
+
+It is pinned to Expo SDK 57 and React Native 0.86 with the New Architecture and
+Hermes enabled. It validates Expo CNG/autolinking, the bundled config plugin,
+Android and iOS native builds, and the same live Studio feature surface as the
+baseline harness.

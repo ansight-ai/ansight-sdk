@@ -267,7 +267,7 @@ class AnsightReactNativeModule(
 
     @ReactMethod
     fun scanPairingQrCode(options: ReadableMap?, promise: Promise) {
-        val activity = currentActivity
+        val activity = reactContext.currentActivity
         if (activity == null) {
             promise.reject("ansight_qr_unavailable", "QR pairing is unavailable because no Android activity is available.")
             return
@@ -1202,7 +1202,7 @@ class AnsightReactNativeModule(
             ?: error("React Native application context is not an Android Application.")
 
     private fun bindCurrentActivity() {
-        val activity: Activity = currentActivity ?: return
+        val activity: Activity = reactContext.currentActivity ?: return
         AnsightRuntime.bindActivity(activity)
     }
 }

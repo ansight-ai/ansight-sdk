@@ -61,6 +61,12 @@ await Ansight.initializeAndActivate({
 The native simulator/emulator runtime connects automatically. Call
 `Ansight.enrollFromQrCode()` only on a physical device.
 
+Expo apps use the same `@ansight/react-native` package. Add
+`@ansight/react-native` to the app config `plugins` array, then create an Expo
+development or EAS build so the native module and iOS permission descriptions
+are included. Expo Go and Expo Web are not supported. See the
+[React Native SDK guide](../src/react-native/README.md#expo-development-builds).
+
 ## Capacitor
 
 ```ts

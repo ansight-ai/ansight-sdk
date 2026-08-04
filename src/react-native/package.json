@@ -25,6 +25,8 @@
     "README.md",
     "index.js",
     "index.d.ts",
+    "app.plugin.js",
+    "expo-plugin.js",
     "tsconfig.json",
     "AnsightReactNative.podspec",
     "react-native.config.js"
@@ -32,6 +34,7 @@
   "keywords": [
     "ansight",
     "react-native",
+    "expo",
     "sdk",
     "debugging",
     "inspection"
@@ -41,7 +44,7 @@
     "react-native": ">=0.72"
   },
   "scripts": {
-    "check": "node --check index.js && tsc --noEmit",
+    "check": "node --check index.js && node --check app.plugin.js && node --check expo-plugin.js && tsc --noEmit",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

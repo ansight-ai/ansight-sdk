@@ -12,10 +12,6 @@
 #include <string>
 #include <unordered_map>
 
-@interface RCTBridge ()
-- (void)invokeAsync:(std::function<void()> &&)func;
-@end
-
 namespace {
 int64_t heapValue(
     const std::unordered_map<std::string, int64_t>& heapInfo,
@@ -89,7 +85,7 @@ int64_t heapValue(
 
   __weak AnsightReactNativeMemorySampler *weakSelf = self;
   __weak RCTBridge *weakBridge = bridge;
-  [bridge invokeAsync:[weakSelf, weakBridge]() {
+  [bridge dispatchBlock:^{
     AnsightReactNativeMemorySampler *strongSelf = weakSelf;
     RCTBridge *strongBridge = weakBridge;
     if (!strongSelf || !strongBridge) {
@@ -101,6 +97,9 @@ int64_t heapValue(
 
     @try {
       try {
+        // RCTBridgeProxy implements both dispatchBlock:queue: and runtime, so
+        // this works with the New Architecture without relying on the legacy
+        // RCTCxxBridge-only invokeAsync: selector.
         RCTCxxBridge *cxxBridge = (RCTCxxBridge *)strongBridge;
         auto *runtime = reinterpret_cast<facebook::jsi::Runtime *>(cxxBridge.runtime);
         if (runtime) {
@@ -124,7 +123,7 @@ int64_t heapValue(
     }
 
     strongSelf->_refreshScheduled.store(false);
-  }];
+  } queue:RCTJSThread];
 }
 
 @end
