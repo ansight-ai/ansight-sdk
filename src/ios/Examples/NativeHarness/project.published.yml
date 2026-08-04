@@ -4,7 +4,7 @@ options:
 packages:
   AnsightSDK:
     url: https://github.com/ansight-ai/ansight-sdk.git
-    exactVersion: 1.1.0-preview.1
+    exactVersion: 1.2.0-preview.1
 targets:
   AnsightNativeHarness:
     type: application

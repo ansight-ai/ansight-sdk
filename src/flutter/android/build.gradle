@@ -1,5 +1,5 @@
 group = "ai.ansight"
-version = "1.1.0-preview.1"
+version = "1.2.0-preview.1"
 
 buildscript {
     ext.kotlin_version = "1.8.22"
@@ -96,8 +96,8 @@ if (usesBuiltInKotlin) {
 
 dependencies {
     def ansightAndroidVersion =
-            findProperty("ansightAndroidVersion") ?: "1.1.0-preview.1"
-    implementation "ai.ansight:ansight-android:1.1.0-preview.1"
+            findProperty("ansightAndroidVersion") ?: "1.2.0-preview.1"
+    implementation "ai.ansight:ansight-android:1.2.0-preview.1"
     testImplementation "org.jetbrains.kotlin:kotlin-test"
     testImplementation "org.mockito:mockito-core:5.0.0"
 }

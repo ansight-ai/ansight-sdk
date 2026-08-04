@@ -32,7 +32,7 @@ DEFAULT_STUDIO_DAEMON = (
     Path(__file__).resolve().parents[2]
     / "ansight/ansight.studio/Ansight.McpStdio/bin/Debug/net10.0/ansight-daemon"
 )
-DEFAULT_ANDROID_SDK_ARTIFACT = "ai.ansight:ansight-android:1.1.0-preview.1"
+DEFAULT_ANDROID_SDK_ARTIFACT = "ai.ansight:ansight-android:1.2.0-preview.1"
 # Keep older projects on a platform their bundled AGP/aapt2 can parse. The
 # Ansight AARs do not require consumers to compile against the SDK's own
 # compileSdk (35), and 33 is sufficient for the injected validation surface.

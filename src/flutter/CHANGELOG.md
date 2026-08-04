@@ -1,3 +1,9 @@
+## 1.2.0-preview.1
+
+- Add platform-neutral foreground, background, opacity, displayed text, and
+  value data to visual-tree snapshots.
+- Bound captured presentation strings and omit secure text-field values.
+
 ## 1.1.0-preview.1
 
 - Add zero-touch local Studio enrollment for developer builds.
