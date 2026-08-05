@@ -14,7 +14,7 @@ let package = Package(
         .package(name: "FlutterFramework", path: "../FlutterFramework"),
         .package(
             url: "https://github.com/ansight-ai/ansight-sdk.git",
-            exact: "1.2.0-preview.2"
+            exact: "1.2.0-preview.3"
         )
     ],
     targets: [

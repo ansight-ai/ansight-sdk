@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name         = "AnsightToolsVisualTree"
-  s.version      = "1.2.0-preview.2"
+  s.version      = "1.2.0-preview.3"
   s.summary      = "Ansight visual-tree and screenshot remote tools for native iOS apps"
   s.homepage     = "https://github.com/ansight-ai/ansight-sdk"
   s.license      = { :type => "Ansight SDK Source-Available License", :file => "LICENSE" }
