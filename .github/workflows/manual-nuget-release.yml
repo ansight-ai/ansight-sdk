@@ -75,6 +75,14 @@ jobs:
       - name: Restore
         run: dotnet restore src/dotnet/Ansight.Sdk.sln
 
+      - name: Build Android native libraries
+        working-directory: src/android
+        run: >
+          ./gradlew
+          :ansight-core:assembleRelease
+          :ansight-core:copyDotnetRuntimeDependencies
+          :ansight-dotnet-bridge:assembleRelease
+
       - name: Build
         run: >
           dotnet build src/dotnet/Ansight.Sdk.sln
