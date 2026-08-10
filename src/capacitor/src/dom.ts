@@ -125,7 +125,10 @@ function semanticRole(element: Element): string {
 function supportedActions(element: Element, allowActions: boolean): string[] {
   if (!allowActions) return [];
   const actions: string[] = [];
-  if (["A", "BUTTON", "SUMMARY"].includes(element.tagName) || element instanceof HTMLInputElement) {
+  if (
+    ["A", "BUTTON", "SUMMARY"].includes(element.tagName) ||
+    element instanceof HTMLInputElement
+  ) {
     actions.push("tap");
   }
   if (
@@ -137,7 +140,10 @@ function supportedActions(element: Element, allowActions: boolean): string[] {
   } else if ((element as HTMLElement).tabIndex >= 0) {
     actions.push("focus");
   }
-  if ((element as HTMLElement).scrollHeight > (element as HTMLElement).clientHeight) {
+  if (
+    (element as HTMLElement).scrollHeight >
+    (element as HTMLElement).clientHeight
+  ) {
     actions.push("scroll", "swipe");
   }
   return [...new Set(actions)];
