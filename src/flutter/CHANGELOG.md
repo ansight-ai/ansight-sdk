@@ -1,3 +1,10 @@
+## 1.3.0-preview.2
+
+- Add semantic roles, interactability, supported actions, and stable automation
+  identifiers to cross-platform visual-tree nodes.
+- Report effective runtime availability and unmet preconditions for advertised
+  tools.
+
 ## 1.3.0-preview.1
 
 - Add screenshot-and-visual-tree session capture with Studio recording

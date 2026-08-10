@@ -1,7 +1,7 @@
 <Project>
 
   <PropertyGroup>
-    <AnsightPackageVersion>1.3.0-preview.1</AnsightPackageVersion>
+    <AnsightPackageVersion>1.3.0-preview.2</AnsightPackageVersion>
     <AnsightPackageProjectUrl>https://www.ansight.ai</AnsightPackageProjectUrl>
     <AnsightRepositoryUrl>https://github.com/ansight-ai/ansight-sdk</AnsightRepositoryUrl>
     <ShouldUnsetParentConfigurationAndPlatform Condition="'$(ShouldUnsetParentConfigurationAndPlatform)' == '' and '$(BuildingSolutionFile)' == 'true'">false</ShouldUnsetParentConfigurationAndPlatform>

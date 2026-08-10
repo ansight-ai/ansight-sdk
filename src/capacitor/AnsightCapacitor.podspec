@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name = 'AnsightCapacitor'
-  s.version = '1.3.0-preview.1'
+  s.version = '1.3.0-preview.2'
   s.summary = 'Capacitor bridge for the Ansight mobile observability SDK.'
   s.license = { :type => 'Ansight SDK Source-Available License', :file => 'LICENSE' }
   s.homepage = 'https://github.com/ansight-ai/ansight-sdk'
