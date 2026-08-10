@@ -57,10 +57,10 @@ using Microsoft.Maui.Graphics;
 var registration = MauiVisualTreeRegistry.RegisterChildBuilder<MyMapView>((mapView, context) =>
     mapView.VisibleMarkers.Select(marker => new MauiVisualTreeNode(
         context.CreateChildId(marker.Id),
-        "MyApp.MapMarker",
-        "mapMarker")
+        "MyApp.MapMarker")
     {
         Label = marker.Title,
+        ZIndex = marker.ZIndex,
         Bounds = new Rect(marker.X, marker.Y, marker.Width, marker.Height),
         Properties = new JsonObject
         {

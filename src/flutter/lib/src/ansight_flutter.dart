@@ -377,71 +377,94 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
     final maxNodes =
         int.tryParse(arguments['maxNodes'] ?? '')?.clamp(1, 10000).toInt() ??
             2000;
-    final roots = <Object?>[];
-    final nodes = <Object?>[];
+    final types = <String>[];
+    final typeIdsByName = <String, int>{};
+    var nodeCount = 0;
+    var truncated = false;
     _elements.clear();
 
-    void capture(Element element, int depth, String? parentId) {
-      if (depth > maxDepth || nodes.length >= maxNodes) {
-        return;
+    int registerType(String typeName) {
+      final existingTypeId = typeIdsByName[typeName];
+      if (existingTypeId != null) {
+        return existingTypeId;
       }
-      final node = _describeElement(element, parentId: parentId, depth: depth);
-      nodes.add(node);
-      if (parentId == null) {
-        roots.add(node['id']);
-      }
-      final id = node['id']! as String;
-      element.visitChildren((Element child) => capture(child, depth + 1, id));
+
+      final typeId = types.length;
+      types.add(typeName);
+      typeIdsByName[typeName] = typeId;
+      return typeId;
     }
 
-    // renderViewElement is the pre-Flutter-3.35 name for rootElement and
-    // remains as a deprecated compatibility alias in current Flutter.
-    // ignore: deprecated_member_use
-    final root = WidgetsBinding.instance.renderViewElement;
-    if (root != null) {
-      capture(root, 0, null);
+    AnsightJson? capture(Element element, int depth) {
+      if (depth > maxDepth || nodeCount >= maxNodes) {
+        truncated = true;
+        return null;
+      }
+
+      final node = _describeElement(element, depth: depth);
+      final type = node.remove('type')?.toString() ?? 'FlutterWidget';
+      node
+        ..remove('parentId')
+        ..remove('depth')
+        ..remove('children')
+        ..['typeId'] = registerType(type);
+      nodeCount++;
+
+      final children = <Object?>[];
+      element.visitChildren((Element child) {
+        final capturedChild = capture(child, depth + 1);
+        if (capturedChild != null) {
+          children.add(capturedChild);
+        }
+      });
+      node
+        ..['children'] = children
+        ..['childCount'] = children.length;
+      return node;
     }
-    final nodesById = <String, AnsightJson>{
-      for (final node in nodes.whereType<AnsightJson>())
-        node['id']! as String: node,
-    };
-    AnsightJson materialize(String id) {
-      final source = nodesById[id]!;
-      final childIds =
-          (source['children']! as List<Object?>).whereType<String>();
+
+    AnsightJson createSyntheticRoot(List<Object?> children) {
       return <String, Object?>{
-        ...source,
-        'children': childIds.map(materialize).toList(growable: false),
-        'childCount': childIds.length,
+        'id': 'flutter.roots',
+        'typeId': registerType('FlutterRoots'),
+        'role': 'group',
+        'supportedActions': const <String>[],
+        'interactable': false,
+        'visible': true,
+        'enabled': true,
+        'focusable': false,
+        'visual': const <String, Object?>{'opacity': 1.0},
+        'children': children,
+        'childCount': children.length,
       };
     }
 
-    final materializedRoots =
-        roots.whereType<String>().map(materialize).toList();
-    final treeRoot = materializedRoots.length == 1
-        ? materializedRoots.single
-        : <String, Object?>{
-            'id': 'flutter.roots',
-            'type': 'FlutterRoots',
-            'role': 'group',
-            'supportedActions': const <String>[],
-            'interactable': false,
-            'visible': true,
-            'enabled': true,
-            'children': materializedRoots,
-            'childCount': materializedRoots.length,
-          };
+    final capturedRoots = <Object?>[];
+    // renderViewElement is the pre-Flutter-3.35 name for rootElement and
+    // remains as a deprecated compatibility alias in current Flutter.
+    // ignore: deprecated_member_use
+    final rootElement = WidgetsBinding.instance.renderViewElement;
+    if (rootElement != null) {
+      final capturedRoot = capture(rootElement, 0);
+      if (capturedRoot != null) {
+        capturedRoots.add(capturedRoot);
+      }
+    }
+    final treeRoot = capturedRoots.length == 1
+        ? capturedRoots.single
+        : createSyntheticRoot(capturedRoots);
     return AnsightToolResult.success(
       message: 'Flutter widget tree captured.',
       result: <String, Object?>{
+        'format': 'ansight.flutter.visual-tree.compact.v2',
+        'platform': 'flutter',
         'source': 'flutter',
         'displayName': 'Flutter',
         'capturedAtUtc': DateTime.now().toUtc().toIso8601String(),
+        'types': types,
         'root': treeRoot,
-        'rootIds': roots,
-        'nodes': nodes,
-        'nodeCount': nodes.length,
-        'truncated': nodes.length >= maxNodes,
+        'nodeCount': nodeCount,
+        'truncated': truncated,
       },
     );
   }
@@ -514,12 +537,25 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
       context,
     );
     final payload = tree.result! as AnsightJson;
-    final nodes = (payload['nodes']! as List<Object?>)
-        .whereType<AnsightJson>()
-        .where((AnsightJson node) => node.values.any(
-              (Object? value) => value.toString().toLowerCase().contains(query),
-            ))
+    final types =
+        (payload['types']! as List<Object?>).whereType<String>().toList();
+    final root = payload['root']! as AnsightJson;
+    final nodes = _walkWidgetTree(root)
+        .where((AnsightJson node) {
+          final typeId = node['typeId'];
+          final typeName = typeId is int && typeId >= 0 && typeId < types.length
+              ? types[typeId]
+              : '';
+          return typeName.toLowerCase().contains(query) ||
+              node.entries.where((entry) => entry.key != 'children').any(
+                  (entry) =>
+                      entry.value.toString().toLowerCase().contains(query));
+        })
         .take(100)
+        .map((node) => <String, Object?>{
+              for (final entry in node.entries)
+                if (entry.key != 'children') entry.key: entry.value,
+            })
         .toList(growable: false);
     return AnsightToolResult.success(
       message: 'Flutter widget search completed.',
@@ -529,6 +565,18 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
         'matchCount': nodes.length,
       },
     );
+  }
+
+  Iterable<AnsightJson> _walkWidgetTree(AnsightJson root) sync* {
+    yield root;
+    final children = root['children'];
+    if (children is! List<Object?>) {
+      return;
+    }
+
+    for (final child in children.whereType<AnsightJson>()) {
+      yield* _walkWidgetTree(child);
+    }
   }
 
   AnsightJson _describeElement(

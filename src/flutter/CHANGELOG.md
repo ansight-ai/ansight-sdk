@@ -1,3 +1,9 @@
+## 1.3.0-preview.3
+
+- Use the compact v2 visual-tree contract with a shared type registry,
+  nested nodes, and optional `z` ordering metadata.
+- Remove legacy per-node type, kind, style, and stacking fields.
+
 ## 1.3.0-preview.2
 
 - Add semantic roles, interactability, supported actions, and stable automation

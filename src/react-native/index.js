@@ -1489,6 +1489,28 @@ function createReactVisual(fiber, props, maxStringLength) {
   return visual;
 }
 
+function createReactZIndex(props) {
+  const style = StyleSheet && typeof StyleSheet.flatten === "function"
+    ? StyleSheet.flatten(props && props.style)
+    : props && props.style;
+  const zIndex = style && style.zIndex != null ? Number(style.zIndex) : NaN;
+  const elevation = style && style.elevation != null ? Number(style.elevation) : NaN;
+  if (Number.isFinite(zIndex) && zIndex !== 0) return zIndex;
+  if (Number.isFinite(elevation) && elevation !== 0) return elevation;
+  return null;
+}
+
+function registerReactType(context, typeName) {
+  const normalizedTypeName = String(typeName || "UnknownComponent").trim() || "UnknownComponent";
+  const existingTypeId = context.typeIdsByName.get(normalizedTypeName);
+  if (existingTypeId != null) return existingTypeId;
+
+  const typeId = context.types.length;
+  context.types.push(normalizedTypeName);
+  context.typeIdsByName.set(normalizedTypeName, typeId);
+  return typeId;
+}
+
 function nativeTagForFiber(fiber) {
   const stateNode = fiber && fiber.stateNode;
   if (!stateNode) {
@@ -1560,17 +1582,17 @@ function serializeFiber(fiber, context, depth) {
 
   const props = fiber.memoizedProps || fiber.pendingProps || {};
   const type = reactFiberTypeName(fiber);
-  const kind = reactFiberKind(fiber.tag);
   const node = {
     id: reactFiberId(fiber),
-    type,
-    kind,
+    typeId: registerReactType(context, type),
     tag: fiber.tag,
     key: fiber.key == null ? null : String(fiber.key),
     depth,
     visual: createReactVisual(fiber, props, context.maxStringLength),
     children: [],
   };
+  const zIndex = createReactZIndex(props);
+  if (zIndex != null) node.z = zIndex;
 
   if (fiber._debugSource) {
     node.source = {
@@ -1582,7 +1604,7 @@ function serializeFiber(fiber, context, depth) {
 
   const owner = fiber._debugOwner && reactFiberTypeName(fiber._debugOwner);
   if (owner) {
-    node.owner = owner;
+    node.ownerTypeId = registerReactType(context, owner);
   }
 
   const nativeTag = nativeTagForFiber(fiber);
@@ -1641,14 +1663,15 @@ function createShadowTreeNode(fiber, context, depth) {
   const type = reactFiberTypeName(fiber);
   const node = {
     id: reactFiberId(fiber),
-    type,
-    kind: fiber.tag === 3 ? "root" : fiber.tag === 6 ? "text" : "host",
+    typeId: registerReactType(context, type),
     tag: fiber.tag,
     key: fiber.key == null ? null : String(fiber.key),
     depth,
     visual: createReactVisual(fiber, props, context.maxStringLength),
     children: [],
   };
+  const zIndex = createReactZIndex(props);
+  if (zIndex != null) node.z = zIndex;
 
   const nativeTag = nativeTagForFiber(fiber);
   if (nativeTag != null) {
@@ -1732,19 +1755,21 @@ async function captureReactVisualTree(rawOptions = {}) {
     maxStringLength: rawOptions.maxStringLength || 180,
     maxValueDepth: rawOptions.maxValueDepth || 2,
     nodesWithNativeTags: [],
+    typeIdsByName: new Map(),
+    types: [],
     count: 0,
     truncated: false,
     visited: new Set(),
   };
   const roots = getReactRoots();
-  const rootNodes = roots.roots.map((root, index) => {
+  const rootNodes = roots.roots.map((root) => {
     const node = serializeFiber(root.fiber, context, 0);
     if (node) {
       node.rendererId = root.rendererId;
-      node.rootIndex = index;
     }
     return node;
   }).filter(Boolean);
+  const rootTypeId = registerReactType(context, "ReactRoots");
 
   if (includeBounds && context.nodesWithNativeTags.length > 0) {
     await Promise.all(context.nodesWithNativeTags.slice(0, 300).map(async (node) => {
@@ -1756,6 +1781,7 @@ async function captureReactVisualTree(rawOptions = {}) {
   }
 
   return {
+    format: "ansight.react.visual-tree.compact.v2",
     platform: Platform.OS,
     source: "react",
     adapter: "react.fiber",
@@ -1765,11 +1791,11 @@ async function captureReactVisualTree(rawOptions = {}) {
     renderers: roots.renderers,
     root: {
       id: "react:roots",
-      type: "ReactRoots",
-      kind: "container",
+      typeId: rootTypeId,
+      childCount: rootNodes.length,
       children: rootNodes,
     },
-    roots: rootNodes,
+    types: context.types,
     nodeCount: context.count,
     truncated: context.truncated,
     unavailableReason: roots.hookAvailable ? undefined : "React DevTools global hook is not available in this runtime.",
@@ -1789,19 +1815,21 @@ async function captureReactShadowTree(rawOptions = {}) {
     maxStringLength: rawOptions.maxStringLength || 180,
     maxValueDepth: rawOptions.maxValueDepth || 2,
     nodesWithNativeTags: [],
+    typeIdsByName: new Map(),
+    types: [],
     count: 0,
     truncated: false,
     visited: new Set(),
   };
   const roots = getReactRoots();
-  const rootNodes = roots.roots.flatMap((root, index) => {
+  const rootNodes = roots.roots.flatMap((root) => {
     const nodes = serializeShadowFiber(root.fiber, context, 0);
     nodes.forEach((node) => {
       node.rendererId = root.rendererId;
-      node.rootIndex = index;
     });
     return nodes;
   });
+  const rootTypeId = registerReactType(context, "ReactNativeShadowRoots");
 
   if (includeBounds && context.nodesWithNativeTags.length > 0) {
     await Promise.all(context.nodesWithNativeTags.slice(0, 300).map(async (node) => {
@@ -1813,6 +1841,7 @@ async function captureReactShadowTree(rawOptions = {}) {
   }
 
   return {
+    format: "ansight.react.visual-tree.compact.v2",
     platform: Platform.OS,
     source: "react-native",
     adapter: "react-native.host-fiber",
@@ -1822,11 +1851,11 @@ async function captureReactShadowTree(rawOptions = {}) {
     renderers: roots.renderers,
     root: {
       id: "react:shadow-roots",
-      type: "ReactNativeShadowRoots",
-      kind: "container",
+      typeId: rootTypeId,
+      childCount: rootNodes.length,
       children: rootNodes,
     },
-    roots: rootNodes,
+    types: context.types,
     nodeCount: context.count,
     truncated: context.truncated,
     unavailableReason: roots.hookAvailable ? undefined : "React DevTools global hook is not available in this runtime.",
@@ -1842,13 +1871,18 @@ function flattenReactTree(node, output = []) {
   return output;
 }
 
-function nodeSearchText(node) {
+function createReactNodeSnapshot(node) {
+  const snapshot = { ...node };
+  delete snapshot.children;
+  return snapshot;
+}
+
+function nodeSearchText(node, types) {
   return [
     node.id,
-    node.type,
-    node.kind,
+    types[node.typeId],
     node.label,
-    node.owner,
+    types[node.ownerTypeId],
     node.propsSummary && node.propsSummary.testID,
     node.propsSummary && node.propsSummary.nativeID,
     node.propsSummary && node.propsSummary.accessibilityLabel,
@@ -1856,14 +1890,14 @@ function nodeSearchText(node) {
   ].filter(Boolean).join(" ").toLowerCase();
 }
 
-function matchesReactNode(node, args) {
+function matchesReactNode(node, args, types) {
   const query = args.query ? String(args.query).toLowerCase() : null;
   const type = args.type ? String(args.type).toLowerCase() : null;
   const testID = args.testID ? String(args.testID).toLowerCase() : null;
   const text = args.text ? String(args.text).toLowerCase() : null;
-  const searchText = nodeSearchText(node);
+  const searchText = nodeSearchText(node, types);
   return (!query || searchText.includes(query)) &&
-    (!type || String(node.type || "").toLowerCase().includes(type)) &&
+    (!type || String(types[node.typeId] || "").toLowerCase().includes(type)) &&
     (!testID || String((node.propsSummary && node.propsSummary.testID) || "").toLowerCase() === testID) &&
     (!text || searchText.includes(text));
 }
@@ -2084,12 +2118,14 @@ function installReactTools(options = {}) {
         });
         const maxResults = parseInteger(args.maxResults, 50, 1, 500);
         const matches = flattenReactTree(tree.root)
-          .filter((node) => node.id !== "react:roots" && matchesReactNode(node, args))
-          .slice(0, maxResults);
+          .filter((node) => node.id !== "react:roots" && matchesReactNode(node, args, tree.types))
+          .slice(0, maxResults)
+          .map(createReactNodeSnapshot);
         return {
           success: tree.hookAvailable,
           message: `Found ${matches.length} React component(s).`,
           result: {
+            types: tree.types,
             matches,
             count: matches.length,
             truncated: matches.length === maxResults,
@@ -2101,7 +2137,11 @@ function installReactTools(options = {}) {
         const tree = await captureReactVisualTree(reactToolOptions(options, args));
         const node = flattenReactTree(tree.root).find((candidate) => candidate.id === args.nodeId);
         return node
-          ? { success: true, message: "React component captured.", result: node }
+          ? {
+            success: true,
+            message: "React component captured.",
+            result: { types: tree.types, node: createReactNodeSnapshot(node) },
+          }
           : { success: false, message: `React component '${args.nodeId}' was not found.`, errorCode: "react_component_not_found" };
       }
 
@@ -2142,7 +2182,7 @@ function installReactTools(options = {}) {
           result: {
             nodeId: args.nodeId,
             prop,
-            type: node.type,
+            type: tree.types[node.typeId],
           },
         };
       }

@@ -3305,7 +3305,7 @@ public final class AnsightRuntime: @unchecked Sendable {
 
         payloadObject["capturedAtUtc"] = .string(capturedAtUtc)
         let source = jsonString(payloadObject["source"]) ?? "native"
-        let format = jsonString(payloadObject["format"] ?? payloadObject["schema"]) ?? "ansight.visual-tree.v1"
+        let format = jsonString(payloadObject["format"] ?? payloadObject["schema"]) ?? "ansight.visual-tree.compact.v2"
         let platform = jsonString(payloadObject["platform"]) ?? "ios"
         let nodeCount = jsonInteger(payloadObject["nodeCount"]) ?? countVisualTreeNodes(.object(payloadObject))
         let truncated = jsonBoolean(payloadObject["truncated"]) ?? false

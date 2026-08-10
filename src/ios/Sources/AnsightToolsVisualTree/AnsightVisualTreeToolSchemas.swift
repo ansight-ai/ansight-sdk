@@ -16,13 +16,15 @@ internal enum AnsightVisualTreeToolSchemas {
     static let visualTreeResult = object(
         description: "Visual tree payload.",
         properties: [
+            "format": string("Versioned compact visual-tree format."),
             "platform": string("Current runtime platform."),
             "source": string("Visual tree provider source."),
             "adapter": string("Implementation adapter that produced the tree.", nullable: true),
             "capturedAtUtc": string("UTC timestamp for capture.", format: "date-time"),
+            "types": array(string("Registered platform view type."), "Type registry referenced by node typeId fields."),
             "root": visualNode,
         ],
-        required: ["platform", "source", "capturedAtUtc", "root"]
+        required: ["format", "platform", "source", "capturedAtUtc", "types", "root"]
     )
 
     static let inspectNodeArguments = object(
@@ -40,15 +42,17 @@ internal enum AnsightVisualTreeToolSchemas {
     static let inspectNodeResult = object(
         description: "Detailed node inspection payload.",
         properties: [
+            "format": string("Versioned compact visual-tree format."),
             "platform": string("Current runtime platform."),
             "source": string("Visual tree provider source."),
             "adapter": string("Implementation adapter that produced the tree.", nullable: true),
             "capturedAtUtc": string("UTC timestamp for capture.", format: "date-time"),
+            "types": array(string("Registered platform view type."), "Type registry referenced by node typeId fields."),
             "node": visualNode,
             "ancestors": array(visualNode, "Optional ancestor chain.", nullable: true),
             "descendants": array(genericObject, "Optional descendant list.", nullable: true),
         ],
-        required: ["platform", "source", "capturedAtUtc", "node"]
+        required: ["format", "platform", "source", "capturedAtUtc", "types", "node"]
     )
 
     static let getScreenshotArguments = object(
@@ -204,10 +208,9 @@ internal enum AnsightVisualTreeToolSchemas {
         description: "A visual tree node.",
         properties: [
             "id": string("Stable identifier for the node."),
-            "type": string("Platform view type."),
+            "typeId": integer("Index into the payload types registry."),
             "automationId": string("Platform automation or test identifier, when present.", nullable: true),
             "label": string("Best-effort visible or accessibility label.", nullable: true),
-            "text": string("Best-effort visible or accessibility text.", nullable: true),
             "role": string("Platform-neutral semantic role."),
             "supportedActions": array(string("Semantic action."), "Semantic actions supported by the node."),
             "interactable": boolean("Whether the node is visible, enabled, and exposes at least one action."),
@@ -216,6 +219,7 @@ internal enum AnsightVisualTreeToolSchemas {
             "focusable": boolean("Whether the node can receive focus."),
             "childCount": integer("Number of direct children."),
             "visual": visualPresentation,
+            "z": number("Optional normalized stacking priority relative to sibling nodes. Child order records default sibling order; the screenshot remains authoritative for final compositing.", nullable: true),
             "bounds": bounds,
             "properties": objectJSON(
                 description: "Additional implementation-specific node properties.",
@@ -224,7 +228,7 @@ internal enum AnsightVisualTreeToolSchemas {
             ),
             "children": array(genericObject, "Nested child nodes.", nullable: true),
         ],
-        required: ["id", "type", "role", "supportedActions", "interactable", "visible", "enabled", "focusable", "childCount", "visual"]
+        required: ["id", "typeId", "role", "supportedActions", "interactable", "visible", "enabled", "focusable", "childCount", "visual"]
     )
 
     private static let visualPresentation = objectJSON(

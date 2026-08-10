@@ -83,10 +83,9 @@ internal static class VisualTreeToolSchemas
         properties: new Dictionary<string, ToolSchema>
         {
             ["id"] = ToolSchema.String("Stable identifier for the node."),
-            ["type"] = ToolSchema.String("Platform view type."),
+            ["typeId"] = ToolSchema.Integer("Index into the payload types registry."),
             ["automationId"] = ToolSchema.String("Platform automation or test identifier, when present.", nullable: true),
             ["label"] = ToolSchema.String("Best-effort visible or accessibility label.", nullable: true),
-            ["text"] = ToolSchema.String("Best-effort visible or accessibility text.", nullable: true),
             ["role"] = ToolSchema.String("Platform-neutral semantic role."),
             ["supportedActions"] = ToolSchema.Array(ToolSchema.String(), "Semantic actions supported by the node."),
             ["interactable"] = ToolSchema.Boolean("Whether the node is visible, enabled, and exposes at least one action."),
@@ -95,6 +94,7 @@ internal static class VisualTreeToolSchemas
             ["focusable"] = ToolSchema.Boolean("Whether the node can receive focus."),
             ["childCount"] = ToolSchema.Integer("Number of direct children."),
             ["visual"] = VisualPresentationSchema,
+            ["z"] = ToolSchema.Number("Optional normalized stacking priority relative to sibling nodes. Child order records default sibling order; the screenshot remains authoritative for final compositing.", nullable: true),
             ["bounds"] = BoundsSchema,
             ["properties"] = ToolSchema.Object(
                 description: "Additional implementation-specific node properties.",
@@ -102,7 +102,7 @@ internal static class VisualTreeToolSchemas
                 nullable: true),
             ["children"] = ToolSchema.Array(GenericObjectSchema, "Nested child nodes.", nullable: true)
         },
-        required: new[] { "id", "type", "role", "supportedActions", "interactable", "visible", "enabled", "focusable", "childCount", "visual" });
+        required: new[] { "id", "typeId", "role", "supportedActions", "interactable", "visible", "enabled", "focusable", "childCount", "visual" });
 
     internal static ToolSchema GetVisualTreeArguments { get; } = ToolSchema.Object(
         description: "Arguments for retrieving the current visual tree.",
@@ -120,14 +120,15 @@ internal static class VisualTreeToolSchemas
         description: "Visual tree payload.",
         properties: new Dictionary<string, ToolSchema>
         {
-            ["format"] = ToolSchema.String("Versioned visual-tree payload format.", nullable: true),
+            ["format"] = ToolSchema.String("Versioned compact visual-tree payload format."),
             ["platform"] = ToolSchema.String("Current runtime platform."),
             ["source"] = ToolSchema.String("Visual-tree provider source.", nullable: true),
             ["adapter"] = ToolSchema.String("Provider adapter identifier.", nullable: true),
             ["capturedAtUtc"] = ToolSchema.String("UTC timestamp for capture.", format: "date-time"),
+            ["types"] = ToolSchema.Array(ToolSchema.String("Registered platform view type."), "Type registry referenced by node typeId fields."),
             ["root"] = VisualNodeSchema
         },
-        required: new[] { "platform", "capturedAtUtc", "root" });
+        required: new[] { "format", "platform", "capturedAtUtc", "types", "root" });
 
     internal static ToolSchema InspectNodeArguments { get; } = ToolSchema.Object(
         description: "Arguments for inspecting a specific node.",
@@ -145,15 +146,17 @@ internal static class VisualTreeToolSchemas
         description: "Detailed node inspection payload.",
         properties: new Dictionary<string, ToolSchema>
         {
+            ["format"] = ToolSchema.String("Versioned compact visual-tree payload format."),
             ["platform"] = ToolSchema.String("Current runtime platform."),
             ["source"] = ToolSchema.String("Visual-tree provider source.", nullable: true),
             ["adapter"] = ToolSchema.String("Provider adapter identifier.", nullable: true),
             ["capturedAtUtc"] = ToolSchema.String("UTC timestamp for capture.", format: "date-time"),
+            ["types"] = ToolSchema.Array(ToolSchema.String("Registered platform view type."), "Type registry referenced by node typeId fields."),
             ["node"] = VisualNodeSchema,
             ["ancestors"] = ToolSchema.Array(VisualNodeSchema, "Optional ancestor chain.", nullable: true),
             ["descendants"] = ToolSchema.Array(GenericObjectSchema, "Optional descendant list.", nullable: true)
         },
-        required: new[] { "platform", "capturedAtUtc", "node" });
+        required: new[] { "format", "platform", "capturedAtUtc", "types", "node" });
 
     internal static ToolSchema GetScreenshotArguments { get; } = ToolSchema.Object(
         description: "Arguments for capturing a screenshot.",

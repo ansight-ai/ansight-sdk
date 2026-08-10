@@ -88,14 +88,17 @@ internal static partial class VisualTreeSupport
                 return ToolResult.Failure($"The node '{rootNodeId}' was not found.", errorCode: "visual_tree_node_not_found");
             }
 
+            var typeRegistry = new VisualTreeTypeRegistry();
+            var rootJson = selectedRoot.ToJson(includeBounds, includeProperties, maxDepth, typeRegistry);
             var payload = new JsonObject
             {
-                ["format"] = "ansight.native.visual-tree.v1",
+                ["format"] = "ansight.native.visual-tree.compact.v2",
                 ["platform"] = CurrentPlatform,
                 ["source"] = VisualTreeProviderRegistry.NativeSource,
                 ["adapter"] = CurrentPlatform == "android" ? "android.views" : "apple.uikit",
                 ["capturedAtUtc"] = DateTime.UtcNow.ToString("O"),
-                ["root"] = selectedRoot.ToJson(includeBounds, includeProperties, maxDepth),
+                ["types"] = typeRegistry.ToJson(),
+                ["root"] = rootJson,
                 ["nodeCount"] = nodeCount,
                 ["truncated"] = truncated
             };
@@ -132,13 +135,15 @@ internal static partial class VisualTreeSupport
                 return ToolResult.Failure($"The node '{nodeId}' was not found.", errorCode: "visual_tree_node_not_found");
             }
 
+            var typeRegistry = new VisualTreeTypeRegistry();
             var payload = new JsonObject
             {
+                ["format"] = "ansight.native.visual-tree.compact.v2",
                 ["platform"] = CurrentPlatform,
                 ["source"] = VisualTreeProviderRegistry.NativeSource,
                 ["adapter"] = CurrentPlatform == "android" ? "android.views" : "apple.uikit",
                 ["capturedAtUtc"] = DateTime.UtcNow.ToString("O"),
-                ["node"] = node.ToJson(includeBounds: true, includeProperties, maxDepth: 32)
+                ["node"] = node.ToJson(includeBounds: true, includeProperties, maxDepth: 0, typeRegistry)
             };
 
             if (includeAncestors)
@@ -146,7 +151,7 @@ internal static partial class VisualTreeSupport
                 var ancestorNodes = new JsonArray();
                 foreach (var ancestor in ancestors)
                 {
-                    ancestorNodes.Add(ancestor.ToJson(includeBounds: true, includeProperties, maxDepth: 0));
+                    ancestorNodes.Add(ancestor.ToJson(includeBounds: true, includeProperties, maxDepth: 0, typeRegistry));
                 }
 
                 payload["ancestors"] = ancestorNodes;
@@ -157,11 +162,13 @@ internal static partial class VisualTreeSupport
                 var descendantNodes = new JsonArray();
                 foreach (var descendant in node.Descendants())
                 {
-                    descendantNodes.Add(descendant.ToJson(includeBounds: true, includeProperties, maxDepth: 32));
+                    descendantNodes.Add(descendant.ToJson(includeBounds: true, includeProperties, maxDepth: 0, typeRegistry));
                 }
 
                 payload["descendants"] = descendantNodes;
             }
+
+            payload["types"] = typeRegistry.ToJson();
 
             return ToolResult.Success(payload);
         });
@@ -303,6 +310,7 @@ internal static partial class VisualTreeSupport
             bool isFocusable,
             JsonObject? bounds,
             JsonObject visual,
+            double? zIndex,
             JsonObject? properties,
             int childCount,
             List<VisualNode> children)
@@ -318,6 +326,7 @@ internal static partial class VisualTreeSupport
             IsFocusable = isFocusable;
             Bounds = bounds;
             Visual = visual;
+            ZIndex = zIndex;
             Properties = properties;
             ChildCount = childCount;
             Children = children;
@@ -334,6 +343,7 @@ internal static partial class VisualTreeSupport
         internal bool IsFocusable { get; }
         internal JsonObject? Bounds { get; }
         internal JsonObject Visual { get; }
+        internal double? ZIndex { get; }
         internal JsonObject? Properties { get; }
         internal int ChildCount { get; }
         internal List<VisualNode> Children { get; }
@@ -392,15 +402,18 @@ internal static partial class VisualTreeSupport
             }
         }
 
-        internal JsonObject ToJson(bool includeBounds, bool includeProperties, int maxDepth)
+        internal JsonObject ToJson(
+            bool includeBounds,
+            bool includeProperties,
+            int maxDepth,
+            VisualTreeTypeRegistry typeRegistry)
         {
             var json = new JsonObject
             {
                 ["id"] = Id,
-                ["type"] = Type,
+                ["typeId"] = typeRegistry.GetTypeId(Type),
                 ["automationId"] = AutomationId,
                 ["label"] = Label,
-                ["text"] = Label,
                 ["role"] = Role,
                 ["supportedActions"] = new JsonArray(SupportedActions.Select(action => JsonValue.Create(action)).ToArray()),
                 ["interactable"] = IsVisible && IsEnabled && SupportedActions.Count > 0,
@@ -410,6 +423,11 @@ internal static partial class VisualTreeSupport
                 ["childCount"] = ChildCount,
                 ["visual"] = Visual.DeepClone()
             };
+
+            if (ZIndex is { } zIndex)
+            {
+                json["z"] = zIndex;
+            }
 
             if (includeBounds && Bounds != null)
             {
@@ -426,13 +444,38 @@ internal static partial class VisualTreeSupport
                 var children = new JsonArray();
                 foreach (var child in Children)
                 {
-                    children.Add(child.ToJson(includeBounds, includeProperties, maxDepth - 1));
+                    children.Add(child.ToJson(includeBounds, includeProperties, maxDepth - 1, typeRegistry));
                 }
 
                 json["children"] = children;
             }
 
             return json;
+        }
+    }
+
+    private sealed class VisualTreeTypeRegistry
+    {
+        private readonly Dictionary<string, int> idsByTypeName = new(StringComparer.Ordinal);
+        private readonly List<string> typeNames = [];
+
+        internal int GetTypeId(string typeName)
+        {
+            var normalizedTypeName = string.IsNullOrWhiteSpace(typeName) ? "UnknownView" : typeName.Trim();
+            if (idsByTypeName.TryGetValue(normalizedTypeName, out var typeId))
+            {
+                return typeId;
+            }
+
+            typeId = typeNames.Count;
+            typeNames.Add(normalizedTypeName);
+            idsByTypeName[normalizedTypeName] = typeId;
+            return typeId;
+        }
+
+        internal JsonArray ToJson()
+        {
+            return new JsonArray(typeNames.Select(typeName => JsonValue.Create(typeName)).ToArray());
         }
     }
 
@@ -774,9 +817,18 @@ internal static partial class VisualTreeSupport
                 ["height"] = view.Height
             },
             visual: CreateAndroidVisual(view),
+            zIndex: CreateAndroidZIndex(view),
             properties: properties,
             childCount: childCount,
             children: children);
+    }
+
+    private static double? CreateAndroidZIndex(View view)
+    {
+        var zIndex = view.Elevation + view.TranslationZ;
+        return zIndex == 0f
+            ? null
+            : zIndex;
     }
 
     private static string? GetAndroidLabel(View view)
@@ -1184,9 +1236,18 @@ internal static partial class VisualTreeSupport
                 ["height"] = (double)frame.Height
             },
             visual: CreateAppleVisual(view),
+            zIndex: CreateAppleZIndex(view),
             properties: properties,
             childCount: subviews.Length,
             children: children);
+    }
+
+    private static double? CreateAppleZIndex(UIView view)
+    {
+        var zIndex = (double)view.Layer.ZPosition;
+        return zIndex == 0d
+            ? null
+            : zIndex;
     }
 
     private static string? GetAppleLabel(UIView view)

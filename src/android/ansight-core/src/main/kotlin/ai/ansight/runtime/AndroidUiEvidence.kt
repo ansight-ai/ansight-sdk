@@ -397,14 +397,17 @@ object AndroidUiEvidence {
             val activity = currentActivity.get() ?: bindCurrentActivity() ?: error("No resumed Android activity is available for visual tree capture.")
             val root = activity.window.decorView.rootView ?: error("No Android root view is available for visual tree capture.")
             val counter = NodeCounter(maxNodes.coerceAtLeast(1))
+            val typeRegistry = VisualTreeTypeRegistry()
+            val rootNode = serializeView(root, "0", 0, maxDepth.coerceAtLeast(1), counter, typeRegistry)
             JSONObject()
                 .put("platform", "android")
                 .put("source", "native")
-                .put("format", "ansight.native.visual-tree.v1")
+                .put("format", "ansight.native.visual-tree.compact.v2")
                 .put("adapter", "android.views")
                 .put("capturedAtUtc", AnsightClock.isoNow())
                 .put("activity", activity.javaClass.name)
-                .put("root", serializeView(root, "0", 0, maxDepth.coerceAtLeast(1), counter))
+                .put("types", typeRegistry.toJson())
+                .put("root", rootNode)
                 .put("truncated", counter.truncated)
                 .put("nodeCount", counter.count)
         }
@@ -413,7 +416,16 @@ object AndroidUiEvidence {
     fun inspectNode(nodeId: String): JSONObject {
         val tree = visualTree()
         val root = tree.optJSONObject("root") ?: error("Visual tree did not contain a root node.")
-        return findNode(root, nodeId.trim()) ?: error("Node '$nodeId' was not found.")
+        val node = findNode(root, nodeId.trim()) ?: error("Node '$nodeId' was not found.")
+        node.remove("children")
+        return JSONObject()
+            .put("format", tree.getString("format"))
+            .put("platform", tree.getString("platform"))
+            .put("source", tree.getString("source"))
+            .put("adapter", tree.getString("adapter"))
+            .put("capturedAtUtc", tree.getString("capturedAtUtc"))
+            .put("types", tree.getJSONArray("types"))
+            .put("node", node)
     }
 
     fun showOverlay(arguments: Map<String, String>): JSONObject {
@@ -565,12 +577,21 @@ object AndroidUiEvidence {
             surfaceScale = root.resources.displayMetrics.density.toDouble(),
         )
 
-    private fun serializeView(view: View, nodeId: String, depth: Int, maxDepth: Int, counter: NodeCounter): JSONObject {
+    private fun serializeView(
+        view: View,
+        nodeId: String,
+        depth: Int,
+        maxDepth: Int,
+        counter: NodeCounter,
+        typeRegistry: VisualTreeTypeRegistry,
+    ): JSONObject {
         if (!counter.tryEnter()) {
-            return JSONObject()
+            val truncatedNode = JSONObject()
                 .put("id", nodeId)
-                .put("type", view.javaClass.name)
+                .put("typeId", typeRegistry.typeId(view.javaClass.name))
                 .put("truncated", true)
+            zIndexForView(view)?.let { truncatedNode.put("z", it) }
+            return truncatedNode
         }
 
         val location = IntArray(2)
@@ -580,39 +601,42 @@ object AndroidUiEvidence {
         val actions = supportedActions(view)
         val json = JSONObject()
             .put("id", nodeId)
-            .put("type", view.javaClass.name)
+            .put("typeId", typeRegistry.typeId(view.javaClass.name))
             .put("automationId", automationId)
-            .put("resourceId", resourceName)
-            .put("text", visualText(view))
             .put("label", visualText(view) ?: view.contentDescription?.toString())
             .put("role", semanticRole(view))
             .put("supportedActions", JSONArray(actions))
             .put("interactable", view.visibility == View.VISIBLE && view.isEnabled && actions.isNotEmpty())
-            .put("contentDescription", view.contentDescription?.toString())
             .put("visible", view.visibility == View.VISIBLE)
-            .put("visibility", visibilityName(view.visibility))
             .put("enabled", view.isEnabled)
             .put("focused", view.isFocused)
-            .put("clickable", view.isClickable)
             .put("bounds", JSONObject()
                 .put("x", location[0])
                 .put("y", location[1])
                 .put("width", view.width)
             .put("height", view.height))
-            .put("alpha", view.alpha.toDouble())
             .put("visual", visualForView(view))
             .put("importantForAccessibility", view.importantForAccessibility)
+        zIndexForView(view)?.let { json.put("z", it) }
 
         if (view is ViewGroup && depth < maxDepth) {
             val children = JSONArray()
             for (index in 0 until view.childCount) {
-                children.put(serializeView(view.getChildAt(index), "$nodeId.$index", depth + 1, maxDepth, counter))
+                children.put(serializeView(view.getChildAt(index), "$nodeId.$index", depth + 1, maxDepth, counter, typeRegistry))
             }
             json.put("children", children)
         } else {
             json.put("children", JSONArray())
         }
         return json
+    }
+
+    private fun zIndexForView(view: View): Double? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP || view.z == 0f) {
+            return null
+        }
+
+        return view.z.toDouble()
     }
 
     private fun visualForView(view: View): JSONObject {
@@ -737,13 +761,6 @@ object AndroidUiEvidence {
         .put("height", spec.height.toDouble())
         .put("color", "#${Integer.toHexString(spec.color).padStart(8, '0')}")
 
-    private fun visibilityName(visibility: Int): String = when (visibility) {
-        View.VISIBLE -> "visible"
-        View.INVISIBLE -> "invisible"
-        View.GONE -> "gone"
-        else -> visibility.toString()
-    }
-
     private fun <T> runOnMain(block: () -> T): T {
         if (Looper.myLooper() == Looper.getMainLooper()) {
             return block()
@@ -796,6 +813,21 @@ object AndroidUiEvidence {
             }
             count += 1
             return true
+        }
+    }
+
+    private class VisualTreeTypeRegistry {
+        private val idsByTypeName = linkedMapOf<String, Int>()
+
+        fun typeId(typeName: String): Int {
+            val normalizedTypeName = typeName.trim().ifEmpty { "UnknownView" }
+            return idsByTypeName.getOrPut(normalizedTypeName) { idsByTypeName.size }
+        }
+
+        fun toJson(): JSONArray {
+            return JSONArray().apply {
+                idsByTypeName.keys.forEach(::put)
+            }
         }
     }
 

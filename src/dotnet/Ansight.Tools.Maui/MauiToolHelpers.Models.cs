@@ -63,6 +63,9 @@ internal static partial class MauiToolHelpers
         public int GetTypeId(Type type)
             => GetTypeId(GetTypeDisplayName(type));
 
+        public int GetNodeTypeId(Type type)
+            => GetTypeId(GetTypeShortName(type));
+
         public int GetTypeId(string typeName)
         {
             var normalizedTypeName = string.IsNullOrWhiteSpace(typeName)

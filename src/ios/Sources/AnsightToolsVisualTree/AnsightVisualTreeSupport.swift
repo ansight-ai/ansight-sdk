@@ -40,13 +40,21 @@ internal enum AnsightVisualTreeSupport {
                 return .failure("The node '\(rootNodeId ?? "")' was not found.", errorCode: "visual_tree_node_not_found")
             }
 
+            let typeRegistry = AnsightVisualTreeTypeRegistry()
+            let root = selectedRoot.jsonValue(
+                includeBounds: includeBounds,
+                includeProperties: includeProperties,
+                maxDepth: maxDepth,
+                typeRegistry: typeRegistry
+            )
             return .success(.object([
                 "platform": .string(currentPlatform),
                 "source": .string(AnsightVisualTreeProviderRegistry.nativeSource),
-                "format": .string("ansight.native.visual-tree.v1"),
+                "format": .string("ansight.native.visual-tree.compact.v2"),
                 "adapter": .string("apple.uikit"),
                 "capturedAtUtc": .string(AnsightClock.isoNow()),
-                "root": selectedRoot.jsonValue(includeBounds: includeBounds, includeProperties: includeProperties, maxDepth: maxDepth),
+                "types": typeRegistry.jsonValue,
+                "root": root,
                 "nodeCount": .integer(Int64(selectedRoot.nodeCount)),
                 "truncated": .bool(false),
             ]))
@@ -81,25 +89,44 @@ internal enum AnsightVisualTreeSupport {
                 return .failure("The node '\(nodeId)' was not found.", errorCode: "visual_tree_node_not_found")
             }
 
+            let typeRegistry = AnsightVisualTreeTypeRegistry()
             var payload: [String: JSONValue] = [
+                "format": .string("ansight.native.visual-tree.compact.v2"),
                 "platform": .string(currentPlatform),
                 "source": .string(AnsightVisualTreeProviderRegistry.nativeSource),
                 "adapter": .string("apple.uikit"),
                 "capturedAtUtc": .string(AnsightClock.isoNow()),
-                "node": node.jsonValue(includeBounds: true, includeProperties: includeProperties, maxDepth: 32),
+                "node": node.jsonValue(
+                    includeBounds: true,
+                    includeProperties: includeProperties,
+                    maxDepth: 0,
+                    typeRegistry: typeRegistry
+                ),
             ]
 
             if includeAncestors {
                 payload["ancestors"] = .array(ancestors.map {
-                    $0.jsonValue(includeBounds: true, includeProperties: includeProperties, maxDepth: 0)
+                    $0.jsonValue(
+                        includeBounds: true,
+                        includeProperties: includeProperties,
+                        maxDepth: 0,
+                        typeRegistry: typeRegistry
+                    )
                 })
             }
 
             if includeDescendants {
                 payload["descendants"] = .array(node.descendants().map {
-                    $0.jsonValue(includeBounds: true, includeProperties: includeProperties, maxDepth: 32)
+                    $0.jsonValue(
+                        includeBounds: true,
+                        includeProperties: includeProperties,
+                        maxDepth: 0,
+                        typeRegistry: typeRegistry
+                    )
                 })
             }
+
+            payload["types"] = typeRegistry.jsonValue
 
             return .success(.object(payload))
         } catch let error as AnsightVisualTreeToolError {
@@ -300,6 +327,7 @@ internal enum AnsightVisualTreeSupport {
                 height: Double(frame.height)
             ),
             visual: visualForView(view),
+            z: zIndexForView(view),
             properties: properties,
             children: view.subviews.map { buildNode(view: $0, window: window, includeProperties: includeProperties) }
         )
@@ -433,6 +461,12 @@ internal enum AnsightVisualTreeSupport {
         }
 
         return visual
+    }
+
+    @MainActor
+    private static func zIndexForView(_ view: UIView) -> Double? {
+        let zIndex = Double(view.layer.zPosition)
+        return zIndex == 0 ? nil : zIndex
     }
 
     @MainActor

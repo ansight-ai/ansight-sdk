@@ -61,7 +61,7 @@ fun PairingLiveSessionTransport.sendSessionVisualTree(
         .put("capturedAtUtc", capturedAtUtc)
         .put("screenshotCapturedAtUtc", capturedAtUtc)
         .put("visualTreeKind", source)
-        .put("visualTreeFormat", visualTree.optString("format", "ansight.native.visual-tree.v1"))
+        .put("visualTreeFormat", visualTree.optString("format", "ansight.native.visual-tree.compact.v2"))
         .put("runtimePlatform", visualTree.optString("platform", "android"))
         .put("source", "sdk.sessionCapture")
         .put("maxDepth", 40)

@@ -5,7 +5,7 @@ using static MauiToolHelpers;
 
 public sealed class GetVisualTreeTool : ITool
 {
-    private const string VisualTreeFormat = "ansight.maui.visual-tree.compact.v1";
+    private const string VisualTreeFormat = "ansight.maui.visual-tree.compact.v2";
 
     public string Category => "maui";
 

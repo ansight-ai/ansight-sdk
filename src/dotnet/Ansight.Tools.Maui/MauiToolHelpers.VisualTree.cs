@@ -165,6 +165,10 @@ internal static partial class MauiToolHelpers
     {
         var json = CreateCompactElementReference(element, options.TypeRegistry);
         json["visual"] = CreateElementVisual(element);
+        if (CreateElementZIndex(element) is { } zIndex)
+        {
+            json["z"] = zIndex;
+        }
         if (!state.TryIncludeNode())
         {
             json["childCount"] = 0;
@@ -264,7 +268,13 @@ internal static partial class MauiToolHelpers
                     break;
                 }
 
-                childNodes.Add(BuildElementNode(child, options, depthRemaining - 1, visited, state, isInActivePage));
+                childNodes.Add(BuildElementNode(
+                    child,
+                    options,
+                    depthRemaining - 1,
+                    visited,
+                    state,
+                    isInActivePage));
             }
 
             foreach (var customChild in customChildren)
@@ -591,6 +601,10 @@ internal static partial class MauiToolHelpers
     {
         var json = CreateCompactCustomVisualTreeNodeReference(node, options.TypeRegistry);
         json["visual"] = CreateCustomVisual(node);
+        if (node.ZIndex is { } zIndex && zIndex != 0d)
+        {
+            json["z"] = zIndex;
+        }
         var flags = 128;
 
         if (node.IsVisible ?? true)
@@ -681,19 +695,21 @@ internal static partial class MauiToolHelpers
         return json;
     }
 
+    private static double? CreateElementZIndex(Element element)
+    {
+        return element is VisualElement { ZIndex: not 0 } visualElement
+            ? visualElement.ZIndex
+            : null;
+    }
+
     private static JsonObject CreateCompactCustomVisualTreeNodeReference(MauiVisualTreeNode node, MauiTypeRegistry typeRegistry)
     {
         var type = NormalizeCustomVisualTreeText(node.Type, "CustomVisualNode");
-        var kind = NormalizeCustomVisualTreeText(node.Kind, "custom");
         var json = new JsonObject
         {
             ["id"] = node.Id,
-            ["type"] = type,
             ["typeId"] = typeRegistry.GetTypeId(type),
-            ["kind"] = kind,
-            ["source"] = "custom",
             ["automationId"] = NullIfWhiteSpace(node.AutomationId),
-            ["styleId"] = NullIfWhiteSpace(node.StyleId),
             ["classId"] = NullIfWhiteSpace(node.ClassId),
             ["label"] = CreateSafeLabel(node.Label)
         };
@@ -943,11 +959,8 @@ internal static partial class MauiToolHelpers
         var json = new JsonObject
         {
             ["id"] = GetElementId(element),
-            ["type"] = GetTypeShortName(element.GetType()),
-            ["typeId"] = typeRegistry.GetTypeId(element.GetType()),
-            ["kind"] = GetElementKind(element),
+            ["typeId"] = typeRegistry.GetNodeTypeId(element.GetType()),
             ["automationId"] = NullIfWhiteSpace(element.AutomationId),
-            ["styleId"] = NullIfWhiteSpace(element.StyleId),
             ["classId"] = NullIfWhiteSpace(element.ClassId),
             ["label"] = GetElementLabel(element)
         };
@@ -1434,7 +1447,6 @@ internal static partial class MauiToolHelpers
         {
             properties["opacity"] = visualElement.Opacity;
             properties["inputTransparent"] = visualElement.InputTransparent;
-            properties["zIndex"] = visualElement.ZIndex;
             properties["anchorX"] = visualElement.AnchorX;
             properties["anchorY"] = visualElement.AnchorY;
             properties["scale"] = visualElement.Scale;

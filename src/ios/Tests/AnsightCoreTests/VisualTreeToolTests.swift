@@ -16,14 +16,25 @@ final class VisualTreeToolTests: XCTestCase {
             focusable: true,
             bounds: nil,
             visual: [:],
+            z: 4,
             properties: [:],
             children: []
         )
 
-        guard case .object(let payload) = node.jsonValue(includeBounds: true, includeProperties: true, maxDepth: 1) else {
+        let typeRegistry = AnsightVisualTreeTypeRegistry()
+        guard case .object(let payload) = node.jsonValue(
+            includeBounds: true,
+            includeProperties: true,
+            maxDepth: 1,
+            typeRegistry: typeRegistry
+        ) else {
             return XCTFail("Expected a visual-tree node object.")
         }
         XCTAssertEqual(payload["automationId"], .string("checkout.submit"))
+        XCTAssertEqual(payload["typeId"], .integer(0))
+        XCTAssertNil(payload["type"])
+        XCTAssertEqual(typeRegistry.jsonValue, .array([.string("UIButton")]))
+        XCTAssertEqual(payload["z"], .number(4))
     }
 
     func testVisualTreeToolsRegisterExpectedToolIds() {

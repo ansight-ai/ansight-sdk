@@ -14,10 +14,9 @@ type RegisterTool = (
 
 interface DomNode {
   id: string;
-  type: string;
+  typeId: number;
   automationId?: string;
   label?: string;
-  text?: string;
   role: string;
   supportedActions: string[];
   interactable: boolean;
@@ -33,8 +32,28 @@ interface DomNode {
     text?: string;
     value?: string;
   };
+  z?: number;
   properties: Record<string, unknown>;
   children: DomNode[];
+}
+
+interface DomTypeRegistry {
+  idsByTypeName: Map<string, number>;
+  types: string[];
+}
+
+function createTypeRegistry(): DomTypeRegistry {
+  return { idsByTypeName: new Map(), types: [] };
+}
+
+function registerType(registry: DomTypeRegistry, typeName: string): number {
+  const existingTypeId = registry.idsByTypeName.get(typeName);
+  if (existingTypeId !== undefined) return existingTypeId;
+
+  const typeId = registry.types.length;
+  registry.types.push(typeName);
+  registry.idsByTypeName.set(typeName, typeId);
+  return typeId;
 }
 
 const nodeIds = new WeakMap<Element, string>();
@@ -238,6 +257,7 @@ function captureNode(
   >,
   depth: number,
   limits: { maxDepth: number; maxNodes: number; count: number },
+  typeRegistry: DomTypeRegistry,
 ): DomNode | null {
   if (limits.count >= limits.maxNodes || depth > limits.maxDepth) return null;
 
@@ -248,22 +268,24 @@ function captureNode(
   limits.count += 1;
 
   const children = Array.from(element.children)
-    .map((child) => captureNode(child, options, depth + 1, limits))
+    .map((child) =>
+      captureNode(child, options, depth + 1, limits, typeRegistry),
+    )
     .filter((child): child is DomNode => child !== null);
   const htmlElement = element as HTMLElement;
   const disabled =
     element.hasAttribute("disabled") ||
     element.getAttribute("aria-disabled") === "true";
   const parsedOpacity = Number.parseFloat(style.opacity);
+  const parsedZIndex = Number.parseFloat(style.zIndex);
   const actions = supportedActions(element, options.allowActions);
   const label = accessibleLabel(element, options.includeText);
 
-  return {
+  const node: DomNode = {
     id: nodeId(element),
-    type: element.tagName.toLowerCase(),
+    typeId: registerType(typeRegistry, element.tagName.toLowerCase()),
     automationId: automationId(element),
     label,
-    text: displayedText(element) ?? label,
     role: semanticRole(element),
     supportedActions: actions,
     interactable: visible && !disabled && actions.length > 0,
@@ -294,13 +316,16 @@ function captureNode(
       id: element.id || undefined,
       role: element.getAttribute("role") ?? undefined,
       className: element.getAttribute("class") ?? undefined,
-      value: options.includeText ? displayedValue(element) : undefined,
       checked:
         element instanceof HTMLInputElement ? element.checked : undefined,
       attributes: options.includeAttributes ? attributes(element) : undefined,
     },
     children,
   };
+  if (Number.isFinite(parsedZIndex) && parsedZIndex !== 0) {
+    node.z = parsedZIndex;
+  }
+  return node;
 }
 
 function findElement(id: string): Element | undefined {
@@ -349,13 +374,16 @@ export function installDomTools(
           maxNodes: options.maxNodes,
           count: 0,
         };
-        const tree = captureNode(root, options, 0, limits);
+        const typeRegistry = createTypeRegistry();
+        const tree = captureNode(root, options, 0, limits, typeRegistry);
         return successful(
           {
+            format: "ansight.dom.visual-tree.compact.v2",
             platform: "web",
             source: options.source,
             adapter: "@ansight/capacitor",
             capturedAtUtc: new Date().toISOString(),
+            types: typeRegistry.types,
             truncated: limits.count >= limits.maxNodes,
             root: tree,
           },
@@ -387,8 +415,18 @@ export function installDomTools(
           };
         }
         const limits = { maxDepth: 0, maxNodes: 1, count: 0 };
+        const typeRegistry = createTypeRegistry();
+        const node = captureNode(element, options, 0, limits, typeRegistry);
         return successful(
-          captureNode(element, options, 0, limits),
+          {
+            format: "ansight.dom.visual-tree.compact.v2",
+            platform: "web",
+            source: options.source,
+            adapter: "@ansight/capacitor",
+            capturedAtUtc: new Date().toISOString(),
+            types: typeRegistry.types,
+            node,
+          },
           "DOM node captured.",
         );
       },

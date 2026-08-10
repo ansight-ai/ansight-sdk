@@ -326,7 +326,7 @@ public sealed class AnnotationTests
         {
             return Task.FromResult(ToolResult.Success(new JsonObject
             {
-                ["format"] = "test.visual-tree.v1",
+                ["format"] = "test.visual-tree.compact.v2",
                 ["source"] = source,
                 ["capturedAtUtc"] = DateTimeOffset.UtcNow.ToString("O"),
                 ["root"] = new JsonObject
@@ -388,7 +388,7 @@ public sealed class AnnotationTests
             WasCaptured = true;
             return Task.FromResult(ToolResult.Success(new JsonObject
             {
-                ["format"] = "test.visual-tree.v1",
+                ["format"] = "test.visual-tree.compact.v2",
                 ["source"] = SourceName,
                 ["capturedAtUtc"] = capturedAtUtc.ToString("O"),
                 ["root"] = new JsonObject

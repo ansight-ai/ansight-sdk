@@ -52,6 +52,16 @@ first QR scan.
 | Native visual-tree providers | Yes | Yes | Yes | Native plus a React provider | Native plus a DOM provider |
 | App-provided visual-tree sources | Yes | Yes | Yes | Native code can register providers; React inspection uses separate `react.*` tools | Native hierarchy plus `dom.*` WebView tools |
 
+The order of a node's `children` records its structural sibling order. A node
+with a non-default stacking override may additionally include a `z`
+number. Platform adapters normalize their effective stacking value into that
+field and omit it at the default. The paired screenshot remains the
+authoritative record of final occlusion.
+
+Visual-tree payloads store runtime type names once in the top-level `types`
+array. Every node references that registry with a required `typeId`; node-local
+`type`, `kind`, and `styleId` fields are not part of the compact format.
+
 During `device.profile`, current runtimes advertise screenshot-control version
 1. Studio can respond with host capture mode for a simulator or emulator. The
 SDK then suspends its periodic in-app JPEG loop for that session so Studio can

@@ -49,34 +49,44 @@ internal static class MauiToolSchemas
             ["styleId"] = ToolSchema.String("MAUI StyleId, when present.", nullable: true),
             ["classId"] = ToolSchema.String("MAUI ClassId, when present.", nullable: true),
             ["label"] = ToolSchema.String("Best-effort PII-safe visible or semantic label. Typed input values and sensitive-looking text are omitted or redacted.", nullable: true),
-            ["title"] = ToolSchema.String("PII-safe page title, when present.", nullable: true),
-            ["typeId"] = ToolSchema.Integer("Index into the visual tree payload types registry.", nullable: true)
+            ["title"] = ToolSchema.String("PII-safe page title, when present.", nullable: true)
         },
         required: new[] { "id", "type", "kind" });
+
+    private static readonly ToolSchema CompactMauiElementReferenceSchema = ToolSchema.Object(
+        description: "Compact MAUI element reference whose runtime type is stored once in the payload type registry.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["id"] = ToolSchema.String("Stable node id for the element."),
+            ["typeId"] = ToolSchema.Integer("Index into the visual tree payload types registry."),
+            ["automationId"] = ToolSchema.String("MAUI AutomationId, when present.", nullable: true),
+            ["classId"] = ToolSchema.String("MAUI ClassId, when present.", nullable: true),
+            ["label"] = ToolSchema.String("Best-effort PII-safe visible or semantic label.", nullable: true),
+            ["title"] = ToolSchema.String("PII-safe page title, when present.", nullable: true)
+        },
+        required: new[] { "id", "typeId" });
 
     private static readonly ToolSchema MauiElementNodeSchema = ToolSchema.Object(
         description: "A MAUI visual tree node.",
         properties: new Dictionary<string, ToolSchema>
         {
             ["id"] = ToolSchema.String("Stable node id for the element."),
-            ["type"] = ToolSchema.String("Element runtime type."),
-            ["kind"] = ToolSchema.String("Broad MAUI element kind."),
+            ["typeId"] = ToolSchema.Integer("Index into the visual tree payload types registry."),
             ["automationId"] = ToolSchema.String("MAUI AutomationId, when present.", nullable: true),
-            ["styleId"] = ToolSchema.String("MAUI StyleId, when present.", nullable: true),
             ["classId"] = ToolSchema.String("MAUI ClassId, when present.", nullable: true),
             ["label"] = ToolSchema.String("Best-effort PII-safe visible or semantic label. Typed input values and sensitive-looking text are omitted or redacted.", nullable: true),
             ["title"] = ToolSchema.String("PII-safe page title, when present.", nullable: true),
-            ["typeId"] = ToolSchema.Integer("Index into the visual tree payload types registry."),
             ["flags"] = ToolSchema.Integer("Compact node flags. Bit values are declared once in the visual tree payload flagBits field."),
             ["childCount"] = ToolSchema.Integer("Number of direct visual children."),
             ["visual"] = VisualPresentationSchema,
+            ["z"] = ToolSchema.Number("Optional normalized stacking priority relative to sibling nodes. Child order records default sibling order; the screenshot remains authoritative for final compositing.", nullable: true),
             ["bounds"] = BoundsSchema,
             ["bindingContextTypeId"] = ToolSchema.Integer("Index into the visual tree payload types registry for the binding context type.", nullable: true),
             ["properties"] = GenericObjectSchema,
             ["bindableProperties"] = ToolSchema.Array(GenericObjectSchema, "Bindable property metadata for this element.", nullable: true),
             ["children"] = ToolSchema.Array(GenericObjectSchema, "Nested child nodes.", nullable: true)
         },
-        required: new[] { "id", "type", "typeId", "kind", "flags", "childCount", "visual" });
+        required: new[] { "id", "typeId", "flags", "childCount", "visual" });
 
     private static readonly ToolSchema ValueSnapshotSchema = ToolSchema.Object(
         description: "A bounded runtime value snapshot.",
@@ -193,9 +203,9 @@ internal static class MauiToolSchemas
             ["flagBits"] = GenericObjectSchema,
             ["bindablePropertyFlagBits"] = GenericObjectSchema,
             ["types"] = ToolSchema.Array(ToolSchema.String("Registered type full name."), "Type registry referenced by typeId fields."),
-            ["rootPage"] = MauiElementReferenceSchema,
-            ["currentPage"] = MauiElementReferenceSchema,
-            ["activeNavigationPage"] = MauiElementReferenceSchema,
+            ["rootPage"] = CompactMauiElementReferenceSchema,
+            ["currentPage"] = CompactMauiElementReferenceSchema,
+            ["activeNavigationPage"] = CompactMauiElementReferenceSchema,
             ["includeInactivePages"] = ToolSchema.Boolean("Whether inactive navigation children were included."),
             ["coordinateSpace"] = GenericObjectSchema,
             ["nodeCount"] = ToolSchema.Integer("Number of nodes included in the payload."),

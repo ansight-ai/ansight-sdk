@@ -224,7 +224,7 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
         var payload = sourcePayload.DeepClone() as JsonObject ?? new JsonObject();
         payload["capturedAtUtc"] = capturedAtUtc.ToUniversalTime().ToString("O");
         var source = ReadString(payload, "source") ?? "native";
-        var format = ReadString(payload, "format") ?? ReadString(payload, "schema") ?? "ansight.visual-tree.v1";
+        var format = ReadString(payload, "format") ?? ReadString(payload, "schema") ?? "ansight.visual-tree.compact.v2";
         var platform = ReadString(payload, "platform") ?? "dotnet";
         var nodeCount = ReadInt32(payload, "nodeCount") ?? CountVisualTreeNodes(payload);
         var truncated = ReadBoolean(payload, "truncated") ?? false;

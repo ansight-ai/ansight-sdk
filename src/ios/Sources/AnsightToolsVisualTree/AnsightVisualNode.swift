@@ -1,6 +1,28 @@
 import AnsightCore
 import Foundation
 
+internal final class AnsightVisualTreeTypeRegistry {
+    private var idsByTypeName: [String: Int] = [:]
+    private var typeNames: [String] = []
+
+    func typeId(for typeName: String) -> Int {
+        let normalizedTypeName = typeName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedTypeName = normalizedTypeName.isEmpty ? "UnknownView" : normalizedTypeName
+        if let typeId = idsByTypeName[resolvedTypeName] {
+            return typeId
+        }
+
+        let typeId = typeNames.count
+        typeNames.append(resolvedTypeName)
+        idsByTypeName[resolvedTypeName] = typeId
+        return typeId
+    }
+
+    var jsonValue: JSONValue {
+        .array(typeNames.map(JSONValue.string))
+    }
+}
+
 internal struct AnsightVisualNode: Sendable {
     let id: String
     let type: String
@@ -13,6 +35,7 @@ internal struct AnsightVisualNode: Sendable {
     let focusable: Bool
     let bounds: AnsightVisualTreeBounds?
     let visual: [String: JSONValue]
+    let z: Double?
     let properties: [String: JSONValue]
     let children: [AnsightVisualNode]
 
@@ -54,13 +77,17 @@ internal struct AnsightVisualNode: Sendable {
         children.flatMap { [$0] + $0.descendants() }
     }
 
-    func jsonValue(includeBounds: Bool, includeProperties: Bool, maxDepth: Int) -> JSONValue {
+    func jsonValue(
+        includeBounds: Bool,
+        includeProperties: Bool,
+        maxDepth: Int,
+        typeRegistry: AnsightVisualTreeTypeRegistry
+    ) -> JSONValue {
         var payload: [String: JSONValue] = [
             "id": .string(id),
-            "type": .string(type),
+            "typeId": .integer(Int64(typeRegistry.typeId(for: type))),
             "automationId": automationId.map(JSONValue.string) ?? .null,
             "label": label.map(JSONValue.string) ?? .null,
-            "text": label.map(JSONValue.string) ?? .null,
             "role": .string(role),
             "supportedActions": .array(supportedActions.map(JSONValue.string)),
             "interactable": .bool(visible && enabled && !supportedActions.isEmpty),
@@ -70,6 +97,10 @@ internal struct AnsightVisualNode: Sendable {
             "childCount": .integer(Int64(children.count)),
             "visual": .object(visual),
         ]
+
+        if let z {
+            payload["z"] = .number(z)
+        }
 
         if includeBounds, let bounds {
             payload["bounds"] = bounds.jsonValue
@@ -84,7 +115,8 @@ internal struct AnsightVisualNode: Sendable {
                 $0.jsonValue(
                     includeBounds: includeBounds,
                     includeProperties: includeProperties,
-                    maxDepth: maxDepth - 1
+                    maxDepth: maxDepth - 1,
+                    typeRegistry: typeRegistry
                 )
             })
         }

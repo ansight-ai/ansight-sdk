@@ -162,22 +162,17 @@ public sealed class MauiVisualTreeBuildContext
 
 public sealed class MauiVisualTreeNode
 {
-    public MauiVisualTreeNode(string id, string type, string kind)
+    public MauiVisualTreeNode(string id, string type)
     {
         Id = string.IsNullOrWhiteSpace(id) ? throw new ArgumentException("A custom visual tree node id is required.", nameof(id)) : id.Trim();
         Type = string.IsNullOrWhiteSpace(type) ? "CustomVisualNode" : type.Trim();
-        Kind = string.IsNullOrWhiteSpace(kind) ? "custom" : kind.Trim();
     }
 
     public string Id { get; }
 
     public string Type { get; set; }
 
-    public string Kind { get; set; }
-
     public string? AutomationId { get; set; }
-
-    public string? StyleId { get; set; }
 
     public string? ClassId { get; set; }
 
@@ -190,6 +185,8 @@ public sealed class MauiVisualTreeNode
     public Color? BackgroundColor { get; set; }
 
     public double? Opacity { get; set; }
+
+    public double? ZIndex { get; set; }
 
     public string? Text { get; set; }
 

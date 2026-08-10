@@ -36,16 +36,25 @@ public sealed class VisualTreeToolsTests
     }
 
     [Fact]
-    public void GetVisualTreeTool_ResultSchema_DeclaresNormalizedVisualPresentation()
+    public void GetVisualTreeTool_ResultSchema_DeclaresCompactTypedNodes()
     {
-        var rootSchema = new GetVisualTreeTool().ResultSchema.Properties["root"];
+        var resultSchema = new GetVisualTreeTool().ResultSchema;
+        var rootSchema = resultSchema.Properties["root"];
         var visualSchema = rootSchema.Properties["visual"];
+        var zSchema = rootSchema.Properties["z"];
 
+        Assert.Contains("types", resultSchema.Required);
+        Assert.Contains("typeId", rootSchema.Required);
+        Assert.DoesNotContain("type", rootSchema.Properties);
+        Assert.DoesNotContain("kind", rootSchema.Properties);
+        Assert.DoesNotContain("styleId", rootSchema.Properties);
         Assert.Contains("visual", rootSchema.Required);
+        Assert.DoesNotContain("z", rootSchema.Required);
         Assert.Equal(
             ["foreground", "background", "opacity", "text", "value"],
             visualSchema.Properties.Keys);
         Assert.Equal(["opacity"], visualSchema.Required);
+        Assert.True(zSchema.Nullable);
     }
 
     [Fact]
