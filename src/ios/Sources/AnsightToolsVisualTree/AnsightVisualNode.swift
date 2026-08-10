@@ -6,6 +6,8 @@ internal struct AnsightVisualNode: Sendable {
     let type: String
     let automationId: String?
     let label: String?
+    let role: String
+    let supportedActions: [String]
     let visible: Bool
     let enabled: Bool
     let focusable: Bool
@@ -58,6 +60,10 @@ internal struct AnsightVisualNode: Sendable {
             "type": .string(type),
             "automationId": automationId.map(JSONValue.string) ?? .null,
             "label": label.map(JSONValue.string) ?? .null,
+            "text": label.map(JSONValue.string) ?? .null,
+            "role": .string(role),
+            "supportedActions": .array(supportedActions.map(JSONValue.string)),
+            "interactable": .bool(visible && enabled && !supportedActions.isEmpty),
             "visible": .bool(visible),
             "enabled": .bool(enabled),
             "focusable": .bool(focusable),

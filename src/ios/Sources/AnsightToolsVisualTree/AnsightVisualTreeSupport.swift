@@ -288,6 +288,8 @@ internal enum AnsightVisualTreeSupport {
             type: String(describing: type(of: view)),
             automationId: normalized(view.accessibilityIdentifier),
             label: label(for: view),
+            role: role(for: view),
+            supportedActions: supportedActions(for: view),
             visible: !view.isHidden && view.alpha > 0,
             enabled: isEnabled(view),
             focusable: view.canBecomeFocused || view.isAccessibilityElement,
@@ -358,6 +360,41 @@ internal enum AnsightVisualTreeSupport {
         }
 
         return normalized(view.accessibilityLabel) ?? normalized(view.accessibilityIdentifier)
+    }
+
+    @MainActor
+    private static func role(for view: UIView) -> String {
+        switch view {
+        case is UIButton:
+            return "button"
+        case is UITextField, is UITextView:
+            return "textbox"
+        case is UISwitch:
+            return "switch"
+        case is UISlider:
+            return "slider"
+        case is UILabel:
+            return "text"
+        case is UIScrollView:
+            return "scrollview"
+        default:
+            return "view"
+        }
+    }
+
+    @MainActor
+    private static func supportedActions(for view: UIView) -> [String] {
+        var actions: [String] = []
+        if view is UIControl || view.isAccessibilityElement {
+            actions.append("tap")
+        }
+        if view is UITextField || view is UITextView {
+            actions.append(contentsOf: ["typeText", "focus"])
+        }
+        if view is UIScrollView {
+            actions.append(contentsOf: ["scroll", "swipe"])
+        }
+        return actions
     }
 
     @MainActor

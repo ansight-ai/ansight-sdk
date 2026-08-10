@@ -296,6 +296,8 @@ internal static partial class VisualTreeSupport
             string type,
             string? automationId,
             string? label,
+            string role,
+            IReadOnlyList<string> supportedActions,
             bool isVisible,
             bool isEnabled,
             bool isFocusable,
@@ -309,6 +311,8 @@ internal static partial class VisualTreeSupport
             Type = type;
             AutomationId = automationId;
             Label = label;
+            Role = role;
+            SupportedActions = supportedActions;
             IsVisible = isVisible;
             IsEnabled = isEnabled;
             IsFocusable = isFocusable;
@@ -323,6 +327,8 @@ internal static partial class VisualTreeSupport
         internal string Type { get; }
         internal string? AutomationId { get; }
         internal string? Label { get; }
+        internal string Role { get; }
+        internal IReadOnlyList<string> SupportedActions { get; }
         internal bool IsVisible { get; }
         internal bool IsEnabled { get; }
         internal bool IsFocusable { get; }
@@ -394,6 +400,10 @@ internal static partial class VisualTreeSupport
                 ["type"] = Type,
                 ["automationId"] = AutomationId,
                 ["label"] = Label,
+                ["text"] = Label,
+                ["role"] = Role,
+                ["supportedActions"] = new JsonArray(SupportedActions.Select(action => JsonValue.Create(action)).ToArray()),
+                ["interactable"] = IsVisible && IsEnabled && SupportedActions.Count > 0,
                 ["visible"] = IsVisible,
                 ["enabled"] = IsEnabled,
                 ["focusable"] = IsFocusable,
@@ -751,6 +761,8 @@ internal static partial class VisualTreeSupport
             type: view.Class?.SimpleName ?? view.GetType().Name,
             automationId: GetAndroidAutomationId(view),
             label: GetAndroidLabel(view),
+            role: GetAndroidRole(view),
+            supportedActions: GetAndroidSupportedActions(view),
             isVisible: view.Visibility == ViewStates.Visible && view.Alpha > 0,
             isEnabled: view.Enabled,
             isFocusable: view.Focusable,
@@ -795,6 +807,48 @@ internal static partial class VisualTreeSupport
         return view.Tag?.ToString() is { } tag && !string.IsNullOrWhiteSpace(tag)
             ? tag.Trim()
             : null;
+    }
+
+    private static string GetAndroidRole(View view)
+    {
+        return view switch
+        {
+            Android.Widget.Button => "button",
+            EditText => "textbox",
+            Android.Widget.Switch => "switch",
+            Android.Widget.CheckBox => "checkbox",
+            Android.Widget.RadioButton => "radio",
+            SeekBar => "slider",
+            TextView => "text",
+            Android.Widget.ScrollView => "scrollview",
+            Android.Widget.HorizontalScrollView => "scrollview",
+            ViewGroup => "group",
+            _ when view.Clickable => "button",
+            _ => "view"
+        };
+    }
+
+    private static IReadOnlyList<string> GetAndroidSupportedActions(View view)
+    {
+        var actions = new List<string>();
+        if (view.Clickable || view is Android.Widget.Button or CompoundButton)
+        {
+            actions.Add("tap");
+        }
+
+        if (view is EditText)
+        {
+            actions.Add("typeText");
+            actions.Add("focus");
+        }
+
+        if (view is Android.Widget.ScrollView or Android.Widget.HorizontalScrollView)
+        {
+            actions.Add("scroll");
+            actions.Add("swipe");
+        }
+
+        return actions;
     }
 
     private static JsonObject CreateAndroidVisual(View view)
@@ -1117,6 +1171,8 @@ internal static partial class VisualTreeSupport
             type: view.GetType().Name,
             automationId: string.IsNullOrWhiteSpace(view.AccessibilityIdentifier) ? null : view.AccessibilityIdentifier.Trim(),
             label: GetAppleLabel(view),
+            role: GetAppleRole(view),
+            supportedActions: GetAppleSupportedActions(view),
             isVisible: !view.Hidden && view.Alpha > 0,
             isEnabled: view.UserInteractionEnabled,
             isFocusable: view.CanBecomeFocused,
@@ -1144,6 +1200,44 @@ internal static partial class VisualTreeSupport
             UITextView textView when !string.IsNullOrWhiteSpace(textView.Text) => textView.Text,
             _ => view.AccessibilityLabel ?? view.AccessibilityIdentifier
         };
+    }
+
+    private static string GetAppleRole(UIView view)
+    {
+        return view switch
+        {
+            UIButton => "button",
+            UITextField => "textbox",
+            UITextView => "textbox",
+            UISwitch => "switch",
+            UISlider => "slider",
+            UILabel => "text",
+            UIScrollView => "scrollview",
+            _ => "view"
+        };
+    }
+
+    private static IReadOnlyList<string> GetAppleSupportedActions(UIView view)
+    {
+        var actions = new List<string>();
+        if (view is UIControl || view.IsAccessibilityElement)
+        {
+            actions.Add("tap");
+        }
+
+        if (view is UITextField or UITextView)
+        {
+            actions.Add("typeText");
+            actions.Add("focus");
+        }
+
+        if (view is UIScrollView)
+        {
+            actions.Add("scroll");
+            actions.Add("swipe");
+        }
+
+        return actions;
     }
 
     private static string? GetAppleTextFieldPlaceholder(UITextField textField)

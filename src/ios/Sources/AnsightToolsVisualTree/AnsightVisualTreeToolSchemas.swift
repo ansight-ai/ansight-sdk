@@ -207,6 +207,10 @@ internal enum AnsightVisualTreeToolSchemas {
             "type": string("Platform view type."),
             "automationId": string("Platform automation or test identifier, when present.", nullable: true),
             "label": string("Best-effort visible or accessibility label.", nullable: true),
+            "text": string("Best-effort visible or accessibility text.", nullable: true),
+            "role": string("Platform-neutral semantic role."),
+            "supportedActions": array(string("Semantic action."), "Semantic actions supported by the node."),
+            "interactable": boolean("Whether the node is visible, enabled, and exposes at least one action."),
             "visible": boolean("Whether the node is visible."),
             "enabled": boolean("Whether the node is enabled."),
             "focusable": boolean("Whether the node can receive focus."),
@@ -220,7 +224,7 @@ internal enum AnsightVisualTreeToolSchemas {
             ),
             "children": array(genericObject, "Nested child nodes.", nullable: true),
         ],
-        required: ["id", "type", "visible", "enabled", "focusable", "childCount", "visual"]
+        required: ["id", "type", "role", "supportedActions", "interactable", "visible", "enabled", "focusable", "childCount", "visual"]
     )
 
     private static let visualPresentation = objectJSON(
@@ -363,8 +367,8 @@ internal enum AnsightVisualTreeToolSchemas {
         primitive(type: "number", description: description, nullable: nullable)
     }
 
-    private static func boolean(_ description: String) -> JSONValue {
-        primitive(type: "boolean", description: description)
+    private static func boolean(_ description: String, nullable: Bool = false) -> JSONValue {
+        primitive(type: "boolean", description: description, nullable: nullable)
     }
 
     private static func primitive(

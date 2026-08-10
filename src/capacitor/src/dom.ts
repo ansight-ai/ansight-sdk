@@ -17,6 +17,10 @@ interface DomNode {
   type: string;
   automationId?: string;
   label?: string;
+  text?: string;
+  role: string;
+  supportedActions: string[];
+  interactable: boolean;
   visible: boolean;
   enabled: boolean;
   focusable: boolean;
@@ -98,6 +102,45 @@ function automationId(element: Element): string | undefined {
       undefined
     )?.trim() || undefined
   );
+}
+
+function semanticRole(element: Element): string {
+  const declared = element.getAttribute("role")?.trim().toLowerCase();
+  if (declared) return declared;
+  if (element instanceof HTMLButtonElement) return "button";
+  if (element instanceof HTMLInputElement) {
+    if (element.type === "checkbox") return "checkbox";
+    if (element.type === "radio") return "radio";
+    if (element.type === "range") return "slider";
+    if (["button", "submit", "reset"].includes(element.type)) return "button";
+    return "textbox";
+  }
+  if (element instanceof HTMLTextAreaElement) return "textbox";
+  if (element instanceof HTMLSelectElement) return "combobox";
+  if (element.tagName === "A") return "link";
+  if (/^H[1-6]$/.test(element.tagName)) return "heading";
+  return "view";
+}
+
+function supportedActions(element: Element, allowActions: boolean): string[] {
+  if (!allowActions) return [];
+  const actions: string[] = [];
+  if (["A", "BUTTON", "SUMMARY"].includes(element.tagName) || element instanceof HTMLInputElement) {
+    actions.push("tap");
+  }
+  if (
+    element instanceof HTMLInputElement ||
+    element instanceof HTMLTextAreaElement ||
+    element instanceof HTMLSelectElement
+  ) {
+    actions.push("typeText", "focus");
+  } else if ((element as HTMLElement).tabIndex >= 0) {
+    actions.push("focus");
+  }
+  if ((element as HTMLElement).scrollHeight > (element as HTMLElement).clientHeight) {
+    actions.push("scroll", "swipe");
+  }
+  return [...new Set(actions)];
 }
 
 function computedColorToArgbHex(value: string): string | undefined {
@@ -184,7 +227,7 @@ function captureNode(
   options: Required<
     Pick<
       AnsightDomToolsOptions,
-      "includeHidden" | "includeText" | "includeAttributes"
+      "includeHidden" | "includeText" | "includeAttributes" | "allowActions"
     >
   >,
   depth: number,
@@ -206,12 +249,18 @@ function captureNode(
     element.hasAttribute("disabled") ||
     element.getAttribute("aria-disabled") === "true";
   const parsedOpacity = Number.parseFloat(style.opacity);
+  const actions = supportedActions(element, options.allowActions);
+  const label = accessibleLabel(element, options.includeText);
 
   return {
     id: nodeId(element),
     type: element.tagName.toLowerCase(),
     automationId: automationId(element),
-    label: accessibleLabel(element, options.includeText),
+    label,
+    text: displayedText(element) ?? label,
+    role: semanticRole(element),
+    supportedActions: actions,
+    interactable: visible && !disabled && actions.length > 0,
     visible,
     enabled: !disabled,
     focusable:

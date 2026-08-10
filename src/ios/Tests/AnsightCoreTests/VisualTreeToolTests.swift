@@ -9,6 +9,8 @@ final class VisualTreeToolTests: XCTestCase {
             type: "UIButton",
             automationId: "checkout.submit",
             label: "Submit",
+            role: "button",
+            supportedActions: ["tap"],
             visible: true,
             enabled: true,
             focusable: true,

@@ -1391,7 +1391,7 @@ function summarizeProps(props) {
   }
   const keys = Object.keys(props).filter((key) => key !== "children");
   const summary = { keys };
-  ["testID", "nativeID", "accessibilityLabel", "role"].forEach((key) => {
+  ["testID", "nativeID", "accessibilityLabel", "accessibilityRole", "role"].forEach((key) => {
     if (props[key] != null && !isSensitiveKey(key)) {
       summary[key] = String(props[key]);
     }
@@ -1401,6 +1401,42 @@ function summarizeProps(props) {
     summary.children = children;
   }
   return summary;
+}
+
+function reactSemanticRole(type, props, fiberTag) {
+  const declared = props && (props.accessibilityRole || props.role);
+  if (declared) return String(declared).toLowerCase();
+  if (fiberTag === 6 || /text/i.test(type)) return "text";
+  if (/button|pressable|touchable/i.test(type)) return "button";
+  if (/textinput/i.test(type)) return "textbox";
+  if (/switch/i.test(type)) return "switch";
+  if (/scrollview|flatlist|sectionlist/i.test(type)) return "scrollview";
+  return "view";
+}
+
+function reactSupportedActions(type, props) {
+  const actions = [];
+  if (props && typeof props.onPress === "function") actions.push("tap");
+  if (props && (typeof props.onChangeText === "function" || /textinput/i.test(type))) {
+    actions.push("typeText", "focus");
+  }
+  if (/scrollview|flatlist|sectionlist/i.test(type) || (props && typeof props.onScroll === "function")) {
+    actions.push("scroll", "swipe");
+  }
+  return actions;
+}
+
+function applyReactTargetability(node, fiber, props, type) {
+  const style = StyleSheet && typeof StyleSheet.flatten === "function"
+    ? StyleSheet.flatten(props && props.style)
+    : props && props.style;
+  node.text = node.label || (node.visual && node.visual.text) || null;
+  node.role = reactSemanticRole(type, props, fiber.tag);
+  node.supportedActions = reactSupportedActions(type, props);
+  node.visible = !(style && style.display === "none") && !(props && props.accessibilityElementsHidden);
+  node.enabled = !(props && (props.disabled === true || props.accessibilityState && props.accessibilityState.disabled === true));
+  node.focusable = !!(props && props.focusable) || node.supportedActions.includes("focus");
+  node.interactable = node.visible && node.enabled && node.supportedActions.length > 0;
 }
 
 function reactColorToArgbHex(value) {
@@ -1577,6 +1613,8 @@ function serializeFiber(fiber, context, depth) {
     node.state = sanitizeValue(fiber.memoizedState, context);
   }
 
+  applyReactTargetability(node, fiber, props, type);
+
   if (depth < context.maxDepth) {
     let child = fiber.child;
     while (child) {
@@ -1600,9 +1638,10 @@ function isShadowTreeFiber(fiber) {
 
 function createShadowTreeNode(fiber, context, depth) {
   const props = fiber.memoizedProps || fiber.pendingProps || {};
+  const type = reactFiberTypeName(fiber);
   const node = {
     id: reactFiberId(fiber),
-    type: reactFiberTypeName(fiber),
+    type,
     kind: fiber.tag === 3 ? "root" : fiber.tag === 6 ? "text" : "host",
     tag: fiber.tag,
     key: fiber.key == null ? null : String(fiber.key),
@@ -1634,6 +1673,8 @@ function createShadowTreeNode(fiber, context, depth) {
       node.props = sanitizeValue(props, context);
     }
   }
+
+  applyReactTargetability(node, fiber, props, type);
 
   return node;
 }

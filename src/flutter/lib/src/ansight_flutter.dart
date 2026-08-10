@@ -401,12 +401,43 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
     if (root != null) {
       capture(root, 0, null);
     }
+    final nodesById = <String, AnsightJson>{
+      for (final node in nodes.whereType<AnsightJson>())
+        node['id']! as String: node,
+    };
+    AnsightJson materialize(String id) {
+      final source = nodesById[id]!;
+      final childIds =
+          (source['children']! as List<Object?>).whereType<String>();
+      return <String, Object?>{
+        ...source,
+        'children': childIds.map(materialize).toList(growable: false),
+        'childCount': childIds.length,
+      };
+    }
+
+    final materializedRoots =
+        roots.whereType<String>().map(materialize).toList();
+    final treeRoot = materializedRoots.length == 1
+        ? materializedRoots.single
+        : <String, Object?>{
+            'id': 'flutter.roots',
+            'type': 'FlutterRoots',
+            'role': 'group',
+            'supportedActions': const <String>[],
+            'interactable': false,
+            'visible': true,
+            'enabled': true,
+            'children': materializedRoots,
+            'childCount': materializedRoots.length,
+          };
     return AnsightToolResult.success(
       message: 'Flutter widget tree captured.',
       result: <String, Object?>{
         'source': 'flutter',
         'displayName': 'Flutter',
         'capturedAtUtc': DateTime.now().toUtc().toIso8601String(),
+        'root': treeRoot,
         'rootIds': roots,
         'nodes': nodes,
         'nodeCount': nodes.length,
@@ -517,14 +548,32 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
     final automationId = widget.key is ValueKey<String>
         ? (widget.key! as ValueKey<String>).value.trim()
         : null;
+    final type = widget.runtimeType.toString();
+    final role = _semanticRole(type);
+    final supportedActions = _supportedActions(type);
+    final visible = renderObject == null ||
+        (renderObject.attached &&
+            (renderObject is! RenderBox ||
+                !renderObject.hasSize ||
+                !renderObject.size.isEmpty));
+    final enabled = element.owner != null;
+    final text = visual['text']?.toString();
     return <String, Object?>{
       'id': id,
       if (parentId != null) 'parentId': parentId,
       'depth': depth,
-      'type': widget.runtimeType.toString(),
+      'type': type,
       'widget': widget.toStringShort(),
       if (automationId != null && automationId.isNotEmpty)
         'automationId': automationId,
+      if (text != null && text.isNotEmpty) 'text': text,
+      if (text != null && text.isNotEmpty) 'label': text,
+      'role': role,
+      'supportedActions': supportedActions,
+      'interactable': visible && enabled && supportedActions.isNotEmpty,
+      'visible': visible,
+      'enabled': enabled,
+      'focusable': supportedActions.contains('focus'),
       if (widget.key != null) 'key': widget.key.toString(),
       'mounted': element.owner != null,
       'dirty': element.dirty,
@@ -542,6 +591,43 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
     };
   }
 
+  String _semanticRole(String type) {
+    final normalized = type.toLowerCase();
+    if (normalized.contains('button') ||
+        normalized.contains('gesture') ||
+        normalized.contains('inkwell')) return 'button';
+    if (normalized.contains('editable') || normalized.contains('textfield'))
+      return 'textbox';
+    if (normalized.contains('switch')) return 'switch';
+    if (normalized.contains('checkbox')) return 'checkbox';
+    if (normalized.contains('radio')) return 'radio';
+    if (normalized.contains('slider')) return 'slider';
+    if (normalized.contains('scroll') ||
+        normalized.contains('listview') ||
+        normalized.contains('gridview')) return 'scrollview';
+    if (normalized == 'text' || normalized.contains('richtext')) return 'text';
+    return 'view';
+  }
+
+  List<String> _supportedActions(String type) {
+    final normalized = type.toLowerCase();
+    final actions = <String>[];
+    if (normalized.contains('button') ||
+        normalized.contains('gesture') ||
+        normalized.contains('inkwell')) {
+      actions.add('tap');
+    }
+    if (normalized.contains('editable') || normalized.contains('textfield')) {
+      actions.addAll(const <String>['typeText', 'focus']);
+    }
+    if (normalized.contains('scroll') ||
+        normalized.contains('listview') ||
+        normalized.contains('gridview')) {
+      actions.addAll(const <String>['scroll', 'swipe']);
+    }
+    return actions;
+  }
+
   AnsightJson _describeVisual(
     Element element,
     Widget widget,
@@ -555,7 +641,8 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
 
     if (widget is Text) {
       text = widget.data ?? widget.textSpan?.toPlainText();
-      foreground = widget.style?.color ?? DefaultTextStyle.of(element).style.color;
+      foreground =
+          widget.style?.color ?? DefaultTextStyle.of(element).style.color;
     } else if (widget is RichText) {
       text = widget.text.toPlainText();
       foreground = widget.text.style?.color;
@@ -587,7 +674,8 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
     }
 
     final normalizedText = _normalizeVisualText(text);
-    final normalizedValue = value is String ? _normalizeVisualText(value) : null;
+    final normalizedValue =
+        value is String ? _normalizeVisualText(value) : null;
     return <String, Object?>{
       if (foreground != null) 'foreground': _colorToArgbHex(foreground),
       if (background != null) 'background': _colorToArgbHex(background),

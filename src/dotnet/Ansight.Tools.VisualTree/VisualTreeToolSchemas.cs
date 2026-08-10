@@ -86,6 +86,10 @@ internal static class VisualTreeToolSchemas
             ["type"] = ToolSchema.String("Platform view type."),
             ["automationId"] = ToolSchema.String("Platform automation or test identifier, when present.", nullable: true),
             ["label"] = ToolSchema.String("Best-effort visible or accessibility label.", nullable: true),
+            ["text"] = ToolSchema.String("Best-effort visible or accessibility text.", nullable: true),
+            ["role"] = ToolSchema.String("Platform-neutral semantic role."),
+            ["supportedActions"] = ToolSchema.Array(ToolSchema.String(), "Semantic actions supported by the node."),
+            ["interactable"] = ToolSchema.Boolean("Whether the node is visible, enabled, and exposes at least one action."),
             ["visible"] = ToolSchema.Boolean("Whether the node is visible."),
             ["enabled"] = ToolSchema.Boolean("Whether the node is enabled."),
             ["focusable"] = ToolSchema.Boolean("Whether the node can receive focus."),
@@ -98,7 +102,7 @@ internal static class VisualTreeToolSchemas
                 nullable: true),
             ["children"] = ToolSchema.Array(GenericObjectSchema, "Nested child nodes.", nullable: true)
         },
-        required: new[] { "id", "type", "visible", "enabled", "focusable", "childCount", "visual" });
+        required: new[] { "id", "type", "role", "supportedActions", "interactable", "visible", "enabled", "focusable", "childCount", "visual" });
 
     internal static ToolSchema GetVisualTreeArguments { get; } = ToolSchema.Object(
         description: "Arguments for retrieving the current visual tree.",

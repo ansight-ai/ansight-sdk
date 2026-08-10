@@ -31,8 +31,14 @@ import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.text.method.PasswordTransformationMethod
 import android.widget.CompoundButton
+import android.widget.Button
+import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.HorizontalScrollView
+import android.widget.RadioButton
 import android.widget.SeekBar
+import android.widget.ScrollView
+import android.widget.Switch
 import android.widget.TextView
 import org.json.JSONArray
 import org.json.JSONObject
@@ -571,12 +577,17 @@ object AndroidUiEvidence {
         runCatching { view.getLocationOnScreen(location) }
         val resourceName = view.resourceNameOrNull()
         val automationId = resourceName ?: (view.tag as? String)?.trim()?.takeIf { it.isNotEmpty() }
+        val actions = supportedActions(view)
         val json = JSONObject()
             .put("id", nodeId)
             .put("type", view.javaClass.name)
             .put("automationId", automationId)
             .put("resourceId", resourceName)
             .put("text", visualText(view))
+            .put("label", visualText(view) ?: view.contentDescription?.toString())
+            .put("role", semanticRole(view))
+            .put("supportedActions", JSONArray(actions))
+            .put("interactable", view.visibility == View.VISIBLE && view.isEnabled && actions.isNotEmpty())
             .put("contentDescription", view.contentDescription?.toString())
             .put("visible", view.visibility == View.VISIBLE)
             .put("visibility", visibilityName(view.visibility))
@@ -628,6 +639,33 @@ object AndroidUiEvidence {
         is EditText -> view.hint?.toString()
         is TextView -> view.text?.toString()
         else -> null
+    }
+
+    private fun semanticRole(view: View): String = when (view) {
+        is Button -> "button"
+        is EditText -> "textbox"
+        is Switch -> "switch"
+        is CheckBox -> "checkbox"
+        is RadioButton -> "radio"
+        is SeekBar -> "slider"
+        is TextView -> "text"
+        is ScrollView, is HorizontalScrollView -> "scrollview"
+        is ViewGroup -> "group"
+        else -> if (view.isClickable) "button" else "view"
+    }
+
+    private fun supportedActions(view: View): List<String> = buildList {
+        if (view.isClickable || view is Button || view is CompoundButton) {
+            add("tap")
+        }
+        if (view is EditText) {
+            add("typeText")
+            add("focus")
+        }
+        if (view is ScrollView || view is HorizontalScrollView) {
+            add("scroll")
+            add("swipe")
+        }
     }
 
     private fun View.backgroundColorOrNull(): Int? {
