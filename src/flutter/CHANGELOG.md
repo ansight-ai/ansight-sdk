@@ -1,3 +1,12 @@
+## 1.3.0-preview.1
+
+- Add screenshot-and-visual-tree session capture with Studio recording
+  correlation.
+- Include string widget keys as automation identifiers in Flutter visual-tree
+  snapshots.
+- Align the native Android and iOS runtime dependencies with the 1.3 preview
+  SDK family.
+
 ## 1.2.0-preview.2
 
 - Align Flutter package metadata and native dependencies with the
