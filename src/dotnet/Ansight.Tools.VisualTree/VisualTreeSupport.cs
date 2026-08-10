@@ -813,11 +813,11 @@ internal static partial class VisualTreeSupport
     {
         return view switch
         {
-            Android.Widget.Button => "button",
             EditText => "textbox",
             Android.Widget.Switch => "switch",
             Android.Widget.CheckBox => "checkbox",
             Android.Widget.RadioButton => "radio",
+            Android.Widget.Button => "button",
             SeekBar => "slider",
             TextView => "text",
             Android.Widget.ScrollView => "scrollview",
