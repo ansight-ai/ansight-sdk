@@ -147,7 +147,7 @@ for podspec in "${native_podspecs[@]}"; do
     if [[ -n "${spec_repo}" ]]; then
       pod repo push "${spec_repo}" "${generated_spec}" "${common_args[@]+"${common_args[@]}"}"
     else
-      pod trunk push "${generated_spec}" "${common_args[@]+"${common_args[@]}"}"
+      pod trunk push "${generated_spec}" --synchronous "${common_args[@]+"${common_args[@]}"}"
     fi
   elif [[ "${skip_lint}" != "true" ]]; then
     pod spec lint "${generated_spec}" "${common_args[@]+"${common_args[@]}"}"
