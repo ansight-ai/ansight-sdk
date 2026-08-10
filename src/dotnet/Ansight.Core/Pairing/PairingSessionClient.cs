@@ -511,8 +511,11 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         var payload = JsonSerializer.SerializeToNode(profile, PairingJson.Compact) as JsonObject;
         if (payload is not null)
         {
-            payload[HostSessionJpegCapturePolicy.ControlVersionPropertyName] =
-                HostSessionJpegCapturePolicy.ControlVersion;
+            HostSessionJpegCapturePolicy.AddClientCapabilities(
+                payload,
+                Runtime.IsInitialized
+                    ? Runtime.MutableInstance.Options.SessionJpegCapture
+                    : null);
         }
 
         var result = await transport.SendControlRequestWithResponseAsync(

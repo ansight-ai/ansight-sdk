@@ -9,6 +9,24 @@ internal sealed record HostSessionJpegCapturePolicy(bool UseHostCapture, string?
 
     public static HostSessionJpegCapturePolicy App { get; } = new(false, null);
 
+    public static void AddClientCapabilities(
+        JsonObject payload,
+        SessionJpegCaptureOptions? captureOptions)
+    {
+        ArgumentNullException.ThrowIfNull(payload);
+
+        payload[ControlVersionPropertyName] = ControlVersion;
+        if (captureOptions is null)
+        {
+            return;
+        }
+
+        payload["sessionJpegCapture"] = new JsonObject
+        {
+            ["maxWidth"] = captureOptions.MaxWidth
+        };
+    }
+
     public static HostSessionJpegCapturePolicy FromPayload(JsonObject? payload)
     {
         var capture = payload?["sessionJpegCapture"] as JsonObject;
