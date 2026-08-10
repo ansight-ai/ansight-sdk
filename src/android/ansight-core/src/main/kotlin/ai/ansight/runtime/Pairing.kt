@@ -370,13 +370,27 @@ internal object LocalPairingDocumentFactory {
         appName: String,
         hostAddress: String,
         discoveryPort: Int,
+    ): String = createPayload(
+        appId = application.packageName,
+        appName = appName,
+        accessToken = AndroidPairingDeviceIdentity.resolveAccessToken(application),
+        hostAddress = hostAddress,
+        discoveryPort = discoveryPort,
+    )
+
+    fun createPayload(
+        appId: String,
+        appName: String,
+        accessToken: String,
+        hostAddress: String,
+        discoveryPort: Int,
     ): String {
         val now = Instant.now()
         val expiresAt = now.plusSeconds(10L * 365L * 24L * 60L * 60L).toString()
         val invite = JSONObject()
             .put("schema", PairingConfig.SchemaName)
-            .put("inviteId", "${PairingEnrollmentModes.LocalConfigPrefix}${application.packageName}")
-            .put("appId", application.packageName)
+            .put("inviteId", "${PairingEnrollmentModes.LocalConfigPrefix}$appId")
+            .put("appId", appId)
             .put("appName", appName)
             .put("issuedAt", now.toString())
             .put("expiresAt", expiresAt)
@@ -391,11 +405,11 @@ internal object LocalPairingDocumentFactory {
             .put(
                 "enrollment",
                 JSONObject()
-                    .put("accessToken", AndroidPairingDeviceIdentity.resolveAccessToken(application))
+                    .put("accessToken", accessToken)
                     .put("expiresAt", expiresAt)
                     .put("grantExpiresAt", expiresAt)
                     .put("maxUses", 1)
-                    .put("maxScopes", JSONArray().put("Read"))
+                    .put("maxScopes", JSONArray().put("Read").put("Write"))
                     .put("allowCritical", false),
             )
         val discovery = JSONObject()

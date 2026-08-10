@@ -23,7 +23,7 @@ public static class VisualTreeToolSecurityProfiles
         ToolSecurityImplications.InspectsUi);
 
     public static ToolSecurity ShowOverlay { get; } = new(
-        ToolSecurityLevel.Critical,
+        ToolSecurityLevel.High,
         "Adds an input-transparent diagnostic overlay to the live app window.",
         ToolSecurityImplications.InspectsUi,
         ToolSecurityImplications.MutatesRuntimeState);
@@ -41,19 +41,19 @@ public static class VisualTreeToolSecurityProfiles
         ToolSecurityImplications.InspectsUi);
 
     public static ToolSecurity UpdateOverlay { get; } = new(
-        ToolSecurityLevel.Critical,
+        ToolSecurityLevel.High,
         "Edits an existing diagnostic overlay in the live app window.",
         ToolSecurityImplications.InspectsUi,
         ToolSecurityImplications.MutatesRuntimeState);
 
     public static ToolSecurity RemoveOverlay { get; } = new(
-        ToolSecurityLevel.Critical,
+        ToolSecurityLevel.High,
         "Removes a diagnostic overlay from the live app window.",
         ToolSecurityImplications.InspectsUi,
         ToolSecurityImplications.MutatesRuntimeState);
 
     public static ToolSecurity ClearOverlays { get; } = new(
-        ToolSecurityLevel.Critical,
+        ToolSecurityLevel.High,
         "Removes live diagnostic overlays from the app window.",
         ToolSecurityImplications.InspectsUi,
         ToolSecurityImplications.MutatesRuntimeState);

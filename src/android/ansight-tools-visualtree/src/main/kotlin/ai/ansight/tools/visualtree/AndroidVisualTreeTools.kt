@@ -115,7 +115,7 @@ object AndroidVisualTreeTools {
             VisualTreeToolIds.RemoveOverlay,
             "Remove Overlay",
             "Removes a diagnostic overlay.",
-            ToolScope.Delete,
+            ToolScope.Write,
         ) { args, _ ->
             val id = args["id"] ?: return@androidUiTool AndroidToolResult.failure("Overlay id is required.", "overlay_id_required")
             AndroidToolResult.success(AndroidUiEvidence.removeOverlay(id))
@@ -124,7 +124,7 @@ object AndroidVisualTreeTools {
             VisualTreeToolIds.ClearOverlays,
             "Clear Overlays",
             "Clears diagnostic overlays.",
-            ToolScope.Delete,
+            ToolScope.Write,
         ) { _, _ ->
             AndroidToolResult.success(AndroidUiEvidence.clearOverlays())
         },

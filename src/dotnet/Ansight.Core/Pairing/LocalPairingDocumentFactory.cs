@@ -35,7 +35,7 @@ internal static class LocalPairingDocumentFactory
                     ExpiresAt = expiresAt,
                     GrantExpiresAt = expiresAt,
                     MaxUses = 1,
-                    MaxScopes = ["Read"],
+                    MaxScopes = ["Read", "Write"],
                     AllowCritical = false
                 }
             },

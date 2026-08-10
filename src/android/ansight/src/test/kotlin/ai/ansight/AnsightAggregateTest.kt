@@ -14,6 +14,7 @@ import ai.ansight.runtime.AndroidToolExecutionContext
 import ai.ansight.runtime.AndroidToolResult
 import ai.ansight.runtime.AnsightToolGuard
 import ai.ansight.runtime.AnsightOptions
+import ai.ansight.runtime.ToolScope
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -68,6 +69,20 @@ class AnsightAggregateTest {
         assertEquals(expected.size, ids.size)
         expected.forEach { id ->
             assertTrue("Missing tool id $id", ids.contains(id))
+        }
+    }
+
+    @Test
+    fun overlayMutationsUseWriteScope() {
+        val definitions = AndroidStandardTools.create().associateBy { it.definition.id }
+
+        listOf(
+            VisualTreeToolIds.ShowOverlay,
+            VisualTreeToolIds.UpdateOverlay,
+            VisualTreeToolIds.RemoveOverlay,
+            VisualTreeToolIds.ClearOverlays,
+        ).forEach { toolId ->
+            assertEquals(ToolScope.Write, definitions.getValue(toolId).definition.scope)
         }
     }
 

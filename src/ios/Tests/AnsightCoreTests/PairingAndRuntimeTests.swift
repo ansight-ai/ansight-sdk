@@ -3,6 +3,18 @@ import XCTest
 @testable import AnsightPairingQR
 
 final class PairingAndRuntimeTests: XCTestCase {
+    func testLocalPairingDocumentAdvertisesReadAndWriteWithoutCriticalAccess() {
+        let document = LocalPairingDocumentFactory.create(
+            appId: "com.ansight.unit-tests",
+            appName: "Unit Test App",
+            hostAddress: "127.0.0.1",
+            discoveryPort: 45_200
+        )
+
+        XCTAssertEqual(document.config.enrollment.maxScopes, ["Read", "Write"])
+        XCTAssertFalse(document.config.enrollment.allowCritical)
+    }
+
     func testLatestValueBufferReplacesOnlyThePendingValue() async {
         let buffer = AnsightLatestValueBuffer<Int>()
 

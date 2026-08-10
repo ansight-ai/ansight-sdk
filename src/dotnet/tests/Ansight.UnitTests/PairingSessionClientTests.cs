@@ -1,10 +1,27 @@
 using System.Net;
 using Ansight.Pairing;
+using Ansight.Pairing.Models;
 
 namespace Ansight.UnitTests;
 
 public sealed class PairingSessionClientTests
 {
+    [Fact]
+    public void CreateLocalPairingDocument_AdvertisesReadAndWriteWithoutCriticalAccess()
+    {
+        var appId = $"com.ansight.unit-tests.{Guid.NewGuid():N}";
+
+        var document = LocalPairingDocumentFactory.Create(
+            appId,
+            "Unit Test App",
+            "127.0.0.1",
+            45200);
+
+        var enrollment = Assert.IsType<PairingEnrollment>(document.Config.Enrollment);
+        Assert.Equal(["Read", "Write"], enrollment.MaxScopes);
+        Assert.False(enrollment.AllowCritical);
+    }
+
     [Fact]
     public void CreateSessionOpenPayload_WhenCustomPropertiesAreRegistered_IncludesGroupedProperties()
     {

@@ -85,7 +85,9 @@ enum LocalPairingDocumentFactory {
                 enrollment: PairingEnrollment(
                     accessToken: PairingDeviceIdentity.resolveAccessToken(),
                     expiresAt: expiresAtValue,
-                    grantExpiresAt: expiresAtValue
+                    grantExpiresAt: expiresAtValue,
+                    maxScopes: ["Read", "Write"],
+                    allowCritical: false
                 )
             ),
             discoveryHint: PairingDiscoveryHint(

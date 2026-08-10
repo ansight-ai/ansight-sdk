@@ -13,6 +13,28 @@ import kotlin.concurrent.thread
 
 class PairingSessionConnectorTest {
     @Test
+    fun localPairingDocumentAdvertisesReadAndWriteWithoutCriticalAccess() {
+        val payload = LocalPairingDocumentFactory.createPayload(
+            appId = "ai.ansight.test",
+            appName = "Ansight Test",
+            accessToken = "local-token",
+            hostAddress = "127.0.0.1",
+            discoveryPort = 45_200,
+        )
+
+        val enrollment = JSONObject(payload)
+            .getJSONObject("invite")
+            .getJSONObject("enrollment")
+
+        val maxScopes = enrollment.getJSONArray("maxScopes")
+        assertEquals(
+            listOf("Read", "Write"),
+            (0 until maxScopes.length()).map(maxScopes::getString),
+        )
+        assertFalse(enrollment.getBoolean("allowCritical"))
+    }
+
+    @Test
     fun validateDocumentAcceptsGenericInviteForRuntimePackage() {
         val document = pairingDocument(45_123).copy(
             config = pairingConfig(45_123).copy(
