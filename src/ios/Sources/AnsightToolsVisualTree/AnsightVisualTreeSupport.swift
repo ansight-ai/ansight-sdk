@@ -43,9 +43,12 @@ internal enum AnsightVisualTreeSupport {
             return .success(.object([
                 "platform": .string(currentPlatform),
                 "source": .string(AnsightVisualTreeProviderRegistry.nativeSource),
+                "format": .string("ansight.native.visual-tree.v1"),
                 "adapter": .string("apple.uikit"),
                 "capturedAtUtc": .string(AnsightClock.isoNow()),
                 "root": selectedRoot.jsonValue(includeBounds: includeBounds, includeProperties: includeProperties, maxDepth: maxDepth),
+                "nodeCount": .integer(Int64(selectedRoot.nodeCount)),
+                "truncated": .bool(false),
             ]))
         } catch let error as AnsightVisualTreeToolError {
             return .failure(error.localizedDescription, errorCode: error.errorCode)
@@ -283,6 +286,7 @@ internal enum AnsightVisualTreeSupport {
         return AnsightVisualNode(
             id: nodeId(for: view),
             type: String(describing: type(of: view)),
+            automationId: normalized(view.accessibilityIdentifier),
             label: label(for: view),
             visible: !view.isHidden && view.alpha > 0,
             enabled: isEnabled(view),

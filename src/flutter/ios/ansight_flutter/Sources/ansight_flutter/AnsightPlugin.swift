@@ -1080,7 +1080,10 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
                 "captureGpuBackedSurfaces",
                 defaultValue:
                     AnsightSessionJpegCaptureOptions.defaultCaptureGpuBackedSurfaces
-            )
+            ),
+            mode: stringValue(value, "mode") == "screenshotAndVisualTree"
+                ? .screenshotAndVisualTree
+                : .screenshotOnly
         )
     }
 

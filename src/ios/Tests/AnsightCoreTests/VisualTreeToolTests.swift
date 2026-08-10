@@ -3,6 +3,27 @@ import XCTest
 @testable import AnsightToolsVisualTree
 
 final class VisualTreeToolTests: XCTestCase {
+    func testVisualNodeIncludesAutomationIdentifier() {
+        let node = AnsightVisualNode(
+            id: "node-1",
+            type: "UIButton",
+            automationId: "checkout.submit",
+            label: "Submit",
+            visible: true,
+            enabled: true,
+            focusable: true,
+            bounds: nil,
+            visual: [:],
+            properties: [:],
+            children: []
+        )
+
+        guard case .object(let payload) = node.jsonValue(includeBounds: true, includeProperties: true, maxDepth: 1) else {
+            return XCTFail("Expected a visual-tree node object.")
+        }
+        XCTAssertEqual(payload["automationId"], .string("checkout.submit"))
+    }
+
     func testVisualTreeToolsRegisterExpectedToolIds() {
         XCTAssertEqual(
             [

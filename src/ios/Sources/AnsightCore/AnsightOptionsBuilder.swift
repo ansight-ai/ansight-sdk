@@ -78,13 +78,15 @@ public final class AnsightOptionsBuilder {
         intervalMilliseconds: Int = AnsightSessionJpegCaptureOptions.defaultIntervalMilliseconds,
         quality: Int = AnsightSessionJpegCaptureOptions.defaultQuality,
         maxWidth: Int? = AnsightSessionJpegCaptureOptions.defaultMaxWidth,
-        captureGpuBackedSurfaces: Bool = AnsightSessionJpegCaptureOptions.defaultCaptureGpuBackedSurfaces
+        captureGpuBackedSurfaces: Bool = AnsightSessionJpegCaptureOptions.defaultCaptureGpuBackedSurfaces,
+        mode: AnsightSessionJpegCaptureMode = AnsightSessionJpegCaptureOptions.defaultMode
     ) -> AnsightOptionsBuilder {
         options.sessionJpegCapture = AnsightSessionJpegCaptureOptions(
             intervalMilliseconds: intervalMilliseconds,
             quality: quality,
             maxWidth: maxWidth,
-            captureGpuBackedSurfaces: captureGpuBackedSurfaces
+            captureGpuBackedSurfaces: captureGpuBackedSurfaces,
+            mode: mode
         )
         return self
     }

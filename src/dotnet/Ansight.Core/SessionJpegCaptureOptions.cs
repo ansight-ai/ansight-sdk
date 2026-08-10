@@ -1,6 +1,15 @@
 namespace Ansight;
 
 /// <summary>
+/// Selects the evidence captured for each live-session screenshot interval.
+/// </summary>
+public enum SessionJpegCaptureMode
+{
+    ScreenshotOnly,
+    ScreenshotAndVisualTree
+}
+
+/// <summary>
 /// Configures periodic JPEG capture of the app's own root surface while an Ansight pairing session is open.
 /// JPEG capture renders the app surface and compresses it for transport, so enabling it can negatively affect runtime performance.
 /// </summary>
@@ -26,4 +35,9 @@ public sealed class SessionJpegCaptureOptions
     /// Disable this to use a lower-overhead capture path when those surfaces are not required.
     /// </summary>
     public bool CaptureGpuBackedSurfaces { get; set; } = true;
+
+    /// <summary>
+    /// Selects whether each screenshot is accompanied by the currently registered visual-tree snapshots.
+    /// </summary>
+    public SessionJpegCaptureMode Mode { get; set; } = SessionJpegCaptureMode.ScreenshotOnly;
 }

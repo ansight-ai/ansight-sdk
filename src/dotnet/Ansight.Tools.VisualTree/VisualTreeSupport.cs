@@ -16,6 +16,7 @@ using Android.Views;
 using Android.Widget;
 #elif IOS || MACCATALYST
 using CoreGraphics;
+using CoreFoundation;
 using Foundation;
 using UIKit;
 #endif
@@ -23,6 +24,40 @@ using UIKit;
 internal static partial class VisualTreeSupport
 {
     private static int lastEncodedScreenshotBytes = 32 * 1024;
+#if IOS || MACCATALYST
+    // Hot-swapped SDK assemblies cannot assume a prior app link preserved these managed UIKit accessors.
+    private static readonly IntPtr appleBackgroundColorSelector = ObjCRuntime.Selector.GetHandle("backgroundColor");
+    private static readonly IntPtr appleColorComponentsSelector = ObjCRuntime.Selector.GetHandle("getRed:green:blue:alpha:");
+    private static readonly IntPtr appleIsOnSelector = ObjCRuntime.Selector.GetHandle("isOn");
+    private static readonly IntPtr appleTextFieldPlaceholderSelector = ObjCRuntime.Selector.GetHandle("placeholder");
+    private static readonly IntPtr appleTextColorSelector = ObjCRuntime.Selector.GetHandle("textColor");
+    private static readonly IntPtr appleTitleColorForStateSelector = ObjCRuntime.Selector.GetHandle("titleColorForState:");
+    private static readonly IntPtr appleValueSelector = ObjCRuntime.Selector.GetHandle("value");
+
+    [System.Runtime.InteropServices.DllImport(ObjCRuntime.Constants.ObjectiveCLibrary, EntryPoint = "objc_msgSend")]
+    private static extern IntPtr SendNativeObject(IntPtr receiver, IntPtr selector);
+
+    [System.Runtime.InteropServices.DllImport(ObjCRuntime.Constants.ObjectiveCLibrary, EntryPoint = "objc_msgSend")]
+    private static extern IntPtr SendNativeObjectWithUnsignedInteger(IntPtr receiver, IntPtr selector, nuint argument);
+
+    [System.Runtime.InteropServices.DllImport(ObjCRuntime.Constants.ObjectiveCLibrary, EntryPoint = "objc_msgSend")]
+    private static extern byte SendNativeBoolean(IntPtr receiver, IntPtr selector);
+
+    [System.Runtime.InteropServices.DllImport(ObjCRuntime.Constants.ObjectiveCLibrary, EntryPoint = "objc_msgSend")]
+    private static extern float SendNativeFloat(IntPtr receiver, IntPtr selector);
+
+    [System.Runtime.InteropServices.DllImport(ObjCRuntime.Constants.ObjectiveCLibrary, EntryPoint = "objc_msgSend")]
+    private static extern double SendNativeDouble(IntPtr receiver, IntPtr selector);
+
+    [System.Runtime.InteropServices.DllImport(ObjCRuntime.Constants.ObjectiveCLibrary, EntryPoint = "objc_msgSend")]
+    private static extern byte SendNativeColorComponents(
+        IntPtr receiver,
+        IntPtr selector,
+        out nfloat red,
+        out nfloat green,
+        out nfloat blue,
+        out nfloat alpha);
+#endif
 
     internal static Task<ToolResult> GetNativeVisualTreeAsync(IReadOnlyDictionary<string, string> arguments)
     {
@@ -259,6 +294,7 @@ internal static partial class VisualTreeSupport
         internal VisualNode(
             string id,
             string type,
+            string? automationId,
             string? label,
             bool isVisible,
             bool isEnabled,
@@ -271,6 +307,7 @@ internal static partial class VisualTreeSupport
         {
             Id = id;
             Type = type;
+            AutomationId = automationId;
             Label = label;
             IsVisible = isVisible;
             IsEnabled = isEnabled;
@@ -284,6 +321,7 @@ internal static partial class VisualTreeSupport
 
         internal string Id { get; }
         internal string Type { get; }
+        internal string? AutomationId { get; }
         internal string? Label { get; }
         internal bool IsVisible { get; }
         internal bool IsEnabled { get; }
@@ -354,6 +392,7 @@ internal static partial class VisualTreeSupport
             {
                 ["id"] = Id,
                 ["type"] = Type,
+                ["automationId"] = AutomationId,
                 ["label"] = Label,
                 ["visible"] = IsVisible,
                 ["enabled"] = IsEnabled,
@@ -710,6 +749,7 @@ internal static partial class VisualTreeSupport
         return new VisualNode(
             id: view.Handle != IntPtr.Zero ? view.Handle.ToInt64().ToString() : view.GetHashCode().ToString(),
             type: view.Class?.SimpleName ?? view.GetType().Name,
+            automationId: GetAndroidAutomationId(view),
             label: GetAndroidLabel(view),
             isVisible: view.Visibility == ViewStates.Visible && view.Alpha > 0,
             isEnabled: view.Enabled,
@@ -736,6 +776,25 @@ internal static partial class VisualTreeSupport
             TextView textView when !string.IsNullOrWhiteSpace(textView.Text) => textView.Text,
             _ => view.ContentDescription?.ToString()
         };
+    }
+
+    private static string? GetAndroidAutomationId(View view)
+    {
+        if (view.Id != View.NoId)
+        {
+            try
+            {
+                return view.Resources?.GetResourceName(view.Id) ?? view.Id.ToString();
+            }
+            catch
+            {
+                return view.Id.ToString();
+            }
+        }
+
+        return view.Tag?.ToString() is { } tag && !string.IsNullOrWhiteSpace(tag)
+            ? tag.Trim()
+            : null;
     }
 
     private static JsonObject CreateAndroidVisual(View view)
@@ -1056,6 +1115,7 @@ internal static partial class VisualTreeSupport
         return new VisualNode(
             id: !string.IsNullOrWhiteSpace(view.Handle.ToString()) ? view.Handle.ToString() : view.GetHashCode().ToString(),
             type: view.GetType().Name,
+            automationId: string.IsNullOrWhiteSpace(view.AccessibilityIdentifier) ? null : view.AccessibilityIdentifier.Trim(),
             label: GetAppleLabel(view),
             isVisible: !view.Hidden && view.Alpha > 0,
             isEnabled: view.UserInteractionEnabled,
@@ -1079,11 +1139,32 @@ internal static partial class VisualTreeSupport
         {
             UILabel label when !string.IsNullOrWhiteSpace(label.Text) => label.Text,
             UIButton button when !string.IsNullOrWhiteSpace(button.CurrentTitle) => button.CurrentTitle,
-            UITextField { SecureTextEntry: true } textField => textField.Placeholder ?? view.AccessibilityLabel ?? view.AccessibilityIdentifier,
+            UITextField { SecureTextEntry: true } textField => GetAppleTextFieldPlaceholder(textField) ?? view.AccessibilityLabel ?? view.AccessibilityIdentifier,
             UITextField textField when !string.IsNullOrWhiteSpace(textField.Text) => textField.Text,
             UITextView textView when !string.IsNullOrWhiteSpace(textView.Text) => textView.Text,
             _ => view.AccessibilityLabel ?? view.AccessibilityIdentifier
         };
+    }
+
+    private static string? GetAppleTextFieldPlaceholder(UITextField textField)
+    {
+        var placeholderHandle = SendNativeObject(textField.Handle, appleTextFieldPlaceholderSelector);
+        return placeholderHandle == IntPtr.Zero ? null : CFString.FromHandle(placeholderHandle);
+    }
+
+    private static UIColor? GetAppleColor(NSObject owner, IntPtr selector)
+    {
+        var colorHandle = SendNativeObject(owner.Handle, selector);
+        return colorHandle == IntPtr.Zero ? null : ObjCRuntime.Runtime.GetNSObject<UIColor>(colorHandle);
+    }
+
+    private static UIColor? GetAppleButtonTitleColor(UIButton button)
+    {
+        var colorHandle = SendNativeObjectWithUnsignedInteger(
+            button.Handle,
+            appleTitleColorForStateSelector,
+            (nuint)UIControlState.Normal);
+        return colorHandle == IntPtr.Zero ? null : ObjCRuntime.Runtime.GetNSObject<UIColor>(colorHandle);
     }
 
     private static JsonObject CreateAppleVisual(UIView view)
@@ -1093,17 +1174,17 @@ internal static partial class VisualTreeSupport
             ["opacity"] = Math.Clamp((double)view.Alpha, 0d, 1d)
         };
 
-        if (view.BackgroundColor is { } backgroundColor)
+        if (GetAppleColor(view, appleBackgroundColorSelector) is { } backgroundColor)
         {
             visual["background"] = ToArgbHex(backgroundColor);
         }
 
         UIColor? foregroundColor = view switch
         {
-            UILabel label => label.TextColor,
-            UIButton button => button.TitleColor(UIControlState.Normal),
-            UITextField textField => textField.TextColor,
-            UITextView textView => textView.TextColor,
+            UILabel label => GetAppleColor(label, appleTextColorSelector),
+            UIButton button => GetAppleButtonTitleColor(button),
+            UITextField textField => GetAppleColor(textField, appleTextColorSelector),
+            UITextView textView => GetAppleColor(textView, appleTextColorSelector),
             _ => null
         };
         if (foregroundColor is not null)
@@ -1115,7 +1196,7 @@ internal static partial class VisualTreeSupport
         {
             UILabel label => label.Text,
             UIButton button => button.CurrentTitle,
-            UITextField textField => textField.Placeholder,
+            UITextField textField => GetAppleTextFieldPlaceholder(textField),
             _ => null
         };
         AddVisualString(visual, "text", text);
@@ -1129,13 +1210,13 @@ internal static partial class VisualTreeSupport
                 AddVisualString(visual, "value", textView.Text);
                 break;
             case UISwitch toggle:
-                visual["value"] = toggle.On ? "true" : "false";
+                visual["value"] = SendNativeBoolean(toggle.Handle, appleIsOnSelector) != 0 ? "true" : "false";
                 break;
             case UISlider slider:
-                visual["value"] = slider.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                visual["value"] = SendNativeFloat(slider.Handle, appleValueSelector).ToString(System.Globalization.CultureInfo.InvariantCulture);
                 break;
             case UIStepper stepper:
-                visual["value"] = stepper.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                visual["value"] = SendNativeDouble(stepper.Handle, appleValueSelector).ToString(System.Globalization.CultureInfo.InvariantCulture);
                 break;
         }
 
@@ -1146,7 +1227,17 @@ internal static partial class VisualTreeSupport
     {
         try
         {
-            color.GetRGBA(out var red, out var green, out var blue, out var alpha);
+            if (SendNativeColorComponents(
+                    color.Handle,
+                    appleColorComponentsSelector,
+                    out var red,
+                    out var green,
+                    out var blue,
+                    out var alpha) == 0)
+            {
+                return "#00000000";
+            }
+
             return $"#{ToColorByte(alpha):X2}{ToColorByte(red):X2}{ToColorByte(green):X2}{ToColorByte(blue):X2}";
         }
         catch

@@ -19,6 +19,7 @@ import ai.ansight.runtime.AnsightHostConnectionOptions;
 import ai.ansight.runtime.AnsightOptions;
 import ai.ansight.runtime.AnsightOptionsBuilder;
 import ai.ansight.runtime.AnsightRuntime;
+import ai.ansight.runtime.AnsightSessionJpegCaptureMode;
 import ai.ansight.runtime.AppLifecycleState;
 import ai.ansight.runtime.DefaultMemoryChannels;
 import ai.ansight.runtime.HostConnectionCapabilities;
@@ -348,7 +349,10 @@ public final class AnsightDotNetBridge {
                 sessionJpegCapture.has("maxWidth") && !sessionJpegCapture.isNull("maxWidth")
                     ? Integer.valueOf(sessionJpegCapture.getInt("maxWidth"))
                     : null,
-                sessionJpegCapture.optBoolean("captureGpuBackedSurfaces", true)
+                sessionJpegCapture.optBoolean("captureGpuBackedSurfaces", true),
+                "screenshotAndVisualTree".equalsIgnoreCase(sessionJpegCapture.optString("mode"))
+                    ? AnsightSessionJpegCaptureMode.ScreenshotAndVisualTree
+                    : AnsightSessionJpegCaptureMode.ScreenshotOnly
             );
         }
 

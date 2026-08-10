@@ -1,26 +1,35 @@
 import Foundation
 
+public enum AnsightSessionJpegCaptureMode: String, Sendable, Codable, Equatable {
+    case screenshotOnly
+    case screenshotAndVisualTree
+}
+
 public struct AnsightSessionJpegCaptureOptions: Sendable, Codable, Equatable {
     public static let defaultIntervalMilliseconds = 2_000
     public static let defaultQuality = 60
     public static let defaultMaxWidth = 480
     public static let defaultCaptureGpuBackedSurfaces = true
+    public static let defaultMode = AnsightSessionJpegCaptureMode.screenshotOnly
 
     public var intervalMilliseconds: Int
     public var quality: Int
     public var maxWidth: Int?
     public var captureGpuBackedSurfaces: Bool
+    public var mode: AnsightSessionJpegCaptureMode
 
     public init(
         intervalMilliseconds: Int = Self.defaultIntervalMilliseconds,
         quality: Int = Self.defaultQuality,
         maxWidth: Int? = Self.defaultMaxWidth,
-        captureGpuBackedSurfaces: Bool = Self.defaultCaptureGpuBackedSurfaces
+        captureGpuBackedSurfaces: Bool = Self.defaultCaptureGpuBackedSurfaces,
+        mode: AnsightSessionJpegCaptureMode = Self.defaultMode
     ) {
         self.intervalMilliseconds = intervalMilliseconds
         self.quality = quality
         self.maxWidth = maxWidth
         self.captureGpuBackedSurfaces = captureGpuBackedSurfaces
+        self.mode = mode
     }
 
     public init(from decoder: Decoder) throws {
@@ -34,6 +43,8 @@ public struct AnsightSessionJpegCaptureOptions: Sendable, Codable, Equatable {
             : Self.defaultMaxWidth
         captureGpuBackedSurfaces = try container.decodeIfPresent(Bool.self, forKey: .captureGpuBackedSurfaces)
             ?? Self.defaultCaptureGpuBackedSurfaces
+        mode = try container.decodeIfPresent(AnsightSessionJpegCaptureMode.self, forKey: .mode)
+            ?? Self.defaultMode
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -42,6 +53,7 @@ public struct AnsightSessionJpegCaptureOptions: Sendable, Codable, Equatable {
         try container.encode(quality, forKey: .quality)
         try container.encodeIfPresent(maxWidth, forKey: .maxWidth)
         try container.encode(captureGpuBackedSurfaces, forKey: .captureGpuBackedSurfaces)
+        try container.encode(mode, forKey: .mode)
     }
 
     public mutating func validate() {
@@ -57,5 +69,6 @@ public struct AnsightSessionJpegCaptureOptions: Sendable, Codable, Equatable {
         case quality
         case maxWidth
         case captureGpuBackedSurfaces
+        case mode
     }
 }

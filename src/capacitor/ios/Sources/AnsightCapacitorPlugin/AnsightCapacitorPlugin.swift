@@ -880,7 +880,10 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
                 dictionary,
                 "captureGpuBackedSurfaces",
                 defaultValue: AnsightSessionJpegCaptureOptions.defaultCaptureGpuBackedSurfaces
-            )
+            ),
+            mode: stringValue(dictionary, "mode") == "screenshotAndVisualTree"
+                ? .screenshotAndVisualTree
+                : .screenshotOnly
         )
     }
 

@@ -1,4 +1,5 @@
 using Ansight.Pairing;
+using System.Text.Json.Nodes;
 
 namespace Ansight.Screenshot;
 
@@ -110,7 +111,8 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
             IntervalMilliseconds = configured.IntervalMilliseconds,
             Quality = configured.Quality,
             MaxWidth = configured.MaxWidth,
-            CaptureGpuBackedSurfaces = configured.CaptureGpuBackedSurfaces
+            CaptureGpuBackedSurfaces = configured.CaptureGpuBackedSurfaces,
+            Mode = configured.Mode
         };
     }
 
@@ -158,6 +160,23 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
 
                 using (surface)
                 {
+                    IReadOnlyList<JsonObject> visualTrees = Array.Empty<JsonObject>();
+                    if (options.Mode == SessionJpegCaptureMode.ScreenshotAndVisualTree)
+                    {
+                        try
+                        {
+                            visualTrees = await SessionVisualTreeCaptureRegistry.CaptureAsync(cancellationToken);
+                        }
+                        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                        {
+                            throw;
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Warning($"Session visual-tree capture skipped: {ex.Message}");
+                        }
+                    }
+
                     var sendResult = await SessionJpegCaptureSupport.SendSurfaceAsync(
                         surface,
                         options,
@@ -172,6 +191,21 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
                             source: HostConnectionSource.SessionJpegCapture);
                         return;
                     }
+
+                    foreach (var visualTree in visualTrees)
+                    {
+                        var visualTreeEvent = CreateVisualTreeEvent(visualTree, surface.CapturedAtUtc);
+                        sendResult = await transport.SendTextAsync(visualTreeEvent.ToJsonString(), cancellationToken);
+                        if (!sendResult.Success)
+                        {
+                            HostPairingProgressReporter.Report(
+                                progress,
+                                HostConnectionProgressKind.Warning,
+                                $"Session visual-tree capture skipped: {sendResult.Message}",
+                                source: HostConnectionSource.SessionJpegCapture);
+                            break;
+                        }
+                    }
                 }
             }
             catch (OperationCanceledException)
@@ -183,5 +217,75 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
                 Logger.Warning($"Session JPEG capture skipped: {ex.Message}");
             }
         }
+    }
+
+    private static JsonObject CreateVisualTreeEvent(JsonObject sourcePayload, DateTimeOffset capturedAtUtc)
+    {
+        var payload = sourcePayload.DeepClone() as JsonObject ?? new JsonObject();
+        payload["capturedAtUtc"] = capturedAtUtc.ToUniversalTime().ToString("O");
+        var source = ReadString(payload, "source") ?? "native";
+        var format = ReadString(payload, "format") ?? ReadString(payload, "schema") ?? "ansight.visual-tree.v1";
+        var platform = ReadString(payload, "platform") ?? "dotnet";
+        var nodeCount = ReadInt32(payload, "nodeCount") ?? CountVisualTreeNodes(payload);
+        var truncated = ReadBoolean(payload, "truncated") ?? false;
+
+        return new JsonObject
+        {
+            ["type"] = "CLIENT_VISUAL_TREE",
+            ["snapshotId"] = $"stream-{Guid.NewGuid():N}",
+            ["capturedAtUtc"] = capturedAtUtc.ToUniversalTime(),
+            ["screenshotCapturedAtUtc"] = capturedAtUtc.ToUniversalTime(),
+            ["visualTreeKind"] = source,
+            ["visualTreeFormat"] = format,
+            ["runtimePlatform"] = platform,
+            ["source"] = "sdk.sessionCapture",
+            ["maxDepth"] = 40,
+            ["includeProperties"] = true,
+            ["includeBindableProperties"] = false,
+            ["nodeCount"] = Math.Max(0, nodeCount),
+            ["truncated"] = truncated,
+            ["payload"] = payload
+        };
+    }
+
+    private static string? ReadString(JsonObject payload, string propertyName)
+        => payload[propertyName] is JsonValue value && value.TryGetValue<string>(out var result)
+            ? result
+            : null;
+
+    private static int? ReadInt32(JsonObject payload, string propertyName)
+        => payload[propertyName] is JsonValue value && value.TryGetValue<int>(out var result)
+            ? result
+            : null;
+
+    private static bool? ReadBoolean(JsonObject payload, string propertyName)
+        => payload[propertyName] is JsonValue value && value.TryGetValue<bool>(out var result)
+            ? result
+            : null;
+
+    private static int CountVisualTreeNodes(JsonObject payload)
+    {
+        if (payload["nodes"] is JsonArray nodes)
+        {
+            return nodes.Count;
+        }
+
+        return payload["root"] is JsonObject root ? CountVisualTreeNode(root) : 0;
+    }
+
+    private static int CountVisualTreeNode(JsonObject node)
+    {
+        if (node["children"] is not JsonArray children)
+        {
+            return 1;
+        }
+
+        var count = 1;
+        foreach (var child in children.OfType<JsonObject>())
+        {
+            count += CountVisualTreeNode(child);
+        }
+
+        return count;
     }
 }

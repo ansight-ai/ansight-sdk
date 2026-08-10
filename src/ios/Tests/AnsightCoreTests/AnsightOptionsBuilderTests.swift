@@ -30,6 +30,7 @@ final class AnsightOptionsBuilderTests: XCTestCase {
         XCTAssertEqual(options.sessionJpegCapture?.quality, 60)
         XCTAssertEqual(options.sessionJpegCapture?.maxWidth, 480)
         XCTAssertEqual(options.sessionJpegCapture?.captureGpuBackedSurfaces, true)
+        XCTAssertEqual(options.sessionJpegCapture?.mode, .screenshotOnly)
         XCTAssertEqual(options.touchCapture?.moveCaptureFramesPerSecond, 12)
         XCTAssertEqual(options.toolGuard, .readWrite)
         XCTAssertEqual(options.customProperties["runtime"]?["sdk"], "ios")
@@ -64,6 +65,14 @@ final class AnsightOptionsBuilderTests: XCTestCase {
         XCTAssertEqual(options.sessionJpegCapture?.captureGpuBackedSurfaces, false)
     }
 
+    func testBuilderCanCaptureScreenshotAndVisualTree() throws {
+        let options = try AnsightOptions.createBuilder()
+            .withSessionJpegCapture(mode: .screenshotAndVisualTree)
+            .build()
+
+        XCTAssertEqual(options.sessionJpegCapture?.mode, .screenshotAndVisualTree)
+    }
+
     func testHostConnectionDecodeDefaultsCellularConnectionsToDisabled() throws {
         let json = #"{"savedConfigKey":"saved","connectionProfileRetentionSeconds":60}"#
         let data = try XCTUnwrap(json.data(using: .utf8))
@@ -81,6 +90,7 @@ final class AnsightOptionsBuilderTests: XCTestCase {
 
         XCTAssertNil(options.maxWidth)
         XCTAssertEqual(options.captureGpuBackedSurfaces, true)
+        XCTAssertEqual(options.mode, .screenshotOnly)
     }
 
     func testSessionJpegCaptureDecodePreservesGpuBackedSurfaceCapture() throws {

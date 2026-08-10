@@ -35,6 +35,13 @@ object AndroidVisualTreeProviderRegistry {
         }
     }
 
+    @JvmStatic
+    fun registeredProviders(): List<AndroidVisualTreeProvider> {
+        return synchronized(lock) {
+            providers.toSortedMap().values.toList()
+        }
+    }
+
     fun normalizeSourceOrDefault(source: String?): String {
         val normalized = source?.trim()?.lowercase().orEmpty()
         return normalized.ifBlank { NativeSource }

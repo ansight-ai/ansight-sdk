@@ -1295,7 +1295,8 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
                 IntervalMilliseconds = source.IntervalMilliseconds,
                 Quality = source.Quality,
                 MaxWidth = source.MaxWidth,
-                CaptureGpuBackedSurfaces = source.CaptureGpuBackedSurfaces
+                CaptureGpuBackedSurfaces = source.CaptureGpuBackedSurfaces,
+                Mode = source.Mode
             };
     }
 

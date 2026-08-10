@@ -1,5 +1,6 @@
 package ai.ansight.runtime
 
+import org.json.JSONObject
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -33,14 +34,41 @@ object SessionJpegWireProtocol {
     }
 }
 
-fun PairingLiveSessionTransport.sendSessionJpegFrame(screenshot: CapturedScreenshot, quality: Int): OperationResult {
+fun PairingLiveSessionTransport.sendSessionJpegFrame(
+    screenshot: CapturedScreenshot,
+    quality: Int,
+    capturedAtEpochMs: Long = System.currentTimeMillis(),
+): OperationResult {
     return sendData(
         SessionJpegWireProtocol.createFrame(
-            capturedAtEpochMs = System.currentTimeMillis(),
+            capturedAtEpochMs = capturedAtEpochMs,
             width = screenshot.width,
             height = screenshot.height,
             quality = quality,
             jpegBytes = screenshot.bytes,
         ),
     )
+}
+
+fun PairingLiveSessionTransport.sendSessionVisualTree(
+    visualTree: JSONObject,
+    capturedAtUtc: String,
+): OperationResult {
+    val source = visualTree.optString("source", "native")
+    val payload = JSONObject()
+        .put("type", "CLIENT_VISUAL_TREE")
+        .put("snapshotId", "stream-${java.util.UUID.randomUUID()}")
+        .put("capturedAtUtc", capturedAtUtc)
+        .put("screenshotCapturedAtUtc", capturedAtUtc)
+        .put("visualTreeKind", source)
+        .put("visualTreeFormat", visualTree.optString("format", "ansight.native.visual-tree.v1"))
+        .put("runtimePlatform", visualTree.optString("platform", "android"))
+        .put("source", "sdk.sessionCapture")
+        .put("maxDepth", 40)
+        .put("includeProperties", true)
+        .put("includeBindableProperties", false)
+        .put("nodeCount", visualTree.optInt("nodeCount", 0))
+        .put("truncated", visualTree.optBoolean("truncated", false))
+        .put("payload", visualTree)
+    return sendText(payload.toString())
 }

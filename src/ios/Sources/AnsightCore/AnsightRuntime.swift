@@ -504,6 +504,9 @@ public final class AnsightRuntime: @unchecked Sendable {
             let capture = try await AnsightScreenCapture.capture(options: captureOptions)
             let frame = capture.frame
             let payload = SessionJpegWireProtocol.encode(frame)
+            let visualTrees = captureOptions.mode == .screenshotAndVisualTree
+                ? AnsightSessionVisualTreeCaptureRegistry.capture()
+                : []
             let readyAt = AnsightTiming.now()
             let totalMilliseconds = AnsightTiming.elapsedMilliseconds(since: captureStarted)
             let message = "Captured screen frame \(frame.width)x\(frame.height) (\(frame.jpegData.count) bytes, render \(capture.renderMilliseconds) ms, encode \(capture.encodeMilliseconds) ms); queued for delivery."
@@ -526,7 +529,8 @@ public final class AnsightRuntime: @unchecked Sendable {
                     captureStarted: captureStarted,
                     readyAt: readyAt,
                     renderMilliseconds: capture.renderMilliseconds,
-                    encodeMilliseconds: capture.encodeMilliseconds
+                    encodeMilliseconds: capture.encodeMilliseconds,
+                    visualTrees: visualTrees
                 ),
                 renderMilliseconds: capture.renderMilliseconds,
                 frameWidth: frame.width
@@ -548,7 +552,24 @@ public final class AnsightRuntime: @unchecked Sendable {
     private func sendPreparedScreenFrame(_ preparedFrame: PreparedScreenFrame) async -> ScreenCaptureSendResult {
         let queueMilliseconds = AnsightTiming.elapsedMilliseconds(since: preparedFrame.readyAt)
         let sendStarted = AnsightTiming.now()
-        let result = await liveTransport.sendData(preparedFrame.payload)
+        var result = await liveTransport.sendData(preparedFrame.payload)
+        if result.success {
+            for visualTree in preparedFrame.visualTrees {
+                do {
+                    let event = Self.sessionVisualTreeEvent(
+                        payload: visualTree,
+                        capturedAtUtc: preparedFrame.frame.capturedAtUtc
+                    )
+                    result = await liveTransport.sendText(try event.jsonString())
+                    if !result.success {
+                        break
+                    }
+                } catch {
+                    result = .failure("Failed to encode the captured visual tree: \(error.localizedDescription)")
+                    break
+                }
+            }
+        }
         let sendMilliseconds = AnsightTiming.elapsedMilliseconds(since: sendStarted)
         let totalMilliseconds = AnsightTiming.elapsedMilliseconds(since: preparedFrame.captureStarted)
         let frame = preparedFrame.frame
@@ -3258,6 +3279,79 @@ public final class AnsightRuntime: @unchecked Sendable {
         let readyAt: TimeInterval
         let renderMilliseconds: Int
         let encodeMilliseconds: Int
+        let visualTrees: [JSONValue]
+    }
+
+    private static func sessionVisualTreeEvent(payload: JSONValue, capturedAtUtc: String) -> JSONValue {
+        guard case .object(var payloadObject) = payload else {
+            return .object([
+                "type": .string("CLIENT_VISUAL_TREE"),
+                "snapshotId": .string("stream-\(UUID().uuidString)"),
+                "capturedAtUtc": .string(capturedAtUtc),
+                "screenshotCapturedAtUtc": .string(capturedAtUtc),
+                "visualTreeKind": .string("unknown"),
+                "source": .string("sdk.sessionCapture"),
+                "nodeCount": .integer(0),
+                "truncated": .bool(false),
+                "payload": payload,
+            ])
+        }
+
+        payloadObject["capturedAtUtc"] = .string(capturedAtUtc)
+        let source = jsonString(payloadObject["source"]) ?? "native"
+        let format = jsonString(payloadObject["format"] ?? payloadObject["schema"]) ?? "ansight.visual-tree.v1"
+        let platform = jsonString(payloadObject["platform"]) ?? "ios"
+        let nodeCount = jsonInteger(payloadObject["nodeCount"]) ?? countVisualTreeNodes(.object(payloadObject))
+        let truncated = jsonBoolean(payloadObject["truncated"]) ?? false
+
+        return .object([
+            "type": .string("CLIENT_VISUAL_TREE"),
+            "snapshotId": .string("stream-\(UUID().uuidString)"),
+            "capturedAtUtc": .string(capturedAtUtc),
+            "screenshotCapturedAtUtc": .string(capturedAtUtc),
+            "visualTreeKind": .string(source),
+            "visualTreeFormat": .string(format),
+            "runtimePlatform": .string(platform),
+            "source": .string("sdk.sessionCapture"),
+            "maxDepth": .integer(40),
+            "includeProperties": .bool(true),
+            "includeBindableProperties": .bool(false),
+            "nodeCount": .integer(Int64(nodeCount)),
+            "truncated": .bool(truncated),
+            "payload": .object(payloadObject),
+        ])
+    }
+
+    private static func jsonString(_ value: JSONValue?) -> String? {
+        guard case .string(let value) = value else { return nil }
+        return value
+    }
+
+    private static func jsonInteger(_ value: JSONValue?) -> Int? {
+        guard case .integer(let value) = value else { return nil }
+        return Int(exactly: value)
+    }
+
+    private static func jsonBoolean(_ value: JSONValue?) -> Bool? {
+        guard case .bool(let value) = value else { return nil }
+        return value
+    }
+
+    private static func countVisualTreeNodes(_ value: JSONValue) -> Int {
+        guard case .object(let object) = value else { return 0 }
+        if case .array(let nodes) = object["nodes"] {
+            return nodes.count
+        }
+        if let root = object["root"] {
+            return countVisualTreeNode(root)
+        }
+        return 0
+    }
+
+    private static func countVisualTreeNode(_ value: JSONValue) -> Int {
+        guard case .object(let object) = value else { return 0 }
+        guard case .array(let children) = object["children"] else { return 1 }
+        return 1 + children.reduce(0) { $0 + countVisualTreeNode($1) }
     }
 
     private struct ScreenCapturePreparationResult {

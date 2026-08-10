@@ -37,6 +37,7 @@ export interface AnsightSessionJpegCaptureOptions {
   quality?: number;
   maxWidth?: number;
   captureGpuBackedSurfaces?: boolean;
+  mode?: "screenshotOnly" | "screenshotAndVisualTree";
 }
 
 export interface AnsightTouchCaptureOptions {
@@ -262,7 +263,8 @@ export class AnsightOptionsBuilder {
     intervalMilliseconds: number,
     quality?: number,
     maxWidth?: number | null,
-    captureGpuBackedSurfaces?: boolean
+    captureGpuBackedSurfaces?: boolean,
+    mode?: "screenshotOnly" | "screenshotAndVisualTree"
   ): this;
   withoutSessionJpegCapture(): this;
   withTouchCapture(touchCapture?: AnsightTouchCaptureOptions): this;

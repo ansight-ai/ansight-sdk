@@ -205,6 +205,7 @@ internal enum AnsightVisualTreeToolSchemas {
         properties: [
             "id": string("Stable identifier for the node."),
             "type": string("Platform view type."),
+            "automationId": string("Platform automation or test identifier, when present.", nullable: true),
             "label": string("Best-effort visible or accessibility label.", nullable: true),
             "visible": boolean("Whether the node is visible."),
             "enabled": boolean("Whether the node is enabled."),

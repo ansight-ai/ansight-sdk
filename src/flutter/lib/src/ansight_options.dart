@@ -1,5 +1,10 @@
 import 'ansight_models.dart';
 
+enum AnsightSessionJpegCaptureMode {
+  screenshotOnly,
+  screenshotAndVisualTree,
+}
+
 class AnsightDefaultMemoryChannels {
   const AnsightDefaultMemoryChannels({
     this.managedHeap = true,
@@ -33,18 +38,21 @@ class AnsightSessionJpegCaptureOptions {
     this.quality = 60,
     this.maxWidth = 480,
     this.captureGpuBackedSurfaces = true,
+    this.mode = AnsightSessionJpegCaptureMode.screenshotOnly,
   });
 
   final int intervalMilliseconds;
   final int quality;
   final int? maxWidth;
   final bool captureGpuBackedSurfaces;
+  final AnsightSessionJpegCaptureMode mode;
 
   AnsightJson toJson() => <String, Object?>{
         'intervalMilliseconds': intervalMilliseconds,
         'quality': quality,
         'maxWidth': maxWidth,
         'captureGpuBackedSurfaces': captureGpuBackedSurfaces,
+        'mode': mode.name,
       };
 }
 

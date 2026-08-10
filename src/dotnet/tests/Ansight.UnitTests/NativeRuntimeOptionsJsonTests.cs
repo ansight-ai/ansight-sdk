@@ -17,7 +17,8 @@ public sealed class NativeRuntimeOptionsJsonTests
                 intervalMilliseconds: 1_500,
                 quality: 80,
                 maxWidth: 640,
-                captureGpuBackedSurfaces: false)
+                captureGpuBackedSurfaces: false,
+                mode: SessionJpegCaptureMode.ScreenshotAndVisualTree)
             .WithTouchCapture(
                 captureMoveEvents: false,
                 captureCancelEvents: true,
@@ -35,6 +36,7 @@ public sealed class NativeRuntimeOptionsJsonTests
         Assert.Equal("#112233", json["additionalChannels"]![0]!["color"]!.GetValue<string>());
         Assert.Equal(1_500, json["sessionJpegCapture"]!["intervalMilliseconds"]!.GetValue<int>());
         Assert.False(json["sessionJpegCapture"]!["captureGpuBackedSurfaces"]!.GetValue<bool>());
+        Assert.Equal("screenshotAndVisualTree", json["sessionJpegCapture"]!["mode"]!.GetValue<string>());
         Assert.False(json["touchCapture"]!["captureMoveEvents"]!.GetValue<bool>());
         Assert.Equal(6.5, json["touchCapture"]!["moveCaptureDistanceThreshold"]!.GetValue<double>());
         Assert.Equal("true", json["customProperties"]!["flags"]!["beta"]!.GetValue<string>());
@@ -68,7 +70,8 @@ public sealed class NativeRuntimeOptionsJsonTests
                 IntervalMilliseconds = 1_000,
                 Quality = 50,
                 MaxWidth = 480,
-                CaptureGpuBackedSurfaces = false
+                CaptureGpuBackedSurfaces = false,
+                Mode = SessionJpegCaptureMode.ScreenshotAndVisualTree
             })
             .Build();
 
@@ -76,6 +79,7 @@ public sealed class NativeRuntimeOptionsJsonTests
 
         Assert.NotNull(copiedOptions.SessionJpegCapture);
         Assert.False(copiedOptions.SessionJpegCapture.CaptureGpuBackedSurfaces);
+        Assert.Equal(SessionJpegCaptureMode.ScreenshotAndVisualTree, copiedOptions.SessionJpegCapture.Mode);
     }
 
     [Fact]

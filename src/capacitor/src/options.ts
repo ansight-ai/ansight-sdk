@@ -130,6 +130,7 @@ export class AnsightOptionsBuilder implements AnsightOptionsBuilderApi {
     quality?: number,
     maxWidth?: number | null,
     captureGpuBackedSurfaces?: boolean,
+    mode?: "screenshotOnly" | "screenshotAndVisualTree",
   ): this;
   withSessionJpegCapture(
     optionsOrIntervalMilliseconds:
@@ -137,6 +138,7 @@ export class AnsightOptionsBuilder implements AnsightOptionsBuilderApi {
     quality = 60,
     maxWidth: number | null = 480,
     captureGpuBackedSurfaces = true,
+    mode: "screenshotOnly" | "screenshotAndVisualTree" = "screenshotOnly",
   ): this {
     this.options.sessionJpegCapture =
       typeof optionsOrIntervalMilliseconds === "number"
@@ -145,11 +147,13 @@ export class AnsightOptionsBuilder implements AnsightOptionsBuilderApi {
             quality,
             maxWidth,
             captureGpuBackedSurfaces,
+            mode,
           }
         : {
             intervalMilliseconds: 2000,
             quality: 60,
             maxWidth: 480,
+            mode: "screenshotOnly",
             ...optionsOrIntervalMilliseconds,
           };
     return this;

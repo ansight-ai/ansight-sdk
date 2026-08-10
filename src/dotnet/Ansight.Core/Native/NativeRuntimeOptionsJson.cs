@@ -64,7 +64,10 @@ internal static class NativeRuntimeOptionsJson
             ["intervalMilliseconds"] = options.IntervalMilliseconds,
             ["quality"] = options.Quality,
             ["maxWidth"] = options.MaxWidth,
-            ["captureGpuBackedSurfaces"] = options.CaptureGpuBackedSurfaces
+            ["captureGpuBackedSurfaces"] = options.CaptureGpuBackedSurfaces,
+            ["mode"] = options.Mode == SessionJpegCaptureMode.ScreenshotAndVisualTree
+                ? "screenshotAndVisualTree"
+                : "screenshotOnly"
         };
     }
 

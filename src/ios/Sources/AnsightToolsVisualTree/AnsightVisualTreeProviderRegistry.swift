@@ -34,6 +34,12 @@ public enum AnsightVisualTreeProviderRegistry {
         return providers.keys.sorted()
     }
 
+    public static func registeredProviders() -> [any AnsightVisualTreeProvider] {
+        lock.lock()
+        defer { lock.unlock() }
+        return providers.keys.sorted().compactMap { providers[$0] }
+    }
+
     internal static func normalizedSourceOrDefault(_ source: String?) -> String {
         let normalized = source?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         return normalized?.isEmpty == false ? normalized! : nativeSource

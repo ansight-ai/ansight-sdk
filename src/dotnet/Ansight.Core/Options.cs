@@ -272,7 +272,8 @@ public class Options
                         IntervalMilliseconds = initialOptions.SessionJpegCapture.IntervalMilliseconds,
                         Quality = initialOptions.SessionJpegCapture.Quality,
                         MaxWidth = initialOptions.SessionJpegCapture.MaxWidth,
-                        CaptureGpuBackedSurfaces = initialOptions.SessionJpegCapture.CaptureGpuBackedSurfaces
+                        CaptureGpuBackedSurfaces = initialOptions.SessionJpegCapture.CaptureGpuBackedSurfaces,
+                        Mode = initialOptions.SessionJpegCapture.Mode
                     },
                 TouchCapture = initialOptions.TouchCapture?.Clone(),
                 ToolGuard = initialOptions.ToolGuard ?? ToolGuard.Disabled,
@@ -525,14 +526,16 @@ public class Options
         public OptionsBuilder WithSessionJpegCapture(
             ushort intervalMilliseconds = 2000,
             int quality = 70,
-            int? maxWidth = 720)
+            int? maxWidth = 720,
+            SessionJpegCaptureMode mode = SessionJpegCaptureMode.ScreenshotOnly)
         {
             options.SessionJpegCapture = new SessionJpegCaptureOptions
             {
                 IntervalMilliseconds = intervalMilliseconds,
                 Quality = quality,
                 MaxWidth = maxWidth,
-                CaptureGpuBackedSurfaces = true
+                CaptureGpuBackedSurfaces = true,
+                Mode = mode
             };
             return this;
         }
@@ -547,18 +550,21 @@ public class Options
         /// <param name="captureGpuBackedSurfaces">
         /// Whether supported Apple platforms should include GPU-backed surfaces using the higher-overhead capture path.
         /// </param>
+        /// <param name="mode">Selects screenshot-only or screenshot-and-visual-tree capture.</param>
         public OptionsBuilder WithSessionJpegCapture(
             ushort intervalMilliseconds,
             int quality,
             int? maxWidth,
-            bool captureGpuBackedSurfaces)
+            bool captureGpuBackedSurfaces,
+            SessionJpegCaptureMode mode = SessionJpegCaptureMode.ScreenshotOnly)
         {
             options.SessionJpegCapture = new SessionJpegCaptureOptions
             {
                 IntervalMilliseconds = intervalMilliseconds,
                 Quality = quality,
                 MaxWidth = maxWidth,
-                CaptureGpuBackedSurfaces = captureGpuBackedSurfaces
+                CaptureGpuBackedSurfaces = captureGpuBackedSurfaces,
+                Mode = mode
             };
             return this;
         }
@@ -576,7 +582,8 @@ public class Options
                 IntervalMilliseconds = sessionJpegCapture.IntervalMilliseconds,
                 Quality = sessionJpegCapture.Quality,
                 MaxWidth = sessionJpegCapture.MaxWidth,
-                CaptureGpuBackedSurfaces = sessionJpegCapture.CaptureGpuBackedSurfaces
+                CaptureGpuBackedSurfaces = sessionJpegCapture.CaptureGpuBackedSurfaces,
+                Mode = sessionJpegCapture.Mode
             };
             return this;
         }

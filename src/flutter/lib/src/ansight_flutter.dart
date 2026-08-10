@@ -514,12 +514,17 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
         : null;
     final widget = element.widget;
     final visual = _describeVisual(element, widget, renderObject);
+    final automationId = widget.key is ValueKey<String>
+        ? (widget.key! as ValueKey<String>).value.trim()
+        : null;
     return <String, Object?>{
       'id': id,
       if (parentId != null) 'parentId': parentId,
       'depth': depth,
       'type': widget.runtimeType.toString(),
       'widget': widget.toStringShort(),
+      if (automationId != null && automationId.isNotEmpty)
+        'automationId': automationId,
       if (widget.key != null) 'key': widget.key.toString(),
       'mounted': element.owner != null,
       'dirty': element.dirty,

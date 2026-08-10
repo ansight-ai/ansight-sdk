@@ -101,6 +101,7 @@ class AnsightOptionsTest {
         assertEquals(60, options.sessionJpegCapture?.quality)
         assertEquals(480, options.sessionJpegCapture?.maxWidth)
         assertEquals(true, options.sessionJpegCapture?.captureGpuBackedSurfaces)
+        assertEquals(AnsightSessionJpegCaptureMode.ScreenshotOnly, options.sessionJpegCapture?.mode)
         assertNotNull(options.touchCapture)
     }
 
@@ -160,6 +161,15 @@ class AnsightOptionsTest {
             .build()
 
         assertEquals(false, options.sessionJpegCapture?.captureGpuBackedSurfaces)
+    }
+
+    @Test
+    fun builderCanCaptureScreenshotAndVisualTree() {
+        val options = AnsightOptions.createBuilder()
+            .withSessionJpegCapture(mode = AnsightSessionJpegCaptureMode.ScreenshotAndVisualTree)
+            .build()
+
+        assertEquals(AnsightSessionJpegCaptureMode.ScreenshotAndVisualTree, options.sessionJpegCapture?.mode)
     }
 
     private class TestArtifactProvider : AndroidArtifactProvider {

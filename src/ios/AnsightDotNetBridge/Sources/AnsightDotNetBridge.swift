@@ -327,7 +327,8 @@ public final class ANSDotNetRuntime: NSObject {
                 intervalMilliseconds: sessionJpegCapture.intervalMilliseconds,
                 quality: sessionJpegCapture.quality,
                 maxWidth: sessionJpegCapture.maxWidth,
-                captureGpuBackedSurfaces: sessionJpegCapture.captureGpuBackedSurfaces
+                captureGpuBackedSurfaces: sessionJpegCapture.captureGpuBackedSurfaces,
+                mode: sessionJpegCapture.mode ?? .screenshotOnly
             )
         } else if bridgeOptions.hasSessionJpegCapture == false {
             options.sessionJpegCapture = nil
@@ -595,6 +596,7 @@ private struct BridgeSessionJpegCapture: Decodable {
     let quality: Int
     let maxWidth: Int?
     let captureGpuBackedSurfaces: Bool
+    let mode: AnsightSessionJpegCaptureMode?
 }
 
 private struct BridgeTouchCapture: Decodable {

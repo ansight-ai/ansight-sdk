@@ -84,6 +84,7 @@ internal static class VisualTreeToolSchemas
         {
             ["id"] = ToolSchema.String("Stable identifier for the node."),
             ["type"] = ToolSchema.String("Platform view type."),
+            ["automationId"] = ToolSchema.String("Platform automation or test identifier, when present.", nullable: true),
             ["label"] = ToolSchema.String("Best-effort visible or accessibility label.", nullable: true),
             ["visible"] = ToolSchema.Boolean("Whether the node is visible."),
             ["enabled"] = ToolSchema.Boolean("Whether the node is enabled."),

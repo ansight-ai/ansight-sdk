@@ -941,7 +941,10 @@ final class AnsightReactNative: RCTEventEmitter {
                         jpeg,
                         "captureGpuBackedSurfaces",
                         defaultValue: AnsightSessionJpegCaptureOptions.defaultCaptureGpuBackedSurfaces
-                    )
+                    ),
+                    mode: stringValue(jpeg, "mode") == "screenshotAndVisualTree"
+                        ? .screenshotAndVisualTree
+                        : .screenshotOnly
                 )
             }
         }
@@ -1267,7 +1270,10 @@ final class AnsightReactNative: RCTEventEmitter {
                 dictionary,
                 "captureGpuBackedSurfaces",
                 defaultValue: AnsightSessionJpegCaptureOptions.defaultCaptureGpuBackedSurfaces
-            )
+            ),
+            mode: stringValue(dictionary, "mode") == "screenshotAndVisualTree"
+                ? .screenshotAndVisualTree
+                : .screenshotOnly
         )
     }
 
@@ -1316,6 +1322,7 @@ final class AnsightReactNative: RCTEventEmitter {
                 "quality": capture.quality,
                 "maxWidth": capture.maxWidth as Any,
                 "captureGpuBackedSurfaces": capture.captureGpuBackedSurfaces,
+                "mode": capture.mode.rawValue,
             ]
         } else {
             dictionary["sessionJpegCapture"] = NSNull()

@@ -14,8 +14,8 @@ Android visual tree, screenshot, and diagnostic overlay tools.
 - `ui.remove_overlay`
 - `ui.clear_overlays`
 
-Read tools are available with `AnsightToolGuard.ReadOnly`. Overlay mutation
-requires `ReadWrite`; overlay removal and clearing require `FullAccess`.
+Read tools are available with `AnsightToolGuard.ReadOnly`. All overlay mutation,
+including removal and clearing, requires `ReadWrite`.
 
 > **Important:** Calling screenshot tools will result in an FPS drop while the
 > current frame is captured, encoded, and transferred. Avoid screenshot-heavy
@@ -31,7 +31,7 @@ import ai.ansight.tools.visualtree.AndroidVisualTreeTools
 
 val options = AnsightOptions(
     initialTools = AndroidVisualTreeTools.create(),
-    toolGuard = AnsightToolGuard.FullAccess,
+    toolGuard = AnsightToolGuard.ReadWrite,
 )
 ```
 

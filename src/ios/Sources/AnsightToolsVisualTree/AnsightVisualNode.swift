@@ -4,6 +4,7 @@ import Foundation
 internal struct AnsightVisualNode: Sendable {
     let id: String
     let type: String
+    let automationId: String?
     let label: String?
     let visible: Bool
     let enabled: Bool
@@ -12,6 +13,10 @@ internal struct AnsightVisualNode: Sendable {
     let visual: [String: JSONValue]
     let properties: [String: JSONValue]
     let children: [AnsightVisualNode]
+
+    var nodeCount: Int {
+        1 + children.reduce(0) { $0 + $1.nodeCount }
+    }
 
     func find(_ nodeId: String) -> AnsightVisualNode? {
         if id == nodeId {
@@ -51,6 +56,7 @@ internal struct AnsightVisualNode: Sendable {
         var payload: [String: JSONValue] = [
             "id": .string(id),
             "type": .string(type),
+            "automationId": automationId.map(JSONValue.string) ?? .null,
             "label": label.map(JSONValue.string) ?? .null,
             "visible": .bool(visible),
             "enabled": .bool(enabled),

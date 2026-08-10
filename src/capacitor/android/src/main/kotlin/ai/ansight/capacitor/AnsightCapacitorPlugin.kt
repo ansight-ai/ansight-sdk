@@ -15,6 +15,7 @@ import ai.ansight.runtime.AnsightOptions
 import ai.ansight.runtime.AnsightRuntime
 import ai.ansight.runtime.AnsightSecureStorageOptions
 import ai.ansight.runtime.AnsightSessionJpegCaptureOptions
+import ai.ansight.runtime.AnsightSessionJpegCaptureMode
 import ai.ansight.runtime.AnsightToolGuard
 import ai.ansight.runtime.AnsightTouchCaptureOptions
 import ai.ansight.runtime.AppLifecycleState
@@ -984,6 +985,11 @@ class AnsightCapacitorPlugin : Plugin() {
                 "captureGpuBackedSurfaces",
                 AnsightSessionJpegCaptureOptions.DefaultCaptureGpuBackedSurfaces,
             ),
+            mode = if (map.stringValue("mode") == "screenshotAndVisualTree") {
+                AnsightSessionJpegCaptureMode.ScreenshotAndVisualTree
+            } else {
+                AnsightSessionJpegCaptureMode.ScreenshotOnly
+            },
         )
 
     private fun application(): Application =

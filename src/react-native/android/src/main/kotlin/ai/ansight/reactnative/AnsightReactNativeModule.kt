@@ -16,6 +16,7 @@ import ai.ansight.runtime.AnsightOptionsBuilder
 import ai.ansight.runtime.AnsightRuntime
 import ai.ansight.runtime.AnsightSecureStorageOptions
 import ai.ansight.runtime.AnsightSessionJpegCaptureOptions
+import ai.ansight.runtime.AnsightSessionJpegCaptureMode
 import ai.ansight.runtime.AnsightToolGuard
 import ai.ansight.runtime.AnsightTouchCaptureOptions
 import ai.ansight.runtime.AppLifecycleState
@@ -749,6 +750,7 @@ class AnsightReactNativeModule(
                             "captureGpuBackedSurfaces",
                             AnsightSessionJpegCaptureOptions.DefaultCaptureGpuBackedSurfaces,
                         ),
+                        mode = sessionJpegCaptureMode(jpeg.stringValue("mode")),
                     )
                 },
             )
@@ -928,8 +930,16 @@ class AnsightReactNativeModule(
                 "captureGpuBackedSurfaces",
                 AnsightSessionJpegCaptureOptions.DefaultCaptureGpuBackedSurfaces,
             ),
+            mode = sessionJpegCaptureMode(map.stringValue("mode")),
         )
     }
+
+    private fun sessionJpegCaptureMode(value: String?): AnsightSessionJpegCaptureMode =
+        if (value == "screenshotAndVisualTree") {
+            AnsightSessionJpegCaptureMode.ScreenshotAndVisualTree
+        } else {
+            AnsightSessionJpegCaptureMode.ScreenshotOnly
+        }
 
     private fun toolDefinition(map: ReadableMap): ToolDefinition =
         ToolDefinition(
@@ -1117,6 +1127,11 @@ class AnsightReactNativeModule(
                     "quality" to capture.quality,
                     "maxWidth" to capture.maxWidth,
                     "captureGpuBackedSurfaces" to capture.captureGpuBackedSurfaces,
+                    "mode" to if (capture.mode == AnsightSessionJpegCaptureMode.ScreenshotAndVisualTree) {
+                        "screenshotAndVisualTree"
+                    } else {
+                        "screenshotOnly"
+                    },
                 ).toWritableMap())
             } ?: putNull("sessionJpegCapture")
             options.touchCapture?.let { touch ->

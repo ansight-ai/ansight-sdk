@@ -628,7 +628,16 @@ object AnsightRuntime {
             return OperationResult.failure(message)
         }
 
-        val result = state.second.sendSessionJpegFrame(screenshot, state.first.quality)
+        val capturedAtEpochMs = System.currentTimeMillis()
+        val capturedAtUtc = AnsightClock.isoAt(capturedAtEpochMs)
+        val visualTrees = captureSessionVisualTrees(state.first, state.second, capturedAtUtc)
+        var result = state.second.sendSessionJpegFrame(screenshot, state.first.quality, capturedAtEpochMs)
+        if (result.success) {
+            for (visualTree in visualTrees) {
+                result = state.second.sendSessionVisualTree(visualTree, capturedAtUtc)
+                if (!result.success) break
+            }
+        }
         val message = if (result.success) {
             "Captured and sent screen frame ${screenshot.width}x${screenshot.height} (${screenshot.bytes.size} bytes)."
         } else {
@@ -2138,13 +2147,47 @@ object AnsightRuntime {
             return
         }
 
-        val result = state.second.sendSessionJpegFrame(screenshot, state.first.quality)
+        val capturedAtEpochMs = System.currentTimeMillis()
+        val capturedAtUtc = AnsightClock.isoAt(capturedAtEpochMs)
+        val visualTrees = captureSessionVisualTrees(state.first, state.second, capturedAtUtc)
+        val result = state.second.sendSessionJpegFrame(screenshot, state.first.quality, capturedAtEpochMs)
         if (!result.success) {
             synchronized(lock) {
                 sessionMessage = result.message
                 stopSessionJpegCaptureLocked()
             }
+        } else {
+            for (visualTree in visualTrees) {
+                val treeResult = state.second.sendSessionVisualTree(visualTree, capturedAtUtc)
+                if (!treeResult.success) {
+                    synchronized(lock) { sessionMessage = treeResult.message }
+                    break
+                }
+            }
         }
+    }
+
+    private fun captureSessionVisualTrees(
+        captureOptions: AnsightSessionJpegCaptureOptions,
+        transport: PairingLiveSessionTransport,
+        capturedAtUtc: String,
+    ): List<JSONObject> {
+        if (captureOptions.mode != AnsightSessionJpegCaptureMode.ScreenshotAndVisualTree) {
+            return emptyList()
+        }
+
+        return runCatching {
+            val context = AndroidToolExecutionContext(
+                application = application ?: return emptyList(),
+                transport = transport,
+                sessionId = synchronized(lock) { sessionId },
+                requestId = null,
+                options = synchronized(lock) { options },
+            )
+            SessionVisualTreeCaptureRegistry.capture(context).map {
+                it.put("capturedAtUtc", capturedAtUtc)
+            }
+        }.getOrDefault(emptyList())
     }
 
     private fun stopSessionJpegCaptureLocked(releaseUiResources: Boolean = true) {

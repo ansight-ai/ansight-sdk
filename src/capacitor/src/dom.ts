@@ -15,6 +15,7 @@ type RegisterTool = (
 interface DomNode {
   id: string;
   type: string;
+  automationId?: string;
   label?: string;
   visible: boolean;
   enabled: boolean;
@@ -84,6 +85,18 @@ function attributes(element: Element): Record<string, string> {
       name,
       value.slice(0, 500),
     ]),
+  );
+}
+
+function automationId(element: Element): string | undefined {
+  return (
+    (
+      element.getAttribute("data-testid") ??
+      element.getAttribute("data-test-id") ??
+      element.getAttribute("data-test") ??
+      element.id ??
+      undefined
+    )?.trim() || undefined
   );
 }
 
@@ -197,6 +210,7 @@ function captureNode(
   return {
     id: nodeId(element),
     type: element.tagName.toLowerCase(),
+    automationId: automationId(element),
     label: accessibleLabel(element, options.includeText),
     visible,
     enabled: !disabled,

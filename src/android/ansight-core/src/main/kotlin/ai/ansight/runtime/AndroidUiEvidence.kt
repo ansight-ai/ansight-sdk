@@ -394,6 +394,7 @@ object AndroidUiEvidence {
             JSONObject()
                 .put("platform", "android")
                 .put("source", "native")
+                .put("format", "ansight.native.visual-tree.v1")
                 .put("adapter", "android.views")
                 .put("capturedAtUtc", AnsightClock.isoNow())
                 .put("activity", activity.javaClass.name)
@@ -568,10 +569,13 @@ object AndroidUiEvidence {
 
         val location = IntArray(2)
         runCatching { view.getLocationOnScreen(location) }
+        val resourceName = view.resourceNameOrNull()
+        val automationId = resourceName ?: (view.tag as? String)?.trim()?.takeIf { it.isNotEmpty() }
         val json = JSONObject()
             .put("id", nodeId)
             .put("type", view.javaClass.name)
-            .put("resourceId", view.resourceNameOrNull())
+            .put("automationId", automationId)
+            .put("resourceId", resourceName)
             .put("text", visualText(view))
             .put("contentDescription", view.contentDescription?.toString())
             .put("visible", view.visibility == View.VISIBLE)

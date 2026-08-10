@@ -67,6 +67,7 @@ class AnsightOptionsBuilder @JvmOverloads constructor(
         quality: Int = AnsightSessionJpegCaptureOptions.DefaultQuality,
         maxWidth: Int? = AnsightSessionJpegCaptureOptions.DefaultMaxWidth,
         captureGpuBackedSurfaces: Boolean = AnsightSessionJpegCaptureOptions.DefaultCaptureGpuBackedSurfaces,
+        mode: AnsightSessionJpegCaptureMode = AnsightSessionJpegCaptureOptions.DefaultMode,
     ): AnsightOptionsBuilder {
         options = options.copy(
             sessionJpegCapture = AnsightSessionJpegCaptureOptions(
@@ -74,6 +75,7 @@ class AnsightOptionsBuilder @JvmOverloads constructor(
                 quality = quality,
                 maxWidth = maxWidth,
                 captureGpuBackedSurfaces = captureGpuBackedSurfaces,
+                mode = mode,
             ),
         )
         return this

@@ -65,7 +65,7 @@ describe("AnsightOptionsBuilder", () => {
     const options = createOptionsBuilder()
       .withDefaultMemoryChannels({ managedHeap: true, rss: true })
       .withoutDefaultMemoryChannels({ managedHeap: true })
-      .withSessionJpegCapture(1500, 75, null, false)
+      .withSessionJpegCapture(1500, 75, null, false, "screenshotAndVisualTree")
       .withHostConnection({ savedConfigKey: "harness" })
       .configureHostConnection((connection) => {
         connection.discoveryPort = 4567;
@@ -86,6 +86,7 @@ describe("AnsightOptionsBuilder", () => {
       quality: 75,
       maxWidth: null,
       captureGpuBackedSurfaces: false,
+      mode: "screenshotAndVisualTree",
     });
     expect(options.hostConnection).toEqual({
       savedConfigKey: "harness",
