@@ -134,6 +134,36 @@ data class AndroidToolResult(
     }
 }
 
+data class ToolAvailability(
+    val available: Boolean,
+    val reasonCode: String? = null,
+    val reason: String? = null,
+    val requiredState: String? = null,
+    val remediation: String? = null,
+    val retryable: Boolean = false,
+) {
+    fun toJson(): JSONObject = JSONObject()
+        .put("available", available)
+        .putNullable("reasonCode", reasonCode)
+        .putNullable("reason", reason)
+        .putNullable("requiredState", requiredState)
+        .putNullable("remediation", remediation)
+        .put("retryable", retryable)
+        .put("evaluatedAtUtc", AnsightClock.isoNow())
+
+    companion object {
+        val Available = ToolAvailability(true)
+
+        fun unavailable(
+            reasonCode: String,
+            reason: String,
+            requiredState: String? = null,
+            remediation: String? = null,
+            retryable: Boolean = true,
+        ) = ToolAvailability(false, reasonCode, reason, requiredState, remediation, retryable)
+    }
+}
+
 class AndroidToolExecutionContext(
     val application: android.app.Application,
     val transport: PairingLiveSessionTransport?,
@@ -144,6 +174,7 @@ class AndroidToolExecutionContext(
 
 interface AndroidTool {
     val definition: ToolDefinition
+    fun availability(context: AndroidToolExecutionContext): ToolAvailability = ToolAvailability.Available
     fun execute(arguments: Map<String, String>, context: AndroidToolExecutionContext): AndroidToolResult
 }
 
@@ -153,8 +184,11 @@ fun interface ExternalToolProtocolHandler {
 
 class FunctionAndroidTool(
     override val definition: ToolDefinition,
+    private val availabilityHandler: (AndroidToolExecutionContext) -> ToolAvailability = { ToolAvailability.Available },
     private val handler: (Map<String, String>, AndroidToolExecutionContext) -> AndroidToolResult,
 ) : AndroidTool {
+    override fun availability(context: AndroidToolExecutionContext): ToolAvailability = availabilityHandler(context)
+
     override fun execute(arguments: Map<String, String>, context: AndroidToolExecutionContext): AndroidToolResult =
         handler(arguments, context)
 }
@@ -177,6 +211,9 @@ class AndroidToolRegistry(tools: Iterable<AndroidTool> = emptyList()) {
         } else {
             object : AndroidTool {
                 override val definition: ToolDefinition = validated
+
+                override fun availability(context: AndroidToolExecutionContext): ToolAvailability =
+                    tool.availability(context)
 
                 override fun execute(arguments: Map<String, String>, context: AndroidToolExecutionContext): AndroidToolResult =
                     tool.execute(arguments, context)

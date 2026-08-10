@@ -76,7 +76,7 @@ public sealed class ToolProtocolBridge
 
         return envelope.Type switch
         {
-            QueryType => CreateCatalogEnvelope(envelope),
+            QueryType => await CreateCatalogEnvelopeAsync(envelope),
             CallType => await ExecuteEnvelopeAsync(envelope, cancellationToken),
             _ => CreateErrorEnvelope(envelope, "tool_protocol_unknown_type", $"Unsupported tool protocol message type '{envelope.Type}'.", retryable: false)
         };
@@ -125,7 +125,7 @@ public sealed class ToolProtocolBridge
         return JsonSerializer.Serialize(envelope, indented ? Pairing.PairingJson.Pretty : Pairing.PairingJson.Compact);
     }
 
-    private ToolProtocolEnvelope CreateCatalogEnvelope(ToolProtocolEnvelope request)
+    private async Task<ToolProtocolEnvelope> CreateCatalogEnvelopeAsync(ToolProtocolEnvelope request)
     {
         if (!guard.DiscoveryEnabled)
         {
@@ -140,7 +140,9 @@ public sealed class ToolProtocolBridge
                 continue;
             }
 
-            tools.Add(ToJson(tool.Definition));
+            var availability = await tool.GetAvailabilityAsync(
+                new ToolAvailabilityContext(request.SessionId, request.Id));
+            tools.Add(ToJson(tool.Definition, availability));
         }
 
         return new ToolProtocolEnvelope
@@ -181,6 +183,18 @@ public sealed class ToolProtocolBridge
         if (!guard.CanExecute(tool, out var denialReason))
         {
             return CreateErrorEnvelope(request, "tool_execution_denied", denialReason ?? "Tool execution is denied by the current guard policy.", retryable: false);
+        }
+
+        var availability = await tool.GetAvailabilityAsync(
+            new ToolAvailabilityContext(request.SessionId, request.Id));
+        if (!availability.IsAvailable)
+        {
+            return CreateErrorEnvelope(
+                request,
+                availability.ReasonCode ?? "tool_unavailable",
+                availability.Reason ?? $"Tool '{toolId}' is not available in the current runtime state.",
+                availability.Retryable,
+                availability.ToJson());
         }
 
         var arguments = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -272,7 +286,7 @@ public sealed class ToolProtocolBridge
 
     private static string CreateResponseId(string requestId) => $"{requestId}.response";
 
-    private static JsonObject ToJson(ToolDefinition definition)
+    private static JsonObject ToJson(ToolDefinition definition, ToolAvailability availability)
     {
         var json = new JsonObject
         {
@@ -285,6 +299,9 @@ public sealed class ToolProtocolBridge
             ["argumentsSchema"] = definition.ArgumentsSchema.ToJson(),
             ["resultSchema"] = definition.ResultSchema.ToJson()
         };
+
+        json["runtime"] = availability.ToJson();
+        json["executable"] = availability.IsAvailable;
 
         if (definition.Security is { IsSpecified: true } security)
         {

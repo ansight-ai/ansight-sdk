@@ -1511,7 +1511,11 @@ public final class AnsightRuntime: @unchecked Sendable {
                 throw RuntimeError.invalidInput("A tool with id '\(tool.id)' has already been registered.")
             }
 
-            tools[normalizedId] = RegisteredTool(descriptor: tool, execute: nil)
+            tools[normalizedId] = RegisteredTool(
+                descriptor: tool,
+                availability: { _ in .availableNow },
+                execute: nil
+            )
             sessionMessage = "Registered tool \(tool.id)."
         }
     }
@@ -1530,6 +1534,7 @@ public final class AnsightRuntime: @unchecked Sendable {
 
             tools[normalizedId] = RegisteredTool(
                 descriptor: descriptor,
+                availability: tool.availability(context:),
                 execute: tool.execute(arguments:)
             )
             sessionMessage = "Registered executable tool \(descriptor.id)."
@@ -1553,6 +1558,7 @@ public final class AnsightRuntime: @unchecked Sendable {
 
             tools[normalizedId] = RegisteredTool(
                 descriptor: descriptor,
+                availability: { _ in .availableNow },
                 execute: execute
             )
             sessionMessage = "Registered executable tool \(descriptor.id)."

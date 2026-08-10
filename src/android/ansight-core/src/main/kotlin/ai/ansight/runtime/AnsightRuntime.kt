@@ -1396,16 +1396,37 @@ object AnsightRuntime {
     }
 
     private fun sendToolCatalog(request: JSONObject) {
-        val response = synchronized(lock) {
-            if (!options.toolGuard.canDiscover(ToolScope.Read)) {
-                return@synchronized toolErrorEnvelope(request, "tool_discovery_disabled", "Tool discovery is disabled by the current guard policy.")
+        val catalogState = synchronized(lock) {
+            Triple(application, liveTransport, options)
+        }
+        val app = catalogState.first
+        val transport = catalogState.second
+        val currentOptions = catalogState.third
+        val response = if (app == null) {
+            toolErrorEnvelope(request, "runtime_unavailable", "AnsightRuntime is not initialized.")
+        } else if (!currentOptions.toolGuard.canDiscover(ToolScope.Read)) {
+            toolErrorEnvelope(request, "tool_discovery_disabled", "Tool discovery is disabled by the current guard policy.")
+        } else {
+            val context = AndroidToolExecutionContext(
+                application = app,
+                transport = transport,
+                sessionId = synchronized(lock) { sessionId },
+                requestId = request.optionalString("id"),
+                options = currentOptions,
+            )
+            val visibleTools = synchronized(lock) {
+                toolRegistry.visible(currentOptions.toolGuard)
+            }.map { tool ->
+                val availability = tool.availability(context)
+                tool.definition.toJson()
+                    .put("runtime", availability.toJson())
+                    .put("executable", availability.available)
             }
-            val visibleTools = toolRegistry.visible(options.toolGuard).map { it.definition.toJson() }
             toolEnvelope(
                 type = ToolProtocol.CatalogType,
                 request = request,
                 payload = JSONObject()
-                    .put("guard", options.toolGuard.toProtocolJson())
+                    .put("guard", currentOptions.toolGuard.toProtocolJson())
                     .put("tools", JSONArray(visibleTools))
                     .put("count", visibleTools.size),
             )
@@ -1460,6 +1481,16 @@ object AnsightRuntime {
                 options = options,
             )
         }
+        val availability = tool.availability(context)
+        if (!availability.available) {
+            return toolErrorEnvelope(
+                request = request,
+                code = availability.reasonCode ?: "tool_unavailable",
+                message = availability.reason ?: "Tool '$toolId' is not available in the current runtime state.",
+                details = availability.toJson(),
+                retryable = availability.retryable,
+            )
+        }
         val result = tool.execute(args, context)
         if (!result.success) {
             return toolErrorEnvelope(
@@ -1489,14 +1520,20 @@ object AnsightRuntime {
         .put("capability", ToolProtocol.Capability)
         .put("payload", payload)
 
-    private fun toolErrorEnvelope(request: JSONObject, code: String, message: String, details: JSONObject? = null): JSONObject = toolEnvelope(
+    private fun toolErrorEnvelope(
+        request: JSONObject,
+        code: String,
+        message: String,
+        details: JSONObject? = null,
+        retryable: Boolean = false,
+    ): JSONObject = toolEnvelope(
         type = ToolProtocol.ErrorType,
         request = request,
         payload = JSONObject()
             .put("success", false)
             .put("errorCode", code)
             .put("message", message)
-            .put("retryable", false)
+            .put("retryable", retryable)
             .putNullable("details", details),
     )
 

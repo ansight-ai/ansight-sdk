@@ -97,7 +97,7 @@ fun androidSimpleTool(
         resultSchema = ToolSchema.obj(additionalProperties = true),
         security = security,
     ),
-    handler,
+    handler = handler,
 )
 
 fun Map<String, String>.intArg(name: String, defaultValue: Int): Int = this[name]?.toIntOrNull() ?: defaultValue

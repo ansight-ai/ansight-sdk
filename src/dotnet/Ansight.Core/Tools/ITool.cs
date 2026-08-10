@@ -67,6 +67,14 @@ public interface ITool
     };
 
     /// <summary>
+    /// Evaluates whether the tool can execute in the app's current runtime state.
+    /// </summary>
+    /// <param name="context">Current tool protocol session and request context.</param>
+    /// <returns>Structured runtime availability. Tools without preconditions are available by default.</returns>
+    ValueTask<ToolAvailability> GetAvailabilityAsync(ToolAvailabilityContext context)
+        => ValueTask.FromResult(ToolAvailability.Available);
+
+    /// <summary>
     /// Executes the tool using flattened string arguments derived from the incoming protocol payload.
     /// </summary>
     /// <param name="arguments">Tool arguments keyed by argument name.</param>

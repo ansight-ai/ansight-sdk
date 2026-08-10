@@ -1,5 +1,6 @@
 package ai.ansight.runtime
 
+import android.app.Application
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -32,6 +33,43 @@ class AndroidToolRegistryTest {
         assertTrue(registry.contains("app.test.tool"))
         assertFalse(registry.contains("app.test.missing"))
         assertEquals("second", registry.get("app.test.tool")!!.definition.name)
+    }
+
+    @Test
+    fun registeredToolReportsRuntimePrecondition() {
+        val unavailableTool = FunctionAndroidTool(
+            definition = ToolDefinition(
+                id = "mapwork.open",
+                name = "Open Map Work",
+                description = "Opens the active map work screen.",
+                category = "mapwork",
+                scope = ToolScope.Read,
+                keywords = "map work",
+            ),
+            availabilityHandler = {
+                ToolAvailability.unavailable(
+                    reasonCode = "screen_not_registered",
+                    reason = "No active MapWorkScreen is registered.",
+                    requiredState = "MapWorkScreen registered",
+                    remediation = "Navigate to the map screen and retry.",
+                )
+            },
+        ) { _, _ -> AndroidToolResult.success() }
+        val registry = AndroidToolRegistry(listOf(unavailableTool))
+        val availability = registry.get("mapwork.open")!!.availability(
+            AndroidToolExecutionContext(
+                application = Application(),
+                transport = null,
+                sessionId = "session_1",
+                requestId = "query_1",
+                options = AnsightOptions(),
+            ),
+        )
+
+        assertFalse(availability.available)
+        assertEquals("screen_not_registered", availability.reasonCode)
+        assertEquals("MapWorkScreen registered", availability.requiredState)
+        assertTrue(availability.retryable)
     }
 
     private fun tool(id: String, name: String): AndroidTool =

@@ -76,10 +76,15 @@ internal struct AnsightToolProtocolBridge {
             )
         }
 
+        let availabilityContext = AnsightToolAvailabilityContext(
+            sessionId: request.sessionId,
+            requestId: request.id
+        )
         let visibleTools = registry.values
-            .map(\.descriptor)
-            .filter(guardPolicy.isVisible)
-            .sorted { $0.id.localizedCaseInsensitiveCompare($1.id) == .orderedAscending }
+            .filter { guardPolicy.isVisible($0.descriptor) }
+            .sorted {
+                $0.descriptor.id.localizedCaseInsensitiveCompare($1.descriptor.id) == .orderedAscending
+            }
 
         return AnsightToolProtocolEnvelope(
             type: Self.catalogType,
@@ -92,7 +97,12 @@ internal struct AnsightToolProtocolBridge {
                     "executionEnabled": .bool(guardPolicy.executionEnabled),
                     "allowedScopes": .array(guardPolicy.allowedScopes.map { .string($0.rawValue) }),
                 ]),
-                "tools": .array(visibleTools.map(Self.catalogEntry(for:))),
+                "tools": .array(visibleTools.map {
+                    Self.catalogEntry(
+                        for: $0,
+                        availability: $0.availability(availabilityContext)
+                    )
+                }),
                 "count": .integer(Int64(visibleTools.count)),
             ])
         )
@@ -132,6 +142,19 @@ internal struct AnsightToolProtocolBridge {
                 code: "tool_execution_denied",
                 message: denialReason,
                 retryable: false
+            )
+        }
+
+        let availability = tool.availability(
+            AnsightToolAvailabilityContext(sessionId: request.sessionId, requestId: request.id)
+        )
+        guard availability.available else {
+            return createErrorEnvelope(
+                request: request,
+                code: availability.reasonCode ?? "tool_unavailable",
+                message: availability.reason ?? "Tool '\(toolId)' is not available in the current runtime state.",
+                retryable: availability.retryable,
+                details: availability.jsonValue
             )
         }
 
@@ -287,7 +310,11 @@ internal struct AnsightToolProtocolBridge {
         toolId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
-    private static func catalogEntry(for descriptor: AnsightToolDescriptor) -> JSONValue {
+    private static func catalogEntry(
+        for tool: RegisteredTool,
+        availability: AnsightToolAvailability
+    ) -> JSONValue {
+        let descriptor = tool.descriptor
         var result: [String: JSONValue] = [
             "id": .string(descriptor.id),
             "name": .string(descriptor.name),
@@ -297,6 +324,8 @@ internal struct AnsightToolProtocolBridge {
             "keywords": .string(descriptor.keywords),
             "argumentsSchema": descriptor.argumentsSchema.json,
             "resultSchema": descriptor.resultSchema.json,
+            "runtime": availability.jsonValue,
+            "executable": .bool(availability.available && tool.execute != nil),
         ]
 
         if descriptor.security.isSpecified {

@@ -63,6 +63,48 @@ final class ToolProtocolTests: XCTestCase {
         XCTAssertEqual(sessionId, "sess_1")
     }
 
+    func testCatalogAndCallReportRuntimePreconditions() throws {
+        let bridge = AnsightToolProtocolBridge(
+            registry: [
+                "echo.tool": RegisteredTool(
+                    descriptor: EchoTool().descriptor,
+                    availability: { _ in
+                        .unavailable(
+                            reasonCode: "screen_not_registered",
+                            reason: "No active MapWorkScreen is registered.",
+                            requiredState: "MapWorkScreen registered",
+                            remediation: "Navigate to the map screen and retry."
+                        )
+                    },
+                    execute: EchoTool().execute(arguments:)
+                ),
+            ],
+            guardPolicy: .readOnly
+        )
+
+        let catalogJson = try bridge.handleIfSupported(
+            #"{"type":"tool.query","id":"query_1","sessionId":"sess_1","capability":"tool.exec","payload":{}}"#
+        )
+        let catalog = try XCTUnwrap(decodeEnvelope(catalogJson))
+        guard case .object(let catalogPayload) = catalog.payload,
+              case .array(let tools)? = catalogPayload["tools"],
+              case .object(let entry) = tools.first,
+              case .bool(let executable)? = entry["executable"],
+              case .object(let runtime)? = entry["runtime"],
+              case .string(let reasonCode)? = runtime["reasonCode"] else {
+            return XCTFail("Expected runtime availability in the tool catalog.")
+        }
+        XCTAssertFalse(executable)
+        XCTAssertEqual(reasonCode, "screen_not_registered")
+
+        let callJson = try bridge.handleIfSupported(
+            #"{"type":"tool.call","id":"call_1","sessionId":"sess_1","capability":"tool.exec","payload":{"toolId":"echo.tool","arguments":{}}}"#
+        )
+        let call = try XCTUnwrap(decodeEnvelope(callJson))
+        XCTAssertEqual(call.type, "tool.error")
+        XCTAssertEqual(errorCode(in: call), "screen_not_registered")
+    }
+
     func testCallPreservesJsonArgumentsAsStrings() throws {
         let bridge = AnsightToolProtocolBridge(
             registry: [
