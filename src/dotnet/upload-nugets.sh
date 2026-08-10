@@ -6,6 +6,7 @@ cd "$(dirname "$0")"
 source_url="${NUGET_SOURCE:-https://api.nuget.org/v3/index.json}"
 api_key="${ANSIGHT_NUGET_API_KEY:-}"
 configuration="${1:-Release}"
+pack_mode="${2:-}"
 package_version="${NUGET_PACKAGE_VERSION:-}"
 
 if [[ -z "${api_key}" ]]; then
@@ -13,7 +14,7 @@ if [[ -z "${api_key}" ]]; then
   exit 1
 fi
 
-./pack-nugets.sh "${configuration}"
+./pack-nugets.sh "${configuration}" "${pack_mode}"
 
 shopt -s nullglob
 

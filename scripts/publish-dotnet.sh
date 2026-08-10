@@ -68,7 +68,7 @@ if [[ "${skip_build}" != "true" ]]; then
 fi
 
 if [[ "${publish}" == "true" ]]; then
-  (cd "${repo_root}/src/dotnet" && ./upload-nugets.sh "${configuration}")
+  (cd "${repo_root}/src/dotnet" && ./upload-nugets.sh "${configuration}" --no-build)
 else
-  (cd "${repo_root}/src/dotnet" && ./pack-nugets.sh "${configuration}")
+  (cd "${repo_root}/src/dotnet" && ./pack-nugets.sh "${configuration}" --no-build)
 fi

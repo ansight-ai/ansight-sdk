@@ -4,6 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 configuration="${1:-Release}"
+pack_mode="${2:-}"
 products_dir="$(pwd)/products"
 projects=(
   "Ansight.Native.Android.Binding/Ansight.Native.Android.Binding.csproj"
@@ -23,13 +24,21 @@ projects=(
   "Ansight.Maui/Ansight.Maui.csproj"
 )
 
+pack_args=()
+if [[ "${pack_mode}" == "--no-build" ]]; then
+  pack_args+=(--no-build)
+elif [[ -n "${pack_mode}" ]]; then
+  echo "error: unknown argument '${pack_mode}'" >&2
+  exit 1
+fi
+
 echo "Cleaning ${products_dir}..."
 rm -rf "${products_dir}"
 mkdir -p "${products_dir}"
 
 for project in "${projects[@]}"; do
   echo "Packing ${project} (${configuration})..."
-  dotnet pack "${project}" -c "${configuration}" --nologo -p:GeneratePackageOnBuild=false -p:BuildInParallel=false -maxcpucount:1
+  dotnet pack "${project}" -c "${configuration}" --nologo -p:GeneratePackageOnBuild=false -p:BuildInParallel=false -maxcpucount:1 "${pack_args[@]+"${pack_args[@]}"}"
 done
 
 echo "NuGet packages written to $(pwd)/products"
