@@ -595,16 +595,21 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
     final normalized = type.toLowerCase();
     if (normalized.contains('button') ||
         normalized.contains('gesture') ||
-        normalized.contains('inkwell')) return 'button';
-    if (normalized.contains('editable') || normalized.contains('textfield'))
+        normalized.contains('inkwell')) {
+      return 'button';
+    }
+    if (normalized.contains('editable') || normalized.contains('textfield')) {
       return 'textbox';
+    }
     if (normalized.contains('switch')) return 'switch';
     if (normalized.contains('checkbox')) return 'checkbox';
     if (normalized.contains('radio')) return 'radio';
     if (normalized.contains('slider')) return 'slider';
     if (normalized.contains('scroll') ||
         normalized.contains('listview') ||
-        normalized.contains('gridview')) return 'scrollview';
+        normalized.contains('gridview')) {
+      return 'scrollview';
+    }
     if (normalized == 'text' || normalized.contains('richtext')) return 'text';
     return 'view';
   }
