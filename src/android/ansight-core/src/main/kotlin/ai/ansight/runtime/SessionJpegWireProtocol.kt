@@ -50,25 +50,49 @@ fun PairingLiveSessionTransport.sendSessionJpegFrame(
     )
 }
 
-fun PairingLiveSessionTransport.sendSessionVisualTree(
+internal fun PairingLiveSessionTransport.sendSessionVisualTree(
     visualTree: JSONObject,
     capturedAtUtc: String,
+    screenshotCapturedAtUtc: String? = capturedAtUtc,
+    trigger: TouchVisualTreeCaptureTrigger? = null,
 ): OperationResult {
+    visualTree.put("capturedAtUtc", capturedAtUtc)
+    if (trigger != null) {
+        visualTree.put(
+            "captureTrigger",
+            JSONObject()
+                .put("kind", "touch")
+                .put("gestureId", trigger.gestureId)
+                .put("gesturePhase", trigger.gesturePhase.wireName)
+                .put("touchAction", trigger.touchAction)
+                .put("touchCapturedAtUtc", trigger.touchCapturedAtUtc),
+        )
+    }
     val source = visualTree.optString("source", "native")
     val payload = JSONObject()
         .put("type", "CLIENT_VISUAL_TREE")
         .put("snapshotId", "stream-${java.util.UUID.randomUUID()}")
         .put("capturedAtUtc", capturedAtUtc)
-        .put("screenshotCapturedAtUtc", capturedAtUtc)
         .put("visualTreeKind", source)
         .put("visualTreeFormat", visualTree.optString("format", "ansight.native.visual-tree.compact.v2"))
         .put("runtimePlatform", visualTree.optString("platform", "android"))
-        .put("source", "sdk.sessionCapture")
+        .put("source", if (trigger == null) "sdk.sessionCapture" else "sdk.touchCapture")
         .put("maxDepth", 40)
         .put("includeProperties", true)
         .put("includeBindableProperties", false)
         .put("nodeCount", visualTree.optInt("nodeCount", 0))
         .put("truncated", visualTree.optBoolean("truncated", false))
         .put("payload", visualTree)
+    if (screenshotCapturedAtUtc != null) {
+        payload.put("screenshotCapturedAtUtc", screenshotCapturedAtUtc)
+    }
+    if (trigger != null) {
+        payload
+            .put("captureTrigger", "touch")
+            .put("gestureId", trigger.gestureId)
+            .put("gesturePhase", trigger.gesturePhase.wireName)
+            .put("touchAction", trigger.touchAction)
+            .put("touchCapturedAtUtc", trigger.touchCapturedAtUtc)
+    }
     return sendText(payload.toString())
 }

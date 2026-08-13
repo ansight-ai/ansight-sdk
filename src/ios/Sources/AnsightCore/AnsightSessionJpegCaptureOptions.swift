@@ -3,6 +3,7 @@ import Foundation
 public enum AnsightSessionJpegCaptureMode: String, Sendable, Codable, Equatable {
     case screenshotOnly
     case screenshotAndVisualTree
+    case screenshotWithVisualTreeOnTouch
 }
 
 public struct AnsightSessionJpegCaptureOptions: Sendable, Codable, Equatable {

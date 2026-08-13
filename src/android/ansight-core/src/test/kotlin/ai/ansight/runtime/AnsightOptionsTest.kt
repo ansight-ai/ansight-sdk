@@ -199,6 +199,36 @@ class AnsightOptionsTest {
         assertEquals(AnsightSessionJpegCaptureMode.ScreenshotAndVisualTree, options.sessionJpegCapture?.mode)
     }
 
+    @Test
+    fun builderCanCaptureVisualTreesOnTouch() {
+        val options = AnsightOptions.createBuilder()
+            .withSessionJpegCapture(mode = AnsightSessionJpegCaptureMode.ScreenshotWithVisualTreeOnTouch)
+            .build()
+
+        assertEquals(AnsightSessionJpegCaptureMode.ScreenshotWithVisualTreeOnTouch, options.sessionJpegCapture?.mode)
+    }
+
+    @Test
+    fun crashCaptureDefaultsOnAndClampsDurableOutboxBounds() {
+        val options = AnsightOptions.createBuilder()
+            .withCrashCapture(
+                AnsightCrashCaptureOptions(
+                    maximumPendingReports = 100,
+                    retentionDays = 0,
+                    maximumBreadcrumbs = 1_000,
+                    maximumTraceBytes = 1,
+                ),
+            )
+            .build()
+
+        assertTrue(options.crashCapture.enabled)
+        assertEquals(32, options.crashCapture.maximumPendingReports)
+        assertEquals(1, options.crashCapture.retentionDays)
+        assertEquals(256, options.crashCapture.maximumBreadcrumbs)
+        assertEquals(16 * 1024, options.crashCapture.maximumTraceBytes)
+        assertFalse(AnsightOptions.createBuilder().withoutCrashCapture().build().crashCapture.enabled)
+    }
+
     private class TestArtifactProvider : AndroidArtifactProvider {
         override val descriptor = AndroidArtifactProviderDescriptor(
             id = "app.report",

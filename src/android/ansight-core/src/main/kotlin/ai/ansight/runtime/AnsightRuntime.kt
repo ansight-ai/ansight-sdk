@@ -51,6 +51,7 @@ object AnsightRuntime {
     private var telemetryTask: ScheduledFuture<*>? = null
     private var sessionJpegExecutor: ScheduledExecutorService? = null
     private var sessionJpegTask: ScheduledFuture<*>? = null
+    private var touchVisualTreeCaptureCoordinator: TouchVisualTreeCaptureCoordinator? = null
     private var hostSessionJpegCapturePolicy = HostSessionJpegCapturePolicy.App
     private var autoProbeExecutor: ScheduledExecutorService? = null
     private var autoProbeTask: ScheduledFuture<*>? = null
@@ -381,6 +382,14 @@ object AnsightRuntime {
             sessionOpen && liveTransport?.isOpen == true
         }
 
+        AnsightCrashCapture.recordBreadcrumb("lifecycle", state.wireName)
+
+        when (state) {
+            AppLifecycleState.Foreground -> startTouchVisualTreeCaptureIfNeeded()
+            AppLifecycleState.Background -> synchronized(lock) { stopTouchVisualTreeCaptureLocked() }
+            AppLifecycleState.Unknown -> Unit
+        }
+
         streamPendingTelemetry()
         if (shouldSend) {
             sendCurrentAppState()
@@ -388,12 +397,13 @@ object AnsightRuntime {
     }
 
     internal fun onTouchCaptured(touch: CapturedTouch) {
-        synchronized(lock) {
+        val touchVisualTreeCaptureCoordinator = synchronized(lock) {
             if (!initialized || !active || options.touchCapture == null || !touchCaptureRuntimeEnabled) {
                 return
             }
             val guard = touchCaptureGuard
             if (guard != null && !runCatching { guard() }.getOrDefault(false)) {
+                touchVisualTreeCaptureCoordinator?.interruptGesture()
                 return
             }
 
@@ -417,7 +427,9 @@ object AnsightRuntime {
             )
             touches += recorded
             trimTouchesLocked()
+            touchVisualTreeCaptureCoordinator
         }
+        touchVisualTreeCaptureCoordinator?.observe(touch)
         streamPendingTelemetry()
     }
 
@@ -468,6 +480,7 @@ object AnsightRuntime {
         val transport = synchronized(lock) {
             connectionState = HostConnectionState.Disconnecting
             stopSessionJpegCaptureLocked()
+            stopTouchVisualTreeCaptureLocked()
             liveTransport.also {
                 liveTransport = null
                 sessionOpen = false
@@ -625,6 +638,7 @@ object AnsightRuntime {
         }
         if (canEnable) {
             AndroidUiEvidence.setTouchCaptureEnabled(true) { touch -> onTouchCaptured(touch) }
+            startTouchVisualTreeCaptureIfNeeded()
         }
         return OperationResult.success("Touch capture enabled.")
     }
@@ -635,6 +649,7 @@ object AnsightRuntime {
                 return OperationResult.failure("AnsightRuntime must be initialized before disabling touch capture.")
             }
             touchCaptureRuntimeEnabled = false
+            stopTouchVisualTreeCaptureLocked()
             sessionMessage = "Touch capture disabled."
         }
         AndroidUiEvidence.setTouchCaptureEnabled(false, null)
@@ -1191,6 +1206,7 @@ object AnsightRuntime {
         sendSessionProperties()
         sendMetricChannelDefinitions()
         startSessionJpegCaptureIfNeeded()
+        startTouchVisualTreeCaptureIfNeeded()
         streamPendingTelemetry()
         AnsightCrashCapture.deliverPendingReports(transport)
 
@@ -1981,6 +1997,7 @@ object AnsightRuntime {
         telemetryExecutor?.shutdownNow()
         telemetryExecutor = null
         stopSessionJpegCaptureLocked(releaseUiResources = hadUiEvidenceCapture)
+        stopTouchVisualTreeCaptureLocked()
         stopAutoProbeLocked()
         frameRateSampler.stop()
         if (hadUiEvidenceCapture) {
@@ -2260,18 +2277,81 @@ object AnsightRuntime {
             return emptyList()
         }
 
-        return runCatching {
-            val context = AndroidToolExecutionContext(
-                application = application ?: return emptyList(),
-                transport = transport,
-                sessionId = synchronized(lock) { sessionId },
-                requestId = null,
-                options = synchronized(lock) { options },
-            )
-            SessionVisualTreeCaptureRegistry.capture(context).map {
-                it.put("capturedAtUtc", capturedAtUtc)
+        return captureRegisteredVisualTrees(transport, capturedAtUtc)
+    }
+
+    private fun startTouchVisualTreeCaptureIfNeeded() {
+        synchronized(lock) {
+            if (!initialized ||
+                !active ||
+                !sessionOpen ||
+                currentLifecycleState == AppLifecycleState.Background ||
+                options.touchCapture == null ||
+                !touchCaptureRuntimeEnabled ||
+                options.sessionJpegCapture?.mode != AnsightSessionJpegCaptureMode.ScreenshotWithVisualTreeOnTouch ||
+                liveTransport?.isOpen != true ||
+                touchVisualTreeCaptureCoordinator != null
+            ) {
+                return
             }
-        }.getOrDefault(emptyList())
+
+            touchVisualTreeCaptureCoordinator = TouchVisualTreeCaptureCoordinator(
+                capture = { trigger -> captureAndSendTouchVisualTrees(trigger) },
+            )
+        }
+    }
+
+    private fun captureAndSendTouchVisualTrees(trigger: TouchVisualTreeCaptureTrigger) {
+        val state = synchronized(lock) {
+            if (!initialized ||
+                !active ||
+                !sessionOpen ||
+                currentLifecycleState == AppLifecycleState.Background ||
+                options.touchCapture == null ||
+                !touchCaptureRuntimeEnabled ||
+                options.sessionJpegCapture?.mode != AnsightSessionJpegCaptureMode.ScreenshotWithVisualTreeOnTouch
+            ) {
+                return
+            }
+            val transport = liveTransport?.takeIf { it.isOpen } ?: return
+            transport
+        }
+
+        val capturedAtUtc = AnsightClock.isoNow()
+        val visualTrees = captureRegisteredVisualTrees(state, capturedAtUtc)
+        for (visualTree in visualTrees) {
+            val result = state.sendSessionVisualTree(
+                visualTree,
+                capturedAtUtc,
+                screenshotCapturedAtUtc = null,
+                trigger = trigger,
+            )
+            if (!result.success) {
+                synchronized(lock) { sessionMessage = result.message }
+                return
+            }
+        }
+    }
+
+    private fun captureRegisteredVisualTrees(
+        transport: PairingLiveSessionTransport,
+        capturedAtUtc: String,
+    ): List<JSONObject> = runCatching {
+        val context = AndroidToolExecutionContext(
+            application = application ?: return emptyList(),
+            transport = transport,
+            sessionId = synchronized(lock) { sessionId },
+            requestId = null,
+            options = synchronized(lock) { options },
+        )
+        SessionVisualTreeCaptureRegistry.capture(context).map {
+            it.put("capturedAtUtc", capturedAtUtc)
+        }
+    }.getOrDefault(emptyList())
+
+    private fun stopTouchVisualTreeCaptureLocked() {
+        touchVisualTreeCaptureCoordinator?.close()
+        touchVisualTreeCaptureCoordinator = null
     }
 
     private fun stopSessionJpegCaptureLocked(releaseUiResources: Boolean = true) {

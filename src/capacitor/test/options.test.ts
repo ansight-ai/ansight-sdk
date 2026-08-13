@@ -85,7 +85,13 @@ describe("AnsightOptionsBuilder", () => {
     const options = createOptionsBuilder()
       .withDefaultMemoryChannels({ managedHeap: true, rss: true })
       .withoutDefaultMemoryChannels({ managedHeap: true })
-      .withSessionJpegCapture(1500, 75, null, false, "screenshotAndVisualTree")
+      .withSessionJpegCapture(
+        1500,
+        75,
+        null,
+        false,
+        "screenshotWithVisualTreeOnTouch",
+      )
       .withHostConnection({ savedConfigKey: "harness" })
       .configureHostConnection((connection) => {
         connection.discoveryPort = 4567;
@@ -106,7 +112,7 @@ describe("AnsightOptionsBuilder", () => {
       quality: 75,
       maxWidth: null,
       captureGpuBackedSurfaces: false,
-      mode: "screenshotAndVisualTree",
+      mode: "screenshotWithVisualTreeOnTouch",
     });
     expect(options.hostConnection).toEqual({
       savedConfigKey: "harness",

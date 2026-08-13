@@ -102,6 +102,38 @@ void main() {
     );
   });
 
+  test('runtime diagnostic tracking is opt-in', () {
+    final defaults = AnsightOptions.developer().toJson();
+    expect(defaults['enableOpenFileHandleTracking'], isFalse);
+    expect(defaults['enableJniReferenceCountTracking'], isFalse);
+
+    final enabled = createOptionsBuilder()
+        .withOpenFileHandleTracking()
+        .withJniReferenceCountTracking()
+        .build()
+        .toJson();
+    expect(enabled['enableOpenFileHandleTracking'], isTrue);
+    expect(enabled['enableJniReferenceCountTracking'], isTrue);
+
+    final disabled = createOptionsBuilder()
+        .withOpenFileHandleTracking()
+        .withJniReferenceCountTracking()
+        .withoutOpenFileHandleTracking()
+        .withoutJniReferenceCountTracking()
+        .build()
+        .toJson();
+    expect(disabled['enableOpenFileHandleTracking'], isFalse);
+    expect(disabled['enableJniReferenceCountTracking'], isFalse);
+  });
+
+  test('serializes touch-triggered visual-tree capture mode', () {
+    final options = const AnsightSessionJpegCaptureOptions(
+      mode: AnsightSessionJpegCaptureMode.screenshotWithVisualTreeOnTouch,
+    ).toJson();
+
+    expect(options['mode'], 'screenshotWithVisualTreeOnTouch');
+  });
+
   test('initializes and records typed telemetry', () async {
     final transport = FakeNativeTransport();
     final ansight = Ansight.withTransport(transport);

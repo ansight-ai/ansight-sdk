@@ -20,6 +20,8 @@ internal sealed class TouchCaptureHub
 
     public event EventHandler<TouchCapturedEventArgs>? TouchCaptured;
 
+    internal event EventHandler? RuntimeCaptureInterrupted;
+
     public void EnableRuntimeCapture()
     {
         runtimeCaptureEnabled = true;
@@ -28,6 +30,7 @@ internal sealed class TouchCaptureHub
     public void DisableRuntimeCapture()
     {
         runtimeCaptureEnabled = false;
+        RuntimeCaptureInterrupted?.Invoke(this, EventArgs.Empty);
     }
 
     public void SetRuntimeCaptureGuard(Func<bool>? guard)
@@ -40,6 +43,7 @@ internal sealed class TouchCaptureHub
     {
         if (!ShouldCapture())
         {
+            RuntimeCaptureInterrupted?.Invoke(this, EventArgs.Empty);
             return;
         }
 

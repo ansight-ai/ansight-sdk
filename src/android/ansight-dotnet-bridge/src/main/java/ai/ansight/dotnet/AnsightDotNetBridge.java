@@ -407,9 +407,7 @@ public final class AnsightDotNetBridge {
                     ? Integer.valueOf(sessionJpegCapture.getInt("maxWidth"))
                     : null,
                 sessionJpegCapture.optBoolean("captureGpuBackedSurfaces", true),
-                "screenshotAndVisualTree".equalsIgnoreCase(sessionJpegCapture.optString("mode"))
-                    ? AnsightSessionJpegCaptureMode.ScreenshotAndVisualTree
-                    : AnsightSessionJpegCaptureMode.ScreenshotOnly
+                sessionJpegCaptureMode(sessionJpegCapture.optString("mode"))
             );
         }
 
@@ -443,6 +441,16 @@ public final class AnsightDotNetBridge {
         applyHostOptions(builder, json);
 
         return builder.build();
+    }
+
+    private static AnsightSessionJpegCaptureMode sessionJpegCaptureMode(String value) {
+        if ("screenshotAndVisualTree".equalsIgnoreCase(value)) {
+            return AnsightSessionJpegCaptureMode.ScreenshotAndVisualTree;
+        }
+        if ("screenshotWithVisualTreeOnTouch".equalsIgnoreCase(value)) {
+            return AnsightSessionJpegCaptureMode.ScreenshotWithVisualTreeOnTouch;
+        }
+        return AnsightSessionJpegCaptureMode.ScreenshotOnly;
     }
 
     private static HostConnectionRequestKind requestKind(String value) {

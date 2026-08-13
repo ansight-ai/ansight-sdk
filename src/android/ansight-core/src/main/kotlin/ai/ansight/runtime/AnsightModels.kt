@@ -75,6 +75,7 @@ data class DefaultMemoryChannels(
 enum class AnsightSessionJpegCaptureMode {
     ScreenshotOnly,
     ScreenshotAndVisualTree,
+    ScreenshotWithVisualTreeOnTouch,
 }
 
 data class AnsightSessionJpegCaptureOptions(

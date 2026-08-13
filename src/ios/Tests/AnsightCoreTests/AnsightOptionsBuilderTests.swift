@@ -92,6 +92,14 @@ final class AnsightOptionsBuilderTests: XCTestCase {
         XCTAssertEqual(options.sessionJpegCapture?.mode, .screenshotAndVisualTree)
     }
 
+    func testBuilderCanCaptureVisualTreesOnTouch() throws {
+        let options = try AnsightOptions.createBuilder()
+            .withSessionJpegCapture(mode: .screenshotWithVisualTreeOnTouch)
+            .build()
+
+        XCTAssertEqual(options.sessionJpegCapture?.mode, .screenshotWithVisualTreeOnTouch)
+    }
+
     func testHostConnectionDecodeDefaultsCellularConnectionsToDisabled() throws {
         let json = #"{"savedConfigKey":"saved","connectionProfileRetentionSeconds":60}"#
         let data = try XCTUnwrap(json.data(using: .utf8))

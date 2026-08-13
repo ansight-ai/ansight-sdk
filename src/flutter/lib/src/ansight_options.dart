@@ -3,6 +3,7 @@ import 'ansight_models.dart';
 enum AnsightSessionJpegCaptureMode {
   screenshotOnly,
   screenshotAndVisualTree,
+  screenshotWithVisualTreeOnTouch,
 }
 
 class AnsightDefaultMemoryChannels {

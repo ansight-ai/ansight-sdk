@@ -74,6 +74,23 @@ public sealed class NativeRuntimeOptionsJsonTests
 
         Assert.Null(json["sessionJpegCapture"]);
         Assert.Null(json["touchCapture"]);
+        Assert.False(json["enableOpenFileHandleTracking"]!.GetValue<bool>());
+        Assert.False(json["enableJniReferenceCountTracking"]!.GetValue<bool>());
+        Assert.False(json["crashCapture"]!["enabled"]!.GetValue<bool>());
+    }
+
+    [Fact]
+    public void Serialize_MapsTouchVisualTreeCaptureMode()
+    {
+        var options = Options.CreateBuilder()
+            .WithSessionJpegCapture(mode: SessionJpegCaptureMode.ScreenshotWithVisualTreeOnTouch)
+            .Build();
+
+        var json = JsonNode.Parse(NativeRuntimeOptionsJson.Serialize(options))!.AsObject();
+
+        Assert.Equal(
+            "screenshotWithVisualTreeOnTouch",
+            json["sessionJpegCapture"]!["mode"]!.GetValue<string>());
     }
 
     [Fact]

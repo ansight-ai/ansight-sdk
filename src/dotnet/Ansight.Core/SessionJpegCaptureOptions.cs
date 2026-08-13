@@ -1,12 +1,13 @@
 namespace Ansight;
 
 /// <summary>
-/// Selects the evidence captured for each live-session screenshot interval.
+/// Selects whether live-session visual trees are omitted, screenshot-aligned, or touch-triggered.
 /// </summary>
 public enum SessionJpegCaptureMode
 {
     ScreenshotOnly,
-    ScreenshotAndVisualTree
+    ScreenshotAndVisualTree,
+    ScreenshotWithVisualTreeOnTouch
 }
 
 /// <summary>
@@ -37,7 +38,7 @@ public sealed class SessionJpegCaptureOptions
     public bool CaptureGpuBackedSurfaces { get; set; } = true;
 
     /// <summary>
-    /// Selects whether each screenshot is accompanied by the currently registered visual-tree snapshots.
+    /// Selects whether visual-tree snapshots are omitted, captured with each screenshot, or captured around touch gestures.
     /// </summary>
     public SessionJpegCaptureMode Mode { get; set; } = SessionJpegCaptureMode.ScreenshotOnly;
 }

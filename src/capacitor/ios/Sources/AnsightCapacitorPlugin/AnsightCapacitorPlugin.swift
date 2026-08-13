@@ -926,9 +926,9 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
                 "captureGpuBackedSurfaces",
                 defaultValue: AnsightSessionJpegCaptureOptions.defaultCaptureGpuBackedSurfaces
             ),
-            mode: stringValue(dictionary, "mode") == "screenshotAndVisualTree"
-                ? .screenshotAndVisualTree
-                : .screenshotOnly
+            mode: AnsightSessionJpegCaptureMode(
+                rawValue: stringValue(dictionary, "mode") ?? ""
+            ) ?? .screenshotOnly
         )
     }
 

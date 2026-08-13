@@ -1035,10 +1035,10 @@ class AnsightCapacitorPlugin : Plugin() {
                 "captureGpuBackedSurfaces",
                 AnsightSessionJpegCaptureOptions.DefaultCaptureGpuBackedSurfaces,
             ),
-            mode = if (map.stringValue("mode") == "screenshotAndVisualTree") {
-                AnsightSessionJpegCaptureMode.ScreenshotAndVisualTree
-            } else {
-                AnsightSessionJpegCaptureMode.ScreenshotOnly
+            mode = when (map.stringValue("mode")) {
+                "screenshotAndVisualTree" -> AnsightSessionJpegCaptureMode.ScreenshotAndVisualTree
+                "screenshotWithVisualTreeOnTouch" -> AnsightSessionJpegCaptureMode.ScreenshotWithVisualTreeOnTouch
+                else -> AnsightSessionJpegCaptureMode.ScreenshotOnly
             },
         )
 

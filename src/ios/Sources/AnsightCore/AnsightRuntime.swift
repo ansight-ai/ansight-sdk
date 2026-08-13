@@ -84,6 +84,7 @@ public final class AnsightRuntime: @unchecked Sendable {
     private var frameRateTrackingEnabled = false
     private var touchCaptureSession: AnsightTouchCaptureSession?
     private var touchCaptureStreamer: AnsightTouchCaptureStreamer?
+    private var touchVisualTreeCaptureCoordinator: AnsightTouchVisualTreeCaptureCoordinator?
     private var screenCaptureGeneration = 0
     private var screenFramesCaptured = 0
     private var screenFramesSent = 0
@@ -123,6 +124,7 @@ public final class AnsightRuntime: @unchecked Sendable {
         connectionTaskId = nil
         stopLifecycleCapture()
         stopScreenCapture()
+        stopTouchVisualTreeCapture()
         stopFrameRateSampling()
         stopTouchCapture(message: "Touch capture stopped.")
         let validatedOptions = try options.validated()
@@ -219,6 +221,7 @@ public final class AnsightRuntime: @unchecked Sendable {
     public func deactivate() {
         stopLifecycleCapture()
         stopScreenCapture(message: "Screen capture stopped.")
+        stopTouchVisualTreeCapture()
         stopFrameRateSampling()
         stopTouchCapture(message: "Touch capture stopped.")
         lock.withLock {
@@ -452,6 +455,7 @@ public final class AnsightRuntime: @unchecked Sendable {
         startTouchCaptureIfNeeded()
         if liveTransport.isOpen {
             _ = startTouchCaptureStreamingIfNeeded()
+            startTouchVisualTreeCaptureIfNeeded()
         }
     }
 
@@ -459,6 +463,7 @@ public final class AnsightRuntime: @unchecked Sendable {
         lock.withLock {
             touchCaptureRuntimeEnabled = false
         }
+        stopTouchVisualTreeCapture()
         stopTouchCapture(message: "Touch capture disabled.")
     }
 
@@ -559,7 +564,9 @@ public final class AnsightRuntime: @unchecked Sendable {
                 do {
                     let event = Self.sessionVisualTreeEvent(
                         payload: visualTree,
-                        capturedAtUtc: preparedFrame.frame.capturedAtUtc
+                        capturedAtUtc: preparedFrame.frame.capturedAtUtc,
+                        screenshotCapturedAtUtc: preparedFrame.frame.capturedAtUtc,
+                        trigger: nil
                     )
                     result = await liveTransport.sendText(try event.jsonString())
                     if !result.success {
@@ -817,24 +824,27 @@ public final class AnsightRuntime: @unchecked Sendable {
     func recordCapturedTouch(_ touch: AnsightCapturedTouch) {
         let guardCallback = lock.withLock { touchCaptureGuard }
         if let guardCallback, !guardCallback() {
+            lock.withLock { touchVisualTreeCaptureCoordinator }?.interruptGesture()
             return
         }
 
-        let streamer = lock.withLock { () -> AnsightTouchCaptureStreamer? in
+        let captureTargets = lock.withLock {
+            () -> (AnsightTouchCaptureStreamer?, AnsightTouchVisualTreeCaptureCoordinator?) in
             guard initialized,
                   active,
                   touchCaptureRuntimeEnabled,
                   options.touchCapture != nil
             else {
-                return nil
+                return (nil, nil)
             }
 
             touchesCaptured += 1
             lastTouchCaptureMessage = "Captured touch input."
-            return touchCaptureStreamer
+            return (touchCaptureStreamer, touchVisualTreeCaptureCoordinator)
         }
 
-        streamer?.record(touch)
+        captureTargets.0?.record(touch)
+        captureTargets.1?.observe(touch)
     }
 
     public func connect(_ request: HostConnectionRequest = .auto()) async -> HostConnectionResult {
@@ -1113,6 +1123,7 @@ public final class AnsightRuntime: @unchecked Sendable {
         await AnsightCrashCapture.shared.deliverPendingReports(using: liveTransport)
 
         startScreenCaptureIfNeeded()
+        startTouchVisualTreeCaptureIfNeeded()
         if !resolvedRequest.document.config.configId.hasPrefix(
             PairingEnrollmentModes.localConfigPrefix
         ) {
@@ -1249,6 +1260,7 @@ public final class AnsightRuntime: @unchecked Sendable {
 
     public func disconnect() async -> HostConnectionResult {
         stopScreenCapture(message: "Screen capture stopped.")
+        stopTouchVisualTreeCapture()
         stopTouchCaptureStreaming(message: "Touch capture streaming stopped.")
         await liveTransport.close(notify: false)
         lock.withLock {
@@ -1279,6 +1291,7 @@ public final class AnsightRuntime: @unchecked Sendable {
 
     private func handleLiveTransportClosed(reason: String) {
         stopScreenCapture(message: "Screen capture stopped because the live session closed.")
+        stopTouchVisualTreeCapture()
         stopTouchCaptureStreaming(message: "Touch capture streaming stopped because the live session closed.")
 
         let shouldReconnect = lock.withLock { () -> Bool in
@@ -1494,6 +1507,7 @@ public final class AnsightRuntime: @unchecked Sendable {
 
     public func closeSession() {
         stopScreenCapture(message: "Screen capture stopped.")
+        stopTouchVisualTreeCapture()
         stopTouchCaptureStreaming(message: "Touch capture streaming stopped.")
         lock.withLock {
             sessionOpen = false
@@ -2248,6 +2262,7 @@ public final class AnsightRuntime: @unchecked Sendable {
 
     private func pauseLiveSessionPipelinesForBackground() {
         stopScreenCapture(message: "Screen capture paused while app is in the background.")
+        stopTouchVisualTreeCapture()
         stopTouchCaptureStreaming(message: "Touch capture streaming paused while app is in the background.")
     }
 
@@ -2336,6 +2351,7 @@ public final class AnsightRuntime: @unchecked Sendable {
         _ = startTouchCaptureStreamingIfNeeded()
         streamPendingTelemetry()
         startScreenCaptureIfNeeded()
+        startTouchVisualTreeCaptureIfNeeded()
     }
 
     private func reconnectLiveSessionAfterForeground() async {
@@ -2496,6 +2512,82 @@ public final class AnsightRuntime: @unchecked Sendable {
 
         if shouldCancel {
             task.cancel()
+        }
+    }
+
+    private func startTouchVisualTreeCaptureIfNeeded() {
+        let coordinator = lock.withLock { () -> AnsightTouchVisualTreeCaptureCoordinator? in
+            guard initialized,
+                  active,
+                  sessionOpen,
+                  options.touchCapture != nil,
+                  touchCaptureRuntimeEnabled,
+                  options.sessionJpegCapture?.mode == .screenshotWithVisualTreeOnTouch,
+                  touchVisualTreeCaptureCoordinator == nil,
+                  liveTransport.isOpen
+            else {
+                return nil
+            }
+
+            let coordinator = AnsightTouchVisualTreeCaptureCoordinator { [weak self] trigger in
+                await self?.captureAndSendTouchVisualTrees(trigger)
+            }
+            touchVisualTreeCaptureCoordinator = coordinator
+            return coordinator
+        }
+
+        if coordinator != nil {
+            lock.withLock {
+                lastTouchCaptureMessage = "Touch visual-tree capture started."
+            }
+        }
+    }
+
+    private func stopTouchVisualTreeCapture() {
+        let coordinator = lock.withLock { () -> AnsightTouchVisualTreeCaptureCoordinator? in
+            let coordinator = touchVisualTreeCaptureCoordinator
+            touchVisualTreeCaptureCoordinator = nil
+            return coordinator
+        }
+        coordinator?.close()
+    }
+
+    private func captureAndSendTouchVisualTrees(
+        _ trigger: AnsightTouchVisualTreeCaptureTrigger
+    ) async {
+        guard lock.withLock({
+            initialized &&
+                active &&
+                sessionOpen &&
+                currentLifecycleState != .background &&
+                options.touchCapture != nil &&
+                touchCaptureRuntimeEnabled &&
+                options.sessionJpegCapture?.mode == .screenshotWithVisualTreeOnTouch
+        }), liveTransport.isOpen else {
+            return
+        }
+
+        let capturedAtUtc = AnsightClock.isoNow()
+        let visualTrees = AnsightSessionVisualTreeCaptureRegistry.capture()
+        for visualTree in visualTrees {
+            do {
+                let event = Self.sessionVisualTreeEvent(
+                    payload: visualTree,
+                    capturedAtUtc: capturedAtUtc,
+                    screenshotCapturedAtUtc: nil,
+                    trigger: trigger
+                )
+                let result = await liveTransport.sendText(try event.jsonString())
+                if !result.success {
+                    lock.withLock { sessionMessage = result.message }
+                    return
+                }
+            } catch {
+                lock.withLock {
+                    sessionMessage = "Failed to encode the captured touch visual tree: \(error.localizedDescription)"
+                }
+                return
+            }
         }
     }
 
@@ -3340,43 +3432,85 @@ public final class AnsightRuntime: @unchecked Sendable {
         let visualTrees: [JSONValue]
     }
 
-    private static func sessionVisualTreeEvent(payload: JSONValue, capturedAtUtc: String) -> JSONValue {
+    private static func sessionVisualTreeEvent(
+        payload: JSONValue,
+        capturedAtUtc: String,
+        screenshotCapturedAtUtc: String?,
+        trigger: AnsightTouchVisualTreeCaptureTrigger?
+    ) -> JSONValue {
         guard case .object(var payloadObject) = payload else {
-            return .object([
+            var event: [String: JSONValue] = [
                 "type": .string("CLIENT_VISUAL_TREE"),
                 "snapshotId": .string("stream-\(UUID().uuidString)"),
                 "capturedAtUtc": .string(capturedAtUtc),
-                "screenshotCapturedAtUtc": .string(capturedAtUtc),
                 "visualTreeKind": .string("unknown"),
-                "source": .string("sdk.sessionCapture"),
+                "source": .string(trigger == nil ? "sdk.sessionCapture" : "sdk.touchCapture"),
                 "nodeCount": .integer(0),
                 "truncated": .bool(false),
                 "payload": payload,
-            ])
+            ]
+            if let screenshotCapturedAtUtc {
+                event["screenshotCapturedAtUtc"] = .string(screenshotCapturedAtUtc)
+            }
+            addTouchTrigger(trigger, to: &event)
+            return .object(event)
         }
 
         payloadObject["capturedAtUtc"] = .string(capturedAtUtc)
+        if let trigger {
+            payloadObject["captureTrigger"] = touchTriggerPayload(trigger)
+        }
         let source = jsonString(payloadObject["source"]) ?? "native"
         let format = jsonString(payloadObject["format"] ?? payloadObject["schema"]) ?? "ansight.visual-tree.compact.v2"
         let platform = jsonString(payloadObject["platform"]) ?? "ios"
         let nodeCount = jsonInteger(payloadObject["nodeCount"]) ?? countVisualTreeNodes(.object(payloadObject))
         let truncated = jsonBoolean(payloadObject["truncated"]) ?? false
 
-        return .object([
+        var event: [String: JSONValue] = [
             "type": .string("CLIENT_VISUAL_TREE"),
             "snapshotId": .string("stream-\(UUID().uuidString)"),
             "capturedAtUtc": .string(capturedAtUtc),
-            "screenshotCapturedAtUtc": .string(capturedAtUtc),
             "visualTreeKind": .string(source),
             "visualTreeFormat": .string(format),
             "runtimePlatform": .string(platform),
-            "source": .string("sdk.sessionCapture"),
+            "source": .string(trigger == nil ? "sdk.sessionCapture" : "sdk.touchCapture"),
             "maxDepth": .integer(40),
             "includeProperties": .bool(true),
             "includeBindableProperties": .bool(false),
             "nodeCount": .integer(Int64(nodeCount)),
             "truncated": .bool(truncated),
             "payload": .object(payloadObject),
+        ]
+        if let screenshotCapturedAtUtc {
+            event["screenshotCapturedAtUtc"] = .string(screenshotCapturedAtUtc)
+        }
+        addTouchTrigger(trigger, to: &event)
+        return .object(event)
+    }
+
+    private static func addTouchTrigger(
+        _ trigger: AnsightTouchVisualTreeCaptureTrigger?,
+        to event: inout [String: JSONValue]
+    ) {
+        guard let trigger else {
+            return
+        }
+        event["captureTrigger"] = .string("touch")
+        event["gestureId"] = .string(trigger.gestureId)
+        event["gesturePhase"] = .string(trigger.gesturePhase.rawValue)
+        event["touchAction"] = .string(trigger.touchAction)
+        event["touchCapturedAtUtc"] = .string(trigger.touchCapturedAtUtc)
+    }
+
+    private static func touchTriggerPayload(
+        _ trigger: AnsightTouchVisualTreeCaptureTrigger
+    ) -> JSONValue {
+        .object([
+            "kind": .string("touch"),
+            "gestureId": .string(trigger.gestureId),
+            "gesturePhase": .string(trigger.gesturePhase.rawValue),
+            "touchAction": .string(trigger.touchAction),
+            "touchCapturedAtUtc": .string(trigger.touchCapturedAtUtc),
         ])
     }
 

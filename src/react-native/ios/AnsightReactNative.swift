@@ -974,9 +974,9 @@ final class AnsightReactNative: RCTEventEmitter {
                         "captureGpuBackedSurfaces",
                         defaultValue: AnsightSessionJpegCaptureOptions.defaultCaptureGpuBackedSurfaces
                     ),
-                    mode: stringValue(jpeg, "mode") == "screenshotAndVisualTree"
-                        ? .screenshotAndVisualTree
-                        : .screenshotOnly
+                    mode: AnsightSessionJpegCaptureMode(
+                        rawValue: stringValue(jpeg, "mode") ?? ""
+                    ) ?? .screenshotOnly
                 )
             }
         }
@@ -1318,9 +1318,9 @@ final class AnsightReactNative: RCTEventEmitter {
                 "captureGpuBackedSurfaces",
                 defaultValue: AnsightSessionJpegCaptureOptions.defaultCaptureGpuBackedSurfaces
             ),
-            mode: stringValue(dictionary, "mode") == "screenshotAndVisualTree"
-                ? .screenshotAndVisualTree
-                : .screenshotOnly
+            mode: AnsightSessionJpegCaptureMode(
+                rawValue: stringValue(dictionary, "mode") ?? ""
+            ) ?? .screenshotOnly
         )
     }
 

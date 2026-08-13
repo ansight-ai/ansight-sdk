@@ -605,12 +605,18 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
     /// <param name="progress">Optional progress sink for structured streaming updates.</param>
     /// <param name="cancellationToken">Cancellation token for the operation.</param>
     /// <returns>The result of starting touch capture streaming.</returns>
-    Task<OperationResult> IHostConnectionSessionClient.StartTouchCaptureStreamingAsync(
+    async Task<OperationResult> IHostConnectionSessionClient.StartTouchCaptureStreamingAsync(
         TouchCaptureHub touchCaptureHub,
         IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
-        return touchCaptureStreamer.StartAsync(touchCaptureHub, progress, cancellationToken);
+        var result = await touchCaptureStreamer.StartAsync(touchCaptureHub, progress, cancellationToken);
+        if (result.Success)
+        {
+            await jpegStreamer.StartTouchVisualTreeCaptureAsync(touchCaptureHub, cancellationToken);
+        }
+
+        return result;
     }
 
     /// <summary>

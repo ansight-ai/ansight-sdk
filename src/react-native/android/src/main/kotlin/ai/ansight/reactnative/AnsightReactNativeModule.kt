@@ -985,10 +985,10 @@ class AnsightReactNativeModule(
     }
 
     private fun sessionJpegCaptureMode(value: String?): AnsightSessionJpegCaptureMode =
-        if (value == "screenshotAndVisualTree") {
-            AnsightSessionJpegCaptureMode.ScreenshotAndVisualTree
-        } else {
-            AnsightSessionJpegCaptureMode.ScreenshotOnly
+        when (value) {
+            "screenshotAndVisualTree" -> AnsightSessionJpegCaptureMode.ScreenshotAndVisualTree
+            "screenshotWithVisualTreeOnTouch" -> AnsightSessionJpegCaptureMode.ScreenshotWithVisualTreeOnTouch
+            else -> AnsightSessionJpegCaptureMode.ScreenshotOnly
         }
 
     private fun toolDefinition(map: ReadableMap): ToolDefinition =
@@ -1179,10 +1179,10 @@ class AnsightReactNativeModule(
                     "quality" to capture.quality,
                     "maxWidth" to capture.maxWidth,
                     "captureGpuBackedSurfaces" to capture.captureGpuBackedSurfaces,
-                    "mode" to if (capture.mode == AnsightSessionJpegCaptureMode.ScreenshotAndVisualTree) {
-                        "screenshotAndVisualTree"
-                    } else {
-                        "screenshotOnly"
+                    "mode" to when (capture.mode) {
+                        AnsightSessionJpegCaptureMode.ScreenshotAndVisualTree -> "screenshotAndVisualTree"
+                        AnsightSessionJpegCaptureMode.ScreenshotWithVisualTreeOnTouch -> "screenshotWithVisualTreeOnTouch"
+                        else -> "screenshotOnly"
                     },
                 ).toWritableMap())
             } ?: putNull("sessionJpegCapture")
