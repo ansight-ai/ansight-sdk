@@ -239,6 +239,56 @@ Responses use:
 Supported actions include `session.open`, `session.properties`,
 `device.profile`, `app.state`, `client.log`, and `session.complete`.
 
+### Crash handoff
+
+Crash reporting is a two-process protocol. A fatal handler never opens a
+network connection. It writes a bounded record into app-private storage and
+allows the operating system's normal termination path to continue. On the next
+healthy launch, the SDK combines that record with the previous
+`processSessionId`, open Studio/offline session identifiers, recent
+breadcrumbs, and OS termination diagnostics.
+
+When Studio is connected, the recovering process sends an acknowledged
+`crash.handoff` control request:
+
+```json
+{
+  "type": "CONTROL_REQ",
+  "requestId": "request_crash_1",
+  "action": "crash.handoff",
+  "payload": {
+    "reportId": "6f914d7bdca928cfbf6e9691aefa0a42",
+    "targetProcessSessionId": "process_that_crashed",
+    "targetSessionId": "previous_studio_session_if_known",
+    "deliveryProcessSessionId": "recovering_process",
+    "report": {
+      "schema": "ansight.crash.v1",
+      "platform": "android",
+      "kind": "native_crash",
+      "confidence": "confirmed",
+      "occurredAtUtc": "2026-08-13T00:00:00.000Z",
+      "candidate": {},
+      "termination": {},
+      "breadcrumbs": [],
+      "traceBase64": "optional-bounded-os-trace"
+    }
+  }
+}
+```
+
+Studio uses `reportId` as an idempotency key and associates the report with
+`targetSessionId` or `targetProcessSessionId`. It returns a successful
+`CONTROL_RESP` only after the report is durably stored. The SDK then marks the
+Studio delivery complete. Failed and interrupted requests remain in the
+bounded outbox for a later connection.
+
+If an offline capture was open when the process died, `.NET` recovery writes
+the same report under `diagnostics/crashes` in that prior capture, seals its
+manifest with the crash termination kind, and acknowledges the offline copy.
+The normal offline ZIP/upload path consequently transports the crash without
+network work in the fatal handler. A report is removed only after every
+delivery route required by its prior-session associations has succeeded.
+
 ### Telemetry streams
 
 Telemetry is sent as WebSocket text messages:
@@ -247,6 +297,39 @@ Telemetry is sent as WebSocket text messages:
 - `CLIENT_METRICS` carries timestamped numeric samples.
 - `CLIENT_EVENTS` carries timestamped events.
 - `CLIENT_TOUCH_INPUT` carries `ansight.touches.v1` packed touch batches.
+- `CLIENT_VISUAL_TREE` carries screenshot-aligned or touch-triggered visual-tree snapshots.
+
+Touch-triggered visual trees use `source: "sdk.touchCapture"`. They omit
+`screenshotCapturedAtUtc` and carry the gesture correlation both on the event
+and inside the tree payload so recorders that preserve only one layer retain
+the trigger:
+
+```json
+{
+  "type": "CLIENT_VISUAL_TREE",
+  "capturedAtUtc": "2026-08-13T00:00:00.250Z",
+  "source": "sdk.touchCapture",
+  "captureTrigger": "touch",
+  "gestureId": "gesture-37f5...",
+  "gesturePhase": "checkpoint",
+  "touchAction": "move",
+  "touchCapturedAtUtc": "2026-08-13T00:00:00.120Z",
+  "payload": {
+    "captureTrigger": {
+      "kind": "touch",
+      "gestureId": "gesture-37f5...",
+      "gesturePhase": "checkpoint",
+      "touchAction": "move",
+      "touchCapturedAtUtc": "2026-08-13T00:00:00.120Z"
+    }
+  }
+}
+```
+
+The phases are `started`, `checkpoint`, `ended`, and `cancelled`. Current SDKs
+capture at the leading down, every 250 ms while any pointer in the gesture is
+active, and at the terminal up or cancel. Checkpoints are coalesced when a tree
+capture is slower than the interval.
 
 These streams are fire-and-forget. Session and tool operations use correlated
 request/response envelopes.

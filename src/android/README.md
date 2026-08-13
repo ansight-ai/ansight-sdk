@@ -104,9 +104,11 @@ AnsightRuntime.initializeAndActivate(
 | `retentionPeriodSeconds` | Local metric/event retention window. Clamped to 60-3600 seconds. |
 | `enableFramesPerSecond` | Enables `Choreographer` FPS sampling. |
 | `enableBatteryLevel` | Enables battery sampling where available. |
+| `enableOpenFileHandleTracking` | Enables process open-file-handle sampling. Disabled by default. |
+| `enableJniReferenceCountTracking` | Registers the JNI reference-count channel for integrations that can supply it. Disabled by default. |
 | `defaultMemoryChannels` | Selects Java heap, native heap, and RSS channels. |
 | `additionalChannels` | Registers custom metric channels. Reserved ids are rejected. |
-| `sessionJpegCapture` | Configures live JPEG screen-frame streaming. `null` disables it. Includes `captureGpuBackedSurfaces` for cross-platform configuration parity. |
+| `sessionJpegCapture` | Configures live JPEG screen-frame streaming and automatic visual-tree mode. `null` disables it. Includes `captureGpuBackedSurfaces` for cross-platform configuration parity. |
 | `touchCapture` | Configures app-local touch capture. `null` disables it. |
 | `toolGuard` | Controls remote-tool discovery and execution. |
 | `customProperties` | Grouped string properties sent with `session.open`. |
@@ -116,10 +118,22 @@ AnsightRuntime.initializeAndActivate(
 | `initialTools` | Adds custom or package-provided tools at initialization. |
 | `artifactProviders` | Adds app-defined artifact catalogs and binary exports. |
 
+Use `withOpenFileHandleTracking()` to expose `Open File Handles` (reserved
+channel 7) and sample the process descriptor table. `JNI reference count`
+(reserved channel 6) is available through `withJniReferenceCountTracking()`
+for integrations that can provide a tracked JNI count; the .NET Android bridge
+supplies Java.Interop's global-reference count automatically. Both are disabled
+by default and have matching `without...` builder methods.
+
 `AnsightSessionJpegCaptureOptions.captureGpuBackedSurfaces` is accepted for
 cross-platform configuration parity. It defaults to `true`; the capture-mode
 tradeoff is currently meaningful on iOS, where setting it to `false` selects a
 lower-overhead path that may miss GPU-backed surfaces.
+
+Use `AnsightSessionJpegCaptureMode.ScreenshotWithVisualTreeOnTouch` to retain
+periodic screenshots while capturing visual trees at gesture start, every 250
+ms throughout the gesture, and at the final up or cancel. Touch capture must
+also be enabled, and a session visual-tree provider must be registered.
 
 > **Important:** Screen capture will result in an FPS drop while the SDK
 > captures, encodes, and sends frames. Use conservative interval, quality, and

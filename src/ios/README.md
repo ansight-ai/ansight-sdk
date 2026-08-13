@@ -137,13 +137,18 @@ try AnsightRuntime.shared.initializeAndActivate(options: options)
 | `defaultMemoryChannels` | Selects managed heap, native heap, RSS, and physical footprint channels. |
 | `enableFramesPerSecond` | Enables CADisplayLink FPS sampling. |
 | `enableBatteryLevel` | Enables battery sampling where available. |
+| `enableOpenFileHandleTracking` | Enables process open-file-handle sampling. Disabled by default. |
 | `lifecycleCapture` | Controls automatic UIKit app lifecycle and screen-view capture. |
-| `sessionJpegCapture` | Configures live JPEG screen-frame streaming. `nil` disables it. `captureGpuBackedSurfaces` defaults to `true` so Metal, SceneKit, and similar GPU-backed views are included. |
+| `sessionJpegCapture` | Configures live JPEG screen-frame streaming and automatic visual-tree mode. `nil` disables it. `captureGpuBackedSurfaces` defaults to `true` so Metal, SceneKit, and similar GPU-backed views are included. |
 | `touchCapture` | Configures app-local touch capture. `nil` disables it. |
 | `toolGuard` | Controls remote-tool discovery and execution. |
 | `customProperties` | Grouped string properties sent with `session.open`. |
 | `hostAutoProbe` | Controls remembered-host retries after the host disappears and later reappears. |
 | `hostConnection` | Configures registration retention, discovery, and network policy. |
+
+Use `withOpenFileHandleTracking()` to expose and sample `Open File Handles` on
+reserved channel 7. Tracking is disabled by default and can be turned off again
+with `withoutOpenFileHandleTracking()`.
 
 Cellular host connections are disabled by default. Enrollment and reconnect
 requests use the same restriction. Opt in only for a trusted development host
@@ -359,6 +364,11 @@ try AnsightRuntime.shared.initializeAndActivateAnsightSdk(
 ```
 
 When the WebSocket session opens, the SDK captures the foreground UIKit window on the main actor, encodes it as JPEG, and sends binary frames to Studio. Apps can also trigger a single frame with `await AnsightRuntime.shared.captureScreenFrame()`.
+
+Set `mode: .screenshotWithVisualTreeOnTouch` to retain periodic screenshots
+while capturing visual trees at gesture start, every 250 ms throughout the
+gesture, and at the final up or cancel. Touch capture and a session visual-tree
+provider must also be enabled.
 
 For Simulator sessions, Studio can acknowledge `device.profile` with host
 screenshot mode. The SDK then suspends periodic in-app JPEG capture for that

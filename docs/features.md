@@ -41,16 +41,29 @@ first QR scan.
 
 ## Capture and diagnostics
 
-| Capability | .NET / MAUI | Android | iOS | React Native | Capacitor |
-| --- | --- | --- | --- | --- | --- |
-| Periodic live JPEG capture | Yes | Yes | Yes | Native | Native |
-| On-demand screenshot (`ui.get_screenshot`; runtime helper where exposed) | Yes | Yes | Yes | Native | Native |
-| GPU-backed surface capture option | Accepted for parity | Accepted for parity | Yes | Native; meaningful on iOS | Native; meaningful on iOS |
-| Studio-owned simulator/emulator screenshots | Yes | Yes | Yes | Native | Native |
-| Touch capture and runtime enable/disable | Yes | Yes | Yes | Native | Native |
-| Touch-capture app guard | Yes | Yes | Yes | Native toggle; JS policy is app-owned | Native toggle; JS policy is app-owned |
-| Native visual-tree providers | Yes | Yes | Yes | Native plus a React provider | Native plus a DOM provider |
-| App-provided visual-tree sources | Yes | Yes | Yes | Native code can register providers; React inspection uses separate `react.*` tools | Native hierarchy plus `dom.*` WebView tools |
+Native crash capture is enabled by default in every mobile SDK and is owned by
+the shared Kotlin/Swift core, including when called through .NET, React Native,
+Capacitor, or Flutter.
+
+| Crash capability | .NET / MAUI | Android | iOS | React Native | Capacitor | Flutter |
+| --- | --- | --- | --- | --- | --- | --- |
+| Native fatal hooks | Native bridge | JVM handler plus Android exit reasons | Objective-C exception, fatal signals, and MetricKit | Native bridge | Native bridge | Native bridge |
+| Framework stack context | CLR unhandled exception | JVM throwable | Objective-C exception | Fatal JS global handler and rejection context | WebView error/rejection context | Flutter framework and platform-dispatcher context |
+| Previous live-session handoff | Yes | Yes | Yes | Yes | Yes | Yes |
+| Previous offline-capture attachment | Yes | Via the .NET host | Via the .NET host | — | — | — |
+| Durable next-launch outbox | Yes | Yes | Yes | Yes | Yes | Yes |
+
+| Capability | .NET / MAUI | Android | iOS | React Native | Capacitor | Flutter |
+| --- | --- | --- | --- | --- | --- | --- |
+| Periodic live JPEG capture | Yes | Yes | Yes | Native | Native | Native |
+| Automatic screenshot-aligned or touch-triggered visual-tree capture | Yes | Yes | Yes | Native | Native | Native |
+| On-demand screenshot (`ui.get_screenshot`; runtime helper where exposed) | Yes | Yes | Yes | Native | Native | Native |
+| GPU-backed surface capture option | Accepted for parity | Accepted for parity | Yes | Native; meaningful on iOS | Native; meaningful on iOS | Native; meaningful on iOS |
+| Studio-owned simulator/emulator screenshots | Yes | Yes | Yes | Native | Native | Native |
+| Touch capture and runtime enable/disable | Yes | Yes | Yes | Native | Native | Native |
+| Touch-capture app guard | Yes | Yes | Yes | Native toggle; JS policy is app-owned | Native toggle; JS policy is app-owned | Native toggle; Dart policy is app-owned |
+| Native visual-tree providers | Yes | Yes | Yes | Native plus a React provider | Native plus a DOM provider | Native |
+| App-provided visual-tree sources | Yes | Yes | Yes | Native code can register providers; React inspection uses separate `react.*` tools | Native hierarchy plus `dom.*` WebView tools | Native code can register providers |
 
 The order of a node's `children` records its structural sibling order. A node
 with a non-default stacking override may additionally include a `z`
@@ -61,6 +74,14 @@ authoritative record of final occlusion.
 Visual-tree payloads store runtime type names once in the top-level `types`
 array. Every node references that registry with a required `typeId`; node-local
 `type`, `kind`, and `styleId` fields are not part of the compact format.
+
+Session JPEG capture has three modes. `screenshotOnly` sends no automatic
+visual trees. `screenshotAndVisualTree` captures a tree alongside each SDK
+screenshot. `screenshotWithVisualTreeOnTouch` keeps screenshots on their normal
+schedule but captures a tree when a gesture starts, every 250 ms while it
+remains active (including a stationary hold), and once more when it ends or is
+cancelled. The touch mode requires touch capture and at least one registered
+visual-tree provider.
 
 During `device.profile`, current runtimes advertise screenshot-control version
 1. Studio can respond with host capture mode for a simulator or emulator. The
@@ -108,6 +129,7 @@ session.
 | MAUI UI inspection, XAML inflation, mutation, resources, bindings, navigation, layout, and handler diagnostics | .NET MAUI | `Ansight.Tools.Maui` |
 | Annotated in-app feedback with screenshots, all visual-tree sources, hooks, artifacts, outbox, and live/offline delivery | .NET Android, iOS, and Mac Catalyst Debug app builds | `Ansight.Annotations` / `WithAnnotatedFeedback()` |
 | Offline telemetry, events, touches, screenshots, annotation bundles, retention, ZIP/AES export, and team upload | .NET | `Ansight.OfflineCapture` |
+| Native crash capture, prior-session association, Studio handoff, and offline capture attachment | All mobile SDKs; offline attachment currently uses `.NET` Offline Capture | Core runtime `crashCapture` options |
 | Objective-C facade | iOS | `AnsightObjC` |
 | React component and shadow-tree inspection | React Native | `installReactTools(...)` |
 | React Navigation route tracking | React Native | `createReactNavigationTracker(...)` |

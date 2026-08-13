@@ -72,9 +72,9 @@ keep the tool guard at the least-permissive level appropriate for the build.
 
 ```dart
 await Ansight.instance.registerMetricChannel(
-  const AnsightChannel(id: 7, name: 'Queue depth'),
+  const AnsightChannel(id: 42, name: 'Queue depth'),
 );
-await Ansight.instance.metric(42, channel: 7);
+await Ansight.instance.metric(42, channel: 42);
 
 await Ansight.instance.event(
   'Checkout completed',
@@ -91,6 +91,18 @@ await Ansight.instance.screenViewed(
 The runtime also exposes built-in telemetry sampling, FPS control, screen-frame
 capture, touch capture, session properties, custom properties, runtime
 snapshots, recorded metrics/events, and log and connection-status streams.
+
+Set the JPEG capture option mode to
+`AnsightSessionJpegCaptureMode.screenshotWithVisualTreeOnTouch` to retain
+periodic screenshots while the native runtime captures visual trees at gesture
+start, every 250 ms throughout the gesture, and at the final up or cancel.
+Native touch capture and visual-tree providers must remain enabled.
+
+Open-file-handle and JNI reference-count diagnostics are disabled by default.
+Enable them with `withOpenFileHandleTracking()` and
+`withJniReferenceCountTracking()`; matching `without...` methods disable them
+again. Open handles are sampled by the native Android/iOS runtime. JNI counts
+are available on Android only when the host integration can supply them.
 
 ## Pairing and sessions
 

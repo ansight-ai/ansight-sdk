@@ -136,10 +136,12 @@ The TypeScript `AnsightOptions` surface mirrors Android `AnsightOptions`, iOS
 | `retentionPeriodSeconds` | Local metric/event retention window. |
 | `enableFramesPerSecond` | Enables native FPS sampling. |
 | `enableBatteryLevel` | Enables battery sampling where available. |
+| `enableOpenFileHandleTracking` | Enables native process open-file-handle sampling. Disabled by default. |
+| `enableJniReferenceCountTracking` | Enables JNI reference-count tracking where the runtime can supply it. Disabled by default. |
 | `defaultMemoryChannels` | Selects built-in memory channels. Prefer `managedHeap`, `nativeHeap`, `residentSetSize`, and `physicalFootprint`; `javaHeap` and `rss` are accepted as Android/RN compatibility aliases. |
 | `reactNativeMemory` | Controls native React Native runtime memory channels. Enabled by default; set to `false` to disable, or use `{ jsHeapUsed, jsHeapTotal }`. |
 | `additionalChannels` | Registers custom metric channels. |
-| `sessionJpegCapture` | Object to enable/configure capture, or `false` to disable. Supports `captureGpuBackedSurfaces`; on iOS it defaults to `true` so Metal, SceneKit, and similar GPU-backed views are included. |
+| `sessionJpegCapture` | Object to enable/configure capture, or `false` to disable. `mode` accepts `screenshotOnly`, `screenshotAndVisualTree`, or `screenshotWithVisualTreeOnTouch`. Supports `captureGpuBackedSurfaces`; on iOS it defaults to `true` so Metal, SceneKit, and similar GPU-backed views are included. |
 | `touchCapture` | Object to enable/configure capture, or `false` to disable. |
 | `lifecycleCapture` | Native lifecycle and screen-view capture options. |
 | `toolGuard` | `"disabled"`, `"readOnly"`, `"readWrite"`, or `"fullAccess"`. |
@@ -149,6 +151,11 @@ The TypeScript `AnsightOptions` surface mirrors Android `AnsightOptions`, iOS
 | `secureStorage` | Compatibility alias for native secure-storage allow-list settings. |
 | `remoteTools` | Native visual tree, file, database, preferences, reflection, and secure-storage tool options. |
 | `lifecycle` | JS AppState tracking toggle. Defaults to true. |
+
+Use `withOpenFileHandleTracking()` and `withJniReferenceCountTracking()` to
+opt in through the builder. Matching `without...` methods disable the channels
+again. Open handles are sampled by the native Android/iOS runtime. JNI counts
+are available on Android only when the host integration can supply them.
 
 Cellular host connections are disabled by default. The restriction applies to
 enrollment and reconnect requests. Opt in only for a trusted development host
@@ -175,6 +182,7 @@ await Ansight.initializeAndActivate({
     quality: 60,
     maxWidth: 480,
     captureGpuBackedSurfaces: true,
+    mode: "screenshotWithVisualTreeOnTouch",
   },
   touchCapture: {
     captureMoveEvents: true,
@@ -191,6 +199,10 @@ await Ansight.initializeAndActivate({
   },
 });
 ```
+
+The touch mode captures native visual trees at gesture start, every 250 ms
+throughout the gesture, and at the final up or cancel. It requires native touch
+capture and visual-tree tools/providers to remain enabled.
 
 On iOS, `captureGpuBackedSurfaces` defaults to `true` so Metal, SceneKit, and
 similar GPU-backed views are included. Set it to `false` to use a lower-overhead

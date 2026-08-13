@@ -187,6 +187,20 @@ Set `SessionJpegCaptureOptions.CaptureGpuBackedSurfaces` to `false` to use the
 lower-overhead capture path on supported Apple platforms when Metal or SceneKit
 content is not required. It defaults to `true`.
 
+Set the mode to `SessionJpegCaptureMode.ScreenshotWithVisualTreeOnTouch` to
+keep periodic screenshots but capture visual trees around interaction instead:
+
+```csharp
+var options = Options.CreateBuilder()
+    .WithSessionJpegCapture(mode: SessionJpegCaptureMode.ScreenshotWithVisualTreeOnTouch)
+    .WithTouchCapture()
+    .Build();
+```
+
+The runtime captures at gesture start, every 250 ms throughout the gesture,
+and at its final up or cancel. At least one session visual-tree provider must
+be registered.
+
 Battery level telemetry is disabled by default; `WithBatteryLevel()` only emits on platforms that expose a battery API.
 
 Install `Ansight.Core` for this lower-level surface. Add `Ansight.Pairing` separately if the app should own native QR acquisition while staying on the core package set.
@@ -211,6 +225,13 @@ Runtime.Event("download", AppEventType.Info, channel: 42, details: "size=8mb");
 ```
 
 Reserved channel IDs are rejected by `Options.Build()`. Recent samples can be read from the active runtime data sink:
+
+Runtime diagnostics are opt-in and disabled by default. Use
+`WithOpenFileHandleTracking()` on Android or Apple platforms and
+`WithJniReferenceCountTracking()` on Android. Open handles are sampled by the
+native platform runtime, while the Android JNI count comes from Java.Interop's
+tracked global references and is recorded into the native telemetry channel.
+Matching `Without...` methods support copied or reused builders.
 
 ```csharp
 var sink = Runtime.Instance.DataSink;

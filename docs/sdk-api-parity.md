@@ -70,8 +70,11 @@ Android, and iOS:
 | Retention | 120 seconds |
 | FPS | Enabled |
 | Battery | Disabled |
+| Open file handle tracking | Disabled; opt-in native sampling on Android and Apple platforms |
+| JNI reference count tracking | Disabled; opt-in on Android when the integration can supply a tracked count |
 | JPEG capture | Enabled, 2000 ms, quality 60, max width 480; iOS GPU-backed surface capture defaults to enabled |
 | Touch capture | Enabled |
+| Crash capture | Enabled; 8 pending reports, 7-day retention, 64 breadcrumbs, 1 MiB trace limit |
 | Host auto-probe | Enabled |
 | Tool guard | Full access in native all-in-one presets |
 | Enrollment reconnect | Registers host-local runtimes automatically; physical devices reconnect after one QR scan |
@@ -87,6 +90,41 @@ auto-probe, and host connection remain separate controls.
 > rendered or captured, encoded, and transported. Keep periodic JPEG capture
 > scoped to development or QA sessions, and disable it for performance-focused
 > runs unless visual evidence is required.
+
+## Runtime Diagnostic Channel Parity
+
+`Open File Handles` uses reserved channel 7 and is sampled by the native
+Android and Apple runtimes. `JNI reference count` uses reserved channel 6; JNI
+does not expose a process-wide count, so .NET Android supplies Java.Interop's
+tracked global-reference count to the native telemetry runtime. Both channels
+are disabled by default.
+
+| Operation | .NET | Android | iOS | React Native | Capacitor | Flutter |
+| --- | --- | --- | --- | --- | --- | --- |
+| Enable open handles | `WithOpenFileHandleTracking()` | `withOpenFileHandleTracking()` | `withOpenFileHandleTracking()` | `withOpenFileHandleTracking()` | `withOpenFileHandleTracking()` | `withOpenFileHandleTracking()` |
+| Disable open handles | `WithoutOpenFileHandleTracking()` | `withoutOpenFileHandleTracking()` | `withoutOpenFileHandleTracking()` | `withoutOpenFileHandleTracking()` | `withoutOpenFileHandleTracking()` | `withoutOpenFileHandleTracking()` |
+| Enable JNI count | `WithJniReferenceCountTracking()` | `withJniReferenceCountTracking()` | — | `withJniReferenceCountTracking()` | `withJniReferenceCountTracking()` | `withJniReferenceCountTracking()` |
+| Disable JNI count | `WithoutJniReferenceCountTracking()` | `withoutJniReferenceCountTracking()` | — | `withoutJniReferenceCountTracking()` | `withoutJniReferenceCountTracking()` | `withoutJniReferenceCountTracking()` |
+
+## Crash Capture Parity
+
+All mobile surfaces use one native crash outbox. The fatal path performs only
+a bounded app-private write; report construction and network delivery happen
+after the next launch. Non-fatal framework candidates are retained as context
+but are not promoted to crash reports without a fatal framework marker or
+independent OS termination evidence.
+
+| Concept | .NET | Android | iOS | React Native | Capacitor | Flutter |
+| --- | --- | --- | --- | --- | --- | --- |
+| Options | `CrashCaptureOptions` | `AnsightCrashCaptureOptions` | `AnsightCrashCaptureOptions` | `AnsightCrashCaptureOptions` | `AnsightCrashCaptureOptions` | `AnsightCrashCaptureOptions` |
+| Enable | `WithCrashCapture(...)` | `withCrashCapture(...)` | `withCrashCapture(...)` | `withCrashCapture(...)` | `withCrashCapture(...)` | `withCrashCapture(...)` |
+| Disable | `WithoutCrashCapture()` | `withoutCrashCapture()` | `withoutCrashCapture()` | `withoutCrashCapture()` | `withoutCrashCapture()` | `withoutCrashCapture()` |
+| Framework enrichment | `Runtime.RecordCrashCandidate(...)` and `AppDomain.UnhandledException` | `recordCrashCandidate(...)` | `recordCrashCandidate(...)` | `installErrorHandlers(...)` | `installErrorHandlers(...)` | instrumentation error hooks |
+
+The options independently control Studio handoff and attachment to an active
+offline capture, plus pending-report count, retention, breadcrumb count, and
+trace-byte limits. `processSessionId` is the correlation key shared by
+enrollment, live sessions, offline manifests, and recovered crash reports.
 
 ## Host Auto-Probe Parity
 
@@ -288,8 +326,26 @@ Current .NET, Android, and iOS runtimes add
 that profile with `sessionJpegCapture.mode: "host"` and an optional source such
 as `adb` or `simctl`. In host mode, the SDK suspends its periodic in-app JPEG
 loop for that live session. Missing or app mode keeps the configured SDK
-capture behavior. React Native inherits this negotiation from its native
-runtime.
+capture behavior. React Native, Capacitor, and Flutter inherit this negotiation
+from their native runtime.
+
+## Session Visual-Tree Capture Modes
+
+The `sessionJpegCapture.mode` setting is available on .NET, Android, iOS, React
+Native, Capacitor, and Flutter:
+
+| Wire value | Native enum | Behavior |
+| --- | --- | --- |
+| `screenshotOnly` | `ScreenshotOnly` / `screenshotOnly` | Sends periodic screenshots without automatic visual trees. |
+| `screenshotAndVisualTree` | `ScreenshotAndVisualTree` / `screenshotAndVisualTree` | Captures a visual tree for each SDK screenshot and correlates it through `screenshotCapturedAtUtc`. |
+| `screenshotWithVisualTreeOnTouch` | `ScreenshotWithVisualTreeOnTouch` / `screenshotWithVisualTreeOnTouch` | Keeps screenshots on their configured schedule and captures visual trees at gesture start, at 250 ms checkpoints, and at the final up or cancel. |
+
+Touch-triggered capture requires `touchCapture` to be configured and runtime
+touch capture to be enabled. It continues to work when Studio owns simulator
+or emulator screenshots because the visual-tree timeline is independent of
+the JPEG producer. Each emitted `CLIENT_VISUAL_TREE` has source
+`sdk.touchCapture`, a gesture id and phase, the triggering touch action and
+timestamp, and no fabricated `screenshotCapturedAtUtc` correlation.
 
 ## Tool Guards
 
