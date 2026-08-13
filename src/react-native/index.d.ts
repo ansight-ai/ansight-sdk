@@ -110,6 +110,8 @@ export interface AnsightOptions {
   retentionPeriodSeconds?: number;
   enableFramesPerSecond?: boolean;
   enableBatteryLevel?: boolean;
+  enableOpenFileHandleTracking?: boolean;
+  enableJniReferenceCountTracking?: boolean;
   defaultMemoryChannels?: {
     managedHeap?: boolean;
     physicalFootprint?: boolean;
@@ -121,6 +123,7 @@ export interface AnsightOptions {
   reactNativeMemory?: false | AnsightReactNativeMemoryOptions;
   sessionJpegCapture?: false | AnsightSessionJpegCaptureOptions;
   touchCapture?: false | AnsightTouchCaptureOptions;
+  crashCapture?: false | AnsightCrashCaptureOptions;
   lifecycleCapture?: {
     enabled?: boolean;
     captureAppLifecycle?: boolean;
@@ -151,6 +154,25 @@ export interface AnsightOptions {
   remoteTools?: AnsightRemoteToolsOptions;
   additionalChannels?: AnsightChannel[];
   lifecycle?: boolean;
+}
+
+export interface AnsightCrashCaptureOptions {
+  enabled?: boolean;
+  studioHandoffEnabled?: boolean;
+  offlineCaptureAttachmentEnabled?: boolean;
+  maximumPendingReports?: number;
+  retentionDays?: number;
+  maximumBreadcrumbs?: number;
+  maximumTraceBytes?: number;
+}
+
+export interface AnsightCrashCandidate {
+  runtime?: string;
+  kind?: string;
+  message?: string;
+  stack?: string;
+  fatal?: boolean;
+  metadata?: string | Record<string, string>;
 }
 
 export interface AnsightOperationResult {
@@ -251,6 +273,10 @@ export class AnsightOptionsBuilder {
   withoutFramesPerSecond(): this;
   withBatteryLevel(): this;
   withoutBatteryLevel(): this;
+  withOpenFileHandleTracking(): this;
+  withoutOpenFileHandleTracking(): this;
+  withJniReferenceCountTracking(): this;
+  withoutJniReferenceCountTracking(): this;
   withRetentionPeriodSeconds(retentionPeriodSeconds: number): this;
   withAdditionalChannels(additionalChannels: AnsightChannel[]): this;
   addAdditionalChannel(additionalChannel: AnsightChannel): this;
@@ -269,6 +295,8 @@ export class AnsightOptionsBuilder {
   withoutSessionJpegCapture(): this;
   withTouchCapture(touchCapture?: AnsightTouchCaptureOptions): this;
   withoutTouchCapture(): this;
+  withCrashCapture(crashCapture?: AnsightCrashCaptureOptions): this;
+  withoutCrashCapture(): this;
   withLifecycleCapture(lifecycleCapture?: NonNullable<AnsightOptions["lifecycleCapture"]>): this;
   withToolGuard(toolGuard: NonNullable<AnsightOptions["toolGuard"]>): this;
   withToolsDisabled(): this;
@@ -512,6 +540,7 @@ export function metric(value: number, channel?: number): Promise<AnsightDebugSna
 export function recordMetric(value: number, channel?: number): Promise<AnsightDebugSnapshot>;
 export function event(input: string | { label: string; type?: string; details?: string; channel?: number }): Promise<AnsightDebugSnapshot>;
 export function recordEvent(input: string | { label: string; type?: string; details?: string; channel?: number }): Promise<AnsightDebugSnapshot>;
+export function recordCrashCandidate(input?: AnsightCrashCandidate): Promise<{ candidateId?: string }>;
 export function screenViewed(name: string, details?: Record<string, string>): Promise<AnsightDebugSnapshot>;
 export function trackRoute(name: string, details?: Record<string, string>): Promise<AnsightDebugSnapshot>;
 export function setAppLifecycleState(state: AnsightLifecycleState): Promise<AnsightDebugSnapshot>;
@@ -585,6 +614,7 @@ declare const Ansight: {
   recordMetric: typeof recordMetric;
   event: typeof event;
   recordEvent: typeof recordEvent;
+  recordCrashCandidate: typeof recordCrashCandidate;
   screenViewed: typeof screenViewed;
   trackRoute: typeof trackRoute;
   setAppLifecycleState: typeof setAppLifecycleState;

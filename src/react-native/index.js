@@ -61,6 +61,9 @@ function cloneOptions(options = {}) {
   if (options.touchCapture && typeof options.touchCapture === "object") {
     clone.touchCapture = { ...options.touchCapture };
   }
+  if (options.crashCapture && typeof options.crashCapture === "object") {
+    clone.crashCapture = { ...options.crashCapture };
+  }
   if (options.lifecycleCapture) {
     clone.lifecycleCapture = { ...options.lifecycleCapture };
   }
@@ -157,6 +160,8 @@ class AnsightOptionsBuilder {
       retentionPeriodSeconds: 120,
       enableFramesPerSecond: true,
       enableBatteryLevel: false,
+      enableOpenFileHandleTracking: false,
+      enableJniReferenceCountTracking: false,
       sessionJpegCapture: {
         intervalMilliseconds: 2000,
         quality: 60,
@@ -206,6 +211,26 @@ class AnsightOptionsBuilder {
 
   withoutBatteryLevel() {
     this._options.enableBatteryLevel = false;
+    return this;
+  }
+
+  withOpenFileHandleTracking() {
+    this._options.enableOpenFileHandleTracking = true;
+    return this;
+  }
+
+  withoutOpenFileHandleTracking() {
+    this._options.enableOpenFileHandleTracking = false;
+    return this;
+  }
+
+  withJniReferenceCountTracking() {
+    this._options.enableJniReferenceCountTracking = true;
+    return this;
+  }
+
+  withoutJniReferenceCountTracking() {
+    this._options.enableJniReferenceCountTracking = false;
     return this;
   }
 
@@ -294,6 +319,16 @@ class AnsightOptionsBuilder {
 
   withoutTouchCapture() {
     this._options.touchCapture = false;
+    return this;
+  }
+
+  withCrashCapture(crashCapture = {}) {
+    this._options.crashCapture = { ...crashCapture, enabled: true };
+    return this;
+  }
+
+  withoutCrashCapture() {
+    this._options.crashCapture = false;
     return this;
   }
 
@@ -2218,6 +2253,14 @@ function installErrorHandlers(options = {}) {
 
   if (global.ErrorUtils && global.ErrorUtils.setGlobalHandler) {
     global.ErrorUtils.setGlobalHandler((error, isFatal) => {
+      nativeModule.recordCrashCandidate({
+        runtime: "react-native-javascript",
+        kind: "unhandled_javascript_error",
+        message: error && error.message,
+        stack: error && error.stack,
+        fatal: !!isFatal,
+        metadata: JSON.stringify({ name: error && error.name }),
+      }).catch(() => {});
       nativeModule.recordEvent({
         label: error && error.message ? error.message : "Unhandled JavaScript error",
         type: "Exception",
@@ -2240,6 +2283,13 @@ function installErrorHandlers(options = {}) {
     global.__ansightUnhandledRejectionTrackingInstalled = true;
     global.addEventListener("unhandledrejection", (event) => {
       const reason = event && event.reason;
+      nativeModule.recordCrashCandidate({
+        runtime: "react-native-javascript",
+        kind: "unhandled_promise_rejection",
+        message: reason && reason.message ? reason.message : String(reason),
+        stack: reason && reason.stack,
+        fatal: false,
+      }).catch(() => {});
       nativeModule.recordEvent({
         label: reason && reason.message ? reason.message : "Unhandled JavaScript promise rejection",
         type: "Exception",
@@ -2334,6 +2384,16 @@ function recordEvent(input) {
   return nativeModule.recordEvent(input || {});
 }
 
+function recordCrashCandidate(input = {}) {
+  const metadata = input.metadata && typeof input.metadata === "object"
+    ? JSON.stringify(input.metadata)
+    : input.metadata;
+  return nativeModule.recordCrashCandidate({
+    ...input,
+    metadata,
+  });
+}
+
 function screenViewed(name, details) {
   return nativeModule.screenViewed(name, details || {});
 }
@@ -2376,6 +2436,7 @@ const Ansight = {
   recordMetric: (value, channel = 255) => nativeModule.recordMetric(value, channel),
   event: recordEvent,
   recordEvent,
+  recordCrashCandidate,
   screenViewed,
   trackRoute,
   setAppLifecycleState: (state) => nativeModule.setAppLifecycleState(state),

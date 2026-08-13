@@ -6,7 +6,9 @@ internal static class MemorySampler
 {
 
 #if ANDROID
-    public static MemorySnapshot Sample()
+    public static MemorySnapshot Sample(
+        bool sampleJniReferenceCount = false,
+        bool sampleOpenFileHandleCount = false)
     {
         var ctx = global::Android.App.Application.Context!;
         var am = (global::Android.App.ActivityManager)ctx.GetSystemService(global::Android.Content.Context.ActivityService)!;
@@ -25,6 +27,8 @@ internal static class MemorySampler
         long nativeAllocatedBytes = global::Android.OS.Debug.NativeHeapAllocatedSize;
 
         long managedBytes = GC.GetTotalMemory(false);
+        long? jniReferenceCount = sampleJniReferenceCount ? TryReadJniReferenceCount() : null;
+        long? openFileHandleCount = sampleOpenFileHandleCount ? TryReadOpenFileHandleCount() : null;
 
         return new MemorySnapshot(
             TotalPssBytes: totalPssBytes,
@@ -33,7 +37,35 @@ internal static class MemorySampler
             JavaHeapMaxBytes: javaMaxBytes,
             NativeHeapAllocatedBytes: nativeAllocatedBytes,
             ManagedHeapBytes: managedBytes,
+            JniReferenceCount: jniReferenceCount,
+            OpenFileHandleCount: openFileHandleCount,
             CapturedAtUtc: DateTime.UtcNow);
+    }
+
+    static long? TryReadJniReferenceCount()
+    {
+        try
+        {
+            return global::Java.Interop.JniEnvironment.Runtime.ObjectReferenceManager.GlobalReferenceCount;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    static long? TryReadOpenFileHandleCount()
+    {
+        try
+        {
+            // Enumerating /proc/self/fd temporarily opens one descriptor for the directory itself.
+            var descriptorCount = Directory.GetFileSystemEntries("/proc/self/fd").LongLength;
+            return Math.Max(0, descriptorCount - 1);
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     static long TryReadProcStatusRssBytes()
@@ -81,7 +113,9 @@ internal static class MemorySampler
     }
 
 #elif IOS || MACCATALYST
-    public static MemorySnapshot Sample()
+    public static MemorySnapshot Sample(
+        bool sampleJniReferenceCount = false,
+        bool sampleOpenFileHandleCount = false)
     {
         // --- RSS via mach_task_basic_info ---
         var rssBytes = IosMemoryHelper.GetPhysFootprint();
@@ -96,10 +130,14 @@ internal static class MemorySampler
             JavaHeapMaxBytes: 0,
             NativeHeapAllocatedBytes: 0,
             ManagedHeapBytes: managedBytes,
+            JniReferenceCount: null,
+            OpenFileHandleCount: null,
             CapturedAtUtc: DateTime.UtcNow);
     }
 #else
-    public static MemorySnapshot Sample()
+    public static MemorySnapshot Sample(
+        bool sampleJniReferenceCount = false,
+        bool sampleOpenFileHandleCount = false)
     {
         long managedBytes = GC.GetTotalMemory(false);
 
@@ -110,6 +148,8 @@ internal static class MemorySampler
             JavaHeapMaxBytes: 0,
             NativeHeapAllocatedBytes: 0,
             ManagedHeapBytes: managedBytes,
+            JniReferenceCount: null,
+            OpenFileHandleCount: null,
             CapturedAtUtc: DateTime.UtcNow);
     }
 #endif

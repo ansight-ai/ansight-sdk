@@ -7,6 +7,8 @@ internal sealed class MemorySamplerThread : IDisposable
 {
     private readonly int intervalMs;
     private readonly Action<MemorySnapshot> onSampleCaptured;
+    private readonly bool sampleJniReferenceCount;
+    private readonly bool sampleOpenFileHandleCount;
 
     private readonly ManualResetEvent exitEvent = new(initialState: false);
     private readonly AutoResetEvent triggerEvent = new(initialState: false);
@@ -18,12 +20,18 @@ internal sealed class MemorySamplerThread : IDisposable
     private bool disposed;
 
 
-    public MemorySamplerThread(int intervalMilliseconds, Action<MemorySnapshot> onSampleCaptured)
+    public MemorySamplerThread(
+        int intervalMilliseconds,
+        Action<MemorySnapshot> onSampleCaptured,
+        bool sampleJniReferenceCount = false,
+        bool sampleOpenFileHandleCount = false)
     {
         if (intervalMilliseconds <= 0) throw new ArgumentOutOfRangeException(nameof(intervalMilliseconds));
 
         this.intervalMs = intervalMilliseconds;
         this.onSampleCaptured = onSampleCaptured ?? throw new ArgumentNullException(nameof(onSampleCaptured));
+        this.sampleJniReferenceCount = sampleJniReferenceCount;
+        this.sampleOpenFileHandleCount = sampleOpenFileHandleCount;
         
         waitHandles = new WaitHandle[] { exitEvent, triggerEvent };
 
@@ -86,7 +94,7 @@ internal sealed class MemorySamplerThread : IDisposable
                 // (signaled == WaitHandle.WaitTimeout) or (signaled == 1)
                 try
                 {
-                    var snapshot = MemorySampler.Sample();
+                    var snapshot = MemorySampler.Sample(sampleJniReferenceCount, sampleOpenFileHandleCount);
                     
                     this.onSampleCaptured(snapshot);
                 }

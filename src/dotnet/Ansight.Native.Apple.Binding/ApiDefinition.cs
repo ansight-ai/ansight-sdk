@@ -25,6 +25,10 @@ interface ANSDotNetRuntime
     bool IsActive { get; }
 
     [Static]
+    [Export("processSessionId")]
+    string ProcessSessionId { get; }
+
+    [Static]
     [return: NullAllowed]
     [Export("initializeWithOptionsJson:")]
     string Initialize([NullAllowed] string optionsJson);
@@ -41,6 +45,33 @@ interface ANSDotNetRuntime
     [Static]
     [Export("clear")]
     void Clear();
+
+    [Static]
+    [return: NullAllowed]
+    [Export("recordCrashCandidateWithRuntime:kind:message:stack:fatal:metadataJson:")]
+    string RecordCrashCandidate(
+        string runtime,
+        string kind,
+        [NullAllowed] string message,
+        [NullAllowed] string stack,
+        bool fatal,
+        [NullAllowed] string metadataJson);
+
+    [Static]
+    [Export("pendingCrashReportsJson")]
+    string PendingCrashReportsJson();
+
+    [Static]
+    [Export("associateOfflineCaptureSession:directory:")]
+    void AssociateOfflineCaptureSession(string sessionId, [NullAllowed] string directory);
+
+    [Static]
+    [Export("completeOfflineCaptureSession:")]
+    void CompleteOfflineCaptureSession(string sessionId);
+
+    [Static]
+    [Export("markCrashReportPersistedToOfflineCapture:")]
+    bool MarkCrashReportPersistedToOfflineCapture(string reportId);
 
     [Static]
     [return: NullAllowed]

@@ -47,4 +47,13 @@ internal static class OfflineCapturePaths
 
     public static string AnnotationIndexPath(string sessionDirectory)
         => Path.Combine(sessionDirectory, "annotations", "index.jsonl");
+
+    public static string CrashReportsDirectory(string sessionDirectory)
+        => Path.Combine(sessionDirectory, "diagnostics", "crashes");
+
+    public static string CrashReportPath(string sessionDirectory, string reportId)
+        => Path.Combine(CrashReportsDirectory(sessionDirectory), $"{reportId}.json");
+
+    public static string CrashTracePath(string sessionDirectory, string reportId, string extension = "trace")
+        => Path.Combine(CrashReportsDirectory(sessionDirectory), $"{reportId}.{extension}");
 }

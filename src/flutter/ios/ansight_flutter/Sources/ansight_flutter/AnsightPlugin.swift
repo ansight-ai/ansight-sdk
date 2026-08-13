@@ -199,6 +199,16 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
                 channel: intValue(arguments, "channel", defaultValue: AnsightChannels.unspecified)
             )
             return snapshotDictionary()
+        case "recordCrashCandidate":
+            let candidateId = AnsightRuntime.shared.recordCrashCandidate(
+                runtime: stringValue(arguments, "runtime") ?? "flutter-dart",
+                kind: stringValue(arguments, "kind") ?? "unhandled_flutter_error",
+                message: stringValue(arguments, "message"),
+                stack: stringValue(arguments, "stack"),
+                fatal: boolValue(arguments, "fatal", defaultValue: false),
+                metadata: stringDictionary(arguments["metadata"] as? NSDictionary)
+            )
+            return candidateId.map { ["candidateId": $0] } ?? [:]
         case "screenViewed":
             try AnsightRuntime.shared.screenViewed(
                 stringValue(arguments, "name") ?? "",
@@ -615,6 +625,13 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
                 defaultValue: options.enableBatteryLevel
             )
         }
+        if hasBool(dictionary, "enableOpenFileHandleTracking") {
+            options.enableOpenFileHandleTracking = boolValue(
+                dictionary,
+                "enableOpenFileHandleTracking",
+                defaultValue: options.enableOpenFileHandleTracking
+            )
+        }
         if let memory = dictionary["defaultMemoryChannels"] as? NSDictionary {
             var channels: DefaultMemoryChannels = []
             if boolValue(
@@ -676,6 +693,21 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
                         defaultValue: AnsightTouchCaptureOptions
                             .defaultMoveCaptureFramesPerSecond
                     )
+                )
+            }
+        }
+        if let raw = dictionary["crashCapture"] {
+            if let enabled = raw as? Bool, !enabled {
+                options.crashCapture.enabled = false
+            } else if let crash = raw as? NSDictionary {
+                options.crashCapture = AnsightCrashCaptureOptions(
+                    enabled: boolValue(crash, "enabled", defaultValue: true),
+                    studioHandoffEnabled: boolValue(crash, "studioHandoffEnabled", defaultValue: true),
+                    offlineCaptureAttachmentEnabled: boolValue(crash, "offlineCaptureAttachmentEnabled", defaultValue: true),
+                    maximumPendingReports: intValue(crash, "maximumPendingReports", defaultValue: 8),
+                    retentionDays: intValue(crash, "retentionDays", defaultValue: 7),
+                    maximumBreadcrumbs: intValue(crash, "maximumBreadcrumbs", defaultValue: 64),
+                    maximumTraceBytes: intValue(crash, "maximumTraceBytes", defaultValue: 1_048_576)
                 )
             }
         }
@@ -991,6 +1023,8 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
             "retentionPeriodSeconds": value.retentionPeriodSeconds,
             "enableFramesPerSecond": value.enableFramesPerSecond,
             "enableBatteryLevel": value.enableBatteryLevel,
+            "enableOpenFileHandleTracking": value.enableOpenFileHandleTracking,
+            "enableJniReferenceCountTracking": false,
             "toolGuard": toolGuardName(value.toolGuard),
             "customProperties": value.customProperties,
             "additionalChannels": value.additionalChannels.map(channelDictionary),

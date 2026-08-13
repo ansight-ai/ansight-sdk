@@ -15,6 +15,8 @@ internal sealed class NullNativeRuntimeBridge : INativeRuntimeBridge
 
     public bool IsActive => false;
 
+    public string ProcessSessionId { get; } = Guid.NewGuid().ToString("N");
+
     public HostConnectionStatus HostConnectionStatus => new(
         false,
         false,
@@ -46,6 +48,27 @@ internal sealed class NullNativeRuntimeBridge : INativeRuntimeBridge
     public void Clear()
     {
     }
+
+    public string? RecordCrashCandidate(
+        string runtime,
+        string kind,
+        string? message,
+        string? stack,
+        bool fatal,
+        string? metadataJson) => null;
+
+    public string PendingCrashReportsJson()
+        => $"{{\"processSessionId\":\"{ProcessSessionId}\",\"reports\":[]}}";
+
+    public void AssociateOfflineCaptureSession(string sessionId, string? directory)
+    {
+    }
+
+    public void CompleteOfflineCaptureSession(string sessionId)
+    {
+    }
+
+    public bool MarkCrashReportPersistedToOfflineCapture(string reportId) => false;
 
     public void Metric(long value, byte channel)
     {

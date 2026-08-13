@@ -85,6 +85,7 @@ object AnsightRuntime {
     fun initialize(application: Application, options: AnsightOptions = AnsightOptions()) {
         AnsightLogger.info("Initializing Ansight runtime.")
         val validated = options.validated()
+        AnsightCrashCapture.initialize(application, validated.crashCapture)
         synchronized(lock) {
             deactivateLocked(closeTransport = true)
             this.application = application
@@ -291,6 +292,7 @@ object AnsightRuntime {
             )
             sessionMessage = "Recorded event $trimmedLabel."
         }
+        AnsightCrashCapture.recordBreadcrumb("event", trimmedLabel, details)
         streamPendingTelemetry()
     }
 
@@ -301,15 +303,15 @@ object AnsightRuntime {
     ) {
         val trimmedName = name.trim()
         require(trimmedName.isNotBlank()) { "Screen name must not be blank." }
+        val sanitizedDetails = details
+            .mapKeys { it.key.trim() }
+            .filterKeys { it.isNotBlank() }
+            .mapValues { it.value.trim() }
+        val detailsText = if (sanitizedDetails.isEmpty()) null else JSONObject(sanitizedDetails).toString()
 
         synchronized(lock) {
             require(initialized) { "AnsightRuntime must be initialized before recording screen views." }
-            val sanitizedDetails = details
-                .mapKeys { it.key.trim() }
-                .filterKeys { it.isNotBlank() }
-                .mapValues { it.value.trim() }
             currentScreen = RecordedScreenView(trimmedName, sanitizedDetails)
-            val detailsText = if (sanitizedDetails.isEmpty()) null else JSONObject(sanitizedDetails).toString()
             recordEventLocked(
                 RecordedEvent(
                     label = trimmedName,
@@ -321,8 +323,41 @@ object AnsightRuntime {
             )
             sessionMessage = "Recorded screen view $trimmedName."
         }
+        AnsightCrashCapture.recordBreadcrumb("screen", trimmedName, detailsText)
         streamPendingTelemetry()
     }
+
+    @JvmOverloads
+    fun recordCrashCandidate(
+        runtime: String,
+        kind: String = "unhandled_exception",
+        message: String? = null,
+        stack: String? = null,
+        fatal: Boolean = true,
+        metadataJson: String? = null,
+    ): String? = AnsightCrashCapture.recordCandidate(
+        runtime = runtime,
+        kind = kind,
+        message = message,
+        stack = stack,
+        fatal = fatal,
+        metadata = metadataJson?.trim()?.ifBlank { null }?.let { JSONObject(it) },
+    )
+
+    fun processSessionId(): String = AnsightCrashCapture.processSessionId()
+
+    fun pendingCrashReportsJson(): String = AnsightCrashCapture.pendingReportsJson()
+
+    fun associateOfflineCaptureSession(sessionId: String, directory: String? = null) {
+        AnsightCrashCapture.associateOfflineSession(sessionId, directory)
+    }
+
+    fun completeOfflineCaptureSession(sessionId: String) {
+        AnsightCrashCapture.markOfflineSessionCompleted(sessionId)
+    }
+
+    fun markCrashReportPersistedToOfflineCapture(reportId: String): Boolean =
+        AnsightCrashCapture.markOfflineReportPersisted(reportId)
 
     fun setAppLifecycleState(state: AppLifecycleState, changedAtUtc: String = AnsightClock.isoNow()) {
         val shouldSend = synchronized(lock) {
@@ -458,6 +493,7 @@ object AnsightRuntime {
             JSONObject().put("reason", "client log stream complete"),
             timeoutMilliseconds = 10_000,
         )
+        AnsightCrashCapture.markStudioSessionCompleted()
         closeSession()
     }
 
@@ -1143,6 +1179,11 @@ object AnsightRuntime {
             telemetryStreamLoopActive = false
             sessionMessage = "Connected to Ansight host."
         }
+        AnsightCrashCapture.associateStudioSession(
+            hostId = attempt.connectResponse.hostId,
+            configId = document.config.configId,
+            appId = document.config.appId,
+        )
         publishHostConnectionStatusIfChanged()
         AnsightLogger.info("Connected to Ansight host.")
 
@@ -1151,6 +1192,7 @@ object AnsightRuntime {
         sendMetricChannelDefinitions()
         startSessionJpegCaptureIfNeeded()
         streamPendingTelemetry()
+        AnsightCrashCapture.deliverPendingReports(transport)
 
         if (!document.config.configId.startsWith(PairingEnrollmentModes.LocalConfigPrefix)) {
             if (candidate.shouldSaveOnSuccess) {
@@ -1806,6 +1848,11 @@ object AnsightRuntime {
                     }
                 }
             }
+            if (options.enableOpenFileHandleTracking) {
+                AndroidMetricSampler.openFileHandleCount()?.let { count ->
+                    recordMetricLocked(count, AnsightChannels.OpenFileHandles)
+                }
+            }
         }
 
         val streamMetrics = streams.mapNotNull { stream ->
@@ -2261,6 +2308,12 @@ object AnsightRuntime {
         dictionary[AnsightChannels.Lifecycle] = AnsightChannel(AnsightChannels.Lifecycle, "Lifecycle", "#FF9500", null, "lifecycle")
         if (options.enableBatteryLevel) {
             dictionary[AnsightChannels.BatteryLevel] = AnsightChannel(AnsightChannels.BatteryLevel, "Battery Level", "#FFCC00", "percent", "battery")
+        }
+        if (options.enableJniReferenceCountTracking) {
+            dictionary[AnsightChannels.JniReferenceCount] = AnsightChannel(AnsightChannels.JniReferenceCount, "JNI reference count", "#AF52DE", "references", "runtime")
+        }
+        if (options.enableOpenFileHandleTracking) {
+            dictionary[AnsightChannels.OpenFileHandles] = AnsightChannel(AnsightChannels.OpenFileHandles, "Open File Handles", "#FF3B30", "handles", "runtime")
         }
         dictionary[AnsightChannels.Unspecified] = AnsightChannel(AnsightChannels.Unspecified, "Unspecified", null, null, "unspecified")
         options.additionalChannels.forEach { dictionary[it.id] = it }

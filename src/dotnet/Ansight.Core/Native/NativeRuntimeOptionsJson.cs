@@ -17,10 +17,13 @@ internal static class NativeRuntimeOptionsJson
             ["retentionPeriodSeconds"] = options.RetentionPeriodSeconds,
             ["enableFramesPerSecond"] = options.EnableFramesPerSecond,
             ["enableBatteryLevel"] = options.EnableBatteryLevel,
+            ["enableOpenFileHandleTracking"] = options.EnableOpenFileHandleTracking,
+            ["enableJniReferenceCountTracking"] = options.EnableJniReferenceCountTracking,
             ["defaultMemoryChannels"] = (byte)options.DefaultMemoryChannels,
             ["additionalChannels"] = SerializeChannels(options),
             ["sessionJpegCapture"] = SerializeSessionJpegCapture(options.SessionJpegCapture),
             ["touchCapture"] = SerializeTouchCapture(options.TouchCapture),
+            ["crashCapture"] = SerializeCrashCapture(options.CrashCapture),
             ["toolGuard"] = SerializeToolGuard(options.ToolGuard),
             ["customProperties"] = SerializeCustomProperties(options.CustomProperties),
             ["hostAutoProbe"] = SerializeHostAutoProbe(options.HostAutoProbe),
@@ -84,6 +87,21 @@ internal static class NativeRuntimeOptionsJson
             ["captureCancelEvents"] = options.CaptureCancelEvents,
             ["moveCaptureDistanceThreshold"] = options.MoveCaptureDistanceThreshold,
             ["moveCaptureFramesPerSecond"] = options.MoveCaptureFramesPerSecond
+        };
+    }
+
+    private static JsonObject SerializeCrashCapture(CrashCaptureOptions? options)
+    {
+        options ??= new CrashCaptureOptions();
+        return new JsonObject
+        {
+            ["enabled"] = options.Enabled,
+            ["studioHandoffEnabled"] = options.StudioHandoffEnabled,
+            ["offlineCaptureAttachmentEnabled"] = options.OfflineCaptureAttachmentEnabled,
+            ["maximumPendingReports"] = options.MaximumPendingReports,
+            ["retentionDays"] = options.RetentionDays,
+            ["maximumBreadcrumbs"] = options.MaximumBreadcrumbs,
+            ["maximumTraceBytes"] = options.MaximumTraceBytes
         };
     }
 

@@ -5,6 +5,7 @@ import ai.ansight.runtime.AndroidToolExecutionContext
 import ai.ansight.runtime.AndroidToolResult
 import ai.ansight.runtime.AnsightChannel
 import ai.ansight.runtime.AnsightChannels
+import ai.ansight.runtime.AnsightCrashCaptureOptions
 import ai.ansight.runtime.AnsightDeveloperMode
 import ai.ansight.runtime.AnsightHostAutoProbeOptions
 import ai.ansight.runtime.AnsightHostConnectionOptions
@@ -178,6 +179,19 @@ class AnsightCapacitorPlugin : Plugin() {
             channel = call.data.intValue("channel", AnsightChannels.Unspecified),
         )
         snapshot()
+    }
+
+    @PluginMethod
+    fun recordCrashCandidate(call: PluginCall) = resolve(call) {
+        val candidateId = AnsightRuntime.recordCrashCandidate(
+            runtime = call.getString("runtime") ?: "capacitor-javascript",
+            kind = call.getString("kind") ?: "unhandled_javascript_error",
+            message = call.getString("message"),
+            stack = call.getString("stack"),
+            fatal = call.getBoolean("fatal", false) ?: false,
+            metadataJson = call.getString("metadata"),
+        )
+        JSObject().putValue("candidateId", candidateId)
     }
 
     @PluginMethod
@@ -611,6 +625,22 @@ class AnsightCapacitorPlugin : Plugin() {
                 enableBatteryLevel = map.booleanValue("enableBatteryLevel", options.enableBatteryLevel),
             )
         }
+        if (map.has("enableOpenFileHandleTracking")) {
+            options = options.copy(
+                enableOpenFileHandleTracking = map.booleanValue(
+                    "enableOpenFileHandleTracking",
+                    options.enableOpenFileHandleTracking,
+                ),
+            )
+        }
+        if (map.has("enableJniReferenceCountTracking")) {
+            options = options.copy(
+                enableJniReferenceCountTracking = map.booleanValue(
+                    "enableJniReferenceCountTracking",
+                    options.enableJniReferenceCountTracking,
+                ),
+            )
+        }
         map.objectValueOrNull("defaultMemoryChannels")?.let { memory ->
             options = options.copy(
                 defaultMemoryChannels = DefaultMemoryChannels(
@@ -660,6 +690,24 @@ class AnsightCapacitorPlugin : Plugin() {
                             "moveCaptureFramesPerSecond",
                             20,
                         ),
+                    )
+                },
+            )
+        }
+        if (map.has("crashCapture")) {
+            options = options.copy(
+                crashCapture = if (map.opt("crashCapture") == false) {
+                    options.crashCapture.copy(enabled = false)
+                } else {
+                    val crash = map.objectValue("crashCapture")
+                    AnsightCrashCaptureOptions(
+                        enabled = crash.booleanValue("enabled", true),
+                        studioHandoffEnabled = crash.booleanValue("studioHandoffEnabled", true),
+                        offlineCaptureAttachmentEnabled = crash.booleanValue("offlineCaptureAttachmentEnabled", true),
+                        maximumPendingReports = crash.intValue("maximumPendingReports", 8),
+                        retentionDays = crash.intValue("retentionDays", 7),
+                        maximumBreadcrumbs = crash.intValue("maximumBreadcrumbs", 64),
+                        maximumTraceBytes = crash.intValue("maximumTraceBytes", 1_048_576),
                     )
                 },
             )
@@ -919,6 +967,8 @@ class AnsightCapacitorPlugin : Plugin() {
             .putValue("retentionPeriodSeconds", value.retentionPeriodSeconds)
             .putValue("enableFramesPerSecond", value.enableFramesPerSecond)
             .putValue("enableBatteryLevel", value.enableBatteryLevel)
+            .putValue("enableOpenFileHandleTracking", value.enableOpenFileHandleTracking)
+            .putValue("enableJniReferenceCountTracking", value.enableJniReferenceCountTracking)
             .putValue("toolGuard", toolGuardName(value.toolGuard))
             .putValue("customProperties", value.customProperties.toGroupedJSObject())
             .putValue("additionalChannels", JSONArray(value.additionalChannels.map(::channel)))

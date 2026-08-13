@@ -1,0 +1,4 @@
+module CAnsightCrashCapture {
+    header "AnsightCrashCapture.h"
+    export *
+}

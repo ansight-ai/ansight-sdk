@@ -15,6 +15,10 @@ public final class ANSDotNetRuntime: NSObject {
         AnsightRuntime.shared.snapshot().active
     }
 
+    @objc public static var processSessionId: String {
+        AnsightRuntime.shared.processSessionId
+    }
+
     @objc(initializeWithOptionsJson:)
     public static func initialize(optionsJson: String?) -> String? {
         perform {
@@ -35,6 +39,49 @@ public final class ANSDotNetRuntime: NSObject {
 
     @objc public static func clear() {
         AnsightRuntime.shared.clear()
+    }
+
+    @objc(recordCrashCandidateWithRuntime:kind:message:stack:fatal:metadataJson:)
+    public static func recordCrashCandidate(
+        runtime: String,
+        kind: String,
+        message: String?,
+        stack: String?,
+        fatal: Bool,
+        metadataJson: String?
+    ) -> String? {
+        var metadata: [String: String] = [:]
+        if let json = normalized(metadataJson),
+           let data = json.data(using: .utf8) {
+            metadata = (try? JSONDecoder().decode([String: String].self, from: data)) ?? [:]
+        }
+        return AnsightRuntime.shared.recordCrashCandidate(
+            runtime: runtime,
+            kind: kind,
+            message: normalized(message),
+            stack: normalized(stack),
+            fatal: fatal,
+            metadata: metadata
+        )
+    }
+
+    @objc public static func pendingCrashReportsJson() -> String {
+        AnsightRuntime.shared.pendingCrashReportsJSON()
+    }
+
+    @objc(associateOfflineCaptureSession:directory:)
+    public static func associateOfflineCaptureSession(_ sessionId: String, directory: String?) {
+        AnsightRuntime.shared.associateOfflineCaptureSession(sessionId, directory: normalized(directory))
+    }
+
+    @objc(completeOfflineCaptureSession:)
+    public static func completeOfflineCaptureSession(_ sessionId: String) {
+        AnsightRuntime.shared.completeOfflineCaptureSession(sessionId)
+    }
+
+    @objc(markCrashReportPersistedToOfflineCapture:)
+    public static func markCrashReportPersistedToOfflineCapture(_ reportId: String) -> Bool {
+        AnsightRuntime.shared.markCrashReportPersistedToOfflineCapture(reportId)
     }
 
     @objc(recordMetric:channel:)
@@ -317,6 +364,8 @@ public final class ANSDotNetRuntime: NSObject {
             bridgeOptions.enableFramesPerSecond ?? options.enableFramesPerSecond
         options.enableBatteryLevel =
             bridgeOptions.enableBatteryLevel ?? options.enableBatteryLevel
+        options.enableOpenFileHandleTracking =
+            bridgeOptions.enableOpenFileHandleTracking ?? options.enableOpenFileHandleTracking
         options.additionalChannels = bridgeOptions.additionalChannels?.map(\.nativeChannel) ?? []
 
         if let rawValue = bridgeOptions.defaultMemoryChannels {
@@ -342,6 +391,17 @@ public final class ANSDotNetRuntime: NSObject {
             )
         } else if bridgeOptions.hasTouchCapture == false {
             options.touchCapture = nil
+        }
+        if let crashCapture = bridgeOptions.crashCapture {
+            options.crashCapture = AnsightCrashCaptureOptions(
+                enabled: crashCapture.enabled,
+                studioHandoffEnabled: crashCapture.studioHandoffEnabled,
+                offlineCaptureAttachmentEnabled: crashCapture.offlineCaptureAttachmentEnabled,
+                maximumPendingReports: crashCapture.maximumPendingReports,
+                retentionDays: crashCapture.retentionDays,
+                maximumBreadcrumbs: crashCapture.maximumBreadcrumbs,
+                maximumTraceBytes: crashCapture.maximumTraceBytes
+            )
         }
 
         options.toolGuard = toolGuard(bridgeOptions.toolGuard)
@@ -549,10 +609,12 @@ private struct BridgeOptions: Decodable {
     let retentionPeriodSeconds: Int?
     let enableFramesPerSecond: Bool?
     let enableBatteryLevel: Bool?
+    let enableOpenFileHandleTracking: Bool?
     let additionalChannels: [BridgeChannel]?
     let defaultMemoryChannels: Int?
     let sessionJpegCapture: BridgeSessionJpegCapture?
     let touchCapture: BridgeTouchCapture?
+    let crashCapture: BridgeCrashCapture?
     let toolGuard: String?
     let customProperties: [String: [String: String]]?
     let hostAutoProbe: BridgeHostAutoProbe?
@@ -565,6 +627,16 @@ private struct BridgeOptions: Decodable {
     var hasTouchCapture: Bool {
         touchCapture != nil
     }
+}
+
+private struct BridgeCrashCapture: Decodable {
+    let enabled: Bool
+    let studioHandoffEnabled: Bool
+    let offlineCaptureAttachmentEnabled: Bool
+    let maximumPendingReports: Int
+    let retentionDays: Int
+    let maximumBreadcrumbs: Int
+    let maximumTraceBytes: Int
 }
 
 private struct BridgeChannel: Decodable {

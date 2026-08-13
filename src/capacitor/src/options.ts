@@ -1,5 +1,6 @@
 import type {
   AnsightChannel,
+  AnsightCrashCaptureOptions,
   AnsightDomToolsOptions,
   AnsightErrorCaptureOptions,
   AnsightOptions,
@@ -28,6 +29,8 @@ export class AnsightOptionsBuilder implements AnsightOptionsBuilderApi {
       retentionPeriodSeconds: 120,
       enableFramesPerSecond: true,
       enableBatteryLevel: false,
+      enableOpenFileHandleTracking: false,
+      enableJniReferenceCountTracking: false,
       sessionJpegCapture: {
         intervalMilliseconds: 2000,
         quality: 60,
@@ -75,6 +78,26 @@ export class AnsightOptionsBuilder implements AnsightOptionsBuilderApi {
 
   withoutBatteryLevel(): this {
     this.options.enableBatteryLevel = false;
+    return this;
+  }
+
+  withOpenFileHandleTracking(): this {
+    this.options.enableOpenFileHandleTracking = true;
+    return this;
+  }
+
+  withoutOpenFileHandleTracking(): this {
+    this.options.enableOpenFileHandleTracking = false;
+    return this;
+  }
+
+  withJniReferenceCountTracking(): this {
+    this.options.enableJniReferenceCountTracking = true;
+    return this;
+  }
+
+  withoutJniReferenceCountTracking(): this {
+    this.options.enableJniReferenceCountTracking = false;
     return this;
   }
 
@@ -171,6 +194,16 @@ export class AnsightOptionsBuilder implements AnsightOptionsBuilderApi {
 
   withoutTouchCapture(): this {
     this.options.touchCapture = false;
+    return this;
+  }
+
+  withCrashCapture(options: AnsightCrashCaptureOptions = {}): this {
+    this.options.crashCapture = { ...options, enabled: true };
+    return this;
+  }
+
+  withoutCrashCapture(): this {
+    this.options.crashCapture = false;
     return this;
   }
 

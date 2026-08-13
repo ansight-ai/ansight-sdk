@@ -28,6 +28,7 @@ public class Options
         RuntimeFeatures = Array.Empty<IRuntimeFeature>(),
         ToolGuard = ToolGuard.Disabled,
         CustomProperties = new SessionCustomProperties(),
+        CrashCapture = new CrashCaptureOptions(),
         HostAutoProbe = HostAutoProbeOptions.EnabledDefault.Clone(),
         HostConnection = HostConnectionOptions.Default.Clone()
     };
@@ -73,6 +74,16 @@ public class Options
     public bool EnableBatteryLevel { get; private set; } = false;
 
     /// <summary>
+    /// Enable process open-file-handle sampling at startup when supported by the current platform.
+    /// </summary>
+    public bool EnableOpenFileHandleTracking { get; private set; } = false;
+
+    /// <summary>
+    /// Enable Java.Interop JNI global-reference sampling on Android.
+    /// </summary>
+    public bool EnableJniReferenceCountTracking { get; private set; } = false;
+
+    /// <summary>
     /// Registered remote tools available to paired hosts.
     /// </summary>
     public ToolRegistry Tools { get; private set; } = ToolRegistry.Empty;
@@ -108,6 +119,11 @@ public class Options
     /// Initial custom grouped properties sent when a live pairing session opens.
     /// </summary>
     public SessionCustomProperties CustomProperties { get; private set; } = new();
+
+    /// <summary>
+    /// Durable native crash capture and next-launch delivery policy.
+    /// </summary>
+    public CrashCaptureOptions CrashCapture { get; private set; } = new();
 
     /// <summary>
     /// Background host auto-probe policy used while the runtime is active.
@@ -161,6 +177,8 @@ public class Options
         ToolGuard = ToolGuard ?? ToolGuard.Disabled;
         ToolGuard.Validate();
         CustomProperties ??= new SessionCustomProperties();
+        CrashCapture ??= new CrashCaptureOptions();
+        CrashCapture.Validate();
         HostAutoProbe ??= HostAutoProbeOptions.EnabledDefault.Clone();
         HostConnection ??= HostConnectionOptions.Default.Clone();
 
@@ -262,6 +280,8 @@ public class Options
                 AdditionalLogger = initialOptions.AdditionalLogger,
                 EnableFramesPerSecond = initialOptions.EnableFramesPerSecond,
                 EnableBatteryLevel = initialOptions.EnableBatteryLevel,
+                EnableOpenFileHandleTracking = initialOptions.EnableOpenFileHandleTracking,
+                EnableJniReferenceCountTracking = initialOptions.EnableJniReferenceCountTracking,
                 Tools = initialOptions.Tools ?? ToolRegistry.Empty,
                 ArtifactProviders = initialOptions.ArtifactProviders ?? ArtifactRegistry.Empty,
                 RuntimeFeatures = initialOptions.RuntimeFeatures?.ToArray() ?? Array.Empty<IRuntimeFeature>(),
@@ -278,6 +298,7 @@ public class Options
                 TouchCapture = initialOptions.TouchCapture?.Clone(),
                 ToolGuard = initialOptions.ToolGuard ?? ToolGuard.Disabled,
                 CustomProperties = initialOptions.CustomProperties?.Clone() ?? new SessionCustomProperties(),
+                CrashCapture = initialOptions.CrashCapture?.Clone() ?? new CrashCaptureOptions(),
                 HostAutoProbe = initialOptions.HostAutoProbe?.Clone() ?? HostAutoProbeOptions.EnabledDefault.Clone(),
                 HostConnection = initialOptions.HostConnection?.Clone() ?? HostConnectionOptions.Default.Clone()
             };
@@ -318,6 +339,42 @@ public class Options
         public OptionsBuilder WithoutBatteryLevel()
         {
             options.EnableBatteryLevel = false;
+            return this;
+        }
+
+        /// <summary>
+        /// Enables process open-file-handle sampling at startup when supported by the current platform.
+        /// </summary>
+        public OptionsBuilder WithOpenFileHandleTracking()
+        {
+            options.EnableOpenFileHandleTracking = true;
+            return this;
+        }
+
+        /// <summary>
+        /// Disables process open-file-handle sampling at startup.
+        /// </summary>
+        public OptionsBuilder WithoutOpenFileHandleTracking()
+        {
+            options.EnableOpenFileHandleTracking = false;
+            return this;
+        }
+
+        /// <summary>
+        /// Enables Java.Interop JNI global-reference sampling on Android.
+        /// </summary>
+        public OptionsBuilder WithJniReferenceCountTracking()
+        {
+            options.EnableJniReferenceCountTracking = true;
+            return this;
+        }
+
+        /// <summary>
+        /// Disables Java.Interop JNI global-reference sampling on Android.
+        /// </summary>
+        public OptionsBuilder WithoutJniReferenceCountTracking()
+        {
+            options.EnableJniReferenceCountTracking = false;
             return this;
         }
 
@@ -635,6 +692,24 @@ public class Options
         public OptionsBuilder WithoutTouchCapture()
         {
             options.TouchCapture = null;
+            return this;
+        }
+
+        /// <summary>
+        /// Configures durable native crash capture and next-launch delivery.
+        /// </summary>
+        public OptionsBuilder WithCrashCapture(CrashCaptureOptions? crashCapture = null)
+        {
+            options.CrashCapture = crashCapture?.Clone() ?? new CrashCaptureOptions();
+            return this;
+        }
+
+        /// <summary>
+        /// Disables native crash capture.
+        /// </summary>
+        public OptionsBuilder WithoutCrashCapture()
+        {
+            options.CrashCapture = new CrashCaptureOptions { Enabled = false };
             return this;
         }
 

@@ -10,6 +10,8 @@ internal sealed class OfflineCaptureSessionManifest
 
     public DateTimeOffset? StoppedAtUtc { get; set; }
 
+    public string? TerminationKind { get; set; }
+
     public string AppId { get; set; } = string.Empty;
 
     public string ClientName { get; set; } = string.Empty;
@@ -39,4 +41,6 @@ internal sealed class OfflineCaptureSessionManifest
     public long DroppedRecordCount { get; set; }
 
     public long AnnotationCount { get; set; }
+
+    public List<string> CrashReportIds { get; set; } = [];
 }

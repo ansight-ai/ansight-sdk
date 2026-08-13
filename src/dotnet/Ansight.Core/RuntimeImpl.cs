@@ -39,6 +39,7 @@ internal class RuntimeImpl : IRuntime
     internal TouchCaptureHub TouchCaptureHub { get; }
     internal AppLifecycleState CurrentAppLifecycleState => mutableDataSink.CurrentAppLifecycleState;
     internal DateTimeOffset? CurrentAppLifecycleStateChangedUtc => mutableDataSink.CurrentAppLifecycleStateChangedUtc;
+    internal string ProcessSessionId => nativeRuntime.ProcessSessionId;
 
     public ToolProtocolBridge ToolBridge { get; }
 
@@ -196,20 +197,24 @@ internal class RuntimeImpl : IRuntime
                 batteryLevelMonitor.Start();
             }
 
-            samplerThread = new MemorySamplerThread(options.SampleFrequencyMilliseconds, snapshot =>
-            {
-                if (usesNativeRuntime)
+            samplerThread = new MemorySamplerThread(
+                options.SampleFrequencyMilliseconds,
+                snapshot =>
                 {
-                    RecordManagedHeapSample(snapshot);
-                    SyncNativeTelemetry();
-                }
-                else
-                {
-                    mutableDataSink.RecordMemorySnapshot(snapshot);
-                    RecordFrameSample();
-                    RecordBatteryLevelSample();
-                }
-            });
+                    if (usesNativeRuntime)
+                    {
+                        RecordManagedRuntimeSamples(snapshot);
+                        SyncNativeTelemetry();
+                    }
+                    else
+                    {
+                        mutableDataSink.RecordMemorySnapshot(snapshot);
+                        RecordFrameSample();
+                        RecordBatteryLevelSample();
+                    }
+                },
+                sampleJniReferenceCount: options.EnableJniReferenceCountTracking,
+                sampleOpenFileHandleCount: options.EnableOpenFileHandleTracking && !usesNativeRuntime);
 
             if (!usesNativeRuntime)
             {
@@ -260,16 +265,24 @@ internal class RuntimeImpl : IRuntime
         OnDeactivated?.Invoke(this, EventArgs.Empty);
     }
 
-    private void RecordManagedHeapSample(MemorySnapshot snapshot)
+    private void RecordManagedRuntimeSamples(MemorySnapshot snapshot)
     {
-        if (!options.DefaultMemoryChannels.HasFlag(DefaultMemoryChannels.ManagedHeap))
+        if (options.DefaultMemoryChannels.HasFlag(DefaultMemoryChannels.ManagedHeap))
         {
-            return;
+            nativeRuntime.Metric(
+                snapshot.ManagedHeapBytes,
+                Constants.ReservedChannels.ClrMemoryUsage_Id);
         }
 
-        nativeRuntime.Metric(
-            snapshot.ManagedHeapBytes,
-            Constants.ReservedChannels.ClrMemoryUsage_Id);
+#if ANDROID
+        if (options.EnableJniReferenceCountTracking && snapshot.JniReferenceCount is long jniReferenceCount)
+        {
+            nativeRuntime.Metric(
+                jniReferenceCount,
+                Constants.ReservedChannels.JniReferenceCount_Id);
+        }
+
+#endif
     }
 
     private void SyncNativeTelemetry()
@@ -588,6 +601,34 @@ internal class RuntimeImpl : IRuntime
         {
             mutableDataSink.Clear();
         }
+    }
+
+    internal string? RecordCrashCandidate(
+        string runtime,
+        string kind,
+        string? message,
+        string? stack,
+        bool fatal,
+        string? metadataJson = null)
+    {
+        return nativeRuntime.RecordCrashCandidate(runtime, kind, message, stack, fatal, metadataJson);
+    }
+
+    internal string PendingCrashReportsJson() => nativeRuntime.PendingCrashReportsJson();
+
+    internal void AssociateOfflineCaptureSession(string sessionId, string? directory)
+    {
+        nativeRuntime.AssociateOfflineCaptureSession(sessionId, directory);
+    }
+
+    internal void CompleteOfflineCaptureSession(string sessionId)
+    {
+        nativeRuntime.CompleteOfflineCaptureSession(sessionId);
+    }
+
+    internal bool MarkCrashReportPersistedToOfflineCapture(string reportId)
+    {
+        return nativeRuntime.MarkCrashReportPersistedToOfflineCapture(reportId);
     }
 
     internal bool SetAppLifecycleState(

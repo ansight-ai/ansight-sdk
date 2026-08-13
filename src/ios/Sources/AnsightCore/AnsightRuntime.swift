@@ -126,6 +126,7 @@ public final class AnsightRuntime: @unchecked Sendable {
         stopFrameRateSampling()
         stopTouchCapture(message: "Touch capture stopped.")
         let validatedOptions = try options.validated()
+        AnsightCrashCapture.shared.initialize(options: validatedOptions.crashCapture)
 
         lock.withLock {
             self.options = validatedOptions
@@ -676,7 +677,44 @@ public final class AnsightRuntime: @unchecked Sendable {
             sessionMessage = "Recorded event \(trimmedLabel)."
         }
 
+        AnsightCrashCapture.shared.recordBreadcrumb(kind: "event", label: trimmedLabel, details: details)
         streamPendingTelemetry()
+    }
+
+    @discardableResult
+    public func recordCrashCandidate(
+        runtime: String,
+        kind: String = "unhandled_exception",
+        message: String? = nil,
+        stack: String? = nil,
+        fatal: Bool = true,
+        metadata: [String: String] = [:]
+    ) -> String? {
+        AnsightCrashCapture.shared.recordCandidate(
+            runtime: runtime,
+            kind: kind,
+            message: message,
+            stack: stack,
+            fatal: fatal,
+            metadata: metadata
+        )
+    }
+
+    public var processSessionId: String { AnsightCrashCapture.shared.processSessionId }
+
+    public func pendingCrashReportsJSON() -> String { AnsightCrashCapture.shared.pendingReportsJSON() }
+
+    public func associateOfflineCaptureSession(_ sessionId: String, directory: String? = nil) {
+        AnsightCrashCapture.shared.associateOfflineSession(sessionId: sessionId, directory: directory)
+    }
+
+    public func completeOfflineCaptureSession(_ sessionId: String) {
+        AnsightCrashCapture.shared.markOfflineSessionCompleted(sessionId: sessionId)
+    }
+
+    @discardableResult
+    public func markCrashReportPersistedToOfflineCapture(_ reportId: String) -> Bool {
+        AnsightCrashCapture.shared.markOfflineReportPersisted(reportId: reportId)
     }
 
     public func screenViewed(
@@ -712,6 +750,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             sessionMessage = "Recorded screen view \(trimmedName)."
         }
 
+        AnsightCrashCapture.shared.recordBreadcrumb(kind: "screen", label: trimmedName, details: detailsJson)
         streamPendingTelemetry()
     }
 
@@ -743,6 +782,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             return
         }
 
+        AnsightCrashCapture.shared.recordBreadcrumb(kind: "lifecycle", label: state.rawValue)
         streamPendingTelemetry()
 
         if lifecycleChange.shouldSendAppState {
@@ -1063,8 +1103,14 @@ public final class AnsightRuntime: @unchecked Sendable {
             lastDisconnectedAtUtc = nil
             sessionMessage = attempt.message
         }
+        AnsightCrashCapture.shared.associateStudioSession(
+            hostId: connectResponse.hostId,
+            configId: resolvedRequest.document.config.configId,
+            appId: resolvedRequest.document.config.appId
+        )
         publishHostConnectionStatusIfChanged()
         streamPendingTelemetry()
+        await AnsightCrashCapture.shared.deliverPendingReports(using: liveTransport)
 
         startScreenCaptureIfNeeded()
         if !resolvedRequest.document.config.configId.hasPrefix(
@@ -1441,6 +1487,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             result = .success("Session already closed.")
         }
 
+        AnsightCrashCapture.shared.markStudioSessionCompleted()
         closeSession()
         return result
     }
@@ -1734,6 +1781,11 @@ public final class AnsightRuntime: @unchecked Sendable {
            lock.withLock({ options.enableBatteryLevel }),
            let level = Self.currentBatteryLevelPercentage() {
             try? metric(Int64(level), channel: AnsightChannels.batteryLevel)
+        }
+
+        if configuredChannels.contains(AnsightChannels.openFileHandles),
+           let count = Self.currentOpenFileHandleCount() {
+            try? metric(count, channel: AnsightChannels.openFileHandles)
         }
 
         let streamMetrics = streams.compactMap { stream -> RecordedMetric? in
@@ -3666,6 +3718,9 @@ public final class AnsightRuntime: @unchecked Sendable {
         if options.enableBatteryLevel {
             result[AnsightChannels.batteryLevel] = AnsightChannels.batteryLevelChannel
         }
+        if options.enableOpenFileHandleTracking {
+            result[AnsightChannels.openFileHandles] = AnsightChannels.openFileHandlesChannel
+        }
         result[AnsightChannels.lifecycle] = AnsightChannels.lifecycleChannel
         result[AnsightChannels.unspecified] = AnsightChannels.unspecifiedChannel
         for channel in options.additionalChannels {
@@ -3687,6 +3742,18 @@ public final class AnsightRuntime: @unchecked Sendable {
             return currentResidentMemoryBytes()
         }
         return Int64(info.phys_footprint)
+        #else
+        return nil
+        #endif
+    }
+
+    private static func currentOpenFileHandleCount() -> Int64? {
+        #if canImport(Darwin)
+        guard let descriptors = try? FileManager.default.contentsOfDirectory(atPath: "/dev/fd") else {
+            return nil
+        }
+        let descriptorCount = descriptors.lazy.compactMap(Int.init).filter { $0 >= 0 }.count
+        return Int64(max(0, descriptorCount - 1))
         #else
         return nil
         #endif

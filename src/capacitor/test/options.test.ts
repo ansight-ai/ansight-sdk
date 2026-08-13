@@ -12,6 +12,8 @@ describe("AnsightOptionsBuilder", () => {
       retentionPeriodSeconds: 120,
       enableFramesPerSecond: true,
       enableBatteryLevel: false,
+      enableOpenFileHandleTracking: false,
+      enableJniReferenceCountTracking: false,
       toolGuard: "readOnly",
       hostAutoProbe: { enabled: true },
       sessionJpegCapture: {
@@ -20,6 +22,24 @@ describe("AnsightOptionsBuilder", () => {
         maxWidth: 480,
       },
     });
+  });
+
+  it("configures opt-in runtime diagnostic tracking", () => {
+    const enabled = createOptionsBuilder()
+      .withOpenFileHandleTracking()
+      .withJniReferenceCountTracking()
+      .build();
+
+    expect(enabled.enableOpenFileHandleTracking).toBe(true);
+    expect(enabled.enableJniReferenceCountTracking).toBe(true);
+
+    const disabled = createOptionsBuilder(enabled)
+      .withoutOpenFileHandleTracking()
+      .withoutJniReferenceCountTracking()
+      .build();
+
+    expect(disabled.enableOpenFileHandleTracking).toBe(false);
+    expect(disabled.enableJniReferenceCountTracking).toBe(false);
   });
 
   it("builds isolated option snapshots", () => {
@@ -96,5 +116,23 @@ describe("AnsightOptionsBuilder", () => {
       bundledConfigJson: '{"kind":"test"}',
     });
     expect(options.remoteTools?.visualTree).toBe(false);
+  });
+
+  it("configures and disables durable crash capture", () => {
+    expect(
+      createOptionsBuilder()
+        .withCrashCapture({
+          maximumPendingReports: 12,
+          retentionDays: 3,
+        })
+        .build().crashCapture,
+    ).toEqual({
+      enabled: true,
+      maximumPendingReports: 12,
+      retentionDays: 3,
+    });
+    expect(
+      createOptionsBuilder().withoutCrashCapture().build().crashCapture,
+    ).toBe(false);
   });
 });

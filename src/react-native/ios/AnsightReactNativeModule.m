@@ -33,6 +33,10 @@ RCT_EXTERN_METHOD(recordEvent:(NSDictionary *)input
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 
+RCT_EXTERN_METHOD(recordCrashCandidate:(NSDictionary *)input
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+
 RCT_EXTERN_METHOD(screenViewed:(NSString *)name
                   details:(NSDictionary *)details
                   resolver:(RCTPromiseResolveBlock)resolve

@@ -21,6 +21,8 @@ internal sealed class AppleNativeRuntimeBridge : INativeRuntimeBridge
 
     public bool IsActive => ANSDotNetRuntime.IsActive;
 
+    public string ProcessSessionId => ANSDotNetRuntime.ProcessSessionId;
+
     public HostConnectionStatus HostConnectionStatus
         => NativeRuntimeJson.ParseHostConnectionStatus(ANSDotNetRuntime.HostConnectionStatusJson());
 
@@ -40,6 +42,26 @@ internal sealed class AppleNativeRuntimeBridge : INativeRuntimeBridge
     public void Deactivate() => ANSDotNetRuntime.Deactivate();
 
     public void Clear() => ANSDotNetRuntime.Clear();
+
+    public string? RecordCrashCandidate(
+        string runtime,
+        string kind,
+        string? message,
+        string? stack,
+        bool fatal,
+        string? metadataJson)
+        => ANSDotNetRuntime.RecordCrashCandidate(runtime, kind, message, stack, fatal, metadataJson);
+
+    public string PendingCrashReportsJson() => ANSDotNetRuntime.PendingCrashReportsJson();
+
+    public void AssociateOfflineCaptureSession(string sessionId, string? directory)
+        => ANSDotNetRuntime.AssociateOfflineCaptureSession(sessionId, directory);
+
+    public void CompleteOfflineCaptureSession(string sessionId)
+        => ANSDotNetRuntime.CompleteOfflineCaptureSession(sessionId);
+
+    public bool MarkCrashReportPersistedToOfflineCapture(string reportId)
+        => ANSDotNetRuntime.MarkCrashReportPersistedToOfflineCapture(reportId);
 
     public void Metric(long value, byte channel)
     {

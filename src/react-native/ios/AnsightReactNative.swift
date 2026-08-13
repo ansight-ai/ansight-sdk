@@ -292,6 +292,31 @@ final class AnsightReactNative: RCTEventEmitter {
         }
     }
 
+    @objc(recordCrashCandidate:resolver:rejecter:)
+    func recordCrashCandidate(
+        _ input: NSDictionary,
+        resolver resolve: RCTPromiseResolveBlock,
+        rejecter reject: RCTPromiseRejectBlock
+    ) {
+        let metadata: [String: String]
+        if let metadataJson = stringValue(input, "metadata"),
+           let data = metadataJson.data(using: .utf8),
+           let decoded = try? JSONDecoder().decode([String: String].self, from: data) {
+            metadata = decoded
+        } else {
+            metadata = [:]
+        }
+        let candidateId = AnsightRuntime.shared.recordCrashCandidate(
+            runtime: stringValue(input, "runtime") ?? "react-native-javascript",
+            kind: stringValue(input, "kind") ?? "unhandled_javascript_error",
+            message: stringValue(input, "message"),
+            stack: stringValue(input, "stack"),
+            fatal: boolValue(input, "fatal", defaultValue: false),
+            metadata: metadata
+        )
+        resolve(candidateId.map { ["candidateId": $0] } ?? [:])
+    }
+
     @objc(screenViewed:details:resolver:rejecter:)
     func screenViewed(
         _ name: NSString,
@@ -895,6 +920,13 @@ final class AnsightReactNative: RCTEventEmitter {
         if hasBool(dictionary, "enableBatteryLevel") {
             options.enableBatteryLevel = boolValue(dictionary, "enableBatteryLevel", defaultValue: options.enableBatteryLevel)
         }
+        if hasBool(dictionary, "enableOpenFileHandleTracking") {
+            options.enableOpenFileHandleTracking = boolValue(
+                dictionary,
+                "enableOpenFileHandleTracking",
+                defaultValue: options.enableOpenFileHandleTracking
+            )
+        }
         if let memory = dictionary?["defaultMemoryChannels"] as? NSDictionary {
             var channels: DefaultMemoryChannels = []
             if boolValue(memory, "managedHeap", defaultValue: boolValue(memory, "javaHeap", defaultValue: false)) {
@@ -957,6 +989,21 @@ final class AnsightReactNative: RCTEventEmitter {
                     captureCancelEvents: boolValue(touch, "captureCancelEvents", defaultValue: true),
                     moveCaptureDistanceThreshold: doubleValue(touch, "moveCaptureDistanceThreshold", defaultValue: AnsightTouchCaptureOptions.defaultMoveCaptureDistanceThreshold),
                     moveCaptureFramesPerSecond: intValue(touch, "moveCaptureFramesPerSecond", defaultValue: AnsightTouchCaptureOptions.defaultMoveCaptureFramesPerSecond)
+                )
+            }
+        }
+        if let raw = dictionary?["crashCapture"] {
+            if (raw as? Bool) == false {
+                options.crashCapture.enabled = false
+            } else if let crash = raw as? NSDictionary {
+                options.crashCapture = AnsightCrashCaptureOptions(
+                    enabled: boolValue(crash, "enabled", defaultValue: true),
+                    studioHandoffEnabled: boolValue(crash, "studioHandoffEnabled", defaultValue: true),
+                    offlineCaptureAttachmentEnabled: boolValue(crash, "offlineCaptureAttachmentEnabled", defaultValue: true),
+                    maximumPendingReports: intValue(crash, "maximumPendingReports", defaultValue: 8),
+                    retentionDays: intValue(crash, "retentionDays", defaultValue: 7),
+                    maximumBreadcrumbs: intValue(crash, "maximumBreadcrumbs", defaultValue: 64),
+                    maximumTraceBytes: intValue(crash, "maximumTraceBytes", defaultValue: 1_048_576)
                 )
             }
         }
@@ -1283,6 +1330,8 @@ final class AnsightReactNative: RCTEventEmitter {
             "retentionPeriodSeconds": options.retentionPeriodSeconds,
             "enableFramesPerSecond": options.enableFramesPerSecond,
             "enableBatteryLevel": options.enableBatteryLevel,
+            "enableOpenFileHandleTracking": options.enableOpenFileHandleTracking,
+            "enableJniReferenceCountTracking": false,
             "defaultMemoryChannels": [
                 "managedHeap": options.defaultMemoryChannels.contains(.managedHeap),
                 "javaHeap": options.defaultMemoryChannels.contains(.managedHeap),

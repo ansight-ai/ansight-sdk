@@ -120,6 +120,25 @@ class Ansight {
         }),
       );
 
+  Future<String?> recordCrashCandidate({
+    String runtime = 'flutter-dart',
+    String kind = 'unhandled_flutter_error',
+    String? message,
+    String? stack,
+    bool fatal = false,
+    Map<String, String> metadata = const <String, String>{},
+  }) async {
+    final result = await _invoke('recordCrashCandidate', <String, Object?>{
+      'runtime': runtime,
+      'kind': kind,
+      if (message != null) 'message': message,
+      if (stack != null) 'stack': stack,
+      'fatal': fatal,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    });
+    return result['candidateId'] as String?;
+  }
+
   Future<AnsightDebugSnapshot> screenViewed(
     String name, {
     Map<String, String> details = const <String, String>{},

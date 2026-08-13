@@ -15,6 +15,7 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "registerMetricChannel", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "recordMetric", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "recordEvent", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "recordCrashCandidate", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "screenViewed", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setAppLifecycleState", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "connect", returnType: CAPPluginReturnPromise),
@@ -192,6 +193,26 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
         } catch {
             call.reject(error.localizedDescription, "ansight_error", error)
         }
+    }
+
+    @objc func recordCrashCandidate(_ call: CAPPluginCall) {
+        let metadata: [String: String]
+        if let metadataJson = call.getString("metadata"),
+           let data = metadataJson.data(using: .utf8),
+           let decoded = try? JSONDecoder().decode([String: String].self, from: data) {
+            metadata = decoded
+        } else {
+            metadata = [:]
+        }
+        let candidateId = AnsightRuntime.shared.recordCrashCandidate(
+            runtime: call.getString("runtime") ?? "capacitor-javascript",
+            kind: call.getString("kind") ?? "unhandled_javascript_error",
+            message: call.getString("message"),
+            stack: call.getString("stack"),
+            fatal: call.getBool("fatal") ?? false,
+            metadata: metadata
+        )
+        call.resolve(candidateId.map { ["candidateId": $0] } ?? [:])
     }
 
     @objc func screenViewed(_ call: CAPPluginCall) {
@@ -567,6 +588,13 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
                 dictionary, "enableBatteryLevel", defaultValue: options.enableBatteryLevel
             )
         }
+        if hasBool(dictionary, "enableOpenFileHandleTracking") {
+            options.enableOpenFileHandleTracking = boolValue(
+                dictionary,
+                "enableOpenFileHandleTracking",
+                defaultValue: options.enableOpenFileHandleTracking
+            )
+        }
         if let guardName = stringValue(dictionary, "toolGuard") {
             options.toolGuard = toolGuard(guardName)
         } else if useDefaults {
@@ -615,6 +643,21 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
                         "moveCaptureFramesPerSecond",
                         defaultValue: AnsightTouchCaptureOptions.defaultMoveCaptureFramesPerSecond
                     )
+                )
+            }
+        }
+        if let raw = dictionary?["crashCapture"] {
+            if (raw as? Bool) == false {
+                options.crashCapture.enabled = false
+            } else if let crash = raw as? NSDictionary {
+                options.crashCapture = AnsightCrashCaptureOptions(
+                    enabled: boolValue(crash, "enabled", defaultValue: true),
+                    studioHandoffEnabled: boolValue(crash, "studioHandoffEnabled", defaultValue: true),
+                    offlineCaptureAttachmentEnabled: boolValue(crash, "offlineCaptureAttachmentEnabled", defaultValue: true),
+                    maximumPendingReports: intValue(crash, "maximumPendingReports", defaultValue: 8),
+                    retentionDays: intValue(crash, "retentionDays", defaultValue: 7),
+                    maximumBreadcrumbs: intValue(crash, "maximumBreadcrumbs", defaultValue: 64),
+                    maximumTraceBytes: intValue(crash, "maximumTraceBytes", defaultValue: 1_048_576)
                 )
             }
         }
@@ -841,6 +884,8 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
             "retentionPeriodSeconds": options.retentionPeriodSeconds,
             "enableFramesPerSecond": options.enableFramesPerSecond,
             "enableBatteryLevel": options.enableBatteryLevel,
+            "enableOpenFileHandleTracking": options.enableOpenFileHandleTracking,
+            "enableJniReferenceCountTracking": false,
             "toolGuard": toolGuardName(options.toolGuard),
             "additionalChannels": options.additionalChannels.map(channelDictionary),
             "customProperties": options.customProperties,

@@ -72,6 +72,9 @@ let package = Package(
         ),
         .target(
             name: "AnsightCore",
+            dependencies: [
+                "CAnsightCrashCapture",
+            ],
             path: "Sources/AnsightCore",
             exclude: ["README.md"],
             linkerSettings: [
@@ -80,6 +83,11 @@ let package = Package(
             plugins: [
                 .plugin(name: "AnsightBuildToolPlugin"),
             ]
+        ),
+        .target(
+            name: "CAnsightCrashCapture",
+            path: "Sources/CAnsightCrashCapture",
+            publicHeadersPath: "include"
         ),
         .target(
             name: "AnsightPairingQR",

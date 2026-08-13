@@ -19,6 +19,8 @@ object AnsightChannels {
     const val FramesPerSecond = 3
     const val Lifecycle = 4
     const val BatteryLevel = 5
+    const val JniReferenceCount = 6
+    const val OpenFileHandles = 7
     const val Unspecified = 255
 
     val reservedIds: Set<Int> = setOf(
@@ -28,6 +30,8 @@ object AnsightChannels {
         FramesPerSecond,
         Lifecycle,
         BatteryLevel,
+        JniReferenceCount,
+        OpenFileHandles,
         Unspecified,
     )
 }
@@ -183,6 +187,8 @@ data class AnsightOptions(
     val retentionPeriodSeconds: Int = AnsightSamplingLimits.DefaultRetentionPeriodSeconds,
     val enableFramesPerSecond: Boolean = true,
     val enableBatteryLevel: Boolean = false,
+    val enableOpenFileHandleTracking: Boolean = false,
+    val enableJniReferenceCountTracking: Boolean = false,
     val additionalChannels: List<AnsightChannel> = emptyList(),
     val defaultMemoryChannels: DefaultMemoryChannels = DefaultMemoryChannels.PlatformDefaults,
     val sessionJpegCapture: AnsightSessionJpegCaptureOptions? = null,
@@ -191,6 +197,7 @@ data class AnsightOptions(
     val customProperties: Map<String, Map<String, String>> = emptyMap(),
     val hostAutoProbe: AnsightHostAutoProbeOptions = AnsightHostAutoProbeOptions(),
     val hostConnection: AnsightHostConnectionOptions = AnsightHostConnectionOptions(),
+    val crashCapture: AnsightCrashCaptureOptions = AnsightCrashCaptureOptions(),
     val secureStorage: AnsightSecureStorageOptions = AnsightSecureStorageOptions(),
     val initialTools: List<AndroidTool> = emptyList(),
     val artifactProviders: List<AndroidArtifactProvider> = emptyList(),
@@ -230,6 +237,7 @@ data class AnsightOptions(
             customProperties = customProperties.normalizedCustomProperties(),
             hostAutoProbe = hostAutoProbe.validated(),
             hostConnection = hostConnection.validated(),
+            crashCapture = crashCapture.validated(),
             secureStorage = secureStorage.validated(),
         )
     }

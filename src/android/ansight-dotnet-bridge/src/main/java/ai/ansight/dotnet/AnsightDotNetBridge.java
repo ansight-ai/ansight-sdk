@@ -13,6 +13,7 @@ import java.util.Locale;
 import java.util.TimeZone;
 
 import ai.ansight.runtime.AnsightChannel;
+import ai.ansight.runtime.AnsightCrashCaptureOptions;
 import ai.ansight.runtime.AnsightEventType;
 import ai.ansight.runtime.AnsightHostAutoProbeOptions;
 import ai.ansight.runtime.AnsightHostConnectionOptions;
@@ -69,6 +70,12 @@ public final class AnsightDotNetBridge {
                 true
             );
         }
+        if (options.optBoolean("enableJniReferenceCountTracking", false)) {
+            AnsightRuntime.INSTANCE.setMetricChannelExternallyManaged(
+                ai.ansight.runtime.AnsightChannels.JniReferenceCount,
+                true
+            );
+        }
     }
 
     public static boolean isInitialized() {
@@ -77,6 +84,10 @@ public final class AnsightDotNetBridge {
 
     public static boolean isActive() {
         return AnsightRuntime.INSTANCE.snapshot().getActive();
+    }
+
+    public static String processSessionId() {
+        return AnsightRuntime.INSTANCE.processSessionId();
     }
 
     public static void activate() {
@@ -89,6 +100,40 @@ public final class AnsightDotNetBridge {
 
     public static void clear() {
         AnsightRuntime.INSTANCE.clear();
+    }
+
+    public static String recordCrashCandidate(
+        String runtime,
+        String kind,
+        String message,
+        String stack,
+        boolean fatal,
+        String metadataJson
+    ) throws JSONException {
+        return AnsightRuntime.INSTANCE.recordCrashCandidate(
+            runtime,
+            kind,
+            normalize(message),
+            normalize(stack),
+            fatal,
+            normalize(metadataJson)
+        );
+    }
+
+    public static String pendingCrashReportsJson() {
+        return AnsightRuntime.INSTANCE.pendingCrashReportsJson();
+    }
+
+    public static void associateOfflineCaptureSession(String sessionId, String directory) {
+        AnsightRuntime.INSTANCE.associateOfflineCaptureSession(sessionId, normalize(directory));
+    }
+
+    public static void completeOfflineCaptureSession(String sessionId) {
+        AnsightRuntime.INSTANCE.completeOfflineCaptureSession(sessionId);
+    }
+
+    public static boolean markCrashReportPersistedToOfflineCapture(String reportId) {
+        return AnsightRuntime.INSTANCE.markCrashReportPersistedToOfflineCapture(reportId);
     }
 
     public static void recordMetric(long value, int channel) {
@@ -315,6 +360,18 @@ public final class AnsightDotNetBridge {
             builder.withoutBatteryLevel();
         }
 
+        if (json.optBoolean("enableOpenFileHandleTracking", false)) {
+            builder.withOpenFileHandleTracking();
+        } else {
+            builder.withoutOpenFileHandleTracking();
+        }
+
+        if (json.optBoolean("enableJniReferenceCountTracking", false)) {
+            builder.withJniReferenceCountTracking();
+        } else {
+            builder.withoutJniReferenceCountTracking();
+        }
+
         int memoryChannels = json.optInt("defaultMemoryChannels", 7);
         builder.withDefaultMemoryChannels(new DefaultMemoryChannels(
             (memoryChannels & 1) != 0,
@@ -364,6 +421,21 @@ public final class AnsightDotNetBridge {
                 touchCapture.optDouble("moveCaptureDistanceThreshold", 4.0),
                 touchCapture.optInt("moveCaptureFramesPerSecond", 15)
             );
+        }
+
+        JSONObject crashCapture = json.optJSONObject("crashCapture");
+        if (crashCapture == null || !crashCapture.optBoolean("enabled", true)) {
+            builder.withoutCrashCapture();
+        } else {
+            builder.withCrashCapture(new AnsightCrashCaptureOptions(
+                true,
+                crashCapture.optBoolean("studioHandoffEnabled", true),
+                crashCapture.optBoolean("offlineCaptureAttachmentEnabled", true),
+                crashCapture.optInt("maximumPendingReports", 8),
+                crashCapture.optInt("retentionDays", 7),
+                crashCapture.optInt("maximumBreadcrumbs", 64),
+                crashCapture.optInt("maximumTraceBytes", 1_048_576)
+            ));
         }
 
         applyToolGuard(builder, json.optString("toolGuard", "disabled"));

@@ -39,6 +39,10 @@ internal class MutableDataSink : IDataSink, IAppLifecycleStateSource
         {
             channels[Constants.ReservedChannels.PlatformMemoryUsage_Id] = new Channel(Constants.ReservedChannels.PlatformMemoryUsage_Id, Constants.ReservedChannels.PlatformMemoryUsage_Name, Constants.ReservedChannels.PlatformMemoryUsage_Color);
         }
+        if (options.EnableOpenFileHandleTracking)
+        {
+            channels[Constants.ReservedChannels.OpenFileHandles_Id] = new Channel(Constants.ReservedChannels.OpenFileHandles_Id, Constants.ReservedChannels.OpenFileHandles_Name, Constants.ReservedChannels.OpenFileHandles_Color);
+        }
 #elif ANDROID
         if (options.DefaultMemoryChannels.HasFlag(DefaultMemoryChannels.NativeHeap))
         {
@@ -48,6 +52,15 @@ internal class MutableDataSink : IDataSink, IAppLifecycleStateSource
         if (options.DefaultMemoryChannels.HasFlag(DefaultMemoryChannels.ResidentSetSize))
         {
             channels[Constants.ReservedChannels.Rss_Id] = new Channel(Constants.ReservedChannels.Rss_Id, Constants.ReservedChannels.Rss_Name, Constants.ReservedChannels.Rss_Color);
+        }
+
+        if (options.EnableJniReferenceCountTracking)
+        {
+            channels[Constants.ReservedChannels.JniReferenceCount_Id] = new Channel(Constants.ReservedChannels.JniReferenceCount_Id, Constants.ReservedChannels.JniReferenceCount_Name, Constants.ReservedChannels.JniReferenceCount_Color);
+        }
+        if (options.EnableOpenFileHandleTracking)
+        {
+            channels[Constants.ReservedChannels.OpenFileHandles_Id] = new Channel(Constants.ReservedChannels.OpenFileHandles_Id, Constants.ReservedChannels.OpenFileHandles_Name, Constants.ReservedChannels.OpenFileHandles_Color);
         }
 #endif
         
@@ -549,6 +562,14 @@ internal class MutableDataSink : IDataSink, IAppLifecycleStateSource
 #elif ANDROID
             AddMetricIfPresent(metrics, added, Constants.ReservedChannels.NativeHeapAllocated_Id, snapshot.NativeHeapAllocatedBytes);
             AddMetricIfPresent(metrics, added, Constants.ReservedChannels.Rss_Id, snapshot.RssBytes);
+            if (snapshot.JniReferenceCount is long jniReferenceCount)
+            {
+                AddMetricIfPresent(metrics, added, Constants.ReservedChannels.JniReferenceCount_Id, jniReferenceCount);
+            }
+            if (snapshot.OpenFileHandleCount is long openFileHandleCount)
+            {
+                AddMetricIfPresent(metrics, added, Constants.ReservedChannels.OpenFileHandles_Id, openFileHandleCount);
+            }
 #endif
 
             return added;

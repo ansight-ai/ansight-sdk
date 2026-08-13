@@ -212,6 +212,16 @@ export function event(
 
 export const recordEvent = event;
 
+export const recordCrashCandidate = (input: {
+  runtime?: string;
+  kind?: string;
+  message?: string;
+  stack?: string;
+  fatal?: boolean;
+  metadata?: string;
+}): Promise<{ candidateId?: string }> =>
+  AnsightNative.recordCrashCandidate(input);
+
 export const screenViewed = (
   name: string,
   details: Record<string, string> = {},
@@ -658,6 +668,19 @@ export function installErrorHandlers(
   const captureConsole = options.consoleErrors ?? false;
   const onError = (eventValue: ErrorEvent) => {
     if (!captureErrors) return;
+    void recordCrashCandidate({
+      runtime: "capacitor-javascript",
+      kind: "unhandled_javascript_error",
+      message: eventValue.message,
+      stack:
+        eventValue.error instanceof Error ? eventValue.error.stack : undefined,
+      fatal: false,
+      metadata: JSON.stringify({
+        filename: eventValue.filename,
+        line: eventValue.lineno,
+        column: eventValue.colno,
+      }),
+    }).catch(() => undefined);
     void event({
       label: eventValue.message || "Unhandled JavaScript error",
       type: "Exception",
@@ -675,6 +698,13 @@ export function installErrorHandlers(
   const onRejection = (eventValue: PromiseRejectionEvent) => {
     if (!captureRejections) return;
     const reason = eventValue.reason;
+    void recordCrashCandidate({
+      runtime: "capacitor-javascript",
+      kind: "unhandled_promise_rejection",
+      message: reason instanceof Error ? reason.message : String(reason),
+      stack: reason instanceof Error ? reason.stack : undefined,
+      fatal: false,
+    }).catch(() => undefined);
     void event({
       label:
         reason instanceof Error

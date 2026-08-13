@@ -337,6 +337,18 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
   void _handleFlutterError(FlutterErrorDetails details) {
     if (_captureErrors) {
       _ignore(
+        Ansight.instance.recordCrashCandidate(
+          kind: 'flutter_framework_error',
+          message: details.exceptionAsString(),
+          stack: details.stack?.toString(),
+          fatal: false,
+          metadata: <String, String>{
+            'library': details.library ?? '',
+            'silent': details.silent.toString(),
+          },
+        ),
+      );
+      _ignore(
         Ansight.instance.event(
           details.exceptionAsString(),
           type: AnsightEventType.exception,
@@ -354,6 +366,14 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
 
   bool _handlePlatformError(Object error, StackTrace stack) {
     if (_captureErrors) {
+      _ignore(
+        Ansight.instance.recordCrashCandidate(
+          kind: 'flutter_platform_error',
+          message: error.toString(),
+          stack: stack.toString(),
+          fatal: false,
+        ),
+      );
       _ignore(
         Ansight.instance.event(
           error.toString(),

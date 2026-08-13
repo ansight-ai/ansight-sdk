@@ -12,6 +12,8 @@ public sealed class NativeRuntimeOptionsJsonTests
         var options = Options.CreateBuilder()
             .WithSampleFrequencyMilliseconds(750)
             .WithRetentionPeriodSeconds(120)
+            .WithOpenFileHandleTracking()
+            .WithJniReferenceCountTracking()
             .AddAdditionalChannel(new Channel(42, "Latency", Color.FromArgb(17, 34, 51)))
             .WithSessionJpegCapture(
                 intervalMilliseconds: 1_500,
@@ -24,6 +26,13 @@ public sealed class NativeRuntimeOptionsJsonTests
                 captureCancelEvents: true,
                 moveCaptureDistanceThreshold: 6.5,
                 moveCaptureFramesPerSecond: 24)
+            .WithCrashCapture(new CrashCaptureOptions
+            {
+                MaximumPendingReports = 4,
+                RetentionDays = 3,
+                MaximumBreadcrumbs = 20,
+                MaximumTraceBytes = 64 * 1024
+            })
             .RegisterCustomProperty("flags", "beta", true)
             .RegisterCustomProperty("limits", "count", 5)
             .Build();
@@ -32,6 +41,8 @@ public sealed class NativeRuntimeOptionsJsonTests
 
         Assert.Equal(750, json["sampleFrequencyMilliseconds"]!.GetValue<int>());
         Assert.Equal(120, json["retentionPeriodSeconds"]!.GetValue<int>());
+        Assert.True(json["enableOpenFileHandleTracking"]!.GetValue<bool>());
+        Assert.True(json["enableJniReferenceCountTracking"]!.GetValue<bool>());
         Assert.Equal(42, json["additionalChannels"]![0]!["id"]!.GetValue<int>());
         Assert.Equal("#112233", json["additionalChannels"]![0]!["color"]!.GetValue<string>());
         Assert.Equal(1_500, json["sessionJpegCapture"]!["intervalMilliseconds"]!.GetValue<int>());
@@ -39,6 +50,9 @@ public sealed class NativeRuntimeOptionsJsonTests
         Assert.Equal("screenshotAndVisualTree", json["sessionJpegCapture"]!["mode"]!.GetValue<string>());
         Assert.False(json["touchCapture"]!["captureMoveEvents"]!.GetValue<bool>());
         Assert.Equal(6.5, json["touchCapture"]!["moveCaptureDistanceThreshold"]!.GetValue<double>());
+        Assert.True(json["crashCapture"]!["enabled"]!.GetValue<bool>());
+        Assert.Equal(4, json["crashCapture"]!["maximumPendingReports"]!.GetValue<int>());
+        Assert.Equal(64 * 1024, json["crashCapture"]!["maximumTraceBytes"]!.GetValue<int>());
         Assert.Equal("true", json["customProperties"]!["flags"]!["beta"]!.GetValue<string>());
         Assert.Equal("5", json["customProperties"]!["limits"]!["count"]!.GetValue<string>());
         Assert.True(json["hostAutoProbe"]!["enabled"]!.GetValue<bool>());
@@ -53,6 +67,7 @@ public sealed class NativeRuntimeOptionsJsonTests
         var options = Options.CreateBuilder()
             .WithoutSessionJpegCapture()
             .WithoutTouchCapture()
+            .WithoutCrashCapture()
             .Build();
 
         var json = JsonNode.Parse(NativeRuntimeOptionsJson.Serialize(options))!.AsObject();

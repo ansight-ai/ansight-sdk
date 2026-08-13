@@ -6,6 +6,7 @@ import ai.ansight.runtime.AndroidToolExecutionContext
 import ai.ansight.runtime.AndroidToolResult
 import ai.ansight.runtime.AnsightChannel
 import ai.ansight.runtime.AnsightChannels
+import ai.ansight.runtime.AnsightCrashCaptureOptions
 import ai.ansight.runtime.AnsightHostAutoProbeOptions
 import ai.ansight.runtime.AnsightHostConnectionOptions
 import ai.ansight.runtime.AnsightLogCallback
@@ -222,6 +223,21 @@ class AnsightReactNativeModule(
                 channel = input.intValue("channel", AnsightChannels.Unspecified),
             )
             snapshotMap()
+        }.resolve(promise)
+    }
+
+    @ReactMethod
+    fun recordCrashCandidate(input: ReadableMap, promise: Promise) {
+        runCatching {
+            val candidateId = AnsightRuntime.recordCrashCandidate(
+                runtime = input.stringValue("runtime") ?: "react-native-javascript",
+                kind = input.stringValue("kind") ?: "unhandled_javascript_error",
+                message = input.stringValue("message"),
+                stack = input.stringValue("stack"),
+                fatal = input.booleanValue("fatal", false),
+                metadataJson = input.stringValue("metadata"),
+            )
+            Arguments.createMap().apply { putString("candidateId", candidateId) }
         }.resolve(promise)
     }
 
@@ -693,6 +709,22 @@ class AnsightReactNativeModule(
         if (map.hasBoolean("enableBatteryLevel")) {
             options = options.copy(enableBatteryLevel = map.booleanValue("enableBatteryLevel", options.enableBatteryLevel))
         }
+        if (map.hasBoolean("enableOpenFileHandleTracking")) {
+            options = options.copy(
+                enableOpenFileHandleTracking = map.booleanValue(
+                    "enableOpenFileHandleTracking",
+                    options.enableOpenFileHandleTracking,
+                ),
+            )
+        }
+        if (map.hasBoolean("enableJniReferenceCountTracking")) {
+            options = options.copy(
+                enableJniReferenceCountTracking = map.booleanValue(
+                    "enableJniReferenceCountTracking",
+                    options.enableJniReferenceCountTracking,
+                ),
+            )
+        }
         if (map.hasMap("defaultMemoryChannels")) {
             val memory = map.getMapOrNull("defaultMemoryChannels")
             val managedHeap = if (memory.hasBoolean("managedHeap")) {
@@ -764,6 +796,24 @@ class AnsightReactNativeModule(
                     AnsightTouchCaptureOptions(
                         moveCaptureDistanceThreshold = touch.doubleValue("moveCaptureDistanceThreshold", 8.0),
                         moveCaptureFramesPerSecond = touch.intValue("moveCaptureFramesPerSecond", 20),
+                    )
+                },
+            )
+        }
+        if (map.hasKey("crashCapture")) {
+            options = options.copy(
+                crashCapture = if (map.isFalse("crashCapture")) {
+                    options.crashCapture.copy(enabled = false)
+                } else {
+                    val crash = map.getMapOrNull("crashCapture")
+                    AnsightCrashCaptureOptions(
+                        enabled = crash.booleanValue("enabled", true),
+                        studioHandoffEnabled = crash.booleanValue("studioHandoffEnabled", true),
+                        offlineCaptureAttachmentEnabled = crash.booleanValue("offlineCaptureAttachmentEnabled", true),
+                        maximumPendingReports = crash.intValue("maximumPendingReports", 8),
+                        retentionDays = crash.intValue("retentionDays", 7),
+                        maximumBreadcrumbs = crash.intValue("maximumBreadcrumbs", 64),
+                        maximumTraceBytes = crash.intValue("maximumTraceBytes", 1_048_576),
                     )
                 },
             )
@@ -1111,6 +1161,8 @@ class AnsightReactNativeModule(
             putInt("retentionPeriodSeconds", options.retentionPeriodSeconds)
             putBoolean("enableFramesPerSecond", options.enableFramesPerSecond)
             putBoolean("enableBatteryLevel", options.enableBatteryLevel)
+            putBoolean("enableOpenFileHandleTracking", options.enableOpenFileHandleTracking)
+            putBoolean("enableJniReferenceCountTracking", options.enableJniReferenceCountTracking)
             putMap("defaultMemoryChannels", mapOf(
                 "managedHeap" to options.defaultMemoryChannels.javaHeap,
                 "javaHeap" to options.defaultMemoryChannels.javaHeap,

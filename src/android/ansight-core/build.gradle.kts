@@ -14,6 +14,7 @@ val ansightAndroidArtifactId = providers
 android {
     namespace = "ai.ansight.runtime"
     compileSdk = 35
+    experimentalProperties["android.ndk.suppressMinSdkVersionError"] = 21
 
     buildFeatures {
         buildConfig = true
@@ -23,6 +24,18 @@ android {
         minSdk = 16
         consumerProguardFiles("consumer-rules.pro")
         buildConfigField("String", "ANSIGHT_SDK_VERSION", "\"${project.version}\"")
+
+        externalNativeBuild {
+            cmake {
+                cFlags += "-std=c11"
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+        }
     }
 
     compileOptions {

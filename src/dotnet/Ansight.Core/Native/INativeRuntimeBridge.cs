@@ -13,6 +13,8 @@ internal interface INativeRuntimeBridge
 
     bool IsActive { get; }
 
+    string ProcessSessionId { get; }
+
     HostConnectionStatus HostConnectionStatus { get; }
 
     HostConnectionCapabilities HostConnectionCapabilities { get; }
@@ -24,6 +26,22 @@ internal interface INativeRuntimeBridge
     void Deactivate();
 
     void Clear();
+
+    string? RecordCrashCandidate(
+        string runtime,
+        string kind,
+        string? message,
+        string? stack,
+        bool fatal,
+        string? metadataJson);
+
+    string PendingCrashReportsJson();
+
+    void AssociateOfflineCaptureSession(string sessionId, string? directory);
+
+    void CompleteOfflineCaptureSession(string sessionId);
+
+    bool MarkCrashReportPersistedToOfflineCapture(string reportId);
 
     void Metric(long value, byte channel);
 

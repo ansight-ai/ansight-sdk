@@ -30,6 +30,26 @@ class AnsightOptionsBuilder @JvmOverloads constructor(
         return this
     }
 
+    fun withOpenFileHandleTracking(): AnsightOptionsBuilder {
+        options = options.copy(enableOpenFileHandleTracking = true)
+        return this
+    }
+
+    fun withoutOpenFileHandleTracking(): AnsightOptionsBuilder {
+        options = options.copy(enableOpenFileHandleTracking = false)
+        return this
+    }
+
+    fun withJniReferenceCountTracking(): AnsightOptionsBuilder {
+        options = options.copy(enableJniReferenceCountTracking = true)
+        return this
+    }
+
+    fun withoutJniReferenceCountTracking(): AnsightOptionsBuilder {
+        options = options.copy(enableJniReferenceCountTracking = false)
+        return this
+    }
+
     fun withRetentionPeriodSeconds(retentionPeriodSeconds: Int): AnsightOptionsBuilder {
         options = options.copy(retentionPeriodSeconds = retentionPeriodSeconds)
         return this
@@ -112,6 +132,17 @@ class AnsightOptionsBuilder @JvmOverloads constructor(
 
     fun withoutTouchCapture(): AnsightOptionsBuilder {
         options = options.copy(touchCapture = null)
+        return this
+    }
+
+    @JvmOverloads
+    fun withCrashCapture(crashCapture: AnsightCrashCaptureOptions = AnsightCrashCaptureOptions()): AnsightOptionsBuilder {
+        options = options.copy(crashCapture = crashCapture.copy(enabled = true))
+        return this
+    }
+
+    fun withoutCrashCapture(): AnsightOptionsBuilder {
+        options = options.copy(crashCapture = options.crashCapture.copy(enabled = false))
         return this
     }
 

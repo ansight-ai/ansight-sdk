@@ -38,6 +38,18 @@ public final class AnsightOptionsBuilder {
     }
 
     @discardableResult
+    public func withOpenFileHandleTracking() -> AnsightOptionsBuilder {
+        options.enableOpenFileHandleTracking = true
+        return self
+    }
+
+    @discardableResult
+    public func withoutOpenFileHandleTracking() -> AnsightOptionsBuilder {
+        options.enableOpenFileHandleTracking = false
+        return self
+    }
+
+    @discardableResult
     public func withRetentionPeriodSeconds(_ retentionPeriodSeconds: Int) -> AnsightOptionsBuilder {
         options.retentionPeriodSeconds = retentionPeriodSeconds
         return self
@@ -128,6 +140,19 @@ public final class AnsightOptionsBuilder {
     @discardableResult
     public func withoutTouchCapture() -> AnsightOptionsBuilder {
         options.touchCapture = nil
+        return self
+    }
+
+    @discardableResult
+    public func withCrashCapture(_ crashCapture: AnsightCrashCaptureOptions = AnsightCrashCaptureOptions()) -> AnsightOptionsBuilder {
+        options.crashCapture = crashCapture
+        options.crashCapture.enabled = true
+        return self
+    }
+
+    @discardableResult
+    public func withoutCrashCapture() -> AnsightOptionsBuilder {
+        options.crashCapture.enabled = false
         return self
     }
 

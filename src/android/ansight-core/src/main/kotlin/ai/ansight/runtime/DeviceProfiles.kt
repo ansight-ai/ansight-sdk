@@ -13,8 +13,10 @@ import android.os.Build
 import android.os.Debug
 import android.os.Process
 import android.os.StatFs
+import android.system.Os
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 import java.util.Locale
 import java.util.TimeZone
 
@@ -481,5 +483,17 @@ internal object AndroidMetricSampler {
         } catch (_: Exception) {
             0L
         }
+    }
+
+    fun openFileHandleCount(): Long? {
+        val descriptorDirectory = File("/proc/self/fd")
+        val descriptors = descriptorDirectory.list()
+            ?.mapNotNull { it.toIntOrNull() }
+            ?: return null
+        return descriptors.count { descriptor ->
+            runCatching {
+                Os.stat(File(descriptorDirectory, descriptor.toString()).path)
+            }.isSuccess
+        }.toLong()
     }
 }

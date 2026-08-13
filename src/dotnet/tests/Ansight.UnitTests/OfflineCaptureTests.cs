@@ -21,6 +21,13 @@ public sealed class OfflineCaptureTests
         runtime.Event("checkout_started", AppEventType.Info, Constants.ReservedChannels.ChannelNotSpecified_Id, "cart");
         await controller.StopAsync();
 
+        using (var manifest = await ReadJsonDocumentAsync(Path.Combine(session.DirectoryPath, "manifest.json")))
+        {
+            Assert.Equal("normal", manifest.RootElement.GetProperty("TerminationKind").GetString());
+            Assert.False(string.IsNullOrWhiteSpace(manifest.RootElement.GetProperty("ProcessSessionId").GetString()));
+            Assert.Empty(manifest.RootElement.GetProperty("CrashReportIds").EnumerateArray());
+        }
+
         var metricFile = Assert.Single(Directory.GetFiles(
             Path.Combine(session.DirectoryPath, "telemetry", "metrics"),
             "*.jsonl"));

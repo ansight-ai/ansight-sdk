@@ -7,7 +7,8 @@ Pod::Spec.new do |s|
   s.authors      = { "Ansight" => "dev@ansight.ai" }
   s.source       = { :path => "." }
   s.platforms    = { :ios => "15.0" }
-  s.source_files = "Sources/AnsightCore/**/*.swift", "Generated/CocoaPods/AnsightGeneratedBuildArtifacts.swift"
+  s.source_files = "Sources/AnsightCore/**/*.swift", "Sources/CAnsightCrashCapture/**/*.{c,h}", "Generated/CocoaPods/AnsightGeneratedBuildArtifacts.swift"
+  s.public_header_files = "Sources/CAnsightCrashCapture/include/*.h"
   s.preserve_paths = "Plugins/AnsightBuildTool/**/*.swift"
   s.frameworks   = "CryptoKit", "Metal", "Network", "QuartzCore", "Security", "UIKit"
   s.script_phase = {

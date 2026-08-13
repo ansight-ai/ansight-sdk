@@ -20,6 +20,8 @@ internal sealed class AndroidNativeRuntimeBridge : INativeRuntimeBridge
 
     public bool IsActive => AnsightDotNetBridge.IsActive;
 
+    public string ProcessSessionId => AnsightDotNetBridge.ProcessSessionId();
+
     public HostConnectionStatus HostConnectionStatus
         => NativeRuntimeJson.ParseHostConnectionStatus(AnsightDotNetBridge.HostConnectionStatusJson());
 
@@ -38,6 +40,26 @@ internal sealed class AndroidNativeRuntimeBridge : INativeRuntimeBridge
     public void Deactivate() => AnsightDotNetBridge.Deactivate();
 
     public void Clear() => AnsightDotNetBridge.Clear();
+
+    public string? RecordCrashCandidate(
+        string runtime,
+        string kind,
+        string? message,
+        string? stack,
+        bool fatal,
+        string? metadataJson)
+        => AnsightDotNetBridge.RecordCrashCandidate(runtime, kind, message, stack, fatal, metadataJson);
+
+    public string PendingCrashReportsJson() => AnsightDotNetBridge.PendingCrashReportsJson();
+
+    public void AssociateOfflineCaptureSession(string sessionId, string? directory)
+        => AnsightDotNetBridge.AssociateOfflineCaptureSession(sessionId, directory);
+
+    public void CompleteOfflineCaptureSession(string sessionId)
+        => AnsightDotNetBridge.CompleteOfflineCaptureSession(sessionId);
+
+    public bool MarkCrashReportPersistedToOfflineCapture(string reportId)
+        => AnsightDotNetBridge.MarkCrashReportPersistedToOfflineCapture(reportId);
 
     public void Metric(long value, byte channel) => AnsightDotNetBridge.RecordMetric(value, channel);
 

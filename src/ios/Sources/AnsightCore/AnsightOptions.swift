@@ -7,6 +7,7 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
     public var defaultMemoryChannels: DefaultMemoryChannels
     public var enableFramesPerSecond: Bool
     public var enableBatteryLevel: Bool
+    public var enableOpenFileHandleTracking: Bool
     public var lifecycleCapture: AnsightLifecycleCaptureOptions
     public var sessionJpegCapture: AnsightSessionJpegCaptureOptions?
     public var touchCapture: AnsightTouchCaptureOptions?
@@ -14,6 +15,7 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
     public var customProperties: [String: [String: String]]
     public var hostAutoProbe: AnsightHostAutoProbeOptions
     public var hostConnection: AnsightHostConnectionOptions
+    public var crashCapture: AnsightCrashCaptureOptions
 
     public init(
         sampleFrequencyMilliseconds: Int = AnsightSamplingLimits.defaultSampleFrequencyMilliseconds,
@@ -22,13 +24,15 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
         defaultMemoryChannels: DefaultMemoryChannels = .platformDefaults,
         enableFramesPerSecond: Bool = true,
         enableBatteryLevel: Bool = false,
+        enableOpenFileHandleTracking: Bool = false,
         lifecycleCapture: AnsightLifecycleCaptureOptions = .enabledDefault,
         sessionJpegCapture: AnsightSessionJpegCaptureOptions? = nil,
         touchCapture: AnsightTouchCaptureOptions? = AnsightTouchCaptureOptions(),
         toolGuard: AnsightToolGuard = .disabled,
         customProperties: [String: [String: String]] = [:],
         hostAutoProbe: AnsightHostAutoProbeOptions = .enabledDefault,
-        hostConnection: AnsightHostConnectionOptions = AnsightHostConnectionOptions()
+        hostConnection: AnsightHostConnectionOptions = AnsightHostConnectionOptions(),
+        crashCapture: AnsightCrashCaptureOptions = AnsightCrashCaptureOptions()
     ) {
         self.sampleFrequencyMilliseconds = sampleFrequencyMilliseconds
         self.retentionPeriodSeconds = retentionPeriodSeconds
@@ -36,6 +40,7 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
         self.defaultMemoryChannels = defaultMemoryChannels
         self.enableFramesPerSecond = enableFramesPerSecond
         self.enableBatteryLevel = enableBatteryLevel
+        self.enableOpenFileHandleTracking = enableOpenFileHandleTracking
         self.lifecycleCapture = lifecycleCapture
         self.sessionJpegCapture = sessionJpegCapture
         self.touchCapture = touchCapture
@@ -43,6 +48,53 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
         self.customProperties = customProperties
         self.hostAutoProbe = hostAutoProbe
         self.hostConnection = hostConnection
+        self.crashCapture = crashCapture
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case sampleFrequencyMilliseconds
+        case retentionPeriodSeconds
+        case additionalChannels
+        case defaultMemoryChannels
+        case enableFramesPerSecond
+        case enableBatteryLevel
+        case enableOpenFileHandleTracking
+        case lifecycleCapture
+        case sessionJpegCapture
+        case touchCapture
+        case toolGuard
+        case customProperties
+        case hostAutoProbe
+        case hostConnection
+        case crashCapture
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        sampleFrequencyMilliseconds = try container.decode(Int.self, forKey: .sampleFrequencyMilliseconds)
+        retentionPeriodSeconds = try container.decode(Int.self, forKey: .retentionPeriodSeconds)
+        additionalChannels = try container.decode([AnsightChannel].self, forKey: .additionalChannels)
+        defaultMemoryChannels = try container.decode(DefaultMemoryChannels.self, forKey: .defaultMemoryChannels)
+        enableFramesPerSecond = try container.decode(Bool.self, forKey: .enableFramesPerSecond)
+        enableBatteryLevel = try container.decode(Bool.self, forKey: .enableBatteryLevel)
+        enableOpenFileHandleTracking = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .enableOpenFileHandleTracking
+        ) ?? false
+        lifecycleCapture = try container.decode(AnsightLifecycleCaptureOptions.self, forKey: .lifecycleCapture)
+        sessionJpegCapture = try container.decodeIfPresent(
+            AnsightSessionJpegCaptureOptions.self,
+            forKey: .sessionJpegCapture
+        )
+        touchCapture = try container.decodeIfPresent(AnsightTouchCaptureOptions.self, forKey: .touchCapture)
+        toolGuard = try container.decode(AnsightToolGuard.self, forKey: .toolGuard)
+        customProperties = try container.decode([String: [String: String]].self, forKey: .customProperties)
+        hostAutoProbe = try container.decode(AnsightHostAutoProbeOptions.self, forKey: .hostAutoProbe)
+        hostConnection = try container.decode(AnsightHostConnectionOptions.self, forKey: .hostConnection)
+        crashCapture = try container.decodeIfPresent(
+            AnsightCrashCaptureOptions.self,
+            forKey: .crashCapture
+        ) ?? AnsightCrashCaptureOptions()
     }
 
     public static func createBuilder() -> AnsightOptionsBuilder {
@@ -86,6 +138,7 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
         copy.touchCapture?.validate()
         copy.hostAutoProbe.validate()
         try copy.hostConnection.validate()
+        copy.crashCapture.validate()
         return copy
     }
 }

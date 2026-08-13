@@ -77,6 +77,36 @@ class AnsightTouchCaptureOptions {
       };
 }
 
+class AnsightCrashCaptureOptions {
+  const AnsightCrashCaptureOptions({
+    this.enabled = true,
+    this.studioHandoffEnabled = true,
+    this.offlineCaptureAttachmentEnabled = true,
+    this.maximumPendingReports = 8,
+    this.retentionDays = 7,
+    this.maximumBreadcrumbs = 64,
+    this.maximumTraceBytes = 1048576,
+  });
+
+  final bool enabled;
+  final bool studioHandoffEnabled;
+  final bool offlineCaptureAttachmentEnabled;
+  final int maximumPendingReports;
+  final int retentionDays;
+  final int maximumBreadcrumbs;
+  final int maximumTraceBytes;
+
+  AnsightJson toJson() => <String, Object?>{
+        'enabled': enabled,
+        'studioHandoffEnabled': studioHandoffEnabled,
+        'offlineCaptureAttachmentEnabled': offlineCaptureAttachmentEnabled,
+        'maximumPendingReports': maximumPendingReports,
+        'retentionDays': retentionDays,
+        'maximumBreadcrumbs': maximumBreadcrumbs,
+        'maximumTraceBytes': maximumTraceBytes,
+      };
+}
+
 class AnsightLifecycleCaptureOptions {
   const AnsightLifecycleCaptureOptions({
     this.enabled = true,
@@ -284,11 +314,15 @@ class AnsightOptions {
     this.retentionPeriodSeconds,
     this.enableFramesPerSecond,
     this.enableBatteryLevel,
+    this.enableOpenFileHandleTracking,
+    this.enableJniReferenceCountTracking,
     this.defaultMemoryChannels,
     this.sessionJpegCapture,
     this.sessionJpegCaptureEnabled,
     this.touchCapture,
     this.touchCaptureEnabled,
+    this.crashCapture,
+    this.crashCaptureEnabled,
     this.lifecycleCapture,
     this.toolGuard,
     this.customProperties = const <String, Map<String, String>>{},
@@ -306,11 +340,15 @@ class AnsightOptions {
         retentionPeriodSeconds = null,
         enableFramesPerSecond = null,
         enableBatteryLevel = null,
+        enableOpenFileHandleTracking = null,
+        enableJniReferenceCountTracking = null,
         defaultMemoryChannels = null,
         sessionJpegCapture = null,
         sessionJpegCaptureEnabled = null,
         touchCapture = null,
         touchCaptureEnabled = null,
+        crashCapture = null,
+        crashCaptureEnabled = null,
         lifecycleCapture = null,
         toolGuard = null,
         customProperties = const <String, Map<String, String>>{},
@@ -330,6 +368,8 @@ class AnsightOptions {
         retentionPeriodSeconds: 120,
         enableFramesPerSecond: true,
         enableBatteryLevel: false,
+        enableOpenFileHandleTracking: false,
+        enableJniReferenceCountTracking: false,
         sessionJpegCapture: const AnsightSessionJpegCaptureOptions(),
         sessionJpegCaptureEnabled: true,
         touchCapture: const AnsightTouchCaptureOptions(),
@@ -346,11 +386,15 @@ class AnsightOptions {
   final int? retentionPeriodSeconds;
   final bool? enableFramesPerSecond;
   final bool? enableBatteryLevel;
+  final bool? enableOpenFileHandleTracking;
+  final bool? enableJniReferenceCountTracking;
   final AnsightDefaultMemoryChannels? defaultMemoryChannels;
   final AnsightSessionJpegCaptureOptions? sessionJpegCapture;
   final bool? sessionJpegCaptureEnabled;
   final AnsightTouchCaptureOptions? touchCapture;
   final bool? touchCaptureEnabled;
+  final AnsightCrashCaptureOptions? crashCapture;
+  final bool? crashCaptureEnabled;
   final AnsightLifecycleCaptureOptions? lifecycleCapture;
   final AnsightToolGuard? toolGuard;
   final Map<String, Map<String, String>> customProperties;
@@ -375,6 +419,10 @@ class AnsightOptions {
       if (enableFramesPerSecond != null)
         'enableFramesPerSecond': enableFramesPerSecond,
       if (enableBatteryLevel != null) 'enableBatteryLevel': enableBatteryLevel,
+      if (enableOpenFileHandleTracking != null)
+        'enableOpenFileHandleTracking': enableOpenFileHandleTracking,
+      if (enableJniReferenceCountTracking != null)
+        'enableJniReferenceCountTracking': enableJniReferenceCountTracking,
       if (defaultMemoryChannels != null)
         'defaultMemoryChannels': defaultMemoryChannels!.toJson(),
       if (sessionJpegCaptureEnabled == false)
@@ -385,6 +433,10 @@ class AnsightOptions {
         'touchCapture': false
       else if (touchCapture != null)
         'touchCapture': touchCapture!.toJson(),
+      if (crashCaptureEnabled == false)
+        'crashCapture': false
+      else if (crashCapture != null)
+        'crashCapture': crashCapture!.toJson(),
       if (lifecycleCapture != null)
         'lifecycleCapture': lifecycleCapture!.toJson(),
       if (toolGuard != null) 'toolGuard': toolGuard!.wireName,
@@ -433,6 +485,26 @@ class AnsightOptionsBuilder {
   AnsightOptionsBuilder withToolsDisabled() =>
       withToolGuard(AnsightToolGuard.disabled);
 
+  AnsightOptionsBuilder withOpenFileHandleTracking() {
+    _json['enableOpenFileHandleTracking'] = true;
+    return this;
+  }
+
+  AnsightOptionsBuilder withoutOpenFileHandleTracking() {
+    _json['enableOpenFileHandleTracking'] = false;
+    return this;
+  }
+
+  AnsightOptionsBuilder withJniReferenceCountTracking() {
+    _json['enableJniReferenceCountTracking'] = true;
+    return this;
+  }
+
+  AnsightOptionsBuilder withoutJniReferenceCountTracking() {
+    _json['enableJniReferenceCountTracking'] = false;
+    return this;
+  }
+
   AnsightOptionsBuilder withSessionJpegCapture([
     AnsightSessionJpegCaptureOptions options =
         const AnsightSessionJpegCaptureOptions(),
@@ -455,6 +527,18 @@ class AnsightOptionsBuilder {
 
   AnsightOptionsBuilder withoutTouchCapture() {
     _json['touchCapture'] = false;
+    return this;
+  }
+
+  AnsightOptionsBuilder withCrashCapture([
+    AnsightCrashCaptureOptions options = const AnsightCrashCaptureOptions(),
+  ]) {
+    _json['crashCapture'] = options.toJson();
+    return this;
+  }
+
+  AnsightOptionsBuilder withoutCrashCapture() {
+    _json['crashCapture'] = false;
     return this;
   }
 

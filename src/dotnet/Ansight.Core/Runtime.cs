@@ -3,6 +3,7 @@ namespace Ansight;
 using Ansight.Pairing;
 using Ansight.Platforms;
 using Ansight.Tools;
+using System.Text.Json;
 
 /// <summary>
 /// Entry point for initialising and recording telemetry data with Ansight.
@@ -15,6 +16,7 @@ public static class Runtime
     private static AppLifecycleState currentAppLifecycleState = AppLifecycleState.Unknown;
     private static DateTimeOffset? currentAppLifecycleStateChangedUtc;
     private static long appLifecycleStateVersion;
+    private static int unhandledExceptionHandlerInstalled;
 
     internal static event EventHandler<AppLifecycleStateChangedEventArgs>? AppLifecycleStateChanged;
 
@@ -89,6 +91,7 @@ public static class Runtime
 
             runtime = new RuntimeImpl(options);
             createdRuntime = runtime;
+            EnsureUnhandledExceptionHandler(options);
             initialAppLifecycleState = currentAppLifecycleState;
             initialAppLifecycleStateChangedUtc = currentAppLifecycleStateChangedUtc;
             initialAppLifecycleStateVersion = appLifecycleStateVersion;
@@ -163,6 +166,72 @@ public static class Runtime
         }
 
         Instance.Clear();
+    }
+
+    /// <summary>
+    /// Identifies this operating-system process for live, offline, and crash-session correlation.
+    /// </summary>
+    public static string? ProcessSessionId => IsInitialized ? MutableInstance.ProcessSessionId : null;
+
+    /// <summary>
+    /// Adds framework-specific context to the durable native crash outbox.
+    /// Non-fatal candidates are retained only as context for independently confirmed native exits.
+    /// </summary>
+    public static string? RecordCrashCandidate(
+        Exception exception,
+        bool fatal = true,
+        string runtimeName = "dotnet")
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+        if (!IsInitialized)
+        {
+            return null;
+        }
+
+        return MutableInstance.RecordCrashCandidate(
+            runtimeName,
+            "unhandled_exception",
+            exception.Message,
+            exception.ToString(),
+            fatal,
+            JsonSerializer.Serialize(new Dictionary<string, string>
+            {
+                ["exceptionType"] = exception.GetType().FullName ?? exception.GetType().Name
+            }));
+    }
+
+    private static void EnsureUnhandledExceptionHandler(Options options)
+    {
+        if (!options.CrashCapture.Enabled ||
+            Interlocked.Exchange(ref unhandledExceptionHandlerInstalled, 1) != 0)
+        {
+            return;
+        }
+
+        AppDomain.CurrentDomain.UnhandledException += (_, eventArgs) =>
+        {
+            try
+            {
+                var exception = eventArgs.ExceptionObject as Exception;
+                if (exception is not null)
+                {
+                    RecordCrashCandidate(exception, eventArgs.IsTerminating);
+                }
+                else
+                {
+                    Volatile.Read(ref runtime)?.RecordCrashCandidate(
+                        "dotnet",
+                        "unhandled_exception",
+                        Convert.ToString(eventArgs.ExceptionObject),
+                        stack: null,
+                        fatal: eventArgs.IsTerminating);
+                }
+            }
+            catch
+            {
+                // A crash hook must never replace the app's original termination path.
+            }
+        };
     }
 
     /// <summary>

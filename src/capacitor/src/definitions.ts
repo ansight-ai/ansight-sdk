@@ -43,6 +43,16 @@ export interface AnsightTouchCaptureOptions {
   moveCaptureFramesPerSecond?: number;
 }
 
+export interface AnsightCrashCaptureOptions {
+  enabled?: boolean;
+  studioHandoffEnabled?: boolean;
+  offlineCaptureAttachmentEnabled?: boolean;
+  maximumPendingReports?: number;
+  retentionDays?: number;
+  maximumBreadcrumbs?: number;
+  maximumTraceBytes?: number;
+}
+
 export interface AnsightNativeToolRoot {
   alias: string;
   path: string;
@@ -82,6 +92,8 @@ export interface AnsightOptions {
   retentionPeriodSeconds?: number;
   enableFramesPerSecond?: boolean;
   enableBatteryLevel?: boolean;
+  enableOpenFileHandleTracking?: boolean;
+  enableJniReferenceCountTracking?: boolean;
   defaultMemoryChannels?: {
     managedHeap?: boolean;
     physicalFootprint?: boolean;
@@ -92,6 +104,7 @@ export interface AnsightOptions {
   };
   sessionJpegCapture?: false | AnsightSessionJpegCaptureOptions;
   touchCapture?: false | AnsightTouchCaptureOptions;
+  crashCapture?: false | AnsightCrashCaptureOptions;
   lifecycleCapture?: {
     enabled?: boolean;
     captureAppLifecycle?: boolean;
@@ -414,6 +427,10 @@ export interface AnsightOptionsBuilderApi {
   withoutFramesPerSecond(): this;
   withBatteryLevel(): this;
   withoutBatteryLevel(): this;
+  withOpenFileHandleTracking(): this;
+  withoutOpenFileHandleTracking(): this;
+  withJniReferenceCountTracking(): this;
+  withoutJniReferenceCountTracking(): this;
   withRetentionPeriodSeconds(value: number): this;
   withAdditionalChannels(channels: AnsightChannel[]): this;
   addAdditionalChannel(channel: AnsightChannel): this;
@@ -434,6 +451,8 @@ export interface AnsightOptionsBuilderApi {
   withoutSessionJpegCapture(): this;
   withTouchCapture(options?: AnsightTouchCaptureOptions): this;
   withoutTouchCapture(): this;
+  withCrashCapture(options?: AnsightCrashCaptureOptions): this;
+  withoutCrashCapture(): this;
   withLifecycleCapture(
     options?: NonNullable<AnsightOptions["lifecycleCapture"]>,
   ): this;
@@ -505,6 +524,14 @@ export interface AnsightCapacitorPlugin {
     details?: string;
     channel?: number;
   }): Promise<AnsightDebugSnapshot>;
+  recordCrashCandidate(options: {
+    runtime?: string;
+    kind?: string;
+    message?: string;
+    stack?: string;
+    fatal?: boolean;
+    metadata?: string;
+  }): Promise<{ candidateId?: string }>;
   screenViewed(options: {
     name: string;
     details?: Record<string, string>;

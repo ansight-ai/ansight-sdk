@@ -6,6 +6,7 @@ import ai.ansight.runtime.AndroidToolExecutionContext
 import ai.ansight.runtime.AndroidToolResult
 import ai.ansight.runtime.AnsightChannel
 import ai.ansight.runtime.AnsightChannels
+import ai.ansight.runtime.AnsightCrashCaptureOptions
 import ai.ansight.runtime.AnsightDeveloperMode
 import ai.ansight.runtime.AnsightHostAutoProbeOptions
 import ai.ansight.runtime.AnsightHostConnectionOptions
@@ -213,6 +214,18 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
             )
             snapshot()
         }
+        "recordCrashCandidate" -> JSONObject()
+            .putValue(
+                "candidateId",
+                AnsightRuntime.recordCrashCandidate(
+                    runtime = map.stringValue("runtime") ?: "flutter-dart",
+                    kind = map.stringValue("kind") ?: "unhandled_flutter_error",
+                    message = map.stringValue("message"),
+                    stack = map.stringValue("stack"),
+                    fatal = map.booleanValue("fatal", false),
+                    metadataJson = map.objectValueOrNull("metadata")?.toString(),
+                ),
+            )
         "screenViewed" -> {
             AnsightRuntime.screenViewed(
                 map.stringValue("name").orEmpty(),
@@ -581,6 +594,22 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
                     map.booleanValue("enableBatteryLevel", result.enableBatteryLevel),
             )
         }
+        if (map.hasValue("enableOpenFileHandleTracking")) {
+            result = result.copy(
+                enableOpenFileHandleTracking = map.booleanValue(
+                    "enableOpenFileHandleTracking",
+                    result.enableOpenFileHandleTracking,
+                ),
+            )
+        }
+        if (map.hasValue("enableJniReferenceCountTracking")) {
+            result = result.copy(
+                enableJniReferenceCountTracking = map.booleanValue(
+                    "enableJniReferenceCountTracking",
+                    result.enableJniReferenceCountTracking,
+                ),
+            )
+        }
         map.objectValueOrNull("defaultMemoryChannels")?.let { memory ->
             result = result.copy(
                 defaultMemoryChannels = DefaultMemoryChannels(
@@ -625,6 +654,24 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
                             touch.doubleValue("moveCaptureDistanceThreshold", 8.0),
                         moveCaptureFramesPerSecond =
                             touch.intValue("moveCaptureFramesPerSecond", 20),
+                    )
+                },
+            )
+        }
+        if (map.has("crashCapture")) {
+            result = result.copy(
+                crashCapture = if (map.opt("crashCapture") == false) {
+                    result.crashCapture.copy(enabled = false)
+                } else {
+                    val crash = map.objectValue("crashCapture")
+                    AnsightCrashCaptureOptions(
+                        enabled = crash.booleanValue("enabled", true),
+                        studioHandoffEnabled = crash.booleanValue("studioHandoffEnabled", true),
+                        offlineCaptureAttachmentEnabled = crash.booleanValue("offlineCaptureAttachmentEnabled", true),
+                        maximumPendingReports = crash.intValue("maximumPendingReports", 8),
+                        retentionDays = crash.intValue("retentionDays", 7),
+                        maximumBreadcrumbs = crash.intValue("maximumBreadcrumbs", 64),
+                        maximumTraceBytes = crash.intValue("maximumTraceBytes", 1_048_576),
                     )
                 },
             )
@@ -876,6 +923,8 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
         .putValue("retentionPeriodSeconds", value.retentionPeriodSeconds)
         .putValue("enableFramesPerSecond", value.enableFramesPerSecond)
         .putValue("enableBatteryLevel", value.enableBatteryLevel)
+        .putValue("enableOpenFileHandleTracking", value.enableOpenFileHandleTracking)
+        .putValue("enableJniReferenceCountTracking", value.enableJniReferenceCountTracking)
         .putValue("toolGuard", toolGuardName(value.toolGuard))
         .putValue("customProperties", value.customProperties.toGroupedJSONObject())
         .putValue("additionalChannels", JSONArray(value.additionalChannels.map(::channel)))

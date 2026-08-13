@@ -2,12 +2,19 @@ import XCTest
 @testable import AnsightCore
 
 final class AnsightOptionsBuilderTests: XCTestCase {
+    func testRuntimeDiagnosticChannelsAreReserved() {
+        XCTAssertTrue(AnsightChannels.reservedIds.contains(AnsightChannels.jniReferenceCount))
+        XCTAssertTrue(AnsightChannels.reservedIds.contains(AnsightChannels.openFileHandles))
+        XCTAssertEqual(AnsightChannels.openFileHandlesChannel.name, "Open File Handles")
+    }
+
     func testBuilderAppliesDotNetStyleOptionsConvention() throws {
         let options = try AnsightOptions.createBuilder()
             .withSampleFrequencyMilliseconds(400)
             .withRetentionPeriodSeconds(120)
             .withoutFramesPerSecond()
             .withBatteryLevel()
+            .withOpenFileHandleTracking()
             .withDefaultMemoryChannels(.all)
             .withoutDefaultMemoryChannels(.nativeHeap)
             .withSessionJpegCapture()
@@ -24,6 +31,7 @@ final class AnsightOptionsBuilderTests: XCTestCase {
         XCTAssertEqual(options.retentionPeriodSeconds, 120)
         XCTAssertFalse(options.enableFramesPerSecond)
         XCTAssertTrue(options.enableBatteryLevel)
+        XCTAssertTrue(options.enableOpenFileHandleTracking)
         XCTAssertTrue(options.defaultMemoryChannels.contains(.managedHeap))
         XCTAssertFalse(options.defaultMemoryChannels.contains(.nativeHeap))
         XCTAssertEqual(options.sessionJpegCapture?.intervalMilliseconds, 2_000)
@@ -39,6 +47,17 @@ final class AnsightOptionsBuilderTests: XCTestCase {
         XCTAssertEqual(options.hostConnection.connectionProfileRetentionSeconds, 120)
         XCTAssertTrue(options.hostConnection.allowCellularConnections)
         XCTAssertFalse(AnsightOptions().hostConnection.allowCellularConnections)
+    }
+
+    func testOpenFileHandleTrackingDefaultsOffAndCanBeDisabledAgain() throws {
+        XCTAssertFalse(AnsightOptions().enableOpenFileHandleTracking)
+
+        let options = try AnsightOptions.createBuilder()
+            .withOpenFileHandleTracking()
+            .withoutOpenFileHandleTracking()
+            .build()
+
+        XCTAssertFalse(options.enableOpenFileHandleTracking)
     }
 
     func testBuilderCanStartFromExistingOptions() throws {
@@ -103,5 +122,40 @@ final class AnsightOptionsBuilderTests: XCTestCase {
         XCTAssertEqual(options.quality, 60)
         XCTAssertEqual(options.maxWidth, 480)
         XCTAssertEqual(options.captureGpuBackedSurfaces, false)
+    }
+
+    func testCrashCaptureDefaultsOnAndClampsDurableOutboxBounds() throws {
+        let options = try AnsightOptions.createBuilder()
+            .withCrashCapture(
+                AnsightCrashCaptureOptions(
+                    maximumPendingReports: 100,
+                    retentionDays: 0,
+                    maximumBreadcrumbs: 1_000,
+                    maximumTraceBytes: 1
+                )
+            )
+            .build()
+
+        XCTAssertTrue(options.crashCapture.enabled)
+        XCTAssertEqual(options.crashCapture.maximumPendingReports, 32)
+        XCTAssertEqual(options.crashCapture.retentionDays, 1)
+        XCTAssertEqual(options.crashCapture.maximumBreadcrumbs, 256)
+        XCTAssertEqual(options.crashCapture.maximumTraceBytes, 16 * 1_024)
+        XCTAssertFalse(try AnsightOptions.createBuilder().withoutCrashCapture().build().crashCapture.enabled)
+    }
+
+    func testCrashCaptureDecodeDefaultsMissingFields() throws {
+        let options = try JSONDecoder().decode(
+            AnsightCrashCaptureOptions.self,
+            from: Data(#"{}"#.utf8)
+        )
+
+        XCTAssertTrue(options.enabled)
+        XCTAssertTrue(options.studioHandoffEnabled)
+        XCTAssertTrue(options.offlineCaptureAttachmentEnabled)
+        XCTAssertEqual(options.maximumPendingReports, 8)
+        XCTAssertEqual(options.retentionDays, 7)
+        XCTAssertEqual(options.maximumBreadcrumbs, 64)
+        XCTAssertEqual(options.maximumTraceBytes, 1_048_576)
     }
 }

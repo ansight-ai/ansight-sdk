@@ -31,6 +31,8 @@ public static class Constants
         public const byte FramesPerSecond_Id = 3;
         public const byte Lifecycle_Id = 4;
         public const byte BatteryLevel_Id = 5;
+        public const byte JniReferenceCount_Id = 6;
+        public const byte OpenFileHandles_Id = 7;
 
         public const byte ChannelNotSpecified_Id = byte.MaxValue;
 
@@ -43,6 +45,10 @@ public static class Constants
         public static readonly Color Lifecycle_Color = Color.FromArgb(255, 149, 0);
         public const string BatteryLevel_Name = "Battery Level";
         public static readonly Color BatteryLevel_Color = Color.FromArgb(255, 204, 0);
+        public const string JniReferenceCount_Name = "JNI reference count";
+        public static readonly Color JniReferenceCount_Color = Color.FromArgb(175, 82, 222);
+        public const string OpenFileHandles_Name = "Open File Handles";
+        public static readonly Color OpenFileHandles_Color = Color.FromArgb(255, 59, 48);
 
 #if IOS || MACCATALYST
         public const byte PlatformMemoryUsage_Id = 1;
@@ -71,6 +77,8 @@ public static class Constants
             || channel.Id == Constants.ReservedChannels.FramesPerSecond_Id
             || channel.Id == Constants.ReservedChannels.Lifecycle_Id
             || channel.Id == Constants.ReservedChannels.BatteryLevel_Id
+            || channel.Id == Constants.ReservedChannels.JniReferenceCount_Id
+            || channel.Id == Constants.ReservedChannels.OpenFileHandles_Id
 #if IOS || MACCATALYST
             || channel.Id == Constants.ReservedChannels.PlatformMemoryUsage_Id
 #elif ANDROID

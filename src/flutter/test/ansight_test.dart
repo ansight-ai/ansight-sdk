@@ -155,4 +155,34 @@ void main() {
     final payload = AnsightArtifactPayload.text('こんにちは');
     expect(payload.bytes.length, greaterThan(5));
   });
+
+  test('configures crash capture and records framework context', () async {
+    final options = createOptionsBuilder()
+        .withCrashCapture(
+          const AnsightCrashCaptureOptions(
+            maximumPendingReports: 12,
+            retentionDays: 3,
+          ),
+        )
+        .build();
+    expect(options.toJson()['crashCapture'], containsPair('enabled', true));
+    expect(
+      (options.toJson()['crashCapture']
+          as AnsightJson)['maximumPendingReports'],
+      12,
+    );
+    expect(
+      createOptionsBuilder().withoutCrashCapture().build().toJson(),
+      containsPair('crashCapture', false),
+    );
+
+    final transport = FakeNativeTransport();
+    await Ansight.withTransport(transport).recordCrashCandidate(
+      message: 'render failed',
+      stack: 'stack',
+      metadata: const <String, String>{'library': 'widgets'},
+    );
+    expect(transport.calls.single.method, 'recordCrashCandidate');
+    expect(transport.calls.single.arguments, containsPair('fatal', false));
+  });
 }

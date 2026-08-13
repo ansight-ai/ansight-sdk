@@ -33,6 +33,7 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
     private OfflineCaptureSessionManifest? activeManifest;
     private DateTimeOffset lastRetentionRunUtc = DateTimeOffset.MinValue;
     private bool disposed;
+    private bool crashReportsRecovered;
 
     /// <summary>
     /// Creates a controller for the initialized singleton <see cref="Runtime"/>.
@@ -104,6 +105,8 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
             activationMode = options.ActivationMode;
         }
 
+        await RecoverCrashedSessionsAsync(cancellationToken);
+
         if (activationMode is OfflineCaptureActivationMode.AlwaysOn or OfflineCaptureActivationMode.NextSessionOnly)
         {
             await StartAsync(cancellationToken);
@@ -139,6 +142,7 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
         var effectiveOptions = ResolveEffectiveOptions(normalizedOptions);
         Directory.CreateDirectory(effectiveOptions.RootDirectory);
         Directory.CreateDirectory(OfflineCapturePaths.SessionsDirectory(effectiveOptions.RootDirectory));
+        await RecoverCrashedSessionsAsync(cancellationToken);
         var sessionId = Guid.CreateVersion7().ToString("N");
         var sessionDirectory = OfflineCapturePaths.SessionDirectory(effectiveOptions.RootDirectory, sessionId);
         Directory.CreateDirectory(sessionDirectory);
@@ -162,6 +166,10 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
         await WriteChannelsAsync(sessionDirectory, runtime.DataSink.Channels, cancellationToken);
         await WriteDeviceProfileAsync(sessionDirectory, deviceProfile, cancellationToken);
         await WriteCustomPropertiesAsync(sessionDirectory, cancellationToken);
+        if (runtime is RuntimeImpl nativeRuntime)
+        {
+            nativeRuntime.AssociateOfflineCaptureSession(sessionId, sessionDirectory);
+        }
 
         Interlocked.Exchange(ref droppedRecordCount, 0);
         var channel = System.Threading.Channels.Channel.CreateBounded<OfflineCaptureWriteRecord>(
@@ -715,10 +723,15 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
             try
             {
                 manifest.StoppedAtUtc = DateTimeOffset.UtcNow;
+                manifest.TerminationKind = "normal";
                 manifest.DroppedRecordCount = Interlocked.Read(ref droppedRecordCount);
                 ApplyRuntimeSessionMetadataToManifest(manifest);
                 await WriteManifestAsync(sessionDirectory, manifest, cancellationToken);
                 await WriteCustomPropertiesAsync(sessionDirectory, cancellationToken);
+                if (runtime is RuntimeImpl nativeRuntime)
+                {
+                    nativeRuntime.CompleteOfflineCaptureSession(manifest.SessionId);
+                }
                 if (manifest.DroppedRecordCount > 0)
                 {
                     Logger.Warning($"Offline capture dropped {manifest.DroppedRecordCount:N0} queued record(s) because the writer could not keep up.");
@@ -1041,6 +1054,185 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
         await WriteCustomPropertiesAsync(sessionDirectory, cancellationToken);
     }
 
+    private async Task RecoverCrashedSessionsAsync(CancellationToken cancellationToken)
+    {
+        RuntimeImpl? nativeRuntime;
+        string rootDirectory;
+        lock (stateLock)
+        {
+            if (crashReportsRecovered)
+            {
+                return;
+            }
+
+            nativeRuntime = runtime as RuntimeImpl;
+            rootDirectory = options.Normalize().RootDirectory!;
+        }
+
+        if (nativeRuntime is null)
+        {
+            lock (stateLock)
+            {
+                crashReportsRecovered = true;
+            }
+            return;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(nativeRuntime.PendingCrashReportsJson());
+            if (!document.RootElement.TryGetProperty("reports", out var reports) ||
+                reports.ValueKind != JsonValueKind.Array)
+            {
+                return;
+            }
+
+            foreach (var report in reports.EnumerateArray())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await TryAttachCrashReportAsync(
+                    nativeRuntime,
+                    rootDirectory,
+                    report,
+                    cancellationToken);
+            }
+
+            lock (stateLock)
+            {
+                crashReportsRecovered = true;
+            }
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            Logger.Warning($"Offline capture could not recover the native crash outbox: {exception.Message}");
+        }
+    }
+
+    private static async Task TryAttachCrashReportAsync(
+        RuntimeImpl nativeRuntime,
+        string rootDirectory,
+        JsonElement report,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetBoolean(report, "offlineCaptureRequired") ||
+            TryGetBoolean(report, "offlineCapturePersisted"))
+        {
+            return;
+        }
+
+        var reportId = GetString(report, "reportId");
+        var offlineSessionId = GetString(report, "offlineSessionId");
+        var previousProcessSessionId = GetString(report, "previousProcessSessionId");
+        if (!IsSafePathSegment(reportId) || !IsSafePathSegment(offlineSessionId))
+        {
+            return;
+        }
+
+        var sessionDirectory = OfflineCapturePaths.SessionDirectory(rootDirectory, offlineSessionId!);
+        var manifest = ReadManifest(sessionDirectory);
+        if (manifest is null ||
+            (!string.IsNullOrWhiteSpace(previousProcessSessionId) &&
+             !string.Equals(
+                 manifest.ProcessSessionId,
+                 previousProcessSessionId,
+                 StringComparison.Ordinal)))
+        {
+            return;
+        }
+
+        Directory.CreateDirectory(OfflineCapturePaths.CrashReportsDirectory(sessionDirectory));
+        await WriteJsonFileAsync(
+            OfflineCapturePaths.CrashReportPath(sessionDirectory, reportId!),
+            report.Clone(),
+            OfflineCaptureJson.Metadata,
+            cancellationToken);
+
+        await WriteCrashPayloadAsync(
+            sessionDirectory,
+            reportId!,
+            report,
+            "traceBase64",
+            "trace",
+            cancellationToken);
+        await WriteCrashPayloadAsync(
+            sessionDirectory,
+            reportId!,
+            report,
+            "metricKitPayloadBase64",
+            "metrickit.json",
+            cancellationToken);
+
+        manifest.CrashReportIds ??= [];
+        if (!manifest.CrashReportIds.Contains(reportId!, StringComparer.Ordinal))
+        {
+            manifest.CrashReportIds.Add(reportId!);
+        }
+        manifest.TerminationKind = GetString(report, "kind") ?? "crash";
+        manifest.StoppedAtUtc = TryGetDateTimeOffset(report, "occurredAtUtc") ?? DateTimeOffset.UtcNow;
+        await WriteManifestAsync(sessionDirectory, manifest, cancellationToken);
+
+        nativeRuntime.MarkCrashReportPersistedToOfflineCapture(reportId!);
+    }
+
+    private static async Task WriteCrashPayloadAsync(
+        string sessionDirectory,
+        string reportId,
+        JsonElement report,
+        string propertyName,
+        string extension,
+        CancellationToken cancellationToken)
+    {
+        var encoded = GetString(report, propertyName);
+        if (string.IsNullOrWhiteSpace(encoded))
+        {
+            return;
+        }
+
+        byte[] bytes;
+        try
+        {
+            bytes = Convert.FromBase64String(encoded);
+        }
+        catch (FormatException)
+        {
+            return;
+        }
+
+        var path = OfflineCapturePaths.CrashTracePath(sessionDirectory, reportId, extension);
+        await File.WriteAllBytesAsync(path, bytes, cancellationToken);
+    }
+
+    private static string? GetString(JsonElement value, string propertyName)
+    {
+        return value.TryGetProperty(propertyName, out var property) &&
+               property.ValueKind == JsonValueKind.String
+            ? property.GetString()
+            : null;
+    }
+
+    private static bool TryGetBoolean(JsonElement value, string propertyName)
+    {
+        return value.TryGetProperty(propertyName, out var property) &&
+               property.ValueKind is JsonValueKind.True or JsonValueKind.False &&
+               property.GetBoolean();
+    }
+
+    private static DateTimeOffset? TryGetDateTimeOffset(JsonElement value, string propertyName)
+    {
+        return value.TryGetProperty(propertyName, out var property) &&
+               property.ValueKind == JsonValueKind.String &&
+               property.TryGetDateTimeOffset(out var result)
+            ? result
+            : null;
+    }
+
+    private static bool IsSafePathSegment(string? value)
+    {
+        return !string.IsNullOrWhiteSpace(value) &&
+               value.Length <= 128 &&
+               value.All(character => char.IsLetterOrDigit(character) || character is '-' or '_');
+    }
+
     private async Task ApplyRetentionAsync(CancellationToken cancellationToken)
     {
         OfflineCaptureEffectiveOptions currentOptions;
@@ -1208,6 +1400,7 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
         manifest.RemoteAddress = ResolveFirstNonEmpty(manifest.RemoteAddress, "offline")!;
         manifest.ProcessSessionId = ResolveFirstNonEmpty(
             manifest.ProcessSessionId,
+            runtime is RuntimeImpl runtimeImpl ? runtimeImpl.ProcessSessionId : null,
             global::System.Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture));
         manifest.SdkVersion = ResolveFirstNonEmpty(
             manifest.SdkVersion,

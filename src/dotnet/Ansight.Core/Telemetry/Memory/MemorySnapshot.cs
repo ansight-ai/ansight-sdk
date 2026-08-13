@@ -7,4 +7,6 @@ internal sealed record MemorySnapshot(
     long JavaHeapMaxBytes,         // Android only; iOS: 0
     long NativeHeapAllocatedBytes, // Android only; iOS: 0
     long ManagedHeapBytes,         // .NET GC managed heap (approx)
+    long? JniReferenceCount,       // Android only; other platforms: null
+    long? OpenFileHandleCount,     // Android only; other platforms: null
     DateTime CapturedAtUtc);

@@ -31,6 +31,12 @@ class AnsightOptionsTest {
     }
 
     @Test
+    fun runtimeDiagnosticChannelIdsAreReserved() {
+        assertTrue(AnsightChannels.JniReferenceCount in AnsightChannels.reservedIds)
+        assertTrue(AnsightChannels.OpenFileHandles in AnsightChannels.reservedIds)
+    }
+
+    @Test
     fun metricStreamCarriesChannelMetadataAndSamplesCurrentValue() {
         var value = 58L
         val stream = AnsightMetricStream(
@@ -123,6 +129,8 @@ class AnsightOptionsTest {
             .withRetentionPeriodSeconds(120)
             .withoutFramesPerSecond()
             .withBatteryLevel()
+            .withOpenFileHandleTracking()
+            .withJniReferenceCountTracking()
             .withSessionJpegCapture()
             .withTouchCapture(moveCaptureFramesPerSecond = 12)
             .withReadWriteToolAccess()
@@ -139,6 +147,8 @@ class AnsightOptionsTest {
         assertEquals(120, options.retentionPeriodSeconds)
         assertFalse(options.enableFramesPerSecond)
         assertTrue(options.enableBatteryLevel)
+        assertTrue(options.enableOpenFileHandleTracking)
+        assertTrue(options.enableJniReferenceCountTracking)
         assertEquals(2_000, options.sessionJpegCapture?.intervalMilliseconds)
         assertEquals(60, options.sessionJpegCapture?.quality)
         assertEquals(480, options.sessionJpegCapture?.maxWidth)
@@ -152,6 +162,23 @@ class AnsightOptionsTest {
         assertTrue(options.hostConnection.allowCellularConnections)
         assertTrue(options.initialTools.any { it.definition.id == "app.echo" })
         assertTrue(options.artifactProviders.any { it.descriptor.id == "app.report" })
+    }
+
+    @Test
+    fun runtimeDiagnosticTrackingDefaultsOffAndCanBeDisabledAgain() {
+        val defaults = AnsightOptions.createBuilder().build()
+        assertFalse(defaults.enableOpenFileHandleTracking)
+        assertFalse(defaults.enableJniReferenceCountTracking)
+
+        val disabled = AnsightOptions.createBuilder()
+            .withOpenFileHandleTracking()
+            .withJniReferenceCountTracking()
+            .withoutOpenFileHandleTracking()
+            .withoutJniReferenceCountTracking()
+            .build()
+
+        assertFalse(disabled.enableOpenFileHandleTracking)
+        assertFalse(disabled.enableJniReferenceCountTracking)
     }
 
     @Test
