@@ -20,6 +20,8 @@ projects=(
   "Ansight.Tools.SecureStorage/Ansight.Tools.SecureStorage.csproj"
   "Ansight.Tools.VisualTree/Ansight.Tools.VisualTree.csproj"
   "Ansight/Ansight.csproj"
+  "Ansight.Location/Ansight.Location.csproj"
+  "Ansight.Location.Maui/Ansight.Location.Maui.csproj"
   "Ansight.Tools.Maui/Ansight.Tools.Maui.csproj"
   "Ansight.Maui/Ansight.Maui.csproj"
 )
