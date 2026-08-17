@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name         = "AnsightPairingQR"
-  s.version      = "1.3.0-preview.3"
+  s.version      = "1.3.0-preview.4"
   s.summary      = "Ansight file and QR pairing UI for native iOS apps"
   s.homepage     = "https://github.com/ansight-ai/ansight-sdk"
   s.license      = { :type => "Ansight SDK Source-Available License", :file => "LICENSE" }

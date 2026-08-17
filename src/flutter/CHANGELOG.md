@@ -1,3 +1,8 @@
+## 1.3.0-preview.4
+
+- Add the existing-session extension event used by optional SDK modules such as
+  `ansight_location`, without adding location capture to the base package.
+
 ## 1.3.0-preview.3
 
 - Use the compact v2 visual-tree contract with a shared type registry,
