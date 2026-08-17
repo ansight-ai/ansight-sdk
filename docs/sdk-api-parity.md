@@ -26,6 +26,7 @@ matrix, including framework-specific and .NET-only workflows.
 | MAUI integration | `Ansight.Maui` | — | — | — | — |
 | MAUI tools | `Ansight.Tools.Maui` | — | — | — | — |
 | Annotated feedback | `Ansight.Annotations` | — | — | — | — |
+| Explicit observed location | `Ansight.Location` / `Ansight.Location.Maui` | `AnsightLocation` | `ansight-location-android` | `@ansight/react-native-location` | `ansight_location` / `@ansight/capacitor-location` |
 | Offline capture | `Ansight.OfflineCapture` | — | — | — | — |
 | Objective-C facade | — | — | `AnsightObjC` | Used by the iOS bridge | Used by the iOS bridge |
 | React inspection tools | — | — | — | `@ansight/react-native` | — |

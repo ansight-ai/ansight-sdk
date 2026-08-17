@@ -119,15 +119,21 @@ for artifact in \
   ansight-tools-securestorage-android \
   ansight-tools-database-android \
   ansight-tools-reflection-android \
+  ansight-location-android \
   ansight-android; do
   check_maven_artifact "${artifact}"
 done
 
 check "npm @ansight/react-native" check_npm_package "@ansight/react-native"
+check "npm @ansight/react-native-location" check_npm_package "@ansight/react-native-location"
 check "npm @ansight/capacitor" check_npm_package "@ansight/capacitor"
+check "npm @ansight/capacitor-location" check_npm_package "@ansight/capacitor-location"
 check \
   "pub.dev ansight_flutter" \
   check_url "https://pub.dev/api/packages/ansight_flutter/versions/${version}"
+check \
+  "pub.dev ansight_location" \
+  check_url "https://pub.dev/api/packages/ansight_location/versions/${version}"
 
 if [[ "${skip_cocoapods}" != "true" ]]; then
   if command -v pod >/dev/null 2>&1; then
@@ -141,6 +147,7 @@ if [[ "${skip_cocoapods}" != "true" ]]; then
       AnsightToolsReflection \
       AnsightToolsSecureStorage \
       AnsightToolsVisualTree \
+      AnsightLocation \
       Ansight \
       AnsightObjC; do
       check "CocoaPods ${pod_name}" check_podspec "${pod_name}"

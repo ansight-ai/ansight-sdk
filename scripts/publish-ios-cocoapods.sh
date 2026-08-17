@@ -15,6 +15,7 @@ sources="${ANSIGHT_COCOAPODS_SOURCES:-}"
 
 native_podspecs=(
   "AnsightCore.podspec"
+  "AnsightLocation.podspec"
   "AnsightPairingQR.podspec"
   "AnsightToolsDatabase.podspec"
   "AnsightToolsFileDescriptorDiagnostics.podspec"

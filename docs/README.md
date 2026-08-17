@@ -15,5 +15,6 @@ Platform guides:
 .NET workflow guides:
 
 - [Annotated Feedback](../src/dotnet/Ansight.Annotations/README.md)
+- [Optional Location Capture](location.md)
 - [Offline Capture](../src/dotnet/Ansight.OfflineCapture/README.md)
 - [MAUI Tools](../src/dotnet/Ansight.Tools.Maui/README.md)

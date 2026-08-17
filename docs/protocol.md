@@ -297,6 +297,7 @@ Telemetry is sent as WebSocket text messages:
 - `CLIENT_METRICS` carries timestamped numeric samples.
 - `CLIENT_EVENTS` carries timestamped events.
 - `CLIENT_TOUCH_INPUT` carries `ansight.touches.v1` packed touch batches.
+- `CLIENT_LOCATION` carries one explicit app-observed `ansight.location.sample.v1` sample.
 - `CLIENT_VISUAL_TREE` carries screenshot-aligned or touch-triggered visual-tree snapshots.
 
 Touch-triggered visual trees use `source: "sdk.touchCapture"`. They omit
@@ -333,6 +334,27 @@ capture is slower than the interval.
 
 These streams are fire-and-forget. Session and tool operations use correlated
 request/response envelopes.
+
+The optional location envelope is:
+
+```json
+{
+  "type": "CLIENT_LOCATION",
+  "schema": "ansight.location.sample.v1",
+  "sampleId": "location_123",
+  "capturedAtUtc": "2026-08-17T01:02:03.456Z",
+  "source": "app_observed",
+  "latitude": -33.8688,
+  "longitude": 151.2093,
+  "horizontalAccuracyMeters": 8.5,
+  "correlationId": "command_123",
+  "runId": "run_123"
+}
+```
+
+Clients may only emit `app_observed`. The host creates `host_injected` samples
+after successful simulator/emulator commands. Altitude, vertical accuracy,
+speed, heading, correlation, and run identifiers are optional.
 
 ### Binary streams
 

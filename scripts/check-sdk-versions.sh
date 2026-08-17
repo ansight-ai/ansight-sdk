@@ -67,6 +67,14 @@ add_version \
   "$(extract_first '"version"\s*:\s*"([^"]+)"' "${repo_root}/src/react-native/package.json")"
 
 add_version \
+  "react-native-location:package.json" \
+  "$(extract_first '"version"\s*:\s*"([^"]+)"' "${repo_root}/src/react-native-location/package.json")"
+
+add_version \
+  "react-native-location:peer dependency" \
+  "$(extract_first '"@ansight/react-native"\s*:\s*"([^"]+)"' "${repo_root}/src/react-native-location/package.json")"
+
+add_version \
   "react-native:android dependency" \
   "$(extract_first 'ai\.ansight:ansight-android:([^")]+)' "${repo_root}/src/react-native/android/build.gradle")"
 
@@ -77,6 +85,14 @@ add_version \
 add_version \
   "capacitor:package.json" \
   "$(extract_first '"version"\s*:\s*"([^"]+)"' "${repo_root}/src/capacitor/package.json")"
+
+add_version \
+  "capacitor-location:package.json" \
+  "$(extract_first '"version"\s*:\s*"([^"]+)"' "${repo_root}/src/capacitor-location/package.json")"
+
+add_version \
+  "capacitor-location:peer dependency" \
+  "$(extract_first '"@ansight/capacitor"\s*:\s*"([^"]+)"' "${repo_root}/src/capacitor-location/package.json")"
 
 add_version \
   "capacitor:package-lock.json" \
@@ -101,6 +117,14 @@ add_version \
 add_version \
   "flutter:pubspec.yaml" \
   "$(extract_first '\nversion:\s*([^\s]+)' "${repo_root}/src/flutter/pubspec.yaml")"
+
+add_version \
+  "flutter-location:pubspec.yaml" \
+  "$(extract_first '\nversion:\s*([^\s]+)' "${repo_root}/src/flutter-location/pubspec.yaml")"
+
+add_version \
+  "flutter-location:ansight dependency" \
+  "$(extract_first 'ansight_flutter:\s*\^?([^\s]+)' "${repo_root}/src/flutter-location/pubspec.yaml")"
 
 add_version \
   "flutter:Android package" \

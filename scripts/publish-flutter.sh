@@ -3,6 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 package_root="${repo_root}/src/flutter"
+location_package_root="${repo_root}/src/flutter-location"
 publish=false
 skip_tests=false
 
@@ -63,9 +64,39 @@ fi
   dart pub publish --dry-run
 )
 
+location_override="${location_package_root}/pubspec_overrides.yaml"
+if [[ -e "${location_override}" ]]; then
+  echo "error: ${location_override} already exists; remove it before publishing" >&2
+  exit 1
+fi
+
+cleanup_location_override() {
+  rm -f "${location_override}"
+}
+trap cleanup_location_override EXIT
+printf 'dependency_overrides:\n  ansight_flutter:\n    path: ../flutter\n' > "${location_override}"
+
+(
+  cd "${location_package_root}"
+  flutter pub get
+  if [[ "${skip_tests}" != "true" ]]; then
+    flutter analyze
+    flutter test
+  fi
+  dart pub publish --dry-run
+)
+
+cleanup_location_override
+trap - EXIT
+
 if [[ "${publish}" == "true" ]]; then
   (
     cd "${package_root}"
+    dart pub publish --force
+  )
+  (
+    cd "${location_package_root}"
+    flutter pub get
     dart pub publish --force
   )
 else

@@ -21,6 +21,8 @@ env:
     Ansight
     Ansight.Annotations
     Ansight.Core
+    Ansight.Location
+    Ansight.Location.Maui
     Ansight.Maui
     Ansight.Native.Android.Binding
     Ansight.Native.Apple.Binding

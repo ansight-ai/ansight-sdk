@@ -64,6 +64,24 @@ pkg.version = version;
 fs.writeFileSync(packageJson, `${JSON.stringify(pkg, null, 2)}\n`);
 NODE
 
+for package_json in \
+  "${repo_root}/src/react-native-location/package.json" \
+  "${repo_root}/src/capacitor-location/package.json"; do
+  PACKAGE_JSON="${package_json}" node <<'NODE'
+const fs = require("fs");
+const packageJson = process.env.PACKAGE_JSON;
+const version = process.env.VERSION;
+const pkg = JSON.parse(fs.readFileSync(packageJson, "utf8"));
+pkg.version = version;
+for (const dependencyGroup of ["dependencies", "peerDependencies"]) {
+  for (const dependencyName of Object.keys(pkg[dependencyGroup] ?? {})) {
+    if (dependencyName.startsWith("@ansight/")) pkg[dependencyGroup][dependencyName] = version;
+  }
+}
+fs.writeFileSync(packageJson, `${JSON.stringify(pkg, null, 2)}\n`);
+NODE
+done
+
 PACKAGE_JSON="${repo_root}/src/capacitor/package.json" \
 PACKAGE_LOCK="${repo_root}/src/capacitor/package-lock.json" node <<'NODE'
 const fs = require("fs");
@@ -101,6 +119,9 @@ perl -0pi -e 's|(ansight-sdk\.git",\s*exact:\s*")[^"]+(")|$1$ENV{VERSION}$2|g' \
 
 perl -0pi -e 's/^version:\s*\S+/version: $ENV{VERSION}/m' \
   "${repo_root}/src/flutter/pubspec.yaml"
+
+perl -0pi -e 's/^version:\s*\S+/version: $ENV{VERSION}/m; s/(ansight_flutter:\s*)\S+/$1^$ENV{VERSION}/m' \
+  "${repo_root}/src/flutter-location/pubspec.yaml"
 
 perl -0pi -e 's/^(version\s*=\s*")[^"]+(")/$1$ENV{VERSION}$2/m; s/(ai\.ansight:ansight-android:)[^"]+/$1$ENV{VERSION}/g' \
   "${repo_root}/src/flutter/android/build.gradle"

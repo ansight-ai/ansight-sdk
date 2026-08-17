@@ -64,24 +64,26 @@ if [[ -n "${NPM_TOKEN:-}" ]]; then
   trap 'rm -f "${npm_config_userconfig}"' EXIT
 fi
 
-cd "${repo_root}/src/react-native"
+for package_root in "${repo_root}/src/react-native" "${repo_root}/src/react-native-location"; do
+  cd "${package_root}"
 
-if [[ "${skip_install}" != "true" && ! -d node_modules ]]; then
-  npm install --no-package-lock
-fi
-
-if [[ "${skip_check}" != "true" ]]; then
-  npm run check
-fi
-
-npm pack --dry-run
-
-if [[ "${publish}" == "true" ]]; then
-  package_version="$(node -p 'require("./package.json").version')"
-  npm_tag="${NPM_TAG:-latest}"
-  if [[ "${package_version}" == *-* && -z "${NPM_TAG:-}" ]]; then
-    npm_tag="preview"
+  if [[ "${skip_install}" != "true" && ! -d node_modules ]]; then
+    npm install --no-package-lock
   fi
 
-  npm publish --access public --tag "${npm_tag}"
-fi
+  if [[ "${skip_check}" != "true" ]]; then
+    npm run check
+  fi
+
+  npm pack --dry-run
+
+  if [[ "${publish}" == "true" ]]; then
+    package_version="$(node -p 'require("./package.json").version')"
+    npm_tag="${NPM_TAG:-latest}"
+    if [[ "${package_version}" == *-* && -z "${NPM_TAG:-}" ]]; then
+      npm_tag="preview"
+    fi
+
+    npm publish --access public --tag "${npm_tag}"
+  fi
+done

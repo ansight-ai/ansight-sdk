@@ -128,6 +128,7 @@ session.
 | MAUI bootstrap, automatic lifecycle, and page-view telemetry | .NET MAUI | `Ansight.Maui` / `UseAnsight<App>()` |
 | MAUI UI inspection, XAML inflation, mutation, resources, bindings, navigation, layout, and handler diagnostics | .NET MAUI | `Ansight.Tools.Maui` |
 | Annotated in-app feedback with screenshots, all visual-tree sources, hooks, artifacts, outbox, and live/offline delivery | .NET Android, iOS, and Mac Catalyst Debug app builds | `Ansight.Annotations` / `WithAnnotatedFeedback()` |
+| Explicit, privacy-controlled app-observed location samples | .NET/MAUI, Swift, Android, React Native/Expo, Flutter, Capacitor/Cordova | Optional `Ansight.Location` package for each surface; capture is off by default |
 | Offline telemetry, events, touches, screenshots, annotation bundles, retention, ZIP/AES export, and team upload | .NET | `Ansight.OfflineCapture` |
 | Native crash capture, prior-session association, Studio handoff, and offline capture attachment | All mobile SDKs; offline attachment currently uses `.NET` Offline Capture | Core runtime `crashCapture` options |
 | Objective-C facade | iOS | `AnsightObjC` |
