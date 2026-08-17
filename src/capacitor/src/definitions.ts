@@ -576,6 +576,10 @@ export interface AnsightCapacitorPlugin {
     limit: number;
   }): Promise<{ items: AnsightRecordedEvent[] }>;
   sendClientLog(options: { line: string }): Promise<AnsightOperationResult>;
+  sendSessionEvent(options: {
+    type: string;
+    payload: Record<string, unknown>;
+  }): Promise<AnsightOperationResult>;
   captureBuiltInTelemetrySample(): Promise<AnsightDebugSnapshot>;
   isFramesPerSecondEnabled(): Promise<{ value: boolean }>;
   enableFramesPerSecond(): Promise<AnsightDebugSnapshot>;

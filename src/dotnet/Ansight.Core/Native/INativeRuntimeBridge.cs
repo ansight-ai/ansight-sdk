@@ -94,6 +94,11 @@ internal interface INativeRuntimeBridge
         string payloadJson,
         CancellationToken cancellationToken);
 
+    Task<OperationResult> SendSessionEventAsync(
+        string type,
+        string payloadJson,
+        CancellationToken cancellationToken);
+
     Task<OperationResult> SendBinaryAsync(
         ReadOnlyMemory<byte> payload,
         CancellationToken cancellationToken);

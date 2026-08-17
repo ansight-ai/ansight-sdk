@@ -299,6 +299,30 @@ public final class ANSDotNetRuntime: NSObject {
         }
     }
 
+    @objc(sendSessionEvent:payloadJson:completion:)
+    public static func sendSessionEvent(
+        _ type: String,
+        payloadJson: String,
+        completion: @escaping (String) -> Void
+    ) {
+        let completionBox = BridgeStringCompletion(completion)
+        Task {
+            do {
+                let payload = try JSONDecoder().decode(
+                    [String: JSONValue].self,
+                    from: Data(payloadJson.utf8)
+                )
+                completionBox.call(encode(
+                    await AnsightRuntime.shared.sendSessionEvent(type: type, payload: payload)
+                ))
+            } catch {
+                completionBox.call(encode(OperationResult.failure(
+                    "Invalid session event payload: \(error.localizedDescription)"
+                )))
+            }
+        }
+    }
+
     @objc(sendBinary:completion:)
     public static func sendBinary(
         _ payload: Data,

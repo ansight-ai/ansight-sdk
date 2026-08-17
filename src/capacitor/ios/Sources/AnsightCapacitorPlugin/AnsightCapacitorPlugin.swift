@@ -36,6 +36,7 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "recordedMetrics", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "recordedEvents", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "sendClientLog", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "sendSessionEvent", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "captureBuiltInTelemetrySample", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "isFramesPerSecondEnabled", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "enableFramesPerSecond", returnType: CAPPluginReturnPromise),
@@ -364,6 +365,21 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
         Task {
             call.resolve(operationResultDictionary(
                 await AnsightRuntime.shared.sendClientLog(call.getString("line") ?? "")
+            ))
+        }
+    }
+
+    @objc func sendSessionEvent(_ call: CAPPluginCall) {
+        Task {
+            guard case .object(let payload) = jsonValue(call.getObject("payload")) else {
+                call.resolve(operationResultDictionary(.failure("Session event payload must be an object.")))
+                return
+            }
+            call.resolve(operationResultDictionary(
+                await AnsightRuntime.shared.sendSessionEvent(
+                    type: call.getString("type") ?? "",
+                    payload: payload
+                )
             ))
         }
     }

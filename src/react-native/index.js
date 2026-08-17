@@ -2463,6 +2463,7 @@ const Ansight = {
   recordedMetrics: (limit = 0) => nativeModule.recordedMetrics(limit || 0),
   recordedEvents: (limit = 0) => nativeModule.recordedEvents(limit || 0),
   sendClientLog: (line) => nativeModule.sendClientLog(line),
+  sendSessionEvent: (type, payload = {}) => nativeModule.sendSessionEvent(type, payload || {}),
   addLogListener,
   captureBuiltInTelemetrySample: () => nativeModule.captureBuiltInTelemetrySample(),
   isFramesPerSecondEnabled: () => nativeModule.isFramesPerSecondEnabled(),

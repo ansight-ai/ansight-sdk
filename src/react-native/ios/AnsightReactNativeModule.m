@@ -110,6 +110,11 @@ RCT_EXTERN_METHOD(sendClientLog:(NSString *)line
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 
+RCT_EXTERN_METHOD(sendSessionEvent:(NSString *)type
+                  payload:(NSDictionary *)payload
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+
 RCT_EXTERN_METHOD(captureBuiltInTelemetrySample:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 

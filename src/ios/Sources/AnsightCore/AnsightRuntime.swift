@@ -1435,6 +1435,28 @@ public final class AnsightRuntime: @unchecked Sendable {
         )
     }
 
+    /// Sends a typed SDK extension event over the active Ansight session.
+    ///
+    /// Optional modules use this API to share the runtime-owned transport. It never opens a
+    /// connection and fails when no live session is available.
+    public func sendSessionEvent(type: String, payload: [String: JSONValue]) async -> OperationResult {
+        let normalizedType = type.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedType.isEmpty else {
+            return .failure("A session event type is required.")
+        }
+        guard liveTransport.isOpen else {
+            return .failure("WebSocket session is not open.")
+        }
+
+        var event = payload
+        event["type"] = .string(normalizedType)
+        do {
+            return await liveTransport.sendText(try JSONValue.object(event).jsonString())
+        } catch {
+            return .failure("Failed to encode session event: \(error.localizedDescription)")
+        }
+    }
+
     public func sendBinaryData(_ data: Data) async -> OperationResult {
         guard liveTransport.isOpen else {
             return .failure("WebSocket session is not open.")

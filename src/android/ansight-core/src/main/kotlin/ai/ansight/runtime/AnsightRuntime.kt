@@ -799,6 +799,22 @@ object AnsightRuntime {
         return transport.sendControlRequest(normalizedAction, payload)
     }
 
+    /**
+     * Sends a typed SDK extension event over the active runtime-owned session.
+     * This method never creates a connection.
+     */
+    fun sendSessionEvent(type: String, payload: JSONObject): OperationResult {
+        val normalizedType = type.trim()
+        if (normalizedType.isEmpty()) {
+            return OperationResult.failure("A session event type is required.")
+        }
+
+        val transport = synchronized(lock) { liveTransport }
+            ?: return OperationResult.failure("WebSocket session is not open.")
+        val event = JSONObject(payload.toString()).put("type", normalizedType)
+        return transport.sendText(event.toString())
+    }
+
     fun sendBinaryData(bytes: ByteArray): OperationResult {
         val transport = synchronized(lock) { liveTransport }
             ?: return OperationResult.failure("WebSocket session is not open.")

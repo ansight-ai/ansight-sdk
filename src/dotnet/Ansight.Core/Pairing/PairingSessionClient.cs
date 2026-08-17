@@ -9,7 +9,7 @@ namespace Ansight.Pairing;
 /// <summary>
 /// High-level client for validating pairing payloads, opening live host sessions, and sending session metadata over the pairing transport.
 /// </summary>
-public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionClient, IHostConnectionBinaryExtensionClient
+public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionClient, IHostConnectionBinaryExtensionClient, IHostConnectionSessionEventClient
 {
     private static readonly HashSet<string> CachedProfileResetCodes = new(StringComparer.Ordinal)
     {
@@ -400,6 +400,27 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
             HostConnectionSource.Transport,
             HostConnectionProgressKind.Transport);
     }
+
+    internal Task<OperationResult> SendSessionEventAsync(
+        string type,
+        JsonObject payload,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(type);
+        ArgumentNullException.ThrowIfNull(payload);
+
+        var eventPayload = payload.DeepClone().AsObject();
+        eventPayload["type"] = type.Trim();
+        return transport.SendTextAsync(
+            eventPayload.ToJsonString(PairingJson.Compact),
+            cancellationToken);
+    }
+
+    Task<OperationResult> IHostConnectionSessionEventClient.SendSessionEventAsync(
+        string type,
+        JsonObject payload,
+        CancellationToken cancellationToken)
+        => SendSessionEventAsync(type, payload, cancellationToken);
 
     internal async Task<OperationResult> SendBinaryExtensionAsync(
         string action,

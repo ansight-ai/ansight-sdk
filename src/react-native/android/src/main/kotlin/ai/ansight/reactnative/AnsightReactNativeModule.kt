@@ -449,6 +449,13 @@ class AnsightReactNativeModule(
     }
 
     @ReactMethod
+    fun sendSessionEvent(type: String, payload: ReadableMap, promise: Promise) {
+        runCatching {
+            operationResultMap(AnsightRuntime.sendSessionEvent(type, payload.toJSONObject()))
+        }.resolve(promise)
+    }
+
+    @ReactMethod
     fun captureBuiltInTelemetrySample(promise: Promise) {
         runCatching {
             AnsightRuntime.captureBuiltInTelemetrySample()

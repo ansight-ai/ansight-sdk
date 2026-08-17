@@ -333,6 +333,11 @@ export async function recordedEvents(
 
 export const sendClientLog = (line: string): Promise<AnsightOperationResult> =>
   AnsightNative.sendClientLog({ line });
+export const sendSessionEvent = (
+  type: string,
+  payload: Record<string, unknown> = {},
+): Promise<AnsightOperationResult> =>
+  AnsightNative.sendSessionEvent({ type, payload });
 export const captureBuiltInTelemetrySample =
   (): Promise<AnsightDebugSnapshot> =>
     AnsightNative.captureBuiltInTelemetrySample();
@@ -806,6 +811,7 @@ const Ansight = {
   recordedMetrics,
   recordedEvents,
   sendClientLog,
+  sendSessionEvent,
   addLogListener,
   captureBuiltInTelemetrySample,
   isFramesPerSecondEnabled,

@@ -143,6 +143,20 @@ internal sealed class HostSessionManager : IHostSessionConnection, IHostAutoProb
         return sessionClient.SendClientLogAsync(logLine, progress, cancellationToken);
     }
 
+    internal Task<OperationResult> SendSessionEventAsync(
+        string type,
+        JsonObject payload,
+        CancellationToken cancellationToken)
+    {
+        if (sessionClient is not IHostConnectionSessionEventClient sessionEventClient)
+        {
+            return Task.FromResult(OperationResult.FromFailure(
+                "The active host session does not support extension events."));
+        }
+
+        return sessionEventClient.SendSessionEventAsync(type, payload, cancellationToken);
+    }
+
     internal Task<OperationResult> SendBinaryExtensionAsync(
         string action,
         JsonObject payload,

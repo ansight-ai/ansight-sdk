@@ -311,6 +311,15 @@ public final class AnsightDotNetBridge {
         ).toString();
     }
 
+    public static String sendSessionEvent(String type, String payloadJson) throws JSONException {
+        JSONObject payload = normalize(payloadJson) == null
+            ? new JSONObject()
+            : new JSONObject(payloadJson);
+        return operationResultJson(
+            AnsightRuntime.INSTANCE.sendSessionEvent(type, payload)
+        ).toString();
+    }
+
     public static String sendBinary(byte[] payload) throws JSONException {
         if (payload == null) {
             throw new IllegalArgumentException("payload must not be null");

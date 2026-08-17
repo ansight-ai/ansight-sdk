@@ -313,6 +313,18 @@ class Ansight {
         await _invoke('sendClientLog', <String, Object?>{'line': line}),
       );
 
+  /// Sends a typed optional-module event over the existing live session.
+  Future<AnsightOperationResult> sendSessionEvent(
+    String type,
+    AnsightJson payload,
+  ) async =>
+      AnsightOperationResult.fromJson(
+        await _invoke('sendSessionEvent', <String, Object?>{
+          'type': type,
+          'payload': payload,
+        }),
+      );
+
   Future<AnsightDebugSnapshot> captureBuiltInTelemetrySample() async =>
       AnsightDebugSnapshot.fromJson(
         await _invoke('captureBuiltInTelemetrySample'),

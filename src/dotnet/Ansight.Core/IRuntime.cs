@@ -1,6 +1,8 @@
 namespace Ansight;
 
 using Ansight.Tools;
+using Ansight.Pairing;
+using System.Text.Json.Nodes;
 
 /// <summary>
 /// Contract for controlling the Ansight telemetry runtime.
@@ -36,6 +38,15 @@ public interface IRuntime
     /// Indicates whether touch capture is configured and allowed by the runtime-level capture toggle.
     /// </summary>
     bool IsTouchCaptureEnabled { get; }
+
+    /// <summary>
+    /// Sends a typed optional-module event over the active runtime-owned host session.
+    /// This method never creates a connection.
+    /// </summary>
+    Task<OperationResult> SendSessionEventAsync(
+        string type,
+        JsonObject payload,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Raised after activation finishes and sampling begins.

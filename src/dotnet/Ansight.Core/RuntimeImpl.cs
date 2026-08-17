@@ -87,6 +87,22 @@ internal class RuntimeImpl : IRuntime
 
     public event EventHandler? OnDeactivated;
 
+    public Task<OperationResult> SendSessionEventAsync(
+        string type,
+        JsonObject payload,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(type);
+        ArgumentNullException.ThrowIfNull(payload);
+
+        return managedHostConnection is not null
+            ? managedHostConnection.SendSessionEventAsync(type, payload, cancellationToken)
+            : nativeRuntime.SendSessionEventAsync(
+                type,
+                payload.ToJsonString(PairingJson.Compact),
+                cancellationToken);
+    }
+
     private void InitializeRuntimeFeatures()
     {
         foreach (var feature in options.RuntimeFeatures ?? Array.Empty<IRuntimeFeature>())

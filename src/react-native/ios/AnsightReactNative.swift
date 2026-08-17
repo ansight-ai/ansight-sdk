@@ -530,6 +530,23 @@ final class AnsightReactNative: RCTEventEmitter {
         }
     }
 
+    @objc(sendSessionEvent:payload:resolver:rejecter:)
+    func sendSessionEvent(
+        _ type: NSString,
+        payload: NSDictionary,
+        resolver resolve: @escaping RCTPromiseResolveBlock,
+        rejecter reject: @escaping RCTPromiseRejectBlock
+    ) {
+        Task {
+            guard case .object(let object) = jsonValue(payload) else {
+                reject("ansight_session_event_invalid", "Session event payload must be an object.", nil)
+                return
+            }
+            let result = await AnsightRuntime.shared.sendSessionEvent(type: type as String, payload: object)
+            resolve(operationResultDictionary(result))
+        }
+    }
+
     @objc(captureBuiltInTelemetrySample:rejecter:)
     func captureBuiltInTelemetrySample(_ resolve: RCTPromiseResolveBlock, rejecter reject: RCTPromiseRejectBlock) {
         AnsightRuntime.shared.captureBuiltInTelemetrySample()

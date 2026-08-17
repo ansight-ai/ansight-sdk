@@ -573,6 +573,7 @@ export function currentOptions(): Promise<AnsightCurrentOptions>;
 export function recordedMetrics(limit?: number): Promise<AnsightRecordedMetric[]>;
 export function recordedEvents(limit?: number): Promise<AnsightRecordedEvent[]>;
 export function sendClientLog(line: string): Promise<AnsightOperationResult>;
+export function sendSessionEvent(type: string, payload?: Record<string, unknown>): Promise<AnsightOperationResult>;
 export function addLogListener(listener: (entry: AnsightLogEntry) => void): AnsightSubscription;
 export function captureBuiltInTelemetrySample(): Promise<AnsightDebugSnapshot>;
 export function isFramesPerSecondEnabled(): Promise<boolean>;
@@ -639,6 +640,7 @@ declare const Ansight: {
   recordedMetrics: typeof recordedMetrics;
   recordedEvents: typeof recordedEvents;
   sendClientLog: typeof sendClientLog;
+  sendSessionEvent: typeof sendSessionEvent;
   addLogListener: typeof addLogListener;
   captureBuiltInTelemetrySample: typeof captureBuiltInTelemetrySample;
   isFramesPerSecondEnabled: typeof isFramesPerSecondEnabled;

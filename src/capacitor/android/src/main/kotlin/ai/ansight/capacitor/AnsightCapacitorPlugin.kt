@@ -375,6 +375,16 @@ class AnsightCapacitorPlugin : Plugin() {
     }
 
     @PluginMethod
+    fun sendSessionEvent(call: PluginCall) = resolve(call) {
+        operationResult(
+            AnsightRuntime.sendSessionEvent(
+                call.getString("type").orEmpty(),
+                JSONObject(call.getObject("payload")?.toString() ?: "{}"),
+            ),
+        )
+    }
+
+    @PluginMethod
     fun captureBuiltInTelemetrySample(call: PluginCall) = resolve(call) {
         AnsightRuntime.captureBuiltInTelemetrySample()
         snapshot()

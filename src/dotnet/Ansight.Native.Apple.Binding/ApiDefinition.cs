@@ -180,6 +180,13 @@ interface ANSDotNetRuntime
         [BlockCallback] ANSStringResultHandler completion);
 
     [Static]
+    [Export("sendSessionEvent:payloadJson:completion:")]
+    void SendSessionEvent(
+        string type,
+        string payloadJson,
+        [BlockCallback] ANSStringResultHandler completion);
+
+    [Static]
     [Export("sendBinary:completion:")]
     void SendBinary(NSData payload, [BlockCallback] ANSStringResultHandler completion);
 

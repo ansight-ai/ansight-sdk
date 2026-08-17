@@ -155,6 +155,12 @@ internal sealed class NullNativeRuntimeBridge : INativeRuntimeBridge
         CancellationToken cancellationToken)
         => Task.FromResult(OperationResult.FromFailure("The native Ansight runtime is unavailable on this target."));
 
+    public Task<OperationResult> SendSessionEventAsync(
+        string type,
+        string payloadJson,
+        CancellationToken cancellationToken)
+        => Task.FromResult(OperationResult.FromFailure("The native Ansight runtime is unavailable on this target."));
+
     public Task<OperationResult> SendBinaryAsync(
         ReadOnlyMemory<byte> payload,
         CancellationToken cancellationToken)

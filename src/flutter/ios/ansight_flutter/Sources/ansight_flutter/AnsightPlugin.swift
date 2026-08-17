@@ -322,6 +322,16 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
                     stringValue(arguments, "line") ?? ""
                 )
             )
+        case "sendSessionEvent":
+            guard case .object(let payload) = jsonValue(arguments["payload"]) else {
+                return operationResultDictionary(.failure("Session event payload must be an object."))
+            }
+            return operationResultDictionary(
+                await AnsightRuntime.shared.sendSessionEvent(
+                    type: stringValue(arguments, "type") ?? "",
+                    payload: payload
+                )
+            )
         case "captureBuiltInTelemetrySample":
             AnsightRuntime.shared.captureBuiltInTelemetrySample()
             return snapshotDictionary()

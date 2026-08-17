@@ -177,6 +177,18 @@ internal sealed class AndroidNativeRuntimeBridge : INativeRuntimeBridge
         return NativeRuntimeJson.ParseOperationResult(json);
     }
 
+    public async Task<OperationResult> SendSessionEventAsync(
+        string type,
+        string payloadJson,
+        CancellationToken cancellationToken)
+    {
+        var json = await Task.Run(
+                () => AnsightDotNetBridge.SendSessionEvent(type, payloadJson),
+                cancellationToken)
+            .WaitAsync(cancellationToken);
+        return NativeRuntimeJson.ParseOperationResult(json);
+    }
+
     public async Task<OperationResult> SendBinaryAsync(
         ReadOnlyMemory<byte> payload,
         CancellationToken cancellationToken)

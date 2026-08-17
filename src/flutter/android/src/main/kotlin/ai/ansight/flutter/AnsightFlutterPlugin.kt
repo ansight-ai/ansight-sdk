@@ -297,6 +297,13 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
         )
         "sendClientLog" ->
             operationResult(AnsightRuntime.sendClientLog(map.stringValue("line").orEmpty()))
+        "sendSessionEvent" ->
+            operationResult(
+                AnsightRuntime.sendSessionEvent(
+                    map.stringValue("type").orEmpty(),
+                    map.objectValue("payload"),
+                ),
+            )
         "captureBuiltInTelemetrySample" -> {
             AnsightRuntime.captureBuiltInTelemetrySample()
             snapshot()
