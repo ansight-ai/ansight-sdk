@@ -1,7 +1,9 @@
 import CryptoKit
 import Foundation
 
+#if SWIFT_PACKAGE
 import CAnsightCrashCapture
+#endif
 
 #if canImport(MetricKit)
 import MetricKit

@@ -1,5 +1,7 @@
 #if canImport(CAnsightFileDescriptorDiagnostics)
+#if SWIFT_PACKAGE
 import CAnsightFileDescriptorDiagnostics
+#endif
 #endif
 import Darwin
 import Foundation
