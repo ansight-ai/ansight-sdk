@@ -67,7 +67,7 @@ fi
 for package_root in "${repo_root}/src/capacitor" "${repo_root}/src/capacitor-location"; do
   cd "${package_root}"
 
-  if [[ "${skip_install}" != "true" && ! -d node_modules ]]; then
+  if [[ "${skip_install}" != "true" && "$(basename "${package_root}")" == "capacitor" && ! -d node_modules ]]; then
     if [[ -f package-lock.json ]]; then npm ci; else npm install --no-package-lock; fi
   fi
 

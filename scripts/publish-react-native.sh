@@ -67,7 +67,7 @@ fi
 for package_root in "${repo_root}/src/react-native" "${repo_root}/src/react-native-location"; do
   cd "${package_root}"
 
-  if [[ "${skip_install}" != "true" && ! -d node_modules ]]; then
+  if [[ "${skip_install}" != "true" && "$(basename "${package_root}")" == "react-native" && ! -d node_modules ]]; then
     npm install --no-package-lock
   fi
 
