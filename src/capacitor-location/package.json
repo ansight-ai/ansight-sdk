@@ -1,0 +1,13 @@
+{
+  "name": "@ansight/capacitor-location",
+  "version": "1.3.0-preview.3",
+  "description": "Optional explicit observed-location recording for Ansight Capacitor and Cordova apps.",
+  "type": "module",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "license": "SEE LICENSE IN LICENSE",
+  "files": ["index.js", "index.d.ts", "README.md", "LICENSE"],
+  "peerDependencies": { "@ansight/capacitor": "1.3.0-preview.3" },
+  "scripts": { "check": "node --check index.js" },
+  "publishConfig": { "access": "public" }
+}

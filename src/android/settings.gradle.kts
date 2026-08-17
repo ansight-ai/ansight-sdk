@@ -17,6 +17,7 @@ dependencyResolutionManagement {
 rootProject.name = "ansight-android"
 
 include(":ansight-core")
+include(":ansight-location")
 include(":ansight-dotnet-bridge")
 include(":ansight-tools-visualtree")
 include(":ansight-tools-filesystem")

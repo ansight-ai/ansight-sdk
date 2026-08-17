@@ -1,0 +1,6 @@
+# Flutter/Dart/Pub generated files for this library package.
+/pubspec.lock
+.dart_tool/
+.flutter-plugins-dependencies
+/build/
+/coverage/

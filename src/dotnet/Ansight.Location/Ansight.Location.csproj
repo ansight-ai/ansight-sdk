@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net9.0;net9.0-android35.0;net9.0-ios18.0;net9.0-maccatalyst18.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <AssemblyName>Ansight.Location</AssemblyName>
+    <RootNamespace>Ansight.Location</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <PackageId>Ansight.Location</PackageId>
+    <Description>Explicit opt-in observed-location recording for existing Ansight sessions.</Description>
+    <PackageTags>ansight;location;gps;debugging;android;ios;maccatalyst</PackageTags>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Ansight.Core\Ansight.Core.csproj" />
+  </ItemGroup>
+</Project>

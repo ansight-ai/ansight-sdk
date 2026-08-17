@@ -17,6 +17,10 @@ let package = Package(
             targets: ["AnsightCore"]
         ),
         .library(
+            name: "AnsightLocation",
+            targets: ["AnsightLocation"]
+        ),
+        .library(
             name: "AnsightPairingQR",
             targets: ["AnsightPairingQR"]
         ),
@@ -72,6 +76,9 @@ let package = Package(
         ),
         .target(
             name: "AnsightCore",
+            dependencies: [
+                "CAnsightCrashCapture",
+            ],
             path: "src/ios/Sources/AnsightCore",
             exclude: ["README.md"],
             linkerSettings: [
@@ -80,6 +87,17 @@ let package = Package(
             plugins: [
                 .plugin(name: "AnsightBuildToolPlugin"),
             ]
+        ),
+        .target(
+            name: "AnsightLocation",
+            dependencies: ["AnsightCore"],
+            path: "src/ios/Sources/AnsightLocation",
+            exclude: ["README.md"]
+        ),
+        .target(
+            name: "CAnsightCrashCapture",
+            path: "src/ios/Sources/CAnsightCrashCapture",
+            publicHeadersPath: "include"
         ),
         .target(
             name: "AnsightPairingQR",
@@ -179,6 +197,7 @@ let package = Package(
             dependencies: [
                 "Ansight",
                 "AnsightCore",
+                "AnsightLocation",
                 "AnsightPairingQR",
                 "AnsightToolsDatabase",
                 "AnsightToolsFileDescriptorDiagnostics",

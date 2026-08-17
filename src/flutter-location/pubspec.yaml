@@ -1,0 +1,10 @@
+name: ansight_location
+description: Optional explicit observed-location recording for existing Ansight Flutter sessions.
+version: 1.3.0-preview.3
+homepage: https://github.com/ansight-ai/ansight-sdk
+environment:
+  sdk: '>=2.17.0 <4.0.0'
+dependencies:
+  ansight_flutter: ^1.3.0-preview.3
+dev_dependencies:
+  test: ^1.24.0

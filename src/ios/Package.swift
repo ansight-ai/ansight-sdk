@@ -17,6 +17,10 @@ let package = Package(
             targets: ["AnsightCore"]
         ),
         .library(
+            name: "AnsightLocation",
+            targets: ["AnsightLocation"]
+        ),
+        .library(
             name: "AnsightPairingQR",
             targets: ["AnsightPairingQR"]
         ),
@@ -83,6 +87,12 @@ let package = Package(
             plugins: [
                 .plugin(name: "AnsightBuildToolPlugin"),
             ]
+        ),
+        .target(
+            name: "AnsightLocation",
+            dependencies: ["AnsightCore"],
+            path: "Sources/AnsightLocation",
+            exclude: ["README.md"]
         ),
         .target(
             name: "CAnsightCrashCapture",
@@ -186,6 +196,7 @@ let package = Package(
             dependencies: [
                 "Ansight",
                 "AnsightCore",
+                "AnsightLocation",
                 "AnsightPairingQR",
                 "AnsightToolsDatabase",
                 "AnsightToolsFileDescriptorDiagnostics",

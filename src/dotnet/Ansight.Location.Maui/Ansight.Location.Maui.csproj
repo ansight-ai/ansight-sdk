@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net9.0-android35.0;net9.0-ios18.0;net9.0-maccatalyst18.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <UseMaui>true</UseMaui>
+    <SingleProject>true</SingleProject>
+    <AssemblyName>Ansight.Location.Maui</AssemblyName>
+    <RootNamespace>Ansight.Location.Maui</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <PackageId>Ansight.Location.Maui</PackageId>
+    <Description>Explicit adapters for recording MAUI location observations through Ansight.Location.</Description>
+    <PackageTags>ansight;location;maui;android;ios;maccatalyst</PackageTags>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Ansight.Location\Ansight.Location.csproj" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
+  </ItemGroup>
+</Project>
