@@ -1,7 +1,9 @@
 #if IOS || MACCATALYST
 using System.Globalization;
+using System.Text.Json.Nodes;
 using Ansight.Native.Apple;
 using Ansight.Pairing;
+using Ansight.Screenshot;
 using Ansight.Tools;
 using Foundation;
 
@@ -12,6 +14,7 @@ internal sealed class AppleNativeRuntimeBridge : INativeRuntimeBridge
     private ANSToolProtocolHandler? toolProtocolHandler;
     private ANSToolProtocolResponseSentHandler? toolProtocolResponseSentHandler;
     private ANSBooleanHandler? touchCaptureGuard;
+    private ANSSessionVisualTreeCaptureProvider? sessionVisualTreeCaptureProvider;
 
     public bool IsAvailable => true;
 
@@ -32,6 +35,8 @@ internal sealed class AppleNativeRuntimeBridge : INativeRuntimeBridge
     public void Initialize(Options options)
     {
         ThrowIfNativeError(ANSDotNetRuntime.Initialize(NativeRuntimeOptionsJson.Serialize(options)));
+        sessionVisualTreeCaptureProvider = CaptureSessionVisualTreesJson;
+        ANSDotNetRuntime.SetSessionVisualTreeCaptureProvider(sessionVisualTreeCaptureProvider);
     }
 
     public void Activate()
@@ -200,6 +205,25 @@ internal sealed class AppleNativeRuntimeBridge : INativeRuntimeBridge
             NativeToolProtocolAdapter.ResponseSent(toolBridge, requestJson);
         ANSDotNetRuntime.SetToolProtocolHandler(toolProtocolHandler);
         ANSDotNetRuntime.SetToolProtocolResponseSentHandler(toolProtocolResponseSentHandler);
+    }
+
+    private static string CaptureSessionVisualTreesJson()
+    {
+        try
+        {
+            var visualTrees = SessionVisualTreeCaptureRegistry
+                .CaptureAsync(CancellationToken.None)
+                .GetAwaiter()
+                .GetResult();
+            return new JsonArray(
+                visualTrees.Select(visualTree => visualTree.DeepClone()).ToArray())
+                .ToJsonString();
+        }
+        catch (Exception exception)
+        {
+            Logger.Warning($"Native session visual-tree capture skipped: {exception.Message}");
+            return "[]";
+        }
     }
 
     private static void ThrowIfNativeError(string? error)

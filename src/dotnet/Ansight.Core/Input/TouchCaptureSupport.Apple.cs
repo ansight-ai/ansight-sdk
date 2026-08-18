@@ -132,6 +132,7 @@ internal sealed class AppleTouchCaptureSession : ITouchCaptureSession
         private readonly TouchCaptureOptions options;
         private readonly TouchMoveThrottle moveThrottle;
         private readonly Action<CapturedTouch> recordTouch;
+        private readonly HashSet<nint> activeTouchHandles = [];
 
         public WindowTouchCaptureRecognizer(TouchCaptureOptions options, Action<CapturedTouch> recordTouch)
         {
@@ -143,7 +144,11 @@ internal sealed class AppleTouchCaptureSession : ITouchCaptureSession
         public override void TouchesBegan(NSSet touches, UIEvent evt)
         {
             RecordTouches(touches, CapturedTouchAction.Down);
-            State = UIGestureRecognizerState.Began;
+            var beginsGesture = activeTouchHandles.Count == 0;
+            AddActiveTouches(touches);
+            State = beginsGesture
+                ? UIGestureRecognizerState.Began
+                : UIGestureRecognizerState.Changed;
         }
 
         public override void TouchesMoved(NSSet touches, UIEvent evt)
@@ -159,7 +164,10 @@ internal sealed class AppleTouchCaptureSession : ITouchCaptureSession
         public override void TouchesEnded(NSSet touches, UIEvent evt)
         {
             RecordTouches(touches, CapturedTouchAction.Up);
-            State = UIGestureRecognizerState.Ended;
+            RemoveActiveTouches(touches);
+            State = activeTouchHandles.Count == 0
+                ? UIGestureRecognizerState.Ended
+                : UIGestureRecognizerState.Changed;
         }
 
         public override void TouchesCancelled(NSSet touches, UIEvent evt)
@@ -169,7 +177,36 @@ internal sealed class AppleTouchCaptureSession : ITouchCaptureSession
                 RecordTouches(touches, CapturedTouchAction.Cancel);
             }
 
+            activeTouchHandles.Clear();
             State = UIGestureRecognizerState.Cancelled;
+        }
+
+        public override void Reset()
+        {
+            activeTouchHandles.Clear();
+            base.Reset();
+        }
+
+        private void AddActiveTouches(NSSet touches)
+        {
+            foreach (var item in touches)
+            {
+                if (item is UITouch touch)
+                {
+                    activeTouchHandles.Add(touch.Handle);
+                }
+            }
+        }
+
+        private void RemoveActiveTouches(NSSet touches)
+        {
+            foreach (var item in touches)
+            {
+                if (item is UITouch touch)
+                {
+                    activeTouchHandles.Remove(touch.Handle);
+                }
+            }
         }
 
         private void RecordTouches(NSSet touches, CapturedTouchAction action)

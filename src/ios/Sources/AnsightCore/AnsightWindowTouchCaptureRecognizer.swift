@@ -7,6 +7,7 @@ final class AnsightWindowTouchCaptureRecognizer: UIGestureRecognizer {
     private let options: AnsightTouchCaptureOptions
     private let moveThrottle: AnsightTouchMoveThrottle
     private let recordTouch: @Sendable (AnsightCapturedTouch) -> Void
+    private var activeTouches: Set<ObjectIdentifier> = []
 
     init(
         options: AnsightTouchCaptureOptions,
@@ -20,7 +21,9 @@ final class AnsightWindowTouchCaptureRecognizer: UIGestureRecognizer {
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
         record(touches: touches, action: .down)
-        state = .began
+        let beginsGesture = activeTouches.isEmpty
+        activeTouches.formUnion(touches.map(ObjectIdentifier.init))
+        state = beginsGesture ? .began : .changed
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent) {
@@ -32,14 +35,21 @@ final class AnsightWindowTouchCaptureRecognizer: UIGestureRecognizer {
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent) {
         record(touches: touches, action: .up)
-        state = .ended
+        activeTouches.subtract(touches.map(ObjectIdentifier.init))
+        state = activeTouches.isEmpty ? .ended : .changed
     }
 
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent) {
         if options.captureCancelEvents {
             record(touches: touches, action: .cancel)
         }
+        activeTouches.removeAll()
         state = .cancelled
+    }
+
+    override func reset() {
+        activeTouches.removeAll()
+        super.reset()
     }
 
     override func canPrevent(_ preventedGestureRecognizer: UIGestureRecognizer) -> Bool {

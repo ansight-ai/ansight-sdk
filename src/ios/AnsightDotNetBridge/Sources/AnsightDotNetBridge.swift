@@ -152,6 +152,21 @@ public final class ANSDotNetRuntime: NSObject {
         }
     }
 
+    @objc(setSessionVisualTreeCaptureProvider:)
+    public static func setSessionVisualTreeCaptureProvider(
+        _ provider: (() -> String?)?
+    ) {
+        guard let provider else {
+            AnsightSessionVisualTreeCaptureRegistry.setProvider(nil)
+            return
+        }
+
+        let providerBox = BridgeSessionVisualTreeCaptureProvider(provider)
+        AnsightSessionVisualTreeCaptureRegistry.setProvider {
+            providerBox.capture()
+        }
+    }
+
     @objc(registerCustomPropertyWithGroup:key:value:)
     public static func registerCustomProperty(group: String, key: String, value: String) {
         customPropertiesLock.withLock {
@@ -544,6 +559,25 @@ private final class BridgeTouchCaptureGuard: @unchecked Sendable {
 
     func canCapture() -> Bool {
         guardCallback()
+    }
+}
+
+private final class BridgeSessionVisualTreeCaptureProvider: @unchecked Sendable {
+    private let provider: () -> String?
+
+    init(_ provider: @escaping () -> String?) {
+        self.provider = provider
+    }
+
+    func capture() -> [JSONValue] {
+        guard let json = provider(),
+              !json.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              let data = json.data(using: .utf8)
+        else {
+            return []
+        }
+
+        return (try? JSONDecoder().decode([JSONValue].self, from: data)) ?? []
     }
 }
 

@@ -5,6 +5,8 @@ namespace Ansight.Native.Apple;
 
 delegate void ANSStringResultHandler(string resultJson);
 delegate bool ANSBooleanHandler();
+[return: NullAllowed]
+delegate string ANSSessionVisualTreeCaptureProvider();
 delegate void ANSToolProtocolResponseSentHandler(string requestJson);
 [return: NullAllowed]
 delegate string ANSToolProtocolHandler(string requestJson);
@@ -115,6 +117,11 @@ interface ANSDotNetRuntime
     [Static]
     [Export("setTouchCaptureGuard:")]
     void SetTouchCaptureGuard([NullAllowed, BlockCallback] ANSBooleanHandler guardCallback);
+
+    [Static]
+    [Export("setSessionVisualTreeCaptureProvider:")]
+    void SetSessionVisualTreeCaptureProvider(
+        [NullAllowed, BlockCallback] ANSSessionVisualTreeCaptureProvider provider);
 
     [Static]
     [Export("registerCustomPropertyWithGroup:key:value:")]
