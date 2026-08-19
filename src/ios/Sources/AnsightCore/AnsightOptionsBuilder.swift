@@ -264,6 +264,18 @@ public final class AnsightOptionsBuilder {
     }
 
     @discardableResult
+    public func withUnattendedProvisioning(_ allow: Bool = true) -> AnsightOptionsBuilder {
+        configureHostConnection { hostConnection in
+            hostConnection.allowUnattendedProvisioning = allow
+        }
+    }
+
+    @discardableResult
+    public func withoutUnattendedProvisioning() -> AnsightOptionsBuilder {
+        withUnattendedProvisioning(false)
+    }
+
+    @discardableResult
     public func withHostConnectionProfileRetentionSeconds(_ retentionSeconds: Int) -> AnsightOptionsBuilder {
         configureHostConnection { hostConnection in
             hostConnection.connectionProfileRetentionSeconds = retentionSeconds

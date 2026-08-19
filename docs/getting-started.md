@@ -106,6 +106,13 @@ bridge. Use `HostConnectionRequest.QrCode()` once for a physical device. The
 exact initialization entry point varies between the portable, MAUI, and native
 binding packages, but all use the same runtime enrollment protocol.
 
+For an unattended physical-device test build, add
+`.WithUnattendedProvisioning()`. The host runner can then inject a one-use
+enrollment payload at process launch: `ANSIGHT_ENROLLMENT_PAYLOAD` on iOS, or
+the `ai.ansight.bootstrap.payload` launcher Intent extra on Android. The option
+is disabled by default and successful enrollment is remembered privately by
+the app installation.
+
 ## Network model
 
 Enrollment uses UDP followed by `ws://`. Local automatic enrollment is accepted

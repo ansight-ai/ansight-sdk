@@ -163,6 +163,23 @@ Opting in can consume mobile data and permits discovery/session connection
 attempts over a broader or carrier-managed network. Use the option only with a
 trusted Studio host or personal hotspot.
 
+## Unattended Physical-Device Provisioning
+
+Unattended provisioning is explicitly opt-in and disabled by default. It lets
+a host test runner inject a fresh, app-specific, one-use enrollment invite at
+process launch, after which the native SDK remembers the app-installation
+registration in platform-private storage.
+
+| SDK | Builder opt-in | Launch input |
+| --- | --- | --- |
+| .NET / MAUI | `WithUnattendedProvisioning()` | Native platform input below |
+| Android | `withUnattendedProvisioning()` | Activity string extra `ai.ansight.bootstrap.payload` |
+| iOS | `withUnattendedProvisioning()` | Process environment variable `ANSIGHT_ENROLLMENT_PAYLOAD` |
+
+Use this only in development or test builds. The launch input is consumed
+without logging its bearer payload and is not a substitute for a production
+authentication flow.
+
 ## Quickstart Equivalents
 
 .NET:

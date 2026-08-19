@@ -13,7 +13,7 @@ Use the all-in-one package for development builds:
 
 ```kotlin
 dependencies {
-    implementation("ai.ansight:ansight-android:1.3.0-preview.3")
+    implementation("ai.ansight:ansight-android:1.3.0-preview.5")
 }
 ```
 
@@ -24,10 +24,10 @@ Minimal integrations can depend on only the packages they need:
 
 ```kotlin
 dependencies {
-    implementation("ai.ansight:ansight-core-android:1.3.0-preview.3")
-    implementation("ai.ansight:ansight-pairing-android:1.3.0-preview.3")
-    implementation("ai.ansight:ansight-tools-filedescriptordiagnostics-android:1.3.0-preview.3")
-    implementation("ai.ansight:ansight-tools-visualtree-android:1.3.0-preview.3")
+    implementation("ai.ansight:ansight-core-android:1.3.0-preview.5")
+    implementation("ai.ansight:ansight-pairing-android:1.3.0-preview.5")
+    implementation("ai.ansight:ansight-tools-filedescriptordiagnostics-android:1.3.0-preview.5")
+    implementation("ai.ansight:ansight-tools-visualtree-android:1.3.0-preview.5")
 }
 ```
 
@@ -66,6 +66,24 @@ stores the resulting app-scoped registration in private storage. Later
 launches reconnect automatically.
 Google Code Scanner owns the camera interaction, so the app does not need the
 `CAMERA` permission.
+
+For unattended physical-device test runs, explicitly enable launch-time
+provisioning in the test build:
+
+```kotlin
+val options = Ansight.developerOptions {
+    withUnattendedProvisioning()
+}
+
+Ansight.initializeAndActivate(application, options)
+```
+
+The SDK then consumes the `ai.ansight.bootstrap.payload` string extra from the
+first launcher Activity Intent, removes it immediately, enrolls through the
+existing payload connection path, and saves the registration in app-private
+storage. The option is disabled by default and should be enabled only in
+development or test builds. A host runner can supply a fresh, app-specific,
+one-use payload with `adb shell am start --es` without user input.
 
 `Ansight.developerOptions(...)` applies the all-in-one developer preset:
 

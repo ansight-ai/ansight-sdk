@@ -310,6 +310,23 @@ registration. Background host auto-probe retries that state while the runtime
 is active. `QrCode` is the normal first-use path; `PayloadText` supports apps
 that already own the scanner UI.
 
+For unattended physical-device test runs, opt in only for development or test
+builds:
+
+```csharp
+var options = Options.CreateBuilder()
+    .WithAnsightSdk()
+    .WithUnattendedProvisioning()
+    .Build();
+```
+
+At launch, the native iOS bridge consumes `ANSIGHT_ENROLLMENT_PAYLOAD` from the
+process environment. The Android bridge consumes the
+`ai.ansight.bootstrap.payload` string extra from the launcher Activity Intent.
+The runner must supply a fresh, app-specific, one-use enrollment payload. On a
+successful connection, the native SDK saves the resulting app-installation
+registration in platform-private storage for later automatic reconnects.
+
 Host auto-probe is enabled by default while the runtime is active. It remembers previous host connections and retries them so the app can reconnect after the host disappears and later reappears. Customize the retry behavior when you need a different client name or cadence:
 
 ```csharp

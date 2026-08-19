@@ -237,6 +237,15 @@ class AnsightOptionsBuilder @JvmOverloads constructor(
         }
     }
 
+    @JvmOverloads
+    fun withUnattendedProvisioning(allow: Boolean = true): AnsightOptionsBuilder {
+        return configureHostConnection { hostConnection ->
+            hostConnection.copy(allowUnattendedProvisioning = allow)
+        }
+    }
+
+    fun withoutUnattendedProvisioning(): AnsightOptionsBuilder = withUnattendedProvisioning(false)
+
     fun withHostConnectionProfileRetentionSeconds(retentionSeconds: Long): AnsightOptionsBuilder {
         return configureHostConnection { hostConnection ->
             hostConnection.copy(connectionProfileRetentionSeconds = retentionSeconds)

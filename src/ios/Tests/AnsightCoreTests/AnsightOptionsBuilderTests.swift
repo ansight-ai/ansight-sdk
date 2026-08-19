@@ -25,6 +25,7 @@ final class AnsightOptionsBuilderTests: XCTestCase {
             .withHostConnectionDiscoveryPort(45_200)
             .withHostConnectionProfileRetentionSeconds(120)
             .withCellularHostConnections()
+            .withUnattendedProvisioning()
             .build()
 
         XCTAssertEqual(options.sampleFrequencyMilliseconds, 400)
@@ -46,7 +47,9 @@ final class AnsightOptionsBuilderTests: XCTestCase {
         XCTAssertEqual(options.hostConnection.discoveryPort, 45_200)
         XCTAssertEqual(options.hostConnection.connectionProfileRetentionSeconds, 120)
         XCTAssertTrue(options.hostConnection.allowCellularConnections)
+        XCTAssertTrue(options.hostConnection.allowUnattendedProvisioning)
         XCTAssertFalse(AnsightOptions().hostConnection.allowCellularConnections)
+        XCTAssertFalse(AnsightOptions().hostConnection.allowUnattendedProvisioning)
     }
 
     func testOpenFileHandleTrackingDefaultsOffAndCanBeDisabledAgain() throws {
@@ -107,6 +110,25 @@ final class AnsightOptionsBuilderTests: XCTestCase {
         let options = try JSONDecoder().decode(AnsightHostConnectionOptions.self, from: data)
 
         XCTAssertFalse(options.allowCellularConnections)
+        XCTAssertFalse(options.allowUnattendedProvisioning)
+    }
+
+    func testUnattendedProvisioningReadsOnlyAnEnabledNonBlankPayload() {
+        let environment = [
+            AnsightUnattendedProvisioning.payloadEnvironmentVariableName: "  ans2:test-payload  "
+        ]
+
+        XCTAssertNil(AnsightUnattendedProvisioning.payload(enabled: false, environment: environment))
+        XCTAssertEqual(
+            AnsightUnattendedProvisioning.payload(enabled: true, environment: environment),
+            "ans2:test-payload"
+        )
+        XCTAssertNil(
+            AnsightUnattendedProvisioning.payload(
+                enabled: true,
+                environment: [AnsightUnattendedProvisioning.payloadEnvironmentVariableName: "  "]
+            )
+        )
     }
 
     func testSessionJpegCaptureDecodeDefaultsGpuBackedSurfaceCapture() throws {

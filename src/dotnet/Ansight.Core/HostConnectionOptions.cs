@@ -47,6 +47,12 @@ public sealed class HostConnectionOptions
     public bool AllowCellularConnections { get; set; }
 
     /// <summary>
+    /// Allows a one-time enrollment invite supplied by the test runner at app launch to provision
+    /// this app installation without interactive QR scanning. Disabled by default.
+    /// </summary>
+    public bool AllowUnattendedProvisioning { get; set; }
+
+    /// <summary>
     /// Optional assembly containing embedded bundled config resources.
     /// When supplied, the SDK looks for an embedded resource whose logical name is
     /// <c>ansight.json</c>.
@@ -142,6 +148,18 @@ public sealed class HostConnectionOptions
         return this;
     }
 
+    /// <summary>
+    /// Configures whether the native SDK may consume a one-time enrollment invite supplied by the
+    /// test runner when the app launches.
+    /// </summary>
+    /// <param name="allow">Whether unattended provisioning is allowed.</param>
+    /// <returns>The current options instance.</returns>
+    public HostConnectionOptions UseUnattendedProvisioning(bool allow = true)
+    {
+        AllowUnattendedProvisioning = allow;
+        return this;
+    }
+
     internal HostConnectionOptions Clone()
     {
         return new HostConnectionOptions
@@ -150,6 +168,7 @@ public sealed class HostConnectionOptions
             ConnectionProfileRetention = ConnectionProfileRetention,
             DiscoveryPort = DiscoveryPort,
             AllowCellularConnections = AllowCellularConnections,
+            AllowUnattendedProvisioning = AllowUnattendedProvisioning,
             BundledConfigAssembly = BundledConfigAssembly,
             BundledConfigLoader = BundledConfigLoader,
             ConfigReader = ConfigReader

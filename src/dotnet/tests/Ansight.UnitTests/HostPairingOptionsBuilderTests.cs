@@ -63,6 +63,18 @@ public sealed class HostConnectionOptionsBuilderTests
     }
 
     [Fact]
+    public void WithUnattendedProvisioning_OptsInWhileTheDefaultRemainsDisabled()
+    {
+        var defaultOptions = Options.CreateBuilder().Build();
+        var unattendedOptions = Options.CreateBuilder()
+            .WithUnattendedProvisioning()
+            .Build();
+
+        Assert.False(defaultOptions.HostConnection.AllowUnattendedProvisioning);
+        Assert.True(unattendedOptions.HostConnection.AllowUnattendedProvisioning);
+    }
+
+    [Fact]
     public void WithHostConnectionProfileRetention_ConfiguresCachedProfileRetention()
     {
         var retention = TimeSpan.FromDays(30);

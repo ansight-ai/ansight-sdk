@@ -59,6 +59,19 @@ public sealed class NativeRuntimeOptionsJsonTests
         Assert.Equal(
             "ai.ansight.dotnet.saved-pairing",
             json["hostConnection"]!["savedConfigKey"]!.GetValue<string>());
+        Assert.False(json["hostConnection"]!["allowUnattendedProvisioning"]!.GetValue<bool>());
+    }
+
+    [Fact]
+    public void Serialize_MapsUnattendedProvisioningForNativeBindings()
+    {
+        var options = Options.CreateBuilder()
+            .WithUnattendedProvisioning()
+            .Build();
+
+        var json = JsonNode.Parse(NativeRuntimeOptionsJson.Serialize(options))!.AsObject();
+
+        Assert.True(json["hostConnection"]!["allowUnattendedProvisioning"]!.GetValue<bool>());
     }
 
     [Fact]

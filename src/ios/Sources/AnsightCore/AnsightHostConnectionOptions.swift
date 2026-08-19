@@ -6,6 +6,7 @@ public struct AnsightHostConnectionOptions: Sendable, Codable, Equatable {
         case connectionProfileRetentionSeconds
         case discoveryPort
         case allowCellularConnections
+        case allowUnattendedProvisioning
         case bundledConfigJson
     }
 
@@ -13,6 +14,7 @@ public struct AnsightHostConnectionOptions: Sendable, Codable, Equatable {
     public var connectionProfileRetentionSeconds: Int
     public var discoveryPort: Int?
     public var allowCellularConnections: Bool
+    public var allowUnattendedProvisioning: Bool
     public var bundledConfigJson: String?
 
     public init(
@@ -20,12 +22,14 @@ public struct AnsightHostConnectionOptions: Sendable, Codable, Equatable {
         connectionProfileRetentionSeconds: Int = 14 * 24 * 60 * 60,
         discoveryPort: Int? = nil,
         allowCellularConnections: Bool = false,
+        allowUnattendedProvisioning: Bool = false,
         bundledConfigJson: String? = nil
     ) {
         self.savedConfigKey = savedConfigKey
         self.connectionProfileRetentionSeconds = connectionProfileRetentionSeconds
         self.discoveryPort = discoveryPort
         self.allowCellularConnections = allowCellularConnections
+        self.allowUnattendedProvisioning = allowUnattendedProvisioning
         self.bundledConfigJson = bundledConfigJson
     }
 
@@ -42,6 +46,10 @@ public struct AnsightHostConnectionOptions: Sendable, Codable, Equatable {
             allowCellularConnections: try container.decodeIfPresent(
                 Bool.self,
                 forKey: .allowCellularConnections
+            ) ?? false,
+            allowUnattendedProvisioning: try container.decodeIfPresent(
+                Bool.self,
+                forKey: .allowUnattendedProvisioning
             ) ?? false,
             bundledConfigJson: try container.decodeIfPresent(String.self, forKey: .bundledConfigJson)
         )

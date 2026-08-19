@@ -1133,6 +1133,9 @@ public final class AnsightRuntime: @unchecked Sendable {
                 connectResponse: connectResponse
             )
         }
+        if request.kind == .auto, resolvedRequest.source == .payload {
+            AnsightUnattendedProvisioning.clearPayloadFromEnvironment()
+        }
 
         let open = OpenSessionResult(
             success: true,
@@ -1216,7 +1219,7 @@ public final class AnsightRuntime: @unchecked Sendable {
         }
 
         switch resolvedRequest.source {
-        case .cachedSession, .savedConfig, .bundledConfig, .autoProbe:
+        case .cachedSession, .savedConfig, .bundledConfig, .autoProbe, .payload:
             return true
         default:
             return false
@@ -2412,7 +2415,8 @@ public final class AnsightRuntime: @unchecked Sendable {
                     }
 
                     guard self.hasCachedPairingProfileLocked ||
-                            self.connector.localHostAddress != nil else {
+                            self.connector.localHostAddress != nil ||
+                            self.hasUnattendedProvisioningPayloadLocked else {
                         return autoOptions.probeIntervalMilliseconds
                     }
 
@@ -3080,6 +3084,15 @@ public final class AnsightRuntime: @unchecked Sendable {
         switch request.kind {
         case .auto:
             var resolvedRequests: [ResolvedConnectionRequest] = []
+            let unattendedProvisioning = lock.withLock {
+                options.hostConnection.allowUnattendedProvisioning
+            }
+            if let payload = AnsightUnattendedProvisioning.payload(enabled: unattendedProvisioning) {
+                resolvedRequests.append(try resolvedRequest(
+                    fromPayload: payload,
+                    source: .payload
+                ))
+            }
             if let localHostAddress = lock.withLock({ connector.localHostAddress }) {
                 let bundleAppId = Bundle.main.bundleIdentifier?
                     .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -3378,6 +3391,12 @@ public final class AnsightRuntime: @unchecked Sendable {
 
     private var hasCachedPairingProfileLocked: Bool {
         !cachedPairingProfiles().isEmpty
+    }
+
+    private var hasUnattendedProvisioningPayloadLocked: Bool {
+        AnsightUnattendedProvisioning.payload(
+            enabled: options.hostConnection.allowUnattendedProvisioning
+        ) != nil
     }
 
     private var hostConnectionCapabilitiesLocked: HostConnectionCapabilities {

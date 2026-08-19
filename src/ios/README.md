@@ -47,8 +47,8 @@ Ansight Services.
 When building this package through SwiftPM, the `AnsightBuildToolPlugin` runs
 automatically for the `AnsightCore` target. Set
 `ANSIGHT_ALLOW_REMOTE_TOOLS=true` only for targets that intentionally bundle
-concrete `AnsightTool` implementations. Enrollment itself has no build
-environment variables or generated resource.
+concrete `AnsightTool` implementations. Enrollment has no build-time host probe
+or generated resource.
 
 ## CocoaPods
 
@@ -176,6 +176,25 @@ let result = await AnsightRuntime.shared.connect(
 
 This is the physical-device first-use flow. After a successful scan,
 `.auto(...)` reconnects with the stored registration.
+
+For unattended physical-device test runs, explicitly enable launch-time
+provisioning in the test build:
+
+```swift
+let options = try AnsightOptions.createBuilder(.ansightDeveloperDefaults)
+    .withUnattendedProvisioning()
+    .build()
+
+try AnsightRuntime.shared.initializeAndActivateAnsightSdk(options: options)
+```
+
+When `.auto(...)` runs, the SDK checks the
+`ANSIGHT_ENROLLMENT_PAYLOAD` process environment variable before its remembered
+profiles. A successful connection saves the registration in Keychain and
+clears the process environment value. The option is disabled by default and
+should be enabled only in development or test builds. A host runner can launch
+a signed app with `xcrun devicectl device process launch --environment-variables`
+to supply a fresh, app-specific, one-use enrollment payload without user input.
 
 For iOS Simulator and Mac Catalyst, activation automatically performs local
 enrollment and connection; no explicit `connect` call is required.

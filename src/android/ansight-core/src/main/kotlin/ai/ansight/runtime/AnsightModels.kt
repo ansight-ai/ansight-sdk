@@ -143,6 +143,7 @@ data class AnsightHostConnectionOptions(
     val bundledConfigJson: String? = null,
     val discoveryPort: Int? = null,
     val allowCellularConnections: Boolean = false,
+    val allowUnattendedProvisioning: Boolean = false,
     val connectionProfileRetentionSeconds: Long = 14L * 24L * 60L * 60L,
     val configReader: HostConnectionConfigReader? = null,
 ) {

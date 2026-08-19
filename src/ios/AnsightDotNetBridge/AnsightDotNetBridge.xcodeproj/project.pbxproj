@@ -51,6 +51,7 @@
 		4941512D05A15F58339B2503 /* AnsightToolProtocolEnvelope.swift in Sources */ = {isa = PBXBuildFile; fileRef = A155537B79B6E14678D781E3 /* AnsightToolProtocolEnvelope.swift */; };
 		4BF5A2F8980DB01CDE5C4A87 /* AnsightScreenRouteResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9729C3A8233B2057DEE02DEE /* AnsightScreenRouteResolver.swift */; };
 		4CFB098EF0CE16411B5E1C23 /* AnsightHostConnectionOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31C0823ABB8E53D73435D60D /* AnsightHostConnectionOptions.swift */; };
+		4CFB098EF0CE16411B5E1C24 /* AnsightUnattendedProvisioning.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31C0823ABB8E53D73435D60E /* AnsightUnattendedProvisioning.swift */; };
 		4D54D4209AE06AC0ED7AA253 /* AnsightToolScope.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6634936B556E5DBEDBB9E0BB /* AnsightToolScope.swift */; };
 		4DABC4CA99AF6BE0CB64FE70 /* AnsightToolProtocolBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1591B65DCC879A0B53BAB86 /* AnsightToolProtocolBridge.swift */; };
 		4E0A239BD7E2A9E13B94085C /* CachedPairingProfileDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = B280E1B6FCC5F1261B8C6E93 /* CachedPairingProfileDocument.swift */; };
@@ -190,6 +191,7 @@
 		2E4D5FC57940EC4275EC292C /* AnsightSDKInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightSDKInfo.swift; sourceTree = "<group>"; };
 		2EC2EE67D055C72069FE5793 /* PairingFileTransferFrameType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingFileTransferFrameType.swift; sourceTree = "<group>"; };
 		31C0823ABB8E53D73435D60D /* AnsightHostConnectionOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightHostConnectionOptions.swift; sourceTree = "<group>"; };
+		31C0823ABB8E53D73435D60E /* AnsightUnattendedProvisioning.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightUnattendedProvisioning.swift; sourceTree = "<group>"; };
 		3374B22C733BFECB3B297DEB /* ConnectResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectResponse.swift; sourceTree = "<group>"; };
 		33EA5B8306C2012F635D6481 /* PairingConnectionAttempt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingConnectionAttempt.swift; sourceTree = "<group>"; };
 		33FC643FF68BD101794ACEF6 /* RuntimeError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeError.swift; sourceTree = "<group>"; };
@@ -348,6 +350,7 @@
 				E712F6CCF315EB4134E6DA40 /* AnsightFrameRateSampler.swift */,
 				4BBE4F45F0385C0AD7DDF8F0 /* AnsightHostAutoProbeOptions.swift */,
 				31C0823ABB8E53D73435D60D /* AnsightHostConnectionOptions.swift */,
+				31C0823ABB8E53D73435D60E /* AnsightUnattendedProvisioning.swift */,
 				6322C6C2283A92653F7DDB7B /* AnsightInstalledTouchRecognizer.swift */,
 				6199059B4F60CD9A326138C3 /* AnsightLatestValueBuffer.swift */,
 				A79225D24D3361AB358F0FB7 /* AnsightLifecycleCaptureOptions.swift */,
@@ -621,6 +624,7 @@
 				0CDCC3717ED4DE6351575CA9 /* AnsightGeneratedBuildArtifacts.swift in Sources */,
 				B1539A19B9BCFD5C27649FAD /* AnsightHostAutoProbeOptions.swift in Sources */,
 				4CFB098EF0CE16411B5E1C23 /* AnsightHostConnectionOptions.swift in Sources */,
+				4CFB098EF0CE16411B5E1C24 /* AnsightUnattendedProvisioning.swift in Sources */,
 				F0B63B079F8D493DCB85CA11 /* AnsightInstalledTouchRecognizer.swift in Sources */,
 				F864CA91A364F393350697BC /* AnsightLatestValueBuffer.swift in Sources */,
 				57AD5261665066DEE59AD929 /* AnsightLifecycleCaptureOptions.swift in Sources */,

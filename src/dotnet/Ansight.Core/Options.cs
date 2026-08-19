@@ -899,6 +899,17 @@ public class Options
         }
 
         /// <summary>
+        /// Allows the native SDK to consume a one-time enrollment invite supplied by the test runner
+        /// when the app launches. Unattended provisioning remains disabled when this method is omitted.
+        /// </summary>
+        /// <param name="allow">Whether unattended provisioning is allowed.</param>
+        /// <returns>The current builder.</returns>
+        public OptionsBuilder WithUnattendedProvisioning(bool allow = true)
+        {
+            return ConfigureHostConnection(hostConnection => hostConnection.UseUnattendedProvisioning(allow));
+        }
+
+        /// <summary>
         /// Configures how long remembered host connection profiles are retained.
         /// </summary>
         /// <param name="retention">Positive retention window for remembered host connection profiles.</param>

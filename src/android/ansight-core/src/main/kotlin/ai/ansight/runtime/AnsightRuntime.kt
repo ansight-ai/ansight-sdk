@@ -60,6 +60,7 @@ object AnsightRuntime {
     }
     private var lifecycleCallbacks: Application.ActivityLifecycleCallbacks? = null
     private var startedActivityCount = 0
+    private var unattendedProvisioningInProgress = false
     private val frameRateSampler = AndroidFrameRateSampler()
     private var frameRateTrackingEnabled = false
     private var touchCaptureRuntimeEnabled = true
@@ -134,6 +135,7 @@ object AnsightRuntime {
             hostName = null
             resolvedHostAddress = null
             sessionMessage = "Runtime initialized."
+            unattendedProvisioningInProgress = false
         }
         publishHostConnectionStatusIfChanged(force = true)
         AnsightLogger.info("Ansight runtime initialized.")
@@ -172,11 +174,14 @@ object AnsightRuntime {
     fun bindActivity(activity: Activity) {
         AndroidUiEvidence.onActivityResumed(activity)
         recordBoundActivity()
+        startUnattendedProvisioningIfNeeded(activity)
     }
 
     private fun bindCurrentActivity(app: Application) {
-        if (AndroidUiEvidence.bindCurrentActivity(app) != null) {
+        val activity = AndroidUiEvidence.bindCurrentActivity(app)
+        if (activity != null) {
             recordBoundActivity()
+            startUnattendedProvisioningIfNeeded(activity)
         }
     }
 
@@ -1935,7 +1940,9 @@ object AnsightRuntime {
             }
             startedActivityCount = 0
             lifecycleCallbacks = object : Application.ActivityLifecycleCallbacks {
-                override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = Unit
+                override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
+                    startUnattendedProvisioningIfNeeded(activity)
+                }
 
                 override fun onActivityStarted(activity: Activity) {
                     val becameForeground = synchronized(lock) {
@@ -1949,6 +1956,7 @@ object AnsightRuntime {
 
                 override fun onActivityResumed(activity: Activity) {
                     AndroidUiEvidence.onActivityResumed(activity)
+                    startUnattendedProvisioningIfNeeded(activity)
                     runCatching { screenViewed(activity.javaClass.simpleName) }
                 }
 
@@ -1982,6 +1990,47 @@ object AnsightRuntime {
         }
         lifecycleCallbacks = null
         startedActivityCount = 0
+        unattendedProvisioningInProgress = false
+    }
+
+    private fun startUnattendedProvisioningIfNeeded(activity: Activity) {
+        val payload = synchronized(lock) {
+            if (!initialized || !active || sessionOpen || unattendedProvisioningInProgress) {
+                null
+            } else {
+                AnsightUnattendedProvisioning.consumePayload(
+                    activity,
+                    options.hostConnection.allowUnattendedProvisioning,
+                )?.also {
+                    unattendedProvisioningInProgress = true
+                }
+            }
+        } ?: return
+        val appId = activity.packageName
+
+        Thread {
+            try {
+                val result = connect(
+                    HostConnectionRequest.payloadText(
+                        payload = payload,
+                        expectedAppId = appId,
+                    ),
+                )
+                if (!result.success) {
+                    AnsightLogger.warning(result.message)
+                }
+            } catch (error: Throwable) {
+                AnsightLogger.warning(error.message ?: "Unattended Ansight provisioning failed.", error)
+            } finally {
+                synchronized(lock) {
+                    unattendedProvisioningInProgress = false
+                }
+            }
+        }.apply {
+            name = "AnsightAndroidUnattendedProvisioning"
+            isDaemon = true
+            start()
+        }
     }
 
     private fun deactivateLocked(closeTransport: Boolean) {

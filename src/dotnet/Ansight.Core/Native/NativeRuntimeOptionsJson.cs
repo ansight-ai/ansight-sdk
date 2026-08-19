@@ -198,7 +198,8 @@ internal static class NativeRuntimeOptionsJson
             ["bundledConfigJson"] = ResolveBundledConfig(options),
             ["connectionProfileRetentionSeconds"] = (long)options.ConnectionProfileRetention.TotalSeconds,
             ["discoveryPort"] = options.DiscoveryPort,
-            ["allowCellularConnections"] = options.AllowCellularConnections
+            ["allowCellularConnections"] = options.AllowCellularConnections,
+            ["allowUnattendedProvisioning"] = options.AllowUnattendedProvisioning
         };
     }
 

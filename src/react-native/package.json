@@ -1,6 +1,6 @@
 {
   "name": "@ansight/react-native",
-  "version": "1.3.0-preview.3",
+  "version": "1.3.0-preview.5",
   "description": "React Native bridge for the Ansight mobile SDK.",
   "main": "index.js",
   "types": "index.d.ts",

@@ -139,6 +139,7 @@ class AnsightOptionsTest {
             .withHostConnectionDiscoveryPort(45200)
             .withHostConnectionProfileRetentionSeconds(60)
             .withCellularHostConnections()
+            .withUnattendedProvisioning()
             .addArtifactProvider(TestArtifactProvider())
             .addTool(tool)
             .build()
@@ -160,6 +161,7 @@ class AnsightOptionsTest {
         assertEquals(45200, options.hostConnection.discoveryPort)
         assertEquals(60, options.hostConnection.connectionProfileRetentionSeconds)
         assertTrue(options.hostConnection.allowCellularConnections)
+        assertTrue(options.hostConnection.allowUnattendedProvisioning)
         assertTrue(options.initialTools.any { it.definition.id == "app.echo" })
         assertTrue(options.artifactProviders.any { it.descriptor.id == "app.report" })
     }
@@ -179,6 +181,20 @@ class AnsightOptionsTest {
 
         assertFalse(disabled.enableOpenFileHandleTracking)
         assertFalse(disabled.enableJniReferenceCountTracking)
+    }
+
+    @Test
+    fun unattendedProvisioningDefaultsOffAndNormalizesOnlyEnabledPayloads() {
+        assertFalse(AnsightOptions().hostConnection.allowUnattendedProvisioning)
+        assertEquals(null, AnsightUnattendedProvisioning.normalizePayload(false, "ans2:test"))
+        assertEquals(null, AnsightUnattendedProvisioning.normalizePayload(true, "  "))
+        assertEquals("ans2:test", AnsightUnattendedProvisioning.normalizePayload(true, "  ans2:test  "))
+
+        val disabled = AnsightOptions.createBuilder()
+            .withUnattendedProvisioning()
+            .withoutUnattendedProvisioning()
+            .build()
+        assertFalse(disabled.hostConnection.allowUnattendedProvisioning)
     }
 
     @Test

@@ -439,6 +439,7 @@ public final class ANSDotNetRuntime: NSObject {
                 connectionProfileRetentionSeconds: hostConnection.connectionProfileRetentionSeconds,
                 discoveryPort: hostConnection.discoveryPort,
                 allowCellularConnections: hostConnection.allowCellularConnections,
+                allowUnattendedProvisioning: hostConnection.allowUnattendedProvisioning ?? false,
                 bundledConfigJson: normalized(hostConnection.bundledConfigJson)
             )
         }
@@ -725,5 +726,6 @@ private struct BridgeHostConnection: Decodable {
     let connectionProfileRetentionSeconds: Int
     let discoveryPort: Int?
     let allowCellularConnections: Bool
+    let allowUnattendedProvisioning: Bool?
     let bundledConfigJson: String?
 }

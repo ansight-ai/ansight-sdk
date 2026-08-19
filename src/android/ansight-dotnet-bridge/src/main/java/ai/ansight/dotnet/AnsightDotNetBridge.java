@@ -581,6 +581,7 @@ public final class AnsightDotNetBridge {
                     ? Integer.valueOf(hostConnection.optInt("discoveryPort"))
                     : null,
                 hostConnection.optBoolean("allowCellularConnections", false),
+                hostConnection.optBoolean("allowUnattendedProvisioning", false),
                 hostConnection.optLong("connectionProfileRetentionSeconds", 14L * 24L * 60L * 60L),
                 null
             ));
