@@ -412,7 +412,13 @@ internal static partial class MauiToolHelpers
             return false;
         }
 
-        var modalPage = GetModalStack(page).LastOrDefault(modal => !ReferenceEquals(modal, page));
+        var modalPage = GetModalStack(page).LastOrDefault(modal =>
+            !ReferenceEquals(modal, page)
+            && !MauiNavigationGraph.IsOnDisplayedNavigationPath(
+                modal,
+                page,
+                GetElementId,
+                GetDisplayedNavigationChildPage));
         activeChild = modalPage ?? GetDisplayedNavigationChildPage(page);
         return activeChild != null;
     }
@@ -444,6 +450,16 @@ internal static partial class MauiToolHelpers
 
         foreach (var modalPage in GetModalStack(page))
         {
+            if (ReferenceEquals(modalPage, page)
+                || MauiNavigationGraph.IsOnDisplayedNavigationPath(
+                    modalPage,
+                    page,
+                    GetElementId,
+                    GetDisplayedNavigationChildPage))
+            {
+                continue;
+            }
+
             AddDistinctElement(children, modalPage);
         }
     }

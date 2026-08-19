@@ -117,29 +117,21 @@ internal static partial class MauiToolHelpers
 
     internal static Page? ResolveDisplayedPage(Page? rootPage)
     {
-        return ResolveDisplayedPage(rootPage, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+        return MauiNavigationGraph.ResolveDisplayedPage(
+            rootPage,
+            GetElementId,
+            GetModalStack,
+            GetDisplayedNavigationChildPage);
     }
 
     internal static Page? ResolveDisplayedPage(Page? page, HashSet<string> visited)
     {
-        if (page == null || !visited.Add(GetElementId(page)))
-        {
-            return page;
-        }
-
-        var modalPage = FindTopModalPage(page, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
-        if (modalPage != null && !ReferenceEquals(modalPage, page))
-        {
-            return ResolveDisplayedPage(modalPage, visited);
-        }
-
-        var childPage = GetDisplayedNavigationChildPage(page);
-        if (childPage != null)
-        {
-            return ResolveDisplayedPage(childPage, visited);
-        }
-
-        return page;
+        return MauiNavigationGraph.ResolveDisplayedPage(
+            page,
+            GetElementId,
+            GetModalStack,
+            GetDisplayedNavigationChildPage,
+            visited);
     }
 
     internal static NavigationPage? ResolveActiveNavigationPage(Page? rootPage)
@@ -171,19 +163,12 @@ internal static partial class MauiToolHelpers
 
     private static Page? FindTopModalPage(Page page, HashSet<string> visited)
     {
-        if (!visited.Add(GetElementId(page)))
-        {
-            return null;
-        }
-
-        var modalPage = GetModalStack(page).LastOrDefault(modal => !ReferenceEquals(modal, page));
-        if (modalPage != null)
-        {
-            return modalPage;
-        }
-
-        var childPage = GetDisplayedNavigationChildPage(page);
-        return childPage == null ? null : FindTopModalPage(childPage, visited);
+        return MauiNavigationGraph.FindTopModalPage(
+            page,
+            GetElementId,
+            GetModalStack,
+            GetDisplayedNavigationChildPage,
+            visited);
     }
 
     private static Page? GetDisplayedNavigationChildPage(Page page)
