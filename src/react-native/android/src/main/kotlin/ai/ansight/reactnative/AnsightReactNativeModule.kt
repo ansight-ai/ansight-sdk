@@ -783,6 +783,10 @@ class AnsightReactNativeModule(
                             AnsightSessionJpegCaptureOptions.DefaultCaptureGpuBackedSurfaces,
                         ),
                         mode = sessionJpegCaptureMode(jpeg.stringValue("mode")),
+                        captureKeyboardPresence = jpeg.booleanValue(
+                            "captureKeyboardPresence",
+                            AnsightSessionJpegCaptureOptions.DefaultCaptureKeyboardPresence,
+                        ),
                     )
                 },
             )
@@ -981,6 +985,10 @@ class AnsightReactNativeModule(
                 AnsightSessionJpegCaptureOptions.DefaultCaptureGpuBackedSurfaces,
             ),
             mode = sessionJpegCaptureMode(map.stringValue("mode")),
+            captureKeyboardPresence = map.booleanValue(
+                "captureKeyboardPresence",
+                AnsightSessionJpegCaptureOptions.DefaultCaptureKeyboardPresence,
+            ),
         )
     }
 
@@ -1179,6 +1187,7 @@ class AnsightReactNativeModule(
                     "quality" to capture.quality,
                     "maxWidth" to capture.maxWidth,
                     "captureGpuBackedSurfaces" to capture.captureGpuBackedSurfaces,
+                    "captureKeyboardPresence" to capture.captureKeyboardPresence,
                     "mode" to when (capture.mode) {
                         AnsightSessionJpegCaptureMode.ScreenshotAndVisualTree -> "screenshotAndVisualTree"
                         AnsightSessionJpegCaptureMode.ScreenshotWithVisualTreeOnTouch -> "screenshotWithVisualTreeOnTouch"

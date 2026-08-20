@@ -11,12 +11,14 @@ public struct AnsightSessionJpegCaptureOptions: Sendable, Codable, Equatable {
     public static let defaultQuality = 60
     public static let defaultMaxWidth = 480
     public static let defaultCaptureGpuBackedSurfaces = true
+    public static let defaultCaptureKeyboardPresence = false
     public static let defaultMode = AnsightSessionJpegCaptureMode.screenshotOnly
 
     public var intervalMilliseconds: Int
     public var quality: Int
     public var maxWidth: Int?
     public var captureGpuBackedSurfaces: Bool
+    public var captureKeyboardPresence: Bool
     public var mode: AnsightSessionJpegCaptureMode
 
     public init(
@@ -24,12 +26,14 @@ public struct AnsightSessionJpegCaptureOptions: Sendable, Codable, Equatable {
         quality: Int = Self.defaultQuality,
         maxWidth: Int? = Self.defaultMaxWidth,
         captureGpuBackedSurfaces: Bool = Self.defaultCaptureGpuBackedSurfaces,
-        mode: AnsightSessionJpegCaptureMode = Self.defaultMode
+        mode: AnsightSessionJpegCaptureMode = Self.defaultMode,
+        captureKeyboardPresence: Bool = Self.defaultCaptureKeyboardPresence
     ) {
         self.intervalMilliseconds = intervalMilliseconds
         self.quality = quality
         self.maxWidth = maxWidth
         self.captureGpuBackedSurfaces = captureGpuBackedSurfaces
+        self.captureKeyboardPresence = captureKeyboardPresence
         self.mode = mode
     }
 
@@ -44,6 +48,8 @@ public struct AnsightSessionJpegCaptureOptions: Sendable, Codable, Equatable {
             : Self.defaultMaxWidth
         captureGpuBackedSurfaces = try container.decodeIfPresent(Bool.self, forKey: .captureGpuBackedSurfaces)
             ?? Self.defaultCaptureGpuBackedSurfaces
+        captureKeyboardPresence = try container.decodeIfPresent(Bool.self, forKey: .captureKeyboardPresence)
+            ?? Self.defaultCaptureKeyboardPresence
         mode = try container.decodeIfPresent(AnsightSessionJpegCaptureMode.self, forKey: .mode)
             ?? Self.defaultMode
     }
@@ -54,6 +60,7 @@ public struct AnsightSessionJpegCaptureOptions: Sendable, Codable, Equatable {
         try container.encode(quality, forKey: .quality)
         try container.encodeIfPresent(maxWidth, forKey: .maxWidth)
         try container.encode(captureGpuBackedSurfaces, forKey: .captureGpuBackedSurfaces)
+        try container.encode(captureKeyboardPresence, forKey: .captureKeyboardPresence)
         try container.encode(mode, forKey: .mode)
     }
 
@@ -70,6 +77,7 @@ public struct AnsightSessionJpegCaptureOptions: Sendable, Codable, Equatable {
         case quality
         case maxWidth
         case captureGpuBackedSurfaces
+        case captureKeyboardPresence
         case mode
     }
 }

@@ -129,9 +129,11 @@ void main() {
   test('serializes touch-triggered visual-tree capture mode', () {
     final options = const AnsightSessionJpegCaptureOptions(
       mode: AnsightSessionJpegCaptureMode.screenshotWithVisualTreeOnTouch,
+      captureKeyboardPresence: true,
     ).toJson();
 
     expect(options['mode'], 'screenshotWithVisualTreeOnTouch');
+    expect(options['captureKeyboardPresence'], isTrue);
   });
 
   test('initializes and records typed telemetry', () async {

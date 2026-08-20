@@ -84,12 +84,14 @@ data class AnsightSessionJpegCaptureOptions(
     val maxWidth: Int? = DefaultMaxWidth,
     val captureGpuBackedSurfaces: Boolean = DefaultCaptureGpuBackedSurfaces,
     val mode: AnsightSessionJpegCaptureMode = DefaultMode,
+    val captureKeyboardPresence: Boolean = DefaultCaptureKeyboardPresence,
 ) {
     companion object {
         const val DefaultIntervalMilliseconds = 2_000
         const val DefaultQuality = 60
         const val DefaultMaxWidth = 480
         const val DefaultCaptureGpuBackedSurfaces = true
+        const val DefaultCaptureKeyboardPresence = false
         val DefaultMode = AnsightSessionJpegCaptureMode.ScreenshotOnly
     }
 

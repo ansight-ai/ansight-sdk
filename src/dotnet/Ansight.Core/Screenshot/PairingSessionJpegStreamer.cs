@@ -150,6 +150,7 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
             Quality = configured.Quality,
             MaxWidth = configured.MaxWidth,
             CaptureGpuBackedSurfaces = configured.CaptureGpuBackedSurfaces,
+            CaptureKeyboardPresence = configured.CaptureKeyboardPresence,
             Mode = configured.Mode
         };
     }

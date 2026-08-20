@@ -675,7 +675,12 @@ object AnsightRuntime {
         application?.let { app -> bindCurrentActivity(app) }
 
         val screenshot = try {
-            AndroidUiEvidence.captureSessionScreenshot("jpeg", state.first.quality, state.first.maxWidth)
+            AndroidUiEvidence.captureSessionScreenshot(
+                "jpeg",
+                state.first.quality,
+                state.first.maxWidth,
+                state.first.captureKeyboardPresence,
+            )
         } catch (ex: Exception) {
             val message = ex.message ?: "Android screen frame capture failed."
             synchronized(lock) {
@@ -2292,7 +2297,12 @@ object AnsightRuntime {
         application?.let { app -> bindCurrentActivity(app) }
 
         val screenshot = try {
-            AndroidUiEvidence.captureSessionScreenshot("jpeg", state.first.quality, state.first.maxWidth)
+            AndroidUiEvidence.captureSessionScreenshot(
+                "jpeg",
+                state.first.quality,
+                state.first.maxWidth,
+                state.first.captureKeyboardPresence,
+            )
         } catch (_: Exception) {
             return
         }

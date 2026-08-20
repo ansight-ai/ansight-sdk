@@ -1489,6 +1489,7 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
                 Quality = source.Quality,
                 MaxWidth = source.MaxWidth,
                 CaptureGpuBackedSurfaces = source.CaptureGpuBackedSurfaces,
+                CaptureKeyboardPresence = source.CaptureKeyboardPresence,
                 Mode = source.Mode
             };
     }

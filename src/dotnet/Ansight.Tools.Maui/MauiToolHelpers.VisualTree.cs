@@ -412,7 +412,13 @@ internal static partial class MauiToolHelpers
             return false;
         }
 
-        var modalPage = GetModalStack(page).LastOrDefault(modal => !ReferenceEquals(modal, page));
+        var modalPage = GetModalStack(page).LastOrDefault(modal =>
+            !ReferenceEquals(modal, page)
+            && !MauiNavigationGraph.IsOnDisplayedNavigationPath(
+                modal,
+                page,
+                GetElementId,
+                GetDisplayedNavigationChildPage));
         activeChild = modalPage ?? GetDisplayedNavigationChildPage(page);
         return activeChild != null;
     }
@@ -444,6 +450,16 @@ internal static partial class MauiToolHelpers
 
         foreach (var modalPage in GetModalStack(page))
         {
+            if (ReferenceEquals(modalPage, page)
+                || MauiNavigationGraph.IsOnDisplayedNavigationPath(
+                    modalPage,
+                    page,
+                    GetElementId,
+                    GetDisplayedNavigationChildPage))
+            {
+                continue;
+            }
+
             AddDistinctElement(children, modalPage);
         }
     }
@@ -1642,13 +1658,31 @@ internal static partial class MauiToolHelpers
             SearchBar searchBar => CreateSafeLabel(searchBar.Placeholder),
             Picker picker => CreateSafeLabel(picker.Title),
             DatePicker or TimePicker or CheckBox or Slider or Stepper => null,
-            Label labelElement => CreateSafeLabel(labelElement.Text),
-            Button button => CreateSafeLabel(button.Text),
+            Label labelElement => CreateTextElementLabel(labelElement, labelElement.Text),
+            Button button => CreateTextElementLabel(button, button.Text),
             Page page => CreateSafeLabel(page.Title),
             BaseShellItem shellItem => CreateSafeLabel(shellItem.Title),
             MenuItem menuItem => CreateSafeLabel(menuItem.Text),
             _ => null
         };
+    }
+
+    private static string? CreateTextElementLabel(Element element, string? text)
+    {
+        var normalText = CreateSafeLabel(text);
+        if (normalText is not null)
+        {
+            return normalText;
+        }
+
+        var formattedTextProperty = ResolvePublicInstanceProperty(element.GetType(), "FormattedText");
+        if (formattedTextProperty?.GetValue(element) is not FormattedString formattedText)
+        {
+            return null;
+        }
+
+        var extractedText = string.Concat(formattedText.Spans.Select(span => span.Text));
+        return CreateSafeLabel(extractedText);
     }
 
     internal static string GetElementId(Element element) => element.Id.ToString("N");

@@ -1040,6 +1040,10 @@ class AnsightCapacitorPlugin : Plugin() {
                 "screenshotWithVisualTreeOnTouch" -> AnsightSessionJpegCaptureMode.ScreenshotWithVisualTreeOnTouch
                 else -> AnsightSessionJpegCaptureMode.ScreenshotOnly
             },
+            captureKeyboardPresence = map.booleanValue(
+                "captureKeyboardPresence",
+                AnsightSessionJpegCaptureOptions.DefaultCaptureKeyboardPresence,
+            ),
         )
 
     private fun application(): Application =

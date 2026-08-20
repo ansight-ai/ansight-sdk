@@ -20,10 +20,30 @@ public sealed class SessionJpegWireProtocolTests
         Assert.Equal(1, header[4]);
         Assert.Equal(1, header[5]);
         Assert.Equal(85, header[6]);
+        Assert.Equal(0, header[7]);
         Assert.Equal(capturedAtUtc.ToUnixTimeMilliseconds(), BinaryPrimitives.ReadInt64LittleEndian(header[8..16]));
         Assert.Equal(640, BinaryPrimitives.ReadInt32LittleEndian(header[16..20]));
         Assert.Equal(360, BinaryPrimitives.ReadInt32LittleEndian(header[20..24]));
         Assert.Equal(12345, BinaryPrimitives.ReadInt32LittleEndian(header[24..28]));
+    }
+
+    [Theory]
+    [InlineData(false, SessionJpegWireProtocol.KeyboardPresenceKnownFlag)]
+    [InlineData(true, SessionJpegWireProtocol.KeyboardPresenceKnownFlag | SessionJpegWireProtocol.KeyboardPresentFlag)]
+    public void WriteHeader_WritesKeyboardPresenceFlags(bool keyboardPresent, byte expectedFlags)
+    {
+        Span<byte> header = stackalloc byte[SessionJpegWireProtocol.HeaderSize];
+
+        SessionJpegWireProtocol.WriteHeader(
+            header,
+            DateTimeOffset.UtcNow,
+            width: 1,
+            height: 1,
+            quality: 60,
+            jpegByteCount: 0,
+            keyboardPresent: keyboardPresent);
+
+        Assert.Equal(expectedFlags, header[7]);
     }
 
     [Fact]

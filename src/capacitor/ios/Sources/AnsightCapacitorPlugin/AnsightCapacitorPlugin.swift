@@ -928,7 +928,12 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
             ),
             mode: AnsightSessionJpegCaptureMode(
                 rawValue: stringValue(dictionary, "mode") ?? ""
-            ) ?? .screenshotOnly
+            ) ?? .screenshotOnly,
+            captureKeyboardPresence: boolValue(
+                dictionary,
+                "captureKeyboardPresence",
+                defaultValue: AnsightSessionJpegCaptureOptions.defaultCaptureKeyboardPresence
+            )
         )
     }
 

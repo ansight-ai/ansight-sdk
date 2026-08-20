@@ -33,6 +33,7 @@ export interface AnsightSessionJpegCaptureOptions {
   quality?: number;
   maxWidth?: number | null;
   captureGpuBackedSurfaces?: boolean;
+  captureKeyboardPresence?: boolean;
   mode?:
     | "screenshotOnly"
     | "screenshotAndVisualTree"
@@ -453,6 +454,7 @@ export interface AnsightOptionsBuilderApi {
       | "screenshotOnly"
       | "screenshotAndVisualTree"
       | "screenshotWithVisualTreeOnTouch",
+    captureKeyboardPresence?: boolean,
   ): this;
   withoutSessionJpegCapture(): this;
   withTouchCapture(options?: AnsightTouchCaptureOptions): this;

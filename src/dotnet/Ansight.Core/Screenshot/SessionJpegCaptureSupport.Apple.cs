@@ -107,7 +107,8 @@ internal static partial class SessionJpegCaptureSupport
             image,
             DateTimeOffset.UtcNow,
             targetWidth,
-            targetHeight);
+            targetHeight,
+            options.CaptureKeyboardPresence ? IsKeyboardPresent(window) : null);
         return true;
     }
 
@@ -135,7 +136,8 @@ internal static partial class SessionJpegCaptureSupport
                 surface.Width,
                 surface.Height,
                 options.Quality,
-                jpegByteCount);
+                jpegByteCount,
+                surface.KeyboardPresent);
 
             return await transport.SendBinaryAsync(
                 (sendFragmentAsync, payloadCancellationToken) => WriteEncodedJpegPayloadAsync(
@@ -187,7 +189,8 @@ internal static partial class SessionJpegCaptureSupport
             surface.Width,
             surface.Height,
             options.Quality,
-            jpegByteCount);
+            jpegByteCount,
+            surface.KeyboardPresent);
 
         RecordEncodedJpegByteCount(jpegByteCount);
         return stream.DetachFrame(
@@ -277,12 +280,18 @@ internal static partial class SessionJpegCaptureSupport
     {
         private UIImage? image;
 
-        public SessionJpegCaptureSurface(UIImage image, DateTimeOffset capturedAtUtc, int width, int height)
+        public SessionJpegCaptureSurface(
+            UIImage image,
+            DateTimeOffset capturedAtUtc,
+            int width,
+            int height,
+            bool? keyboardPresent)
         {
             this.image = image;
             CapturedAtUtc = capturedAtUtc;
             Width = width;
             Height = height;
+            KeyboardPresent = keyboardPresent;
         }
 
         public UIImage Image => image ?? throw new ObjectDisposedException(nameof(SessionJpegCaptureSurface));
@@ -292,6 +301,8 @@ internal static partial class SessionJpegCaptureSupport
         public int Width { get; }
 
         public int Height { get; }
+
+        public bool? KeyboardPresent { get; }
 
         public void Dispose()
         {
@@ -309,6 +320,19 @@ internal static partial class SessionJpegCaptureSupport
 
             UIApplication.SharedApplication.BeginInvokeOnMainThread(currentImage.Dispose);
         }
+    }
+
+    private static bool IsKeyboardPresent(UIWindow window)
+    {
+        window.LayoutIfNeeded();
+        var keyboardFrame = window.KeyboardLayoutGuide.LayoutFrame;
+        var windowBounds = window.Bounds;
+        return keyboardFrame.Width > 0
+            && keyboardFrame.Height > 1
+            && keyboardFrame.X < windowBounds.Width
+            && keyboardFrame.X + keyboardFrame.Width > 0
+            && keyboardFrame.Y < windowBounds.Height
+            && keyboardFrame.Y + keyboardFrame.Height > 0;
     }
 
     private sealed class CachedImageRenderer : IDisposable

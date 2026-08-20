@@ -1,3 +1,10 @@
+## 1.3.0-preview.8
+
+- Add opt-in keyboard-presence metadata to session JPEG capture on Android and
+  iOS.
+- Align the Flutter package's native dependencies with the synchronized
+  1.3.0-preview.8 SDK release.
+
 ## 1.3.0-preview.5
 
 - Align the Flutter package's Android and iOS runtime dependencies with the

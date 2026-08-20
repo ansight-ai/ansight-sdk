@@ -40,6 +40,7 @@ class AnsightSessionJpegCaptureOptions {
     this.maxWidth = 480,
     this.captureGpuBackedSurfaces = true,
     this.mode = AnsightSessionJpegCaptureMode.screenshotOnly,
+    this.captureKeyboardPresence = false,
   });
 
   final int intervalMilliseconds;
@@ -47,6 +48,7 @@ class AnsightSessionJpegCaptureOptions {
   final int? maxWidth;
   final bool captureGpuBackedSurfaces;
   final AnsightSessionJpegCaptureMode mode;
+  final bool captureKeyboardPresence;
 
   AnsightJson toJson() => <String, Object?>{
         'intervalMilliseconds': intervalMilliseconds,
@@ -54,6 +56,7 @@ class AnsightSessionJpegCaptureOptions {
         'maxWidth': maxWidth,
         'captureGpuBackedSurfaces': captureGpuBackedSurfaces,
         'mode': mode.name,
+        'captureKeyboardPresence': captureKeyboardPresence,
       };
 }
 

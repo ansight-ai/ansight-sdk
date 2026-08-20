@@ -54,6 +54,48 @@ public sealed class MauiToolsTests
     }
 
     [Fact]
+    public void ResolveDisplayedPage_IgnoresContainingModalNavigationPage()
+    {
+        var homePage = new NavigationGraphPage("home");
+        var modalNavigationPage = new NavigationGraphPage("modal-navigation");
+        var accountPage = new NavigationGraphPage("account");
+        homePage.ModalStack.Add(modalNavigationPage);
+        modalNavigationPage.DisplayedChild = accountPage;
+        accountPage.ModalStack.Add(modalNavigationPage);
+
+        var displayedPage = MauiNavigationGraph.ResolveDisplayedPage(
+            homePage,
+            page => page.Id,
+            page => page.ModalStack,
+            page => page.DisplayedChild);
+
+        Assert.Same(accountPage, displayedPage);
+    }
+
+    [Fact]
+    public void FindTopModalPage_DoesNotReturnAncestorFromChildModalStack()
+    {
+        var modalNavigationPage = new NavigationGraphPage("modal-navigation");
+        var accountPage = new NavigationGraphPage("account");
+        modalNavigationPage.DisplayedChild = accountPage;
+        accountPage.ModalStack.Add(modalNavigationPage);
+
+        var modalPage = MauiNavigationGraph.FindTopModalPage(
+            accountPage,
+            page => page.Id,
+            page => page.ModalStack,
+            page => page.DisplayedChild,
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+
+        Assert.Null(modalPage);
+        Assert.True(MauiNavigationGraph.IsOnDisplayedNavigationPath(
+            modalNavigationPage,
+            accountPage,
+            page => page.Id,
+            page => page.DisplayedChild));
+    }
+
+    [Fact]
     public void WithMauiTools_RegistersExpectedTools()
     {
         var options = Options.CreateBuilder()
@@ -261,5 +303,14 @@ public sealed class MauiToolsTests
         private string PrivateValue { get; set; } = "private";
 
         public string this[int index] => index.ToString();
+    }
+
+    private sealed class NavigationGraphPage(string id)
+    {
+        public string Id { get; } = id;
+
+        public List<NavigationGraphPage> ModalStack { get; } = [];
+
+        public NavigationGraphPage? DisplayedChild { get; set; }
     }
 }

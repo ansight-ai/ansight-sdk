@@ -13,7 +13,7 @@ Use the all-in-one package for development builds:
 
 ```kotlin
 dependencies {
-    implementation("ai.ansight:ansight-android:1.3.0-preview.5")
+    implementation("ai.ansight:ansight-android:1.3.0-preview.8")
 }
 ```
 
@@ -24,10 +24,11 @@ Minimal integrations can depend on only the packages they need:
 
 ```kotlin
 dependencies {
-    implementation("ai.ansight:ansight-core-android:1.3.0-preview.5")
-    implementation("ai.ansight:ansight-pairing-android:1.3.0-preview.5")
-    implementation("ai.ansight:ansight-tools-filedescriptordiagnostics-android:1.3.0-preview.5")
-    implementation("ai.ansight:ansight-tools-visualtree-android:1.3.0-preview.5")
+    implementation("ai.ansight:ansight-core-android:1.3.0-preview.8")
+    implementation("ai.ansight:ansight-pairing-android:1.3.0-preview.8")
+    implementation("ai.ansight:ansight-tools-filedescriptordiagnostics-android:1.3.0-preview.8")
+    implementation("ai.ansight:ansight-tools-jnireferencediagnostics-android:1.3.0-preview.8")
+    implementation("ai.ansight:ansight-tools-visualtree-android:1.3.0-preview.8")
 }
 ```
 
@@ -346,6 +347,7 @@ tool id is already present in `initialTools`.
 | --- | --- | --- |
 | `ansight-tools-visualtree-android` | `AndroidVisualTreeTools.create()` | `ui.*` visual tree, screenshot, and overlay tools |
 | `ansight-tools-filedescriptordiagnostics-android` | `AndroidFileDescriptorDiagnosticsTools.create()` | `file_descriptors.*` open descriptor diagnostics |
+| `ansight-tools-jnireferencediagnostics-android` | `AndroidJniReferenceDiagnosticsTools.create()` | `jni_references.capture_graph` bounded JNI-rooted heap graph |
 | `ansight-tools-filesystem-android` | `AndroidFileSystemTools.create()` | `files.*` sandbox file tools |
 | `ansight-tools-preferences-android` | `AndroidPreferencesTools.create()` | `prefs.*` SharedPreferences tools |
 | `ansight-tools-securestorage-android` | `AndroidSecureStorageTools.create()` | `secure.*` allow-listed secure storage tools |
@@ -356,6 +358,15 @@ tool id is already present in `initialTools`.
 Android JVM/ART hosted roots.
 
 Each tool package exposes a `*ToolIds` object that matches the .NET constants.
+
+`jni_references.capture_graph` writes a temporary HPROF snapshot, indexes it
+in-process, and returns only class names plus object-reference topology. Raw
+object addresses and field values are never returned. The default graph is
+bounded to 512 nodes, 1024 edges, and depth 4; callers can lower those bounds or
+raise them up to the configured SDK limits. Heap capture briefly pauses the app
+and can be expensive for large heaps, so invoke it as an explicit diagnostic
+rather than on a sampling interval. The temporary HPROF file is deleted after
+the result is built.
 
 Tool packages also expose .NET-style `AnsightOptionsBuilder` extensions:
 

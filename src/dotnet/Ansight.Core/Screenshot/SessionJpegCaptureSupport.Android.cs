@@ -1,6 +1,9 @@
 #if ANDROID
 using System.Net.WebSockets;
 using Ansight.Pairing;
+using Android.Graphics;
+using Android.OS;
+using Android.Views;
 
 namespace Ansight.Screenshot;
 
@@ -111,7 +114,12 @@ internal static partial class SessionJpegCaptureSupport
                 return null;
             }
 
-            return new SessionJpegCaptureSurface(captureState, DateTimeOffset.UtcNow, targetWidth, targetHeight);
+            return new SessionJpegCaptureSurface(
+                captureState,
+                DateTimeOffset.UtcNow,
+                targetWidth,
+                targetHeight,
+                options.CaptureKeyboardPresence ? IsKeyboardPresent(rootView) : null);
         }
         catch
         {
@@ -152,7 +160,8 @@ internal static partial class SessionJpegCaptureSupport
             surface.Width,
             surface.Height,
             options.Quality,
-            jpegLength);
+            jpegLength,
+            surface.KeyboardPresent);
 
         RecordEncodedJpegByteCount(jpegLength);
         return stream.DetachFrame(
@@ -201,12 +210,18 @@ internal static partial class SessionJpegCaptureSupport
     {
         private readonly CaptureBitmapState captureState;
 
-        public SessionJpegCaptureSurface(CaptureBitmapState captureState, DateTimeOffset capturedAtUtc, int width, int height)
+        public SessionJpegCaptureSurface(
+            CaptureBitmapState captureState,
+            DateTimeOffset capturedAtUtc,
+            int width,
+            int height,
+            bool? keyboardPresent)
         {
             this.captureState = captureState;
             CapturedAtUtc = capturedAtUtc;
             Width = width;
             Height = height;
+            KeyboardPresent = keyboardPresent;
         }
 
         public Android.Graphics.Bitmap Bitmap => captureState.Bitmap;
@@ -217,10 +232,37 @@ internal static partial class SessionJpegCaptureSupport
 
         public int Height { get; }
 
+        public bool? KeyboardPresent { get; }
+
         public void Dispose()
         {
             captureState.Release();
         }
+    }
+
+    private static bool IsKeyboardPresent(View rootView)
+    {
+        if (OperatingSystem.IsAndroidVersionAtLeast(30))
+        {
+            var windowInsets = rootView.RootWindowInsets;
+            if (windowInsets is not null)
+            {
+                return windowInsets.IsVisible(WindowInsets.Type.Ime());
+            }
+        }
+
+        var visibleFrame = new Rect();
+        rootView.GetWindowVisibleDisplayFrame(visibleFrame);
+        var rootHeight = rootView.RootView?.Height ?? rootView.Height;
+        if (rootHeight <= 0)
+        {
+            return false;
+        }
+
+        var obscuredHeight = Math.Max(0, rootHeight - visibleFrame.Bottom);
+        var density = rootView.Resources?.DisplayMetrics?.Density ?? 1f;
+        var minimumKeyboardHeight = Math.Max((int)(100 * density), (int)(rootHeight * 0.15f));
+        return obscuredHeight > minimumKeyboardHeight;
     }
 
     private sealed class CaptureBitmapState : IDisposable

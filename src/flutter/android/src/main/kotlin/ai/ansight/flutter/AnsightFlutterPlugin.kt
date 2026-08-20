@@ -985,6 +985,10 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
                 "screenshotWithVisualTreeOnTouch" -> AnsightSessionJpegCaptureMode.ScreenshotWithVisualTreeOnTouch
                 else -> AnsightSessionJpegCaptureMode.ScreenshotOnly
             },
+            captureKeyboardPresence = map.booleanValue(
+                "captureKeyboardPresence",
+                AnsightSessionJpegCaptureOptions.DefaultCaptureKeyboardPresence,
+            ),
         )
 
     private fun resultPayload(map: JSONObject): JSONObject? {

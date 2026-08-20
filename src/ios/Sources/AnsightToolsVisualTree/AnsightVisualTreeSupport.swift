@@ -166,11 +166,46 @@ internal enum AnsightVisualTreeSupport {
     static func captureTree(includeProperties: Bool) throws -> AnsightVisualNode {
         #if canImport(UIKit)
         return try runOnMainActor {
-            guard let window = activeWindow() else {
+            let windows = activeWindows()
+            guard let activeWindow = windows.first(where: \.isKeyWindow) ?? windows.last else {
                 throw AnsightVisualTreeToolError.unavailable("No active UIWindow is available.")
             }
 
-            return buildNode(view: window, window: window, includeProperties: includeProperties)
+            if windows.count == 1 {
+                return buildNode(view: activeWindow, window: activeWindow, includeProperties: includeProperties)
+            }
+
+            let children = windows.map { window in
+                buildNode(view: window, window: window, includeProperties: includeProperties)
+            }
+            let frames = windows.map { window in
+                window.convert(window.bounds, to: nil)
+            }
+            let left = frames.map(\.minX).min() ?? 0
+            let top = frames.map(\.minY).min() ?? 0
+            let right = frames.map(\.maxX).max() ?? 0
+            let bottom = frames.map(\.maxY).max() ?? 0
+            return AnsightVisualNode(
+                id: "windows",
+                type: "UIWindowCollection",
+                automationId: nil,
+                label: "Application windows",
+                role: "group",
+                supportedActions: [],
+                visible: true,
+                enabled: true,
+                focusable: false,
+                bounds: AnsightVisualTreeBounds(
+                    x: Double(left),
+                    y: Double(top),
+                    width: Double(max(0, right - left)),
+                    height: Double(max(0, bottom - top))
+                ),
+                visual: [:],
+                z: nil,
+                properties: [:],
+                children: children
+            )
         }
         #else
         throw AnsightVisualTreeToolError.platformUnsupported
@@ -292,18 +327,32 @@ internal enum AnsightVisualTreeSupport {
 
     @MainActor
     static func activeWindow() -> UIWindow? {
+        let windows = activeWindows()
+        return windows.first { $0.isKeyWindow } ?? windows.last
+    }
+
+    @MainActor
+    static func activeWindows() -> [UIWindow] {
         let scenes = UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
             .filter { scene in
                 scene.activationState == .foregroundActive || scene.activationState == .foregroundInactive
             }
-
-        return scenes
-            .flatMap(\.windows)
-            .first { $0.isKeyWindow }
-            ?? scenes.flatMap(\.windows).first { !$0.isHidden && $0.alpha > 0 }
-            ?? UIApplication.shared.windows.first { $0.isKeyWindow }
-            ?? UIApplication.shared.windows.first { !$0.isHidden && $0.alpha > 0 }
+        let sceneWindows = scenes.flatMap(\.windows)
+        let candidates = sceneWindows.isEmpty ? UIApplication.shared.windows : sceneWindows
+        var seen = Set<ObjectIdentifier>()
+        return candidates
+            .filter { window in
+                !window.isHidden
+                    && window.alpha > 0
+                    && seen.insert(ObjectIdentifier(window)).inserted
+            }
+            .sorted { left, right in
+                if left.windowLevel.rawValue == right.windowLevel.rawValue {
+                    return !left.isKeyWindow && right.isKeyWindow
+                }
+                return left.windowLevel.rawValue < right.windowLevel.rawValue
+            }
     }
 
     @MainActor

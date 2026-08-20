@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name         = "AnsightToolsSecureStorage"
-  s.version      = "1.3.0-preview.5"
+  s.version      = "1.3.0-preview.8"
   s.summary      = "Ansight Keychain remote tools for native iOS apps"
   s.homepage     = "https://github.com/ansight-ai/ansight-sdk"
   s.license      = { :type => "Ansight SDK Source-Available License", :file => "LICENSE" }

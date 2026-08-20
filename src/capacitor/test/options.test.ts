@@ -91,6 +91,7 @@ describe("AnsightOptionsBuilder", () => {
         null,
         false,
         "screenshotWithVisualTreeOnTouch",
+        true,
       )
       .withHostConnection({ savedConfigKey: "harness" })
       .configureHostConnection((connection) => {
@@ -112,6 +113,7 @@ describe("AnsightOptionsBuilder", () => {
       quality: 75,
       maxWidth: null,
       captureGpuBackedSurfaces: false,
+      captureKeyboardPresence: true,
       mode: "screenshotWithVisualTreeOnTouch",
     });
     expect(options.hostConnection).toEqual({

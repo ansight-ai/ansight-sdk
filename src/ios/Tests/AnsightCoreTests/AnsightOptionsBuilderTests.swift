@@ -39,6 +39,7 @@ final class AnsightOptionsBuilderTests: XCTestCase {
         XCTAssertEqual(options.sessionJpegCapture?.quality, 60)
         XCTAssertEqual(options.sessionJpegCapture?.maxWidth, 480)
         XCTAssertEqual(options.sessionJpegCapture?.captureGpuBackedSurfaces, true)
+        XCTAssertEqual(options.sessionJpegCapture?.captureKeyboardPresence, false)
         XCTAssertEqual(options.sessionJpegCapture?.mode, .screenshotOnly)
         XCTAssertEqual(options.touchCapture?.moveCaptureFramesPerSecond, 12)
         XCTAssertEqual(options.toolGuard, .readWrite)
@@ -85,6 +86,14 @@ final class AnsightOptionsBuilderTests: XCTestCase {
             .build()
 
         XCTAssertEqual(options.sessionJpegCapture?.captureGpuBackedSurfaces, false)
+    }
+
+    func testBuilderCanOptIntoKeyboardPresenceCapture() throws {
+        let options = try AnsightOptions.createBuilder()
+            .withSessionJpegCapture(captureKeyboardPresence: true)
+            .build()
+
+        XCTAssertEqual(options.sessionJpegCapture?.captureKeyboardPresence, true)
     }
 
     func testBuilderCanCaptureScreenshotAndVisualTree() throws {
@@ -139,6 +148,7 @@ final class AnsightOptionsBuilderTests: XCTestCase {
 
         XCTAssertNil(options.maxWidth)
         XCTAssertEqual(options.captureGpuBackedSurfaces, true)
+        XCTAssertEqual(options.captureKeyboardPresence, false)
         XCTAssertEqual(options.mode, .screenshotOnly)
     }
 

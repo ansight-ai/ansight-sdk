@@ -233,6 +233,15 @@ native platform runtime, while the Android JNI count comes from Java.Interop's
 tracked global references and is recorded into the native telemetry channel.
 Matching `Without...` methods support copied or reused builders.
 
+Android builds using `WithAnsightSdk()` also register
+`jni_references.capture_graph`. Lower-level Android integrations can register
+it explicitly with `WithJniReferenceDiagnosticsTools()`. The tool returns a
+bounded, redacted JNI-rooted object graph; it does not return object addresses
+or field values. Studio promotes the full result to a timeline artifact. JNI
+reference-count telemetry remains the lightweight path for continuous
+monitoring, while graph capture is an explicit, potentially expensive heap
+diagnostic that briefly pauses the app.
+
 ```csharp
 var sink = Runtime.Instance.DataSink;
 

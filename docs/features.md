@@ -61,6 +61,7 @@ Capacitor, or Flutter.
 | GPU-backed surface capture option | Accepted for parity | Accepted for parity | Yes | Native; meaningful on iOS | Native; meaningful on iOS | Native; meaningful on iOS |
 | Studio-owned simulator/emulator screenshots | Yes | Yes | Yes | Native | Native | Native |
 | Touch capture and runtime enable/disable | Yes | Yes | Yes | Native | Native | Native |
+| Opt-in per-frame on-screen keyboard presence metadata | Yes | Yes | Yes | Native | Native | Native |
 | Touch-capture app guard | Yes | Yes | Yes | Native toggle; JS policy is app-owned | Native toggle; JS policy is app-owned | Native toggle; Dart policy is app-owned |
 | Native visual-tree providers | Yes | Yes | Yes | Native plus a React provider | Native plus a DOM provider | Native |
 | App-provided visual-tree sources | Yes | Yes | Yes | Native code can register providers; React inspection uses separate `react.*` tools | Native hierarchy plus `dom.*` WebView tools | Native code can register providers |
@@ -106,6 +107,7 @@ guards progressively expose `Read`, `Write`, and `Delete` scopes.
 | Visual tree, screenshot, inspection, and overlays (`ui.*`) | Yes | Yes | Yes | Native | Native |
 | Sandboxed files and binary download (`files.*`) | Yes | Yes | Yes | Native | Native |
 | File-descriptor diagnostics (`file_descriptors.*`) | No | Yes | Yes | Native aggregate defaults | Native aggregate defaults |
+| JNI reference graph (`jni_references.capture_graph`) | Android target | Yes | No | Android native bridge | Android native bridge |
 | Preferences (`prefs.*`) | Yes | Yes | Yes | Native | Native |
 | Secure storage (`secure.*`) | Yes | Yes | Yes | Native | Native |
 | SQLite discovery/schema/read query (`data.*`) | Yes | Yes | Yes | Native | Native |

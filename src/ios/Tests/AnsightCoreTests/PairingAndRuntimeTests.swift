@@ -434,11 +434,39 @@ final class PairingAndRuntimeTests: XCTestCase {
 
         XCTAssertEqual(payload.count, SessionJpegWireProtocol.headerSize + jpegData.count)
         XCTAssertEqual(Array(payload[0..<7]), [0x41, 0x53, 0x4A, 0x50, 1, 1, 70])
+        XCTAssertEqual(payload[7], 0)
         XCTAssertEqual(readInt64(payload, at: 8), 1_234)
         XCTAssertEqual(readInt32(payload, at: 16), 320)
         XCTAssertEqual(readInt32(payload, at: 20), 568)
         XCTAssertEqual(readInt32(payload, at: 24), Int32(jpegData.count))
         XCTAssertEqual(payload[SessionJpegWireProtocol.headerSize..<payload.count], jpegData[0..<jpegData.count])
+    }
+
+    func testSessionJpegWireProtocolEncodesKeyboardPresenceFlags() {
+        let absentFrame = AnsightCapturedScreenFrame(
+            capturedAtUtc: "1970-01-01T00:00:01.234Z",
+            capturedAtEpochMilliseconds: 1_234,
+            width: 1,
+            height: 1,
+            quality: 60,
+            keyboardPresent: false,
+            jpegData: Data()
+        )
+        let presentFrame = AnsightCapturedScreenFrame(
+            capturedAtUtc: "1970-01-01T00:00:01.234Z",
+            capturedAtEpochMilliseconds: 1_234,
+            width: 1,
+            height: 1,
+            quality: 60,
+            keyboardPresent: true,
+            jpegData: Data()
+        )
+
+        XCTAssertEqual(SessionJpegWireProtocol.encode(absentFrame)[7], SessionJpegWireProtocol.keyboardPresenceKnownFlag)
+        XCTAssertEqual(
+            SessionJpegWireProtocol.encode(presentFrame)[7],
+            SessionJpegWireProtocol.keyboardPresenceKnownFlag | SessionJpegWireProtocol.keyboardPresentFlag
+        )
     }
 
     func testParseDocumentAcceptsPairingConfigDocumentPayload() throws {

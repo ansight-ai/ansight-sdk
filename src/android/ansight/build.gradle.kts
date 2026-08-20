@@ -5,7 +5,7 @@ plugins {
 }
 
 group = providers.gradleProperty("ansightAndroidGroup").orElse("ai.ansight").get()
-version = providers.gradleProperty("ansightAndroidVersion").orElse("1.3.0-preview.5").get()
+version = providers.gradleProperty("ansightAndroidVersion").orElse("1.3.0-preview.8").get()
 
 android {
     namespace = "ai.ansight"
@@ -38,6 +38,7 @@ dependencies {
     api(project(":ansight-tools-visualtree"))
     api(project(":ansight-tools-filesystem"))
     api(project(":ansight-tools-file-descriptor-diagnostics"))
+    api(project(":ansight-tools-jni-reference-diagnostics"))
     api(project(":ansight-tools-preferences"))
     api(project(":ansight-tools-securestorage"))
     api(project(":ansight-tools-database"))

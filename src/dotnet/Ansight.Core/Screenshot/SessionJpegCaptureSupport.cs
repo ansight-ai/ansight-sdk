@@ -7,6 +7,8 @@ namespace Ansight.Screenshot;
 internal interface ISessionJpegCaptureSurface : IDisposable
 {
     DateTimeOffset CapturedAtUtc { get; }
+
+    bool? KeyboardPresent { get; }
 }
 
 internal static partial class SessionJpegCaptureSupport

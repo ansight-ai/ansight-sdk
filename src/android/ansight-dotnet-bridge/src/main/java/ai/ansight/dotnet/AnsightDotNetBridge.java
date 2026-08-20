@@ -31,6 +31,7 @@ import ai.ansight.runtime.HostConnectionStatus;
 import ai.ansight.runtime.OperationResult;
 import ai.ansight.runtime.RecordedEvent;
 import ai.ansight.runtime.RecordedMetric;
+import ai.ansight.tools.jnireferencediagnostics.AndroidJniReferenceDiagnostics;
 
 /**
  * Stable Java surface consumed by the .NET Android binding.
@@ -302,6 +303,23 @@ public final class AnsightDotNetBridge {
         return operationResultJson(AnsightRuntime.INSTANCE.captureScreenFrame(null)).toString();
     }
 
+    public static String captureJniReferenceGraph(
+        Application application,
+        int maximumNodes,
+        int maximumEdges,
+        int maximumDepth
+    ) {
+        if (application == null) {
+            throw new IllegalArgumentException("application must not be null");
+        }
+        return AndroidJniReferenceDiagnostics.captureGraph(
+            application,
+            maximumNodes,
+            maximumEdges,
+            maximumDepth
+        );
+    }
+
     public static String sendControlRequest(String action, String payloadJson) throws JSONException {
         JSONObject payload = normalize(payloadJson) == null
             ? null
@@ -407,7 +425,8 @@ public final class AnsightDotNetBridge {
                     ? Integer.valueOf(sessionJpegCapture.getInt("maxWidth"))
                     : null,
                 sessionJpegCapture.optBoolean("captureGpuBackedSurfaces", true),
-                sessionJpegCaptureMode(sessionJpegCapture.optString("mode"))
+                sessionJpegCaptureMode(sessionJpegCapture.optString("mode")),
+                sessionJpegCapture.optBoolean("captureKeyboardPresence", false)
             );
         }
 

@@ -1117,7 +1117,12 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
             ),
             mode: AnsightSessionJpegCaptureMode(
                 rawValue: stringValue(value, "mode") ?? ""
-            ) ?? .screenshotOnly
+            ) ?? .screenshotOnly,
+            captureKeyboardPresence: boolValue(
+                value,
+                "captureKeyboardPresence",
+                defaultValue: AnsightSessionJpegCaptureOptions.defaultCaptureKeyboardPresence
+            )
         )
     }
 

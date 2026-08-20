@@ -7,6 +7,8 @@ import ai.ansight.tools.filedescriptordiagnostics.FileDescriptorDiagnosticsToolI
 import ai.ansight.tools.filedescriptordiagnostics.withFileDescriptorDiagnosticsTools
 import ai.ansight.tools.filesystem.FileSystemToolIds
 import ai.ansight.tools.filesystem.withFileSystemTools
+import ai.ansight.tools.jnireferencediagnostics.JniReferenceDiagnosticsToolIds
+import ai.ansight.tools.jnireferencediagnostics.withJniReferenceDiagnosticsTools
 import ai.ansight.tools.preferences.PreferencesToolIds
 import ai.ansight.tools.preferences.withPreferencesTools
 import ai.ansight.tools.reflection.ReflectionToolIds
@@ -54,6 +56,9 @@ fun AnsightOptionsBuilder.withAnsightRemoteTools(): AnsightOptionsBuilder {
     }
     if (!containsAnyTool(fileDescriptorDiagnosticsSuiteToolIds)) {
         withFileDescriptorDiagnosticsTools()
+    }
+    if (!containsAnyTool(jniReferenceDiagnosticsSuiteToolIds)) {
+        withJniReferenceDiagnosticsTools()
     }
     if (!containsAnyTool(preferencesSuiteToolIds)) {
         withPreferencesTools()
@@ -107,6 +112,10 @@ private val fileDescriptorDiagnosticsSuiteToolIds = listOf(
     FileDescriptorDiagnosticsToolIds.CountOpen,
     FileDescriptorDiagnosticsToolIds.Inspect,
     FileDescriptorDiagnosticsToolIds.GetUsage,
+)
+
+private val jniReferenceDiagnosticsSuiteToolIds = listOf(
+    JniReferenceDiagnosticsToolIds.CaptureGraph,
 )
 
 private val preferencesSuiteToolIds = listOf(

@@ -341,6 +341,13 @@ WebSocket binary messages use four-byte magic values:
 - `ASFT` for `ansight.file-transfer.v1` tool and artifact transfers.
 - `ASJP` for live JPEG screenshot frames.
 
+`ASJP` version 1 uses a 28-byte header. Byte 7 is a flags field. Bit 0
+(`0x01`) means keyboard presence is known for the frame, and bit 1 (`0x02`)
+means the on-screen keyboard was present. A zero flags byte, including frames
+from older SDKs and frames captured without explicit keyboard-presence opt-in,
+means keyboard presence is unknown rather than absent. Hosts must only read bit
+1 when bit 0 is set and must ignore unrecognized flag bits.
+
 ## Remote Tool Protocol
 
 The host can query registered tools and invoke tools permitted by the SDK's

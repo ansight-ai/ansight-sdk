@@ -27,6 +27,7 @@ import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup
 import android.view.Window
+import android.view.WindowInsets
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.text.method.PasswordTransformationMethod
@@ -76,6 +77,7 @@ data class CapturedScreenshot(
     val height: Int,
     val mimeType: String,
     val fileName: String,
+    val keyboardPresent: Boolean? = null,
 )
 
 object AndroidUiEvidence {
@@ -137,8 +139,15 @@ object AndroidUiEvidence {
         format: String = "jpeg",
         quality: Int = AnsightSessionJpegCaptureOptions.DefaultQuality,
         maxWidth: Int? = AnsightSessionJpegCaptureOptions.DefaultMaxWidth,
+        captureKeyboardPresence: Boolean = AnsightSessionJpegCaptureOptions.DefaultCaptureKeyboardPresence,
     ): CapturedScreenshot {
-        return captureScreenshot(format, quality, maxWidth, reuseStreamBitmap = true)
+        return captureScreenshot(
+            format,
+            quality,
+            maxWidth,
+            reuseStreamBitmap = true,
+            captureKeyboardPresence = captureKeyboardPresence,
+        )
     }
 
     fun releaseSessionScreenshotResources() {
@@ -150,7 +159,13 @@ object AndroidUiEvidence {
         }
     }
 
-    private fun captureScreenshot(format: String, quality: Int, maxWidth: Int?, reuseStreamBitmap: Boolean): CapturedScreenshot {
+    private fun captureScreenshot(
+        format: String,
+        quality: Int,
+        maxWidth: Int?,
+        reuseStreamBitmap: Boolean,
+        captureKeyboardPresence: Boolean = false,
+    ): CapturedScreenshot {
         return runOnMain {
             val activity = currentActivity.get() ?: bindCurrentActivity() ?: error("No resumed Android activity is available for screenshot capture.")
             val activityRoot = activity.window.decorView.rootView ?: error("No Android root view is available for screenshot capture.")
@@ -204,6 +219,7 @@ object AndroidUiEvidence {
                     height = height,
                     mimeType = mimeType,
                     fileName = "ansight-android-${System.currentTimeMillis()}.$extension",
+                    keyboardPresent = if (captureKeyboardPresence) keyboardPresent(activityRoot) else null,
                 )
             } finally {
                 if (!reuseStreamBitmap) {
@@ -211,6 +227,29 @@ object AndroidUiEvidence {
                 }
             }
         }
+    }
+
+    private fun keyboardPresent(rootView: View): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val windowInsets = rootView.rootWindowInsets
+            if (windowInsets != null) {
+                return windowInsets.isVisible(WindowInsets.Type.ime())
+            }
+        }
+
+        val visibleFrame = Rect()
+        rootView.getWindowVisibleDisplayFrame(visibleFrame)
+        val rootHeight = rootView.rootView.height
+        if (rootHeight <= 0) {
+            return false
+        }
+
+        val obscuredHeight = (rootHeight - visibleFrame.bottom).coerceAtLeast(0)
+        val minimumKeyboardHeight = maxOf(
+            (100 * rootView.resources.displayMetrics.density).toInt(),
+            (rootHeight * 0.15f).toInt(),
+        )
+        return obscuredHeight > minimumKeyboardHeight
     }
 
     private fun copyActivityWindowPixels(window: Window, destination: Bitmap): Boolean {
@@ -395,10 +434,25 @@ object AndroidUiEvidence {
     fun visualTree(maxDepth: Int = 40, maxNodes: Int = 2_000): JSONObject {
         return runOnMain {
             val activity = currentActivity.get() ?: bindCurrentActivity() ?: error("No resumed Android activity is available for visual tree capture.")
-            val root = activity.window.decorView.rootView ?: error("No Android root view is available for visual tree capture.")
+            val activityRoot = activity.window.decorView.rootView ?: error("No Android root view is available for visual tree capture.")
+            val windowTargets = captureTargets(activity)
             val counter = NodeCounter(maxNodes.coerceAtLeast(1))
             val typeRegistry = VisualTreeTypeRegistry()
-            val rootNode = serializeView(root, "0", 0, maxDepth.coerceAtLeast(1), counter, typeRegistry)
+            val rootNode = serializeWindowTargets(
+                windowTargets.ifEmpty {
+                    listOf(
+                        WindowCaptureTarget(
+                            view = activityRoot,
+                            boundsInScreen = activityRoot.boundsInScreen(),
+                            isActivityWindow = true,
+                            zIndex = 0,
+                        ),
+                    )
+                },
+                maxDepth.coerceAtLeast(1),
+                counter,
+                typeRegistry,
+            )
             JSONObject()
                 .put("platform", "android")
                 .put("source", "native")
@@ -411,6 +465,64 @@ object AndroidUiEvidence {
                 .put("truncated", counter.truncated)
                 .put("nodeCount", counter.count)
         }
+    }
+
+    private fun serializeWindowTargets(
+        targets: List<WindowCaptureTarget>,
+        maxDepth: Int,
+        counter: NodeCounter,
+        typeRegistry: VisualTreeTypeRegistry,
+    ): JSONObject {
+        if (targets.size == 1) {
+            return serializeView(targets[0].view, "window.0", 0, maxDepth, counter, typeRegistry)
+        }
+
+        if (!counter.tryEnter()) {
+            return JSONObject()
+                .put("id", "windows")
+                .put("typeId", typeRegistry.typeId("android.view.WindowRoots"))
+                .put("truncated", true)
+        }
+
+        val left = targets.minOf { it.boundsInScreen.left }
+        val top = targets.minOf { it.boundsInScreen.top }
+        val right = targets.maxOf { it.boundsInScreen.right }
+        val bottom = targets.maxOf { it.boundsInScreen.bottom }
+        val children = JSONArray()
+        targets.forEachIndexed { index, target ->
+            children.put(
+                serializeView(
+                    target.view,
+                    "window.$index",
+                    1,
+                    maxDepth,
+                    counter,
+                    typeRegistry,
+                ),
+            )
+        }
+
+        return JSONObject()
+            .put("id", "windows")
+            .put("typeId", typeRegistry.typeId("android.view.WindowRoots"))
+            .put("label", "Android windows")
+            .put("role", "group")
+            .put("supportedActions", JSONArray())
+            .put("interactable", false)
+            .put("visible", true)
+            .put("enabled", true)
+            .put("focused", false)
+            .put(
+                "bounds",
+                JSONObject()
+                    .put("x", left)
+                    .put("y", top)
+                    .put("width", (right - left).coerceAtLeast(0))
+                    .put("height", (bottom - top).coerceAtLeast(0)),
+            )
+            .put("visual", JSONObject().put("opacity", 1.0))
+            .put("importantForAccessibility", View.IMPORTANT_FOR_ACCESSIBILITY_NO)
+            .put("children", children)
     }
 
     fun inspectNode(nodeId: String): JSONObject {

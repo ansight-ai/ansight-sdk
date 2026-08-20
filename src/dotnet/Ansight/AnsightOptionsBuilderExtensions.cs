@@ -2,6 +2,9 @@ namespace Ansight;
 
 using Ansight.Tools.Database;
 using Ansight.Tools.FileSystem;
+#if ANDROID
+using Ansight.Tools.JniReferenceDiagnostics;
+#endif
 using Ansight.Tools.Preferences;
 using Ansight.Tools.Reflection;
 using Ansight.Tools.SecureStorage;
@@ -112,6 +115,13 @@ public static class AnsightOptionsBuilderExtensions
             builder = builder.WithFileSystemTools();
         }
 
+#if ANDROID
+        if (!ContainsAnyTool(builder, jniReferenceDiagnosticsSuiteToolIds))
+        {
+            builder = builder.WithJniReferenceDiagnosticsTools();
+        }
+#endif
+
         if (!ContainsAnyTool(builder, preferencesSuiteToolIds))
         {
             builder = builder.WithPreferencesTools();
@@ -178,6 +188,13 @@ public static class AnsightOptionsBuilderExtensions
         FileSystemToolIds.MoveFile,
         FileSystemToolIds.DeleteFile
     ];
+
+#if ANDROID
+    private static readonly string[] jniReferenceDiagnosticsSuiteToolIds =
+    [
+        JniReferenceDiagnosticsToolIds.CaptureGraph
+    ];
+#endif
 
     private static readonly string[] preferencesSuiteToolIds =
     [

@@ -8,6 +8,9 @@ enum AnsightScreenCapture {
     static func capture(options: AnsightSessionJpegCaptureOptions) async throws -> AnsightScreenCaptureResult {
         #if canImport(UIKit)
         let capturedAtUtc = AnsightClock.isoNow()
+        let keyboardPresent = options.captureKeyboardPresence
+            ? await AnsightKeyboardPresenceTracker.shared.currentPresence()
+            : nil
         let renderStarted = AnsightTiming.now()
         let renderedImage = try await AnsightScreenSnapshotRenderer.renderTargetImageForCapture(
             maxWidth: options.maxWidth,
@@ -37,6 +40,7 @@ enum AnsightScreenCapture {
             width: renderedImage.width,
             height: renderedImage.height,
             quality: options.quality,
+            keyboardPresent: keyboardPresent,
             jpegData: jpegData
         )
 

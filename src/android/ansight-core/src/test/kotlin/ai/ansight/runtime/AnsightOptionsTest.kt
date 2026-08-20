@@ -107,6 +107,7 @@ class AnsightOptionsTest {
         assertEquals(60, options.sessionJpegCapture?.quality)
         assertEquals(480, options.sessionJpegCapture?.maxWidth)
         assertEquals(true, options.sessionJpegCapture?.captureGpuBackedSurfaces)
+        assertEquals(false, options.sessionJpegCapture?.captureKeyboardPresence)
         assertEquals(AnsightSessionJpegCaptureMode.ScreenshotOnly, options.sessionJpegCapture?.mode)
         assertNotNull(options.touchCapture)
     }
@@ -204,6 +205,15 @@ class AnsightOptionsTest {
             .build()
 
         assertEquals(false, options.sessionJpegCapture?.captureGpuBackedSurfaces)
+    }
+
+    @Test
+    fun builderCanOptIntoKeyboardPresenceCapture() {
+        val options = AnsightOptions.createBuilder()
+            .withSessionJpegCapture(captureKeyboardPresence = true)
+            .build()
+
+        assertEquals(true, options.sessionJpegCapture?.captureKeyboardPresence)
     }
 
     @Test

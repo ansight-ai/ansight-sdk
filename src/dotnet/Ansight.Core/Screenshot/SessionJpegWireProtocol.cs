@@ -5,6 +5,8 @@ namespace Ansight.Screenshot;
 internal static class SessionJpegWireProtocol
 {
     internal const int HeaderSize = 28;
+    internal const byte KeyboardPresenceKnownFlag = 1 << 0;
+    internal const byte KeyboardPresentFlag = 1 << 1;
     private const byte Version = 1;
     private const byte FormatJpeg = 1;
 
@@ -14,7 +16,8 @@ internal static class SessionJpegWireProtocol
         int width,
         int height,
         int quality,
-        int jpegByteCount)
+        int jpegByteCount,
+        bool? keyboardPresent = null)
     {
         if (header.Length < HeaderSize)
         {
@@ -28,7 +31,12 @@ internal static class SessionJpegWireProtocol
         header[4] = Version;
         header[5] = FormatJpeg;
         header[6] = checked((byte)quality);
-        header[7] = 0;
+        header[7] = keyboardPresent switch
+        {
+            null => 0,
+            false => KeyboardPresenceKnownFlag,
+            true => KeyboardPresenceKnownFlag | KeyboardPresentFlag
+        };
         BinaryPrimitives.WriteInt64LittleEndian(header[8..16], capturedAtUtc.ToUnixTimeMilliseconds());
         BinaryPrimitives.WriteInt32LittleEndian(header[16..20], width);
         BinaryPrimitives.WriteInt32LittleEndian(header[20..24], height);

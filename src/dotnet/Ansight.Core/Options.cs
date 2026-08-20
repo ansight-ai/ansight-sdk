@@ -293,6 +293,7 @@ public class Options
                         Quality = initialOptions.SessionJpegCapture.Quality,
                         MaxWidth = initialOptions.SessionJpegCapture.MaxWidth,
                         CaptureGpuBackedSurfaces = initialOptions.SessionJpegCapture.CaptureGpuBackedSurfaces,
+                        CaptureKeyboardPresence = initialOptions.SessionJpegCapture.CaptureKeyboardPresence,
                         Mode = initialOptions.SessionJpegCapture.Mode
                     },
                 TouchCapture = initialOptions.TouchCapture?.Clone(),
@@ -592,6 +593,7 @@ public class Options
                 Quality = quality,
                 MaxWidth = maxWidth,
                 CaptureGpuBackedSurfaces = true,
+                CaptureKeyboardPresence = false,
                 Mode = mode
             };
             return this;
@@ -608,12 +610,16 @@ public class Options
         /// Whether supported Apple platforms should include GPU-backed surfaces using the higher-overhead capture path.
         /// </param>
         /// <param name="mode">Selects screenshot-only or screenshot-and-visual-tree capture.</param>
+        /// <param name="captureKeyboardPresence">
+        /// Whether replay frames should include opt-in on-screen keyboard presence metadata.
+        /// </param>
         public OptionsBuilder WithSessionJpegCapture(
             ushort intervalMilliseconds,
             int quality,
             int? maxWidth,
             bool captureGpuBackedSurfaces,
-            SessionJpegCaptureMode mode = SessionJpegCaptureMode.ScreenshotOnly)
+            SessionJpegCaptureMode mode = SessionJpegCaptureMode.ScreenshotOnly,
+            bool captureKeyboardPresence = false)
         {
             options.SessionJpegCapture = new SessionJpegCaptureOptions
             {
@@ -621,6 +627,7 @@ public class Options
                 Quality = quality,
                 MaxWidth = maxWidth,
                 CaptureGpuBackedSurfaces = captureGpuBackedSurfaces,
+                CaptureKeyboardPresence = captureKeyboardPresence,
                 Mode = mode
             };
             return this;
@@ -640,6 +647,7 @@ public class Options
                 Quality = sessionJpegCapture.Quality,
                 MaxWidth = sessionJpegCapture.MaxWidth,
                 CaptureGpuBackedSurfaces = sessionJpegCapture.CaptureGpuBackedSurfaces,
+                CaptureKeyboardPresence = sessionJpegCapture.CaptureKeyboardPresence,
                 Mode = sessionJpegCapture.Mode
             };
             return this;

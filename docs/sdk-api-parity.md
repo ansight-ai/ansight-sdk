@@ -19,6 +19,7 @@ matrix, including framework-specific and .NET-only workflows.
 | Visual tree tools | `Ansight.Tools.VisualTree` | `ai.ansight:ansight-tools-visualtree-android` | `AnsightToolsVisualTree` | Native tools plus React tools | Native tools plus DOM tools |
 | File tools | `Ansight.Tools.FileSystem` | `ai.ansight:ansight-tools-filesystem-android` | `AnsightToolsFileSystem` | Native bridge | Native bridge |
 | File descriptor diagnostics | — | `ai.ansight:ansight-tools-filedescriptordiagnostics-android` | `AnsightToolsFileDescriptorDiagnostics` | Native aggregate defaults | Native aggregate defaults |
+| JNI reference diagnostics | `Ansight.Core` (Android target) | `ai.ansight:ansight-tools-jnireferencediagnostics-android` | — | Android native bridge | Android native bridge |
 | Preferences tools | `Ansight.Tools.Preferences` | `ai.ansight:ansight-tools-preferences-android` | `AnsightToolsPreferences` | Native bridge | Native bridge |
 | Secure storage tools | `Ansight.Tools.SecureStorage` | `ai.ansight:ansight-tools-securestorage-android` | `AnsightToolsSecureStorage` | Native bridge | Native bridge |
 | Database tools | `Ansight.Tools.Database` | `ai.ansight:ansight-tools-database-android` | `AnsightToolsDatabase` | Native bridge | Native bridge |
@@ -399,6 +400,7 @@ framework-specific.
 | Visual tree | `ui.get_visual_tree`, `ui.get_screenshot`, `ui.inspect_node`, `ui.show_overlay`, `ui.get_overlay`, `ui.query_overlays`, `ui.update_overlay`, `ui.remove_overlay`, `ui.clear_overlays` |
 | Files | `files.list_directory`, `files.read_file`, `files.get_file_checksum`, `files.download_file`, `files.begin_binary_download`, `files.push_file`, `files.copy_file`, `files.move_file`, `files.delete_file` |
 | File descriptor diagnostics | `file_descriptors.list_open`, `file_descriptors.count_open`, `file_descriptors.inspect`, `file_descriptors.get_usage` |
+| JNI reference diagnostics | `jni_references.capture_graph` |
 | Preferences | `prefs.list_keys`, `prefs.get_value`, `prefs.set_value`, `prefs.remove_key` |
 | Secure storage | `secure.get_value`, `secure.set_value`, `secure.remove_key` |
 | Database | `data.list_databases`, `data.describe_schema`, `data.query` |
@@ -433,6 +435,7 @@ Tool-suite registration follows the same app-code convention:
 | Visual tree | `WithVisualTreeTools()` | `withVisualTreeTools()` | `registerVisualTreeTools()` | native default plus `installReactTools(...)` |
 | Files | `WithFileSystemTools(...)` | `withFileSystemTools { addRoot(...) }` | `AnsightFileSystemToolsOptions.createBuilder()` | `remoteTools.fileSystem` |
 | File descriptor diagnostics | — | `withFileDescriptorDiagnosticsTools { includeTargets(...) }` | `registerFileDescriptorDiagnosticsTools(options:)` | Native bridge |
+| JNI reference diagnostics | `WithJniReferenceDiagnosticsTools()` (Android) | `withJniReferenceDiagnosticsTools { maximumGraphNodes(...) }` | — | Android native bridge |
 | Preferences | `WithPreferencesTools(...)` | `withPreferencesTools { allowKey(...) }` | `AnsightPreferencesToolOptions.createBuilder()` | `remoteTools.preferences` |
 | Secure storage | `WithSecureStorageTools(...)` | `withSecureStorageTools { allowKey(...) }` | `AnsightSecureStorageToolsOptions.createBuilder()` | `remoteTools.secureStorage` |
 | Database | `WithDatabaseTools()` | `withDatabaseTools { includePlatformRoots(...) }` | `AnsightDatabaseToolsOptions.createBuilder()` | `remoteTools.database` |

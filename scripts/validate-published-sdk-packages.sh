@@ -114,6 +114,7 @@ for artifact in \
   ansight-pairing-android \
   ansight-tools-visualtree-android \
   ansight-tools-filedescriptordiagnostics-android \
+  ansight-tools-jnireferencediagnostics-android \
   ansight-tools-filesystem-android \
   ansight-tools-preferences-android \
   ansight-tools-securestorage-android \

@@ -38,6 +38,12 @@ public sealed class SessionJpegCaptureOptions
     public bool CaptureGpuBackedSurfaces { get; set; } = true;
 
     /// <summary>
+    /// Captures whether the on-screen keyboard was present when each replay frame was recorded.
+    /// This is disabled by default and records presence only; keyboard contents and dimensions are not collected.
+    /// </summary>
+    public bool CaptureKeyboardPresence { get; set; } = false;
+
+    /// <summary>
     /// Selects whether visual-tree snapshots are omitted, captured with each screenshot, or captured around touch gestures.
     /// </summary>
     public SessionJpegCaptureMode Mode { get; set; } = SessionJpegCaptureMode.ScreenshotOnly;

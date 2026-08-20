@@ -91,14 +91,16 @@ public final class AnsightOptionsBuilder {
         quality: Int = AnsightSessionJpegCaptureOptions.defaultQuality,
         maxWidth: Int? = AnsightSessionJpegCaptureOptions.defaultMaxWidth,
         captureGpuBackedSurfaces: Bool = AnsightSessionJpegCaptureOptions.defaultCaptureGpuBackedSurfaces,
-        mode: AnsightSessionJpegCaptureMode = AnsightSessionJpegCaptureOptions.defaultMode
+        mode: AnsightSessionJpegCaptureMode = AnsightSessionJpegCaptureOptions.defaultMode,
+        captureKeyboardPresence: Bool = AnsightSessionJpegCaptureOptions.defaultCaptureKeyboardPresence
     ) -> AnsightOptionsBuilder {
         options.sessionJpegCapture = AnsightSessionJpegCaptureOptions(
             intervalMilliseconds: intervalMilliseconds,
             quality: quality,
             maxWidth: maxWidth,
             captureGpuBackedSurfaces: captureGpuBackedSurfaces,
-            mode: mode
+            mode: mode,
+            captureKeyboardPresence: captureKeyboardPresence
         )
         return self
     }

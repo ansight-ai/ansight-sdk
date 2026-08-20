@@ -3,7 +3,7 @@ plugins {
 }
 
 group = providers.gradleProperty("ansightAndroidGroup").orElse("ai.ansight").get()
-version = providers.gradleProperty("ansightAndroidVersion").orElse("1.3.0-preview.5").get()
+version = providers.gradleProperty("ansightAndroidVersion").orElse("1.3.0-preview.8").get()
 
 android {
     namespace = "ai.ansight.dotnet"
@@ -22,4 +22,5 @@ android {
 
 dependencies {
     implementation(project(":ansight-core"))
+    implementation(project(":ansight-tools-jni-reference-diagnostics"))
 }

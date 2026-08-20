@@ -976,7 +976,12 @@ final class AnsightReactNative: RCTEventEmitter {
                     ),
                     mode: AnsightSessionJpegCaptureMode(
                         rawValue: stringValue(jpeg, "mode") ?? ""
-                    ) ?? .screenshotOnly
+                    ) ?? .screenshotOnly,
+                    captureKeyboardPresence: boolValue(
+                        jpeg,
+                        "captureKeyboardPresence",
+                        defaultValue: AnsightSessionJpegCaptureOptions.defaultCaptureKeyboardPresence
+                    )
                 )
             }
         }
@@ -1320,7 +1325,12 @@ final class AnsightReactNative: RCTEventEmitter {
             ),
             mode: AnsightSessionJpegCaptureMode(
                 rawValue: stringValue(dictionary, "mode") ?? ""
-            ) ?? .screenshotOnly
+            ) ?? .screenshotOnly,
+            captureKeyboardPresence: boolValue(
+                dictionary,
+                "captureKeyboardPresence",
+                defaultValue: AnsightSessionJpegCaptureOptions.defaultCaptureKeyboardPresence
+            )
         )
     }
 
@@ -1371,6 +1381,7 @@ final class AnsightReactNative: RCTEventEmitter {
                 "quality": capture.quality,
                 "maxWidth": capture.maxWidth as Any,
                 "captureGpuBackedSurfaces": capture.captureGpuBackedSurfaces,
+                "captureKeyboardPresence": capture.captureKeyboardPresence,
                 "mode": capture.mode.rawValue,
             ]
         } else {
