@@ -1,3 +1,8 @@
+## 1.3.0-preview.9
+
+- Align native dependencies with the synchronized SDK hotfix that prevents
+  duplicate Okio bytecode in .NET Android applications.
+
 ## 1.3.0-preview.8
 
 - Add opt-in keyboard-presence metadata to session JPEG capture on Android and

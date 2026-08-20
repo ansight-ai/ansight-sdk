@@ -5,7 +5,7 @@ plugins {
 }
 
 group = providers.gradleProperty("ansightAndroidGroup").orElse("ai.ansight").get()
-version = providers.gradleProperty("ansightAndroidVersion").orElse("1.3.0-preview.8").get()
+version = providers.gradleProperty("ansightAndroidVersion").orElse("1.3.0-preview.9").get()
 
 android {
     namespace = "ai.ansight.tools.visualtree"

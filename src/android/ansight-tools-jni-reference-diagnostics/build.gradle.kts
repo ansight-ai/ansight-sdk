@@ -5,7 +5,7 @@ plugins {
 }
 
 group = providers.gradleProperty("ansightAndroidGroup").orElse("ai.ansight").get()
-version = providers.gradleProperty("ansightAndroidVersion").orElse("1.3.0-preview.8").get()
+version = providers.gradleProperty("ansightAndroidVersion").orElse("1.3.0-preview.9").get()
 
 android {
     namespace = "ai.ansight.tools.jnireferencediagnostics"
@@ -37,13 +37,15 @@ val dotnetRuntimeDependencies by configurations.creating
 dependencies {
     api(project(":ansight-core"))
     implementation("com.squareup.leakcanary:shark-graph:2.14")
-    dotnetRuntimeDependencies("com.squareup.leakcanary:shark-graph:2.14")
+    dotnetRuntimeDependencies("com.squareup.leakcanary:shark-graph:2.14") {
+        exclude(group = "com.squareup.okio", module = "okio")
+    }
     testImplementation("junit:junit:4.13.2")
 }
 
-val copyDotnetRuntimeDependencies by tasks.registering(Copy::class) {
+val copyDotnetRuntimeDependencies by tasks.registering(Sync::class) {
     from(dotnetRuntimeDependencies)
-    include("shark-*.jar", "okio-*.jar")
+    include("shark-*.jar")
     into(layout.buildDirectory.dir("dotnet-runtime"))
 }
 
