@@ -14,7 +14,7 @@ Add the package to `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  ansight_flutter: ^1.3.0-preview.9
+  ansight_flutter: ^1.3.0-preview.10
 ```
 
 Then fetch dependencies:

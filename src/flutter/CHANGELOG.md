@@ -1,3 +1,10 @@
+## 1.3.0-preview.10
+
+- Capture touch-triggered visual trees only on touch down and touch up across
+  all native runtimes; move and cancel events no longer trigger capture.
+- Include every top-level Android window root in managed visual-tree snapshots.
+- Align Flutter's native dependencies with the synchronized SDK release.
+
 ## 1.3.0-preview.9
 
 - Align native dependencies with the synchronized SDK hotfix that prevents
