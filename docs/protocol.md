@@ -311,25 +311,25 @@ the trigger:
   "source": "sdk.touchCapture",
   "captureTrigger": "touch",
   "gestureId": "gesture-37f5...",
-  "gesturePhase": "checkpoint",
-  "touchAction": "move",
+  "gesturePhase": "ended",
+  "touchAction": "up",
   "touchCapturedAtUtc": "2026-08-13T00:00:00.120Z",
   "payload": {
     "captureTrigger": {
       "kind": "touch",
       "gestureId": "gesture-37f5...",
-      "gesturePhase": "checkpoint",
-      "touchAction": "move",
+      "gesturePhase": "ended",
+      "touchAction": "up",
       "touchCapturedAtUtc": "2026-08-13T00:00:00.120Z"
     }
   }
 }
 ```
 
-The phases are `started`, `checkpoint`, `ended`, and `cancelled`. Current SDKs
-capture at the leading down, every 250 ms while any pointer in the gesture is
-active, and at the terminal up or cancel. Checkpoints are coalesced when a tree
-capture is slower than the interval.
+Current SDKs capture only on touch down and touch up. The first down in a
+gesture uses phase `started`, the final up uses `ended`, and additional pointer
+downs or non-terminal pointer ups use `checkpoint`. Move and cancel events do
+not trigger visual-tree capture.
 
 These streams are fire-and-forget. Session and tool operations use correlated
 request/response envelopes.

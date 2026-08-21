@@ -6,8 +6,7 @@ internal enum TouchVisualTreeGesturePhase
 {
     Started,
     Checkpoint,
-    Ended,
-    Cancelled
+    Ended
 }
 
 internal sealed record TouchVisualTreeCaptureTrigger(
@@ -18,10 +17,7 @@ internal sealed record TouchVisualTreeCaptureTrigger(
 
 internal sealed class TouchVisualTreeCaptureCoordinator : IDisposable
 {
-    internal static readonly TimeSpan CheckpointInterval = TimeSpan.FromMilliseconds(250);
-
     private readonly Func<TouchVisualTreeCaptureTrigger, CancellationToken, Task> captureAsync;
-    private readonly TimeSpan checkpointInterval;
     private readonly Lock stateLock = new();
     private readonly SemaphoreSlim signal = new(0, 1);
     private readonly HashSet<long> activePointerIds = [];
@@ -32,22 +28,13 @@ internal sealed class TouchVisualTreeCaptureCoordinator : IDisposable
     private EventHandler<AppLifecycleStateChangedEventArgs>? appLifecycleStateChangedHandler;
     private CancellationTokenSource? captureCts;
     private Task? captureTask;
-    private Task? checkpointTask;
-    private CapturedTouch? latestTouch;
     private string? gestureId;
-    private int gestureGeneration;
     private bool disposed;
 
     public TouchVisualTreeCaptureCoordinator(
-        Func<TouchVisualTreeCaptureTrigger, CancellationToken, Task> captureAsync,
-        TimeSpan? checkpointInterval = null)
+        Func<TouchVisualTreeCaptureTrigger, CancellationToken, Task> captureAsync)
     {
         this.captureAsync = captureAsync ?? throw new ArgumentNullException(nameof(captureAsync));
-        this.checkpointInterval = checkpointInterval.GetValueOrDefault(CheckpointInterval);
-        if (this.checkpointInterval <= TimeSpan.Zero)
-        {
-            throw new ArgumentOutOfRangeException(nameof(checkpointInterval));
-        }
     }
 
     public void Start(TouchCaptureHub touchCaptureHub)
@@ -88,7 +75,6 @@ internal sealed class TouchVisualTreeCaptureCoordinator : IDisposable
         EventHandler<AppLifecycleStateChangedEventArgs>? appLifecycleStateChangedHandler;
         CancellationTokenSource? captureCts;
         Task? captureTask;
-        Task? checkpointTask;
 
         lock (stateLock)
         {
@@ -98,17 +84,13 @@ internal sealed class TouchVisualTreeCaptureCoordinator : IDisposable
             appLifecycleStateChangedHandler = this.appLifecycleStateChangedHandler;
             captureCts = this.captureCts;
             captureTask = this.captureTask;
-            checkpointTask = this.checkpointTask;
             this.touchCaptureHub = null;
             this.touchCapturedHandler = null;
             this.runtimeCaptureInterruptedHandler = null;
             this.appLifecycleStateChangedHandler = null;
             this.captureCts = null;
             this.captureTask = null;
-            this.checkpointTask = null;
-            latestTouch = null;
             gestureId = null;
-            gestureGeneration++;
             activePointerIds.Clear();
             pendingTriggers.Clear();
         }
@@ -127,7 +109,6 @@ internal sealed class TouchVisualTreeCaptureCoordinator : IDisposable
         }
 
         captureCts?.Cancel();
-        await WaitForTaskAsync(checkpointTask);
         await WaitForTaskAsync(captureTask);
         captureCts?.Dispose();
     }
@@ -150,9 +131,6 @@ internal sealed class TouchVisualTreeCaptureCoordinator : IDisposable
 
     private void Observe(CapturedTouch touch)
     {
-        CancellationToken cancellationToken;
-        int checkpointGeneration = 0;
-
         lock (stateLock)
         {
             if (captureCts is null || captureCts.IsCancellationRequested)
@@ -160,8 +138,6 @@ internal sealed class TouchVisualTreeCaptureCoordinator : IDisposable
                 return;
             }
 
-            cancellationToken = captureCts.Token;
-            latestTouch = touch;
             switch (touch.Action)
             {
                 case CapturedTouchAction.Down:
@@ -170,8 +146,6 @@ internal sealed class TouchVisualTreeCaptureCoordinator : IDisposable
                     if (beginsGesture)
                     {
                         gestureId = $"gesture-{Guid.NewGuid():N}";
-                        gestureGeneration++;
-                        checkpointGeneration = gestureGeneration;
                     }
 
                     EnqueueLocked(CreateTrigger(
@@ -193,20 +167,8 @@ internal sealed class TouchVisualTreeCaptureCoordinator : IDisposable
                     break;
                 case CapturedTouchAction.Cancel:
                     activePointerIds.Clear();
-                    EnqueueLocked(CreateTrigger(touch, TouchVisualTreeGesturePhase.Cancelled));
+                    gestureId = null;
                     break;
-            }
-        }
-
-        if (checkpointGeneration != 0)
-        {
-            var task = Task.Run(() => RunCheckpointLoopAsync(checkpointGeneration, cancellationToken));
-            lock (stateLock)
-            {
-                if (gestureGeneration == checkpointGeneration)
-                {
-                    checkpointTask = task;
-                }
             }
         }
     }
@@ -215,36 +177,9 @@ internal sealed class TouchVisualTreeCaptureCoordinator : IDisposable
     {
         lock (stateLock)
         {
-            latestTouch = null;
             gestureId = null;
-            gestureGeneration++;
             activePointerIds.Clear();
             pendingTriggers.Clear();
-        }
-    }
-
-    private async Task RunCheckpointLoopAsync(int generation, CancellationToken cancellationToken)
-    {
-        while (!cancellationToken.IsCancellationRequested)
-        {
-            try
-            {
-                await Task.Delay(checkpointInterval, cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                return;
-            }
-
-            lock (stateLock)
-            {
-                if (generation != gestureGeneration || activePointerIds.Count == 0 || latestTouch is null)
-                {
-                    return;
-                }
-
-                EnqueueLocked(CreateTrigger(latestTouch, TouchVisualTreeGesturePhase.Checkpoint));
-            }
         }
     }
 
@@ -303,12 +238,6 @@ internal sealed class TouchVisualTreeCaptureCoordinator : IDisposable
 
     private void EnqueueLocked(TouchVisualTreeCaptureTrigger trigger)
     {
-        if (trigger.GesturePhase == TouchVisualTreeGesturePhase.Checkpoint
-            && pendingTriggers.Any(candidate => candidate.GesturePhase == TouchVisualTreeGesturePhase.Checkpoint))
-        {
-            return;
-        }
-
         pendingTriggers.Enqueue(trigger);
         if (signal.CurrentCount == 0)
         {

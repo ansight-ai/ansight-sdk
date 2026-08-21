@@ -7,7 +7,7 @@ namespace Ansight.UnitTests;
 public sealed class TouchVisualTreeCaptureCoordinatorTests
 {
     [Fact]
-    public async Task GestureCapturesLeadingCheckpointAndTerminalTrees()
+    public async Task GestureCapturesOnlyDownAndUpTrees()
     {
         var triggers = new ConcurrentQueue<TouchVisualTreeCaptureTrigger>();
         using var captured = new SemaphoreSlim(0);
@@ -17,33 +17,56 @@ public sealed class TouchVisualTreeCaptureCoordinatorTests
                 triggers.Enqueue(trigger);
                 captured.Release();
                 return Task.CompletedTask;
-            },
-            TimeSpan.FromMilliseconds(20));
+            });
         var hub = new TouchCaptureHub(new TouchCaptureOptions());
         coordinator.Start(hub);
 
         hub.Record(CreateTouch(CapturedTouchAction.Down, pointerId: 7));
         Assert.True(await captured.WaitAsync(TimeSpan.FromSeconds(1)));
-        Assert.True(await captured.WaitAsync(TimeSpan.FromSeconds(1)));
+        hub.Record(CreateTouch(CapturedTouchAction.Move, pointerId: 7));
+        Assert.False(await captured.WaitAsync(TimeSpan.FromMilliseconds(350)));
         hub.Record(CreateTouch(CapturedTouchAction.Up, pointerId: 7));
-        await WaitForTerminalTriggerAsync(triggers);
+        Assert.True(await captured.WaitAsync(TimeSpan.FromSeconds(1)));
 
         await coordinator.StopAsync(CancellationToken.None);
-        var phases = triggers.Select(trigger => trigger.GesturePhase).ToArray();
-        Assert.Equal(TouchVisualTreeGesturePhase.Started, phases[0]);
-        Assert.Contains(TouchVisualTreeGesturePhase.Checkpoint, phases);
-        Assert.Equal(TouchVisualTreeGesturePhase.Ended, phases[^1]);
+        var capturedTriggers = triggers.ToArray();
+        Assert.Collection(
+            capturedTriggers,
+            trigger =>
+            {
+                Assert.Equal(CapturedTouchAction.Down, trigger.TouchAction);
+                Assert.Equal(TouchVisualTreeGesturePhase.Started, trigger.GesturePhase);
+            },
+            trigger =>
+            {
+                Assert.Equal(CapturedTouchAction.Up, trigger.TouchAction);
+                Assert.Equal(TouchVisualTreeGesturePhase.Ended, trigger.GesturePhase);
+            });
         Assert.Single(triggers.Select(trigger => trigger.GestureId).Distinct(StringComparer.Ordinal));
     }
 
-    private static async Task WaitForTerminalTriggerAsync(
-        ConcurrentQueue<TouchVisualTreeCaptureTrigger> triggers)
+    [Fact]
+    public async Task CancelDoesNotCaptureTree()
     {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(1));
-        while (!triggers.Any(trigger => trigger.GesturePhase == TouchVisualTreeGesturePhase.Ended))
-        {
-            await Task.Delay(TimeSpan.FromMilliseconds(10), timeout.Token);
-        }
+        var triggers = new ConcurrentQueue<TouchVisualTreeCaptureTrigger>();
+        using var captured = new SemaphoreSlim(0);
+        using var coordinator = new TouchVisualTreeCaptureCoordinator(
+            (trigger, _) =>
+            {
+                triggers.Enqueue(trigger);
+                captured.Release();
+                return Task.CompletedTask;
+            });
+        var hub = new TouchCaptureHub(new TouchCaptureOptions());
+        coordinator.Start(hub);
+
+        hub.Record(CreateTouch(CapturedTouchAction.Down, pointerId: 7));
+        Assert.True(await captured.WaitAsync(TimeSpan.FromSeconds(1)));
+        hub.Record(CreateTouch(CapturedTouchAction.Cancel, pointerId: 7));
+        Assert.False(await captured.WaitAsync(TimeSpan.FromMilliseconds(100)));
+
+        await coordinator.StopAsync(CancellationToken.None);
+        Assert.Single(triggers);
     }
 
     private static CapturedTouch CreateTouch(CapturedTouchAction action, long pointerId)

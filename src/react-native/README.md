@@ -200,9 +200,9 @@ await Ansight.initializeAndActivate({
 });
 ```
 
-The touch mode captures native visual trees at gesture start, every 250 ms
-throughout the gesture, and at the final up or cancel. It requires native touch
-capture and visual-tree tools/providers to remain enabled.
+The touch mode captures native visual trees only on touch down and touch up.
+Move and cancel events do not trigger capture. Native touch capture and
+visual-tree tools/providers must remain enabled.
 
 On iOS, `captureGpuBackedSurfaces` defaults to `true` so Metal, SceneKit, and
 similar GPU-backed views are included. Set it to `false` to use a lower-overhead

@@ -385,9 +385,9 @@ try AnsightRuntime.shared.initializeAndActivateAnsightSdk(
 When the WebSocket session opens, the SDK captures the foreground UIKit window on the main actor, encodes it as JPEG, and sends binary frames to Studio. Apps can also trigger a single frame with `await AnsightRuntime.shared.captureScreenFrame()`.
 
 Set `mode: .screenshotWithVisualTreeOnTouch` to retain periodic screenshots
-while capturing visual trees at gesture start, every 250 ms throughout the
-gesture, and at the final up or cancel. Touch capture and a session visual-tree
-provider must also be enabled.
+while capturing visual trees only on touch down and touch up. Move and cancel
+events do not trigger capture. Touch capture and a session visual-tree provider
+must also be enabled.
 
 For Simulator sessions, Studio can acknowledge `device.profile` with host
 screenshot mode. The SDK then suspends periodic in-app JPEG capture for that

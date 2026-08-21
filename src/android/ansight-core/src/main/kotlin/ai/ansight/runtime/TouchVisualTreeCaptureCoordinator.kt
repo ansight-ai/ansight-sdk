@@ -1,16 +1,13 @@
 package ai.ansight.runtime
 
 import java.util.UUID
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import java.util.concurrent.ScheduledExecutorService
-import java.util.concurrent.ScheduledFuture
-import java.util.concurrent.TimeUnit
 
 internal enum class TouchVisualTreeGesturePhase(val wireName: String) {
     Started("started"),
     Checkpoint("checkpoint"),
     Ended("ended"),
-    Cancelled("cancelled"),
 }
 
 internal data class TouchVisualTreeCaptureTrigger(
@@ -22,19 +19,12 @@ internal data class TouchVisualTreeCaptureTrigger(
 
 internal class TouchVisualTreeCaptureCoordinator(
     private val capture: (TouchVisualTreeCaptureTrigger) -> Unit,
-    private val checkpointIntervalMilliseconds: Long = DefaultCheckpointIntervalMilliseconds,
 ) : AutoCloseable {
-    companion object {
-        const val DefaultCheckpointIntervalMilliseconds = 250L
-    }
-
     private val lock = Any()
     private val activePointerIds = mutableSetOf<Long>()
-    private val executor: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor { runnable ->
+    private val executor: ExecutorService = Executors.newSingleThreadExecutor { runnable ->
         Thread(runnable, "AnsightTouchVisualTree").apply { isDaemon = true }
     }
-    private var checkpointTask: ScheduledFuture<*>? = null
-    private var latestTouch: CapturedTouch? = null
     private var gestureId: String? = null
     private var closed = false
 
@@ -45,14 +35,12 @@ internal class TouchVisualTreeCaptureCoordinator(
                 return
             }
 
-            latestTouch = touch
             when (touch.action.lowercase()) {
                 "down" -> {
                     val beginsGesture = activePointerIds.isEmpty()
                     activePointerIds += touch.pointerId
                     if (beginsGesture) {
                         gestureId = "gesture-${UUID.randomUUID()}"
-                        startCheckpointTaskLocked()
                     }
                     trigger = createTrigger(
                         touch,
@@ -67,7 +55,6 @@ internal class TouchVisualTreeCaptureCoordinator(
                 "up" -> {
                     activePointerIds -= touch.pointerId
                     val phase = if (activePointerIds.isEmpty()) {
-                        stopCheckpointTaskLocked()
                         TouchVisualTreeGesturePhase.Ended
                     } else {
                         TouchVisualTreeGesturePhase.Checkpoint
@@ -76,8 +63,7 @@ internal class TouchVisualTreeCaptureCoordinator(
                 }
                 "cancel" -> {
                     activePointerIds.clear()
-                    stopCheckpointTaskLocked()
-                    trigger = createTrigger(touch, TouchVisualTreeGesturePhase.Cancelled)
+                    gestureId = null
                 }
             }
         }
@@ -92,9 +78,7 @@ internal class TouchVisualTreeCaptureCoordinator(
             }
             closed = true
             activePointerIds.clear()
-            latestTouch = null
             gestureId = null
-            stopCheckpointTaskLocked()
         }
         executor.shutdownNow()
     }
@@ -102,36 +86,8 @@ internal class TouchVisualTreeCaptureCoordinator(
     fun interruptGesture() {
         synchronized(lock) {
             activePointerIds.clear()
-            latestTouch = null
             gestureId = null
-            stopCheckpointTaskLocked()
         }
-    }
-
-    private fun startCheckpointTaskLocked() {
-        stopCheckpointTaskLocked()
-        checkpointTask = executor.scheduleWithFixedDelay(
-            { captureCheckpointIfActive() },
-            checkpointIntervalMilliseconds,
-            checkpointIntervalMilliseconds,
-            TimeUnit.MILLISECONDS,
-        )
-    }
-
-    private fun stopCheckpointTaskLocked() {
-        checkpointTask?.cancel(false)
-        checkpointTask = null
-    }
-
-    private fun captureCheckpointIfActive() {
-        val trigger = synchronized(lock) {
-            if (closed || activePointerIds.isEmpty()) {
-                null
-            } else {
-                latestTouch?.let { createTrigger(it, TouchVisualTreeGesturePhase.Checkpoint) }
-            }
-        }
-        trigger?.let(capture)
     }
 
     private fun enqueue(trigger: TouchVisualTreeCaptureTrigger) {

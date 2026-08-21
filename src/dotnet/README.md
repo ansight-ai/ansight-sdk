@@ -197,9 +197,9 @@ var options = Options.CreateBuilder()
     .Build();
 ```
 
-The runtime captures at gesture start, every 250 ms throughout the gesture,
-and at its final up or cancel. At least one session visual-tree provider must
-be registered.
+The runtime captures only on touch down and touch up. Move and cancel events do
+not trigger capture. At least one session visual-tree provider must be
+registered.
 
 Battery level telemetry is disabled by default; `WithBatteryLevel()` only emits on platforms that expose a battery API.
 

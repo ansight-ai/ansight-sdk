@@ -150,9 +150,9 @@ tradeoff is currently meaningful on iOS, where setting it to `false` selects a
 lower-overhead path that may miss GPU-backed surfaces.
 
 Use `AnsightSessionJpegCaptureMode.ScreenshotWithVisualTreeOnTouch` to retain
-periodic screenshots while capturing visual trees at gesture start, every 250
-ms throughout the gesture, and at the final up or cancel. Touch capture must
-also be enabled, and a session visual-tree provider must be registered.
+periodic screenshots while capturing visual trees only on touch down and touch
+up. Move and cancel events do not trigger capture. Touch capture must also be
+enabled, and a session visual-tree provider must be registered.
 
 > **Important:** Screen capture will result in an FPS drop while the SDK
 > captures, encodes, and sends frames. Use conservative interval, quality, and

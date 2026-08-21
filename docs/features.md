@@ -79,10 +79,9 @@ array. Every node references that registry with a required `typeId`; node-local
 Session JPEG capture has three modes. `screenshotOnly` sends no automatic
 visual trees. `screenshotAndVisualTree` captures a tree alongside each SDK
 screenshot. `screenshotWithVisualTreeOnTouch` keeps screenshots on their normal
-schedule but captures a tree when a gesture starts, every 250 ms while it
-remains active (including a stationary hold), and once more when it ends or is
-cancelled. The touch mode requires touch capture and at least one registered
-visual-tree provider.
+schedule but captures a tree only on touch down and touch up. Move and cancel
+events do not trigger capture. The touch mode requires touch capture and at
+least one registered visual-tree provider.
 
 During `device.profile`, current runtimes advertise screenshot-control version
 1. Studio can respond with host capture mode for a simulator or emulator. The

@@ -94,9 +94,9 @@ snapshots, recorded metrics/events, and log and connection-status streams.
 
 Set the JPEG capture option mode to
 `AnsightSessionJpegCaptureMode.screenshotWithVisualTreeOnTouch` to retain
-periodic screenshots while the native runtime captures visual trees at gesture
-start, every 250 ms throughout the gesture, and at the final up or cancel.
-Native touch capture and visual-tree providers must remain enabled.
+periodic screenshots while the native runtime captures visual trees only on
+touch down and touch up. Move and cancel events do not trigger capture. Native
+touch capture and visual-tree providers must remain enabled.
 
 Open-file-handle and JNI reference-count diagnostics are disabled by default.
 Enable them with `withOpenFileHandleTracking()` and
