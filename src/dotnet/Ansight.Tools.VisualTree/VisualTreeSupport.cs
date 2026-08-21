@@ -733,22 +733,99 @@ internal static partial class VisualTreeSupport
         out string? error)
     {
         var activity = AndroidActivityTracker.GetCurrentActivity();
-        var rootView = activity?.Window?.DecorView?.RootView;
-        if (rootView == null)
+        if (activity == null)
         {
             rootNode = null;
             nodeCount = 0;
             truncated = false;
-            error = "No Android root view is currently available.";
+            error = "No foreground Android activity is available.";
+            return false;
+        }
+
+        var rootViews = AndroidSceneCapture.GetTopLevelViews(activity);
+        if (rootViews.Count == 0)
+        {
+            rootNode = null;
+            nodeCount = 0;
+            truncated = false;
+            error = "No Android window roots are currently available.";
             return false;
         }
 
         var state = new VisualTreeCaptureState(maxNodes);
-        rootNode = BuildAndroidNode(rootView, rootView, includeProperties, maxDepth, state);
+        state.TryAddNode();
+
+        var children = new List<VisualNode>();
+        foreach (var rootView in rootViews)
+        {
+            if (state.NodeCount >= state.MaxNodes)
+            {
+                state.MarkTruncated();
+                break;
+            }
+
+            children.Add(BuildAndroidNode(
+                rootView,
+                rootView,
+                includeProperties,
+                remainingDepth: maxDepth - 1,
+                state));
+        }
+
+        rootNode = new VisualNode(
+            id: "android-window-roots",
+            type: "android.view.WindowRoots",
+            automationId: null,
+            label: null,
+            role: "application",
+            supportedActions: [],
+            isVisible: true,
+            isEnabled: true,
+            isFocusable: false,
+            bounds: CreateAndroidWindowRootsBounds(rootViews),
+            visual: new JsonObject
+            {
+                ["opacity"] = 1d
+            },
+            zIndex: null,
+            properties: includeProperties
+                ? new JsonObject
+                {
+                    ["windowCount"] = rootViews.Count
+                }
+                : null,
+            childCount: rootViews.Count,
+            children: children);
         nodeCount = state.NodeCount;
         truncated = state.Truncated;
         error = null;
         return true;
+    }
+
+    private static JsonObject CreateAndroidWindowRootsBounds(IReadOnlyList<View> rootViews)
+    {
+        var minimumX = int.MaxValue;
+        var minimumY = int.MaxValue;
+        var maximumX = int.MinValue;
+        var maximumY = int.MinValue;
+
+        foreach (var rootView in rootViews)
+        {
+            var location = new int[2];
+            rootView.GetLocationOnScreen(location);
+            minimumX = Math.Min(minimumX, location[0]);
+            minimumY = Math.Min(minimumY, location[1]);
+            maximumX = Math.Max(maximumX, location[0] + rootView.Width);
+            maximumY = Math.Max(maximumY, location[1] + rootView.Height);
+        }
+
+        return new JsonObject
+        {
+            ["x"] = minimumX,
+            ["y"] = minimumY,
+            ["width"] = maximumX - minimumX,
+            ["height"] = maximumY - minimumY
+        };
     }
 
     private static VisualNode BuildAndroidNode(
