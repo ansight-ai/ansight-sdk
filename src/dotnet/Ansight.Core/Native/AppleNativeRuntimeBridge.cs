@@ -1,7 +1,9 @@
 #if IOS || MACCATALYST
 using System.Globalization;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using Ansight.Native.Apple;
+using Ansight.Network;
 using Ansight.Pairing;
 using Ansight.Screenshot;
 using Ansight.Tools;
@@ -47,6 +49,10 @@ internal sealed class AppleNativeRuntimeBridge : INativeRuntimeBridge
     public void Deactivate() => ANSDotNetRuntime.Deactivate();
 
     public void Clear() => ANSDotNetRuntime.Clear();
+
+    public void RecordNetworkRequest(NetworkRequestRecord request)
+        => ANSDotNetRuntime.RecordNetworkRequest(
+            JsonSerializer.Serialize(request, PairingJson.Compact));
 
     public string? RecordCrashCandidate(
         string runtime,

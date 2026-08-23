@@ -5,6 +5,7 @@ internal enum OfflineCaptureWriteKind
     Metric,
     Event,
     Touch,
+    NetworkRequest,
     Screenshot,
     Flush
 }

@@ -206,6 +206,65 @@ Battery level telemetry is disabled by default; `WithBatteryLevel()` only emits 
 
 Install `Ansight.Core` for this lower-level surface. Add `Ansight.Pairing` separately if the app should own native QR acquisition while staying on the core package set.
 
+### Network request capture
+
+Network capture is opt-in. Wrap the application's HTTP transport with
+`AnsightHttpMessageHandler`; the handler records one HTTP request
+entry after each response or transport failure:
+
+```csharp
+using Ansight.Network;
+
+var httpClient = new HttpClient(new AnsightHttpMessageHandler());
+```
+
+To preserve an existing handler, pass it as the inner handler:
+
+```csharp
+var httpClient = new HttpClient(
+    new AnsightHttpMessageHandler(new HttpClientHandler()));
+```
+
+Apps can run an additional privacy policy before capture. The policy can strip
+all query parameters or headers, redact app-specific names, rewrite a URL, or
+return `null` to omit a request entirely:
+
+```csharp
+var privacy = new NetworkRequestSanitizationOptions
+{
+    AdditionalSensitiveHeaderNames = ["X-Tenant-Token"],
+    AdditionalSensitiveQueryParameterNames = ["customer_id"],
+    IncludeResponseHeaders = false,
+    IncludeBodySizes = false,
+    RequestSanitizer = request => request.Url.Contains("/health", StringComparison.Ordinal)
+        ? null
+        : request
+};
+
+var httpClient = new HttpClient(new AnsightHttpMessageHandler(privacy));
+```
+
+Text bodies are included by default with a 64 KiB per-body limit once the
+handler is explicitly installed. The fluent form can opt either side out and
+honors larger limits:
+
+```csharp
+var httpClient = new HttpClient(new AnsightHttpMessageHandler(builder => builder
+    .WithoutRequestBodies()
+    .WithResponseBodies()
+    .WithMaximumBodyBytes(8 * 1024 * 1024)));
+```
+
+Call `NetworkRequestSanitizer.Sanitize(record, privacy)` to apply the same
+policy to a manually created record. App callbacks receive already-sanitized
+metadata, and mandatory redaction runs again on their result.
+
+V1 records method, sanitized URL, timing, protocol, headers, optional bounded
+bodies, status, and transport errors. Credential headers, cloud signed-URL
+fields, and sensitive text-body assignments are redacted before a record enters
+the runtime. The handler bypasses capture and body buffering while no Studio
+host is connected.
+
 ### Telemetry and sampled data
 
 ```csharp

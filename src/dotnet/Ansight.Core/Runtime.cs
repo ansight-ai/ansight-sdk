@@ -3,6 +3,7 @@ namespace Ansight;
 using Ansight.Pairing;
 using Ansight.Platforms;
 using Ansight.Tools;
+using Ansight.Network;
 using System.Text.Json;
 
 /// <summary>
@@ -172,6 +173,22 @@ public static class Runtime
     /// Identifies this operating-system process for live, offline, and crash-session correlation.
     /// </summary>
     public static string? ProcessSessionId => IsInitialized ? MutableInstance.ProcessSessionId : null;
+
+    /// <summary>
+    /// Records one completed HTTP request for live host streaming and active offline captures.
+    /// The record is sanitized again at ingestion, even when it was produced by a built-in handler.
+    /// </summary>
+    /// <param name="request">Completed request metadata with optional bounded request and response bodies.</param>
+    public static void RecordNetworkRequest(NetworkRequestRecord request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (!IsInitialized || !MutableInstance.HostConnection.IsConnected)
+        {
+            return;
+        }
+
+        MutableInstance.RecordNetworkRequest(request);
+    }
 
     /// <summary>
     /// Adds framework-specific context to the durable native crash outbox.

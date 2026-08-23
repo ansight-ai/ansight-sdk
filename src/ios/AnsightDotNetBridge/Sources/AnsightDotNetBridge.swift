@@ -41,6 +41,13 @@ public final class ANSDotNetRuntime: NSObject {
         AnsightRuntime.shared.clear()
     }
 
+    @objc(recordNetworkRequest:)
+    public static func recordNetworkRequest(_ requestJson: String) {
+        Task {
+            _ = await AnsightRuntime.shared.recordNetworkRequest(json: requestJson)
+        }
+    }
+
     @objc(recordCrashCandidateWithRuntime:kind:message:stack:fatal:metadataJson:)
     public static func recordCrashCandidate(
         runtime: String,

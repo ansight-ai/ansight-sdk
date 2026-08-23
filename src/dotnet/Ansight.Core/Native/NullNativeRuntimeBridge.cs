@@ -1,5 +1,6 @@
 using Ansight.Pairing;
 using Ansight.Tools;
+using Ansight.Network;
 
 namespace Ansight.Native;
 
@@ -46,6 +47,10 @@ internal sealed class NullNativeRuntimeBridge : INativeRuntimeBridge
     }
 
     public void Clear()
+    {
+    }
+
+    public void RecordNetworkRequest(NetworkRequestRecord request)
     {
     }
 

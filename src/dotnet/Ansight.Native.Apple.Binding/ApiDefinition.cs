@@ -49,6 +49,10 @@ interface ANSDotNetRuntime
     void Clear();
 
     [Static]
+    [Export("recordNetworkRequest:")]
+    void RecordNetworkRequest(string requestJson);
+
+    [Static]
     [return: NullAllowed]
     [Export("recordCrashCandidateWithRuntime:kind:message:stack:fatal:metadataJson:")]
     string RecordCrashCandidate(

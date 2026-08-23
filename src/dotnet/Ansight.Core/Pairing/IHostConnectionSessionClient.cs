@@ -1,4 +1,5 @@
 using Ansight.Pairing.Models;
+using Ansight.Network;
 
 namespace Ansight.Pairing;
 
@@ -45,6 +46,11 @@ internal interface IHostConnectionSessionClient : IDisposable
         TouchCaptureHub touchCaptureHub,
         IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken);
+
+    Task<OperationResult> StartNetworkRequestStreamingAsync(
+        NetworkRequestHub networkRequestHub,
+        CancellationToken cancellationToken)
+        => Task.FromResult(OperationResult.FromSuccess("Network request streaming is unavailable for this session client."));
 
     Task<OperationResult> SendClientLogAsync(
         string logLine,

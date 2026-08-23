@@ -3,6 +3,7 @@ using System.Net.WebSockets;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Ansight.Network;
 
 namespace Ansight.Pairing;
 
@@ -29,6 +30,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
     private readonly PairingSessionAppStateStreamer appStateStreamer;
     private readonly TelemetryStreamer telemetryStreamer;
     private readonly PairingSessionTouchCaptureStreamer touchCaptureStreamer;
+    private readonly PairingSessionNetworkStreamer networkStreamer;
     private readonly PairingSessionJpegStreamer jpegStreamer;
     private readonly StoredPairingDocumentCache storedPairingDocumentCache;
     private readonly Lock runtimeCustomPropertiesLock = new();
@@ -87,6 +89,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         appStateStreamer = new PairingSessionAppStateStreamer(transport);
         telemetryStreamer = new TelemetryStreamer(transport);
         touchCaptureStreamer = new PairingSessionTouchCaptureStreamer(transport);
+        networkStreamer = new PairingSessionNetworkStreamer(transport);
         jpegStreamer = new PairingSessionJpegStreamer(transport);
         this.storedPairingDocumentCache = storedPairingDocumentCache
                                          ?? new StoredPairingDocumentCache(
@@ -619,6 +622,11 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         return result;
     }
 
+    Task<OperationResult> IHostConnectionSessionClient.StartNetworkRequestStreamingAsync(
+        NetworkRequestHub networkRequestHub,
+        CancellationToken cancellationToken)
+        => networkStreamer.StartAsync(networkRequestHub, cancellationToken);
+
     /// <summary>
     /// Stops session-owned streaming components and closes the live pairing transport.
     /// </summary>
@@ -630,6 +638,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         await appStateStreamer.StopAsync(CancellationToken.None);
         await telemetryStreamer.StopAsync(progress: null, CancellationToken.None);
         await touchCaptureStreamer.StopAsync(progress: null, CancellationToken.None);
+        await networkStreamer.StopAsync(CancellationToken.None);
         await jpegStreamer.StopAsync(CancellationToken.None);
         jpegStreamer.SetHostCapturePolicy(HostSessionJpegCapturePolicy.App);
         var result = await transport.CloseAsync(cancellationToken);
@@ -803,6 +812,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         appStateStreamer.Dispose();
         telemetryStreamer.Dispose();
         touchCaptureStreamer.Dispose();
+        networkStreamer.Dispose();
         jpegStreamer.Dispose();
         customPropertiesSendLock.Dispose();
         if (Runtime.IsInitialized)

@@ -4,11 +4,52 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Ansight.Input;
 using Ansight.OfflineCapture;
+using Ansight.Network;
 
 namespace Ansight.UnitTests;
 
 public sealed class OfflineCaptureTests
 {
+    [Fact]
+    public async Task NetworkRequest_WritesOneRedactedDocumentPerRequest()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        var runtime = CreateRuntime();
+        await using var controller = CreateController(runtime, tempDirectory.Path);
+
+        var session = await controller.StartAsync();
+        runtime.RecordNetworkRequest(new NetworkRequestRecord
+        {
+            Id = "request-001",
+            Source = "test",
+            StartedAtUtc = DateTimeOffset.Parse("2026-08-23T00:00:00Z"),
+            CompletedAtUtc = DateTimeOffset.Parse("2026-08-23T00:00:00.125Z"),
+            DurationMilliseconds = 125,
+            Method = "get",
+            Url = "https://example.test/orders?token=secret&view=full",
+            RequestHeaders =
+            [
+                new NetworkHeader { Name = "Authorization", Value = "Bearer secret" },
+                new NetworkHeader { Name = "Accept", Value = "application/json" }
+            ],
+            StatusCode = 200
+        });
+        await controller.StopAsync();
+
+        var requestFile = Assert.Single(Directory.GetFiles(
+            Path.Combine(session.DirectoryPath, "network", "requests"),
+            "*.json"));
+        Assert.EndsWith("-request-001.json", requestFile, StringComparison.Ordinal);
+        using var document = await ReadJsonDocumentAsync(requestFile);
+        Assert.Equal("ansight.network-request.v1", document.RootElement.GetProperty("Schema").GetString());
+        Assert.Equal("GET", document.RootElement.GetProperty("Method").GetString());
+        Assert.Contains("token=%3Credacted%3E", document.RootElement.GetProperty("Url").GetString());
+        Assert.Equal("<redacted>", document.RootElement.GetProperty("RequestHeaders")[0].GetProperty("Value").GetString());
+
+        using var manifest = await ReadJsonDocumentAsync(Path.Combine(session.DirectoryPath, "manifest.json"));
+        Assert.Equal(1, manifest.RootElement.GetProperty("NetworkRequestCount").GetInt64());
+    }
+
     [Fact]
     public async Task StartStop_WritesMinifiedTelemetryData()
     {

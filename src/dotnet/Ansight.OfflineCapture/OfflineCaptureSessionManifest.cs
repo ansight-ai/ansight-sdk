@@ -42,5 +42,7 @@ internal sealed class OfflineCaptureSessionManifest
 
     public long AnnotationCount { get; set; }
 
+    public long NetworkRequestCount { get; set; }
+
     public List<string> CrashReportIds { get; set; } = [];
 }

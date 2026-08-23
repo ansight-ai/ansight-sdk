@@ -98,6 +98,9 @@ The controller supports runtime mutation through `UpdateOptionsAsync(Action<Offl
       input/
         touches/
           t-{utc}.jsonl
+      network/
+        requests/
+          {utc}-{requestId}.json
       screenshots/
         {utc}.jpg
         index/
@@ -112,7 +115,7 @@ The controller supports runtime mutation through `UpdateOptionsAsync(Action<Offl
           {crashReportId}.trace
 ```
 
-`settings.json`, `manifest.json`, and `metadata/*.json` are compact metadata files. High-volume data files are append-only JSONL segments. Metric, event, touch, and screenshot index records use minified JSON with short property names and no formatted whitespace.
+`settings.json`, `manifest.json`, and `metadata/*.json` are compact metadata files. High-volume data files are append-only JSONL segments. Metric, event, touch, and screenshot index records use minified JSON with short property names and no formatted whitespace. Network requests are individual `ansight.network-request.v1` JSON documents so CLI and playback consumers can inspect them without reading a combined blob. Bodies are omitted and credentials are redacted before persistence.
 
 If the process terminates while capture is active, the native runtime recovers
 the crash on the next launch, finds this session by `ProcessSessionId`, stores

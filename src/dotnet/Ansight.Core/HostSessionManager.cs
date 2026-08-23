@@ -408,6 +408,22 @@ internal sealed class HostSessionManager : IHostSessionConnection, IHostAutoProb
                     openResult.RejectionCode ?? openResult.FailureCode);
             }
 
+            var networkResult = await sessionClient.StartNetworkRequestStreamingAsync(
+                runtime.NetworkRequestHub,
+                cancellationToken);
+            if (!networkResult.Success)
+            {
+                await sessionClient.CloseSessionAsync(CancellationToken.None);
+                activeSessionResult = null;
+                SetStatus(HostConnectionState.Disconnected, networkResult.Message);
+                return HostSessionActionResult.FromFailure(
+                    networkResult.Message,
+                    openResult,
+                    actionKind,
+                    actionSource,
+                    openResult.RejectionCode ?? openResult.FailureCode);
+            }
+
             LastDisconnectedAtUtc = null;
             SetStatus(HostConnectionState.Connected, BuildConnectedSummary(openResult));
             return HostSessionActionResult.FromSuccess(

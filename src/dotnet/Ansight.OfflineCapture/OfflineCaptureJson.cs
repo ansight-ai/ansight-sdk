@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Text.Json.Serialization;
+using Ansight.Network;
 
 namespace Ansight.OfflineCapture;
 
@@ -72,6 +73,11 @@ internal static class OfflineCaptureJson
             q = frame.Quality,
             b = frame.JpegByteCount
         }, Data);
+    }
+
+    public static string NetworkRequest(NetworkRequestRecord request)
+    {
+        return JsonSerializer.Serialize(request, Data);
     }
 
     public static object Channel(TelemetryChannel channel)

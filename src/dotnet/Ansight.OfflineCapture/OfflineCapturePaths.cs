@@ -36,6 +36,9 @@ internal static class OfflineCapturePaths
     public static string TouchesDirectory(string sessionDirectory)
         => Path.Combine(sessionDirectory, "input", "touches");
 
+    public static string NetworkRequestsDirectory(string sessionDirectory)
+        => Path.Combine(sessionDirectory, "network", "requests");
+
     public static string ScreenshotsDirectory(string sessionDirectory)
         => Path.Combine(sessionDirectory, "screenshots");
 

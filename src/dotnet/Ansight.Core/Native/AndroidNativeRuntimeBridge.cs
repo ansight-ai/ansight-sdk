@@ -1,6 +1,8 @@
 #if ANDROID
 using System.Globalization;
+using System.Text.Json;
 using AI.Ansight.Dotnet;
+using Ansight.Network;
 using Ansight.Pairing;
 using Ansight.Tools;
 using Android.App;
@@ -40,6 +42,10 @@ internal sealed class AndroidNativeRuntimeBridge : INativeRuntimeBridge
     public void Deactivate() => AnsightDotNetBridge.Deactivate();
 
     public void Clear() => AnsightDotNetBridge.Clear();
+
+    public void RecordNetworkRequest(NetworkRequestRecord request)
+        => AnsightDotNetBridge.RecordNetworkRequest(
+            JsonSerializer.Serialize(request, PairingJson.Compact));
 
     public string? RecordCrashCandidate(
         string runtime,

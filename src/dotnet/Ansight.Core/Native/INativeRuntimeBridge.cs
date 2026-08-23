@@ -1,5 +1,6 @@
 using Ansight.Pairing;
 using Ansight.Tools;
+using Ansight.Network;
 
 namespace Ansight.Native;
 
@@ -26,6 +27,8 @@ internal interface INativeRuntimeBridge
     void Deactivate();
 
     void Clear();
+
+    void RecordNetworkRequest(NetworkRequestRecord request);
 
     string? RecordCrashCandidate(
         string runtime,

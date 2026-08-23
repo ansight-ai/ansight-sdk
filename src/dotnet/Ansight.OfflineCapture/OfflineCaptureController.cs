@@ -2,6 +2,7 @@ namespace Ansight.OfflineCapture;
 
 using System.Threading.Channels;
 using Ansight.Annotations;
+using Ansight.Network;
 using TelemetryChannel = Ansight.Telemetry.Channels.Channel;
 
 /// <summary>
@@ -12,6 +13,7 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
     private readonly Lock stateLock = new();
     private readonly IRuntime runtime;
     private readonly TouchCaptureHub? touchCaptureHub;
+    private readonly NetworkRequestHub? networkRequestHub;
     private readonly SemaphoreSlim annotationWriteGate = new(1, 1);
     private OfflineCaptureOptions options;
     private Channel<OfflineCaptureWriteRecord>? recordChannel;
@@ -26,6 +28,7 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
     private EventHandler<MetricsUpdatedEventArgs>? metricsUpdatedHandler;
     private EventHandler<AppEventsUpdatedEventArgs>? eventsUpdatedHandler;
     private EventHandler<TouchCapturedEventArgs>? touchCapturedHandler;
+    private EventHandler<NetworkRequestCapturedEventArgs>? networkRequestCapturedHandler;
     private IDisposable? annotationSinkRegistration;
     private long droppedRecordCount;
     private string? activeSessionDirectory;
@@ -55,6 +58,9 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
         this.options = (options ?? new OfflineCaptureOptions()).Normalize();
         touchCaptureHub = runtime is RuntimeImpl runtimeImpl
             ? runtimeImpl.TouchCaptureHub
+            : null;
+        networkRequestHub = runtime is RuntimeImpl networkRuntime
+            ? networkRuntime.NetworkRequestHub
             : null;
     }
 
@@ -150,6 +156,7 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
         Directory.CreateDirectory(OfflineCapturePaths.MetricsDirectory(sessionDirectory));
         Directory.CreateDirectory(OfflineCapturePaths.EventsDirectory(sessionDirectory));
         Directory.CreateDirectory(OfflineCapturePaths.TouchesDirectory(sessionDirectory));
+        Directory.CreateDirectory(OfflineCapturePaths.NetworkRequestsDirectory(sessionDirectory));
         Directory.CreateDirectory(OfflineCapturePaths.ScreenshotsDirectory(sessionDirectory));
         Directory.CreateDirectory(OfflineCapturePaths.ScreenshotIndexDirectory(sessionDirectory));
         Directory.CreateDirectory(OfflineCapturePaths.AnnotationBundlesDirectory(sessionDirectory));
@@ -220,6 +227,7 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
                     eventSegmentWriter,
                     touchSegmentWriter,
                     screenshotIndexSegmentWriter,
+                    OfflineCapturePaths.NetworkRequestsDirectory(sessionDirectory),
                     writerCancellation.Token),
                 CancellationToken.None);
             screenshotTask = Task.Run(() => RunScreenshotPumpAsync(screenshotCancellation.Token), CancellationToken.None);
@@ -782,6 +790,29 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
             };
             touchCaptureHub.TouchCaptured += touchCapturedHandler;
         }
+
+        if (networkRequestHub is not null)
+        {
+            networkRequestCapturedHandler = (_, args) =>
+            {
+                var fileName = BuildNetworkRequestFileName(args.Request);
+                if (TryQueue(new OfflineCaptureWriteRecord(
+                        OfflineCaptureWriteKind.NetworkRequest,
+                        args.Request.StartedAtUtc,
+                        OfflineCaptureJson.NetworkRequest(args.Request),
+                        FileName: fileName)))
+                {
+                    lock (stateLock)
+                    {
+                        if (activeManifest is not null)
+                        {
+                            activeManifest.NetworkRequestCount++;
+                        }
+                    }
+                }
+            };
+            networkRequestHub.RequestCaptured += networkRequestCapturedHandler;
+        }
     }
 
     private void DetachRuntimeFeeds()
@@ -803,6 +834,28 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
             touchCaptureHub.TouchCaptured -= touchCapturedHandler;
             touchCapturedHandler = null;
         }
+
+        if (networkRequestHub is not null && networkRequestCapturedHandler is not null)
+        {
+            networkRequestHub.RequestCaptured -= networkRequestCapturedHandler;
+            networkRequestCapturedHandler = null;
+        }
+    }
+
+    private static string BuildNetworkRequestFileName(NetworkRequestRecord request)
+    {
+        var safeId = new string(request.Id
+            .Take(128)
+            .Select(character => char.IsLetterOrDigit(character) || character is '-' or '_'
+                ? character
+                : '_')
+            .ToArray());
+        if (string.IsNullOrWhiteSpace(safeId))
+        {
+            safeId = Guid.CreateVersion7().ToString("N");
+        }
+
+        return $"{request.StartedAtUtc:yyyyMMddHHmmssfff}-{safeId}.json";
     }
 
     private bool TryQueue(OfflineCaptureWriteRecord record)
@@ -819,6 +872,7 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
         SegmentedJsonLineWriter eventSegmentWriter,
         SegmentedJsonLineWriter touchSegmentWriter,
         SegmentedJsonLineWriter screenshotIndexSegmentWriter,
+        string networkRequestsDirectory,
         CancellationToken cancellationToken)
     {
         while (await channel.Reader.WaitToReadAsync(cancellationToken))
@@ -844,6 +898,7 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
                     eventSegmentWriter,
                     touchSegmentWriter,
                     screenshotIndexSegmentWriter,
+                    networkRequestsDirectory,
                     cancellationToken);
                 wroteAny = true;
             }
@@ -871,8 +926,22 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
         SegmentedJsonLineWriter eventSegmentWriter,
         SegmentedJsonLineWriter touchSegmentWriter,
         SegmentedJsonLineWriter screenshotIndexSegmentWriter,
+        string networkRequestsDirectory,
         CancellationToken cancellationToken)
     {
+        if (record.Kind == OfflineCaptureWriteKind.NetworkRequest)
+        {
+            Directory.CreateDirectory(networkRequestsDirectory);
+            var fileName = string.IsNullOrWhiteSpace(record.FileName)
+                ? $"{record.CapturedAtUtc:yyyyMMddHHmmssfff}-{Guid.NewGuid():N}.json"
+                : Path.GetFileName(record.FileName);
+            await File.WriteAllTextAsync(
+                Path.Combine(networkRequestsDirectory, fileName),
+                record.JsonLine,
+                cancellationToken);
+            return;
+        }
+
         var writer = record.Kind switch
         {
             OfflineCaptureWriteKind.Metric => metricSegmentWriter,

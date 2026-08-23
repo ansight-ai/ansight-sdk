@@ -103,6 +103,10 @@ public final class AnsightDotNetBridge {
         AnsightRuntime.INSTANCE.clear();
     }
 
+    public static void recordNetworkRequest(String requestJson) {
+        AnsightRuntime.INSTANCE.recordNetworkRequest(requestJson);
+    }
+
     public static String recordCrashCandidate(
         String runtime,
         String kind,

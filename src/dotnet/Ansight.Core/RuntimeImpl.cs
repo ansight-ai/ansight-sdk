@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Ansight.Pairing;
 using Ansight.Native;
+using Ansight.Network;
 using Ansight.Telemetry.Battery;
 using Ansight.Telemetry.Memory;
 using Ansight.Tools;
@@ -36,10 +37,22 @@ internal class RuntimeImpl : IRuntime
     public IDataSink DataSink => dataSink;
     internal Options Options => options;
     internal PairingBinaryTransferHub BinaryTransferHub { get; } = new();
+    internal NetworkRequestHub NetworkRequestHub { get; } = new();
     internal TouchCaptureHub TouchCaptureHub { get; }
     internal AppLifecycleState CurrentAppLifecycleState => mutableDataSink.CurrentAppLifecycleState;
     internal DateTimeOffset? CurrentAppLifecycleStateChangedUtc => mutableDataSink.CurrentAppLifecycleStateChangedUtc;
     internal string ProcessSessionId => nativeRuntime.ProcessSessionId;
+
+    internal void RecordNetworkRequest(NetworkRequestRecord request)
+    {
+        var normalized = NetworkRequestSanitizer.SanitizeForTransport(request);
+
+        NetworkRequestHub.Record(normalized);
+        if (usesNativeRuntime)
+        {
+            nativeRuntime.RecordNetworkRequest(normalized);
+        }
+    }
 
     public ToolProtocolBridge ToolBridge { get; }
 
