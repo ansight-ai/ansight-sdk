@@ -278,6 +278,14 @@ Runtime.RegisterCustomProperty("app", "region", "au");
 
 Calling `RegisterCustomProperty(group, key, value)` again replaces the existing value. Use `RemoveCustomProperty(...)` or `ClearCustomProperties()` when a property should not be sent on future sessions.
 
+The SDK automatically includes a `dotnet` property group with its package version,
+target framework, runtime and architecture details, JIT/AOT capabilities, and
+garbage-collector configuration. These managed-runtime details remain available
+when the Android or Apple native runtime owns the live session.
+
+The native device profile also reports a canonical locale, language, optional
+region, time-zone identifier, and current UTC offset in minutes.
+
 ### App artifact providers
 
 `Ansight.Core` can expose app-defined snapshots such as logs, reports, traces,

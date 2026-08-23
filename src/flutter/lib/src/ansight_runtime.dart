@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 
 import 'ansight_models.dart';
 import 'ansight_options.dart';
+import 'session_properties.dart';
 import 'ansight_tooling.dart';
 import 'native_transport.dart';
 
@@ -56,7 +57,10 @@ class Ansight {
   Future<AnsightDebugSnapshot> initialize([
     AnsightOptions options = const AnsightOptions(),
   ]) async {
-    final result = await _invoke('initialize', options.toJson());
+    final result = await _invoke(
+      'initialize',
+      withAutomaticSessionProperties(options.toJson()),
+    );
     await _publishConnectionStatus();
     return AnsightDebugSnapshot.fromJson(result);
   }
@@ -64,7 +68,10 @@ class Ansight {
   Future<AnsightDebugSnapshot> initializeAndActivate([
     AnsightOptions options = const AnsightOptions(),
   ]) async {
-    final result = await _invoke('initializeAndActivate', options.toJson());
+    final result = await _invoke(
+      'initializeAndActivate',
+      withAutomaticSessionProperties(options.toJson()),
+    );
     await _publishConnectionStatus();
     return AnsightDebugSnapshot.fromJson(result);
   }
@@ -346,12 +353,19 @@ class Ansight {
   ) async =>
       AnsightOperationResult.fromJson(
         await _invoke('updateSessionProperties', <String, Object?>{
-          'properties': properties,
+          'properties': mergeSessionProperties(
+            createAutomaticSessionProperties(),
+            properties,
+          ),
         }),
       );
 
   Future<AnsightOperationResult> clearSessionProperties() async =>
-      AnsightOperationResult.fromJson(await _invoke('clearSessionProperties'));
+      AnsightOperationResult.fromJson(
+        await _invoke('updateSessionProperties', <String, Object?>{
+          'properties': createAutomaticSessionProperties(),
+        }),
+      );
 
   Future<AnsightOperationResult> registerCustomProperty(
     String group,
@@ -369,13 +383,21 @@ class Ansight {
   Future<AnsightOperationResult> removeCustomProperty(
     String group,
     String key,
-  ) async =>
-      AnsightOperationResult.fromJson(
-        await _invoke('removeCustomProperty', <String, Object?>{
-          'group': group,
-          'key': key,
-        }),
-      );
+  ) async {
+    final automaticValue = automaticSessionPropertyValue(group, key);
+    return AnsightOperationResult.fromJson(
+      automaticValue == null
+          ? await _invoke('removeCustomProperty', <String, Object?>{
+              'group': group,
+              'key': key,
+            })
+          : await _invoke('registerCustomProperty', <String, Object?>{
+              'group': group,
+              'key': key,
+              'value': automaticValue,
+            }),
+    );
+  }
 
   /// Registers Flutter as a source for the native visual-tree tools.
   ///

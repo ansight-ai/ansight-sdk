@@ -19,7 +19,10 @@ public struct DeviceProfile: Sendable, Codable, Equatable {
     public var isVirtual: Bool?
     public var isEmulator: Bool?
     public var locale: String?
+    public var language: String? = nil
+    public var region: String? = nil
     public var timeZone: String?
+    public var utcOffsetMinutes: Int? = nil
     public var osName: String?
     public var osVersion: String?
     public var osBuild: String?

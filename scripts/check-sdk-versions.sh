@@ -31,6 +31,12 @@ add_version() {
   versions+=("${version}")
 }
 
+capacitor_compiled_version="$(extract_first 'COMPILED_CAPACITOR_CORE_VERSION = "([^"]+)"' "${repo_root}/src/capacitor/src/session-properties.ts")"
+capacitor_dependency_version="$(extract_first '"@capacitor/core"\s*:\s*"\^([^"]+)"' "${repo_root}/src/capacitor/package.json")"
+if [[ "${capacitor_compiled_version}" != "${capacitor_dependency_version}" ]]; then
+  fail "Capacitor runtime metadata (${capacitor_compiled_version}) does not match the compiled @capacitor/core dependency (${capacitor_dependency_version})"
+fi
+
 add_version \
   "dotnet:Directory.Build.props" \
   "$(extract_first '<AnsightPackageVersion>([^<]+)</AnsightPackageVersion>' "${repo_root}/src/dotnet/Directory.Build.props")"
@@ -83,6 +89,10 @@ add_version \
   "$(extract_first '"version"\s*:\s*"([^"]+)"' "${repo_root}/src/capacitor/package-lock.json")"
 
 add_version \
+  "capacitor:runtime SDK metadata" \
+  "$(extract_first 'ANSIGHT_CAPACITOR_SDK_VERSION = "([^"]+)"' "${repo_root}/src/capacitor/src/session-properties.ts")"
+
+add_version \
   "capacitor:android dependency" \
   "$(extract_first 'ai\.ansight:ansight-android:([^"]+)' "${repo_root}/src/capacitor/android/build.gradle")"
 
@@ -101,6 +111,10 @@ add_version \
 add_version \
   "flutter:pubspec.yaml" \
   "$(extract_first '\nversion:\s*([^\s]+)' "${repo_root}/src/flutter/pubspec.yaml")"
+
+add_version \
+  "flutter:runtime SDK metadata" \
+  "$(extract_first 'ansightFlutterSdkVersion = ['\''"]([^'\''"]+)['\''"]' "${repo_root}/src/flutter/lib/src/session_properties.dart")"
 
 add_version \
   "flutter:Android package" \

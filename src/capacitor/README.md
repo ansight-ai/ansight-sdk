@@ -109,6 +109,23 @@ Enable them with `withOpenFileHandleTracking()` and
 again. Open handles are sampled by the native Android/iOS runtime. JNI counts
 are available on Android only when the host integration can supply them.
 
+## Automatic session properties
+
+The JavaScript bridge adds these groups to every session:
+
+| Group | Properties |
+| --- | --- |
+| `capacitor` | Ansight SDK version, supported Capacitor version and exact build-time core version, platform and runtime language, native/web execution mode, WebView/browser engine and available engine version, and user agent. |
+| `localization` | Canonical locale, language, optional region, IANA time zone when exposed by `Intl`, and UTC offset in minutes. |
+
+Capacitor does not expose the installed core package's exact version at
+runtime, so `capacitorVersion` records the supported `8.x` runtime and
+`compiledCapacitorVersion` records the exact core version used to build this
+plugin. Caller values override automatic values with the same group and key.
+Clearing properties, or removing one automatic property, restores the current
+bridge-owned values. Apps with their own language selector can override the
+`localization` group with the selected locale and language.
+
 ## JavaScript tools and artifacts
 
 ```ts

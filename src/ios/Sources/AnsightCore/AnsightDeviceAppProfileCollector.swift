@@ -61,6 +61,12 @@ public enum AnsightDeviceAppProfileCollector {
 
     private static func collectDeviceProfile() -> DeviceProfile {
         let storage = storageCapacity()
+        let locale = Locale.current
+        let timeZone = TimeZone.current
+        let localeIdentifier = locale.identifier
+            .split(separator: "@", maxSplits: 1)
+            .first?
+            .replacingOccurrences(of: "_", with: "-")
         return DeviceProfile(
             nativeDeviceId: simulatorUdid,
             manufacturer: "Apple",
@@ -71,8 +77,11 @@ public enum AnsightDeviceAppProfileCollector {
             deviceClassCode: deviceClassCode(),
             isVirtual: isSimulator,
             isEmulator: isSimulator,
-            locale: Locale.current.identifier,
-            timeZone: TimeZone.current.identifier,
+            locale: localeIdentifier,
+            language: locale.languageCode,
+            region: locale.regionCode,
+            timeZone: timeZone.identifier,
+            utcOffsetMinutes: timeZone.secondsFromGMT() / 60,
             osName: osName,
             osVersion: ProcessInfo.processInfo.operatingSystemVersionString,
             osBuild: sysctlString("kern.osversion"),

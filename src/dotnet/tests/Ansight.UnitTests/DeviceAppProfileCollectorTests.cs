@@ -55,6 +55,26 @@ public sealed class DeviceAppProfileCollectorTests
     }
 
     [Fact]
+    public void Create_PopulatesNormalizedLocalizationFields()
+    {
+        var profile = DeviceAppProfileCollector.Create();
+        var culture = System.Globalization.CultureInfo.CurrentUICulture;
+
+        Assert.NotNull(profile.Device);
+        Assert.Equal(
+            string.IsNullOrWhiteSpace(culture.Name) ? null : culture.Name,
+            profile.Device!.Locale);
+        Assert.Equal(TimeZoneInfo.Local.Id, profile.Device.TimeZone);
+        Assert.NotNull(profile.Device.UtcOffsetMinutes);
+        Assert.InRange(profile.Device.UtcOffsetMinutes.Value, -14 * 60, 14 * 60);
+
+        if (!culture.Equals(System.Globalization.CultureInfo.InvariantCulture))
+        {
+            Assert.Equal(culture.TwoLetterISOLanguageName, profile.Device.Language);
+        }
+    }
+
+    [Fact]
     public void DeviceProfile_SerializesFirstClassFormFactorAndVirtualState()
     {
         var profile = new DeviceAppProfile
@@ -72,6 +92,30 @@ public sealed class DeviceAppProfileCollectorTests
         Assert.Contains("\"formFactor\":\"tablet\"", json, StringComparison.Ordinal);
         Assert.Contains("\"isVirtual\":true", json, StringComparison.Ordinal);
         Assert.Contains("\"isEmulator\":true", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DeviceProfile_SerializesLocalizationFields()
+    {
+        var profile = new DeviceAppProfile
+        {
+            Device = new DeviceProfile
+            {
+                Locale = "en-AU",
+                Language = "en",
+                Region = "AU",
+                TimeZone = "Australia/Sydney",
+                UtcOffsetMinutes = 600
+            }
+        };
+
+        var json = JsonSerializer.Serialize(profile, PairingJson.Compact);
+
+        Assert.Contains("\"locale\":\"en-AU\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"language\":\"en\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"region\":\"AU\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"timeZone\":\"Australia/Sydney\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"utcOffsetMinutes\":600", json, StringComparison.Ordinal);
     }
 
     [Fact]

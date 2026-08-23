@@ -7,6 +7,45 @@ import org.junit.Test
 
 class DeviceProfilesTest {
     @Test
+    fun deviceProfileSerializesNormalizedLocalizationFields() {
+        val json = DeviceProfile(
+            manufacturer = null,
+            brand = null,
+            model = null,
+            product = null,
+            formFactor = null,
+            deviceClassCode = null,
+            isVirtual = null,
+            isEmulator = null,
+            locale = "en-AU",
+            timeZone = "Australia/Sydney",
+            osName = "android",
+            osVersion = null,
+            osBuild = null,
+            apiLevel = null,
+            cpuArch = null,
+            cpuCoreCount = null,
+            abiList = emptyList(),
+            memoryTotalMb = null,
+            memoryFreeMb = null,
+            storageTotalMb = null,
+            storageFreeMb = null,
+            battery = null,
+            display = null,
+            network = null,
+            language = "en",
+            region = "AU",
+            utcOffsetMinutes = 600,
+        ).toJson()
+
+        assertEquals("en-AU", json.getString("locale"))
+        assertEquals("en", json.getString("language"))
+        assertEquals("AU", json.getString("region"))
+        assertEquals("Australia/Sydney", json.getString("timeZone"))
+        assertEquals(600, json.getInt("utcOffsetMinutes"))
+    }
+
+    @Test
     fun runtimeProfileSerializesProtocolShape() {
         val json = DeviceRuntimeProfile(
             primary = 1,

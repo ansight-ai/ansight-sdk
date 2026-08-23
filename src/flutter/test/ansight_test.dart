@@ -141,7 +141,13 @@ void main() {
     final ansight = Ansight.withTransport(transport);
 
     final snapshot = await ansight.initialize(
-      const AnsightOptions(sampleFrequencyMilliseconds: 250),
+      const AnsightOptions(
+        sampleFrequencyMilliseconds: 250,
+        customProperties: <String, Map<String, String>>{
+          'flutter': <String, String>{'buildMode': 'caller'},
+          'localization': <String, String>{'language': 'fr'},
+        },
+      ),
     );
     await ansight.metric(12.6, channel: 40);
     await ansight.event(
@@ -153,11 +159,67 @@ void main() {
     expect(snapshot.initialized, isTrue);
     expect(transport.calls[0].method, 'initialize');
     expect(transport.calls[0].arguments?['sampleFrequencyMilliseconds'], 250);
+    final automaticProperties = transport
+        .calls[0].arguments?['customProperties'] as Map<Object?, Object?>;
+    expect(
+      automaticProperties['flutter'] as Map<Object?, Object?>,
+      containsPair('sdkVersion', isNotEmpty),
+    );
+    expect(
+      automaticProperties['flutter'] as Map<Object?, Object?>,
+      containsPair('dartVersion', isNotEmpty),
+    );
+    expect(
+      automaticProperties['flutter'] as Map<Object?, Object?>,
+      containsPair('buildMode', 'caller'),
+    );
+    expect(
+      automaticProperties['localization'] as Map<Object?, Object?>,
+      containsPair('language', 'fr'),
+    );
+    expect(
+      automaticProperties['localization'] as Map<Object?, Object?>,
+      containsPair('utcOffsetMinutes', isNotEmpty),
+    );
     expect(transport.calls[2].method, 'recordMetric');
     expect(transport.calls[2].arguments, <String, Object?>{
       'value': 13,
       'channel': 40,
     });
+  });
+
+  test('automatic properties survive updates, clears, and removals', () async {
+    final transport = FakeNativeTransport();
+    final ansight = Ansight.withTransport(transport);
+
+    await ansight.updateSessionProperties(<String, Map<String, String>>{
+      'flutter': <String, String>{'buildMode': 'caller'},
+      'app': <String, String>{'tenant': 'acme'},
+    });
+    await ansight.clearSessionProperties();
+    await ansight.removeCustomProperty('flutter', 'sdkVersion');
+    await ansight.removeCustomProperty('app', 'tenant');
+
+    final updated =
+        transport.calls[0].arguments?['properties'] as Map<Object?, Object?>;
+    expect(
+      updated['flutter'] as Map<Object?, Object?>,
+      containsPair('buildMode', 'caller'),
+    );
+    expect(updated, containsPair('app', <String, String>{'tenant': 'acme'}));
+
+    expect(transport.calls[1].method, 'updateSessionProperties');
+    final cleared =
+        transport.calls[1].arguments?['properties'] as Map<Object?, Object?>;
+    expect(cleared, contains('flutter'));
+    expect(cleared, contains('localization'));
+
+    expect(transport.calls[2].method, 'registerCustomProperty');
+    expect(
+      transport.calls[2].arguments,
+      containsPair('value', isNotEmpty),
+    );
+    expect(transport.calls[3].method, 'removeCustomProperty');
   });
 
   test('dispatches native custom-tool calls back to Dart', () async {

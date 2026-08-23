@@ -10,6 +10,11 @@ const {
   findNodeHandle,
   processColor,
 } = require("react-native");
+const { version: reactVersion } = require("react");
+const {
+  createAutomaticSessionProperties,
+  mergeSessionProperties,
+} = require("./session-properties");
 
 const nativeModule = NativeModules.AnsightReactNative;
 
@@ -44,7 +49,26 @@ function normalizePairingPayload(payload) {
 }
 
 function normalizeOptions(options = {}) {
-  return { ...options };
+  return {
+    ...options,
+    customProperties: mergeSessionProperties(
+      automaticSessionProperties(),
+      options.customProperties
+    ),
+  };
+}
+
+function automaticSessionProperties() {
+  return createAutomaticSessionProperties({
+    platform: Platform,
+    reactVersion,
+    runtimeGlobal: global,
+    developmentMode: typeof __DEV__ !== "undefined" && __DEV__,
+  });
+}
+
+function automaticSessionPropertyValue(group, key) {
+  return automaticSessionProperties()[group]?.[key];
 }
 
 function cloneOptions(options = {}) {
@@ -2473,12 +2497,21 @@ const Ansight = {
   captureScreenFrame: (options = {}) => nativeModule.captureScreenFrame(options || {}),
   enableTouchCapture: () => nativeModule.enableTouchCapture(),
   disableTouchCapture: () => nativeModule.disableTouchCapture(),
-  updateSessionProperties: (properties) => nativeModule.updateSessionProperties(properties || {}),
-  clearSessionProperties: () => nativeModule.clearSessionProperties(),
-  updateCustomProperties: (properties) => nativeModule.updateSessionProperties(properties || {}),
+  updateSessionProperties: (properties) => nativeModule.updateSessionProperties(
+    mergeSessionProperties(automaticSessionProperties(), properties || {})
+  ),
+  clearSessionProperties: () => nativeModule.updateSessionProperties(automaticSessionProperties()),
+  updateCustomProperties: (properties) => nativeModule.updateSessionProperties(
+    mergeSessionProperties(automaticSessionProperties(), properties || {})
+  ),
   registerCustomProperty: (group, key, value) => nativeModule.registerCustomProperty(group, key, value),
-  removeCustomProperty: (group, key) => nativeModule.removeCustomProperty(group, key),
-  clearCustomProperties: () => nativeModule.clearSessionProperties(),
+  removeCustomProperty: (group, key) => {
+    const automaticValue = automaticSessionPropertyValue(group, key);
+    return automaticValue == null
+      ? nativeModule.removeCustomProperty(group, key)
+      : nativeModule.registerCustomProperty(group, key, automaticValue);
+  },
+  clearCustomProperties: () => nativeModule.updateSessionProperties(automaticSessionProperties()),
   registerTool,
   unregisterTool,
   registerArtifactProvider,

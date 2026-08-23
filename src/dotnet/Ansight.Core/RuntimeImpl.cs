@@ -557,7 +557,14 @@ internal class RuntimeImpl : IRuntime
         {
             if (usesNativeRuntime)
             {
-                nativeRuntime.RemoveCustomProperty(group, key);
+                if (DotNetSessionProperties.TryGetValue(group, key, out var dotNetValue))
+                {
+                    nativeRuntime.RegisterCustomProperty(group, key, dotNetValue);
+                }
+                else
+                {
+                    nativeRuntime.RemoveCustomProperty(group, key);
+                }
             }
             CustomPropertiesChanged?.Invoke(this, EventArgs.Empty);
         }
@@ -572,17 +579,36 @@ internal class RuntimeImpl : IRuntime
             return;
         }
 
+        var propertiesToRemove = customProperties.ToJsonObject();
         customProperties.Clear();
         if (usesNativeRuntime)
         {
-            nativeRuntime.ClearCustomProperties();
+            foreach (var group in propertiesToRemove)
+            {
+                if (group.Value is not JsonObject properties)
+                {
+                    continue;
+                }
+
+                foreach (var property in properties)
+                {
+                    if (DotNetSessionProperties.TryGetValue(group.Key, property.Key, out var dotNetValue))
+                    {
+                        nativeRuntime.RegisterCustomProperty(group.Key, property.Key, dotNetValue);
+                    }
+                    else
+                    {
+                        nativeRuntime.RemoveCustomProperty(group.Key, property.Key);
+                    }
+                }
+            }
         }
         CustomPropertiesChanged?.Invoke(this, EventArgs.Empty);
     }
 
     internal SessionCustomProperties CreateCustomPropertiesSnapshot()
     {
-        return customProperties.Clone();
+        return DotNetSessionProperties.CreateEffective(customProperties);
     }
 
     public void Clear()

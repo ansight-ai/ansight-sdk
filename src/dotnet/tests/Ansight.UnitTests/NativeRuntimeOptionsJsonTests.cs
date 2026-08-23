@@ -1,4 +1,7 @@
 using System.Drawing;
+using System.Runtime;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
 using Ansight.Native;
 
@@ -57,11 +60,55 @@ public sealed class NativeRuntimeOptionsJsonTests
         Assert.Equal(64 * 1024, json["crashCapture"]!["maximumTraceBytes"]!.GetValue<int>());
         Assert.Equal("true", json["customProperties"]!["flags"]!["beta"]!.GetValue<string>());
         Assert.Equal("5", json["customProperties"]!["limits"]!["count"]!.GetValue<string>());
+        Assert.Equal(
+            RuntimeInformation.FrameworkDescription,
+            json["customProperties"]![DotNetSessionProperties.GroupName]!["runtime"]!.GetValue<string>());
+        Assert.Equal(
+            RuntimeFeature.IsDynamicCodeSupported ? "true" : "false",
+            json["customProperties"]![DotNetSessionProperties.GroupName]!["jitEnabled"]!.GetValue<string>());
         Assert.True(json["hostAutoProbe"]!["enabled"]!.GetValue<bool>());
         Assert.Equal(
             "ai.ansight.dotnet.saved-pairing",
             json["hostConnection"]!["savedConfigKey"]!.GetValue<string>());
         Assert.False(json["hostConnection"]!["allowUnattendedProvisioning"]!.GetValue<bool>());
+    }
+
+    [Fact]
+    public void Serialize_IncludesDotNetRuntimePropertyGroup()
+    {
+        var json = JsonNode.Parse(NativeRuntimeOptionsJson.Serialize(Options.Default))!.AsObject();
+        var properties = json["customProperties"]![DotNetSessionProperties.GroupName]!.AsObject();
+
+        Assert.Equal(RuntimeInformation.FrameworkDescription, properties["runtime"]!.GetValue<string>());
+        Assert.Equal(Environment.Version.ToString(), properties["runtimeVersion"]!.GetValue<string>());
+        Assert.Equal(RuntimeInformation.RuntimeIdentifier, properties["runtimeIdentifier"]!.GetValue<string>());
+        Assert.Equal(
+            RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant(),
+            properties["processArchitecture"]!.GetValue<string>());
+        Assert.Equal(
+            RuntimeFeature.IsDynamicCodeSupported ? "true" : "false",
+            properties["jitEnabled"]!.GetValue<string>());
+        Assert.Equal(
+            RuntimeFeature.IsDynamicCodeCompiled ? "false" : "true",
+            properties["aotEnabled"]!.GetValue<string>());
+        Assert.Equal(
+            GCSettings.IsServerGC ? "server" : "workstation",
+            properties["garbageCollector"]!.GetValue<string>());
+        Assert.False(string.IsNullOrWhiteSpace(properties["sdkVersion"]!.GetValue<string>()));
+    }
+
+    [Fact]
+    public void Serialize_WhenCallerOverridesDotNetProperty_UsesCallerValue()
+    {
+        var options = Options.CreateBuilder()
+            .RegisterCustomProperty(DotNetSessionProperties.GroupName, "runtime", "custom-runtime")
+            .Build();
+
+        var json = JsonNode.Parse(NativeRuntimeOptionsJson.Serialize(options))!.AsObject();
+
+        Assert.Equal(
+            "custom-runtime",
+            json["customProperties"]![DotNetSessionProperties.GroupName]!["runtime"]!.GetValue<string>());
     }
 
     [Fact]

@@ -52,16 +52,40 @@ internal static partial class DeviceAppProfileCollector
 
     private static DeviceProfile CreateDeviceProfile()
     {
+        var culture = CultureInfo.CurrentUICulture;
+        var localTimeZone = TimeZoneInfo.Local;
         var profile = new DeviceProfile
         {
-            Locale = NullIfWhiteSpace(CultureInfo.CurrentUICulture.Name),
-            TimeZone = NullIfWhiteSpace(TimeZoneInfo.Local.Id),
+            Locale = NullIfWhiteSpace(culture.Name),
+            Language = culture.Equals(CultureInfo.InvariantCulture)
+                ? null
+                : NullIfWhiteSpace(culture.TwoLetterISOLanguageName),
+            Region = ResolveRegion(culture),
+            TimeZone = NullIfWhiteSpace(localTimeZone.Id),
+            UtcOffsetMinutes = (int)localTimeZone.GetUtcOffset(DateTimeOffset.Now).TotalMinutes,
             CpuArch = RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant(),
             CpuCoreCount = global::System.Environment.ProcessorCount
         };
 
         PopulateDeviceProfile(profile);
         return profile;
+    }
+
+    private static string? ResolveRegion(CultureInfo culture)
+    {
+        if (culture.Equals(CultureInfo.InvariantCulture) || culture.IsNeutralCulture)
+        {
+            return null;
+        }
+
+        try
+        {
+            return NullIfWhiteSpace(new RegionInfo(culture.Name).TwoLetterISORegionName);
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
     }
 
     private static DeviceApplicationProfile CreateApplicationProfile()

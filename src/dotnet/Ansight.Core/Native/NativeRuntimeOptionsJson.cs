@@ -131,11 +131,8 @@ internal static class NativeRuntimeOptionsJson
     private static JsonObject SerializeCustomProperties(SessionCustomProperties? customProperties)
     {
         var result = new JsonObject();
-        var source = customProperties?.ToJsonObject();
-        if (source is null)
-        {
-            return result;
-        }
+        var effectiveProperties = DotNetSessionProperties.CreateEffective(customProperties);
+        var source = effectiveProperties.ToJsonObject();
 
         foreach (var group in source)
         {

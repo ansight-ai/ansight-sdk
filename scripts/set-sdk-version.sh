@@ -81,6 +81,9 @@ if (lock.packages?.[""]) lock.packages[""].version = version;
 fs.writeFileSync(packageLock, `${JSON.stringify(lock, null, 2)}\n`);
 NODE
 
+perl -0pi -e 's/(ANSIGHT_CAPACITOR_SDK_VERSION = ")[^"]+(")/$1$ENV{VERSION}$2/g' \
+  "${repo_root}/src/capacitor/src/session-properties.ts"
+
 perl -0pi -e 's/(ai\.ansight:ansight-android:)[^")]+/$1$ENV{VERSION}/g' \
   "${repo_root}/src/react-native/android/build.gradle"
 
@@ -101,6 +104,9 @@ perl -0pi -e 's|(ansight-sdk\.git",\s*exact:\s*")[^"]+(")|$1$ENV{VERSION}$2|g' \
 
 perl -0pi -e 's/^version:\s*\S+/version: $ENV{VERSION}/m' \
   "${repo_root}/src/flutter/pubspec.yaml"
+
+perl -0pi -e 's/(ansightFlutterSdkVersion = '\''|ansightFlutterSdkVersion = ")[^'\''"]+(['\''"])/$1$ENV{VERSION}$2/g' \
+  "${repo_root}/src/flutter/lib/src/session_properties.dart"
 
 perl -0pi -e 's/^(version\s*=\s*")[^"]+(")/$1$ENV{VERSION}$2/m; s/(ai\.ansight:ansight-android:)[^"]+/$1$ENV{VERSION}/g' \
   "${repo_root}/src/flutter/android/build.gradle"

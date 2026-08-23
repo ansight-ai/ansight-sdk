@@ -103,6 +103,9 @@ data class DeviceProfile(
     val display: DeviceDisplayProfile?,
     val network: DeviceNetworkProfile?,
     val nativeDeviceId: String? = null,
+    val language: String? = null,
+    val region: String? = null,
+    val utcOffsetMinutes: Int? = null,
 ) {
     fun toJson(): JSONObject = JSONObject()
         .putIfNotNull("nativeDeviceId", nativeDeviceId)
@@ -115,7 +118,10 @@ data class DeviceProfile(
         .putIfNotNull("isVirtual", isVirtual)
         .putIfNotNull("isEmulator", isEmulator)
         .putIfNotNull("locale", locale)
+        .putIfNotNull("language", language)
+        .putIfNotNull("region", region)
         .putIfNotNull("timeZone", timeZone)
+        .putIfNotNull("utcOffsetMinutes", utcOffsetMinutes)
         .putIfNotNull("osName", osName)
         .putIfNotNull("osVersion", osVersion)
         .putIfNotNull("osBuild", osBuild)
@@ -246,6 +252,8 @@ object DeviceAppProfileCollector {
     fun collect(application: Application, profileSeq: Int, reasonCode: Int = 1): DeviceAppProfile {
         val packageInfo = packageInfo(application)
         val display = displayProfile(application)
+        val locale = Locale.getDefault()
+        val timeZone = TimeZone.getDefault()
         return DeviceAppProfile(
             sentAt = System.currentTimeMillis(),
             reasonCode = reasonCode,
@@ -276,8 +284,8 @@ object DeviceAppProfileCollector {
                 deviceClassCode = 1,
                 isVirtual = isEmulator(),
                 isEmulator = isEmulator(),
-                locale = Locale.getDefault().toLanguageTag().nullIfBlank(),
-                timeZone = TimeZone.getDefault().id.nullIfBlank(),
+                locale = locale.toLanguageTag().nullIfBlank(),
+                timeZone = timeZone.id.nullIfBlank(),
                 osName = "android",
                 osVersion = Build.VERSION.RELEASE.nullIfBlank(),
                 osBuild = Build.DISPLAY.nullIfBlank(),
@@ -292,6 +300,9 @@ object DeviceAppProfileCollector {
                 battery = batteryProfile(application),
                 display = display,
                 network = networkProfile(application),
+                language = locale.language.nullIfBlank(),
+                region = locale.country.nullIfBlank(),
+                utcOffsetMinutes = timeZone.getOffset(System.currentTimeMillis()) / 60_000,
             ),
             app = DeviceApplicationProfile(
                 appId = application.packageName.nullIfBlank(),

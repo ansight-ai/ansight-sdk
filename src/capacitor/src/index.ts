@@ -2,6 +2,11 @@ import { Capacitor, registerPlugin } from "@capacitor/core";
 
 import { installDomTools as installDomToolsCore } from "./dom";
 import { AnsightOptionsBuilder, createOptionsBuilder } from "./options";
+import {
+  createAutomaticSessionProperties,
+  currentCapacitorSessionEnvironment,
+  mergeSessionProperties,
+} from "./session-properties";
 import type {
   AnsightArtifactDefinition,
   AnsightArtifactPayload,
@@ -62,10 +67,30 @@ function normalizePairingPayload(
 
 function normalizeOptions(input: AnsightOptions): AnsightOptions {
   const options = JSON.parse(JSON.stringify(input)) as AnsightOptions;
+  options.customProperties = mergeSessionProperties(
+    automaticSessionProperties(),
+    options.customProperties,
+  );
   delete options.domTools;
   delete options.errorCapture;
   delete options.lifecycle;
   return options;
+}
+
+function automaticSessionProperties(): Record<string, Record<string, string>> {
+  return createAutomaticSessionProperties(
+    currentCapacitorSessionEnvironment(
+      Capacitor.getPlatform(),
+      Capacitor.isNativePlatform(),
+    ),
+  );
+}
+
+function automaticSessionPropertyValue(
+  group: string,
+  key: string,
+): string | undefined {
+  return automaticSessionProperties()[group]?.[key];
 }
 
 function normalizeToolResult(value: unknown): AnsightToolResult {
@@ -354,10 +379,17 @@ export const disableTouchCapture = (): Promise<AnsightDebugSnapshot> =>
 export const updateSessionProperties = (
   properties: Record<string, Record<string, string>>,
 ): Promise<AnsightOperationResult> =>
-  AnsightNative.updateSessionProperties({ properties });
+  AnsightNative.updateSessionProperties({
+    properties: mergeSessionProperties(
+      automaticSessionProperties(),
+      properties,
+    ),
+  });
 export const updateCustomProperties = updateSessionProperties;
 export const clearSessionProperties = (): Promise<AnsightOperationResult> =>
-  AnsightNative.clearSessionProperties();
+  AnsightNative.updateSessionProperties({
+    properties: automaticSessionProperties(),
+  });
 export const clearCustomProperties = clearSessionProperties;
 export const registerCustomProperty = (
   group: string,
@@ -368,8 +400,16 @@ export const registerCustomProperty = (
 export const removeCustomProperty = (
   group: string,
   key: string,
-): Promise<AnsightOperationResult> =>
-  AnsightNative.removeCustomProperty({ group, key });
+): Promise<AnsightOperationResult> => {
+  const automaticValue = automaticSessionPropertyValue(group, key);
+  return automaticValue == null
+    ? AnsightNative.removeCustomProperty({ group, key })
+    : AnsightNative.registerCustomProperty({
+        group,
+        key,
+        value: automaticValue,
+      });
+};
 
 export function addHostConnectionStatusListener(
   listener: (

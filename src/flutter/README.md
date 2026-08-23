@@ -104,6 +104,25 @@ Enable them with `withOpenFileHandleTracking()` and
 again. Open handles are sampled by the native Android/iOS runtime. JNI counts
 are available on Android only when the host integration can supply them.
 
+## Automatic session properties
+
+The Dart bridge adds a `flutter` property group to every session with the
+Ansight plugin version, Dart version, platform, build mode, JIT/AOT mode, and
+development mode. The group identifies Dart as the runtime language. If the app
+is compiled with a `FLUTTER_VERSION` Dart define, that value is included as
+`flutterVersion`; Flutter does not otherwise expose its framework version or
+active renderer through a stable runtime API.
+
+It also adds a `localization` group containing the platform locale, language,
+optional region, platform-reported time-zone name, and UTC offset in minutes.
+`PlatformDispatcher` reports the platform locale, so an app that overrides its
+locale in `MaterialApp` should override the corresponding `localization`
+properties too.
+
+Caller values win when they use the same group and key. Clearing session
+properties, or removing one automatic property, restores the current
+bridge-owned values.
+
 ## Pairing and sessions
 
 No connection call is needed for a simulator or emulator. On a physical

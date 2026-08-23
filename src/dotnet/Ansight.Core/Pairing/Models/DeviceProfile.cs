@@ -57,9 +57,24 @@ public sealed class DeviceProfile
     public string? Locale { get; set; }
 
     /// <summary>
+    /// ISO language code for the current UI locale.
+    /// </summary>
+    public string? Language { get; set; }
+
+    /// <summary>
+    /// ISO region code for the current UI locale, when present.
+    /// </summary>
+    public string? Region { get; set; }
+
+    /// <summary>
     /// Current local time-zone identifier.
     /// </summary>
     public string? TimeZone { get; set; }
+
+    /// <summary>
+    /// Current local offset from UTC in minutes, including daylight-saving time.
+    /// </summary>
+    public int? UtcOffsetMinutes { get; set; }
 
     /// <summary>
     /// Operating-system family name.

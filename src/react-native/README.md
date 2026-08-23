@@ -389,6 +389,19 @@ await Ansight.clearSessionProperties();
 When connected, property mutations are sent immediately. When disconnected, the
 latest values are included in the next `session.open`.
 
+The bridge automatically adds these property groups:
+
+| Group | Properties |
+| --- | --- |
+| `reactNative` | Ansight SDK, React Native and React versions; platform and runtime language; JavaScript engine and available Hermes version/bytecode details; legacy/new architecture; bridgeless state; development mode. |
+| `localization` | Canonical locale, language, optional region, IANA time zone when exposed by `Intl`, and UTC offset in minutes. |
+
+App-provided values override an automatic value with the same group and key.
+Clearing all properties, or removing one automatic property, restores the
+current bridge-owned value. `localization` reflects the JavaScript runtime
+locale; if the app selects a different language through an i18n library, set
+`localization.locale`, `language`, and `region` explicitly.
+
 ## Tool Guards
 
 | Value | Allowed scopes |
