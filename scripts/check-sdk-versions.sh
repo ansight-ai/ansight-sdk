@@ -73,10 +73,6 @@ add_version \
   "$(extract_first '"version"\s*:\s*"([^"]+)"' "${repo_root}/src/react-native/package.json")"
 
 add_version \
-  "react-native:android dependency" \
-  "$(extract_first 'ai\.ansight:ansight-android:([^")]+)' "${repo_root}/src/react-native/android/build.gradle")"
-
-add_version \
   "react-native:android fallback" \
   "$(extract_first 'findProperty\("ansightAndroidVersion"\)\s*\?:\s*"([^"]+)"' "${repo_root}/src/react-native/android/build.gradle")"
 
@@ -91,10 +87,6 @@ add_version \
 add_version \
   "capacitor:runtime SDK metadata" \
   "$(extract_first 'ANSIGHT_CAPACITOR_SDK_VERSION = "([^"]+)"' "${repo_root}/src/capacitor/src/session-properties.ts")"
-
-add_version \
-  "capacitor:android dependency" \
-  "$(extract_first 'ai\.ansight:ansight-android:([^"]+)' "${repo_root}/src/capacitor/android/build.gradle")"
 
 add_version \
   "capacitor:android fallback" \
@@ -119,10 +111,6 @@ add_version \
 add_version \
   "flutter:Android package" \
   "$(extract_first 'version\s*=\s*"([^"]+)"' "${repo_root}/src/flutter/android/build.gradle")"
-
-add_version \
-  "flutter:Android dependency" \
-  "$(extract_first 'ai\.ansight:ansight-android:([^"]+)' "${repo_root}/src/flutter/android/build.gradle")"
 
 add_version \
   "flutter:Android fallback" \
