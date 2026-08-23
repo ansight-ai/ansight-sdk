@@ -4,6 +4,7 @@ import type {
   AnsightDomToolsOptions,
   AnsightErrorCaptureOptions,
   AnsightOptions,
+  AnsightNetworkCaptureOptions,
   AnsightOptionsBuilderApi,
   AnsightRemoteToolsOptions,
   AnsightSessionJpegCaptureOptions,
@@ -224,6 +225,52 @@ export class AnsightOptionsBuilder implements AnsightOptionsBuilderApi {
       ...options,
       enabled: options.enabled ?? true,
     };
+    return this;
+  }
+
+  withNetworkCapture(options: AnsightNetworkCaptureOptions = {}): this {
+    this.options.networkCapture = { ...options };
+    return this;
+  }
+
+  withNetworkRequestBodies(maximumBodyBytes?: number): this {
+    if (typeof this.options.networkCapture !== "object") return this;
+    const current = this.options.networkCapture;
+    this.options.networkCapture = {
+      ...current,
+      captureRequestBody: true,
+      ...(maximumBodyBytes == null ? {} : { maximumBodyBytes }),
+    };
+    return this;
+  }
+
+  withoutNetworkRequestBodies(): this {
+    if (typeof this.options.networkCapture !== "object") return this;
+    const current = this.options.networkCapture;
+    this.options.networkCapture = { ...current, captureRequestBody: false };
+    return this;
+  }
+
+  withNetworkResponseBodies(maximumBodyBytes?: number): this {
+    if (typeof this.options.networkCapture !== "object") return this;
+    const current = this.options.networkCapture;
+    this.options.networkCapture = {
+      ...current,
+      captureResponseBody: true,
+      ...(maximumBodyBytes == null ? {} : { maximumBodyBytes }),
+    };
+    return this;
+  }
+
+  withoutNetworkResponseBodies(): this {
+    if (typeof this.options.networkCapture !== "object") return this;
+    const current = this.options.networkCapture;
+    this.options.networkCapture = { ...current, captureResponseBody: false };
+    return this;
+  }
+
+  withoutNetworkCapture(): this {
+    this.options.networkCapture = false;
     return this;
   }
 

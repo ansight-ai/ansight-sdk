@@ -47,6 +47,74 @@ export interface AnsightTouchCaptureOptions {
   moveCaptureFramesPerSecond?: number;
 }
 
+export interface AnsightNetworkHeader {
+  name: string;
+  value: string;
+}
+
+export interface AnsightNetworkBody {
+  contentType?: string;
+  encoding: "utf8" | "base64";
+  data: string;
+  capturedBytes: number;
+  totalBytes?: number;
+  truncated: boolean;
+}
+
+/** V1 network metadata with optional, bounded bodies. */
+export interface AnsightNetworkRequest {
+  schema: "ansight.network-request.v1";
+  id: string;
+  source: string;
+  startedAtUtc: string;
+  completedAtUtc: string;
+  durationMilliseconds: number;
+  method: string;
+  url: string;
+  protocol?: string;
+  requestHeaders: AnsightNetworkHeader[];
+  requestBodySizeBytes?: number;
+  requestBody?: AnsightNetworkBody;
+  statusCode?: number;
+  reasonPhrase?: string;
+  responseHeaders: AnsightNetworkHeader[];
+  responseBodySizeBytes?: number;
+  responseBody?: AnsightNetworkBody;
+  errorType?: string;
+  errorMessage?: string;
+}
+
+export type AnsightNetworkRequestInput = Partial<AnsightNetworkRequest> & {
+  method: string;
+  url: string;
+};
+
+export interface AnsightNetworkSanitizationOptions {
+  includeRequestHeaders?: boolean;
+  includeResponseHeaders?: boolean;
+  includeQueryString?: boolean;
+  includeBodySizes?: boolean;
+  /** Defaults to true. */
+  captureRequestBody?: boolean;
+  /** Defaults to true. */
+  captureResponseBody?: boolean;
+  /** Decoded bytes retained per body. Defaults to 64 KiB; larger explicit limits are honored. */
+  maximumBodyBytes?: number;
+  captureBinaryBodies?: boolean;
+  additionalSensitiveHeaderNames?: string[];
+  additionalSensitiveQueryParameterNames?: string[];
+  urlSanitizer?: (url: string) => string;
+  /** Return a replacement request, or null to suppress capture. */
+  requestSanitizer?: (
+    request: AnsightNetworkRequest,
+  ) => AnsightNetworkRequest | null;
+}
+
+export interface AnsightNetworkCaptureOptions extends AnsightNetworkSanitizationOptions {
+  captureFetch?: boolean;
+  captureXmlHttpRequest?: boolean;
+}
+
 export interface AnsightCrashCaptureOptions {
   enabled?: boolean;
   studioHandoffEnabled?: boolean;
@@ -141,6 +209,8 @@ export interface AnsightOptions {
   lifecycle?: boolean;
   domTools?: boolean | AnsightDomToolsOptions;
   errorCapture?: boolean | AnsightErrorCaptureOptions;
+  /** Explicitly opt in to fetch/XMLHttpRequest instrumentation. */
+  networkCapture?: boolean | AnsightNetworkCaptureOptions;
 }
 
 export interface AnsightOperationResult {
@@ -464,6 +534,12 @@ export interface AnsightOptionsBuilderApi {
   withLifecycleCapture(
     options?: NonNullable<AnsightOptions["lifecycleCapture"]>,
   ): this;
+  withNetworkCapture(options?: AnsightNetworkCaptureOptions): this;
+  withNetworkRequestBodies(maximumBodyBytes?: number): this;
+  withoutNetworkRequestBodies(): this;
+  withNetworkResponseBodies(maximumBodyBytes?: number): this;
+  withoutNetworkResponseBodies(): this;
+  withoutNetworkCapture(): this;
   withToolGuard(toolGuard: NonNullable<AnsightOptions["toolGuard"]>): this;
   withToolsDisabled(): this;
   withReadOnlyToolAccess(): this;
@@ -532,6 +608,9 @@ export interface AnsightCapacitorPlugin {
     details?: string;
     channel?: number;
   }): Promise<AnsightDebugSnapshot>;
+  recordNetworkRequest(
+    request: AnsightNetworkRequest,
+  ): Promise<AnsightOperationResult>;
   recordCrashCandidate(options: {
     runtime?: string;
     kind?: string;
@@ -623,6 +702,10 @@ export interface AnsightCapacitorPlugin {
   addListener(
     eventName: "ansightLog",
     listener: (event: AnsightLogEntry) => void,
+  ): Promise<PluginListenerHandle>;
+  addListener(
+    eventName: "ansightHostConnectionStatus",
+    listener: (event: AnsightHostConnectionStatus) => void,
   ): Promise<PluginListenerHandle>;
   removeAllListeners(): Promise<void>;
 }

@@ -15,6 +15,7 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "registerMetricChannel", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "recordMetric", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "recordEvent", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "recordNetworkRequest", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "recordCrashCandidate", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "screenViewed", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setAppLifecycleState", returnType: CAPPluginReturnPromise),
@@ -96,13 +97,21 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
         }
         self?.notifyListeners("ansightLog", data: data)
     }
+    private var hostConnectionStatusSubscription: HostConnectionStatusSubscription?
 
     public override func load() {
         AnsightLogger.registerCallback(logCallback)
+        hostConnectionStatusSubscription = AnsightRuntime.shared.addHostConnectionStatusListener { [weak self] status, _ in
+            self?.notifyListeners(
+                "ansightHostConnectionStatus",
+                data: self?.hostConnectionStatusDictionary(status) ?? [:]
+            )
+        }
     }
 
     deinit {
         AnsightLogger.removeCallback(logCallback)
+        hostConnectionStatusSubscription?.remove()
     }
 
     @objc func initialize(_ call: CAPPluginCall) {
@@ -192,6 +201,25 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
             call.resolve(snapshotDictionary())
         } catch {
             call.reject(error.localizedDescription, "ansight_error", error)
+        }
+    }
+
+    @objc func recordNetworkRequest(_ call: CAPPluginCall) {
+        let input = dictionary(call)
+        guard JSONSerialization.isValidJSONObject(input),
+              let data = try? JSONSerialization.data(withJSONObject: input),
+              let request = try? JSONDecoder().decode(AnsightNetworkRequest.self, from: data),
+              request.schema == AnsightNetworkRequest.schemaName
+        else {
+            call.resolve(operationResultDictionary(
+                .failure("Network request must use the ansight.network-request.v1 schema.")
+            ))
+            return
+        }
+        call.keepAlive = true
+        Task {
+            call.resolve(operationResultDictionary(await AnsightRuntime.shared.recordNetworkRequest(request)))
+            call.keepAlive = false
         }
     }
 

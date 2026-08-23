@@ -3,6 +3,10 @@ import { Capacitor, registerPlugin } from "@capacitor/core";
 import { installDomTools as installDomToolsCore } from "./dom";
 import { AnsightOptionsBuilder, createOptionsBuilder } from "./options";
 import {
+  installBrowserNetworkCapture,
+  sanitizeNetworkRequest,
+} from "./network";
+import {
   createAutomaticSessionProperties,
   currentCapacitorSessionEnvironment,
   mergeSessionProperties,
@@ -22,6 +26,10 @@ import type {
   AnsightHostConnectionResult,
   AnsightHostConnectionStatus,
   AnsightLogEntry,
+  AnsightNetworkCaptureOptions,
+  AnsightNetworkRequest,
+  AnsightNetworkRequestInput,
+  AnsightNetworkSanitizationOptions,
   AnsightOperationResult,
   AnsightOptions,
   AnsightQrPairingOptions,
@@ -38,6 +46,7 @@ import type {
 } from "./definitions";
 
 export * from "./definitions";
+export { sanitizeNetworkRequest } from "./network";
 export { AnsightOptionsBuilder, createOptionsBuilder };
 
 export const AnsightNative = registerPlugin<AnsightCapacitorPlugin>("Ansight");
@@ -57,6 +66,10 @@ let logListener: Promise<AnsightSubscription> | undefined;
 let lifecycleCleanup: (() => void) | undefined;
 let artifactToolRegistrations: AnsightToolRegistration[] = [];
 let domToolRegistration: ReturnType<typeof installDomToolsCore> | undefined;
+let networkCaptureSubscription: AnsightSubscription | undefined;
+let networkCaptureRegistration:
+  { options: AnsightNetworkCaptureOptions } | undefined;
+let networkConnectionListener: Promise<AnsightSubscription> | undefined;
 
 function normalizePairingPayload(
   payload?: string | object | null,
@@ -74,6 +87,7 @@ function normalizeOptions(input: AnsightOptions): AnsightOptions {
   delete options.domTools;
   delete options.errorCapture;
   delete options.lifecycle;
+  delete options.networkCapture;
   return options;
 }
 
@@ -157,6 +171,7 @@ async function afterConnectionChange<T>(
   operation: () => Promise<T>,
 ): Promise<T> {
   const result = await operation();
+  await refreshNetworkCaptureConnection();
   await emitHostConnectionStatus();
   return result;
 }
@@ -165,6 +180,7 @@ export async function initialize(
   options: AnsightOptions = {},
 ): Promise<AnsightDebugSnapshot> {
   const result = await AnsightNative.initialize(normalizeOptions(options));
+  await configureNetworkCapture(options.networkCapture);
   if (options.lifecycle !== false) startLifecycleTracking();
   if (options.errorCapture) {
     installErrorHandlers(
@@ -186,6 +202,7 @@ export async function initializeAndActivate(
   const result = await AnsightNative.initializeAndActivate(
     normalizeOptions(options),
   );
+  await configureNetworkCapture(options.networkCapture);
   if (options.lifecycle !== false) startLifecycleTracking();
   if (options.errorCapture) {
     installErrorHandlers(
@@ -236,6 +253,99 @@ export function event(
 }
 
 export const recordEvent = event;
+
+export async function recordNetworkRequest(
+  input: AnsightNetworkRequestInput,
+  sanitizationOptions: AnsightNetworkSanitizationOptions = {},
+): Promise<AnsightOperationResult> {
+  const request = sanitizeNetworkRequest(input, sanitizationOptions);
+  if (!request) {
+    return {
+      success: false,
+      message: "Network request capture was suppressed by the sanitizer.",
+    };
+  }
+  return AnsightNative.recordNetworkRequest(request);
+}
+
+export function installNetworkCapture(
+  options: AnsightNetworkCaptureOptions = {},
+): AnsightSubscription {
+  uninstallNetworkCapture();
+  const registration = { options };
+  networkCaptureRegistration = registration;
+  ensureNetworkConnectionListener();
+  void refreshNetworkCaptureConnection();
+  return {
+    remove() {
+      if (networkCaptureRegistration === registration) {
+        uninstallNetworkCapture();
+      }
+    },
+  };
+}
+
+export function uninstallNetworkCapture(): void {
+  networkCaptureRegistration = undefined;
+  const listener = networkConnectionListener;
+  networkConnectionListener = undefined;
+  if (listener) void listener.then((value) => value.remove());
+  detachNetworkCapture();
+}
+
+function detachNetworkCapture(): void {
+  networkCaptureSubscription?.remove();
+  networkCaptureSubscription = undefined;
+}
+
+async function refreshNetworkCaptureConnection(): Promise<void> {
+  const registration = networkCaptureRegistration;
+  if (!registration) {
+    detachNetworkCapture();
+    return;
+  }
+  try {
+    const status = await AnsightNative.hostConnectionStatus();
+    if (networkCaptureRegistration !== registration) return;
+    applyNetworkConnectionStatus(status);
+  } catch {
+    if (networkCaptureRegistration === registration) detachNetworkCapture();
+  }
+}
+
+function ensureNetworkConnectionListener(): void {
+  networkConnectionListener ??= AnsightNative.addListener(
+    "ansightHostConnectionStatus",
+    applyNetworkConnectionStatus,
+  );
+}
+
+function applyNetworkConnectionStatus(
+  status: AnsightHostConnectionStatus,
+): void {
+  const registration = networkCaptureRegistration;
+  if (!registration || status.isConnected !== true) {
+    detachNetworkCapture();
+    return;
+  }
+  networkCaptureSubscription ??= installBrowserNetworkCapture(
+    (request: AnsightNetworkRequest) =>
+      AnsightNative.recordNetworkRequest(request),
+    registration.options,
+  );
+}
+
+async function configureNetworkCapture(
+  value: boolean | AnsightNetworkCaptureOptions | undefined,
+): Promise<void> {
+  uninstallNetworkCapture();
+  if (!value) return;
+  networkCaptureRegistration = {
+    options: typeof value === "object" ? value : {},
+  };
+  ensureNetworkConnectionListener();
+  await refreshNetworkCaptureConnection();
+}
 
 export const recordCrashCandidate = (input: {
   runtime?: string;
@@ -822,6 +932,10 @@ const Ansight = {
   recordMetric,
   event,
   recordEvent,
+  recordNetworkRequest,
+  installNetworkCapture,
+  uninstallNetworkCapture,
+  sanitizeNetworkRequest,
   screenViewed,
   trackRoute,
   setAppLifecycleState,

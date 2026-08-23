@@ -92,6 +92,40 @@ The facade also exposes `recordedMetrics`, `recordedEvents`, FPS and touch
 capture controls, lifecycle state, runtime snapshots, current options, host
 status/capabilities, and session custom-property mutations.
 
+### Network capture
+
+Opt in to `fetch` and `XMLHttpRequest` instrumentation through
+the builder or the direct `networkCapture` option:
+
+```ts
+await Ansight.initializeAndActivate(
+  Ansight.createOptionsBuilder()
+    .withAnsightDefaults()
+    .withNetworkCapture({
+      maximumBodyBytes: 64 * 1024,
+      additionalSensitiveHeaderNames: ["x-tenant-secret"],
+      additionalSensitiveQueryParameterNames: ["session"],
+      requestSanitizer: request =>
+        request.url.includes("/health") ? null : request,
+    })
+    .withoutNetworkRequestBodies() // optional, independent opt-out
+    .build(),
+);
+```
+
+Text request and response bodies are included by default after the builder
+explicitly enables network capture, with a 64 KiB default per-body limit.
+Larger `maximumBodyBytes` values are honored; request and response bodies can be
+disabled independently, while binary bodies require `captureBinaryBodies`.
+Standard credentials, cloud signed-URL fields, cookies, URL user information,
+and sensitive text-body assignments are redacted automatically. The browser
+hooks attach only while the native runtime is connected to a host.
+
+Use `installNetworkCapture(...)` / `uninstallNetworkCapture()` for independent
+lifecycle control. `recordNetworkRequest(...)` supports custom HTTP stacks,
+and `sanitizeNetworkRequest(...)` exposes the app-side policy for inspection
+and tests.
+
 The builder mirrors the portable React Native helpers for memory-channel
 exclusions, numeric JPEG capture configuration, bundled host configuration,
 discovery/retention settings, and visual-tree enable/disable. App-state

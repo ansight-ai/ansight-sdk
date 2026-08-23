@@ -143,4 +143,25 @@ describe("AnsightOptionsBuilder", () => {
       createOptionsBuilder().withoutCrashCapture().build().crashCapture,
     ).toBe(false);
   });
+
+  it("only enables automatic network capture through withNetworkCapture", () => {
+    expect(
+      createOptionsBuilder()
+        .withoutNetworkRequestBodies()
+        .withNetworkResponseBodies()
+        .build().networkCapture,
+    ).toBeUndefined();
+
+    expect(
+      createOptionsBuilder()
+        .withNetworkCapture()
+        .withoutNetworkRequestBodies()
+        .withNetworkResponseBodies(8 * 1024 * 1024)
+        .build().networkCapture,
+    ).toMatchObject({
+      captureRequestBody: false,
+      captureResponseBody: true,
+      maximumBodyBytes: 8 * 1024 * 1024,
+    });
+  });
 });

@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/ansight-ai/ansight-sdk.git",
       "state" : {
-        "revision" : "00b1d64173e020254fb74e373adde9f5c7a6d57b",
-        "version" : "1.0.2-preview.8"
+        "revision" : "281d309bd944d8d84a995d6252a13f88639bd236",
+        "version" : "1.3.0-preview.10"
       }
     },
     {

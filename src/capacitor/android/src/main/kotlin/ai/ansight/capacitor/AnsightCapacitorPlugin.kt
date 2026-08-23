@@ -12,6 +12,7 @@ import ai.ansight.runtime.AnsightHostConnectionOptions
 import ai.ansight.runtime.AnsightLogCallback
 import ai.ansight.runtime.AnsightLogLevel
 import ai.ansight.runtime.AnsightLogger
+import ai.ansight.runtime.AnsightNetworkRequest
 import ai.ansight.runtime.AnsightOptions
 import ai.ansight.runtime.AnsightRuntime
 import ai.ansight.runtime.AnsightSecureStorageOptions
@@ -29,6 +30,7 @@ import ai.ansight.runtime.HostConnectionRequestKind
 import ai.ansight.runtime.HostConnectionResult
 import ai.ansight.runtime.HostConnectionSource
 import ai.ansight.runtime.HostConnectionStatus
+import ai.ansight.runtime.HostConnectionStatusSubscription
 import ai.ansight.runtime.OperationResult
 import ai.ansight.runtime.OpenSessionResult
 import ai.ansight.runtime.PairingFileTransferWireProtocol
@@ -98,13 +100,23 @@ class AnsightCapacitorPlugin : Plugin() {
         throwable?.message?.let { event.put("error", it) }
         mainHandler.post { notifyListeners("ansightLog", event) }
     }
+    private var hostConnectionStatusSubscription: HostConnectionStatusSubscription? = null
 
     override fun load() {
         AnsightLogger.registerCallback(logCallback)
+        hostConnectionStatusSubscription = AnsightRuntime.addHostConnectionStatusListener(
+            listener = { status, _ ->
+                mainHandler.post {
+                    notifyListeners("ansightHostConnectionStatus", hostConnectionStatus(status))
+                }
+            },
+        )
     }
 
     override fun handleOnDestroy() {
         AnsightLogger.removeCallback(logCallback)
+        hostConnectionStatusSubscription?.remove()
+        hostConnectionStatusSubscription = null
         executor.shutdownNow()
         super.handleOnDestroy()
     }
@@ -179,6 +191,15 @@ class AnsightCapacitorPlugin : Plugin() {
             channel = call.data.intValue("channel", AnsightChannels.Unspecified),
         )
         snapshot()
+    }
+
+    @PluginMethod
+    fun recordNetworkRequest(call: PluginCall) = resolve(call) {
+        val request = AnsightNetworkRequest.fromJson(call.data)
+            ?: return@resolve operationResult(
+                OperationResult.failure("Network request must use the ansight.network-request.v1 schema."),
+            )
+        operationResult(AnsightRuntime.recordNetworkRequest(request))
     }
 
     @PluginMethod
