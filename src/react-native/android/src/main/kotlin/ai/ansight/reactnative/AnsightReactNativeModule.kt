@@ -12,6 +12,7 @@ import ai.ansight.runtime.AnsightHostConnectionOptions
 import ai.ansight.runtime.AnsightLogCallback
 import ai.ansight.runtime.AnsightLogLevel
 import ai.ansight.runtime.AnsightLogger
+import ai.ansight.runtime.AnsightNetworkRequest
 import ai.ansight.runtime.AnsightOptions
 import ai.ansight.runtime.AnsightOptionsBuilder
 import ai.ansight.runtime.AnsightRuntime
@@ -28,6 +29,7 @@ import ai.ansight.runtime.HostConnectionRequestKind
 import ai.ansight.runtime.HostConnectionCapabilities
 import ai.ansight.runtime.HostConnectionResult
 import ai.ansight.runtime.HostConnectionStatus
+import ai.ansight.runtime.HostConnectionStatusSubscription
 import ai.ansight.runtime.OperationResult
 import ai.ansight.runtime.OpenSessionResult
 import ai.ansight.runtime.PairingOpenOptions
@@ -104,16 +106,21 @@ class AnsightReactNativeModule(
     private val logCallback = AnsightLogCallback { level, message, throwable ->
         emitLogEvent(level, message, throwable)
     }
+    private val hostConnectionStatusSubscription: HostConnectionStatusSubscription
 
     init {
         reactContext.addLifecycleEventListener(this)
         AnsightLogger.registerCallback(logCallback)
+        hostConnectionStatusSubscription = AnsightRuntime.addHostConnectionStatusListener(
+            listener = { status, _ -> emitHostConnectionStatusEvent(status) },
+        )
     }
 
     override fun getName(): String = "AnsightReactNative"
 
     override fun invalidate() {
         AnsightLogger.removeCallback(logCallback)
+        hostConnectionStatusSubscription.remove()
         reactContext.removeLifecycleEventListener(this)
         super.invalidate()
     }
@@ -223,6 +230,17 @@ class AnsightReactNativeModule(
                 channel = input.intValue("channel", AnsightChannels.Unspecified),
             )
             snapshotMap()
+        }.resolve(promise)
+    }
+
+    @ReactMethod
+    fun recordNetworkRequest(input: ReadableMap, promise: Promise) {
+        runCatching {
+            val request = AnsightNetworkRequest.fromJson(JSONObject(input.toHashMap()))
+                ?: return@runCatching operationResultMap(
+                    OperationResult.failure("Network request must use the ansight.network-request.v1 schema."),
+                )
+            operationResultMap(AnsightRuntime.recordNetworkRequest(request))
         }.resolve(promise)
     }
 
@@ -674,6 +692,16 @@ class AnsightReactNativeModule(
             reactContext
                 .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
                 .emit("AnsightLog", event)
+        }
+    }
+
+    private fun emitHostConnectionStatusEvent(status: HostConnectionStatus) {
+        if (listenerCount.get() <= 0) return
+        val event = hostConnectionStatusMap(status)
+        UiThreadUtil.runOnUiThread {
+            reactContext
+                .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+                .emit("AnsightHostConnectionStatus", event)
         }
     }
 

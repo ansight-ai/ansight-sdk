@@ -151,6 +151,7 @@ The TypeScript `AnsightOptions` surface mirrors Android `AnsightOptions`, iOS
 | `secureStorage` | Compatibility alias for native secure-storage allow-list settings. |
 | `remoteTools` | Native visual tree, file, database, preferences, reflection, and secure-storage tool options. |
 | `lifecycle` | JS AppState tracking toggle. Defaults to true. |
+| `networkCapture` | Opt-in `fetch` and `XMLHttpRequest` metadata capture. Accepts `true` or sanitization/capture options. |
 
 Use `withOpenFileHandleTracking()` and `withJniReferenceCountTracking()` to
 opt in through the builder. Matching `without...` methods disable the channels
@@ -208,6 +209,41 @@ visual-tree tools/providers must remain enabled.
 On iOS, `captureGpuBackedSurfaces` defaults to `true` so Metal, SceneKit, and
 similar GPU-backed views are included. Set it to `false` to use a lower-overhead
 capture path when those surfaces are not needed.
+
+## Network capture
+
+Network capture is explicitly enabled by the React Native layer, which
+instruments `fetch` and `XMLHttpRequest`, then sends a typed metadata record
+through the native bridge. It is opt-in:
+
+```ts
+await Ansight.initializeAndActivate(
+  Ansight.createOptionsBuilder()
+    .withAnsightDefaults()
+    .withNetworkCapture({
+      maximumBodyBytes: 64 * 1024,
+      additionalSensitiveHeaderNames: ["x-tenant-secret"],
+      additionalSensitiveQueryParameterNames: ["session"],
+      requestSanitizer: request =>
+        request.url.includes("/health") ? null : request,
+    })
+    .withoutNetworkRequestBodies() // optional, independent opt-out
+    .build(),
+);
+```
+
+Text request and response bodies are included by default after network capture
+is explicitly enabled, with a 64 KiB default per-body limit. Set a larger
+`maximumBodyBytes` when needed; use the request/response body builder methods to
+opt either side out or back in, and `captureBinaryBodies` to explicitly allow
+Base64 binary content. Standard credentials, cloud signed-URL fields, cookies,
+URL user information, and sensitive text-body assignments are redacted before
+the bridge. Capture hooks detach whenever the native host is disconnected.
+
+Use `installNetworkCapture(...)` and `uninstallNetworkCapture()` when capture
+must be controlled independently of initialization. `recordNetworkRequest(...)`
+supports custom HTTP stacks, and `sanitizeNetworkRequest(...)` exposes the same
+app-side policy for inspection or testing.
 
 ## Native Tool Options
 

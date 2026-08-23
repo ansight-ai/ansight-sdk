@@ -15,6 +15,10 @@ const {
   createAutomaticSessionProperties,
   mergeSessionProperties,
 } = require("./session-properties");
+const {
+  installNetworkCapture: installNetworkCaptureCore,
+  sanitizeNetworkRequest,
+} = require("./network");
 
 const nativeModule = NativeModules.AnsightReactNative;
 
@@ -38,6 +42,9 @@ const hostConnectionStatusListeners = new Set();
 let lastHostConnectionStatusKey = null;
 const logListeners = new Set();
 let logEventSubscription = null;
+let networkCaptureSubscription = null;
+let networkCaptureRegistration = null;
+let networkConnectionEventSubscription = null;
 const REACT_COMPONENT_TREE_TOOL_ID = "react.get_component_tree";
 const REACT_SHADOW_TREE_TOOL_ID = "react.get_shadow_tree";
 
@@ -49,13 +56,15 @@ function normalizePairingPayload(payload) {
 }
 
 function normalizeOptions(options = {}) {
-  return {
+  const normalized = {
     ...options,
     customProperties: mergeSessionProperties(
       automaticSessionProperties(),
       options.customProperties
     ),
   };
+  delete normalized.networkCapture;
+  return normalized;
 }
 
 function automaticSessionProperties() {
@@ -96,6 +105,17 @@ function cloneOptions(options = {}) {
   }
   if (options.hostConnection) {
     clone.hostConnection = { ...options.hostConnection };
+  }
+  if (options.networkCapture && typeof options.networkCapture === "object") {
+    clone.networkCapture = {
+      ...options.networkCapture,
+      additionalSensitiveHeaderNames: options.networkCapture.additionalSensitiveHeaderNames
+        ? [...options.networkCapture.additionalSensitiveHeaderNames]
+        : undefined,
+      additionalSensitiveQueryParameterNames: options.networkCapture.additionalSensitiveQueryParameterNames
+        ? [...options.networkCapture.additionalSensitiveQueryParameterNames]
+        : undefined,
+    };
   }
   if (options.secureStorage) {
     clone.secureStorage = {
@@ -363,6 +383,52 @@ class AnsightOptionsBuilder {
     return this;
   }
 
+  withNetworkCapture(networkCapture = {}) {
+    this._options.networkCapture = { ...networkCapture };
+    return this;
+  }
+
+  withNetworkRequestBodies(maximumBodyBytes) {
+    if (!this._options.networkCapture || typeof this._options.networkCapture !== "object") return this;
+    const current = this._options.networkCapture;
+    this._options.networkCapture = {
+      ...current,
+      captureRequestBody: true,
+      ...(maximumBodyBytes == null ? {} : { maximumBodyBytes }),
+    };
+    return this;
+  }
+
+  withoutNetworkRequestBodies() {
+    if (!this._options.networkCapture || typeof this._options.networkCapture !== "object") return this;
+    const current = this._options.networkCapture;
+    this._options.networkCapture = { ...current, captureRequestBody: false };
+    return this;
+  }
+
+  withNetworkResponseBodies(maximumBodyBytes) {
+    if (!this._options.networkCapture || typeof this._options.networkCapture !== "object") return this;
+    const current = this._options.networkCapture;
+    this._options.networkCapture = {
+      ...current,
+      captureResponseBody: true,
+      ...(maximumBodyBytes == null ? {} : { maximumBodyBytes }),
+    };
+    return this;
+  }
+
+  withoutNetworkResponseBodies() {
+    if (!this._options.networkCapture || typeof this._options.networkCapture !== "object") return this;
+    const current = this._options.networkCapture;
+    this._options.networkCapture = { ...current, captureResponseBody: false };
+    return this;
+  }
+
+  withoutNetworkCapture() {
+    this._options.networkCapture = false;
+    return this;
+  }
+
   withToolGuard(toolGuard) {
     this._options.toolGuard = toolGuard;
     return this;
@@ -605,6 +671,7 @@ function addHostConnectionStatusListener(listener, options = {}) {
 
 async function notifyAfterHostConnectionChange(operation) {
   const result = await operation();
+  await refreshNetworkCaptureConnection();
   await emitHostConnectionStatusChangedIfNeeded();
   return result;
 }
@@ -2337,6 +2404,7 @@ function installErrorHandlers(options = {}) {
 
 async function initialize(options = {}) {
   const result = await nativeModule.initialize(normalizeOptions(options));
+  await configureNetworkCapture(options.networkCapture);
   if (options.lifecycle !== false) {
     startAppStateTracking();
   }
@@ -2346,6 +2414,7 @@ async function initialize(options = {}) {
 
 async function initializeAndActivate(options = {}) {
   const result = await nativeModule.initializeAndActivate(normalizeOptions(options));
+  await configureNetworkCapture(options.networkCapture);
   if (options.lifecycle !== false) {
     startAppStateTracking();
   }
@@ -2420,6 +2489,93 @@ function recordCrashCandidate(input = {}) {
   });
 }
 
+function recordNetworkRequest(input, sanitizationOptions = {}) {
+  const sanitized = sanitizeNetworkRequest(input, sanitizationOptions, global);
+  if (!sanitized) {
+    return Promise.resolve({ success: false, message: "Network request capture was suppressed by the sanitizer." });
+  }
+  return nativeModule.recordNetworkRequest(sanitized);
+}
+
+function installNetworkCapture(options = {}) {
+  uninstallNetworkCapture();
+  const registration = { options };
+  networkCaptureRegistration = registration;
+  ensureNetworkConnectionEventSubscription();
+  void refreshNetworkCaptureConnection();
+  return {
+    remove() {
+      if (networkCaptureRegistration === registration) {
+        uninstallNetworkCapture();
+      }
+    },
+  };
+}
+
+function uninstallNetworkCapture() {
+  networkCaptureRegistration = null;
+  if (networkConnectionEventSubscription) {
+    networkConnectionEventSubscription.remove();
+    networkConnectionEventSubscription = null;
+  }
+  detachNetworkCapture();
+}
+
+function detachNetworkCapture() {
+  if (!networkCaptureSubscription) return;
+  networkCaptureSubscription.remove();
+  networkCaptureSubscription = null;
+}
+
+async function refreshNetworkCaptureConnection() {
+  const registration = networkCaptureRegistration;
+  if (!registration) {
+    detachNetworkCapture();
+    return;
+  }
+  try {
+    const status = await nativeModule.hostConnectionStatus();
+    if (networkCaptureRegistration !== registration) return;
+    applyNetworkConnectionStatus(status);
+  } catch {
+    if (networkCaptureRegistration === registration) detachNetworkCapture();
+  }
+}
+
+function ensureNetworkConnectionEventSubscription() {
+  if (networkConnectionEventSubscription) return;
+  const emitter = new NativeEventEmitter(nativeModule);
+  networkConnectionEventSubscription = emitter.addListener(
+    "AnsightHostConnectionStatus",
+    applyNetworkConnectionStatus,
+  );
+}
+
+function applyNetworkConnectionStatus(status) {
+  const registration = networkCaptureRegistration;
+  if (!registration || !status || status.isConnected !== true) {
+    detachNetworkCapture();
+    return;
+  }
+  if (!networkCaptureSubscription) {
+    networkCaptureSubscription = installNetworkCaptureCore({
+      globalObject: global,
+      options: registration.options,
+      sourcePrefix: "react-native",
+      capture: (request) => nativeModule.recordNetworkRequest(request),
+    });
+  }
+}
+
+async function configureNetworkCapture(value) {
+  uninstallNetworkCapture();
+  if (!value) return;
+  const registration = { options: typeof value === "object" ? value : {} };
+  networkCaptureRegistration = registration;
+  ensureNetworkConnectionEventSubscription();
+  await refreshNetworkCaptureConnection();
+}
+
 function screenViewed(name, details) {
   return nativeModule.screenViewed(name, details || {});
 }
@@ -2463,6 +2619,7 @@ const Ansight = {
   event: recordEvent,
   recordEvent,
   recordCrashCandidate,
+  recordNetworkRequest,
   screenViewed,
   trackRoute,
   setAppLifecycleState: (state) => nativeModule.setAppLifecycleState(state),
@@ -2533,6 +2690,9 @@ const Ansight = {
   installReactTools,
   uninstallReactTools,
   installErrorHandlers,
+  installNetworkCapture,
+  uninstallNetworkCapture,
+  sanitizeNetworkRequest,
   createReactNavigationTracker,
   platform: Platform.OS,
 };
@@ -2551,3 +2711,7 @@ module.exports.registerArtifactProviders = registerArtifactProviders;
 module.exports.unregisterArtifactProvider = unregisterArtifactProvider;
 module.exports.listRegisteredArtifactProviders = listRegisteredArtifactProviders;
 module.exports.clearArtifactProviders = clearArtifactProviders;
+module.exports.recordNetworkRequest = recordNetworkRequest;
+module.exports.installNetworkCapture = installNetworkCapture;
+module.exports.uninstallNetworkCapture = uninstallNetworkCapture;
+module.exports.sanitizeNetworkRequest = sanitizeNetworkRequest;

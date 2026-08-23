@@ -48,6 +48,75 @@ export interface AnsightTouchCaptureOptions {
   moveCaptureFramesPerSecond?: number;
 }
 
+export interface AnsightNetworkHeader {
+  name: string;
+  value: string;
+}
+
+export interface AnsightNetworkBody {
+  contentType?: string;
+  encoding: "utf8" | "base64";
+  data: string;
+  capturedBytes: number;
+  totalBytes?: number;
+  truncated: boolean;
+}
+
+/** V1 network metadata with optional, bounded bodies. */
+export interface AnsightNetworkRequest {
+  schema: "ansight.network-request.v1";
+  id: string;
+  source: string;
+  startedAtUtc: string;
+  completedAtUtc: string;
+  durationMilliseconds: number;
+  method: string;
+  url: string;
+  protocol?: string;
+  requestHeaders: AnsightNetworkHeader[];
+  requestBodySizeBytes?: number;
+  requestBody?: AnsightNetworkBody;
+  statusCode?: number;
+  reasonPhrase?: string;
+  responseHeaders: AnsightNetworkHeader[];
+  responseBodySizeBytes?: number;
+  responseBody?: AnsightNetworkBody;
+  errorType?: string;
+  errorMessage?: string;
+}
+
+export type AnsightNetworkRequestInput = Partial<AnsightNetworkRequest> & {
+  method: string;
+  url: string;
+};
+
+export interface AnsightNetworkSanitizationOptions {
+  includeRequestHeaders?: boolean;
+  includeResponseHeaders?: boolean;
+  includeQueryString?: boolean;
+  includeBodySizes?: boolean;
+  /** Defaults to true. */
+  captureRequestBody?: boolean;
+  /** Defaults to true. */
+  captureResponseBody?: boolean;
+  /** Decoded bytes retained per body. Defaults to 64 KiB; larger explicit limits are honored. */
+  maximumBodyBytes?: number;
+  captureBinaryBodies?: boolean;
+  additionalSensitiveHeaderNames?: string[];
+  additionalSensitiveQueryParameterNames?: string[];
+  urlSanitizer?: (url: string) => string;
+  /** Return a replacement request, or null to suppress capture. */
+  requestSanitizer?: (
+    request: AnsightNetworkRequest,
+  ) => AnsightNetworkRequest | null;
+}
+
+export interface AnsightNetworkCaptureOptions
+  extends AnsightNetworkSanitizationOptions {
+  captureFetch?: boolean;
+  captureXmlHttpRequest?: boolean;
+}
+
 export interface AnsightNativeToolRoot {
   alias: string;
   path: string;
@@ -155,6 +224,8 @@ export interface AnsightOptions {
   remoteTools?: AnsightRemoteToolsOptions;
   additionalChannels?: AnsightChannel[];
   lifecycle?: boolean;
+  /** Explicitly opt in to fetch/XMLHttpRequest instrumentation. */
+  networkCapture?: boolean | AnsightNetworkCaptureOptions;
 }
 
 export interface AnsightCrashCaptureOptions {
@@ -300,6 +371,12 @@ export class AnsightOptionsBuilder {
   withCrashCapture(crashCapture?: AnsightCrashCaptureOptions): this;
   withoutCrashCapture(): this;
   withLifecycleCapture(lifecycleCapture?: NonNullable<AnsightOptions["lifecycleCapture"]>): this;
+  withNetworkCapture(networkCapture?: AnsightNetworkCaptureOptions): this;
+  withNetworkRequestBodies(maximumBodyBytes?: number): this;
+  withoutNetworkRequestBodies(): this;
+  withNetworkResponseBodies(maximumBodyBytes?: number): this;
+  withoutNetworkResponseBodies(): this;
+  withoutNetworkCapture(): this;
   withToolGuard(toolGuard: NonNullable<AnsightOptions["toolGuard"]>): this;
   withToolsDisabled(): this;
   withReadOnlyToolAccess(): this;
@@ -543,6 +620,18 @@ export function recordMetric(value: number, channel?: number): Promise<AnsightDe
 export function event(input: string | { label: string; type?: string; details?: string; channel?: number }): Promise<AnsightDebugSnapshot>;
 export function recordEvent(input: string | { label: string; type?: string; details?: string; channel?: number }): Promise<AnsightDebugSnapshot>;
 export function recordCrashCandidate(input?: AnsightCrashCandidate): Promise<{ candidateId?: string }>;
+export function recordNetworkRequest(
+  input: AnsightNetworkRequestInput,
+  sanitizationOptions?: AnsightNetworkSanitizationOptions,
+): Promise<AnsightOperationResult>;
+export function sanitizeNetworkRequest(
+  input: AnsightNetworkRequestInput,
+  sanitizationOptions?: AnsightNetworkSanitizationOptions,
+): AnsightNetworkRequest | null;
+export function installNetworkCapture(
+  options?: AnsightNetworkCaptureOptions,
+): AnsightSubscription;
+export function uninstallNetworkCapture(): void;
 export function screenViewed(name: string, details?: Record<string, string>): Promise<AnsightDebugSnapshot>;
 export function trackRoute(name: string, details?: Record<string, string>): Promise<AnsightDebugSnapshot>;
 export function setAppLifecycleState(state: AnsightLifecycleState): Promise<AnsightDebugSnapshot>;
@@ -617,6 +706,7 @@ declare const Ansight: {
   event: typeof event;
   recordEvent: typeof recordEvent;
   recordCrashCandidate: typeof recordCrashCandidate;
+  recordNetworkRequest: typeof recordNetworkRequest;
   screenViewed: typeof screenViewed;
   trackRoute: typeof trackRoute;
   setAppLifecycleState: typeof setAppLifecycleState;
@@ -671,6 +761,9 @@ declare const Ansight: {
   installReactTools: typeof installReactTools;
   uninstallReactTools: typeof uninstallReactTools;
   installErrorHandlers: typeof installErrorHandlers;
+  installNetworkCapture: typeof installNetworkCapture;
+  uninstallNetworkCapture: typeof uninstallNetworkCapture;
+  sanitizeNetworkRequest: typeof sanitizeNetworkRequest;
   createReactNavigationTracker: typeof createReactNavigationTracker;
   platform: "ios" | "android" | string;
 };

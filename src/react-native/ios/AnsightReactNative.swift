@@ -139,6 +139,7 @@ final class AnsightReactNative: RCTEventEmitter {
 
     private let lock = NSLock()
     private var hasListeners = false
+    private var hostConnectionStatusSubscription: HostConnectionStatusSubscription?
     private var activeCustomToolIds: Set<String> = []
     private var pendingToolCalls: [String: PendingToolCall] = [:]
     private var reactNativeMemorySampler: ReactNativeMemorySamplerBox?
@@ -150,10 +151,14 @@ final class AnsightReactNative: RCTEventEmitter {
     override init() {
         super.init()
         AnsightLogger.registerCallback(logCallback)
+        hostConnectionStatusSubscription = AnsightRuntime.shared.addHostConnectionStatusListener { [weak self] status, _ in
+            self?.emitHostConnectionStatusEvent(status)
+        }
     }
 
     deinit {
         AnsightLogger.removeCallback(logCallback)
+        hostConnectionStatusSubscription?.remove()
     }
 
     override static func requiresMainQueueSetup() -> Bool {
@@ -161,7 +166,7 @@ final class AnsightReactNative: RCTEventEmitter {
     }
 
     override func supportedEvents() -> [String]! {
-        ["AnsightToolCall", "AnsightLog"]
+        ["AnsightToolCall", "AnsightLog", "AnsightHostConnectionStatus"]
     }
 
     override func startObserving() {
@@ -289,6 +294,27 @@ final class AnsightReactNative: RCTEventEmitter {
             resolve(snapshotDictionary())
         } catch {
             reject("ansight_error", error.localizedDescription, error)
+        }
+    }
+
+    @objc(recordNetworkRequest:resolver:rejecter:)
+    func recordNetworkRequest(
+        _ input: NSDictionary,
+        resolver resolve: @escaping RCTPromiseResolveBlock,
+        rejecter reject: RCTPromiseRejectBlock
+    ) {
+        guard JSONSerialization.isValidJSONObject(input),
+              let data = try? JSONSerialization.data(withJSONObject: input),
+              let request = try? JSONDecoder().decode(AnsightNetworkRequest.self, from: data),
+              request.schema == AnsightNetworkRequest.schemaName
+        else {
+            resolve(operationResultDictionary(
+                .failure("Network request must use the ansight.network-request.v1 schema.")
+            ))
+            return
+        }
+        Task {
+            resolve(operationResultDictionary(await AnsightRuntime.shared.recordNetworkRequest(request)))
         }
     }
 
@@ -856,6 +882,17 @@ final class AnsightReactNative: RCTEventEmitter {
 
         DispatchQueue.main.async {
             self.sendEvent(withName: "AnsightLog", body: body)
+        }
+    }
+
+    private func emitHostConnectionStatusEvent(_ status: HostConnectionStatus) {
+        let shouldEmit = lock.withLock { hasListeners }
+        guard shouldEmit else { return }
+        DispatchQueue.main.async {
+            self.sendEvent(
+                withName: "AnsightHostConnectionStatus",
+                body: self.hostConnectionStatusDictionary(status)
+            )
         }
     }
 

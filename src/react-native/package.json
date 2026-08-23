@@ -25,6 +25,7 @@
     "README.md",
     "index.js",
     "index.d.ts",
+    "network.js",
     "session-properties.js",
     "app.plugin.js",
     "expo-plugin.js",
