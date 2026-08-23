@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import 'ansight_models.dart';
 
-const String ansightFlutterSdkVersion = '1.3.0-preview.10';
+const String ansightFlutterSdkVersion = '1.3.0-preview.11';
 const String _flutterVersion = String.fromEnvironment('FLUTTER_VERSION');
 
 const String flutterPropertyGroup = 'flutter';

@@ -5,7 +5,7 @@ plugins {
 }
 
 group = providers.gradleProperty("ansightAndroidGroup").orElse("ai.ansight").get()
-version = providers.gradleProperty("ansightAndroidVersion").orElse("1.3.0-preview.10").get()
+version = providers.gradleProperty("ansightAndroidVersion").orElse("1.3.0-preview.11").get()
 
 android {
     namespace = "ai.ansight.tools.filesystem"

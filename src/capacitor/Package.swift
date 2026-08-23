@@ -7,7 +7,7 @@ let ansightSdkDependency: Package.Dependency = useLocalAnsightSdk
     ? .package(name: "AnsightSDK", path: "../ios")
     : .package(
         url: "https://github.com/ansight-ai/ansight-sdk.git",
-        exact: "1.3.0-preview.10"
+        exact: "1.3.0-preview.11"
     )
 let ansightTargetDependency: Target.Dependency = .product(
     name: "Ansight",
