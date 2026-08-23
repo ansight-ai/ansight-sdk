@@ -11,6 +11,8 @@ import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MessageCodec
 import io.flutter.plugin.common.StandardMethodCodec
 import io.flutter.plugin.common.StandardMessageCodec
+import java.io.ByteArrayOutputStream
+import java.nio.ByteBuffer
 private object AnsightMessagesPigeonUtils {
 
   fun createConnectionError(channelName: String): FlutterError {
@@ -35,6 +37,150 @@ private object AnsightMessagesPigeonUtils {
       )
     }
   }
+  fun doubleEquals(a: Double, b: Double): Boolean {
+    // Normalize -0.0 to 0.0 and handle NaN equality.
+    return (if (a == 0.0) 0.0 else a) == (if (b == 0.0) 0.0 else b) || (a.isNaN() && b.isNaN())
+  }
+
+  fun floatEquals(a: Float, b: Float): Boolean {
+    // Normalize -0.0 to 0.0 and handle NaN equality.
+    return (if (a == 0.0f) 0.0f else a) == (if (b == 0.0f) 0.0f else b) || (a.isNaN() && b.isNaN())
+  }
+
+  fun doubleHash(d: Double): Int {
+    // Normalize -0.0 to 0.0 and handle NaN to ensure consistent hash codes.
+    val normalized = if (d == 0.0) 0.0 else d
+    val bits = java.lang.Double.doubleToLongBits(normalized)
+    return (bits xor (bits ushr 32)).toInt()
+  }
+
+  fun floatHash(f: Float): Int {
+    // Normalize -0.0 to 0.0 and handle NaN to ensure consistent hash codes.
+    val normalized = if (f == 0.0f) 0.0f else f
+    return java.lang.Float.floatToIntBits(normalized)
+  }
+
+  fun deepEquals(a: Any?, b: Any?): Boolean {
+    if (a === b) {
+      return true
+    }
+    if (a == null || b == null) {
+      return false
+    }
+    if (a is ByteArray && b is ByteArray) {
+      return a.contentEquals(b)
+    }
+    if (a is IntArray && b is IntArray) {
+      return a.contentEquals(b)
+    }
+    if (a is LongArray && b is LongArray) {
+      return a.contentEquals(b)
+    }
+    if (a is DoubleArray && b is DoubleArray) {
+      if (a.size != b.size) return false
+      for (i in a.indices) {
+        if (!doubleEquals(a[i], b[i])) return false
+      }
+      return true
+    }
+    if (a is FloatArray && b is FloatArray) {
+      if (a.size != b.size) return false
+      for (i in a.indices) {
+        if (!floatEquals(a[i], b[i])) return false
+      }
+      return true
+    }
+    if (a is Array<*> && b is Array<*>) {
+      if (a.size != b.size) return false
+      for (i in a.indices) {
+        if (!deepEquals(a[i], b[i])) return false
+      }
+      return true
+    }
+    if (a is List<*> && b is List<*>) {
+      if (a.size != b.size) return false
+      val iterA = a.iterator()
+      val iterB = b.iterator()
+      while (iterA.hasNext() && iterB.hasNext()) {
+        if (!deepEquals(iterA.next(), iterB.next())) return false
+      }
+      return true
+    }
+    if (a is Map<*, *> && b is Map<*, *>) {
+      if (a.size != b.size) return false
+      for (entry in a) {
+        val key = entry.key
+        var found = false
+        for (bEntry in b) {
+          if (deepEquals(key, bEntry.key)) {
+            if (deepEquals(entry.value, bEntry.value)) {
+              found = true
+              break
+            } else {
+              return false
+            }
+          }
+        }
+        if (!found) return false
+      }
+      return true
+    }
+    if (a is Double && b is Double) {
+      return doubleEquals(a, b)
+    }
+    if (a is Float && b is Float) {
+      return floatEquals(a, b)
+    }
+    return a == b
+  }
+
+  fun deepHash(value: Any?): Int {
+    return when (value) {
+      null -> 0
+      is ByteArray -> value.contentHashCode()
+      is IntArray -> value.contentHashCode()
+      is LongArray -> value.contentHashCode()
+      is DoubleArray -> {
+        var result = 1
+        for (item in value) {
+          result = 31 * result + doubleHash(item)
+        }
+        result
+      }
+      is FloatArray -> {
+        var result = 1
+        for (item in value) {
+          result = 31 * result + floatHash(item)
+        }
+        result
+      }
+      is Array<*> -> {
+        var result = 1
+        for (item in value) {
+          result = 31 * result + deepHash(item)
+        }
+        result
+      }
+      is List<*> -> {
+        var result = 1
+        for (item in value) {
+          result = 31 * result + deepHash(item)
+        }
+        result
+      }
+      is Map<*, *> -> {
+        var result = 0
+        for (entry in value) {
+          result += ((deepHash(entry.key) * 31) xor deepHash(entry.value))
+        }
+        result
+      }
+      is Double -> doubleHash(value)
+      is Float -> floatHash(value)
+      else -> value.hashCode()
+    }
+  }
+
 }
 
 /**
@@ -48,15 +194,264 @@ class FlutterError (
   override val message: String? = null,
   val details: Any? = null
 ) : RuntimeException()
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class AnsightNetworkHeaderMessage (
+  val name: String,
+  val value: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): AnsightNetworkHeaderMessage {
+      val name = pigeonVar_list[0] as String
+      val value = pigeonVar_list[1] as String
+      return AnsightNetworkHeaderMessage(name, value)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      name,
+      value,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as AnsightNetworkHeaderMessage
+    return AnsightMessagesPigeonUtils.deepEquals(this.name, other.name) && AnsightMessagesPigeonUtils.deepEquals(this.value, other.value)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + AnsightMessagesPigeonUtils.deepHash(this.name)
+    result = 31 * result + AnsightMessagesPigeonUtils.deepHash(this.value)
+    return result
+  }
+  override fun toString(): String {
+    return "AnsightNetworkHeaderMessage(name=$name, value=$value)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class AnsightNetworkBodyMessage (
+  val contentType: String? = null,
+  val encoding: String,
+  val data: String,
+  val capturedBytes: Long,
+  val totalBytes: Long? = null,
+  val truncated: Boolean
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): AnsightNetworkBodyMessage {
+      val contentType = pigeonVar_list[0] as String?
+      val encoding = pigeonVar_list[1] as String
+      val data = pigeonVar_list[2] as String
+      val capturedBytes = pigeonVar_list[3] as Long
+      val totalBytes = pigeonVar_list[4] as Long?
+      val truncated = pigeonVar_list[5] as Boolean
+      return AnsightNetworkBodyMessage(contentType, encoding, data, capturedBytes, totalBytes, truncated)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      contentType,
+      encoding,
+      data,
+      capturedBytes,
+      totalBytes,
+      truncated,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as AnsightNetworkBodyMessage
+    return AnsightMessagesPigeonUtils.deepEquals(this.contentType, other.contentType) && AnsightMessagesPigeonUtils.deepEquals(this.encoding, other.encoding) && AnsightMessagesPigeonUtils.deepEquals(this.data, other.data) && AnsightMessagesPigeonUtils.deepEquals(this.capturedBytes, other.capturedBytes) && AnsightMessagesPigeonUtils.deepEquals(this.totalBytes, other.totalBytes) && AnsightMessagesPigeonUtils.deepEquals(this.truncated, other.truncated)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + AnsightMessagesPigeonUtils.deepHash(this.contentType)
+    result = 31 * result + AnsightMessagesPigeonUtils.deepHash(this.encoding)
+    result = 31 * result + AnsightMessagesPigeonUtils.deepHash(this.data)
+    result = 31 * result + AnsightMessagesPigeonUtils.deepHash(this.capturedBytes)
+    result = 31 * result + AnsightMessagesPigeonUtils.deepHash(this.totalBytes)
+    result = 31 * result + AnsightMessagesPigeonUtils.deepHash(this.truncated)
+    return result
+  }
+  override fun toString(): String {
+    return "AnsightNetworkBodyMessage(contentType=$contentType, encoding=$encoding, data=$data, capturedBytes=$capturedBytes, totalBytes=$totalBytes, truncated=$truncated)"
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class AnsightNetworkRequestMessage (
+  val schema: String,
+  val id: String,
+  val source: String,
+  val startedAtUtc: String,
+  val completedAtUtc: String,
+  val durationMilliseconds: Double,
+  val method: String,
+  val url: String,
+  val protocolName: String? = null,
+  val requestHeaders: List<AnsightNetworkHeaderMessage>,
+  val requestBodySizeBytes: Long? = null,
+  val requestBody: AnsightNetworkBodyMessage? = null,
+  val statusCode: Long? = null,
+  val reasonPhrase: String? = null,
+  val responseHeaders: List<AnsightNetworkHeaderMessage>,
+  val responseBodySizeBytes: Long? = null,
+  val responseBody: AnsightNetworkBodyMessage? = null,
+  val errorType: String? = null,
+  val errorMessage: String? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): AnsightNetworkRequestMessage {
+      val schema = pigeonVar_list[0] as String
+      val id = pigeonVar_list[1] as String
+      val source = pigeonVar_list[2] as String
+      val startedAtUtc = pigeonVar_list[3] as String
+      val completedAtUtc = pigeonVar_list[4] as String
+      val durationMilliseconds = pigeonVar_list[5] as Double
+      val method = pigeonVar_list[6] as String
+      val url = pigeonVar_list[7] as String
+      val protocolName = pigeonVar_list[8] as String?
+      val requestHeaders = pigeonVar_list[9] as List<AnsightNetworkHeaderMessage>
+      val requestBodySizeBytes = pigeonVar_list[10] as Long?
+      val requestBody = pigeonVar_list[11] as AnsightNetworkBodyMessage?
+      val statusCode = pigeonVar_list[12] as Long?
+      val reasonPhrase = pigeonVar_list[13] as String?
+      val responseHeaders = pigeonVar_list[14] as List<AnsightNetworkHeaderMessage>
+      val responseBodySizeBytes = pigeonVar_list[15] as Long?
+      val responseBody = pigeonVar_list[16] as AnsightNetworkBodyMessage?
+      val errorType = pigeonVar_list[17] as String?
+      val errorMessage = pigeonVar_list[18] as String?
+      return AnsightNetworkRequestMessage(schema, id, source, startedAtUtc, completedAtUtc, durationMilliseconds, method, url, protocolName, requestHeaders, requestBodySizeBytes, requestBody, statusCode, reasonPhrase, responseHeaders, responseBodySizeBytes, responseBody, errorType, errorMessage)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      schema,
+      id,
+      source,
+      startedAtUtc,
+      completedAtUtc,
+      durationMilliseconds,
+      method,
+      url,
+      protocolName,
+      requestHeaders,
+      requestBodySizeBytes,
+      requestBody,
+      statusCode,
+      reasonPhrase,
+      responseHeaders,
+      responseBodySizeBytes,
+      responseBody,
+      errorType,
+      errorMessage,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as AnsightNetworkRequestMessage
+    return AnsightMessagesPigeonUtils.deepEquals(this.schema, other.schema) && AnsightMessagesPigeonUtils.deepEquals(this.id, other.id) && AnsightMessagesPigeonUtils.deepEquals(this.source, other.source) && AnsightMessagesPigeonUtils.deepEquals(this.startedAtUtc, other.startedAtUtc) && AnsightMessagesPigeonUtils.deepEquals(this.completedAtUtc, other.completedAtUtc) && AnsightMessagesPigeonUtils.deepEquals(this.durationMilliseconds, other.durationMilliseconds) && AnsightMessagesPigeonUtils.deepEquals(this.method, other.method) && AnsightMessagesPigeonUtils.deepEquals(this.url, other.url) && AnsightMessagesPigeonUtils.deepEquals(this.protocolName, other.protocolName) && AnsightMessagesPigeonUtils.deepEquals(this.requestHeaders, other.requestHeaders) && AnsightMessagesPigeonUtils.deepEquals(this.requestBodySizeBytes, other.requestBodySizeBytes) && AnsightMessagesPigeonUtils.deepEquals(this.requestBody, other.requestBody) && AnsightMessagesPigeonUtils.deepEquals(this.statusCode, other.statusCode) && AnsightMessagesPigeonUtils.deepEquals(this.reasonPhrase, other.reasonPhrase) && AnsightMessagesPigeonUtils.deepEquals(this.responseHeaders, other.responseHeaders) && AnsightMessagesPigeonUtils.deepEquals(this.responseBodySizeBytes, other.responseBodySizeBytes) && AnsightMessagesPigeonUtils.deepEquals(this.responseBody, other.responseBody) && AnsightMessagesPigeonUtils.deepEquals(this.errorType, other.errorType) && AnsightMessagesPigeonUtils.deepEquals(this.errorMessage, other.errorMessage)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + AnsightMessagesPigeonUtils.deepHash(this.schema)
+    result = 31 * result + AnsightMessagesPigeonUtils.deepHash(this.id)
+    result = 31 * result + AnsightMessagesPigeonUtils.deepHash(this.source)
+    result = 31 * result + AnsightMessagesPigeonUtils.deepHash(this.startedAtUtc)
+    result = 31 * result + AnsightMessagesPigeonUtils.deepHash(this.completedAtUtc)
+    result = 31 * result + AnsightMessagesPigeonUtils.deepHash(this.durationMilliseconds)
+    result = 31 * result + AnsightMessagesPigeonUtils.deepHash(this.method)
+    result = 31 * result + AnsightMessagesPigeonUtils.deepHash(this.url)
+    result = 31 * result + AnsightMessagesPigeonUtils.deepHash(this.protocolName)
+    result = 31 * result + AnsightMessagesPigeonUtils.deepHash(this.requestHeaders)
+    result = 31 * result + AnsightMessagesPigeonUtils.deepHash(this.requestBodySizeBytes)
+    result = 31 * result + AnsightMessagesPigeonUtils.deepHash(this.requestBody)
+    result = 31 * result + AnsightMessagesPigeonUtils.deepHash(this.statusCode)
+    result = 31 * result + AnsightMessagesPigeonUtils.deepHash(this.reasonPhrase)
+    result = 31 * result + AnsightMessagesPigeonUtils.deepHash(this.responseHeaders)
+    result = 31 * result + AnsightMessagesPigeonUtils.deepHash(this.responseBodySizeBytes)
+    result = 31 * result + AnsightMessagesPigeonUtils.deepHash(this.responseBody)
+    result = 31 * result + AnsightMessagesPigeonUtils.deepHash(this.errorType)
+    result = 31 * result + AnsightMessagesPigeonUtils.deepHash(this.errorMessage)
+    return result
+  }
+  override fun toString(): String {
+    return "AnsightNetworkRequestMessage(schema=$schema, id=$id, source=$source, startedAtUtc=$startedAtUtc, completedAtUtc=$completedAtUtc, durationMilliseconds=$durationMilliseconds, method=$method, url=$url, protocolName=$protocolName, requestHeaders=$requestHeaders, requestBodySizeBytes=$requestBodySizeBytes, requestBody=$requestBody, statusCode=$statusCode, reasonPhrase=$reasonPhrase, responseHeaders=$responseHeaders, responseBodySizeBytes=$responseBodySizeBytes, responseBody=$responseBody, errorType=$errorType, errorMessage=$errorMessage)"
+  }
+}
+private open class AnsightMessagesPigeonCodec : StandardMessageCodec() {
+  override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
+    return when (type) {
+      129.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          AnsightNetworkHeaderMessage.fromList(it)
+        }
+      }
+      130.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          AnsightNetworkBodyMessage.fromList(it)
+        }
+      }
+      131.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          AnsightNetworkRequestMessage.fromList(it)
+        }
+      }
+      else -> super.readValueOfType(type, buffer)
+    }
+  }
+  override fun writeValue(stream: ByteArrayOutputStream, value: Any?)   {
+    when (value) {
+      is AnsightNetworkHeaderMessage -> {
+        stream.write(129)
+        writeValue(stream, value.toList())
+      }
+      is AnsightNetworkBodyMessage -> {
+        stream.write(130)
+        writeValue(stream, value.toList())
+      }
+      is AnsightNetworkRequestMessage -> {
+        stream.write(131)
+        writeValue(stream, value.toList())
+      }
+      else -> super.writeValue(stream, value)
+    }
+  }
+}
+
+
 /** Generated interface from Pigeon that represents a handler of messages from Flutter. */
 interface AnsightNativeHostApi {
   fun invoke(method: String, argumentsJson: String?, callback: (Result<String>) -> Unit)
   fun queueBinaryTransfer(requestId: String, data: ByteArray, chunkBytes: Long, callback: (Result<String>) -> Unit)
+  fun recordNetworkRequest(request: AnsightNetworkRequestMessage, callback: (Result<String>) -> Unit)
 
   companion object {
     /** The codec used by AnsightNativeHostApi. */
     val codec: MessageCodec<Any?> by lazy {
-      StandardMessageCodec.INSTANCE as MessageCodec<Any?>
+      AnsightMessagesPigeonCodec()
     }
     /** Sets up an instance of `AnsightNativeHostApi` to handle messages through the `binaryMessenger`. */
     @JvmOverloads
@@ -105,6 +500,26 @@ interface AnsightNativeHostApi {
           channel.setMessageHandler(null)
         }
       }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.ansight_flutter.AnsightNativeHostApi.recordNetworkRequest$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val requestArg = args[0] as AnsightNetworkRequestMessage
+            api.recordNetworkRequest(requestArg) { result: Result<String> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(AnsightMessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(AnsightMessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
     }
   }
 }
@@ -113,7 +528,7 @@ class AnsightDartApi(private val binaryMessenger: BinaryMessenger, private val m
   companion object {
     /** The codec used by AnsightDartApi. */
     val codec: MessageCodec<Any?> by lazy {
-      StandardMessageCodec.INSTANCE as MessageCodec<Any?>
+      AnsightMessagesPigeonCodec()
     }
   }
   fun onNativeEvent(nameArg: String, payloadJsonArg: String, callback: (Result<Unit>) -> Unit)

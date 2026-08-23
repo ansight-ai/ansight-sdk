@@ -12,6 +12,9 @@ import ai.ansight.runtime.AnsightHostAutoProbeOptions
 import ai.ansight.runtime.AnsightHostConnectionOptions
 import ai.ansight.runtime.AnsightLogCallback
 import ai.ansight.runtime.AnsightLogger
+import ai.ansight.runtime.AnsightNetworkHeader
+import ai.ansight.runtime.AnsightNetworkBody
+import ai.ansight.runtime.AnsightNetworkRequest
 import ai.ansight.runtime.AnsightOptions
 import ai.ansight.runtime.AnsightRuntime
 import ai.ansight.runtime.AnsightSecureStorageOptions
@@ -27,6 +30,7 @@ import ai.ansight.runtime.HostConnectionRequest
 import ai.ansight.runtime.HostConnectionRequestKind
 import ai.ansight.runtime.HostConnectionResult
 import ai.ansight.runtime.HostConnectionStatus
+import ai.ansight.runtime.HostConnectionStatusSubscription
 import ai.ansight.runtime.OperationResult
 import ai.ansight.runtime.OpenSessionResult
 import ai.ansight.runtime.PairingFileTransferWireProtocol
@@ -92,6 +96,7 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
     private var activity: Activity? = null
     private var dartApi: AnsightDartApi? = null
     private var messenger: io.flutter.plugin.common.BinaryMessenger? = null
+    private var hostConnectionStatusSubscription: HostConnectionStatusSubscription? = null
 
     private val logCallback = AnsightLogCallback { level, message, throwable ->
         val payload = JSONObject()
@@ -109,10 +114,15 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
         dartApi = AnsightDartApi(binding.binaryMessenger)
         AnsightNativeHostApi.setUp(binding.binaryMessenger, this)
         AnsightLogger.registerCallback(logCallback)
+        hostConnectionStatusSubscription = AnsightRuntime.addHostConnectionStatusListener(
+            listener = { status, _ -> sendEvent("connectionStatus", hostConnectionStatus(status)) },
+        )
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         AnsightLogger.removeCallback(logCallback)
+        hostConnectionStatusSubscription?.remove()
+        hostConnectionStatusSubscription = null
         AnsightNativeHostApi.setUp(binding.binaryMessenger, null)
         pendingToolCalls.values.forEach { it.latch.countDown() }
         pendingToolCalls.clear()
@@ -162,6 +172,70 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
         executor.execute {
             runCatching {
                 queueTransfer(requestId, data, chunkBytes.toInt()).toString()
+            }.fold(
+                onSuccess = { callback(Result.success(it)) },
+                onFailure = { callback(Result.failure(it)) },
+            )
+        }
+    }
+
+    override fun recordNetworkRequest(
+        request: AnsightNetworkRequestMessage,
+        callback: (Result<String>) -> Unit,
+    ) {
+        executor.execute {
+            runCatching {
+                if (request.schema != AnsightNetworkRequest.SchemaName) {
+                    return@runCatching operationResult(
+                        OperationResult.failure("Network request must use the ansight.network-request.v1 schema."),
+                    ).toString()
+                }
+                operationResult(
+                    AnsightRuntime.recordNetworkRequest(
+                        AnsightNetworkRequest(
+                            id = request.id,
+                            source = request.source,
+                            startedAtUtc = request.startedAtUtc,
+                            completedAtUtc = request.completedAtUtc,
+                            durationMilliseconds = request.durationMilliseconds,
+                            method = request.method,
+                            url = request.url,
+                            protocol = request.protocolName,
+                            requestHeaders = request.requestHeaders.map {
+                                AnsightNetworkHeader(it.name, it.value)
+                            },
+                            requestBodySizeBytes = request.requestBodySizeBytes,
+                            requestBody = request.requestBody?.let {
+                                AnsightNetworkBody(
+                                    contentType = it.contentType,
+                                    encoding = it.encoding,
+                                    data = it.data,
+                                    capturedBytes = it.capturedBytes,
+                                    totalBytes = it.totalBytes,
+                                    truncated = it.truncated,
+                                )
+                            },
+                            statusCode = request.statusCode?.toInt(),
+                            reasonPhrase = request.reasonPhrase,
+                            responseHeaders = request.responseHeaders.map {
+                                AnsightNetworkHeader(it.name, it.value)
+                            },
+                            responseBodySizeBytes = request.responseBodySizeBytes,
+                            responseBody = request.responseBody?.let {
+                                AnsightNetworkBody(
+                                    contentType = it.contentType,
+                                    encoding = it.encoding,
+                                    data = it.data,
+                                    capturedBytes = it.capturedBytes,
+                                    totalBytes = it.totalBytes,
+                                    truncated = it.truncated,
+                                )
+                            },
+                            errorType = request.errorType,
+                            errorMessage = request.errorMessage,
+                        ),
+                    ),
+                ).toString()
             }.fold(
                 onSuccess = { callback(Result.success(it)) },
                 onFailure = { callback(Result.failure(it)) },

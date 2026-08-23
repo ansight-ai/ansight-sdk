@@ -71,6 +71,115 @@ enum AnsightMessagesPigeonInternal {
 
     return innerValue is NSNull
   }
+  static func doubleEquals(_ lhs: Double, _ rhs: Double) -> Bool {
+    return (lhs.isNaN && rhs.isNaN) || lhs == rhs
+  }
+
+  static func doubleHash(_ value: Double, _ hasher: inout Hasher) {
+    if value.isNaN {
+      hasher.combine(0x7FF8000000000000)
+    } else {
+      // Normalize -0.0 to 0.0
+      hasher.combine(value == 0 ? 0 : value)
+    }
+  }
+
+  static func deepEquals(_ lhs: Any?, _ rhs: Any?) -> Bool {
+    let cleanLhs = nilOrValue(lhs) as Any?
+    let cleanRhs = nilOrValue(rhs) as Any?
+    switch (cleanLhs, cleanRhs) {
+    case (nil, nil):
+      return true
+
+    case (nil, _), (_, nil):
+      return false
+
+    case (let lhs as AnyObject, let rhs as AnyObject) where lhs === rhs:
+      return true
+
+    case is (Void, Void):
+      return true
+
+    case (let lhsArray, let rhsArray) as ([Any?], [Any?]):
+      guard lhsArray.count == rhsArray.count else { return false }
+      for (index, element) in lhsArray.enumerated() {
+        if !deepEquals(element, rhsArray[index]) {
+          return false
+        }
+      }
+      return true
+
+    case (let lhsArray, let rhsArray) as ([Double], [Double]):
+      guard lhsArray.count == rhsArray.count else { return false }
+      for (index, element) in lhsArray.enumerated() {
+        if !doubleEquals(element, rhsArray[index]) {
+          return false
+        }
+      }
+      return true
+
+    case (let lhsDictionary, let rhsDictionary) as ([AnyHashable: Any?], [AnyHashable: Any?]):
+      guard lhsDictionary.count == rhsDictionary.count else { return false }
+      for (lhsKey, lhsValue) in lhsDictionary {
+        var found = false
+        for (rhsKey, rhsValue) in rhsDictionary {
+          if deepEquals(lhsKey, rhsKey) {
+            if deepEquals(lhsValue, rhsValue) {
+              found = true
+              break
+            } else {
+              return false
+            }
+          }
+        }
+        if !found { return false }
+      }
+      return true
+
+    case (let lhs as Double, let rhs as Double):
+      return doubleEquals(lhs, rhs)
+
+    case (let lhsHashable, let rhsHashable) as (AnyHashable, AnyHashable):
+      return lhsHashable == rhsHashable
+
+    default:
+      return false
+    }
+  }
+
+  static func deepHash(value: Any?, hasher: inout Hasher) {
+    let cleanValue = nilOrValue(value) as Any?
+    if let cleanValue = cleanValue {
+      if let doubleValue = cleanValue as? Double {
+        doubleHash(doubleValue, &hasher)
+      } else if let valueList = cleanValue as? [Any?] {
+        for item in valueList {
+          deepHash(value: item, hasher: &hasher)
+        }
+      } else if let valueList = cleanValue as? [Double] {
+        for item in valueList {
+          doubleHash(item, &hasher)
+        }
+      } else if let valueDict = cleanValue as? [AnyHashable: Any?] {
+        var result = 0
+        for (key, value) in valueDict {
+          var entryKeyHasher = Hasher()
+          deepHash(value: key, hasher: &entryKeyHasher)
+          var entryValueHasher = Hasher()
+          deepHash(value: value, hasher: &entryValueHasher)
+          result = result &+ ((entryKeyHasher.finalize() &* 31) ^ entryValueHasher.finalize())
+        }
+        hasher.combine(result)
+      } else if let hashableValue = cleanValue as? AnyHashable {
+        hasher.combine(hashableValue)
+      } else {
+        hasher.combine(String(describing: cleanValue))
+      }
+    } else {
+      hasher.combine(0)
+    }
+  }
+
 }
 
 private func nilOrValue<T>(_ value: Any?) -> T? {
@@ -79,10 +188,261 @@ private func nilOrValue<T>(_ value: Any?) -> T? {
 }
 
 
+/// Generated class from Pigeon that represents data sent in messages.
+struct AnsightNetworkHeaderMessage: Hashable, CustomStringConvertible {
+  var name: String
+  var value: String
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> AnsightNetworkHeaderMessage? {
+    let name = pigeonVar_list[0] as! String
+    let value = pigeonVar_list[1] as! String
+
+    return AnsightNetworkHeaderMessage(
+      name: name,
+      value: value
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      name,
+      value,
+    ]
+  }
+  static func == (lhs: AnsightNetworkHeaderMessage, rhs: AnsightNetworkHeaderMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return AnsightMessagesPigeonInternal.deepEquals(lhs.name, rhs.name) && AnsightMessagesPigeonInternal.deepEquals(lhs.value, rhs.value)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("AnsightNetworkHeaderMessage")
+    AnsightMessagesPigeonInternal.deepHash(value: name, hasher: &hasher)
+    AnsightMessagesPigeonInternal.deepHash(value: value, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "AnsightNetworkHeaderMessage(name: \(String(describing: name)), value: \(String(describing: value)))"
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct AnsightNetworkBodyMessage: Hashable, CustomStringConvertible {
+  var contentType: String? = nil
+  var encoding: String
+  var data: String
+  var capturedBytes: Int64
+  var totalBytes: Int64? = nil
+  var truncated: Bool
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> AnsightNetworkBodyMessage? {
+    let contentType: String? = nilOrValue(pigeonVar_list[0])
+    let encoding = pigeonVar_list[1] as! String
+    let data = pigeonVar_list[2] as! String
+    let capturedBytes = pigeonVar_list[3] as! Int64
+    let totalBytes: Int64? = nilOrValue(pigeonVar_list[4])
+    let truncated = pigeonVar_list[5] as! Bool
+
+    return AnsightNetworkBodyMessage(
+      contentType: contentType,
+      encoding: encoding,
+      data: data,
+      capturedBytes: capturedBytes,
+      totalBytes: totalBytes,
+      truncated: truncated
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      contentType,
+      encoding,
+      data,
+      capturedBytes,
+      totalBytes,
+      truncated,
+    ]
+  }
+  static func == (lhs: AnsightNetworkBodyMessage, rhs: AnsightNetworkBodyMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return AnsightMessagesPigeonInternal.deepEquals(lhs.contentType, rhs.contentType) && AnsightMessagesPigeonInternal.deepEquals(lhs.encoding, rhs.encoding) && AnsightMessagesPigeonInternal.deepEquals(lhs.data, rhs.data) && AnsightMessagesPigeonInternal.deepEquals(lhs.capturedBytes, rhs.capturedBytes) && AnsightMessagesPigeonInternal.deepEquals(lhs.totalBytes, rhs.totalBytes) && AnsightMessagesPigeonInternal.deepEquals(lhs.truncated, rhs.truncated)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("AnsightNetworkBodyMessage")
+    AnsightMessagesPigeonInternal.deepHash(value: contentType, hasher: &hasher)
+    AnsightMessagesPigeonInternal.deepHash(value: encoding, hasher: &hasher)
+    AnsightMessagesPigeonInternal.deepHash(value: data, hasher: &hasher)
+    AnsightMessagesPigeonInternal.deepHash(value: capturedBytes, hasher: &hasher)
+    AnsightMessagesPigeonInternal.deepHash(value: totalBytes, hasher: &hasher)
+    AnsightMessagesPigeonInternal.deepHash(value: truncated, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "AnsightNetworkBodyMessage(contentType: \(String(describing: contentType)), encoding: \(String(describing: encoding)), data: \(String(describing: data)), capturedBytes: \(String(describing: capturedBytes)), totalBytes: \(String(describing: totalBytes)), truncated: \(String(describing: truncated)))"
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct AnsightNetworkRequestMessage: Hashable, CustomStringConvertible {
+  var schema: String
+  var id: String
+  var source: String
+  var startedAtUtc: String
+  var completedAtUtc: String
+  var durationMilliseconds: Double
+  var method: String
+  var url: String
+  var protocolName: String? = nil
+  var requestHeaders: [AnsightNetworkHeaderMessage]
+  var requestBodySizeBytes: Int64? = nil
+  var requestBody: AnsightNetworkBodyMessage? = nil
+  var statusCode: Int64? = nil
+  var reasonPhrase: String? = nil
+  var responseHeaders: [AnsightNetworkHeaderMessage]
+  var responseBodySizeBytes: Int64? = nil
+  var responseBody: AnsightNetworkBodyMessage? = nil
+  var errorType: String? = nil
+  var errorMessage: String? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> AnsightNetworkRequestMessage? {
+    let schema = pigeonVar_list[0] as! String
+    let id = pigeonVar_list[1] as! String
+    let source = pigeonVar_list[2] as! String
+    let startedAtUtc = pigeonVar_list[3] as! String
+    let completedAtUtc = pigeonVar_list[4] as! String
+    let durationMilliseconds = pigeonVar_list[5] as! Double
+    let method = pigeonVar_list[6] as! String
+    let url = pigeonVar_list[7] as! String
+    let protocolName: String? = nilOrValue(pigeonVar_list[8])
+    let requestHeaders = pigeonVar_list[9] as! [AnsightNetworkHeaderMessage]
+    let requestBodySizeBytes: Int64? = nilOrValue(pigeonVar_list[10])
+    let requestBody: AnsightNetworkBodyMessage? = nilOrValue(pigeonVar_list[11])
+    let statusCode: Int64? = nilOrValue(pigeonVar_list[12])
+    let reasonPhrase: String? = nilOrValue(pigeonVar_list[13])
+    let responseHeaders = pigeonVar_list[14] as! [AnsightNetworkHeaderMessage]
+    let responseBodySizeBytes: Int64? = nilOrValue(pigeonVar_list[15])
+    let responseBody: AnsightNetworkBodyMessage? = nilOrValue(pigeonVar_list[16])
+    let errorType: String? = nilOrValue(pigeonVar_list[17])
+    let errorMessage: String? = nilOrValue(pigeonVar_list[18])
+
+    return AnsightNetworkRequestMessage(
+      schema: schema,
+      id: id,
+      source: source,
+      startedAtUtc: startedAtUtc,
+      completedAtUtc: completedAtUtc,
+      durationMilliseconds: durationMilliseconds,
+      method: method,
+      url: url,
+      protocolName: protocolName,
+      requestHeaders: requestHeaders,
+      requestBodySizeBytes: requestBodySizeBytes,
+      requestBody: requestBody,
+      statusCode: statusCode,
+      reasonPhrase: reasonPhrase,
+      responseHeaders: responseHeaders,
+      responseBodySizeBytes: responseBodySizeBytes,
+      responseBody: responseBody,
+      errorType: errorType,
+      errorMessage: errorMessage
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      schema,
+      id,
+      source,
+      startedAtUtc,
+      completedAtUtc,
+      durationMilliseconds,
+      method,
+      url,
+      protocolName,
+      requestHeaders,
+      requestBodySizeBytes,
+      requestBody,
+      statusCode,
+      reasonPhrase,
+      responseHeaders,
+      responseBodySizeBytes,
+      responseBody,
+      errorType,
+      errorMessage,
+    ]
+  }
+  static func == (lhs: AnsightNetworkRequestMessage, rhs: AnsightNetworkRequestMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return AnsightMessagesPigeonInternal.deepEquals(lhs.schema, rhs.schema) && AnsightMessagesPigeonInternal.deepEquals(lhs.id, rhs.id) && AnsightMessagesPigeonInternal.deepEquals(lhs.source, rhs.source) && AnsightMessagesPigeonInternal.deepEquals(lhs.startedAtUtc, rhs.startedAtUtc) && AnsightMessagesPigeonInternal.deepEquals(lhs.completedAtUtc, rhs.completedAtUtc) && AnsightMessagesPigeonInternal.deepEquals(lhs.durationMilliseconds, rhs.durationMilliseconds) && AnsightMessagesPigeonInternal.deepEquals(lhs.method, rhs.method) && AnsightMessagesPigeonInternal.deepEquals(lhs.url, rhs.url) && AnsightMessagesPigeonInternal.deepEquals(lhs.protocolName, rhs.protocolName) && AnsightMessagesPigeonInternal.deepEquals(lhs.requestHeaders, rhs.requestHeaders) && AnsightMessagesPigeonInternal.deepEquals(lhs.requestBodySizeBytes, rhs.requestBodySizeBytes) && AnsightMessagesPigeonInternal.deepEquals(lhs.requestBody, rhs.requestBody) && AnsightMessagesPigeonInternal.deepEquals(lhs.statusCode, rhs.statusCode) && AnsightMessagesPigeonInternal.deepEquals(lhs.reasonPhrase, rhs.reasonPhrase) && AnsightMessagesPigeonInternal.deepEquals(lhs.responseHeaders, rhs.responseHeaders) && AnsightMessagesPigeonInternal.deepEquals(lhs.responseBodySizeBytes, rhs.responseBodySizeBytes) && AnsightMessagesPigeonInternal.deepEquals(lhs.responseBody, rhs.responseBody) && AnsightMessagesPigeonInternal.deepEquals(lhs.errorType, rhs.errorType) && AnsightMessagesPigeonInternal.deepEquals(lhs.errorMessage, rhs.errorMessage)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("AnsightNetworkRequestMessage")
+    AnsightMessagesPigeonInternal.deepHash(value: schema, hasher: &hasher)
+    AnsightMessagesPigeonInternal.deepHash(value: id, hasher: &hasher)
+    AnsightMessagesPigeonInternal.deepHash(value: source, hasher: &hasher)
+    AnsightMessagesPigeonInternal.deepHash(value: startedAtUtc, hasher: &hasher)
+    AnsightMessagesPigeonInternal.deepHash(value: completedAtUtc, hasher: &hasher)
+    AnsightMessagesPigeonInternal.deepHash(value: durationMilliseconds, hasher: &hasher)
+    AnsightMessagesPigeonInternal.deepHash(value: method, hasher: &hasher)
+    AnsightMessagesPigeonInternal.deepHash(value: url, hasher: &hasher)
+    AnsightMessagesPigeonInternal.deepHash(value: protocolName, hasher: &hasher)
+    AnsightMessagesPigeonInternal.deepHash(value: requestHeaders, hasher: &hasher)
+    AnsightMessagesPigeonInternal.deepHash(value: requestBodySizeBytes, hasher: &hasher)
+    AnsightMessagesPigeonInternal.deepHash(value: requestBody, hasher: &hasher)
+    AnsightMessagesPigeonInternal.deepHash(value: statusCode, hasher: &hasher)
+    AnsightMessagesPigeonInternal.deepHash(value: reasonPhrase, hasher: &hasher)
+    AnsightMessagesPigeonInternal.deepHash(value: responseHeaders, hasher: &hasher)
+    AnsightMessagesPigeonInternal.deepHash(value: responseBodySizeBytes, hasher: &hasher)
+    AnsightMessagesPigeonInternal.deepHash(value: responseBody, hasher: &hasher)
+    AnsightMessagesPigeonInternal.deepHash(value: errorType, hasher: &hasher)
+    AnsightMessagesPigeonInternal.deepHash(value: errorMessage, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "AnsightNetworkRequestMessage(schema: \(String(describing: schema)), id: \(String(describing: id)), source: \(String(describing: source)), startedAtUtc: \(String(describing: startedAtUtc)), completedAtUtc: \(String(describing: completedAtUtc)), durationMilliseconds: \(String(describing: durationMilliseconds)), method: \(String(describing: method)), url: \(String(describing: url)), protocolName: \(String(describing: protocolName)), requestHeaders: \(String(describing: requestHeaders)), requestBodySizeBytes: \(String(describing: requestBodySizeBytes)), requestBody: \(String(describing: requestBody)), statusCode: \(String(describing: statusCode)), reasonPhrase: \(String(describing: reasonPhrase)), responseHeaders: \(String(describing: responseHeaders)), responseBodySizeBytes: \(String(describing: responseBodySizeBytes)), responseBody: \(String(describing: responseBody)), errorType: \(String(describing: errorType)), errorMessage: \(String(describing: errorMessage)))"
+  }
+}
+
 private class AnsightMessagesPigeonCodecReader: FlutterStandardReader {
+  override func readValue(ofType type: UInt8) -> Any? {
+    switch type {
+    case 129:
+      return AnsightNetworkHeaderMessage.fromList(self.readValue() as! [Any?])
+    case 130:
+      return AnsightNetworkBodyMessage.fromList(self.readValue() as! [Any?])
+    case 131:
+      return AnsightNetworkRequestMessage.fromList(self.readValue() as! [Any?])
+    default:
+      return super.readValue(ofType: type)
+    }
+  }
 }
 
 private class AnsightMessagesPigeonCodecWriter: FlutterStandardWriter {
+  override func writeValue(_ value: Any) {
+    if let value = value as? AnsightNetworkHeaderMessage {
+      super.writeByte(129)
+      super.writeValue(value.toList())
+    } else if let value = value as? AnsightNetworkBodyMessage {
+      super.writeByte(130)
+      super.writeValue(value.toList())
+    } else if let value = value as? AnsightNetworkRequestMessage {
+      super.writeByte(131)
+      super.writeValue(value.toList())
+    } else {
+      super.writeValue(value)
+    }
+  }
 }
 
 private class AnsightMessagesPigeonCodecReaderWriter: FlutterStandardReaderWriter {
@@ -104,6 +464,7 @@ class AnsightMessagesPigeonCodec: FlutterStandardMessageCodec, @unchecked Sendab
 protocol AnsightNativeHostApi {
   func invoke(method: String, argumentsJson: String?, completion: @escaping (Result<String, Error>) -> Void)
   func queueBinaryTransfer(requestId: String, data: FlutterStandardTypedData, chunkBytes: Int64, completion: @escaping (Result<String, Error>) -> Void)
+  func recordNetworkRequest(request: AnsightNetworkRequestMessage, completion: @escaping (Result<String, Error>) -> Void)
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -148,6 +509,23 @@ class AnsightNativeHostApiSetup {
       }
     } else {
       queueBinaryTransferChannel.setMessageHandler(nil)
+    }
+    let recordNetworkRequestChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.ansight_flutter.AnsightNativeHostApi.recordNetworkRequest\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      recordNetworkRequestChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let requestArg = args[0] as! AnsightNetworkRequestMessage
+        api.recordNetworkRequest(request: requestArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      recordNetworkRequestChannel.setMessageHandler(nil)
     }
   }
 }

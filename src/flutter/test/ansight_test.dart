@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:ansight_flutter/ansight.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 class NativeCall {
   const NativeCall(this.method, this.arguments);
@@ -12,6 +15,7 @@ class NativeCall {
 
 class FakeNativeTransport implements AnsightNativeTransport {
   final List<NativeCall> calls = <NativeCall>[];
+  bool connected = false;
 
   @override
   AnsightNativeEventCallback? eventCallback;
@@ -34,7 +38,11 @@ class FakeNativeTransport implements AnsightNativeTransport {
       return _snapshot;
     }
     if (method == 'hostConnectionStatus') {
-      return _connection;
+      return <String, Object?>{
+        ..._connection,
+        'isConnected': connected,
+        'connectionState': connected ? 'connected' : 'disconnected',
+      };
     }
     if (<String>{
       'registerCustomTool',
@@ -61,6 +69,25 @@ class FakeNativeTransport implements AnsightNativeTransport {
         'sizeBytes': data.length,
       };
 
+  @override
+  Future<AnsightJson> recordNetworkRequest(
+    AnsightNetworkRequest request,
+  ) async {
+    calls.add(NativeCall('recordNetworkRequest', <String, Object?>{
+      'request': request,
+    }));
+    return <String, Object?>{'success': true, 'message': 'ok'};
+  }
+
+  void emitConnectionStatus(bool isConnected) {
+    connected = isConnected;
+    eventCallback?.call('connectionStatus', <String, Object?>{
+      ..._connection,
+      'isConnected': isConnected,
+      'connectionState': isConnected ? 'connected' : 'disconnected',
+    });
+  }
+
   static const AnsightJson _connection = <String, Object?>{
     'isRuntimeActive': true,
     'isConnected': false,
@@ -82,6 +109,17 @@ class FakeNativeTransport implements AnsightNativeTransport {
     'channels': <Object?>[],
     'connectionStatus': _connection,
   };
+}
+
+class StreamingClient extends http.BaseClient {
+  StreamingClient(this.callback);
+
+  final Future<http.StreamedResponse> Function(http.BaseRequest request)
+      callback;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) =>
+      callback(request);
 }
 
 void main() {
@@ -186,6 +224,169 @@ void main() {
       'value': 13,
       'channel': 40,
     });
+  });
+
+  test('network sanitizer reapplies mandatory credential redaction', () {
+    final request = AnsightNetworkRequestSanitizer.sanitize(
+      const AnsightNetworkRequest(
+        id: 'request-1',
+        source: 'test',
+        startedAtUtc: '2026-08-23T00:00:00.000Z',
+        completedAtUtc: '2026-08-23T00:00:00.010Z',
+        durationMilliseconds: 10,
+        method: 'get',
+        url:
+            'https://user:password@example.test/items?token=secret&visible=yes',
+        requestHeaders: <AnsightNetworkHeader>[
+          AnsightNetworkHeader(name: 'Authorization', value: 'Bearer first'),
+        ],
+        errorMessage:
+            'request failed token=secret at https://user:password@example.test?api_key=secret',
+      ),
+      AnsightNetworkSanitizationOptions(
+        requestSanitizer: (AnsightNetworkRequest value) =>
+            AnsightNetworkRequest(
+          id: value.id,
+          source: value.source,
+          startedAtUtc: value.startedAtUtc,
+          completedAtUtc: value.completedAtUtc,
+          durationMilliseconds: value.durationMilliseconds,
+          method: value.method,
+          url: value.url,
+          requestHeaders: const <AnsightNetworkHeader>[
+            AnsightNetworkHeader(
+              name: 'Authorization',
+              value: 'Bearer restored',
+            ),
+          ],
+        ),
+      ),
+    );
+
+    expect(request, isNotNull);
+    expect(request!.method, 'GET');
+    expect(request.url, contains('token=%3Credacted%3E'));
+    expect(request.url, isNot(contains('password')));
+    expect(request.requestHeaders.single.value, ansightRedactedNetworkValue);
+    expect(request.errorMessage, isNot(contains('secret')));
+    expect(request.errorMessage, isNot(contains('password')));
+  });
+
+  test('network sanitizer redacts cloud signed URLs and text bodies', () {
+    for (final url in <String>[
+      'https://blob.test/a?sv=1&sp=rw&se=tomorrow&sig=azure-secret&safe=yes',
+      'https://s3.test/a?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=credential-secret&X-Amz-Signature=aws-secret&safe=yes',
+      'https://storage.test/a?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=google-secret&X-Goog-Signature=gcs-secret&safe=yes',
+    ]) {
+      final request = AnsightNetworkRequestSanitizer.sanitize(
+        AnsightNetworkRequest(
+          id: 'cloud',
+          source: 'test',
+          startedAtUtc: '2026-08-23T00:00:00Z',
+          completedAtUtc: '2026-08-23T00:00:01Z',
+          durationMilliseconds: 1,
+          method: 'POST',
+          url: url,
+          requestBody: const AnsightNetworkBody(
+            contentType: 'application/json',
+            encoding: 'utf8',
+            data: '{"token":"body-secret","visible":"yes"}',
+            capturedBytes: 39,
+            totalBytes: 39,
+            truncated: false,
+          ),
+        ),
+      );
+      expect(
+          request!.url,
+          isNot(matches(RegExp(
+            'azure-secret|credential-secret|aws-secret|google-secret|gcs-secret',
+          ))));
+      expect(request.url, contains('safe=yes'));
+      expect(request.requestBody!.data, isNot(contains('body-secret')));
+      expect(request.requestBody!.data, contains('visible'));
+    }
+  });
+
+  test('AnsightHttpClient captures bodies only while the host is connected',
+      () async {
+    final transport = FakeNativeTransport();
+    transport.connected = true;
+    final ansight = Ansight.withTransport(transport);
+    final inner = MockClient((http.Request request) async => http.Response(
+          'response body',
+          201,
+          reasonPhrase: 'Created',
+          headers: <String, String>{
+            'content-length': '13',
+            'set-cookie': 'session=secret',
+          },
+          request: request,
+        ));
+    final client = AnsightHttpClient(inner: inner, ansight: ansight);
+    await Future<void>.delayed(Duration.zero);
+
+    final response = await client.post(
+      Uri.parse('https://example.test/items?token=secret'),
+      headers: <String, String>{'Authorization': 'Bearer secret'},
+      body: 'request body',
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(response.statusCode, 201);
+    final networkCall = transport.calls.singleWhere(
+      (NativeCall call) => call.method == 'recordNetworkRequest',
+    );
+    final captured = networkCall.arguments!['request'] as AnsightNetworkRequest;
+    expect(captured.source, 'flutter.http');
+    expect(captured.method, 'POST');
+    expect(captured.statusCode, 201);
+    expect(captured.requestBody?.data, 'request body');
+    expect(captured.responseBody?.data, 'response body');
+    expect(captured.url, contains('token=%3Credacted%3E'));
+    expect(
+      captured.requestHeaders
+          .singleWhere((AnsightNetworkHeader value) =>
+              value.name.toLowerCase() == 'authorization')
+          .value,
+      ansightRedactedNetworkValue,
+    );
+    client.close();
+  });
+
+  test('AnsightHttpClient stops an in-flight capture after disconnect',
+      () async {
+    final transport = FakeNativeTransport()..connected = true;
+    final ansight = Ansight.withTransport(transport);
+    final responseStream = StreamController<List<int>>();
+    final inner = StreamingClient(
+        (http.BaseRequest request) async => http.StreamedResponse(
+              responseStream.stream,
+              200,
+              contentLength: 13,
+              headers: <String, String>{'content-type': 'text/plain'},
+              request: request,
+            ));
+    final client = AnsightHttpClient(inner: inner, ansight: ansight);
+    await Future<void>.delayed(Duration.zero);
+
+    final response = await client.send(
+      http.Request('GET', Uri.parse('https://example.test/items')),
+    );
+    transport.emitConnectionStatus(false);
+    final responseComplete = response.stream.drain<void>();
+    responseStream.add('response body'.codeUnits);
+    await responseStream.close();
+    await responseComplete;
+    await Future<void>.delayed(Duration.zero);
+
+    expect(
+      transport.calls.where(
+        (NativeCall call) => call.method == 'recordNetworkRequest',
+      ),
+      isEmpty,
+    );
+    client.close();
   });
 
   test('automatic properties survive updates, clears, and removals', () async {

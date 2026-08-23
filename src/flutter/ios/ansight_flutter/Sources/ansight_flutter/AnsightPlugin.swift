@@ -77,6 +77,7 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
     private var pendingToolCalls: [String: PendingToolCall] = [:]
     private var customToolRegistrations: [String: CustomToolRegistration] = [:]
     private var dartApi: AnsightDartApi?
+    private var hostConnectionStatusSubscription: HostConnectionStatusSubscription?
     private lazy var logCallback = AnsightClosureLogCallback { [weak self] level, message, error in
         self?.emitLogEvent(level: level, message: message, error: error)
     }
@@ -89,11 +90,15 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
             api: instance
         )
         AnsightLogger.registerCallback(instance.logCallback)
+        instance.hostConnectionStatusSubscription = AnsightRuntime.shared.addHostConnectionStatusListener { [weak instance] status, _ in
+            instance?.emitConnectionStatus(status)
+        }
         registrar.publish(instance)
     }
 
     deinit {
         AnsightLogger.removeCallback(logCallback)
+        hostConnectionStatusSubscription?.remove()
         lock.withLock {
             pendingToolCalls.values.forEach { $0.semaphore.signal() }
             pendingToolCalls.removeAll()
@@ -154,6 +159,73 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
             completion(.success(try encodeObject(payload)))
         } catch {
             completion(.failure(error))
+        }
+    }
+
+    func recordNetworkRequest(
+        request: AnsightNetworkRequestMessage,
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
+        guard request.schema == AnsightNetworkRequest.schemaName else {
+            do {
+                completion(.success(try encodeObject(operationResultDictionary(
+                    .failure("Network request must use the ansight.network-request.v1 schema.")
+                ))))
+            } catch {
+                completion(.failure(error))
+            }
+            return
+        }
+        let model = AnsightNetworkRequest(
+            id: request.id,
+            source: request.source,
+            startedAtUtc: request.startedAtUtc,
+            completedAtUtc: request.completedAtUtc,
+            durationMilliseconds: request.durationMilliseconds,
+            method: request.method,
+            url: request.url,
+            protocol: request.protocolName,
+            requestHeaders: request.requestHeaders.map {
+                AnsightNetworkHeader(name: $0.name, value: $0.value)
+            },
+            requestBodySizeBytes: request.requestBodySizeBytes,
+            requestBody: request.requestBody.map {
+                AnsightNetworkBody(
+                    contentType: $0.contentType,
+                    encoding: $0.encoding,
+                    data: $0.data,
+                    capturedBytes: $0.capturedBytes,
+                    totalBytes: $0.totalBytes,
+                    truncated: $0.truncated
+                )
+            },
+            statusCode: request.statusCode.map(Int.init),
+            reasonPhrase: request.reasonPhrase,
+            responseHeaders: request.responseHeaders.map {
+                AnsightNetworkHeader(name: $0.name, value: $0.value)
+            },
+            responseBodySizeBytes: request.responseBodySizeBytes,
+            responseBody: request.responseBody.map {
+                AnsightNetworkBody(
+                    contentType: $0.contentType,
+                    encoding: $0.encoding,
+                    data: $0.data,
+                    capturedBytes: $0.capturedBytes,
+                    totalBytes: $0.totalBytes,
+                    truncated: $0.truncated
+                )
+            },
+            errorType: request.errorType,
+            errorMessage: request.errorMessage
+        )
+        Task {
+            do {
+                completion(.success(try encodeObject(operationResultDictionary(
+                    await AnsightRuntime.shared.recordNetworkRequest(model)
+                ))))
+            } catch {
+                completion(.failure(error))
+            }
         }
     }
 
@@ -1145,6 +1217,16 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
                 return
             }
             api.onNativeEvent(name: "log", payloadJson: encoded) { _ in }
+        }
+    }
+
+    private func emitConnectionStatus(_ status: HostConnectionStatus) {
+        DispatchQueue.main.async { [weak self] in
+            guard let api = self?.dartApi,
+                  let encoded = try? encodeObject(self?.hostConnectionStatusDictionary(status) ?? [:]) else {
+                return
+            }
+            api.onNativeEvent(name: "connectionStatus", payloadJson: encoded) { _ in }
         }
     }
 }

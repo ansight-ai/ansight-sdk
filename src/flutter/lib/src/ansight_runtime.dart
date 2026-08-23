@@ -7,6 +7,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 
 import 'ansight_models.dart';
+import 'ansight_network_models.dart';
 import 'ansight_options.dart';
 import 'session_properties.dart';
 import 'ansight_tooling.dart';
@@ -144,6 +145,24 @@ class Ansight {
       if (metadata.isNotEmpty) 'metadata': metadata,
     });
     return result['candidateId'] as String?;
+  }
+
+  Future<AnsightOperationResult> recordNetworkRequest(
+    AnsightNetworkRequest request, [
+    AnsightNetworkSanitizationOptions sanitizationOptions =
+        const AnsightNetworkSanitizationOptions(),
+  ]) async {
+    final sanitized =
+        AnsightNetworkRequestSanitizer.sanitize(request, sanitizationOptions);
+    if (sanitized == null) {
+      return const AnsightOperationResult(
+        success: false,
+        message: 'Network request capture was suppressed by the sanitizer.',
+      );
+    }
+    return AnsightOperationResult.fromJson(
+      await _transport.recordNetworkRequest(sanitized),
+    );
   }
 
   Future<AnsightDebugSnapshot> screenViewed(

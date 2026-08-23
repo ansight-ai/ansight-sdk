@@ -92,6 +92,38 @@ The runtime also exposes built-in telemetry sampling, FPS control, screen-frame
 capture, touch capture, session properties, custom properties, runtime
 snapshots, recorded metrics/events, and log and connection-status streams.
 
+## Network capture
+
+Wrap the `package:http` client explicitly
+used by the app:
+
+```dart
+final client = AnsightHttpClient(
+  inner: http.Client(),
+  sanitizationOptions: AnsightNetworkSanitizationOptions(
+    maximumBodyBytes: 64 * 1024,
+    additionalSensitiveHeaderNames: <String>['x-tenant-secret'],
+    additionalSensitiveQueryParameterNames: <String>['session'],
+    requestSanitizer: (request) =>
+        request.url.contains('/health') ? null : request,
+  ),
+);
+
+final response = await client.get(Uri.parse('https://api.example.test/orders'));
+```
+
+Import `package:http/http.dart` as `http` in the calling app. The wrapper is an
+explicit opt-in and short-circuits directly to the inner client while no host is
+connected. Text request and response bodies are included by default with a
+64 KiB per-body limit; use `AnsightNetworkSanitizationOptionsBuilder` to disable
+either side independently or configure a larger limit. Binary bodies remain an
+explicit opt-in. The Dart and native sanitizers redact credentials, cloud
+signed URLs, and sensitive text-body assignments before transport.
+
+Call `Ansight.instance.recordNetworkRequest(...)` for another HTTP stack or a
+manual record. `AnsightNetworkRequestSanitizer.sanitize(...)` exposes the
+app-side sanitizer for inspection and tests.
+
 Set the JPEG capture option mode to
 `AnsightSessionJpegCaptureMode.screenshotWithVisualTreeOnTouch` to retain
 periodic screenshots while the native runtime captures visual trees only on

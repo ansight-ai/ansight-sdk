@@ -16,6 +16,9 @@ buildscript {
 
 allprojects {
     repositories {
+        if (findProperty("ansightUseMavenLocal") == "true") {
+            mavenLocal()
+        }
         google()
         mavenCentral()
     }
@@ -97,7 +100,7 @@ if (usesBuiltInKotlin) {
 dependencies {
     def ansightAndroidVersion =
             findProperty("ansightAndroidVersion") ?: "1.3.0-preview.10"
-    implementation "ai.ansight:ansight-android:1.3.0-preview.10"
+    implementation "ai.ansight:ansight-android:$ansightAndroidVersion"
     testImplementation "org.jetbrains.kotlin:kotlin-test"
     testImplementation "org.mockito:mockito-core:5.0.0"
 }

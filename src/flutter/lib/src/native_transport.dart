@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'ansight_models.dart';
+import 'ansight_network_models.dart';
 import 'generated/ansight_messages.g.dart';
 
 typedef AnsightNativeEventCallback = void Function(
@@ -20,6 +21,10 @@ abstract class AnsightNativeTransport {
     required Uint8List data,
     int chunkBytes = 65536,
   });
+
+  Future<AnsightJson> recordNetworkRequest(
+    AnsightNetworkRequest request,
+  );
 }
 
 class PigeonAnsightNativeTransport
@@ -55,6 +60,14 @@ class PigeonAnsightNativeTransport
       data,
       chunkBytes,
     );
+    return _decodeObject(response);
+  }
+
+  @override
+  Future<AnsightJson> recordNetworkRequest(
+    AnsightNetworkRequest request,
+  ) async {
+    final response = await _hostApi.recordNetworkRequest(request.toMessage());
     return _decodeObject(response);
   }
 

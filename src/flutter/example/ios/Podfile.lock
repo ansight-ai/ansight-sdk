@@ -1,34 +1,34 @@
 PODS:
-  - Ansight (1.0.2-preview.8):
-    - AnsightCore (= 1.0.2-preview.8)
-    - AnsightPairingQR (= 1.0.2-preview.8)
-    - AnsightToolsDatabase (= 1.0.2-preview.8)
-    - AnsightToolsFileDescriptorDiagnostics (= 1.0.2-preview.8)
-    - AnsightToolsFileSystem (= 1.0.2-preview.8)
-    - AnsightToolsPreferences (= 1.0.2-preview.8)
-    - AnsightToolsReflection (= 1.0.2-preview.8)
-    - AnsightToolsSecureStorage (= 1.0.2-preview.8)
-    - AnsightToolsVisualTree (= 1.0.2-preview.8)
-  - ansight_flutter (1.0.2-preview.8):
-    - Ansight (= 1.0.2-preview.8)
+  - Ansight (1.3.0-preview.10):
+    - AnsightCore (= 1.3.0-preview.10)
+    - AnsightPairingQR (= 1.3.0-preview.10)
+    - AnsightToolsDatabase (= 1.3.0-preview.10)
+    - AnsightToolsFileDescriptorDiagnostics (= 1.3.0-preview.10)
+    - AnsightToolsFileSystem (= 1.3.0-preview.10)
+    - AnsightToolsPreferences (= 1.3.0-preview.10)
+    - AnsightToolsReflection (= 1.3.0-preview.10)
+    - AnsightToolsSecureStorage (= 1.3.0-preview.10)
+    - AnsightToolsVisualTree (= 1.3.0-preview.10)
+  - ansight_flutter (1.3.0-preview.10):
+    - Ansight (= 1.3.0-preview.10)
     - Flutter
-  - AnsightCore (1.0.2-preview.8)
-  - AnsightPairingQR (1.0.2-preview.8):
-    - AnsightCore (= 1.0.2-preview.8)
-  - AnsightToolsDatabase (1.0.2-preview.8):
-    - AnsightCore (= 1.0.2-preview.8)
-  - AnsightToolsFileDescriptorDiagnostics (1.0.2-preview.8):
-    - AnsightCore (= 1.0.2-preview.8)
-  - AnsightToolsFileSystem (1.0.2-preview.8):
-    - AnsightCore (= 1.0.2-preview.8)
-  - AnsightToolsPreferences (1.0.2-preview.8):
-    - AnsightCore (= 1.0.2-preview.8)
-  - AnsightToolsReflection (1.0.2-preview.8):
-    - AnsightCore (= 1.0.2-preview.8)
-  - AnsightToolsSecureStorage (1.0.2-preview.8):
-    - AnsightCore (= 1.0.2-preview.8)
-  - AnsightToolsVisualTree (1.0.2-preview.8):
-    - AnsightCore (= 1.0.2-preview.8)
+  - AnsightCore (1.3.0-preview.10)
+  - AnsightPairingQR (1.3.0-preview.10):
+    - AnsightCore (= 1.3.0-preview.10)
+  - AnsightToolsDatabase (1.3.0-preview.10):
+    - AnsightCore (= 1.3.0-preview.10)
+  - AnsightToolsFileDescriptorDiagnostics (1.3.0-preview.10):
+    - AnsightCore (= 1.3.0-preview.10)
+  - AnsightToolsFileSystem (1.3.0-preview.10):
+    - AnsightCore (= 1.3.0-preview.10)
+  - AnsightToolsPreferences (1.3.0-preview.10):
+    - AnsightCore (= 1.3.0-preview.10)
+  - AnsightToolsReflection (1.3.0-preview.10):
+    - AnsightCore (= 1.3.0-preview.10)
+  - AnsightToolsSecureStorage (1.3.0-preview.10):
+    - AnsightCore (= 1.3.0-preview.10)
+  - AnsightToolsVisualTree (1.3.0-preview.10):
+    - AnsightCore (= 1.3.0-preview.10)
   - Flutter (1.0.0)
   - integration_test (0.0.1):
     - Flutter
@@ -89,17 +89,17 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/sqflite_darwin/darwin"
 
 SPEC CHECKSUMS:
-  Ansight: 840375818b8b380c65d057df4c35d7c2fa4391bc
-  ansight_flutter: 349d92bb3bd6407163ec4b61fc7520898f675f3d
-  AnsightCore: cba7833b06a92bdf46a96930c708fb67134eafd2
-  AnsightPairingQR: cedc5ba6ad5823970e5de78a84a1d2be0bbb383c
-  AnsightToolsDatabase: fab4d8904cce98ac3b75e11080f56e4744f8c983
-  AnsightToolsFileDescriptorDiagnostics: 7901fa28b57a6dcf915c333fea04c7695b7c5496
-  AnsightToolsFileSystem: f1ed5a678b71fec9dc8a0989eea1bb598b9d960d
-  AnsightToolsPreferences: c49d977410f832890d45094257e64f75f9abe09c
-  AnsightToolsReflection: 66e955cff77635588930d4ce93ffd875e3238328
-  AnsightToolsSecureStorage: 066dcc88042fd6b2e7d50481282b560a60e5a380
-  AnsightToolsVisualTree: 074a6402bd8b7613bbd5608179b204cdac81ea74
+  Ansight: 4e1252349b2bac9baf20d1567c4e3aaa34f26383
+  ansight_flutter: eab1c7fc2bf264f1aa269fa05441b21e7e54fbaf
+  AnsightCore: 0888c21e2c3025bd08d81460350782c8ffc0e419
+  AnsightPairingQR: 2b6347e1fc696f89fd1e5510e2250eae6d10647d
+  AnsightToolsDatabase: d7b4aa8399ccaeb4758678760317d40c8b983e64
+  AnsightToolsFileDescriptorDiagnostics: 43e50ec2704ab6c57692f416dbe585cb0051f410
+  AnsightToolsFileSystem: 0a19f73d9e0e514452e56352520ca0d986d4c4b7
+  AnsightToolsPreferences: 4d5bc544af4ec1d242dca7fefff740170646ed50
+  AnsightToolsReflection: 732b83ec794e61dacd39714209823bf5d07b0b57
+  AnsightToolsSecureStorage: 905e461642e82deb49decc0843bbc1c7f028491d
+  AnsightToolsVisualTree: 347b35511d323cf5dd556673afe41722854c9d08
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
   shared_preferences_foundation: 7036424c3d8ec98dfe75ff1667cb0cd531ec82bb

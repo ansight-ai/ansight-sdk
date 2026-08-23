@@ -42,6 +42,21 @@ Future<void> main() async {
       .replaceAll(
         'return replyList.firstOrNull;',
         'return replyList.isEmpty ? null : replyList.first;',
+      )
+      .replaceFirst(
+        'return a.length == b.length &&\n'
+            '        a.indexed\n'
+            '            .every(((int, dynamic) item) => '
+            '_deepEquals(item.\$2, b[item.\$1]));',
+        'if (a.length != b.length) {\n'
+            '      return false;\n'
+            '    }\n'
+            '    for (int index = 0; index < a.length; index += 1) {\n'
+            '      if (!_deepEquals(a[index], b[index])) {\n'
+            '        return false;\n'
+            '      }\n'
+            '    }\n'
+            '    return true;',
       );
   dartOutput.writeAsStringSync(dartSource);
 
@@ -50,30 +65,41 @@ Future<void> main() async {
     'AnsightMessages.g.kt',
   );
   var kotlinSource = kotlinOutput.readAsStringSync();
-  kotlinSource = kotlinSource
-      .replaceAll(
-        'import java.io.ByteArrayOutputStream\n'
-            'import java.nio.ByteBuffer\n',
-        '',
-      )
-      .replaceAll(
-        'private open class AnsightMessagesPigeonCodec : '
-            'StandardMessageCodec() {\n'
-            '  override fun readValueOfType(type: Byte, '
-            'buffer: ByteBuffer): Any? {\n'
-            '    return     super.readValueOfType(type, buffer)\n'
-            '  }\n'
-            '  override fun writeValue(stream: ByteArrayOutputStream, '
-            'value: Any?)   {\n'
-            '    super.writeValue(stream, value)\n'
-            '  }\n'
-            '}\n\n\n',
-        '',
-      )
-      .replaceAll(
-        'AnsightMessagesPigeonCodec()',
-        'StandardMessageCodec.INSTANCE as MessageCodec<Any?>',
-      );
+  // Older Pigeon output emitted an unused pass-through codec when the bridge
+  // had no custom model types. Keep the generated codec (and its Java imports)
+  // now that network request models cross the runtime boundary through it.
+  if (kotlinSource.contains(
+    'return     super.readValueOfType(type, buffer)',
+  )) {
+    kotlinSource = kotlinSource
+        .replaceAll(
+          'import java.io.ByteArrayOutputStream\n'
+              'import java.nio.ByteBuffer\n',
+          '',
+        )
+        .replaceAll(
+          'private open class AnsightMessagesPigeonCodec : '
+              'StandardMessageCodec() {\n'
+              '  override fun readValueOfType(type: Byte, '
+              'buffer: ByteBuffer): Any? {\n'
+              '    return     super.readValueOfType(type, buffer)\n'
+              '  }\n'
+              '  override fun writeValue(stream: ByteArrayOutputStream, '
+              'value: Any?)   {\n'
+              '    super.writeValue(stream, value)\n'
+              '  }\n'
+              '}\n\n\n',
+          '',
+        )
+        .replaceAll(
+          'AnsightMessagesPigeonCodec()',
+          'StandardMessageCodec.INSTANCE as MessageCodec<Any?>',
+        );
+  }
+  kotlinSource = kotlinSource.replaceAll(
+    RegExp(r'[ \t]+$', multiLine: true),
+    '',
+  );
   kotlinOutput.writeAsStringSync(kotlinSource);
 
   final formatting = await Process.run(

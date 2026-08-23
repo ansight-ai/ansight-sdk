@@ -46,6 +46,360 @@ List<Object?> wrapResponse(
   return <Object?>[error.code, error.message, error.details];
 }
 
+bool _deepEquals(Object? a, Object? b) {
+  if (identical(a, b)) {
+    return true;
+  }
+  if (a is double && b is double) {
+    if (a.isNaN && b.isNaN) {
+      return true;
+    }
+    return a == b;
+  }
+  if (a is List && b is List) {
+    if (a.length != b.length) {
+      return false;
+    }
+    for (int index = 0; index < a.length; index += 1) {
+      if (!_deepEquals(a[index], b[index])) {
+        return false;
+      }
+    }
+    return true;
+  }
+  if (a is Map && b is Map) {
+    if (a.length != b.length) {
+      return false;
+    }
+    for (final MapEntry<Object?, Object?> entryA in a.entries) {
+      bool found = false;
+      for (final MapEntry<Object?, Object?> entryB in b.entries) {
+        if (_deepEquals(entryA.key, entryB.key)) {
+          if (_deepEquals(entryA.value, entryB.value)) {
+            found = true;
+            break;
+          } else {
+            return false;
+          }
+        }
+      }
+      if (!found) {
+        return false;
+      }
+    }
+    return true;
+  }
+  return a == b;
+}
+
+int _deepHash(Object? value) {
+  if (value is List) {
+    return Object.hashAll(value.map(_deepHash));
+  }
+  if (value is Map) {
+    int result = 0;
+    for (final MapEntry<Object?, Object?> entry in value.entries) {
+      result += (_deepHash(entry.key) * 31) ^ _deepHash(entry.value);
+    }
+    return result;
+  }
+  if (value is double && value.isNaN) {
+    // Normalize NaN to a consistent hash.
+    return 0x7FF8000000000000.hashCode;
+  }
+  if (value is double && value == 0.0) {
+    // Normalize -0.0 to 0.0 so they have the same hash code.
+    return 0.0.hashCode;
+  }
+  return value.hashCode;
+}
+
+class AnsightNetworkHeaderMessage {
+  AnsightNetworkHeaderMessage({
+    required this.name,
+    required this.value,
+  });
+
+  String name;
+
+  String value;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      name,
+      value,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static AnsightNetworkHeaderMessage decode(Object result) {
+    result as List<Object?>;
+    return AnsightNetworkHeaderMessage(
+      name: result[0]! as String,
+      value: result[1]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! AnsightNetworkHeaderMessage ||
+        other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(name, other.name) && _deepEquals(value, other.value);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'AnsightNetworkHeaderMessage(name: $name, value: $value)';
+  }
+}
+
+class AnsightNetworkBodyMessage {
+  AnsightNetworkBodyMessage({
+    this.contentType,
+    required this.encoding,
+    required this.data,
+    required this.capturedBytes,
+    this.totalBytes,
+    required this.truncated,
+  });
+
+  String? contentType;
+
+  String encoding;
+
+  String data;
+
+  int capturedBytes;
+
+  int? totalBytes;
+
+  bool truncated;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      contentType,
+      encoding,
+      data,
+      capturedBytes,
+      totalBytes,
+      truncated,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static AnsightNetworkBodyMessage decode(Object result) {
+    result as List<Object?>;
+    return AnsightNetworkBodyMessage(
+      contentType: result[0] as String?,
+      encoding: result[1]! as String,
+      data: result[2]! as String,
+      capturedBytes: result[3]! as int,
+      totalBytes: result[4] as int?,
+      truncated: result[5]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! AnsightNetworkBodyMessage ||
+        other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(contentType, other.contentType) &&
+        _deepEquals(encoding, other.encoding) &&
+        _deepEquals(data, other.data) &&
+        _deepEquals(capturedBytes, other.capturedBytes) &&
+        _deepEquals(totalBytes, other.totalBytes) &&
+        _deepEquals(truncated, other.truncated);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'AnsightNetworkBodyMessage(contentType: $contentType, encoding: $encoding, data: $data, capturedBytes: $capturedBytes, totalBytes: $totalBytes, truncated: $truncated)';
+  }
+}
+
+class AnsightNetworkRequestMessage {
+  AnsightNetworkRequestMessage({
+    required this.schema,
+    required this.id,
+    required this.source,
+    required this.startedAtUtc,
+    required this.completedAtUtc,
+    required this.durationMilliseconds,
+    required this.method,
+    required this.url,
+    this.protocolName,
+    required this.requestHeaders,
+    this.requestBodySizeBytes,
+    this.requestBody,
+    this.statusCode,
+    this.reasonPhrase,
+    required this.responseHeaders,
+    this.responseBodySizeBytes,
+    this.responseBody,
+    this.errorType,
+    this.errorMessage,
+  });
+
+  String schema;
+
+  String id;
+
+  String source;
+
+  String startedAtUtc;
+
+  String completedAtUtc;
+
+  double durationMilliseconds;
+
+  String method;
+
+  String url;
+
+  String? protocolName;
+
+  List<AnsightNetworkHeaderMessage> requestHeaders;
+
+  int? requestBodySizeBytes;
+
+  AnsightNetworkBodyMessage? requestBody;
+
+  int? statusCode;
+
+  String? reasonPhrase;
+
+  List<AnsightNetworkHeaderMessage> responseHeaders;
+
+  int? responseBodySizeBytes;
+
+  AnsightNetworkBodyMessage? responseBody;
+
+  String? errorType;
+
+  String? errorMessage;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      schema,
+      id,
+      source,
+      startedAtUtc,
+      completedAtUtc,
+      durationMilliseconds,
+      method,
+      url,
+      protocolName,
+      requestHeaders,
+      requestBodySizeBytes,
+      requestBody,
+      statusCode,
+      reasonPhrase,
+      responseHeaders,
+      responseBodySizeBytes,
+      responseBody,
+      errorType,
+      errorMessage,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static AnsightNetworkRequestMessage decode(Object result) {
+    result as List<Object?>;
+    return AnsightNetworkRequestMessage(
+      schema: result[0]! as String,
+      id: result[1]! as String,
+      source: result[2]! as String,
+      startedAtUtc: result[3]! as String,
+      completedAtUtc: result[4]! as String,
+      durationMilliseconds: result[5]! as double,
+      method: result[6]! as String,
+      url: result[7]! as String,
+      protocolName: result[8] as String?,
+      requestHeaders:
+          (result[9]! as List<Object?>).cast<AnsightNetworkHeaderMessage>(),
+      requestBodySizeBytes: result[10] as int?,
+      requestBody: result[11] as AnsightNetworkBodyMessage?,
+      statusCode: result[12] as int?,
+      reasonPhrase: result[13] as String?,
+      responseHeaders:
+          (result[14]! as List<Object?>).cast<AnsightNetworkHeaderMessage>(),
+      responseBodySizeBytes: result[15] as int?,
+      responseBody: result[16] as AnsightNetworkBodyMessage?,
+      errorType: result[17] as String?,
+      errorMessage: result[18] as String?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! AnsightNetworkRequestMessage ||
+        other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(schema, other.schema) &&
+        _deepEquals(id, other.id) &&
+        _deepEquals(source, other.source) &&
+        _deepEquals(startedAtUtc, other.startedAtUtc) &&
+        _deepEquals(completedAtUtc, other.completedAtUtc) &&
+        _deepEquals(durationMilliseconds, other.durationMilliseconds) &&
+        _deepEquals(method, other.method) &&
+        _deepEquals(url, other.url) &&
+        _deepEquals(protocolName, other.protocolName) &&
+        _deepEquals(requestHeaders, other.requestHeaders) &&
+        _deepEquals(requestBodySizeBytes, other.requestBodySizeBytes) &&
+        _deepEquals(requestBody, other.requestBody) &&
+        _deepEquals(statusCode, other.statusCode) &&
+        _deepEquals(reasonPhrase, other.reasonPhrase) &&
+        _deepEquals(responseHeaders, other.responseHeaders) &&
+        _deepEquals(responseBodySizeBytes, other.responseBodySizeBytes) &&
+        _deepEquals(responseBody, other.responseBody) &&
+        _deepEquals(errorType, other.errorType) &&
+        _deepEquals(errorMessage, other.errorMessage);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'AnsightNetworkRequestMessage(schema: $schema, id: $id, source: $source, startedAtUtc: $startedAtUtc, completedAtUtc: $completedAtUtc, durationMilliseconds: $durationMilliseconds, method: $method, url: $url, protocolName: $protocolName, requestHeaders: $requestHeaders, requestBodySizeBytes: $requestBodySizeBytes, requestBody: $requestBody, statusCode: $statusCode, reasonPhrase: $reasonPhrase, responseHeaders: $responseHeaders, responseBodySizeBytes: $responseBodySizeBytes, responseBody: $responseBody, errorType: $errorType, errorMessage: $errorMessage)';
+  }
+}
+
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
   @override
@@ -53,6 +407,15 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
+    } else if (value is AnsightNetworkHeaderMessage) {
+      buffer.putUint8(129);
+      writeValue(buffer, value.encode());
+    } else if (value is AnsightNetworkBodyMessage) {
+      buffer.putUint8(130);
+      writeValue(buffer, value.encode());
+    } else if (value is AnsightNetworkRequestMessage) {
+      buffer.putUint8(131);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -61,6 +424,12 @@ class _PigeonCodec extends StandardMessageCodec {
   @override
   Object? readValueOfType(int type, ReadBuffer buffer) {
     switch (type) {
+      case 129:
+        return AnsightNetworkHeaderMessage.decode(readValue(buffer)!);
+      case 130:
+        return AnsightNetworkBodyMessage.decode(readValue(buffer)!);
+      case 131:
+        return AnsightNetworkRequestMessage.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -113,6 +482,27 @@ class AnsightNativeHostApi {
     );
     final Future<Object?> pigeonVar_sendFuture =
         pigeonVar_channel.send(<Object?>[requestId, data, chunkBytes]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as String;
+  }
+
+  Future<String> recordNetworkRequest(
+      AnsightNetworkRequestMessage request) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.ansight_flutter.AnsightNativeHostApi.recordNetworkRequest$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture =
+        pigeonVar_channel.send(<Object?>[request]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
