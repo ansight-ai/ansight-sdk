@@ -1423,6 +1423,36 @@ public final class AnsightRuntime: @unchecked Sendable {
         return result.success ? .success("Log sent.") : result
     }
 
+    /// Sanitizes and sends one typed V1 network request record to the active host session.
+    public func recordNetworkRequest(_ request: AnsightNetworkRequest) async -> OperationResult {
+        guard liveTransport.isOpen else {
+            return .failure("WebSocket session is not open.")
+        }
+        let sanitized = AnsightNetworkRequestSanitizer.sanitize(request)
+
+        do {
+            let envelope = JSONValue.object([
+                "type": .string("CLIENT_NETWORK_REQUEST"),
+                "sentAtUtc": .string(AnsightClock.isoNow()),
+                "request": try JSONValue.fromEncodable(sanitized),
+            ])
+            return await liveTransport.sendText(try envelope.jsonString())
+        } catch {
+            return .failure("Failed to encode network request: \(error.localizedDescription)")
+        }
+    }
+
+    /// Backwards-compatible JSON bridge used by managed native bindings.
+    public func recordNetworkRequest(json: String) async -> OperationResult {
+        guard let data = json.data(using: .utf8),
+              let request = try? JSONDecoder().decode(AnsightNetworkRequest.self, from: data),
+              request.schema == AnsightNetworkRequest.schemaName
+        else {
+            return .failure("Network request JSON must use the ansight.network-request.v1 schema.")
+        }
+        return await recordNetworkRequest(request)
+    }
+
     public func sendControlRequest(action: String, payload: JSONValue?) async -> OperationResult {
         let normalizedAction = action.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalizedAction.isEmpty else {

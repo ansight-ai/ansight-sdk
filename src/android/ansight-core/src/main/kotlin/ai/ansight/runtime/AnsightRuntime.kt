@@ -798,6 +798,34 @@ object AnsightRuntime {
         )
     }
 
+    /** Sanitizes and sends one typed V1 network request record to the active host session. */
+    fun recordNetworkRequest(request: AnsightNetworkRequest): OperationResult {
+        val transport = synchronized(lock) { liveTransport }
+            ?: return OperationResult.failure("WebSocket session is not open.")
+        val sanitized = AnsightNetworkRequestSanitizer.sanitize(request)
+        return transport.sendText(
+            JSONObject()
+                .put("type", "CLIENT_NETWORK_REQUEST")
+                .put("sentAtUtc", AnsightClock.isoNow())
+                .put("request", sanitized.toJson())
+                .toString(),
+        )
+    }
+
+    /** Backwards-compatible JSON bridge used by managed native bindings. */
+    fun recordNetworkRequest(requestJson: String): OperationResult {
+        val requestObject = try {
+            JSONObject(requestJson)
+        } catch (_: Exception) {
+            return OperationResult.failure("Network request JSON must be a JSON object.")
+        }
+        val request = AnsightNetworkRequest.fromJson(requestObject)
+        if (request == null) {
+            return OperationResult.failure("Network request JSON must use the ansight.network-request.v1 schema.")
+        }
+        return recordNetworkRequest(request)
+    }
+
     fun sendControlRequest(action: String, payload: JSONObject?): OperationResult {
         val normalizedAction = action.trim()
         if (normalizedAction.isEmpty()) {
