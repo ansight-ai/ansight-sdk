@@ -1,3 +1,11 @@
+## 1.3.0-preview.11
+
+- Add opt-in HTTP request capture with typed request and response models.
+- Include bounded request and response bodies by default, with dynamic controls
+  for excluding either body and support for larger configured limits.
+- Redact credential headers, sensitive URL parameters, cloud-signed URLs, and
+  captured body content before forwarding requests to a connected host.
+
 ## 1.3.0-preview.10
 
 - Capture touch-triggered visual trees only on touch down and touch up across
