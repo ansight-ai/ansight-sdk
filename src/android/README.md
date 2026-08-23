@@ -113,6 +113,12 @@ AnsightRuntime.initializeAndActivate(
 )
 ```
 
+Native and custom HTTP integrations can submit a typed metadata record with
+`AnsightRuntime.recordNetworkRequest(AnsightNetworkRequest(...))`. V1 has no
+body fields. `AnsightNetworkRequestSanitizer` is always applied inside the
+native runtime immediately before the record is transported, including records
+received from React Native, Capacitor, Flutter, or .NET bridges.
+
 ## Options
 
 `AnsightOptions` is the Android equivalent of .NET `Options`.

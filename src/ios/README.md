@@ -125,6 +125,12 @@ let options = try AnsightOptions(
 try AnsightRuntime.shared.initializeAndActivate(options: options)
 ```
 
+Native and custom HTTP integrations can submit a typed metadata record with
+`await AnsightRuntime.shared.recordNetworkRequest(AnsightNetworkRequest(...))`.
+V1 has no body fields. `AnsightNetworkRequestSanitizer` is always applied inside
+the native runtime immediately before transport, including records received
+from React Native, Capacitor, Flutter, or .NET bridges.
+
 ## Options
 
 `AnsightOptions` is the Swift equivalent of .NET `Options`.

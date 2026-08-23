@@ -23,6 +23,8 @@ Current SDK features include:
   plus one-scan enrollment for physical devices
 - live screenshots, host-owned simulator/emulator capture, touch capture,
   session properties, device profiles, and app-provided logs
+- HTTP request capture with app-configurable and
+  mandatory native sanitization; request and response bodies are excluded
 - guarded native tools for UI, files, file descriptors, preferences, secure
   storage, SQLite, reflection, and framework-specific inspection
 - custom remote tools and requestable app artifact providers on every SDK

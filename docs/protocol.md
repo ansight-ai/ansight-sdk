@@ -297,7 +297,46 @@ Telemetry is sent as WebSocket text messages:
 - `CLIENT_METRICS` carries timestamped numeric samples.
 - `CLIENT_EVENTS` carries timestamped events.
 - `CLIENT_TOUCH_INPUT` carries `ansight.touches.v1` packed touch batches.
+- `CLIENT_NETWORK_REQUEST` carries one `ansight.network-request.v1` HTTP metadata record.
 - `CLIENT_VISUAL_TREE` carries screenshot-aligned or touch-triggered visual-tree snapshots.
+
+Network request messages use this shape:
+
+```json
+{
+  "type": "CLIENT_NETWORK_REQUEST",
+  "sentAtUtc": "2026-08-23T00:00:00.125Z",
+  "request": {
+    "schema": "ansight.network-request.v1",
+    "id": "0198...",
+    "source": "dotnet.httpclient",
+    "startedAtUtc": "2026-08-23T00:00:00Z",
+    "completedAtUtc": "2026-08-23T00:00:00.125Z",
+    "durationMilliseconds": 125,
+    "method": "GET",
+    "url": "https://api.example.test/orders?token=%3Credacted%3E",
+    "protocol": "2.0",
+    "requestHeaders": [{ "name": "Authorization", "value": "<redacted>" }],
+    "requestBodySizeBytes": 128,
+    "statusCode": 200,
+    "reasonPhrase": "OK",
+    "responseHeaders": [{ "name": "Content-Type", "value": "application/json" }],
+    "responseBodySizeBytes": 512,
+    "errorType": null,
+    "errorMessage": null
+  }
+}
+```
+
+V1 carries metadata only: clients never read or send HTTP bodies. Framework
+integrations apply app-configurable sanitizers before crossing their runtime
+bridge. Android and iOS decode the bridge payload into typed native models and
+apply mandatory redaction and bounds immediately before transport; the host
+sanitizes again before persistence. The .NET implementation applies the same
+policy in its managed runtime for `HttpClient` and offline capture paths.
+Credential-bearing headers, URL user information, and sensitive query values
+are redacted. The host stores each record as an individual JSON file under
+`network/requests/` in local captures and portable archives.
 
 Touch-triggered visual trees use `source: "sdk.touchCapture"`. They omit
 `screenshotCapturedAtUtc` and carry the gesture correlation both on the event

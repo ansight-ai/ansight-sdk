@@ -63,6 +63,8 @@ Capacitor, or Flutter.
 | Touch capture and runtime enable/disable | Yes | Yes | Yes | Native | Native | Native |
 | Opt-in per-frame on-screen keyboard presence metadata | Yes | Yes | Yes | Native | Native | Native |
 | Touch-capture app guard | Yes | Yes | Yes | Native toggle; JS policy is app-owned | Native toggle; JS policy is app-owned | Native toggle; Dart policy is app-owned |
+| HTTP request capture | `HttpClient` handler plus manual API | Typed manual API | Typed manual API | Opt-in `fetch` / XHR | Opt-in `fetch` / XHR | `AnsightHttpClient` plus manual API |
+| App-configurable network sanitizer | Yes | Native mandatory policy | Native mandatory policy | JavaScript hook, then native policy | JavaScript hook, then native policy | Dart hook, then native policy |
 | Native visual-tree providers | Yes | Yes | Yes | Native plus a React provider | Native plus a DOM provider | Native |
 | App-provided visual-tree sources | Yes | Yes | Yes | Native code can register providers; React inspection uses separate `react.*` tools | Native hierarchy plus `dom.*` WebView tools | Native code can register providers |
 

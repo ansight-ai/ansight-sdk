@@ -107,6 +107,24 @@ are disabled by default.
 | Enable JNI count | `WithJniReferenceCountTracking()` | `withJniReferenceCountTracking()` | — | `withJniReferenceCountTracking()` | `withJniReferenceCountTracking()` | `withJniReferenceCountTracking()` |
 | Disable JNI count | `WithoutJniReferenceCountTracking()` | `withoutJniReferenceCountTracking()` | — | `withoutJniReferenceCountTracking()` | `withoutJniReferenceCountTracking()` | `withoutJniReferenceCountTracking()` |
 
+## Network Capture Parity
+
+Network request V1 is a shared, metadata-only model. Request and response
+bodies are not represented and are never read for capture.
+
+| Concept | .NET | Android | iOS | React Native | Capacitor | Flutter |
+| --- | --- | --- | --- | --- | --- | --- |
+| Automatic integration | `AnsightHttpMessageHandler` | App/client integration | App/client integration | Opt-in `fetch` and XHR | Opt-in `fetch` and XHR | `AnsightHttpClient` |
+| Manual record | `Runtime.RecordNetworkRequest(...)` | `AnsightRuntime.recordNetworkRequest(...)` | `AnsightRuntime.shared.recordNetworkRequest(...)` | `recordNetworkRequest(...)` | `recordNetworkRequest(...)` | `Ansight.instance.recordNetworkRequest(...)` |
+| App sanitizer | `NetworkRequestSanitizer` options/callback | — | — | `AnsightNetworkSanitizationOptions` | `AnsightNetworkSanitizationOptions` | `AnsightNetworkSanitizationOptions` |
+| Native boundary | Typed Kotlin model | Typed Kotlin model | Typed Swift model | Object bridge to Kotlin/Swift model | Object bridge to Kotlin/Swift model | Typed Pigeon model to Kotlin/Swift model |
+
+JavaScript and Dart sanitizers can add sensitive names, rewrite URLs or whole
+records, and suppress capture by returning `null`. Executable callbacks remain
+in the app runtime; the data model crosses the bridge. Android/iOS then apply a
+mandatory standard sanitizer and size bounds before transport, and the host
+sanitizes again before writing `network/requests/`.
+
 ## Crash Capture Parity
 
 All mobile surfaces use one native crash outbox. The fatal path performs only
