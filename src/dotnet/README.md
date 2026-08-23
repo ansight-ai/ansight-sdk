@@ -198,8 +198,9 @@ var options = Options.CreateBuilder()
 ```
 
 The runtime captures only on touch down and touch up. Move and cancel events do
-not trigger capture. At least one session visual-tree provider must be
-registered.
+not trigger capture. Rapid boundaries are coalesced through a one-item pending
+queue and rate-limited to protect screenshot cadence. At least one session
+visual-tree provider must be registered.
 
 Battery level telemetry is disabled by default; `WithBatteryLevel()` only emits on platforms that expose a battery API.
 

@@ -201,7 +201,8 @@ await Ansight.initializeAndActivate({
 ```
 
 The touch mode captures native visual trees only on touch down and touch up.
-Move and cancel events do not trigger capture. Native touch capture and
+Move and cancel events do not trigger capture. Rapid boundaries are coalesced
+and rate-limited to protect screenshot cadence. Native touch capture and
 visual-tree tools/providers must remain enabled.
 
 On iOS, `captureGpuBackedSurfaces` defaults to `true` so Metal, SceneKit, and

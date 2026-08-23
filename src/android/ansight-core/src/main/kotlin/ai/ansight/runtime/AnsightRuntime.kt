@@ -2356,6 +2356,10 @@ object AnsightRuntime {
 
             touchVisualTreeCaptureCoordinator = TouchVisualTreeCaptureCoordinator(
                 capture = { trigger -> captureAndSendTouchVisualTrees(trigger) },
+                minimumCaptureIntervalMilliseconds = maxOf(
+                    options.sessionJpegCapture?.intervalMilliseconds?.toLong() ?: 0,
+                    TouchVisualTreeCaptureCoordinator.DefaultMinimumCaptureIntervalMilliseconds,
+                ),
             )
         }
     }

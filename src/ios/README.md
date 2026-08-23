@@ -386,8 +386,9 @@ When the WebSocket session opens, the SDK captures the foreground UIKit window o
 
 Set `mode: .screenshotWithVisualTreeOnTouch` to retain periodic screenshots
 while capturing visual trees only on touch down and touch up. Move and cancel
-events do not trigger capture. Touch capture and a session visual-tree provider
-must also be enabled.
+events do not trigger capture. Rapid boundaries are coalesced through a
+one-item pending queue and rate-limited to protect screenshot cadence. Touch
+capture and a session visual-tree provider must also be enabled.
 
 For Simulator sessions, Studio can acknowledge `device.profile` with host
 screenshot mode. The SDK then suspends periodic in-app JPEG capture for that

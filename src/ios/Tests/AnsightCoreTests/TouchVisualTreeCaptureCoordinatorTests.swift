@@ -4,7 +4,9 @@ import XCTest
 final class TouchVisualTreeCaptureCoordinatorTests: XCTestCase {
     func testGestureCapturesOnlyDownAndUpTrees() async throws {
         let recorder = TouchVisualTreeTriggerRecorder()
-        let coordinator = AnsightTouchVisualTreeCaptureCoordinator { trigger in
+        let coordinator = AnsightTouchVisualTreeCaptureCoordinator(
+            minimumCaptureIntervalNanoseconds: 10_000_000
+        ) { trigger in
             await recorder.append(trigger)
         }
 
@@ -29,7 +31,9 @@ final class TouchVisualTreeCaptureCoordinatorTests: XCTestCase {
 
     func testCancelDoesNotCaptureTree() async throws {
         let recorder = TouchVisualTreeTriggerRecorder()
-        let coordinator = AnsightTouchVisualTreeCaptureCoordinator { trigger in
+        let coordinator = AnsightTouchVisualTreeCaptureCoordinator(
+            minimumCaptureIntervalNanoseconds: 10_000_000
+        ) { trigger in
             await recorder.append(trigger)
         }
 
@@ -43,6 +47,32 @@ final class TouchVisualTreeCaptureCoordinatorTests: XCTestCase {
         XCTAssertEqual(triggers.count, 1)
         XCTAssertEqual(triggers.first?.gesturePhase, .started)
         XCTAssertEqual(triggers.first?.touchAction, "down")
+    }
+
+    func testBusyCaptureCoalescesAContinuousGestureBurst() async throws {
+        let recorder = TouchVisualTreeTriggerRecorder()
+        let coordinator = AnsightTouchVisualTreeCaptureCoordinator(
+            minimumCaptureIntervalNanoseconds: 100_000_000
+        ) { trigger in
+            await recorder.append(trigger)
+        }
+
+        coordinator.observe(makeTouch(action: .down, pointerId: 1))
+        try await waitForTriggerCount(1, recorder: recorder)
+        coordinator.observe(makeTouch(action: .up, pointerId: 1))
+        for pointerId in 2...20 {
+            coordinator.observe(makeTouch(action: .down, pointerId: Int64(pointerId)))
+            coordinator.observe(makeTouch(action: .up, pointerId: Int64(pointerId)))
+        }
+
+        try await waitForTriggerCount(2, recorder: recorder)
+        try await Task.sleep(nanoseconds: 150_000_000)
+        coordinator.close()
+
+        let triggers = await recorder.values
+        XCTAssertEqual(triggers.count, 2)
+        XCTAssertTrue(triggers.allSatisfy { $0.gesturePhase == .started })
+        XCTAssertEqual(Set(triggers.map(\.gestureId)).count, 2)
     }
 
     private func waitForTriggerCount(

@@ -80,8 +80,17 @@ Session JPEG capture has three modes. `screenshotOnly` sends no automatic
 visual trees. `screenshotAndVisualTree` captures a tree alongside each SDK
 screenshot. `screenshotWithVisualTreeOnTouch` keeps screenshots on their normal
 schedule but captures a tree only on touch down and touch up. Move and cancel
-events do not trigger capture. The touch mode requires touch capture and at
-least one registered visual-tree provider.
+events do not trigger capture. Touch-triggered trees use a bounded latest-value
+queue and are rate-limited to at most the screenshot cadence (with a 750 ms
+minimum interval). Rapid boundaries are coalesced, prioritizing the latest
+gesture-start snapshot, so tree traversal cannot starve periodic screenshots.
+The touch mode requires touch capture and at least one registered visual-tree
+provider.
+
+Periodic screenshot producers use start-to-start deadlines and skip missed
+deadlines instead of issuing catch-up bursts. Runtimes with asynchronous
+WebSocket delivery keep only the latest unsent frame so network backpressure
+drops stale evidence rather than slowing future capture.
 
 During `device.profile`, current runtimes advertise screenshot-control version
 1. Studio can respond with host capture mode for a simulator or emulator. The

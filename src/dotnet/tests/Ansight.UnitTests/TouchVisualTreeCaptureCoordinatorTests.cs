@@ -17,7 +17,8 @@ public sealed class TouchVisualTreeCaptureCoordinatorTests
                 triggers.Enqueue(trigger);
                 captured.Release();
                 return Task.CompletedTask;
-            });
+            },
+            TimeSpan.FromMilliseconds(10));
         var hub = new TouchCaptureHub(new TouchCaptureOptions());
         coordinator.Start(hub);
 
@@ -56,7 +57,8 @@ public sealed class TouchVisualTreeCaptureCoordinatorTests
                 triggers.Enqueue(trigger);
                 captured.Release();
                 return Task.CompletedTask;
-            });
+            },
+            TimeSpan.FromMilliseconds(10));
         var hub = new TouchCaptureHub(new TouchCaptureOptions());
         coordinator.Start(hub);
 
@@ -67,6 +69,48 @@ public sealed class TouchVisualTreeCaptureCoordinatorTests
 
         await coordinator.StopAsync(CancellationToken.None);
         Assert.Single(triggers);
+    }
+
+    [Fact]
+    public async Task BusyCaptureCoalescesAContinuousGestureBurst()
+    {
+        var triggers = new ConcurrentQueue<TouchVisualTreeCaptureTrigger>();
+        using var captured = new SemaphoreSlim(0);
+        var releaseFirstCapture = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var coordinator = new TouchVisualTreeCaptureCoordinator(
+            async (trigger, cancellationToken) =>
+            {
+                triggers.Enqueue(trigger);
+                captured.Release();
+                if (triggers.Count == 1)
+                {
+                    await releaseFirstCapture.Task.WaitAsync(cancellationToken);
+                }
+            },
+            TimeSpan.FromMilliseconds(20));
+        var hub = new TouchCaptureHub(new TouchCaptureOptions());
+        coordinator.Start(hub);
+
+        hub.Record(CreateTouch(CapturedTouchAction.Down, pointerId: 1));
+        Assert.True(await captured.WaitAsync(TimeSpan.FromSeconds(1)));
+        hub.Record(CreateTouch(CapturedTouchAction.Up, pointerId: 1));
+        for (var pointerId = 2; pointerId <= 20; pointerId++)
+        {
+            hub.Record(CreateTouch(CapturedTouchAction.Down, pointerId));
+            hub.Record(CreateTouch(CapturedTouchAction.Up, pointerId));
+        }
+
+        releaseFirstCapture.SetResult();
+        Assert.True(await captured.WaitAsync(TimeSpan.FromSeconds(1)));
+        Assert.False(await captured.WaitAsync(TimeSpan.FromMilliseconds(100)));
+
+        await coordinator.StopAsync(CancellationToken.None);
+        var capturedTriggers = triggers.ToArray();
+        Assert.Equal(2, capturedTriggers.Length);
+        Assert.All(
+            capturedTriggers,
+            trigger => Assert.Equal(TouchVisualTreeGesturePhase.Started, trigger.GesturePhase));
+        Assert.Equal(2, capturedTriggers.Select(trigger => trigger.GestureId).Distinct(StringComparer.Ordinal).Count());
     }
 
     private static CapturedTouch CreateTouch(CapturedTouchAction action, long pointerId)

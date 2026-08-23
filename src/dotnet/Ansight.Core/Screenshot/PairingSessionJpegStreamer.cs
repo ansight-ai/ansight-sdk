@@ -1,3 +1,4 @@
+using System.Net.WebSockets;
 using System.Text.Json.Nodes;
 using Ansight.Input;
 using Ansight.Pairing;
@@ -7,10 +8,12 @@ namespace Ansight.Screenshot;
 internal sealed class PairingSessionJpegStreamer : IDisposable
 {
     private readonly PairingSessionTransport transport;
+    private readonly SemaphoreSlim evidenceCaptureLock = new(1, 1);
     private CancellationTokenSource? captureCts;
     private Task? captureTask;
     private TouchVisualTreeCaptureCoordinator? touchVisualTreeCaptureCoordinator;
     private HostSessionJpegCapturePolicy hostCapturePolicy = HostSessionJpegCapturePolicy.App;
+    private int screenshotCaptureRequested;
     private bool disposed;
 
     public PairingSessionJpegStreamer(PairingSessionTransport transport)
@@ -39,7 +42,7 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
         }
 
         captureCts = new CancellationTokenSource();
-        captureTask = Task.Run(() => RunCapturePumpAsync(options, progress, captureCts.Token));
+        captureTask = Task.Run(() => RunCapturePipelineAsync(options, progress, captureCts.Token));
         HostPairingProgressReporter.Report(
             progress,
             HostConnectionProgressKind.SessionJpegCapture,
@@ -110,7 +113,12 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
             return;
         }
 
-        var coordinator = new TouchVisualTreeCaptureCoordinator(CaptureAndSendTouchVisualTreesAsync);
+        var minimumTreeCaptureInterval = TimeSpan.FromMilliseconds(Math.Max(
+            options.IntervalMilliseconds,
+            TouchVisualTreeCaptureCoordinator.DefaultMinimumCaptureInterval.TotalMilliseconds));
+        var coordinator = new TouchVisualTreeCaptureCoordinator(
+            CaptureAndSendTouchVisualTreesAsync,
+            minimumTreeCaptureInterval);
         touchVisualTreeCaptureCoordinator = coordinator;
         coordinator.Start(touchCaptureHub);
     }
@@ -160,104 +168,211 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
         return Runtime.CurrentAppLifecycleState == AppLifecycleState.Background;
     }
 
-    private async Task RunCapturePumpAsync(
+    private async Task RunCapturePipelineAsync(
         SessionJpegCaptureOptions options,
         IProgress<HostConnectionProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
-        var interval = TimeSpan.FromMilliseconds(options.IntervalMilliseconds);
-        var captureImmediately = true;
+        using var captureBuffer = new LatestCaptureBuffer<PendingSessionCapture>();
+        using var pipelineCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var capturePumpTask = RunCapturePumpAsync(options, captureBuffer, progress, pipelineCts.Token);
+        var sendPumpTask = RunSendPumpAsync(captureBuffer, progress, pipelineCts.Token);
 
-        while (!cancellationToken.IsCancellationRequested)
+        await Task.WhenAny(capturePumpTask, sendPumpTask);
+        pipelineCts.Cancel();
+        captureBuffer.Complete();
+
+        try
         {
-            if (!captureImmediately)
+            await Task.WhenAll(capturePumpTask, sendPumpTask);
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when either side of the bounded pipeline stops.
+        }
+        catch (Exception ex)
+        {
+            Logger.Warning($"Session JPEG capture pipeline stopped: {ex.Message}");
+        }
+    }
+
+    private async Task RunCapturePumpAsync(
+        SessionJpegCaptureOptions options,
+        LatestCaptureBuffer<PendingSessionCapture> captureBuffer,
+        IProgress<HostConnectionProgressUpdate>? progress,
+        CancellationToken cancellationToken)
+    {
+        var interval = TimeSpan.FromMilliseconds(options.IntervalMilliseconds);
+        var schedule = new FixedRateCaptureSchedule(interval);
+        var reportedSlowCapture = false;
+        var reportedSlowDelivery = false;
+
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
             {
+                var delay = schedule.GetDelay();
                 try
                 {
-                    await Task.Delay(interval, cancellationToken);
+                    if (delay > TimeSpan.Zero)
+                    {
+                        await Task.Delay(delay, cancellationToken);
+                    }
                 }
                 catch (OperationCanceledException)
                 {
                     break;
                 }
-            }
 
-            captureImmediately = false;
-
-            try
-            {
-                if (ShouldSkipCaptureForLifecycle())
+                SessionJpegFrame? frame = null;
+                try
                 {
-                    continue;
-                }
-
-                var surface = await SessionJpegCaptureSupport.CaptureSurfaceAsync(options, cancellationToken);
-                if (surface is null)
-                {
-                    continue;
-                }
-
-                using (surface)
-                {
-                    IReadOnlyList<JsonObject> visualTrees = Array.Empty<JsonObject>();
-                    if (options.Mode == SessionJpegCaptureMode.ScreenshotAndVisualTree)
+                    if (ShouldSkipCaptureForLifecycle())
                     {
-                        try
-                        {
-                            visualTrees = await SessionVisualTreeCaptureRegistry.CaptureAsync(cancellationToken);
-                        }
-                        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                        {
-                            throw;
-                        }
-                        catch (Exception ex)
-                        {
-                            Logger.Warning($"Session visual-tree capture skipped: {ex.Message}");
-                        }
+                        continue;
                     }
 
-                    var sendResult = await SessionJpegCaptureSupport.SendSurfaceAsync(
-                        surface,
-                        options,
-                        transport,
-                        cancellationToken);
+                    var replacedStaleCapture = false;
+                    Volatile.Write(ref screenshotCaptureRequested, 1);
+                    try
+                    {
+                        await evidenceCaptureLock.WaitAsync(cancellationToken);
+                        try
+                        {
+                            frame = await SessionJpegCaptureSupport.CaptureJpegFrameAsync(options, cancellationToken);
+                            if (frame is null)
+                            {
+                                continue;
+                            }
+
+                            IReadOnlyList<JsonObject> visualTrees = Array.Empty<JsonObject>();
+                            if (options.Mode == SessionJpegCaptureMode.ScreenshotAndVisualTree)
+                            {
+                                try
+                                {
+                                    visualTrees = await SessionVisualTreeCaptureRegistry.CaptureAsync(cancellationToken);
+                                }
+                                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                                {
+                                    throw;
+                                }
+                                catch (Exception ex)
+                                {
+                                    Logger.Warning($"Session visual-tree capture skipped: {ex.Message}");
+                                }
+                            }
+
+                            replacedStaleCapture = captureBuffer.Submit(
+                                new PendingSessionCapture(frame, visualTrees));
+                            frame = null;
+                        }
+                        finally
+                        {
+                            evidenceCaptureLock.Release();
+                        }
+                    }
+                    finally
+                    {
+                        Volatile.Write(ref screenshotCaptureRequested, 0);
+                    }
+
+                    if (replacedStaleCapture && !reportedSlowDelivery)
+                    {
+                        reportedSlowDelivery = true;
+                        HostPairingProgressReporter.Report(
+                            progress,
+                            HostConnectionProgressKind.Warning,
+                            "Session JPEG delivery is slower than capture; stale pending frames will be replaced.",
+                            source: HostConnectionSource.SessionJpegCapture);
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    Logger.Warning($"Session JPEG capture skipped: {ex.Message}");
+                }
+                finally
+                {
+                    frame?.Dispose();
+                    var missedIntervals = schedule.Advance();
+                    if (missedIntervals > 0 && !reportedSlowCapture)
+                    {
+                        reportedSlowCapture = true;
+                        HostPairingProgressReporter.Report(
+                            progress,
+                            HostConnectionProgressKind.Warning,
+                            $"Session JPEG capture exceeded its {options.IntervalMilliseconds}ms interval; missed deadlines will be skipped instead of burst-captured.",
+                            source: HostConnectionSource.SessionJpegCapture);
+                    }
+                }
+            }
+        }
+        finally
+        {
+            captureBuffer.Complete();
+        }
+    }
+
+    private async Task RunSendPumpAsync(
+        LatestCaptureBuffer<PendingSessionCapture> captureBuffer,
+        IProgress<HostConnectionProgressUpdate>? progress,
+        CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            PendingSessionCapture? pendingCapture;
+            try
+            {
+                pendingCapture = await captureBuffer.ReadAsync(cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+
+            if (pendingCapture is null)
+            {
+                return;
+            }
+
+            using (pendingCapture)
+            {
+                var frame = pendingCapture.Frame;
+                var sendResult = await transport.SendBinaryAsync(
+                    frame.Payload,
+                    WebSocketMessageType.Binary,
+                    cancellationToken);
+                if (!sendResult.Success)
+                {
+                    HostPairingProgressReporter.Report(
+                        progress,
+                        HostConnectionProgressKind.Warning,
+                        $"Session JPEG capture stopped: {sendResult.Message}",
+                        source: HostConnectionSource.SessionJpegCapture);
+                    return;
+                }
+
+                foreach (var visualTree in pendingCapture.VisualTrees)
+                {
+                    var visualTreeEvent = CreateVisualTreeEvent(
+                        visualTree,
+                        frame.CapturedAtUtc,
+                        frame.CapturedAtUtc,
+                        trigger: null);
+                    sendResult = await transport.SendTextAsync(visualTreeEvent.ToJsonString(), cancellationToken);
                     if (!sendResult.Success)
                     {
                         HostPairingProgressReporter.Report(
                             progress,
                             HostConnectionProgressKind.Warning,
-                            $"Session JPEG capture stopped: {sendResult.Message}",
+                            $"Session visual-tree capture skipped: {sendResult.Message}",
                             source: HostConnectionSource.SessionJpegCapture);
-                        return;
-                    }
-
-                    foreach (var visualTree in visualTrees)
-                    {
-                        var visualTreeEvent = CreateVisualTreeEvent(
-                            visualTree,
-                            surface.CapturedAtUtc,
-                            surface.CapturedAtUtc,
-                            trigger: null);
-                        sendResult = await transport.SendTextAsync(visualTreeEvent.ToJsonString(), cancellationToken);
-                        if (!sendResult.Success)
-                        {
-                            HostPairingProgressReporter.Report(
-                                progress,
-                                HostConnectionProgressKind.Warning,
-                                $"Session visual-tree capture skipped: {sendResult.Message}",
-                                source: HostConnectionSource.SessionJpegCapture);
-                            break;
-                        }
+                        break;
                     }
                 }
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                Logger.Warning($"Session JPEG capture skipped: {ex.Message}");
             }
         }
     }
@@ -271,8 +386,28 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
             return;
         }
 
+        if (Volatile.Read(ref screenshotCaptureRequested) != 0
+            || !await evidenceCaptureLock.WaitAsync(0, cancellationToken))
+        {
+            return;
+        }
+        if (Volatile.Read(ref screenshotCaptureRequested) != 0)
+        {
+            evidenceCaptureLock.Release();
+            return;
+        }
+
         var capturedAtUtc = DateTimeOffset.UtcNow;
-        var visualTrees = await SessionVisualTreeCaptureRegistry.CaptureAsync(cancellationToken);
+        IReadOnlyList<JsonObject> visualTrees;
+        try
+        {
+            visualTrees = await SessionVisualTreeCaptureRegistry.CaptureAsync(cancellationToken);
+        }
+        finally
+        {
+            evidenceCaptureLock.Release();
+        }
+
         foreach (var visualTree in visualTrees)
         {
             var visualTreeEvent = CreateVisualTreeEvent(
@@ -393,5 +528,25 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
         }
 
         return count;
+    }
+}
+
+internal sealed class PendingSessionCapture : IDisposable
+{
+    public PendingSessionCapture(
+        SessionJpegFrame frame,
+        IReadOnlyList<JsonObject> visualTrees)
+    {
+        Frame = frame ?? throw new ArgumentNullException(nameof(frame));
+        VisualTrees = visualTrees ?? throw new ArgumentNullException(nameof(visualTrees));
+    }
+
+    public SessionJpegFrame Frame { get; }
+
+    public IReadOnlyList<JsonObject> VisualTrees { get; }
+
+    public void Dispose()
+    {
+        Frame.Dispose();
     }
 }

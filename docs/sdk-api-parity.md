@@ -356,7 +356,7 @@ Native, Capacitor, and Flutter:
 | --- | --- | --- |
 | `screenshotOnly` | `ScreenshotOnly` / `screenshotOnly` | Sends periodic screenshots without automatic visual trees. |
 | `screenshotAndVisualTree` | `ScreenshotAndVisualTree` / `screenshotAndVisualTree` | Captures a visual tree for each SDK screenshot and correlates it through `screenshotCapturedAtUtc`. |
-| `screenshotWithVisualTreeOnTouch` | `ScreenshotWithVisualTreeOnTouch` / `screenshotWithVisualTreeOnTouch` | Keeps screenshots on their configured schedule and captures visual trees only on touch down and touch up. |
+| `screenshotWithVisualTreeOnTouch` | `ScreenshotWithVisualTreeOnTouch` / `screenshotWithVisualTreeOnTouch` | Keeps screenshots on their configured schedule and captures best-effort visual trees on touch down and touch up; rapid boundaries are coalesced through a bounded latest-value queue. |
 
 Touch-triggered capture requires `touchCapture` to be configured and runtime
 touch capture to be enabled. It continues to work when Studio owns simulator
@@ -364,6 +364,9 @@ or emulator screenshots because the visual-tree timeline is independent of
 the JPEG producer. Each emitted `CLIENT_VISUAL_TREE` has source
 `sdk.touchCapture`, a gesture id and phase, the triggering touch action and
 timestamp, and no fabricated `screenshotCapturedAtUtc` correlation.
+Tree captures are rate-limited to at most the screenshot cadence, with a
+750 ms minimum interval, so repeated gestures cannot create an unbounded UI
+capture backlog.
 
 ## Tool Guards
 

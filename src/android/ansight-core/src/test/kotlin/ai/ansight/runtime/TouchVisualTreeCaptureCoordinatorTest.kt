@@ -13,6 +13,7 @@ class TouchVisualTreeCaptureCoordinatorTest {
         val triggers = LinkedBlockingQueue<TouchVisualTreeCaptureTrigger>()
         val coordinator = TouchVisualTreeCaptureCoordinator(
             capture = { trigger -> triggers.offer(trigger) },
+            minimumCaptureIntervalMilliseconds = 10,
         )
 
         coordinator.observe(createTouch("Down", pointerId = 7))
@@ -36,6 +37,7 @@ class TouchVisualTreeCaptureCoordinatorTest {
         val triggers = LinkedBlockingQueue<TouchVisualTreeCaptureTrigger>()
         val coordinator = TouchVisualTreeCaptureCoordinator(
             capture = { trigger -> triggers.offer(trigger) },
+            minimumCaptureIntervalMilliseconds = 10,
         )
 
         coordinator.observe(createTouch("Down", pointerId = 7))
@@ -46,6 +48,41 @@ class TouchVisualTreeCaptureCoordinatorTest {
 
         assertEquals(TouchVisualTreeGesturePhase.Started, started.gesturePhase)
         assertEquals("down", started.touchAction)
+    }
+
+    @Test
+    fun busyCaptureCoalescesAContinuousGestureBurst() {
+        val triggers = LinkedBlockingQueue<TouchVisualTreeCaptureTrigger>()
+        val firstCaptureStarted = java.util.concurrent.CountDownLatch(1)
+        val releaseFirstCapture = java.util.concurrent.CountDownLatch(1)
+        val coordinator = TouchVisualTreeCaptureCoordinator(
+            capture = { trigger ->
+                triggers.offer(trigger)
+                if (triggers.size == 1) {
+                    firstCaptureStarted.countDown()
+                    releaseFirstCapture.await(1, TimeUnit.SECONDS)
+                }
+            },
+            minimumCaptureIntervalMilliseconds = 20,
+        )
+
+        coordinator.observe(createTouch("Down", pointerId = 1))
+        assertTrue(firstCaptureStarted.await(1, TimeUnit.SECONDS))
+        coordinator.observe(createTouch("Up", pointerId = 1))
+        for (pointerId in 2L..20L) {
+            coordinator.observe(createTouch("Down", pointerId))
+            coordinator.observe(createTouch("Up", pointerId))
+        }
+
+        releaseFirstCapture.countDown()
+        val first = triggers.poll(1, TimeUnit.SECONDS) ?: error("Expected the leading capture.")
+        val second = triggers.poll(1, TimeUnit.SECONDS) ?: error("Expected the coalesced capture.")
+        assertNull(triggers.poll(100, TimeUnit.MILLISECONDS))
+        coordinator.close()
+
+        assertEquals(TouchVisualTreeGesturePhase.Started, first.gesturePhase)
+        assertEquals(TouchVisualTreeGesturePhase.Started, second.gesturePhase)
+        assertTrue(first.gestureId != second.gestureId)
     }
 
     private fun createTouch(action: String, pointerId: Long): CapturedTouch = CapturedTouch(

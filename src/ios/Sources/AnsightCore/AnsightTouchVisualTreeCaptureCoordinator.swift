@@ -14,16 +14,23 @@ struct AnsightTouchVisualTreeCaptureTrigger: Sendable {
 }
 
 final class AnsightTouchVisualTreeCaptureCoordinator: @unchecked Sendable {
+    static let defaultMinimumCaptureIntervalNanoseconds: UInt64 = 750_000_000
+
     private let capture: @Sendable (AnsightTouchVisualTreeCaptureTrigger) async -> Void
+    private let minimumCaptureIntervalNanoseconds: UInt64
     private let lock = NSLock()
     private var activePointerIds: Set<Int64> = []
+    private var pendingTrigger: AnsightTouchVisualTreeCaptureTrigger?
     private var gestureId: String?
     private var captureTask: Task<Void, Never>?
     private var closed = false
 
     init(
+        minimumCaptureIntervalNanoseconds: UInt64 = AnsightTouchVisualTreeCaptureCoordinator.defaultMinimumCaptureIntervalNanoseconds,
         capture: @escaping @Sendable (AnsightTouchVisualTreeCaptureTrigger) async -> Void
     ) {
+        precondition(minimumCaptureIntervalNanoseconds > 0)
+        self.minimumCaptureIntervalNanoseconds = minimumCaptureIntervalNanoseconds
         self.capture = capture
     }
 
@@ -66,23 +73,25 @@ final class AnsightTouchVisualTreeCaptureCoordinator: @unchecked Sendable {
     }
 
     func close() {
-        let tasks = lock.withLock { () -> [Task<Void, Never>] in
+        let task = lock.withLock { () -> Task<Void, Never>? in
             guard !closed else {
-                return []
+                return nil
             }
             closed = true
             activePointerIds.removeAll()
+            pendingTrigger = nil
             gestureId = nil
-            let tasks = [captureTask].compactMap { $0 }
+            let task = captureTask
             captureTask = nil
-            return tasks
+            return task
         }
-        tasks.forEach { $0.cancel() }
+        task?.cancel()
     }
 
     func interruptGesture() {
         lock.withLock {
             activePointerIds.removeAll()
+            pendingTrigger = nil
             gestureId = nil
         }
     }
@@ -93,21 +102,58 @@ final class AnsightTouchVisualTreeCaptureCoordinator: @unchecked Sendable {
                 return
             }
 
-            let previousTask = captureTask
-            captureTask = Task { [weak self] in
-                await previousTask?.value
-                guard let self else {
-                    return
+            pendingTrigger = Self.selectPendingTrigger(pendingTrigger, incoming: trigger)
+            if captureTask == nil {
+                captureTask = Task { [weak self] in
+                    await self?.runCaptureLoop()
                 }
-                let isClosed = self.lock.withLock { self.closed }
-                guard !Task.isCancelled,
-                      !isClosed
-                else {
-                    return
-                }
-                await self.capture(trigger)
             }
         }
+    }
+
+    private func runCaptureLoop() async {
+        while !Task.isCancelled {
+            guard let trigger = takePendingTrigger() else {
+                return
+            }
+
+            await capture(trigger)
+            do {
+                try await Task.sleep(nanoseconds: minimumCaptureIntervalNanoseconds)
+            } catch {
+                return
+            }
+        }
+    }
+
+    private func takePendingTrigger() -> AnsightTouchVisualTreeCaptureTrigger? {
+        lock.withLock {
+            guard !closed,
+                  let trigger = pendingTrigger
+            else {
+                captureTask = nil
+                return nil
+            }
+
+            pendingTrigger = nil
+            return trigger
+        }
+    }
+
+    private static func selectPendingTrigger(
+        _ pending: AnsightTouchVisualTreeCaptureTrigger?,
+        incoming: AnsightTouchVisualTreeCaptureTrigger
+    ) -> AnsightTouchVisualTreeCaptureTrigger {
+        guard let pending else {
+            return incoming
+        }
+        if incoming.gesturePhase == .started {
+            return incoming
+        }
+        if pending.gesturePhase == .started {
+            return pending
+        }
+        return incoming.gesturePhase == .ended ? incoming : pending
     }
 
     private func createTrigger(

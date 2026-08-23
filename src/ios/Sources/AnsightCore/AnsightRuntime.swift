@@ -2533,7 +2533,14 @@ public final class AnsightRuntime: @unchecked Sendable {
                 return nil
             }
 
-            let coordinator = AnsightTouchVisualTreeCaptureCoordinator { [weak self] trigger in
+            let configuredIntervalMilliseconds = options.sessionJpegCapture?.intervalMilliseconds ?? 0
+            let minimumIntervalMilliseconds = max(
+                configuredIntervalMilliseconds,
+                Int(AnsightTouchVisualTreeCaptureCoordinator.defaultMinimumCaptureIntervalNanoseconds / 1_000_000)
+            )
+            let coordinator = AnsightTouchVisualTreeCaptureCoordinator(
+                minimumCaptureIntervalNanoseconds: UInt64(minimumIntervalMilliseconds) * 1_000_000
+            ) { [weak self] trigger in
                 await self?.captureAndSendTouchVisualTrees(trigger)
             }
             touchVisualTreeCaptureCoordinator = coordinator
@@ -2610,6 +2617,7 @@ public final class AnsightRuntime: @unchecked Sendable {
 
     private func runScreenCaptureLoop(options: AnsightSessionJpegCaptureOptions, generation: Int) async {
         var captureOptions = options
+        var nextCaptureDeadlineNanoseconds = DispatchTime.now().uptimeNanoseconds
         let sendBuffer = AnsightLatestValueBuffer<PreparedScreenFrame>()
         let sendTask = Task { [weak self] in
             while !Task.isCancelled,
@@ -2659,7 +2667,20 @@ public final class AnsightRuntime: @unchecked Sendable {
                 renderMilliseconds: preparation.renderMilliseconds
             )
 
-            try? await Task.sleep(nanoseconds: UInt64(captureOptions.intervalMilliseconds) * 1_000_000)
+            let captureIntervalNanoseconds = UInt64(captureOptions.intervalMilliseconds) * 1_000_000
+            nextCaptureDeadlineNanoseconds += captureIntervalNanoseconds
+            let currentTimeNanoseconds = DispatchTime.now().uptimeNanoseconds
+            while nextCaptureDeadlineNanoseconds <= currentTimeNanoseconds {
+                nextCaptureDeadlineNanoseconds += captureIntervalNanoseconds
+            }
+
+            do {
+                try await Task.sleep(
+                    nanoseconds: nextCaptureDeadlineNanoseconds - currentTimeNanoseconds
+                )
+            } catch {
+                break
+            }
         }
 
         await sendBuffer.finish()

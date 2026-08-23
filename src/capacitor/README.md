@@ -100,7 +100,8 @@ tracking is available under both `startLifecycleTracking` /
 
 Set `sessionJpegCapture.mode` to `screenshotWithVisualTreeOnTouch` to retain
 periodic screenshots while the native runtime captures visual trees only on
-touch down and touch up. Move and cancel events do not trigger capture. Native
+touch down and touch up. Move and cancel events do not trigger capture. Rapid
+boundaries are coalesced and rate-limited to protect screenshot cadence. Native
 touch capture and visual-tree providers must remain enabled.
 
 Open-file-handle and JNI reference-count diagnostics are disabled by default.

@@ -329,7 +329,10 @@ the trigger:
 Current SDKs capture only on touch down and touch up. The first down in a
 gesture uses phase `started`, the final up uses `ended`, and additional pointer
 downs or non-terminal pointer ups use `checkpoint`. Move and cancel events do
-not trigger visual-tree capture.
+not trigger visual-tree capture. Touch-tree delivery is best-effort: SDKs keep
+at most one pending trigger and coalesce rapid boundaries, preferring a gesture
+start over terminal or checkpoint snapshots. This bounds UI-thread work and
+protects the configured screenshot cadence.
 
 These streams are fire-and-forget. Session and tool operations use correlated
 request/response envelopes.

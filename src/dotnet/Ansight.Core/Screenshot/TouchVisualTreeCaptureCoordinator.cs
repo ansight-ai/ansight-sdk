@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Ansight.Input;
 
 namespace Ansight.Screenshot;
@@ -17,24 +18,33 @@ internal sealed record TouchVisualTreeCaptureTrigger(
 
 internal sealed class TouchVisualTreeCaptureCoordinator : IDisposable
 {
+    internal static readonly TimeSpan DefaultMinimumCaptureInterval = TimeSpan.FromMilliseconds(750);
+
     private readonly Func<TouchVisualTreeCaptureTrigger, CancellationToken, Task> captureAsync;
+    private readonly TimeSpan minimumCaptureInterval;
     private readonly Lock stateLock = new();
     private readonly SemaphoreSlim signal = new(0, 1);
     private readonly HashSet<long> activePointerIds = [];
-    private readonly Queue<TouchVisualTreeCaptureTrigger> pendingTriggers = [];
     private TouchCaptureHub? touchCaptureHub;
     private EventHandler<TouchCapturedEventArgs>? touchCapturedHandler;
     private EventHandler? runtimeCaptureInterruptedHandler;
     private EventHandler<AppLifecycleStateChangedEventArgs>? appLifecycleStateChangedHandler;
     private CancellationTokenSource? captureCts;
     private Task? captureTask;
+    private TouchVisualTreeCaptureTrigger? pendingTrigger;
     private string? gestureId;
     private bool disposed;
 
     public TouchVisualTreeCaptureCoordinator(
-        Func<TouchVisualTreeCaptureTrigger, CancellationToken, Task> captureAsync)
+        Func<TouchVisualTreeCaptureTrigger, CancellationToken, Task> captureAsync,
+        TimeSpan? minimumCaptureInterval = null)
     {
         this.captureAsync = captureAsync ?? throw new ArgumentNullException(nameof(captureAsync));
+        this.minimumCaptureInterval = minimumCaptureInterval.GetValueOrDefault(DefaultMinimumCaptureInterval);
+        if (this.minimumCaptureInterval <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(minimumCaptureInterval));
+        }
     }
 
     public void Start(TouchCaptureHub touchCaptureHub)
@@ -92,7 +102,7 @@ internal sealed class TouchVisualTreeCaptureCoordinator : IDisposable
             this.captureTask = null;
             gestureId = null;
             activePointerIds.Clear();
-            pendingTriggers.Clear();
+            pendingTrigger = null;
         }
 
         if (touchCaptureHub is not null && touchCapturedHandler is not null)
@@ -179,12 +189,17 @@ internal sealed class TouchVisualTreeCaptureCoordinator : IDisposable
         {
             gestureId = null;
             activePointerIds.Clear();
-            pendingTriggers.Clear();
+            pendingTrigger = null;
         }
     }
 
     private async Task RunCaptureLoopAsync(CancellationToken cancellationToken)
     {
+        var minimumIntervalTimestampTicks = Math.Max(
+            1,
+            (long)Math.Ceiling(minimumCaptureInterval.TotalSeconds * Stopwatch.Frequency));
+        long nextCaptureAllowedTimestamp = 0;
+
         while (!cancellationToken.IsCancellationRequested)
         {
             try
@@ -198,20 +213,48 @@ internal sealed class TouchVisualTreeCaptureCoordinator : IDisposable
 
             while (!cancellationToken.IsCancellationRequested)
             {
+                bool hasPendingTrigger;
+                lock (stateLock)
+                {
+                    hasPendingTrigger = pendingTrigger is not null;
+                }
+
+                if (!hasPendingTrigger)
+                {
+                    break;
+                }
+
+                var remainingTimestampTicks = nextCaptureAllowedTimestamp - Stopwatch.GetTimestamp();
+                if (remainingTimestampTicks > 0)
+                {
+                    try
+                    {
+                        var delay = TimeSpan.FromSeconds(
+                            remainingTimestampTicks / (double)Stopwatch.Frequency);
+                        await Task.Delay(delay, cancellationToken);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        return;
+                    }
+                }
+
                 TouchVisualTreeCaptureTrigger? trigger;
                 lock (stateLock)
                 {
-                    trigger = pendingTriggers.Count == 0 ? null : pendingTriggers.Dequeue();
+                    trigger = pendingTrigger;
+                    pendingTrigger = null;
                 }
 
                 if (trigger is null)
                 {
-                    break;
+                    continue;
                 }
 
                 try
                 {
                     await captureAsync(trigger, cancellationToken);
+                    nextCaptureAllowedTimestamp = Stopwatch.GetTimestamp() + minimumIntervalTimestampTicks;
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
@@ -238,7 +281,7 @@ internal sealed class TouchVisualTreeCaptureCoordinator : IDisposable
 
     private void EnqueueLocked(TouchVisualTreeCaptureTrigger trigger)
     {
-        pendingTriggers.Enqueue(trigger);
+        pendingTrigger = SelectPendingTrigger(pendingTrigger, trigger);
         if (signal.CurrentCount == 0)
         {
             try
@@ -249,6 +292,25 @@ internal sealed class TouchVisualTreeCaptureCoordinator : IDisposable
             {
             }
         }
+    }
+
+    private static TouchVisualTreeCaptureTrigger SelectPendingTrigger(
+        TouchVisualTreeCaptureTrigger? pending,
+        TouchVisualTreeCaptureTrigger incoming)
+    {
+        if (pending is null || incoming.GesturePhase == TouchVisualTreeGesturePhase.Started)
+        {
+            return incoming;
+        }
+
+        if (pending.GesturePhase == TouchVisualTreeGesturePhase.Started)
+        {
+            return pending;
+        }
+
+        return incoming.GesturePhase == TouchVisualTreeGesturePhase.Ended
+            ? incoming
+            : pending;
     }
 
     private static async Task WaitForTaskAsync(Task? task)
