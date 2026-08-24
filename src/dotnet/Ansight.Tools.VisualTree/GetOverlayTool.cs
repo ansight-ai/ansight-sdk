@@ -4,7 +4,7 @@ public sealed class GetOverlayTool : ITool
 {
     public string Category => "ui";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Read;
 
     public string Id => VisualTreeToolIds.GetOverlay;
 
@@ -17,8 +17,6 @@ public sealed class GetOverlayTool : ITool
     public ToolSchema ArgumentsSchema => VisualTreeToolSchemas.GetOverlayArguments;
 
     public ToolSchema ResultSchema => VisualTreeToolSchemas.OverlayResult;
-
-    public ToolSecurity Security => VisualTreeToolSecurityProfiles.GetOverlay;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

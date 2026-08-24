@@ -16,7 +16,5 @@ public sealed class PairingEnrollment
 
     public int MaxUses { get; set; } = 1;
 
-    public string[] MaxScopes { get; set; } = ["Read"];
-
-    public bool AllowCritical { get; set; }
+    public string MaxToolPolicy { get; set; } = "read";
 }

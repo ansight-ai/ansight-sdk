@@ -232,10 +232,11 @@ The feature packages currently group tools by functional area:
 - `Ansight.Tools.Preferences`
 - `Ansight.Tools.SecureStorage`
 
-Reflection roots are the access boundary for `Ansight.Tools.Reflection`. Register a root with `ReflectionRootRegistry.Register(...)`, then the reflection tools inspect reachable objects through stateless paths from that root. `reflect.list_roots` includes a `hostRuntime` descriptor so callers can identify CLR-hosted roots. Direct object registrations are weak by default unless `ReferenceType.Strong` is passed; getter registrations use a `Func<object?>` when the exposed root can change over time and are unavailable while the getter returns `null`. The simplified reflection options builder controls traversal and member visibility only. Use `WithReadOnlyToolAccess()` for list, inspect, and describe-type tools; use `WithReadWriteToolAccess()` or a custom guard when `reflect.set_member_value` or `reflect.invoke_method` should be available. Dispose the returned `ReflectionRootRegistrationHandle`, or call `ReflectionRootRegistry.Deregister(id)`, when a root should no longer be exposed.
+Reflection roots are the access boundary for `Ansight.Tools.Reflection`. Register a root with `ReflectionRootRegistry.Register(...)`, then the reflection tools inspect reachable objects through stateless paths from that root. `reflect.list_roots` includes a `hostRuntime` descriptor so callers can identify CLR-hosted roots. Direct object registrations are weak by default unless `ReferenceType.Strong` is passed; getter registrations use a `Func<object?>` when the exposed root can change over time and are unavailable while the getter returns `null`. The simplified reflection options builder controls traversal and member visibility only. `reflect.list_roots` and `reflect.describe_type` use `Read`; object inspection, mutation, and invocation use `Critical` because they can expose sensitive runtime state or execute arbitrary app code. Dispose the returned `ReflectionRootRegistrationHandle`, or call `ReflectionRootRegistry.Deregister(id)`, when a root should no longer be exposed.
 
 Registered tools remain disabled until the app opts into a guard policy such as `WithReadOnlyToolAccess()`, `WithReadWriteToolAccess()`, or `WithAllToolAccess()`. Use `Options.OptionsBuilder.ContainsTool(string)` when a setup helper needs to avoid registering a suite that was already customized by another builder call.
-The storage packages mark `remove` operations as `Delete`, and `files.delete_file` is also delete-scoped, so those stay disabled unless the app chooses `WithAllToolAccess()` or a custom `ToolGuard`.
+Critical operations stay disabled unless the app chooses `WithAllToolAccess()`
+or a custom `ToolGuard` whose maximum policy is `Critical`.
 When a pairing session is open, inbound `tool.query` and `tool.call` protocol messages are handled automatically and answered on the active WebSocket using that guard policy.
 
 For local temp-file workflows, `Ansight.Tools.FileSystem` exposes `files.begin_binary_download`, which returns transfer metadata and then streams `ASFT` binary frames over the pairing WebSocket. A bridge can map that `transferId` to its own temp directory and write the incoming bytes there. The same package can push base64 or UTF-8 content into an approved sandbox folder with `files.push_file`, copy files with `files.copy_file`, move or rename files with `files.move_file`, and delete files with `files.delete_file`.
@@ -260,9 +261,9 @@ Implement `IArtifactProvider.QueryAsync(...)` to advertise
 or an app-local file.
 
 The first configured provider automatically registers `artifacts.query` and
-`artifacts.request`. Both tools are read-scoped, but their providers can export
-sensitive app data, so definitions should include accurate `ToolSecurity`
-metadata and remain protected by an appropriate `ToolGuard`. Requested bytes
+`artifacts.request`. Both tools use `ToolPolicy.Read`; providers that export
+secrets or other critical data should publish a purpose-built tool with
+`ToolPolicy.Critical` and remain protected by an appropriate `ToolGuard`. Requested bytes
 use the live pairing binary-transfer channel and are unavailable without an
 active Studio tool request.
 

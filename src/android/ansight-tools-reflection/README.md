@@ -10,9 +10,10 @@ Android live-object reflection tools.
 - `reflect.set_member_value`
 - `reflect.invoke_method`
 
-List, inspect, and describe are read-scoped. Setting member values and invoking
-methods are write-scoped and require `AnsightToolGuard.ReadWrite` or
-`FullAccess`.
+List and describe use `ToolPolicy.Read`. Inspecting reachable objects, setting
+members, and invoking methods use `ToolPolicy.Critical` because they can expose
+sensitive state or execute arbitrary app code; they require
+`AnsightToolGuard.FullAccess`.
 
 ## Usage
 

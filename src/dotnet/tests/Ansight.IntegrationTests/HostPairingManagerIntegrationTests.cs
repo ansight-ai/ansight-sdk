@@ -121,8 +121,7 @@ public sealed class HostPairingManagerIntegrationTests
                 ExpiresAt = expiresAt,
                 GrantExpiresAt = DateTimeOffset.UtcNow.AddDays(14),
                 MaxUses = 1,
-                MaxScopes = ["Read"],
-                AllowCritical = false
+                MaxToolPolicy = "read"
             }
         };
     }

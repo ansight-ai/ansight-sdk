@@ -63,8 +63,7 @@ Document schema: `ansight.enrollment-invite-document.v2`
       "expiresAt": "2026-07-30T01:10:00Z",
       "grantExpiresAt": "2026-08-13T01:00:00Z",
       "maxUses": 1,
-      "maxScopes": ["Read"],
-      "allowCritical": false
+      "maxToolPolicy": "read"
     }
   },
   "discovery": {
@@ -408,8 +407,9 @@ tool guard.
 ```
 
 The client responds with its catalog of tool ids, descriptions, argument
-schemas, result schemas, scopes, security metadata, argument encoding, and a
-deterministic `revision`. A matching `ifRevision` produces a compact catalog
+schemas, result schemas, ordered `policy`, argument encoding, and a
+deterministic `revision`. `policy` is one of `read`, `write`, or `critical`.
+A matching `ifRevision` produces a compact catalog
 with `unchanged: true`. Catalog schema version 2 also includes a capability
 manifest and its hash so hosts can cache and compare SDK capabilities without
 reinterpreting descriptions.
@@ -515,7 +515,7 @@ conditions explicit instead of silently acting on a reused framework id.
 
 `artifacts.query` returns the app-provided artifact catalog.
 `artifacts.request` creates one catalog artifact and returns inline text,
-inline bytes, or an `ASFT` transfer reference. Both are read-scoped and remain
+inline bytes, or an `ASFT` transfer reference. Both use the `read` policy and remain
 subject to the local tool guard.
 
 ### Guard
@@ -527,8 +527,14 @@ The client enforces the configured tool guard before invoking a tool:
 - read-write
 - full access
 
-The enrollment invite's scope ceiling can further restrict access. The host
-cannot raise permissions beyond the app's local configuration.
+Each preset maps to a single maximum policy: `read-only` permits `read`,
+`read-write` permits `read` and `write`, and `full access` permits all three.
+Use `critical` for destructive operations, secret access, and arbitrary app
+code invocation. This one ordered value replaces the former scope, security
+level, and implication fields.
+
+The enrollment invite's `maxToolPolicy` can further restrict access. The host
+cannot raise the maximum beyond the app's local configuration.
 
 ## Operational behavior
 

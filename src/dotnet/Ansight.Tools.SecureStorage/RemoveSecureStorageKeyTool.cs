@@ -11,7 +11,7 @@ public sealed class RemoveSecureStorageKeyTool : ITool
 
     public string Category => "secure";
 
-    public ToolScope Scope => ToolScope.Delete;
+    public ToolPolicy Policy => ToolPolicy.Critical;
 
     public string Id => SecureStorageToolIds.RemoveKey;
 
@@ -24,8 +24,6 @@ public sealed class RemoveSecureStorageKeyTool : ITool
     public ToolSchema ArgumentsSchema => SecureStorageToolSchemas.RemoveKeyArguments;
 
     public ToolSchema ResultSchema => SecureStorageToolSchemas.RemoveKeyResult;
-
-    public ToolSecurity Security => SecureStorageToolSecurityProfiles.RemoveKey;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

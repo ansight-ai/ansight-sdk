@@ -10,9 +10,8 @@ public final class GetVisualTreeTool: AnsightTool {
             name: "Get Visual Tree",
             description: "Returns the current UI hierarchy for the foreground scene.",
             category: "ui",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .read,
             keywords: "ui visual tree hierarchy layout",
-            security: AnsightVisualTreeToolSecurityProfiles.getVisualTree,
             argumentsSchema: AnsightVisualTreeToolSchemas.getVisualTreeArguments,
             resultSchema: AnsightVisualTreeToolSchemas.visualTreeResult
         )

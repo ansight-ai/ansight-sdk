@@ -14,9 +14,8 @@ public final class CopyFileTool: AnsightTool {
             name: "Copy File",
             description: "Copies a sandboxed file to another approved sandbox path.",
             category: "files",
-            scope: AnsightToolScope.write.rawValue,
+            policy: .write,
             keywords: "filesystem file copy sandbox",
-            security: AnsightFileSystemToolSecurityProfiles.copyFile,
             argumentsSchema: AnsightFileSystemToolSchemas.copyFileArguments,
             resultSchema: AnsightFileSystemToolSchemas.copyFileResult
         )

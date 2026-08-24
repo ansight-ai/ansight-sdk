@@ -11,7 +11,7 @@ public sealed class DeleteFileTool : ITool
 
     public string Category => "files";
 
-    public ToolScope Scope => ToolScope.Delete;
+    public ToolPolicy Policy => ToolPolicy.Critical;
 
     public string Id => FileSystemToolIds.DeleteFile;
 
@@ -24,8 +24,6 @@ public sealed class DeleteFileTool : ITool
     public ToolSchema ArgumentsSchema => FileSystemToolSchemas.DeleteFileArguments;
 
     public ToolSchema ResultSchema => FileSystemToolSchemas.DeleteFileResult;
-
-    public ToolSecurity Security => FileSystemToolSecurityProfiles.DeleteFile;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

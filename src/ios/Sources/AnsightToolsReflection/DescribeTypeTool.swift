@@ -19,9 +19,8 @@ public final class DescribeTypeTool: AnsightTool {
             name: "Describe Type",
             description: "Returns metadata about a runtime type without reading additional live object values.",
             category: "reflect",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .read,
             keywords: "reflection type members methods metadata runtime",
-            security: AnsightReflectionToolSecurityProfiles.describeType,
             argumentsSchema: AnsightReflectionToolSchemas.describeTypeArguments,
             resultSchema: AnsightReflectionToolSchemas.describeTypeResult
         )

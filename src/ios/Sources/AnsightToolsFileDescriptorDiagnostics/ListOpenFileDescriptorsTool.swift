@@ -23,9 +23,8 @@ public final class ListOpenFileDescriptorsTool: AnsightTool {
             name: "List Open File Descriptors",
             description: "Lists live file descriptors owned by the current app process.",
             category: "file_descriptors",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .read,
             keywords: "file descriptors handles open files sockets pipes diagnostics",
-            security: AnsightFileDescriptorDiagnosticsToolSecurityProfiles.listOpen,
             argumentsSchema: AnsightFileDescriptorDiagnosticsToolSchemas.listOpenArguments,
             resultSchema: AnsightFileDescriptorDiagnosticsToolSchemas.listOpenResult
         )

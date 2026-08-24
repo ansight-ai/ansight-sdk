@@ -7,7 +7,7 @@ public sealed class SetBindingContextPropertyTool : ITool
 {
     public string Category => "maui";
 
-    public ToolScope Scope => ToolScope.Write;
+    public ToolPolicy Policy => ToolPolicy.Critical;
 
     public string Id => MauiToolIds.SetBindingContextProperty;
 
@@ -20,8 +20,6 @@ public sealed class SetBindingContextPropertyTool : ITool
     public ToolSchema ArgumentsSchema => MauiToolSchemas.SetBindingContextPropertyArguments;
 
     public ToolSchema ResultSchema => MauiToolSchemas.BindingContextMutationResult;
-
-    public ToolSecurity Security => MauiToolSecurityProfiles.SetBindingContextProperty;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

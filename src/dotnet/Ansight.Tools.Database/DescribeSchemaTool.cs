@@ -21,7 +21,7 @@ public sealed class DescribeSchemaTool : ITool
 
     public string Category => "data";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Read;
 
     public string Id => DatabaseToolIds.DescribeSchema;
 
@@ -34,8 +34,6 @@ public sealed class DescribeSchemaTool : ITool
     public ToolSchema ArgumentsSchema => DatabaseToolSchemas.DescribeSchemaArguments;
 
     public ToolSchema ResultSchema => DatabaseToolSchemas.DescribeSchemaResult;
-
-    public ToolSecurity Security => DatabaseToolSecurityProfiles.DescribeSchema;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

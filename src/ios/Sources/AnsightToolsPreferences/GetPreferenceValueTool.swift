@@ -14,9 +14,8 @@ public final class GetPreferenceValueTool: AnsightTool {
             name: "Get Preference Value",
             description: "Reads a value from an iOS UserDefaults store.",
             category: "prefs",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .read,
             keywords: "preferences userdefaults read settings",
-            security: AnsightPreferencesToolSecurityProfiles.getValue,
             argumentsSchema: AnsightPreferencesToolSchemas.getValueArguments,
             resultSchema: AnsightPreferencesToolSchemas.getValueResult
         )

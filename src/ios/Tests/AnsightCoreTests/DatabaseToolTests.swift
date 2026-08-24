@@ -400,7 +400,7 @@ final class DatabaseToolTests: XCTestCase {
         XCTAssertTrue(errorMessage(multipleEnvelope)?.localizedCaseInsensitiveContains("single") == true)
     }
 
-    func testDatabaseCatalogIncludesSecurityMetadata() throws {
+    func testDatabaseCatalogIncludesPolicies() throws {
         let root = try makeTemporaryRoot()
         defer {
             try? FileManager.default.removeItem(at: root)
@@ -422,16 +422,8 @@ final class DatabaseToolTests: XCTestCase {
             return object
         }.first
 
-        guard let queryTool,
-              case .object(let security)? = queryTool["security"],
-              case .array(let implications)? = security["implications"] else {
-            return XCTFail("Expected query security metadata.")
-        }
-
-        XCTAssertEqual(security["level"], .string("High"))
-        XCTAssertTrue(implications.contains(.string("reads_app_data")))
-        XCTAssertTrue(implications.contains(.string("exports_data")))
-        XCTAssertTrue(implications.contains(.string("accesses_databases")))
+        XCTAssertEqual(queryTool?["policy"], .string("read"))
+        XCTAssertNil(queryTool?["security"])
     }
 
     private func options(root: URL) -> AnsightDatabaseToolsOptions {

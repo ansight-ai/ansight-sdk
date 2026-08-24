@@ -26,12 +26,7 @@ class PairingSessionConnectorTest {
             .getJSONObject("invite")
             .getJSONObject("enrollment")
 
-        val maxScopes = enrollment.getJSONArray("maxScopes")
-        assertEquals(
-            listOf("Read", "Write"),
-            (0 until maxScopes.length()).map(maxScopes::getString),
-        )
-        assertFalse(enrollment.getBoolean("allowCritical"))
+        assertEquals("write", enrollment.getString("maxToolPolicy"))
     }
 
     @Test
@@ -208,8 +203,7 @@ class PairingSessionConnectorTest {
             expiresAt = "2099-06-20T00:00:00Z",
             grantExpiresAt = "2099-07-20T00:00:00Z",
             maxUses = 1,
-            maxScopes = listOf("Read"),
-            allowCritical = false,
+            maxToolPolicy = "read",
         ),
     )
 

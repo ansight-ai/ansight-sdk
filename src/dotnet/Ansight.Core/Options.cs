@@ -754,7 +754,7 @@ public class Options
 
         /// <summary>
         /// Enables discovery and execution for read and write tools.
-        /// Delete-scoped tools remain disabled.
+        /// Critical tools remain disabled.
         /// </summary>
         /// <returns>The current builder.</returns>
         public OptionsBuilder WithReadWriteToolAccess()
@@ -764,7 +764,7 @@ public class Options
         }
 
         /// <summary>
-        /// Enables discovery and execution for all registered tool scopes.
+        /// Enables discovery and execution for all registered tool policies.
         /// </summary>
         /// <returns>The current builder.</returns>
         public OptionsBuilder WithAllToolAccess()

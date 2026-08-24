@@ -45,7 +45,7 @@ var options = Options.CreateBuilder()
     .Build();
 ```
 
-The visual tree and search tools return MAUI element ids that can be passed to the element, bindable-property, binding, layout, handler, action, wait, XAML experiment, theme, and binding-context tools. Write-scoped tools require `WithReadWriteToolAccess()` or a custom `ToolGuard`.
+The visual tree and search tools return MAUI element ids that can be passed to the element, bindable-property, binding, layout, handler, action, wait, XAML experiment, theme, and binding-context tools. Ordinary state changes use `ToolPolicy.Write`; sensitive or code-invoking operations use `ToolPolicy.Critical` and require a guard with the matching maximum policy.
 
 Custom controls that render their own child model, such as Mapbox, Skia, or native-hosted controls, can register visual-tree extensions. A child walker exposes additional real MAUI `Element` children to search and node resolution. A child builder exposes synthetic visual-tree nodes for drawn/native items that are not MAUI elements:
 

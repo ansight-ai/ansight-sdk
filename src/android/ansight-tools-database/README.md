@@ -9,7 +9,7 @@ sandbox roots.
 - `data.describe_schema`
 - `data.query`
 
-All database tools are read-scoped and available with
+All database tools use `ToolPolicy.Read` and are available with
 `AnsightToolGuard.ReadOnly`.
 
 ## Usage

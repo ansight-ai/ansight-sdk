@@ -2,7 +2,7 @@ package ai.ansight.tools.securestorage
 
 import ai.ansight.runtime.AndroidTool
 import ai.ansight.runtime.AndroidToolResult
-import ai.ansight.runtime.ToolScope
+import ai.ansight.runtime.ToolPolicy
 import ai.ansight.runtime.androidSecureStorageTool
 import ai.ansight.runtime.putNullable
 import android.app.Application
@@ -34,7 +34,7 @@ object AndroidSecureStorageTools {
             SecureStorageToolIds.SetValue,
             "Set Secure Storage Value",
             "Writes an explicitly allow-listed secure value.",
-            ToolScope.Write,
+            ToolPolicy.Critical,
         ) { args, context ->
             val key = args["key"] ?: return@androidSecureStorageTool AndroidToolResult.failure(
                 "Secure storage key is required.",
@@ -51,7 +51,7 @@ object AndroidSecureStorageTools {
             SecureStorageToolIds.RemoveKey,
             "Remove Secure Storage Key",
             "Removes an explicitly allow-listed secure value.",
-            ToolScope.Delete,
+            ToolPolicy.Critical,
         ) { args, context ->
             val key = args["key"] ?: return@androidSecureStorageTool AndroidToolResult.failure(
                 "Secure storage key is required.",

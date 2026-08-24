@@ -120,7 +120,7 @@ class AnsightOptionsTest {
                 name = "Echo",
                 description = "Echoes input.",
                 category = "app",
-                scope = ToolScope.Read,
+                policy = ToolPolicy.Read,
                 keywords = "echo",
             ),
         ) { _, _ -> AndroidToolResult.success() }

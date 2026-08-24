@@ -11,7 +11,7 @@ public sealed class GetSecureStorageValueTool : ITool
 
     public string Category => "secure";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Critical;
 
     public string Id => SecureStorageToolIds.GetValue;
 
@@ -24,8 +24,6 @@ public sealed class GetSecureStorageValueTool : ITool
     public ToolSchema ArgumentsSchema => SecureStorageToolSchemas.GetValueArguments;
 
     public ToolSchema ResultSchema => SecureStorageToolSchemas.GetValueResult;
-
-    public ToolSecurity Security => SecureStorageToolSecurityProfiles.GetValue;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

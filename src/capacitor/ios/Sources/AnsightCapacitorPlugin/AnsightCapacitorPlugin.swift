@@ -844,9 +844,8 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
             name: stringValue(dictionary, "name") ?? stringValue(dictionary, "id") ?? "",
             description: stringValue(dictionary, "description") ?? "",
             category: stringValue(dictionary, "category") ?? "custom",
-            scope: toolScope(stringValue(dictionary, "scope")).rawValue,
+            policy: toolPolicy(stringValue(dictionary, "policy")),
             keywords: keywords(dictionary?["keywords"]),
-            security: toolSecurity(dictionary?["security"] as? NSDictionary),
             argumentsSchema: AnsightToolSchema(json: jsonValue(dictionary?["argumentsSchema"]) ?? .object([:])),
             resultSchema: AnsightToolSchema(json: jsonValue(dictionary?["resultSchema"]) ?? .object([:]))
         )
@@ -1210,29 +1209,12 @@ private func toolGuardName(_ value: AnsightToolGuard) -> String {
     return "custom"
 }
 
-private func toolScope(_ value: String?) -> AnsightToolScope {
+private func toolPolicy(_ value: String?) -> AnsightToolPolicy {
     switch value?.lowercased() {
     case "write": return .write
-    case "delete": return .delete
+    case "critical", "delete": return .critical
     default: return .read
     }
-}
-
-private func toolSecurity(_ dictionary: NSDictionary?) -> AnsightToolSecurity {
-    guard let dictionary else { return .unspecified }
-    let level: AnsightToolSecurityLevel
-    switch stringValue(dictionary, "level")?.lowercased() {
-    case "low": level = .low
-    case "medium", "moderate": level = .moderate
-    case "high": level = .high
-    case "critical": level = .critical
-    default: level = .unspecified
-    }
-    return AnsightToolSecurity(
-        level: level,
-        summary: stringValue(dictionary, "summary") ?? "",
-        implications: (dictionary["implications"] as? [Any])?.compactMap { $0 as? String } ?? []
-    )
 }
 
 private func keywords(_ value: Any?) -> String {

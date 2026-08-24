@@ -14,9 +14,8 @@ public final class GetSecureStorageValueTool: AnsightTool {
             name: "Get Secure Storage Value",
             description: "Reads a decrypted value from the configured secure storage backend.",
             category: "secure",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .critical,
             keywords: "secure storage keychain keystore encrypted get",
-            security: AnsightSecureStorageToolSecurityProfiles.getValue,
             argumentsSchema: AnsightSecureStorageToolSchemas.getValueArguments,
             resultSchema: AnsightSecureStorageToolSchemas.getValueResult
         )

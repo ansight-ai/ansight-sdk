@@ -23,7 +23,7 @@ public static class AnsightOptionsBuilderExtensions
     private const int DefaultSessionJpegCaptureMaxWidth = 480;
 
     /// <summary>
-    /// Applies the default Ansight runtime configuration, registers the non-MAUI remote tools, and enables all tool scopes.
+    /// Applies the default Ansight runtime configuration, registers the non-MAUI remote tools, and enables every tool policy.
     /// </summary>
     /// <param name="builder">The Ansight options builder.</param>
     /// <returns>The current options builder.</returns>
@@ -35,7 +35,7 @@ public static class AnsightOptionsBuilderExtensions
     }
 
     /// <summary>
-    /// Applies the default Ansight runtime configuration, enables all tool scopes, runs a customization callback,
+    /// Applies the default Ansight runtime configuration, enables every tool policy, runs a customization callback,
     /// and registers the non-MAUI remote tools.
     /// </summary>
     /// <param name="builder">The Ansight options builder.</param>

@@ -18,8 +18,7 @@ public sealed class PairingSessionClientTests
             45200);
 
         var enrollment = Assert.IsType<PairingEnrollment>(document.Config.Enrollment);
-        Assert.Equal(["Read", "Write"], enrollment.MaxScopes);
-        Assert.False(enrollment.AllowCritical);
+        Assert.Equal("write", enrollment.MaxToolPolicy);
     }
 
     [Fact]

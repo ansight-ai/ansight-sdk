@@ -10,9 +10,8 @@ public final class ClearOverlaysTool: AnsightTool {
             name: "Clear Overlays",
             description: "Removes all diagnostic overlays from the active app window.",
             category: "ui",
-            scope: AnsightToolScope.write.rawValue,
+            policy: .write,
             keywords: "ui overlay highlight clear remove all",
-            security: AnsightVisualTreeToolSecurityProfiles.clearOverlays,
             argumentsSchema: AnsightVisualTreeToolSchemas.clearOverlaysArguments,
             resultSchema: AnsightVisualTreeToolSchemas.clearOverlaysResult
         )

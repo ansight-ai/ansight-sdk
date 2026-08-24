@@ -623,7 +623,7 @@ function installArtifactTools(): AnsightToolRegistration[] {
         description:
           "Lists artifacts exposed by Capacitor JavaScript providers.",
         category: "Artifacts",
-        scope: "read",
+        policy: "read",
       },
       async (_args, context) => {
         const definitions: Array<
@@ -664,7 +664,7 @@ function installArtifactTools(): AnsightToolRegistration[] {
         description:
           "Creates an artifact through a Capacitor JavaScript provider.",
         category: "Artifacts",
-        scope: "read",
+        policy: "read",
         argumentsSchema: {
           type: "object",
           required: ["providerId", "artifactId"],

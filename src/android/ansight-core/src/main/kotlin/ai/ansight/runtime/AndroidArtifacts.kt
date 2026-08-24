@@ -155,7 +155,7 @@ object AndroidArtifactTools {
             name = "Query Artifacts",
             description = "Queries app-provided artifact providers and currently requestable artifact definitions.",
             category = "artifacts",
-            scope = ToolScope.Read,
+            policy = ToolPolicy.Read,
             keywords = "artifact artifacts query catalog provider export snapshot",
             handler = { args, context ->
             val capturedAtUtc = AnsightClock.isoNow()
@@ -202,7 +202,7 @@ object AndroidArtifactTools {
             name = "Request Artifact",
             description = "Requests an app-provided artifact snapshot and streams it to the host.",
             category = "artifacts",
-            scope = ToolScope.Read,
+            policy = ToolPolicy.Read,
             keywords = "artifact artifacts request export snapshot binary stream",
             handler = requestHandler@{ args, context ->
             val requestId = context.requestId ?: return@requestHandler AndroidToolResult.failure(

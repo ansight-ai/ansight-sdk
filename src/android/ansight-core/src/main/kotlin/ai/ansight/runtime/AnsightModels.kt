@@ -503,7 +503,7 @@ data class OperationResult(
 data class AnsightToolDescriptor(
     val id: String,
     val name: String,
-    val scope: String = "Read",
+    val policy: String = "read",
 )
 
 data class RecordedMetric(

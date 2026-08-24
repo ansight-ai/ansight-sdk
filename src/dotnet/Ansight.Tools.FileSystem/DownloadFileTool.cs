@@ -16,7 +16,7 @@ public sealed class DownloadFileTool : ITool
 
     public string Category => "files";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Read;
 
     public string Id => FileSystemToolIds.DownloadFile;
 
@@ -29,8 +29,6 @@ public sealed class DownloadFileTool : ITool
     public ToolSchema ArgumentsSchema => FileSystemToolSchemas.DownloadFileArguments;
 
     public ToolSchema ResultSchema => FileSystemToolSchemas.DownloadFileResult;
-
-    public ToolSecurity Security => FileSystemToolSecurityProfiles.DownloadFile;
 
     public async Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

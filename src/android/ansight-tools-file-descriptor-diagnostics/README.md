@@ -11,7 +11,7 @@ Process-level file descriptor diagnostic remote tools for Android apps.
 | `file_descriptors.inspect` | One descriptor record by descriptor number. |
 | `file_descriptors.get_usage` | Open count, process limits, remaining capacity, and utilization. |
 
-All tools are read-scoped. Listing and inspection can disclose file paths and
+All tools use `ToolPolicy.Read`. Listing and inspection can disclose file paths and
 socket metadata. Set `includeTargets` to `false` in
 `AndroidFileDescriptorDiagnosticsOptions` to suppress descriptor targets.
 

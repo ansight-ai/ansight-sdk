@@ -915,7 +915,6 @@ function artifactDefinitionPayload(providerId, definition) {
     metadata: normalizedMetadata(definition.metadata),
     content: artifactContentDescriptor(definition),
     argumentsSchema: definition.argumentsSchema || { type: "object", additionalProperties: true },
-    security: definition.security || { level: "moderate", implications: ["metadata_disclosure"] },
   };
 }
 
@@ -1066,7 +1065,7 @@ function artifactToolDefinitions() {
       name: "Query Artifacts",
       description: "Queries app-provided artifact providers and currently requestable artifact definitions.",
       category: "artifacts",
-      scope: "read",
+      policy: "read",
       keywords: ["artifact", "artifacts", "query", "catalog", "provider", "export", "snapshot"],
       argumentsSchema: {
         type: "object",
@@ -1078,18 +1077,13 @@ function artifactToolDefinitions() {
         },
       },
       resultSchema: genericObject,
-      security: {
-        level: "moderate",
-        summary: "Discovers app-provided artifact definitions and descriptive metadata.",
-        implications: ["metadata_disclosure"],
-      },
     },
     {
       id: ARTIFACT_REQUEST_TOOL_ID,
       name: "Request Artifact",
       description: "Requests an app-provided artifact snapshot and streams it to the host.",
       category: "artifacts",
-      scope: "read",
+      policy: "read",
       keywords: ["artifact", "artifacts", "request", "export", "snapshot", "binary", "stream"],
       argumentsSchema: {
         type: "object",
@@ -1103,11 +1097,6 @@ function artifactToolDefinitions() {
         required: ["providerId", "artifactId"],
       },
       resultSchema: genericObject,
-      security: {
-        level: "high",
-        summary: "Requests and exports an app-provided artifact snapshot.",
-        implications: ["exports_app_data", "binary_transfer"],
-      },
     },
   ];
 }
@@ -2071,7 +2060,7 @@ function reactToolDefinitions(enableActions) {
       name: "Get React Component Tree",
       description: "Captures the live React Fiber component tree for the current React Native runtime.",
       category: "react",
-      scope: "read",
+      policy: "read",
       keywords: ["react", "react-native", "fiber", "component", "component-tree"],
       argumentsSchema: {
         type: "object",
@@ -2084,18 +2073,13 @@ function reactToolDefinitions(enableActions) {
         },
       },
       resultSchema: { type: "object", additionalProperties: true },
-      security: {
-        level: "high",
-        summary: "Inspects the React component tree and optionally sanitized props/state.",
-        implications: ["inspects_runtime_state", "metadata_disclosure"],
-      },
     },
     {
       id: REACT_SHADOW_TREE_TOOL_ID,
       name: "Get React Shadow Tree",
       description: "Captures the committed React Native host tree with composite components flattened out.",
       category: "react",
-      scope: "read",
+      policy: "read",
       keywords: ["react", "react-native", "host", "shadow", "shadow-tree", "layout"],
       argumentsSchema: {
         type: "object",
@@ -2107,18 +2091,13 @@ function reactToolDefinitions(enableActions) {
         },
       },
       resultSchema: { type: "object", additionalProperties: true },
-      security: {
-        level: "high",
-        summary: "Inspects the React Native host tree and optionally sanitized host props.",
-        implications: ["inspects_runtime_state", "metadata_disclosure"],
-      },
     },
     {
       id: "react.find_components",
       name: "Find React Components",
       description: "Searches the live React component tree by component type, text, testID, nativeID, or accessibility label.",
       category: "react",
-      scope: "read",
+      policy: "read",
       keywords: ["react", "search", "component", "testid", "accessibility"],
       argumentsSchema: {
         type: "object",
@@ -2132,18 +2111,13 @@ function reactToolDefinitions(enableActions) {
         },
       },
       resultSchema: { type: "object", additionalProperties: true },
-      security: {
-        level: "high",
-        summary: "Searches React runtime metadata and may reveal UI text.",
-        implications: ["inspects_runtime_state", "metadata_disclosure"],
-      },
     },
     {
       id: "react.get_component",
       name: "Get React Component",
       description: "Returns a single React component node from the current React visual tree.",
       category: "react",
-      scope: "read",
+      policy: "read",
       keywords: ["react", "component", "props", "fiber"],
       argumentsSchema: {
         type: "object",
@@ -2156,25 +2130,15 @@ function reactToolDefinitions(enableActions) {
         required: ["nodeId"],
       },
       resultSchema: { type: "object", additionalProperties: true },
-      security: {
-        level: "high",
-        summary: "Reads one React component node and optionally sanitized props/state.",
-        implications: ["inspects_runtime_state", "metadata_disclosure"],
-      },
     },
     {
       id: "react.get_navigation_state",
       name: "Get React Navigation State",
       description: "Returns the configured React Navigation ref state when installReactTools receives a navigationRef.",
       category: "react",
-      scope: "read",
+      policy: "read",
       keywords: ["react", "navigation", "route", "screen"],
       resultSchema: { type: "object", additionalProperties: true },
-      security: {
-        level: "medium",
-        summary: "Reads navigation route metadata from a configured navigation ref.",
-        implications: ["inspects_runtime_state", "metadata_disclosure"],
-      },
     },
   ];
 
@@ -2184,7 +2148,7 @@ function reactToolDefinitions(enableActions) {
       name: "Invoke React Component Action",
       description: "Invokes an allow-listed function prop on a React component, such as onPress.",
       category: "react",
-      scope: "write",
+      policy: "write",
       keywords: ["react", "component", "action", "onpress"],
       argumentsSchema: {
         type: "object",
@@ -2195,11 +2159,6 @@ function reactToolDefinitions(enableActions) {
         required: ["nodeId", "prop"],
       },
       resultSchema: { type: "object", additionalProperties: true },
-      security: {
-        level: "critical",
-        summary: "Invokes app code through a React prop function.",
-        implications: ["invokes_app_code", "mutates_runtime_state"],
-      },
     });
   }
 

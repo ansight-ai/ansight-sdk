@@ -14,9 +14,8 @@ public final class RemovePreferenceKeyTool: AnsightTool {
             name: "Remove Preference Key",
             description: "Deletes a key from an iOS UserDefaults store.",
             category: "prefs",
-            scope: AnsightToolScope.delete.rawValue,
+            policy: .critical,
             keywords: "preferences userdefaults delete remove settings",
-            security: AnsightPreferencesToolSecurityProfiles.removeKey,
             argumentsSchema: AnsightPreferencesToolSchemas.removeKeyArguments,
             resultSchema: AnsightPreferencesToolSchemas.removeKeyResult
         )

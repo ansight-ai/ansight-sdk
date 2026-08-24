@@ -18,7 +18,7 @@ public sealed class GetFileChecksumTool : ITool
 
     public string Category => "files";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Read;
 
     public string Id => FileSystemToolIds.GetFileChecksum;
 
@@ -31,8 +31,6 @@ public sealed class GetFileChecksumTool : ITool
     public ToolSchema ArgumentsSchema => FileSystemToolSchemas.GetFileChecksumArguments;
 
     public ToolSchema ResultSchema => FileSystemToolSchemas.GetFileChecksumResult;
-
-    public ToolSecurity Security => FileSystemToolSecurityProfiles.GetFileChecksum;
 
     public async Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

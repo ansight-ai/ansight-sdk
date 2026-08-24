@@ -13,7 +13,7 @@ public sealed class InvokeElementActionTool : ITool
 {
     public string Category => "maui";
 
-    public ToolScope Scope => ToolScope.Write;
+    public ToolPolicy Policy => ToolPolicy.Critical;
 
     public string Id => MauiToolIds.InvokeElementAction;
 
@@ -26,8 +26,6 @@ public sealed class InvokeElementActionTool : ITool
     public ToolSchema ArgumentsSchema => MauiToolSchemas.InvokeElementActionArguments;
 
     public ToolSchema ResultSchema => MauiToolSchemas.ElementActionResult;
-
-    public ToolSecurity Security => MauiToolSecurityProfiles.InvokeElementAction;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

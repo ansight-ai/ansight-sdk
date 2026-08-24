@@ -6,7 +6,7 @@ import ai.ansight.runtime.AndroidToolResult
 import ai.ansight.runtime.FunctionJsonAndroidTool
 import ai.ansight.runtime.ToolDefinition
 import ai.ansight.runtime.ToolSchema
-import ai.ansight.runtime.ToolScope
+import ai.ansight.runtime.ToolPolicy
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Locale
@@ -20,7 +20,7 @@ internal object AndroidGenericUiTools {
             name = "Query UI Nodes",
             description = "Captures or reuses a UI snapshot and returns framework-neutral node references.",
             category = "ui",
-            scope = ToolScope.Read,
+            policy = ToolPolicy.Read,
             keywords = "ui query find node selector automation id role text type",
             argumentsSchema = queryArgumentsSchema,
             resultSchema = queryResultSchema,
@@ -34,7 +34,7 @@ internal object AndroidGenericUiTools {
             name = "Perform UI Action",
             description = "Performs a generic action against a current snapshot-scoped UI node.",
             category = "ui",
-            scope = ToolScope.Write,
+            policy = ToolPolicy.Write,
             keywords = "ui action tap focus set value toggle select node snapshot",
             argumentsSchema = ToolSchema.obj(
                 properties = mapOf(
@@ -68,7 +68,7 @@ internal object AndroidGenericUiTools {
             name = "Wait For UI",
             description = "Polls generic UI snapshots until a node condition is met.",
             category = "ui",
-            scope = ToolScope.Read,
+            policy = ToolPolicy.Read,
             keywords = "ui wait poll condition exists visible enabled gone",
             argumentsSchema = ToolSchema.obj(
                 properties = queryProperties + mapOf(

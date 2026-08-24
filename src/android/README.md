@@ -16,7 +16,7 @@ Use the all-in-one package for development builds:
 
 ```kotlin
 dependencies {
-    implementation("ai.ansight:ansight-android:1.3.0-preview.12")
+    implementation("ai.ansight:ansight-android:1.4.0-preview.12")
 }
 ```
 
@@ -27,11 +27,11 @@ Minimal integrations can depend on only the packages they need:
 
 ```kotlin
 dependencies {
-    implementation("ai.ansight:ansight-core-android:1.3.0-preview.12")
-    implementation("ai.ansight:ansight-pairing-android:1.3.0-preview.12")
-    implementation("ai.ansight:ansight-tools-filedescriptordiagnostics-android:1.3.0-preview.12")
-    implementation("ai.ansight:ansight-tools-jnireferencediagnostics-android:1.3.0-preview.12")
-    implementation("ai.ansight:ansight-tools-visualtree-android:1.3.0-preview.12")
+    implementation("ai.ansight:ansight-core-android:1.4.0-preview.12")
+    implementation("ai.ansight:ansight-pairing-android:1.4.0-preview.12")
+    implementation("ai.ansight:ansight-tools-filedescriptordiagnostics-android:1.4.0-preview.12")
+    implementation("ai.ansight:ansight-tools-jnireferencediagnostics-android:1.4.0-preview.12")
+    implementation("ai.ansight:ansight-tools-visualtree-android:1.4.0-preview.12")
 }
 ```
 
@@ -342,16 +342,16 @@ Ansight.clearCustomProperties()
 
 ## Tool Guards
 
-| Guard | Allowed scopes |
+| Guard | Maximum policy |
 | --- | --- |
 | `AnsightToolGuard.Disabled` | None |
 | `AnsightToolGuard.ReadOnly` | `Read` |
-| `AnsightToolGuard.ReadWrite` | `Read`, `Write` |
-| `AnsightToolGuard.FullAccess` | `Read`, `Write`, `Delete` |
+| `AnsightToolGuard.ReadWrite` | `Write` |
+| `AnsightToolGuard.FullAccess` | `Critical` |
 
-`ReadWrite` intentionally hides delete-scoped tools such as
-`files.delete_file`, `prefs.remove_key`, `secure.remove_key`, and overlay
-removal tools.
+`ReadWrite` intentionally hides critical tools such as `files.delete_file`,
+`prefs.remove_key`, secure-storage access, arbitrary reflection, and sensitive
+UI operations.
 
 ## Runtime Toggles
 
@@ -431,7 +431,7 @@ Register custom tools before or after initialization:
 import ai.ansight.runtime.AndroidToolResult
 import ai.ansight.runtime.FunctionAndroidTool
 import ai.ansight.runtime.ToolDefinition
-import ai.ansight.runtime.ToolScope
+import ai.ansight.runtime.ToolPolicy
 import org.json.JSONObject
 
 AnsightRuntime.registerTool(
@@ -441,7 +441,7 @@ AnsightRuntime.registerTool(
             name = "State Snapshot",
             description = "Returns current app state.",
             category = "app",
-            scope = ToolScope.Read,
+            policy = ToolPolicy.Read,
             keywords = "state snapshot",
         ),
     ) { _, _ ->
@@ -506,7 +506,7 @@ val options = AnsightOptions.createBuilder()
     .build()
 ```
 
-Configuring at least one provider automatically adds the read-scoped
+Configuring at least one provider automatically adds the `read` policy
 `artifacts.query` and `artifacts.request` tools. Requests require a live Studio
 tool call; returned bytes are sent over the native binary-transfer channel.
 Provider query failures are isolated in the artifact catalog.

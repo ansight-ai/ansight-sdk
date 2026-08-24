@@ -9,12 +9,12 @@ import android.app.Application
 class ToolingProtocolTest {
     @Test
     fun guardLimitsVisibleScopes() {
-        assertTrue(AnsightToolGuard.ReadOnly.canDiscover(ToolScope.Read))
-        assertFalse(AnsightToolGuard.ReadOnly.canDiscover(ToolScope.Write))
-        assertTrue(AnsightToolGuard.ReadWrite.canDiscover(ToolScope.Write))
-        assertFalse(AnsightToolGuard.ReadWrite.canDiscover(ToolScope.Delete))
-        assertTrue(AnsightToolGuard.FullAccess.canDiscover(ToolScope.Delete))
-        assertFalse(AnsightToolGuard.Disabled.canDiscover(ToolScope.Read))
+        assertTrue(AnsightToolGuard.ReadOnly.canDiscover(ToolPolicy.Read))
+        assertFalse(AnsightToolGuard.ReadOnly.canDiscover(ToolPolicy.Write))
+        assertTrue(AnsightToolGuard.ReadWrite.canDiscover(ToolPolicy.Write))
+        assertFalse(AnsightToolGuard.ReadWrite.canDiscover(ToolPolicy.Critical))
+        assertTrue(AnsightToolGuard.FullAccess.canDiscover(ToolPolicy.Critical))
+        assertFalse(AnsightToolGuard.Disabled.canDiscover(ToolPolicy.Read))
     }
 
     @Test

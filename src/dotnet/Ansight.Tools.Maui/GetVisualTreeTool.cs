@@ -9,7 +9,7 @@ public sealed class GetVisualTreeTool : ITool
 
     public string Category => "maui";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Read;
 
     public string Id => MauiToolIds.GetVisualTree;
 
@@ -22,8 +22,6 @@ public sealed class GetVisualTreeTool : ITool
     public ToolSchema ArgumentsSchema => MauiToolSchemas.GetVisualTreeArguments;
 
     public ToolSchema ResultSchema => MauiToolSchemas.VisualTreeResult;
-
-    public ToolSecurity Security => MauiToolSecurityProfiles.GetVisualTree;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
         => CaptureAsync(arguments);

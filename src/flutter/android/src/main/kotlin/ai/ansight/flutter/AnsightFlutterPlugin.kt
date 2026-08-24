@@ -39,9 +39,7 @@ import ai.ansight.runtime.RecordedEvent
 import ai.ansight.runtime.RecordedMetric
 import ai.ansight.runtime.ToolDefinition
 import ai.ansight.runtime.ToolSchema
-import ai.ansight.runtime.ToolScope
-import ai.ansight.runtime.ToolSecurity
-import ai.ansight.runtime.ToolSecurityLevel
+import ai.ansight.runtime.ToolPolicy
 import ai.ansight.runtime.sendBinaryTransfer
 import ai.ansight.tools.database.AndroidDatabaseRoot
 import ai.ansight.tools.database.AndroidDatabaseToolsOptions
@@ -884,12 +882,11 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
         name = map.stringValue("name") ?: map.stringValue("id").orEmpty(),
         description = map.stringValue("description").orEmpty(),
         category = map.stringValue("category") ?: "custom",
-        scope = toolScope(map.stringValue("scope")),
+        policy = toolPolicy(map.stringValue("policy")),
         keywords = map.stringValue("keywords")
             ?: map.stringList("keywords").joinToString(" ").ifBlank { "flutter dart custom tool" },
         argumentsSchema = schema(map.objectValueOrNull("argumentsSchema")),
         resultSchema = schema(map.objectValueOrNull("resultSchema")),
-        security = toolSecurity(map.objectValueOrNull("security")),
     ).validated()
 
     private fun schema(map: JSONObject?): ToolSchema {
@@ -912,19 +909,6 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
             additionalProperties = map.booleanValue("additionalProperties", false),
             nullable = "null" in map.stringList("type"),
             format = map.stringValue("format"),
-        )
-    }
-
-    private fun toolSecurity(map: JSONObject?): ToolSecurity {
-        if (map == null) return ToolSecurity.Unspecified
-        return ToolSecurity(
-            level = when (map.stringValue("level")?.lowercase()) {
-                "medium", "moderate" -> ToolSecurityLevel.Medium
-                "high" -> ToolSecurityLevel.High
-                "critical" -> ToolSecurityLevel.Critical
-                else -> ToolSecurityLevel.Low
-            },
-            implications = map.stringList("implications"),
         )
     }
 
@@ -1220,9 +1204,9 @@ private fun toolGuardName(value: AnsightToolGuard): String =
         else -> "custom"
     }
 
-private fun toolScope(raw: String?): ToolScope =
+private fun toolPolicy(raw: String?): ToolPolicy =
     when (raw?.trim()?.lowercase()) {
-        "write" -> ToolScope.Write
-        "delete" -> ToolScope.Delete
-        else -> ToolScope.Read
+        "write" -> ToolPolicy.Write
+        "critical", "delete" -> ToolPolicy.Critical
+        else -> ToolPolicy.Read
     }

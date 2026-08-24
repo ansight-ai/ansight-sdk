@@ -11,8 +11,7 @@ final class PairingAndRuntimeTests: XCTestCase {
             discoveryPort: 45_200
         )
 
-        XCTAssertEqual(document.config.enrollment.maxScopes, ["Read", "Write"])
-        XCTAssertFalse(document.config.enrollment.allowCritical)
+        XCTAssertEqual(document.config.enrollment.maxToolPolicy, "write")
     }
 
     func testLatestValueBufferReplacesOnlyThePendingValue() async {

@@ -11,7 +11,7 @@ public sealed class GetPreferenceValueTool : ITool
 
     public string Category => "prefs";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Read;
 
     public string Id => PreferencesToolIds.GetValue;
 
@@ -24,8 +24,6 @@ public sealed class GetPreferenceValueTool : ITool
     public ToolSchema ArgumentsSchema => PreferencesToolSchemas.GetValueArguments;
 
     public ToolSchema ResultSchema => PreferencesToolSchemas.GetValueResult;
-
-    public ToolSecurity Security => PreferencesToolSecurityProfiles.GetValue;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

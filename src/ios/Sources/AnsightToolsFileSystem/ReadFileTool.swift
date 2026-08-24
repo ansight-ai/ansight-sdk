@@ -14,9 +14,8 @@ public final class ReadFileTool: AnsightTool {
             name: "Read File",
             description: "Reads a file from the app sandbox using a constrained path.",
             category: "files",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .read,
             keywords: "filesystem file read sandbox",
-            security: AnsightFileSystemToolSecurityProfiles.readFile,
             argumentsSchema: AnsightFileSystemToolSchemas.readFileArguments,
             resultSchema: AnsightFileSystemToolSchemas.readFileResult
         )

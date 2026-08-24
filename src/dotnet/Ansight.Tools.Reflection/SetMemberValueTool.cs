@@ -11,7 +11,7 @@ public sealed class SetMemberValueTool : ITool
 
     public string Category => "reflect";
 
-    public ToolScope Scope => ToolScope.Write;
+    public ToolPolicy Policy => ToolPolicy.Critical;
 
     public string Id => ReflectionToolIds.SetMemberValue;
 
@@ -24,8 +24,6 @@ public sealed class SetMemberValueTool : ITool
     public ToolSchema ArgumentsSchema => ReflectionToolSchemas.SetMemberValueArguments;
 
     public ToolSchema ResultSchema => ReflectionToolSchemas.SetMemberValueResult;
-
-    public ToolSecurity Security => ReflectionToolSecurityProfiles.SetMemberValue;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

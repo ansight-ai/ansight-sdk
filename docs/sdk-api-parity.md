@@ -389,12 +389,12 @@ capture backlog.
 
 ## Tool Guards
 
-| Guard | Discovery | Execution | Allowed scopes |
+| Guard | Discovery | Execution | Maximum policy |
 | --- | --- | --- | --- |
 | Disabled | No | No | None |
 | ReadOnly | Yes | Yes | Read |
-| ReadWrite | Yes | Yes | Read, Write |
-| FullAccess | Yes | Yes | Read, Write, Delete |
+| ReadWrite | Yes | Yes | Write |
+| FullAccess | Yes | Yes | Critical |
 
 Naming:
 
@@ -406,8 +406,8 @@ Naming:
 - React Native strings: `"disabled"`, `"readOnly"`, `"readWrite"`,
   `"fullAccess"`. `"full"` is accepted as a compatibility alias.
 
-Delete-scoped tools, such as `files.delete_file`, `prefs.remove_key`,
-`secure.remove_key`, and overlay removal tools, require `FullAccess`.
+Critical tools, such as `files.delete_file`, `prefs.remove_key`, secure-storage
+access, arbitrary reflection, and sensitive UI operations, require `FullAccess`.
 
 ## Tool Suites
 
@@ -474,7 +474,7 @@ Tool-suite registration follows the same app-code convention:
 
 Artifact providers are core SDK extensibility, not a separate tool package. A
 provider advertises dynamically available exports and creates a requested
-snapshot. Registering the first provider installs the read-scoped
+snapshot. Registering the first provider installs the `read` policy
 `artifacts.query` and `artifacts.request` tools.
 
 | Concept | .NET | Android | iOS | React Native |
@@ -513,9 +513,13 @@ must be explicitly enabled and remains disabled in Release application builds.
 
 ## Custom Tools
 
-Custom tools must declare an id, name, category, scope, optional schemas, and a
+Custom tools must declare an id, name, category, policy, optional schemas, and a
 handler. Tool ids are unique; Android and iOS support replacing an existing id
 when the bridge needs to refresh a JavaScript-backed handler.
+
+Policy is ordered consistently on every SDK: `read < write < critical`. Use
+`read` for inspection, `write` for ordinary UI or app-state changes, and
+`critical` for destructive, secret-bearing, or arbitrary code-invoking tools.
 
 Android:
 
@@ -527,7 +531,7 @@ AnsightRuntime.registerTool(
             name = "State Snapshot",
             description = "Returns current app state.",
             category = "app",
-            scope = ToolScope.Read,
+            policy = ToolPolicy.Read,
             keywords = "state snapshot",
         ),
     ) { _, _ ->
@@ -545,7 +549,7 @@ struct StateSnapshotTool: AnsightTool {
             id: "app.state.snapshot",
             name: "State Snapshot",
             category: "app",
-            scope: .read
+            policy: .read
         )
     }
 
@@ -565,7 +569,7 @@ const registration = Ansight.registerTool(
     id: "app.state.snapshot",
     name: "State Snapshot",
     category: "app",
-    scope: "Read",
+    policy: "read",
   },
   async () => ({ success: true, result: { state: "ready" } }),
 );
@@ -581,7 +585,7 @@ final registration = await Ansight.instance.registerTool(
     id: 'app.state.snapshot',
     name: 'State Snapshot',
     category: 'app',
-    scope: AnsightToolScope.read,
+    policy: AnsightToolPolicy.read,
   ),
   (arguments, context) async => const AnsightToolResult.success(
     result: <String, Object?>{'state': 'ready'},

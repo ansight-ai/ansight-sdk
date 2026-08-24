@@ -14,9 +14,8 @@ public final class QueryDatabaseTool: AnsightTool {
             name: "Query Database",
             description: "Executes a constrained read query against an app database.",
             category: "data",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .read,
             keywords: "database sql query read",
-            security: AnsightDatabaseToolSecurityProfiles.query,
             argumentsSchema: AnsightDatabaseToolSchemas.queryArguments,
             resultSchema: AnsightDatabaseToolSchemas.queryResult
         )

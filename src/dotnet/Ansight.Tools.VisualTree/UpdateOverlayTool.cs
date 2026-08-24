@@ -4,7 +4,7 @@ public sealed class UpdateOverlayTool : ITool
 {
     public string Category => "ui";
 
-    public ToolScope Scope => ToolScope.Write;
+    public ToolPolicy Policy => ToolPolicy.Write;
 
     public string Id => VisualTreeToolIds.UpdateOverlay;
 
@@ -17,8 +17,6 @@ public sealed class UpdateOverlayTool : ITool
     public ToolSchema ArgumentsSchema => VisualTreeToolSchemas.UpdateOverlayArguments;
 
     public ToolSchema ResultSchema => VisualTreeToolSchemas.OverlayResult;
-
-    public ToolSecurity Security => VisualTreeToolSecurityProfiles.UpdateOverlay;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

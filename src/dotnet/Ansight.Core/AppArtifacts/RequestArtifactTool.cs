@@ -47,7 +47,7 @@ public sealed class RequestArtifactTool : ITool
 
     public string Category => "artifacts";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Read;
 
     public string Id => ArtifactToolIds.Request;
 
@@ -60,8 +60,6 @@ public sealed class RequestArtifactTool : ITool
     public ToolSchema ArgumentsSchema => ArtifactToolSchemas.RequestArguments;
 
     public ToolSchema ResultSchema => ArtifactToolSchemas.RequestResult;
-
-    public ToolSecurity Security => ArtifactToolSecurityProfiles.Request;
 
     public async Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

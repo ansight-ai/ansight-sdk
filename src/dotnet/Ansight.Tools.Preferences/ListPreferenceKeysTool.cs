@@ -11,7 +11,7 @@ public sealed class ListPreferenceKeysTool : ITool
 
     public string Category => "prefs";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Read;
 
     public string Id => PreferencesToolIds.ListKeys;
 
@@ -24,8 +24,6 @@ public sealed class ListPreferenceKeysTool : ITool
     public ToolSchema ArgumentsSchema => PreferencesToolSchemas.ListKeysArguments;
 
     public ToolSchema ResultSchema => PreferencesToolSchemas.ListKeysResult;
-
-    public ToolSecurity Security => PreferencesToolSecurityProfiles.ListKeys;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

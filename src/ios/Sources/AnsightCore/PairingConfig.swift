@@ -86,8 +86,7 @@ enum LocalPairingDocumentFactory {
                     accessToken: PairingDeviceIdentity.resolveAccessToken(),
                     expiresAt: expiresAtValue,
                     grantExpiresAt: expiresAtValue,
-                    maxScopes: ["Read", "Write"],
-                    allowCritical: false
+                    maxToolPolicy: "write"
                 )
             ),
             discoveryHint: PairingDiscoveryHint(
@@ -106,22 +105,19 @@ public struct PairingEnrollment: Sendable, Codable, Equatable {
     public var expiresAt: String
     public var grantExpiresAt: String
     public var maxUses: Int
-    public var maxScopes: [String]
-    public var allowCritical: Bool
+    public var maxToolPolicy: String
 
     public init(
         accessToken: String,
         expiresAt: String,
         grantExpiresAt: String,
         maxUses: Int = 1,
-        maxScopes: [String] = ["Read"],
-        allowCritical: Bool = false
+        maxToolPolicy: String = "read"
     ) {
         self.accessToken = accessToken
         self.expiresAt = expiresAt
         self.grantExpiresAt = grantExpiresAt
         self.maxUses = maxUses
-        self.maxScopes = maxScopes
-        self.allowCritical = allowCritical
+        self.maxToolPolicy = maxToolPolicy
     }
 }

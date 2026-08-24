@@ -14,9 +14,8 @@ public final class GetFileChecksumTool: AnsightTool {
             name: "Get File Checksum",
             description: "Computes content fingerprints for a sandboxed file.",
             category: "files",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .read,
             keywords: "filesystem file checksum hash digest sandbox",
-            security: AnsightFileSystemToolSecurityProfiles.getFileChecksum,
             argumentsSchema: AnsightFileSystemToolSchemas.getFileChecksumArguments,
             resultSchema: AnsightFileSystemToolSchemas.getFileChecksumResult
         )

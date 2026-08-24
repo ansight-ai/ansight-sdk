@@ -11,7 +11,7 @@ public sealed class GetResourceStateTool : ITool
 {
     public string Category => "maui";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Read;
 
     public string Id => MauiToolIds.GetResourceState;
 
@@ -24,8 +24,6 @@ public sealed class GetResourceStateTool : ITool
     public ToolSchema ArgumentsSchema => MauiToolSchemas.GetResourceStateArguments;
 
     public ToolSchema ResultSchema => MauiToolSchemas.ResourceStateResult;
-
-    public ToolSecurity Security => MauiToolSecurityProfiles.GetResourceState;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

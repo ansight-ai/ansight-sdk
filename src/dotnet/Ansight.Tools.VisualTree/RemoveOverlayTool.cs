@@ -4,7 +4,7 @@ public sealed class RemoveOverlayTool : ITool
 {
     public string Category => "ui";
 
-    public ToolScope Scope => ToolScope.Write;
+    public ToolPolicy Policy => ToolPolicy.Write;
 
     public string Id => VisualTreeToolIds.RemoveOverlay;
 
@@ -17,8 +17,6 @@ public sealed class RemoveOverlayTool : ITool
     public ToolSchema ArgumentsSchema => VisualTreeToolSchemas.RemoveOverlayArguments;
 
     public ToolSchema ResultSchema => VisualTreeToolSchemas.RemoveOverlayResult;
-
-    public ToolSecurity Security => VisualTreeToolSecurityProfiles.RemoveOverlay;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

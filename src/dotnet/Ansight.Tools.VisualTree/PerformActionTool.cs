@@ -8,14 +8,13 @@ using System.Text.Json.Nodes;
 public sealed class PerformActionTool : IJsonTool
 {
     public string Category => "ui";
-    public ToolScope Scope => ToolScope.Write;
+    public ToolPolicy Policy => ToolPolicy.Write;
     public string Id => VisualTreeToolIds.PerformAction;
     public string Name => "Perform UI Action";
     public string Description => "Performs a generic action against a current snapshot-scoped UI node.";
     public string Keywords => "ui action tap focus set value toggle select node snapshot";
     public ToolSchema ArgumentsSchema => VisualTreeToolSchemas.PerformActionArguments;
     public ToolSchema ResultSchema => VisualTreeToolSchemas.PerformActionResult;
-    public ToolSecurity Security => VisualTreeToolSecurityProfiles.PerformAction;
 
     public async Task<ToolResult> ExecuteAsync(
         ToolInvocation invocation,

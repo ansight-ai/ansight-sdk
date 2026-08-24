@@ -10,9 +10,8 @@ public final class UpdateOverlayTool: AnsightTool {
             name: "Update Overlay",
             description: "Edits an existing input-transparent diagnostic overlay.",
             category: "ui",
-            scope: AnsightToolScope.write.rawValue,
+            policy: .write,
             keywords: "ui overlay highlight update edit mutate",
-            security: AnsightVisualTreeToolSecurityProfiles.updateOverlay,
             argumentsSchema: AnsightVisualTreeToolSchemas.updateOverlayArguments,
             resultSchema: AnsightVisualTreeToolSchemas.overlayResult
         )

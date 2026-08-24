@@ -214,11 +214,6 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
             'Returns the mounted Flutter element and render-object hierarchy.',
         category: 'flutter',
         keywords: <String>['flutter', 'widget', 'element', 'tree', 'layout'],
-        security: AnsightToolSecurity(
-          level: AnsightToolSecurityLevel.medium,
-          summary: 'Reads the current Flutter widget hierarchy.',
-          implications: <String>['ui_metadata_disclosure'],
-        ),
       ),
       _getWidgetTree,
     );
@@ -229,11 +224,6 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
         description: 'Returns diagnostics for one widget-tree node.',
         category: 'flutter',
         keywords: <String>['flutter', 'widget', 'inspect', 'properties'],
-        security: AnsightToolSecurity(
-          level: AnsightToolSecurityLevel.medium,
-          summary: 'Reads diagnostic properties for a mounted widget.',
-          implications: <String>['ui_metadata_disclosure'],
-        ),
       ),
       _inspectWidget,
     );
@@ -244,11 +234,6 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
         description: 'Finds mounted widgets by type, key, or text.',
         category: 'flutter',
         keywords: <String>['flutter', 'widget', 'find', 'search', 'text'],
-        security: AnsightToolSecurity(
-          level: AnsightToolSecurityLevel.medium,
-          summary: 'Searches the current Flutter widget hierarchy.',
-          implications: <String>['ui_metadata_disclosure'],
-        ),
       ),
       _findWidgets,
     );

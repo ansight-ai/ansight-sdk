@@ -23,9 +23,8 @@ public final class InspectFileDescriptorTool: AnsightTool {
             name: "Inspect File Descriptor",
             description: "Returns metadata for one live file descriptor in the current app process.",
             category: "file_descriptors",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .read,
             keywords: "file descriptor handle inspect path socket pipe diagnostics",
-            security: AnsightFileDescriptorDiagnosticsToolSecurityProfiles.inspect,
             argumentsSchema: AnsightFileDescriptorDiagnosticsToolSchemas.inspectArguments,
             resultSchema: AnsightFileDescriptorDiagnosticsToolSchemas.inspectResult
         )

@@ -2,7 +2,7 @@ package ai.ansight.tools.database
 
 import ai.ansight.runtime.AndroidTool
 import ai.ansight.runtime.AndroidToolResult
-import ai.ansight.runtime.ToolScope
+import ai.ansight.runtime.ToolPolicy
 import ai.ansight.runtime.androidDatabaseTool
 import ai.ansight.runtime.intArg
 import org.json.JSONArray
@@ -41,7 +41,7 @@ object AndroidDatabaseTools {
             DatabaseToolIds.Query,
             "Query Database",
             "Runs a read-only SQLite query.",
-            ToolScope.Read,
+            ToolPolicy.Read,
         ) { args, context ->
             val sql = args["sql"]?.trim() ?: return@androidDatabaseTool AndroidToolResult.failure("SQL query is required.", "sql_required")
             if (!AndroidSQLiteSupport.isReadOnly(sql)) {

@@ -11,7 +11,7 @@ public sealed class CopyFileTool : ITool
 
     public string Category => "files";
 
-    public ToolScope Scope => ToolScope.Write;
+    public ToolPolicy Policy => ToolPolicy.Write;
 
     public string Id => FileSystemToolIds.CopyFile;
 
@@ -24,8 +24,6 @@ public sealed class CopyFileTool : ITool
     public ToolSchema ArgumentsSchema => FileSystemToolSchemas.CopyFileArguments;
 
     public ToolSchema ResultSchema => FileSystemToolSchemas.CopyFileResult;
-
-    public ToolSecurity Security => FileSystemToolSecurityProfiles.CopyFile;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

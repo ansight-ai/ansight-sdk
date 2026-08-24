@@ -425,8 +425,7 @@ export function installDomTools(
         description:
           "Returns the accessible HTML DOM tree rendered inside the Capacitor WebView.",
         category: "UI",
-        scope: "read",
-        security: { level: "low", summary: "Reads the current app DOM." },
+        policy: "read",
       },
       async () => {
         const root = document.documentElement;
@@ -460,7 +459,7 @@ export function installDomTools(
         description:
           "Returns the current state of a DOM node captured by dom.get_document.",
         category: "UI",
-        scope: "read",
+        policy: "read",
         argumentsSchema: {
           type: "object",
           required: ["nodeId"],
@@ -500,7 +499,7 @@ export function installDomTools(
         name: "Query DOM",
         description: "Finds DOM nodes using a CSS selector.",
         category: "UI",
-        scope: "read",
+        policy: "read",
         argumentsSchema: {
           type: "object",
           required: ["selector"],
@@ -541,7 +540,7 @@ export function installDomTools(
           name: "Invoke DOM action",
           description: "Taps, focuses, blurs, or enters text in a DOM node.",
           category: "UI",
-          scope: "write",
+          policy: "write",
           argumentsSchema: {
             type: "object",
             required: ["nodeId", "action"],
@@ -553,10 +552,6 @@ export function installDomTools(
               },
               value: { type: "string" },
             },
-          },
-          security: {
-            level: "high",
-            summary: "Can interact with controls inside the app WebView.",
           },
         },
         ({ nodeId: id, action, value }) => {

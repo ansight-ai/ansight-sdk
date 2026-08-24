@@ -11,7 +11,7 @@ public sealed class GetLayoutDiagnosticsTool : ITool
 {
     public string Category => "maui";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Read;
 
     public string Id => MauiToolIds.GetLayoutDiagnostics;
 
@@ -24,8 +24,6 @@ public sealed class GetLayoutDiagnosticsTool : ITool
     public ToolSchema ArgumentsSchema => MauiToolSchemas.NodeOnlyArguments;
 
     public ToolSchema ResultSchema => MauiToolSchemas.DiagnosticsResult;
-
-    public ToolSecurity Security => MauiToolSecurityProfiles.GetLayoutDiagnostics;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

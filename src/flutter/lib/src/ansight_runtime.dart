@@ -610,12 +610,7 @@ class Ansight {
           name: 'Query App Artifacts',
           description: 'Lists artifacts currently available from the app.',
           category: 'artifacts',
-          scope: AnsightToolScope.read,
-          security: AnsightToolSecurity(
-            level: AnsightToolSecurityLevel.medium,
-            summary: 'Enumerates app-provided diagnostic exports.',
-            implications: <String>['metadata_disclosure'],
-          ),
+          policy: AnsightToolPolicy.read,
         ),
         _queryArtifacts,
       );
@@ -626,15 +621,7 @@ class Ansight {
           description:
               'Creates one app-provided artifact and transfers it to Studio.',
           category: 'artifacts',
-          scope: AnsightToolScope.read,
-          security: AnsightToolSecurity(
-            level: AnsightToolSecurityLevel.high,
-            summary: 'Exports app-provided diagnostic data.',
-            implications: <String>[
-              'metadata_disclosure',
-              'binary_data_transfer',
-            ],
-          ),
+          policy: AnsightToolPolicy.read,
         ),
         _requestArtifact,
       );

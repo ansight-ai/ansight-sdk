@@ -16,9 +16,8 @@ public final class BeginBinaryDownloadTool: AnsightTool {
             name: "Begin Binary Download",
             description: "Starts a binary WebSocket download of a sandboxed file.",
             category: "files",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .read,
             keywords: "filesystem file download websocket binary sandbox",
-            security: AnsightFileSystemToolSecurityProfiles.beginBinaryDownload,
             argumentsSchema: AnsightFileSystemToolSchemas.beginBinaryDownloadArguments,
             resultSchema: AnsightFileSystemToolSchemas.beginBinaryDownloadResult
         )

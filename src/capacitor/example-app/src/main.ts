@@ -854,7 +854,7 @@ async function ensureHarnessTools(): Promise<string[]> {
         name: "Capacitor harness echo",
         description: "Echoes arguments through the JavaScript reverse bridge.",
         category: "Harness",
-        scope: "read",
+        policy: "read",
         timeoutMilliseconds: 5000,
       },
       async (args, context) => ({
@@ -874,7 +874,7 @@ async function ensureHarnessTools(): Promise<string[]> {
         name: "Read Capacitor harness state",
         description: "Returns test, fixture, platform, and connection state.",
         category: "Harness",
-        scope: "read",
+        policy: "read",
       },
       async () => ({
         success: true,
@@ -899,7 +899,7 @@ async function ensureHarnessTools(): Promise<string[]> {
         description:
           "Mutates navigation, tabs, modal, drawer, scene, or fixture state.",
         category: "Harness",
-        scope: "write",
+        policy: "write",
         argumentsSchema: {
           type: "object",
           properties: {
@@ -958,7 +958,7 @@ async function ensureHarnessTools(): Promise<string[]> {
         description:
           "Returns required native/JavaScript tools and fixture locations.",
         category: "Harness",
-        scope: "read",
+        policy: "read",
       },
       () => ({ success: true, result: expectedRemoteContract() }),
     ),
@@ -969,7 +969,7 @@ async function ensureHarnessTools(): Promise<string[]> {
         description:
           "Exercises stable, non-destructive Capacitor SDK bridge methods.",
         category: "Harness",
-        scope: "write",
+        policy: "write",
       },
       async () => {
         const registerResult = await Ansight.registerCustomProperty(
@@ -1034,7 +1034,7 @@ async function ensureHarnessTools(): Promise<string[]> {
         description:
           "Returns WebGL renderer, palette, speed, rotation, and frame state.",
         category: "Harness",
-        scope: "read",
+        policy: "read",
       },
       () => ({
         success: true,
@@ -1692,7 +1692,7 @@ const tests: TestCase[] = [
           id: "harness.temporary",
           name: "Temporary harness tool",
           category: "Harness",
-          scope: "read",
+          policy: "read",
         },
         () => ({ success: true }),
       );

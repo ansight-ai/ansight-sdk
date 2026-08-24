@@ -118,7 +118,7 @@ public sealed class ToolProtocolCompositionTests
 
         public int ExecutionCount { get; private set; }
         public string Category => "test";
-        public ToolScope Scope => ToolScope.Read;
+        public ToolPolicy Policy => ToolPolicy.Read;
         public string Id { get; }
         public string Name => Id;
         public string Description => "Test JSON tool.";

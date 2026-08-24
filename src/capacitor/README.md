@@ -196,7 +196,7 @@ const tool = Ansight.registerTool(
     id: 'app.get_state',
     name: 'Get app state',
     category: 'App',
-    scope: 'read',
+    policy: 'read',
   },
   async () => ({ success: true, result: { ready: true } }),
 );
@@ -219,7 +219,7 @@ Binary payloads use the native live-session transfer channel.
 ## WebView DOM tools
 
 `.withDomTools()` registers `dom.get_document`, `dom.inspect_node`, and
-`dom.query_selector`. Pass `{ allowActions: true }` to add the write-scoped
+`dom.query_selector`. Pass `{ allowActions: true }` to add the `write` policy
 `dom.invoke_action` tool for `tap`, `typeText`, focus, and blur operations.
 The legacy `click` and `setValue` action names remain accepted. DOM trees use
 the WebView viewport as their coordinate space, so Studio can render their

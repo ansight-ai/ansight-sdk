@@ -61,7 +61,11 @@ future React Native JavaScript reflection roots.
 
 Recursive traversal is open by default. Use `WithAssemblyTraversalMode(ReflectionAssemblyTraversalMode.AllowListedOnly)` and `WithNamespaceTraversalMode(ReflectionNamespaceTraversalMode.AllowListedOnly)` with `AllowAssembly(...)` / `AllowNamespacePrefix(...)` only when you need to restrict expansion to selected assemblies or namespaces.
 
-`WithReadOnlyToolAccess()` exposes `reflect.list_roots`, `reflect.inspect_object`, and `reflect.describe_type`. `reflect.set_member_value` and `reflect.invoke_method` are write-scoped and require `WithReadWriteToolAccess()` or a custom `ToolGuard`.
+`reflect.list_roots` and `reflect.describe_type` use `ToolPolicy.Read`.
+`reflect.inspect_object`, `reflect.set_member_value`, and
+`reflect.invoke_method` use `ToolPolicy.Critical` because they can disclose
+sensitive state or execute arbitrary app code; they require
+`WithAllToolAccess()` or a custom critical-enabled `ToolGuard`.
 
 These tools are intended for local debugging only and may expose or mutate sensitive runtime state.
 

@@ -26,7 +26,7 @@ public sealed class QueryArtifactsTool : ITool
 
     public string Category => "artifacts";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Read;
 
     public string Id => ArtifactToolIds.Query;
 
@@ -39,8 +39,6 @@ public sealed class QueryArtifactsTool : ITool
     public ToolSchema ArgumentsSchema => ArtifactToolSchemas.QueryArguments;
 
     public ToolSchema ResultSchema => ArtifactToolSchemas.QueryResult;
-
-    public ToolSecurity Security => ArtifactToolSecurityProfiles.Query;
 
     public async Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

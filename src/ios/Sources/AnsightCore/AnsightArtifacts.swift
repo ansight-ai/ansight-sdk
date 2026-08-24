@@ -162,7 +162,7 @@ public struct AnsightArtifactDefinition: Sendable, Equatable {
     public var category: String
     public var content: AnsightArtifactContentDescriptor
     public var argumentsSchema: AnsightToolSchema
-    public var security: AnsightToolSecurity
+    public var policy: AnsightToolPolicy
     public var tags: [String]
     public var metadata: [String: String]
 
@@ -174,7 +174,7 @@ public struct AnsightArtifactDefinition: Sendable, Equatable {
         category: String,
         content: AnsightArtifactContentDescriptor,
         argumentsSchema: AnsightToolSchema = .emptyObject,
-        security: AnsightToolSecurity = .unspecified,
+        policy: AnsightToolPolicy = .read,
         tags: [String] = [],
         metadata: [String: String] = [:]
     ) {
@@ -185,7 +185,7 @@ public struct AnsightArtifactDefinition: Sendable, Equatable {
         self.category = category
         self.content = content
         self.argumentsSchema = argumentsSchema
-        self.security = security
+        self.policy = policy
         self.tags = tags
         self.metadata = metadata
     }
@@ -216,7 +216,7 @@ public struct AnsightArtifactDefinition: Sendable, Equatable {
             category: normalizedCategory,
             content: try content.validated(),
             argumentsSchema: argumentsSchema,
-            security: security,
+            policy: policy,
             tags: AnsightArtifactProviderDescriptor.normalizedTags(tags),
             metadata: AnsightArtifactProviderDescriptor.normalizedMetadata(metadata)
         )
@@ -234,7 +234,7 @@ public struct AnsightArtifactDefinition: Sendable, Equatable {
             "metadata": .object(metadata.mapValues(JSONValue.string)),
             "content": content.jsonValue,
             "argumentsSchema": argumentsSchema.json,
-            "security": security.jsonValue,
+            "policy": .string(policy.rawValue),
         ])
     }
 }
@@ -436,9 +436,8 @@ public enum AnsightArtifactToolSupport {
             name: "Query Artifacts",
             description: "Queries app-provided artifact providers and currently requestable artifact definitions.",
             category: "artifacts",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .read,
             keywords: "artifact artifacts query catalog provider export snapshot",
-            security: AnsightArtifactToolSecurityProfiles.query,
             argumentsSchema: AnsightArtifactToolSchemas.queryArguments,
             resultSchema: AnsightArtifactToolSchemas.queryResult
         )
@@ -450,9 +449,8 @@ public enum AnsightArtifactToolSupport {
             name: "Request Artifact",
             description: "Requests an app-provided artifact snapshot and streams it to the host.",
             category: "artifacts",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .read,
             keywords: "artifact artifacts request export snapshot binary stream",
-            security: AnsightArtifactToolSecurityProfiles.request,
             argumentsSchema: AnsightArtifactToolSchemas.requestArguments,
             resultSchema: AnsightArtifactToolSchemas.requestResult
         )
@@ -616,25 +614,6 @@ public enum AnsightArtifactToolSupport {
             return .failure(error.localizedDescription, errorCode: "artifact_request_failed")
         }
     }
-}
-
-private enum AnsightArtifactToolSecurityProfiles {
-    static let query = AnsightToolSecurity(
-        level: .moderate,
-        summary: "Discovers app-provided artifact definitions and descriptive metadata.",
-        implications: [
-            "May reveal app-specific diagnostic export names and categories.",
-        ]
-    )
-
-    static let request = AnsightToolSecurity(
-        level: .high,
-        summary: "Requests and exports an app-provided artifact snapshot.",
-        implications: [
-            "May expose user, app, or environment data chosen by the registered artifact provider.",
-            "Streams artifact bytes to the paired host over the active session.",
-        ]
-    )
 }
 
 private enum AnsightArtifactToolSchemas {

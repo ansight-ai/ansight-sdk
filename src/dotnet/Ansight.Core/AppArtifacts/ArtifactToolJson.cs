@@ -33,7 +33,7 @@ internal static class ArtifactToolJson
             ["metadata"] = ToJsonObject(definition.Metadata),
             ["content"] = ToJson(definition.Content),
             ["argumentsSchema"] = definition.ArgumentsSchema.ToJson(),
-            ["security"] = definition.Security.ToJson()
+            ["policy"] = definition.Policy.ToString().ToLowerInvariant()
         };
     }
 

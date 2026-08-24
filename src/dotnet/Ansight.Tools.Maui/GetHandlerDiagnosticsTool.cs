@@ -8,7 +8,7 @@ public sealed class GetHandlerDiagnosticsTool : ITool
 {
     public string Category => "maui";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Read;
 
     public string Id => MauiToolIds.GetHandlerDiagnostics;
 
@@ -21,8 +21,6 @@ public sealed class GetHandlerDiagnosticsTool : ITool
     public ToolSchema ArgumentsSchema => MauiToolSchemas.GetHandlerDiagnosticsArguments;
 
     public ToolSchema ResultSchema => MauiToolSchemas.DiagnosticsResult;
-
-    public ToolSecurity Security => MauiToolSecurityProfiles.GetHandlerDiagnostics;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

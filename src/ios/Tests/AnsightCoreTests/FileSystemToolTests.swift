@@ -167,7 +167,7 @@ final class FileSystemToolTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("out/moved.txt").path))
     }
 
-    func testFileSystemCatalogIncludesSecurityMetadata() throws {
+    func testFileSystemCatalogIncludesPolicies() throws {
         let root = try makeTemporaryRoot()
         defer {
             try? FileManager.default.removeItem(at: root)
@@ -189,15 +189,9 @@ final class FileSystemToolTests: XCTestCase {
             return object
         }.first
 
-        guard let deleteTool,
-              case .object(let security)? = deleteTool["security"],
-              case .array(let implications)? = security["implications"] else {
-            return XCTFail("Expected delete-file security metadata.")
-        }
-
-        XCTAssertEqual(security["level"], .string("Critical"))
-        XCTAssertTrue(implications.contains(.string("deletes_app_data")))
-        XCTAssertTrue(implications.contains(.string("accesses_file_system")))
+        XCTAssertEqual(deleteTool?["policy"], .string("critical"))
+        XCTAssertNil(deleteTool?["scope"])
+        XCTAssertNil(deleteTool?["security"])
     }
 
     func testReadOnlyGuardDeniesFileWrites() throws {

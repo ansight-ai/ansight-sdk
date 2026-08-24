@@ -11,7 +11,7 @@ public sealed class InspectObjectTool : ITool
 
     public string Category => "reflect";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Critical;
 
     public string Id => ReflectionToolIds.InspectObject;
 
@@ -24,8 +24,6 @@ public sealed class InspectObjectTool : ITool
     public ToolSchema ArgumentsSchema => ReflectionToolSchemas.InspectObjectArguments;
 
     public ToolSchema ResultSchema => ReflectionToolSchemas.InspectObjectResult;
-
-    public ToolSecurity Security => ReflectionToolSecurityProfiles.InspectObject;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

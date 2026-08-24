@@ -10,9 +10,8 @@ public final class QueryNodesTool: AnsightJSONTool {
             name: "Query UI Nodes",
             description: "Captures or reuses a UI snapshot and returns framework-neutral node references.",
             category: "ui",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .read,
             keywords: "ui query find node selector automation id role text type",
-            security: AnsightVisualTreeToolSecurityProfiles.queryNodes,
             argumentsSchema: AnsightVisualTreeToolSchemas.queryNodesArguments,
             resultSchema: AnsightVisualTreeToolSchemas.queryNodesResult
         )
@@ -32,9 +31,8 @@ public final class PerformActionTool: AnsightJSONTool {
             name: "Perform UI Action",
             description: "Performs a generic action against a current snapshot-scoped UI node.",
             category: "ui",
-            scope: AnsightToolScope.write.rawValue,
+            policy: .write,
             keywords: "ui action tap focus set value toggle select node snapshot",
-            security: AnsightVisualTreeToolSecurityProfiles.performAction,
             argumentsSchema: AnsightVisualTreeToolSchemas.performActionArguments,
             resultSchema: AnsightVisualTreeToolSchemas.performActionResult
         )
@@ -103,9 +101,8 @@ public final class WaitForUIConditionTool: AnsightJSONTool {
             name: "Wait For UI",
             description: "Polls generic UI snapshots until a node condition is met.",
             category: "ui",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .read,
             keywords: "ui wait poll condition exists visible enabled gone",
-            security: AnsightVisualTreeToolSecurityProfiles.wait,
             argumentsSchema: AnsightVisualTreeToolSchemas.waitArguments,
             resultSchema: AnsightVisualTreeToolSchemas.waitResult
         )

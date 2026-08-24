@@ -50,7 +50,7 @@ public sealed class ToolAvailabilityTests
     {
         public string Category => "test";
 
-        public ToolScope Scope => ToolScope.Read;
+        public ToolPolicy Policy => ToolPolicy.Read;
 
         public string Id => "mapwork.open";
 

@@ -11,7 +11,7 @@ public sealed class ClearBindablePropertyTool : ITool
 {
     public string Category => "maui";
 
-    public ToolScope Scope => ToolScope.Write;
+    public ToolPolicy Policy => ToolPolicy.Critical;
 
     public string Id => MauiToolIds.ClearBindableProperty;
 
@@ -24,8 +24,6 @@ public sealed class ClearBindablePropertyTool : ITool
     public ToolSchema ArgumentsSchema => MauiToolSchemas.ClearBindablePropertyArguments;
 
     public ToolSchema ResultSchema => MauiToolSchemas.BindablePropertyMutationResult;
-
-    public ToolSecurity Security => MauiToolSecurityProfiles.ClearBindableProperty;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

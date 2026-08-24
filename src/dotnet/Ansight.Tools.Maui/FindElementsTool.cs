@@ -11,7 +11,7 @@ public sealed class FindElementsTool : ITool
 {
     public string Category => "maui";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Read;
 
     public string Id => MauiToolIds.FindElements;
 
@@ -24,8 +24,6 @@ public sealed class FindElementsTool : ITool
     public ToolSchema ArgumentsSchema => MauiToolSchemas.FindElementsArguments;
 
     public ToolSchema ResultSchema => MauiToolSchemas.FindElementsResult;
-
-    public ToolSecurity Security => MauiToolSecurityProfiles.FindElements;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

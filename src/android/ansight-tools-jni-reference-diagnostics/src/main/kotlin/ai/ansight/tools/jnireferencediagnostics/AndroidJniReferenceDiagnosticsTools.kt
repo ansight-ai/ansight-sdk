@@ -4,9 +4,7 @@ import ai.ansight.runtime.AndroidTool
 import ai.ansight.runtime.AndroidToolResult
 import ai.ansight.runtime.FunctionAndroidTool
 import ai.ansight.runtime.ToolDefinition
-import ai.ansight.runtime.ToolScope
-import ai.ansight.runtime.ToolSecurity
-import ai.ansight.runtime.ToolSecurityLevel
+import ai.ansight.runtime.ToolPolicy
 
 object AndroidJniReferenceDiagnosticsTools {
     @JvmStatic
@@ -25,19 +23,10 @@ object AndroidJniReferenceDiagnosticsTools {
                 name = "Capture JNI Object-Reference Graph",
                 description = "Captures a bounded, redacted object graph rooted at JNI references.",
                 category = "jni_references",
-                scope = ToolScope.Read,
+                policy = ToolPolicy.Read,
                 keywords = "jni java native references globals locals monitors heap graph diagnostics",
                 argumentsSchema = JniReferenceDiagnosticsSchemas.captureGraphArguments,
                 resultSchema = JniReferenceDiagnosticsSchemas.captureGraphResult,
-                security = ToolSecurity(
-                    ToolSecurityLevel.High,
-                    listOf(
-                        "metadata_disclosure",
-                        "inspects_runtime_state",
-                        "temporarily_pauses_app",
-                        "writes_temporary_heap_snapshot",
-                    ),
-                ),
             ),
         ) { arguments, context ->
             try {

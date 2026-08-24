@@ -14,9 +14,8 @@ public final class SetPreferenceValueTool: AnsightTool {
             name: "Set Preference Value",
             description: "Writes a value to an iOS UserDefaults store.",
             category: "prefs",
-            scope: AnsightToolScope.write.rawValue,
+            policy: .write,
             keywords: "preferences userdefaults write settings",
-            security: AnsightPreferencesToolSecurityProfiles.setValue,
             argumentsSchema: AnsightPreferencesToolSchemas.setValueArguments,
             resultSchema: AnsightPreferencesToolSchemas.setValueResult
         )

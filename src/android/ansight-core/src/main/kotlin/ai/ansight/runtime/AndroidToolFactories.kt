@@ -4,9 +4,9 @@ fun androidUiTool(
     id: String,
     name: String,
     description: String,
-    scope: ToolScope = ToolScope.Read,
+    policy: ToolPolicy = ToolPolicy.Read,
     handler: (Map<String, String>, AndroidToolExecutionContext) -> AndroidToolResult,
-) = androidSimpleTool(id, name, description, "ui", scope, "ui android view screenshot overlay", handler)
+) = androidSimpleTool(id, name, description, "ui", policy, "ui android view screenshot overlay", handler)
 
 fun androidJsonUiTool(
     definition: ToolDefinition,
@@ -17,68 +17,64 @@ fun androidFileTool(
     id: String,
     name: String,
     description: String,
-    scope: ToolScope = ToolScope.Read,
+    policy: ToolPolicy = ToolPolicy.Read,
     handler: (Map<String, String>, AndroidToolExecutionContext) -> AndroidToolResult,
-) = androidSimpleTool(id, name, description, "files", scope, "files sandbox app data cache", handler)
+) = androidSimpleTool(id, name, description, "files", policy, "files sandbox app data cache", handler)
 
 fun androidPreferencesTool(
     id: String,
     name: String,
     description: String,
-    scope: ToolScope = ToolScope.Read,
+    policy: ToolPolicy = ToolPolicy.Read,
     handler: (Map<String, String>, AndroidToolExecutionContext) -> AndroidToolResult,
-) = androidSimpleTool(id, name, description, "prefs", scope, "preferences sharedpreferences settings", handler)
+) = androidSimpleTool(id, name, description, "prefs", policy, "preferences sharedpreferences settings", handler)
 
 fun androidSecureStorageTool(
     id: String,
     name: String,
     description: String,
-    scope: ToolScope = ToolScope.Read,
+    policy: ToolPolicy = ToolPolicy.Critical,
     handler: (Map<String, String>, AndroidToolExecutionContext) -> AndroidToolResult,
 ) = androidSimpleTool(
     id,
     name,
     description,
     "secure",
-    scope,
+    policy,
     "secure storage keystore allow-list",
     handler,
-    ToolSecurity(ToolSecurityLevel.Critical, listOf("AccessesSecureStorage")),
 )
 
 fun androidDatabaseTool(
     id: String,
     name: String,
     description: String,
-    scope: ToolScope = ToolScope.Read,
+    policy: ToolPolicy = ToolPolicy.Read,
     handler: (Map<String, String>, AndroidToolExecutionContext) -> AndroidToolResult,
 ) = androidSimpleTool(
     id,
     name,
     description,
     "data",
-    scope,
+    policy,
     "sqlite database query schema",
     handler,
-    ToolSecurity(ToolSecurityLevel.High, listOf("AccessesDatabase")),
 )
 
 fun androidReflectionTool(
     id: String,
     name: String,
     description: String,
-    scope: ToolScope,
-    security: ToolSecurity,
+    policy: ToolPolicy,
     handler: (Map<String, String>, AndroidToolExecutionContext) -> AndroidToolResult,
 ): AndroidTool = androidSimpleTool(
     id = id,
     name = name,
     description = description,
     category = "reflect",
-    scope = scope,
+    policy = policy,
     keywords = "reflection android runtime object state fields methods",
     handler = handler,
-    security = security,
 )
 
 fun androidSimpleTool(
@@ -86,21 +82,19 @@ fun androidSimpleTool(
     name: String,
     description: String,
     category: String,
-    scope: ToolScope,
+    policy: ToolPolicy,
     keywords: String,
     handler: (Map<String, String>, AndroidToolExecutionContext) -> AndroidToolResult,
-    security: ToolSecurity = ToolSecurity.Unspecified,
 ): AndroidTool = FunctionAndroidTool(
     ToolDefinition(
         id = id,
         name = name,
         description = description,
         category = category,
-        scope = scope,
+        policy = policy,
         keywords = keywords,
         argumentsSchema = ToolSchema.obj(additionalProperties = true),
         resultSchema = ToolSchema.obj(additionalProperties = true),
-        security = security,
     ),
     handler = handler,
 )

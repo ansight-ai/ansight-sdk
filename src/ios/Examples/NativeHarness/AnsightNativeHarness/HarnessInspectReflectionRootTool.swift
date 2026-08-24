@@ -14,16 +14,8 @@ final class HarnessInspectReflectionRootTool: AnsightTool, @unchecked Sendable {
             name: "Inspect Harness Reflection Root",
             description: "Inspects one registered harness reflection root by rootId.",
             category: "Harness",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .read,
             keywords: "harness reflection root inspect custom state",
-            security: AnsightToolSecurity(
-                level: .low,
-                summary: "Reads state from a harness diagnostic root.",
-                implications: [
-                    AnsightToolSecurityImplications.inspectsRuntimeState,
-                    AnsightToolSecurityImplications.metadataDisclosure,
-                ]
-            ),
             argumentsSchema: HarnessToolSchemas.inspectRootArguments,
             resultSchema: HarnessToolSchemas.inspectRootResult
         )

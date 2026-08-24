@@ -16,7 +16,7 @@ public sealed class ListDatabasesTool : ITool
 
     public string Category => "data";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Read;
 
     public string Id => DatabaseToolIds.ListDatabases;
 
@@ -29,8 +29,6 @@ public sealed class ListDatabasesTool : ITool
     public ToolSchema ArgumentsSchema => DatabaseToolSchemas.ListDatabasesArguments;
 
     public ToolSchema ResultSchema => DatabaseToolSchemas.ListDatabasesResult;
-
-    public ToolSecurity Security => DatabaseToolSecurityProfiles.ListDatabases;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

@@ -14,9 +14,8 @@ public final class PushFileTool: AnsightTool {
             name: "Push File",
             description: "Writes caller-provided content into a sandboxed folder.",
             category: "files",
-            scope: AnsightToolScope.write.rawValue,
+            policy: .write,
             keywords: "filesystem file write upload sandbox",
-            security: AnsightFileSystemToolSecurityProfiles.pushFile,
             argumentsSchema: AnsightFileSystemToolSchemas.pushFileArguments,
             resultSchema: AnsightFileSystemToolSchemas.pushFileResult
         )

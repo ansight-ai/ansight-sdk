@@ -11,7 +11,7 @@ public sealed class DescribeTypeTool : ITool
 
     public string Category => "reflect";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Read;
 
     public string Id => ReflectionToolIds.DescribeType;
 
@@ -24,8 +24,6 @@ public sealed class DescribeTypeTool : ITool
     public ToolSchema ArgumentsSchema => ReflectionToolSchemas.DescribeTypeArguments;
 
     public ToolSchema ResultSchema => ReflectionToolSchemas.DescribeTypeResult;
-
-    public ToolSecurity Security => ReflectionToolSecurityProfiles.DescribeType;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

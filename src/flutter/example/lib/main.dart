@@ -166,7 +166,7 @@ class _HarnessHomeState extends State<HarnessHome>
         description:
             'Returns arguments from the Dart isolate to validate custom tools.',
         category: 'harness',
-        scope: AnsightToolScope.read,
+        policy: AnsightToolPolicy.read,
         keywords: <String>['flutter', 'dart', 'echo', 'harness'],
         argumentsSchema: <String, Object?>{
           'type': 'object',
@@ -176,10 +176,6 @@ class _HarnessHomeState extends State<HarnessHome>
           'type': 'object',
           'additionalProperties': true,
         },
-        security: AnsightToolSecurity(
-          level: AnsightToolSecurityLevel.low,
-          summary: 'Returns caller-provided strings.',
-        ),
       ),
       (Map<String, String> arguments, AnsightToolContext context) async =>
           AnsightToolResult.success(
@@ -198,7 +194,7 @@ class _HarnessHomeState extends State<HarnessHome>
         description:
             'Returns Flutter navigation, database, scene, and runtime state.',
         category: 'harness',
-        scope: AnsightToolScope.read,
+        policy: AnsightToolPolicy.read,
         keywords: <String>[
           'harness',
           'flutter',
@@ -215,10 +211,6 @@ class _HarnessHomeState extends State<HarnessHome>
           'type': 'object',
           'additionalProperties': true,
         },
-        security: AnsightToolSecurity(
-          level: AnsightToolSecurityLevel.low,
-          summary: 'Reads synthetic harness state.',
-        ),
       ),
       (Map<String, String> arguments, AnsightToolContext context) async {
         final state = await _inspectHarnessState();
@@ -234,7 +226,7 @@ class _HarnessHomeState extends State<HarnessHome>
         name: 'Advance Harness State',
         description: 'Mutates Flutter harness state using a named action.',
         category: 'harness',
-        scope: AnsightToolScope.write,
+        policy: AnsightToolPolicy.write,
         keywords: <String>[
           'harness',
           'flutter',
@@ -269,15 +261,6 @@ class _HarnessHomeState extends State<HarnessHome>
           'type': 'object',
           'additionalProperties': true,
         },
-        security: AnsightToolSecurity(
-          level: AnsightToolSecurityLevel.medium,
-          summary: 'Mutates synthetic harness UI and fixture data.',
-          implications: <String>[
-            'May change the selected tab or navigation stack.',
-            'May insert rows into the harness database.',
-            'May present a dialog.',
-          ],
-        ),
       ),
       (Map<String, String> arguments, AnsightToolContext context) async {
         final state = await _advanceHarnessState(arguments['action'] ?? 'push');
@@ -293,7 +276,7 @@ class _HarnessHomeState extends State<HarnessHome>
         name: 'Harness Database Summary',
         description: 'Returns a summary of the seeded Flutter SQLite database.',
         category: 'harness',
-        scope: AnsightToolScope.read,
+        policy: AnsightToolPolicy.read,
         keywords: <String>[
           'harness',
           'flutter',
@@ -309,10 +292,6 @@ class _HarnessHomeState extends State<HarnessHome>
           'type': 'object',
           'additionalProperties': true,
         },
-        security: AnsightToolSecurity(
-          level: AnsightToolSecurityLevel.low,
-          summary: 'Reads metadata from the synthetic harness database.',
-        ),
       ),
       (Map<String, String> arguments, AnsightToolContext context) async {
         _databaseSummary = await _fixtureStore.summary();
@@ -333,7 +312,7 @@ class _HarnessHomeState extends State<HarnessHome>
             'Requests an immediate frame through the SDK session capture '
             'pipeline, independently of ui.get_screenshot.',
         category: 'harness',
-        scope: AnsightToolScope.read,
+        policy: AnsightToolPolicy.read,
         keywords: <String>[
           'harness',
           'flutter',
@@ -349,14 +328,6 @@ class _HarnessHomeState extends State<HarnessHome>
           'type': 'object',
           'additionalProperties': true,
         },
-        security: AnsightToolSecurity(
-          level: AnsightToolSecurityLevel.high,
-          summary: 'Captures and transfers the current app screen.',
-          implications: <String>[
-            'Captures visible app content.',
-            'Transfers image data to the paired Studio session.',
-          ],
-        ),
       ),
       (Map<String, String> arguments, AnsightToolContext context) async {
         final result = await _captureBuiltInFrame();

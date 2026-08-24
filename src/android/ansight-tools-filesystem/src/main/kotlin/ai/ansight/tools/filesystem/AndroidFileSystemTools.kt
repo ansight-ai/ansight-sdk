@@ -4,7 +4,7 @@ import ai.ansight.runtime.AndroidTool
 import ai.ansight.runtime.AndroidToolResult
 import ai.ansight.runtime.BinaryTransferDescriptor
 import ai.ansight.runtime.PairingFileTransferWireProtocol
-import ai.ansight.runtime.ToolScope
+import ai.ansight.runtime.ToolPolicy
 import ai.ansight.runtime.androidFileTool
 import ai.ansight.runtime.booleanArg
 import ai.ansight.runtime.intArg
@@ -126,7 +126,7 @@ object AndroidFileSystemTools {
             FileSystemToolIds.PushFile,
             "Push File",
             "Writes a file inside an approved app root.",
-            ToolScope.Write,
+            ToolPolicy.Write,
         ) { args, context ->
             val file = AndroidFileSandbox.resolve(context.application, args, options, requireExisting = false, expectDirectory = false)
             file.file.parentFile?.mkdirs()
@@ -139,7 +139,7 @@ object AndroidFileSystemTools {
             FileSystemToolIds.CopyFile,
             "Copy File",
             "Copies a file between approved app roots.",
-            ToolScope.Write,
+            ToolPolicy.Write,
         ) { args, context ->
             val source = AndroidFileSandbox.resolve(context.application, args, options, requireExisting = true, expectDirectory = false)
             val destination = AndroidFileSandbox.resolve(
@@ -159,7 +159,7 @@ object AndroidFileSystemTools {
             FileSystemToolIds.MoveFile,
             "Move File",
             "Moves a file between approved app roots.",
-            ToolScope.Write,
+            ToolPolicy.Write,
         ) { args, context ->
             val source = AndroidFileSandbox.resolve(context.application, args, options, requireExisting = true, expectDirectory = false)
             val destination = AndroidFileSandbox.resolve(
@@ -182,7 +182,7 @@ object AndroidFileSystemTools {
             FileSystemToolIds.DeleteFile,
             "Delete File",
             "Deletes a file inside an approved app root.",
-            ToolScope.Delete,
+            ToolPolicy.Critical,
         ) { args, context ->
             val file = AndroidFileSandbox.resolve(context.application, args, options, requireExisting = true, expectDirectory = false)
             val deleted = file.file.delete()

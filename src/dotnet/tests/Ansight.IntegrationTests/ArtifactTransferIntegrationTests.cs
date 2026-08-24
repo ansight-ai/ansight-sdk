@@ -128,7 +128,7 @@ public sealed class ArtifactTransferIntegrationTests
                         SupportsBinary = true
                     },
                     ToolSchema.Object(),
-                    ArtifactToolSecurityProfiles.Request)
+                    ToolPolicy.Read)
             ];
 
             return Task.FromResult(definitions);

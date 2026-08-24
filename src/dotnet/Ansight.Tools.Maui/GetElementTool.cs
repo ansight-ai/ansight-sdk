@@ -11,7 +11,7 @@ public sealed class GetElementTool : ITool
 {
     public string Category => "maui";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Read;
 
     public string Id => MauiToolIds.GetElement;
 
@@ -24,8 +24,6 @@ public sealed class GetElementTool : ITool
     public ToolSchema ArgumentsSchema => MauiToolSchemas.GetElementArguments;
 
     public ToolSchema ResultSchema => MauiToolSchemas.ElementResult;
-
-    public ToolSecurity Security => MauiToolSecurityProfiles.GetElement;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

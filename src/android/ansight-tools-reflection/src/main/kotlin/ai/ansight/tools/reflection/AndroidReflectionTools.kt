@@ -5,9 +5,7 @@ import ai.ansight.runtime.AndroidToolExecutionContext
 import ai.ansight.runtime.AndroidToolResult
 import ai.ansight.runtime.AndroidUiEvidence
 import ai.ansight.runtime.AnsightRuntime
-import ai.ansight.runtime.ToolScope
-import ai.ansight.runtime.ToolSecurity
-import ai.ansight.runtime.ToolSecurityLevel
+import ai.ansight.runtime.ToolPolicy
 import ai.ansight.runtime.androidReflectionTool
 import ai.ansight.runtime.intArg
 import ai.ansight.runtime.putNullable
@@ -27,8 +25,7 @@ object AndroidReflectionTools {
             ReflectionToolIds.ListRoots,
             "List Reflection Roots",
             "Lists registered Android runtime object roots available for reflection tools.",
-            ToolScope.Read,
-            ToolSecurity(ToolSecurityLevel.High, listOf("MetadataDisclosure", "InspectsRuntimeState")),
+            ToolPolicy.Read,
         ) { _, context ->
             AndroidToolResult.success(JSONObject().put("roots", JSONArray(roots(context, toolOptions).map { it.toJson() })))
         },
@@ -36,8 +33,7 @@ object AndroidReflectionTools {
             ReflectionToolIds.InspectObject,
             "Inspect Object",
             "Inspects a registered Android object root and returns an expandable snapshot.",
-            ToolScope.Read,
-            ToolSecurity(ToolSecurityLevel.Critical, listOf("ReadsAppData", "InspectsRuntimeState")),
+            ToolPolicy.Critical,
         ) { args, context ->
             val target = resolveTarget(context, args, toolOptions)
             AndroidToolResult.success(JSONObject().put("snapshot", snapshot(target.value, target.rootId, target.path, args.intArg("maxDepth", 1))))
@@ -46,8 +42,7 @@ object AndroidReflectionTools {
             ReflectionToolIds.DescribeType,
             "Describe Type",
             "Returns runtime type metadata without reading live object values.",
-            ToolScope.Read,
-            ToolSecurity(ToolSecurityLevel.Medium, listOf("MetadataDisclosure")),
+            ToolPolicy.Read,
         ) { args, context ->
             val type = args["type"]?.trim()?.ifBlank { null }?.let { typeName ->
                 require(toolOptions.isTypeAllowed(typeName)) {
@@ -62,8 +57,7 @@ object AndroidReflectionTools {
             ReflectionToolIds.SetMemberValue,
             "Set Member Value",
             "Writes a simple writable field or JavaBean property reachable from a registered Android object root.",
-            ToolScope.Write,
-            ToolSecurity(ToolSecurityLevel.Critical, listOf("WritesAppData", "MutatesRuntimeState")),
+            ToolPolicy.Critical,
         ) { args, context ->
             val member = args["member"] ?: args["name"] ?: return@androidReflectionTool AndroidToolResult.failure("Member name is required.", "reflect_member_required")
             val target = resolveTarget(context, args, toolOptions)
@@ -75,8 +69,7 @@ object AndroidReflectionTools {
             ReflectionToolIds.InvokeMethod,
             "Invoke Method",
             "Invokes a no-argument instance method reachable from a registered Android object root.",
-            ToolScope.Write,
-            ToolSecurity(ToolSecurityLevel.Critical, listOf("InvokesAppCode", "MutatesRuntimeState")),
+            ToolPolicy.Critical,
         ) { args, context ->
             val methodName = args["method"] ?: args["name"] ?: return@androidReflectionTool AndroidToolResult.failure("Method name is required.", "reflect_method_required")
             val target = resolveTarget(context, args, toolOptions)

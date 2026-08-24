@@ -1,18 +1,5 @@
 export type AnsightLifecycleState = "unknown" | "foreground" | "background";
-export type AnsightToolScope = "read" | "write" | "delete" | "Read" | "Write" | "Delete";
-export type AnsightToolSecurityLevel =
-  | "unspecified"
-  | "low"
-  | "medium"
-  | "moderate"
-  | "high"
-  | "critical"
-  | "Unspecified"
-  | "Low"
-  | "Medium"
-  | "Moderate"
-  | "High"
-  | "Critical";
+export type AnsightToolPolicy = "read" | "write" | "critical";
 
 export interface AnsightChannel {
   id: number;
@@ -410,22 +397,15 @@ export class AnsightOptionsBuilder {
   build(): AnsightOptions;
 }
 
-export interface AnsightToolSecurity {
-  level?: AnsightToolSecurityLevel;
-  summary?: string;
-  implications?: string[];
-}
-
 export interface AnsightToolDefinition {
   id: string;
   name: string;
   description?: string;
   category?: string;
-  scope?: AnsightToolScope;
+  policy?: AnsightToolPolicy;
   keywords?: string | string[];
   argumentsSchema?: object;
   resultSchema?: object;
-  security?: AnsightToolSecurity;
   timeoutMilliseconds?: number;
 }
 
@@ -480,7 +460,7 @@ export interface AnsightArtifactDefinition {
   fileName?: string;
   estimatedSizeBytes?: number | null;
   argumentsSchema?: object;
-  security?: AnsightToolSecurity;
+  policy?: AnsightToolPolicy;
   tags?: string[];
   metadata?: Record<string, string>;
 }

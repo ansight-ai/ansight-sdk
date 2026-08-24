@@ -10,9 +10,8 @@ public final class GetOverlayTool: AnsightTool {
             name: "Get Overlay",
             description: "Returns metadata and geometry for a live diagnostic overlay.",
             category: "ui",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .read,
             keywords: "ui overlay highlight inspect metadata",
-            security: AnsightVisualTreeToolSecurityProfiles.getOverlay,
             argumentsSchema: AnsightVisualTreeToolSchemas.getOverlayArguments,
             resultSchema: AnsightVisualTreeToolSchemas.overlayResult
         )

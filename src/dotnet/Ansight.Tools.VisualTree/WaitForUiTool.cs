@@ -9,14 +9,13 @@ using System.Text.Json.Nodes;
 public sealed class WaitForUiConditionTool : IJsonTool
 {
     public string Category => "ui";
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Read;
     public string Id => VisualTreeToolIds.Wait;
     public string Name => "Wait For UI";
     public string Description => "Polls generic UI snapshots until matching nodes exist, disappear, become visible, or become enabled.";
     public string Keywords => "ui wait poll condition exists visible enabled gone";
     public ToolSchema ArgumentsSchema => VisualTreeToolSchemas.WaitArguments;
     public ToolSchema ResultSchema => VisualTreeToolSchemas.WaitResult;
-    public ToolSecurity Security => VisualTreeToolSecurityProfiles.Wait;
 
     public async Task<ToolResult> ExecuteAsync(
         ToolInvocation invocation,

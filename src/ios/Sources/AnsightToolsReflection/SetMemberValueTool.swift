@@ -19,9 +19,8 @@ public final class SetMemberValueTool: AnsightTool {
             name: "Set Member Value",
             description: "Writes an opt-in member reachable from a registered iOS object root.",
             category: "reflect",
-            scope: AnsightToolScope.write.rawValue,
+            policy: .critical,
             keywords: "reflection set write property field runtime",
-            security: AnsightReflectionToolSecurityProfiles.setMemberValue,
             argumentsSchema: AnsightReflectionToolSchemas.setMemberValueArguments,
             resultSchema: AnsightReflectionToolSchemas.setMemberValueResult
         )

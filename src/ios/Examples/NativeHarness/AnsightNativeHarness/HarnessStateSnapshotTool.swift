@@ -14,16 +14,8 @@ final class HarnessStateSnapshotTool: AnsightTool, @unchecked Sendable {
             name: "Get Harness State Snapshot",
             description: "Returns custom state for the iOS native harness, including UI, navigation, SceneKit, data, and runtime counters.",
             category: "Harness",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .read,
             keywords: "harness custom state inspect swiftui navigation scenekit database",
-            security: AnsightToolSecurity(
-                level: .low,
-                summary: "Inspects test harness diagnostic state.",
-                implications: [
-                    AnsightToolSecurityImplications.inspectsRuntimeState,
-                    AnsightToolSecurityImplications.metadataDisclosure,
-                ]
-            ),
             resultSchema: HarnessToolSchemas.stateSnapshotResult
         )
     }

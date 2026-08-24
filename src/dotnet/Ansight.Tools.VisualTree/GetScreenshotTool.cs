@@ -4,7 +4,7 @@ public sealed class GetScreenshotTool : ITool
 {
     public string Category => "ui";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Read;
 
     public string Id => VisualTreeToolIds.GetScreenshot;
 
@@ -17,8 +17,6 @@ public sealed class GetScreenshotTool : ITool
     public ToolSchema ArgumentsSchema => VisualTreeToolSchemas.GetScreenshotArguments;
 
     public ToolSchema ResultSchema => VisualTreeToolSchemas.ScreenshotResult;
-
-    public ToolSecurity Security => VisualTreeToolSecurityProfiles.GetScreenshot;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

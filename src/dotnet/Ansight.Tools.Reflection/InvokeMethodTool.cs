@@ -11,7 +11,7 @@ public sealed class InvokeMethodTool : ITool
 
     public string Category => "reflect";
 
-    public ToolScope Scope => ToolScope.Write;
+    public ToolPolicy Policy => ToolPolicy.Critical;
 
     public string Id => ReflectionToolIds.InvokeMethod;
 
@@ -24,8 +24,6 @@ public sealed class InvokeMethodTool : ITool
     public ToolSchema ArgumentsSchema => ReflectionToolSchemas.InvokeMethodArguments;
 
     public ToolSchema ResultSchema => ReflectionToolSchemas.InvokeMethodResult;
-
-    public ToolSecurity Security => ReflectionToolSecurityProfiles.InvokeMethod;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

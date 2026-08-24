@@ -12,7 +12,7 @@ using Ansight.Tools;
 /// <param name="Category">High-level category used to group artifacts in clients.</param>
 /// <param name="Content">Content shape and supported formats.</param>
 /// <param name="ArgumentsSchema">Schema for provider-specific request arguments.</param>
-/// <param name="Security">Security metadata describing the artifact sensitivity.</param>
+/// <param name="Policy">Policy required to request the artifact.</param>
 public sealed record ArtifactDefinition(
     string Id,
     string Name,
@@ -21,7 +21,7 @@ public sealed record ArtifactDefinition(
     string Category,
     ArtifactContentDescriptor Content,
     ToolSchema ArgumentsSchema,
-    ToolSecurity Security)
+    ToolPolicy Policy)
 {
     /// <summary>
     /// Search or grouping tags for this artifact.

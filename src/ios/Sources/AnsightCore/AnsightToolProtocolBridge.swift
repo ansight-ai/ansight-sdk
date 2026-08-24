@@ -115,7 +115,7 @@ internal struct AnsightToolProtocolBridge {
                 "guard": .object([
                     "discoveryEnabled": .bool(guardPolicy.discoveryEnabled),
                     "executionEnabled": .bool(guardPolicy.executionEnabled),
-                    "allowedScopes": .array(guardPolicy.allowedScopes.map { .string($0.rawValue) }),
+                    "maxPolicy": .string(guardPolicy.maxPolicy.rawValue),
                 ]),
                 "tools": .array(unchanged ? [] : visibleTools.map {
                     Self.catalogEntry(
@@ -527,21 +527,17 @@ internal struct AnsightToolProtocolBridge {
 
     private static func staticCatalogEntry(for tool: RegisteredTool) -> JSONValue {
         let descriptor = tool.descriptor
-        var result: [String: JSONValue] = [
+        let result: [String: JSONValue] = [
             "id": .string(descriptor.id),
             "name": .string(descriptor.name),
             "description": .string(descriptor.description),
             "category": .string(descriptor.category),
-            "scope": .string(descriptor.scope),
+            "policy": .string(descriptor.policy.rawValue),
             "keywords": .string(descriptor.keywords),
             "argumentEncoding": .string(tool.executeJSON == nil ? "flattened-string" : "json"),
             "argumentsSchema": descriptor.argumentsSchema.json,
             "resultSchema": descriptor.resultSchema.json,
         ]
-
-        if descriptor.security.isSpecified {
-            result["security"] = descriptor.security.jsonValue
-        }
 
         return .object(result)
     }
@@ -597,7 +593,7 @@ internal struct AnsightToolProtocolBridge {
         .object([
             "discoveryEnabled": .bool(guardPolicy.discoveryEnabled),
             "executionEnabled": .bool(guardPolicy.executionEnabled),
-            "allowedScopes": .array(guardPolicy.allowedScopes.map { .string($0.rawValue) }),
+            "maxPolicy": .string(guardPolicy.maxPolicy.rawValue),
         ])
     }
 }

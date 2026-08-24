@@ -11,9 +11,9 @@ public interface ITool
     string Category { get; }
 
     /// <summary>
-    /// Access scope required to discover and execute the tool.
+    /// Ordered policy required to discover and execute the tool.
     /// </summary>
-    ToolScope Scope { get; }
+    ToolPolicy Policy { get; }
 
     /// <summary>
     /// Stable unique identifier used to invoke the tool over the protocol.
@@ -46,11 +46,6 @@ public interface ITool
     ToolSchema ResultSchema { get; }
 
     /// <summary>
-    /// Optional security metadata describing the sensitivity of the tool.
-    /// </summary>
-    ToolSecurity Security => ToolSecurity.Unspecified;
-
-    /// <summary>
     /// Convenience metadata record built from the tool's public properties.
     /// </summary>
     ToolDefinition Definition => new(
@@ -58,13 +53,10 @@ public interface ITool
         Name,
         Description,
         Category,
-        Scope,
+        Policy,
         Keywords,
         ArgumentsSchema,
-        ResultSchema)
-    {
-        Security = Security
-    };
+        ResultSchema);
 
     /// <summary>
     /// Evaluates whether the tool can execute in the app's current runtime state.

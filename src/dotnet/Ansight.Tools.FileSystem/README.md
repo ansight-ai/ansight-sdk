@@ -116,7 +116,11 @@ Push request arguments:
 - `overwrite`: replace an existing destination file
 - `createDirectory`: create the destination folder when missing
 
-`files.delete_file` accepts `root` and `path` and is delete-scoped. Use `WithAllToolAccess()` or a custom `ToolGuard` if you want delete operations to execute. `files.push_file`, `files.copy_file`, and `files.move_file` are write-scoped and require `WithReadWriteToolAccess()`, `WithAllToolAccess()`, or a custom write-enabled guard.
+`files.delete_file` accepts `root` and `path` and uses `ToolPolicy.Critical`.
+Use `WithAllToolAccess()` or a custom critical-enabled `ToolGuard` to execute
+it. `files.push_file`, `files.copy_file`, and `files.move_file` use
+`ToolPolicy.Write` and require `WithReadWriteToolAccess()`,
+`WithAllToolAccess()`, or a custom write-enabled guard.
 
 Configure additional tagged roots:
 

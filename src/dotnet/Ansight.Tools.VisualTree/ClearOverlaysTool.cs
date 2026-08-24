@@ -4,7 +4,7 @@ public sealed class ClearOverlaysTool : ITool
 {
     public string Category => "ui";
 
-    public ToolScope Scope => ToolScope.Write;
+    public ToolPolicy Policy => ToolPolicy.Write;
 
     public string Id => VisualTreeToolIds.ClearOverlays;
 
@@ -17,8 +17,6 @@ public sealed class ClearOverlaysTool : ITool
     public ToolSchema ArgumentsSchema => VisualTreeToolSchemas.ClearOverlaysArguments;
 
     public ToolSchema ResultSchema => VisualTreeToolSchemas.ClearOverlaysResult;
-
-    public ToolSecurity Security => VisualTreeToolSecurityProfiles.ClearOverlays;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

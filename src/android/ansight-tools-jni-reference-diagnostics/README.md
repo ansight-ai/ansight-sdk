@@ -1,6 +1,6 @@
 # Ansight Android JNI Reference Diagnostics
 
-This package exposes the read-scoped
+This package exposes the `ToolPolicy.Read`
 `jni_references.capture_graph` app tool for Android.
 
 The collector asks ART for an HPROF snapshot, uses Shark to index it, and walks

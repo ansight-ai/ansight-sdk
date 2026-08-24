@@ -38,9 +38,7 @@ import ai.ansight.runtime.RecordedEvent
 import ai.ansight.runtime.RecordedMetric
 import ai.ansight.runtime.ToolDefinition
 import ai.ansight.runtime.ToolSchema
-import ai.ansight.runtime.ToolScope
-import ai.ansight.runtime.ToolSecurity
-import ai.ansight.runtime.ToolSecurityLevel
+import ai.ansight.runtime.ToolPolicy
 import ai.ansight.runtime.sendBinaryTransfer
 import ai.ansight.pairing.AnsightPairing
 import ai.ansight.tools.database.AndroidDatabaseRoot
@@ -1089,14 +1087,13 @@ class AnsightReactNativeModule(
             name = map.stringValue("name") ?: map.stringValue("id") ?: "",
             description = map.stringValue("description") ?: "",
             category = map.stringValue("category") ?: "custom",
-            scope = toolScope(map.stringValue("scope")),
+            policy = toolPolicy(map.stringValue("policy")),
             keywords = when {
                 map.hasArray("keywords") -> map.getArray("keywords").toStringList().joinToString(" ")
                 else -> map.stringValue("keywords") ?: "react native custom tool"
             },
             argumentsSchema = schemaFrom(map.getMapOrNull("argumentsSchema")),
             resultSchema = schemaFrom(map.getMapOrNull("resultSchema")),
-            security = toolSecurity(map.getMapOrNull("security")),
         ).validated()
 
     private fun schemaFrom(map: ReadableMap?): ToolSchema {
@@ -1125,21 +1122,6 @@ class AnsightReactNativeModule(
             additionalProperties = map.booleanValue("additionalProperties", false),
             nullable = map.hasArray("type") && map.getArray("type").toStringList().contains("null"),
             format = map.stringValue("format"),
-        )
-    }
-
-    private fun toolSecurity(map: ReadableMap?): ToolSecurity {
-        if (map == null) {
-            return ToolSecurity.Unspecified
-        }
-        return ToolSecurity(
-            level = when (map.stringValue("level")?.trim()?.lowercase()) {
-                "medium", "moderate" -> ToolSecurityLevel.Medium
-                "high" -> ToolSecurityLevel.High
-                "critical" -> ToolSecurityLevel.Critical
-                else -> ToolSecurityLevel.Low
-            },
-            implications = map.getArrayOrNull("implications").toStringList(),
         )
     }
 
@@ -1411,11 +1393,11 @@ private fun toolGuardName(guard: AnsightToolGuard): String =
         AnsightToolGuard.FullAccess -> "fullAccess"
     }
 
-private fun toolScope(raw: String?): ToolScope =
+private fun toolPolicy(raw: String?): ToolPolicy =
     when (raw?.trim()?.lowercase()) {
-        "write" -> ToolScope.Write
-        "delete" -> ToolScope.Delete
-        else -> ToolScope.Read
+        "write" -> ToolPolicy.Write
+        "critical", "delete" -> ToolPolicy.Critical
+        else -> ToolPolicy.Read
     }
 
 private fun ReadableMap?.hasKey(name: String): Boolean = this?.hasKey(name) == true

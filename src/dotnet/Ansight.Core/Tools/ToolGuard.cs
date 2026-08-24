@@ -7,50 +7,52 @@ using System.Text.Json.Nodes;
 /// </summary>
 public sealed class ToolGuard
 {
-    private readonly HashSet<ToolScope> allowedScopes;
-
     /// <summary>
     /// Guard preset that disables both tool discovery and execution.
     /// </summary>
-    public static ToolGuard Disabled { get; } = new(discoveryEnabled: false, executionEnabled: false, Array.Empty<ToolScope>());
+    public static ToolGuard Disabled { get; } = new(
+        discoveryEnabled: false,
+        executionEnabled: false,
+        ToolPolicy.Read);
 
     /// <summary>
-    /// Guard preset that allows discovery and execution for read-scoped tools only.
+    /// Guard preset that allows discovery and execution for read-policy tools only.
     /// </summary>
-    public static ToolGuard ReadOnly { get; } = new(discoveryEnabled: true, executionEnabled: true, [ToolScope.Read]);
+    public static ToolGuard ReadOnly { get; } = new(
+        discoveryEnabled: true,
+        executionEnabled: true,
+        ToolPolicy.Read);
 
     /// <summary>
-    /// Guard preset that allows discovery and execution for read- and write-scoped tools.
+    /// Guard preset that allows discovery and execution through write policy.
     /// </summary>
     public static ToolGuard ReadWrite { get; } = new(
         discoveryEnabled: true,
         executionEnabled: true,
-        new[] { ToolScope.Read, ToolScope.Write });
+        ToolPolicy.Write);
 
     /// <summary>
-    /// Guard preset that allows discovery and execution for every tool scope.
+    /// Guard preset that allows discovery and execution through critical policy.
     /// </summary>
     public static ToolGuard FullAccess { get; } = new(
         discoveryEnabled: true,
         executionEnabled: true,
-        Enum.GetValues<ToolScope>());
+        ToolPolicy.Critical);
 
     /// <summary>
-    /// Creates a tool guard with explicit discovery, execution, and scope rules.
+    /// Creates a tool guard with explicit discovery, execution, and maximum policy.
     /// </summary>
     /// <param name="discoveryEnabled"><see langword="true"/> to include allowed tools in discovery catalogs.</param>
     /// <param name="executionEnabled"><see langword="true"/> to allow execution of allowed tools.</param>
-    /// <param name="allowedScopes">Tool scopes enabled by this guard.</param>
+    /// <param name="maxPolicy">Highest tool policy enabled by this guard.</param>
     public ToolGuard(
         bool discoveryEnabled,
         bool executionEnabled,
-        IEnumerable<ToolScope> allowedScopes)
+        ToolPolicy maxPolicy)
     {
-        ArgumentNullException.ThrowIfNull(allowedScopes);
-
         DiscoveryEnabled = discoveryEnabled;
         ExecutionEnabled = executionEnabled;
-        this.allowedScopes = new HashSet<ToolScope>(allowedScopes);
+        MaxPolicy = maxPolicy;
     }
 
     /// <summary>
@@ -64,9 +66,9 @@ public sealed class ToolGuard
     public bool ExecutionEnabled { get; }
 
     /// <summary>
-    /// Tool scopes enabled by this guard.
+    /// Highest tool policy enabled by this guard.
     /// </summary>
-    public IReadOnlyCollection<ToolScope> AllowedScopes => allowedScopes;
+    public ToolPolicy MaxPolicy { get; }
 
     /// <summary>
     /// Determines whether a tool should appear in discovery results under this guard.
@@ -95,9 +97,9 @@ public sealed class ToolGuard
             return false;
         }
 
-        if (!allowedScopes.Contains(tool.Scope))
+        if (tool.Policy > MaxPolicy)
         {
-            reason = $"Tool scope '{tool.Scope}' is not enabled by the current guard policy.";
+            reason = $"Tool policy '{tool.Policy}' exceeds the current '{MaxPolicy}' grant.";
             return false;
         }
 
@@ -111,17 +113,11 @@ public sealed class ToolGuard
     /// <returns>JSON representation of the guard.</returns>
     public JsonObject ToJson()
     {
-        var scopes = new JsonArray();
-        foreach (var scope in allowedScopes.OrderBy(scope => scope))
-        {
-            scopes.Add(scope.ToString());
-        }
-
         return new JsonObject
         {
             ["discoveryEnabled"] = DiscoveryEnabled,
             ["executionEnabled"] = ExecutionEnabled,
-            ["allowedScopes"] = scopes
+            ["maxPolicy"] = MaxPolicy.ToString().ToLowerInvariant()
         };
     }
 
@@ -130,14 +126,14 @@ public sealed class ToolGuard
     /// </summary>
     public void Validate()
     {
-        if (ExecutionEnabled && allowedScopes.Count == 0)
+        if (!Enum.IsDefined(MaxPolicy))
         {
-            throw new InvalidOperationException("Tool execution cannot be enabled without at least one allowed scope.");
+            throw new InvalidOperationException("The maximum tool policy is invalid.");
         }
     }
 
     private bool IsToolAllowed(ITool tool)
     {
-        return allowedScopes.Contains(tool.Scope);
+        return tool.Policy <= MaxPolicy;
     }
 }

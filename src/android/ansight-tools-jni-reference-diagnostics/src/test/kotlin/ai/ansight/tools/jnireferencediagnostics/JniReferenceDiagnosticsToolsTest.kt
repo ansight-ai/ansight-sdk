@@ -1,7 +1,6 @@
 package ai.ansight.tools.jnireferencediagnostics
 
-import ai.ansight.runtime.ToolScope
-import ai.ansight.runtime.ToolSecurityLevel
+import ai.ansight.runtime.ToolPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -13,8 +12,7 @@ class JniReferenceDiagnosticsToolsTest {
 
         assertEquals(JniReferenceDiagnosticsToolIds.CaptureGraph, tool.definition.id)
         assertEquals("jni_references", tool.definition.category)
-        assertEquals(ToolScope.Read, tool.definition.scope)
-        assertEquals(ToolSecurityLevel.High, tool.definition.security.level)
+        assertEquals(ToolPolicy.Read, tool.definition.policy)
         assertEquals(
             setOf("maxNodes", "maxEdges", "maxDepth"),
             tool.definition.argumentsSchema.properties.keys,

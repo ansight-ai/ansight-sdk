@@ -14,9 +14,8 @@ public final class DescribeSchemaTool: AnsightTool {
             name: "Describe Schema",
             description: "Returns schema metadata for a database or table.",
             category: "data",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .read,
             keywords: "database schema tables columns sqlite",
-            security: AnsightDatabaseToolSecurityProfiles.describeSchema,
             argumentsSchema: AnsightDatabaseToolSchemas.describeSchemaArguments,
             resultSchema: AnsightDatabaseToolSchemas.describeSchemaResult
         )

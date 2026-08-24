@@ -50,9 +50,11 @@ internal static class ArtifactToolSchemas
             ["metadata"] = StringMapSchema,
             ["content"] = ContentSchema,
             ["argumentsSchema"] = ToolSchema.Object("Provider-specific request argument schema.", additionalProperties: true),
-            ["security"] = ToolSchema.Object("Security metadata.", additionalProperties: true)
+            ["policy"] = ToolSchema.String(
+                "Policy required to request the artifact.",
+                enumValues: new[] { "read", "write", "critical" })
         },
-        required: new[] { "providerId", "id", "name", "description", "kind", "category", "tags", "metadata", "content", "argumentsSchema", "security" });
+        required: new[] { "providerId", "id", "name", "description", "kind", "category", "tags", "metadata", "content", "argumentsSchema", "policy" });
 
     private static readonly ToolSchema ArtifactMetadataSchema = ToolSchema.Object(
         description: "Created artifact metadata.",

@@ -974,9 +974,8 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
                 ?? "",
             description: stringValue(dictionary, "description") ?? "",
             category: stringValue(dictionary, "category") ?? "custom",
-            scope: toolScope(stringValue(dictionary, "scope")).rawValue,
+            policy: toolPolicy(stringValue(dictionary, "policy")),
             keywords: keywords(dictionary["keywords"]),
-            security: toolSecurity(dictionary["security"] as? NSDictionary),
             argumentsSchema: AnsightToolSchema(
                 json: jsonValue(dictionary["argumentsSchema"]) ?? .object([:])
             ),
@@ -1467,31 +1466,12 @@ private func toolGuardName(_ value: AnsightToolGuard) -> String {
     return "disabled"
 }
 
-private func toolScope(_ value: String?) -> AnsightToolScope {
+private func toolPolicy(_ value: String?) -> AnsightToolPolicy {
     switch value?.lowercased() {
     case "write": return .write
-    case "delete": return .delete
+    case "critical", "delete": return .critical
     default: return .read
     }
-}
-
-private func toolSecurity(_ value: NSDictionary?) -> AnsightToolSecurity {
-    guard let value else {
-        return .unspecified
-    }
-    let level: AnsightToolSecurityLevel
-    switch stringValue(value, "level")?.lowercased() {
-    case "low": level = .low
-    case "medium", "moderate": level = .moderate
-    case "high": level = .high
-    case "critical": level = .critical
-    default: level = .unspecified
-    }
-    return AnsightToolSecurity(
-        level: level,
-        summary: stringValue(value, "summary") ?? "",
-        implications: stringArray(value, "implications")
-    )
 }
 
 private func keywords(_ value: Any?) -> String {

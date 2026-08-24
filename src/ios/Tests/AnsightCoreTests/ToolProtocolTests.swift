@@ -287,7 +287,7 @@ private struct EchoTool: AnsightTool {
         name: "Echo Tool",
         description: "Echoes a single argument.",
         category: "Diagnostics",
-        scope: AnsightToolScope.read.rawValue,
+        policy: .read,
         keywords: "echo",
         argumentsSchema: AnsightToolSchema(
             json: .object([

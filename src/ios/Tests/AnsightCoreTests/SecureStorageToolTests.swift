@@ -69,7 +69,7 @@ final class SecureStorageToolTests: XCTestCase {
         XCTAssertEqual(missingResult["value"], .null)
     }
 
-    func testSecureStorageCatalogIncludesCriticalSecurityMetadata() throws {
+    func testSecureStorageCatalogUsesCriticalPolicy() throws {
         let bridge = bridge(
             tools: AnsightSecureStorageTools.tools(
                 options: AnsightSecureStorageToolsOptions(allowedKeyPrefixes: ["allowed."])
@@ -93,16 +93,8 @@ final class SecureStorageToolTests: XCTestCase {
             return object
         }.first
 
-        guard let getTool,
-              case .object(let security)? = getTool["security"],
-              case .array(let implications)? = security["implications"] else {
-            return XCTFail("Expected get-value security metadata.")
-        }
-
-        XCTAssertEqual(security["level"], .string("Critical"))
-        XCTAssertTrue(implications.contains(.string("exports_data")))
-        XCTAssertTrue(implications.contains(.string("accesses_secure_storage")))
-        XCTAssertTrue(implications.contains(.string("handles_secrets")))
+        XCTAssertEqual(getTool?["policy"], .string("critical"))
+        XCTAssertNil(getTool?["security"])
     }
 
     func testSecureStorageDenyByDefaultAndAllowListFailure() throws {

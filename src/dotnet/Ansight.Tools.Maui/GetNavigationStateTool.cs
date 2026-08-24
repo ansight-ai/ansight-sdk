@@ -11,7 +11,7 @@ public sealed class GetNavigationStateTool : ITool
 {
     public string Category => "maui";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Read;
 
     public string Id => MauiToolIds.GetNavigationState;
 
@@ -24,8 +24,6 @@ public sealed class GetNavigationStateTool : ITool
     public ToolSchema ArgumentsSchema => MauiToolSchemas.GetNavigationStateArguments;
 
     public ToolSchema ResultSchema => MauiToolSchemas.NavigationStateResult;
-
-    public ToolSecurity Security => MauiToolSecurityProfiles.GetNavigationState;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

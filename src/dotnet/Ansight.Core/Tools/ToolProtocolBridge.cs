@@ -513,24 +513,18 @@ public sealed class ToolProtocolBridge
     private static JsonObject ToStaticJson(ITool tool)
     {
         var definition = tool.Definition;
-        var json = new JsonObject
+        return new JsonObject
         {
             ["id"] = definition.Id,
             ["name"] = definition.Name,
             ["description"] = definition.Description,
             ["category"] = definition.Category,
-            ["scope"] = definition.Scope.ToString(),
+            ["policy"] = definition.Policy.ToString().ToLowerInvariant(),
             ["keywords"] = definition.Keywords,
             ["argumentEncoding"] = tool is IJsonTool ? "json" : "flattened-string",
             ["argumentsSchema"] = definition.ArgumentsSchema.ToJson(),
             ["resultSchema"] = definition.ResultSchema.ToJson()
         };
-        if (definition.Security is { IsSpecified: true } security)
-        {
-            json["security"] = security.ToJson();
-        }
-
-        return json;
     }
 
     private static JsonObject CreateBatchInputError(int index)

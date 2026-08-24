@@ -116,12 +116,11 @@ internal static class NativeRuntimeOptionsJson
             return "disabled";
         }
 
-        var allowedScopes = toolGuard.AllowedScopes.ToHashSet();
-        if (allowedScopes.SetEquals(Enum.GetValues<ToolScope>()))
+        if (toolGuard.MaxPolicy == ToolPolicy.Critical)
         {
             return "fullAccess";
         }
-        if (allowedScopes.Contains(ToolScope.Write))
+        if (toolGuard.MaxPolicy == ToolPolicy.Write)
         {
             return "readWrite";
         }

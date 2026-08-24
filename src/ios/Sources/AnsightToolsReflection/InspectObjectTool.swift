@@ -19,9 +19,8 @@ public final class InspectObjectTool: AnsightTool {
             name: "Inspect Object",
             description: "Inspects a registered iOS object root and returns an expandable snapshot.",
             category: "reflect",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .critical,
             keywords: "reflection inspect object runtime properties fields methods",
-            security: AnsightReflectionToolSecurityProfiles.inspectObject,
             argumentsSchema: AnsightReflectionToolSchemas.inspectObjectArguments,
             resultSchema: AnsightReflectionToolSchemas.inspectObjectResult
         )

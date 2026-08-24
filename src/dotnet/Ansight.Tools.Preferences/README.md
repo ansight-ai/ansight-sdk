@@ -31,7 +31,8 @@ var options = Options.CreateBuilder()
     .Build();
 ```
 
-`prefs.remove_key` is delete-scoped. Use `WithAllToolAccess()` or a custom `ToolGuard` if you want delete operations to execute.
+`prefs.remove_key` uses `ToolPolicy.Critical`. Use `WithAllToolAccess()` or a
+custom critical-enabled `ToolGuard` to execute it.
 
 ## Restrictions
 

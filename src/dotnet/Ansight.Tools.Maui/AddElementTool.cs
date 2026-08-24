@@ -7,7 +7,7 @@ public sealed class AddElementTool : ITool
 {
     public string Category => "maui";
 
-    public ToolScope Scope => ToolScope.Write;
+    public ToolPolicy Policy => ToolPolicy.Critical;
 
     public string Id => MauiToolIds.AddElement;
 
@@ -20,8 +20,6 @@ public sealed class AddElementTool : ITool
     public ToolSchema ArgumentsSchema => MauiToolSchemas.AddElementArguments;
 
     public ToolSchema ResultSchema => MauiToolSchemas.ElementTreeMutationResult;
-
-    public ToolSecurity Security => MauiToolSecurityProfiles.AddElement;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

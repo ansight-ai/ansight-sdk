@@ -43,7 +43,7 @@ class AndroidToolRegistryTest {
                 name = "Open Map Work",
                 description = "Opens the active map work screen.",
                 category = "mapwork",
-                scope = ToolScope.Read,
+                policy = ToolPolicy.Read,
                 keywords = "map work",
             ),
             availabilityHandler = {
@@ -79,7 +79,7 @@ class AndroidToolRegistryTest {
                 name = name,
                 description = "Test tool",
                 category = "test",
-                scope = ToolScope.Read,
+                policy = ToolPolicy.Read,
                 keywords = "test",
             ),
         ) { _, _ -> AndroidToolResult.success() }

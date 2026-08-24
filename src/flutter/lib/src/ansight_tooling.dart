@@ -3,35 +3,16 @@ import 'dart:typed_data';
 
 import 'ansight_models.dart';
 
-class AnsightToolSecurity {
-  const AnsightToolSecurity({
-    this.level = AnsightToolSecurityLevel.unspecified,
-    this.summary,
-    this.implications = const <String>[],
-  });
-
-  final AnsightToolSecurityLevel level;
-  final String? summary;
-  final List<String> implications;
-
-  AnsightJson toJson() => <String, Object?>{
-        'level': level.wireName,
-        if (summary != null) 'summary': summary,
-        if (implications.isNotEmpty) 'implications': implications,
-      };
-}
-
 class AnsightToolDefinition {
   const AnsightToolDefinition({
     required this.id,
     required this.name,
     this.description = '',
     this.category = 'custom',
-    this.scope = AnsightToolScope.read,
+    this.policy = AnsightToolPolicy.read,
     this.keywords = const <String>[],
     this.argumentsSchema = const <String, Object?>{},
     this.resultSchema = const <String, Object?>{},
-    this.security = const AnsightToolSecurity(),
     this.timeout = const Duration(seconds: 30),
   });
 
@@ -39,11 +20,10 @@ class AnsightToolDefinition {
   final String name;
   final String description;
   final String category;
-  final AnsightToolScope scope;
+  final AnsightToolPolicy policy;
   final List<String> keywords;
   final AnsightJson argumentsSchema;
   final AnsightJson resultSchema;
-  final AnsightToolSecurity security;
   final Duration timeout;
 
   AnsightJson toJson() => <String, Object?>{
@@ -51,11 +31,10 @@ class AnsightToolDefinition {
         'name': name,
         'description': description,
         'category': category,
-        'scope': scope.wireName,
+        'policy': policy.wireName,
         'keywords': keywords,
         'argumentsSchema': argumentsSchema,
         'resultSchema': resultSchema,
-        'security': security.toJson(),
         'timeoutMilliseconds': timeout.inMilliseconds,
       };
 }

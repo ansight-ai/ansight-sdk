@@ -388,7 +388,7 @@ The provider describes its currently available exports from `QueryAsync(...)`
 and creates one requested snapshot from `CreateAsync(...)`. Use
 `ArtifactPayload.FromText(...)`, `FromBytes(...)`, `FromStream(...)`, or
 `FromFile(...)` for the returned payload. Registering a provider adds the
-read-scoped `artifacts.query` and `artifacts.request` tools automatically.
+`read` policy `artifacts.query` and `artifacts.request` tools automatically.
 Artifact bytes are streamed over the active pairing session, so requests
 require a live Studio connection. The shared result shape and error codes are
 documented in [Artifact Tools](../../docs/protocol.md#artifact-tools).
@@ -481,7 +481,7 @@ Use `Allowed` only when the build intentionally includes remote tools and you do
 
 ## Remote Tool Registration
 
-`Ansight.Core` contains `ITool`, `ToolScope`, `ToolSchema`, `ToolDefinition`, `ToolRegistry`, `ToolResult`, and the `OptionsBuilder` registration methods. Each tool declares whether it is `Read`, `Write`, or `Delete`, plus explicit argument and result schemas for bridges such as MCP.
+`Ansight.Core` contains `ITool`, `ToolPolicy`, `ToolSchema`, `ToolDefinition`, `ToolRegistry`, `ToolResult`, and the `OptionsBuilder` registration methods. Each tool declares one ordered policy (`Read`, `Write`, or `Critical`), plus explicit argument and result schemas for bridges such as MCP. A maximum policy grant includes all lower policies.
 
 Concrete tool groups are delivered as separate packages and register through fluent extensions:
 
@@ -532,10 +532,12 @@ Registered tools are guarded explicitly:
 - `WithToolsDisabled()` disables discovery and execution.
 - `WithReadOnlyToolAccess()` enables read tools.
 - `WithReadWriteToolAccess()` enables read and write tools.
-- `WithAllToolAccess()` enables all registered scopes.
+- `WithAllToolAccess()` enables all registered policies through `Critical`.
 - `WithToolGuard(...)` applies a custom policy.
 
-Storage package remove operations and `files.delete_file` are delete-scoped, so `WithReadWriteToolAccess()` keeps them hidden and non-executable.
+Critical operations such as storage removal, secure-storage access,
+`files.delete_file`, arbitrary reflection, and sensitive UI actions stay hidden
+and non-executable under `WithReadWriteToolAccess()`.
 
 Reflection roots are the access boundary for `Ansight.Tools.Reflection`. Register a root with `ReflectionRootRegistry.Register(...)`, then the tools inspect reachable objects through stateless paths from that root. `reflect.list_roots` includes a `hostRuntime` descriptor so callers can identify CLR-hosted roots. Direct object registrations are weak by default unless `ReferenceType.Strong` is passed; getter registrations use a `Func<object?>` when the exposed root can change over time and are unavailable while the getter returns `null`. Dispose the returned `ReflectionRootRegistrationHandle`, or call `ReflectionRootRegistry.Deregister(id)`, when a root should no longer be exposed.
 

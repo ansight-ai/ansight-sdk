@@ -4,7 +4,7 @@ public sealed class ShowOverlayTool : ITool
 {
     public string Category => "ui";
 
-    public ToolScope Scope => ToolScope.Write;
+    public ToolPolicy Policy => ToolPolicy.Write;
 
     public string Id => VisualTreeToolIds.ShowOverlay;
 
@@ -17,8 +17,6 @@ public sealed class ShowOverlayTool : ITool
     public ToolSchema ArgumentsSchema => VisualTreeToolSchemas.ShowOverlayArguments;
 
     public ToolSchema ResultSchema => VisualTreeToolSchemas.OverlayResult;
-
-    public ToolSecurity Security => VisualTreeToolSecurityProfiles.ShowOverlay;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

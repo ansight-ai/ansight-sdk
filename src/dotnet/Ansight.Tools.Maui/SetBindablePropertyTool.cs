@@ -11,7 +11,7 @@ public sealed class SetBindablePropertyTool : ITool
 {
     public string Category => "maui";
 
-    public ToolScope Scope => ToolScope.Write;
+    public ToolPolicy Policy => ToolPolicy.Critical;
 
     public string Id => MauiToolIds.SetBindableProperty;
 
@@ -24,8 +24,6 @@ public sealed class SetBindablePropertyTool : ITool
     public ToolSchema ArgumentsSchema => MauiToolSchemas.SetBindablePropertyArguments;
 
     public ToolSchema ResultSchema => MauiToolSchemas.BindablePropertyMutationResult;
-
-    public ToolSecurity Security => MauiToolSecurityProfiles.SetBindableProperty;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

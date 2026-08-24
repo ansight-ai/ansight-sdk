@@ -4,30 +4,13 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Locale
 
-enum class ToolScope {
+enum class ToolPolicy {
     Read,
     Write,
-    Delete,
-}
+    Critical;
 
-enum class ToolSecurityLevel {
-    Low,
-    Medium,
-    High,
-    Critical,
-}
-
-data class ToolSecurity(
-    val level: ToolSecurityLevel = ToolSecurityLevel.Low,
-    val implications: List<String> = emptyList(),
-) {
-    fun toJson(): JSONObject = JSONObject()
-        .put("level", level.name)
-        .put("implications", JSONArray(implications))
-
-    companion object {
-        val Unspecified = ToolSecurity()
-    }
+    val wireName: String
+        get() = name.lowercase(Locale.US)
 }
 
 data class ToolSchema(
@@ -90,11 +73,10 @@ data class ToolDefinition(
     val name: String,
     val description: String,
     val category: String,
-    val scope: ToolScope,
+    val policy: ToolPolicy,
     val keywords: String,
     val argumentsSchema: ToolSchema = ToolSchema.obj(additionalProperties = true),
     val resultSchema: ToolSchema = ToolSchema.obj(additionalProperties = true),
-    val security: ToolSecurity = ToolSecurity.Unspecified,
 ) {
     fun validated(): ToolDefinition {
         require(id.isNotBlank()) { "Tool id must not be blank." }
@@ -114,11 +96,10 @@ data class ToolDefinition(
         .put("name", name)
         .put("description", description)
         .put("category", category)
-        .put("scope", scope.name)
+        .put("policy", policy.wireName)
         .put("keywords", keywords)
         .put("argumentsSchema", argumentsSchema.toJson())
         .put("resultSchema", resultSchema.toJson())
-        .put("security", security.toJson())
 }
 
 data class AndroidToolResult(
@@ -362,35 +343,34 @@ class AndroidToolRegistry(tools: Iterable<AndroidTool> = emptyList()) {
 
     fun contains(id: String): Boolean = id.trim() in toolsById
 
-    fun visible(guard: AnsightToolGuard): List<AndroidTool> = all().filter { guard.canDiscover(it.definition.scope) }
+    fun visible(guard: AnsightToolGuard): List<AndroidTool> = all().filter { guard.canDiscover(it.definition.policy) }
 }
 
-internal fun AnsightToolGuard.canDiscover(scope: ToolScope): Boolean = when (this) {
+internal fun AnsightToolGuard.canDiscover(policy: ToolPolicy): Boolean = when (this) {
     AnsightToolGuard.Disabled -> false
-    AnsightToolGuard.ReadOnly -> scope == ToolScope.Read
-    AnsightToolGuard.ReadWrite -> scope == ToolScope.Read || scope == ToolScope.Write
+    AnsightToolGuard.ReadOnly -> policy <= ToolPolicy.Read
+    AnsightToolGuard.ReadWrite -> policy <= ToolPolicy.Write
     AnsightToolGuard.FullAccess -> true
 }
 
-internal fun AnsightToolGuard.canExecute(scope: ToolScope): Boolean = canDiscover(scope)
+internal fun AnsightToolGuard.canExecute(policy: ToolPolicy): Boolean = canDiscover(policy)
 
-internal fun String.toToolScope(): ToolScope = when (trim().toLowerCase(Locale.US)) {
-    "write" -> ToolScope.Write
-    "delete" -> ToolScope.Delete
-    else -> ToolScope.Read
+internal fun String.toToolPolicy(): ToolPolicy = when (trim().lowercase(Locale.US)) {
+    "write" -> ToolPolicy.Write
+    "critical", "delete" -> ToolPolicy.Critical
+    else -> ToolPolicy.Read
 }
 
 internal fun AnsightToolGuard.toProtocolJson(): JSONObject {
-    val scopes = when (this) {
-        AnsightToolGuard.Disabled -> emptyList()
-        AnsightToolGuard.ReadOnly -> listOf(ToolScope.Read.name)
-        AnsightToolGuard.ReadWrite -> listOf(ToolScope.Read.name, ToolScope.Write.name)
-        AnsightToolGuard.FullAccess -> ToolScope.values().map { it.name }
+    val maxPolicy = when (this) {
+        AnsightToolGuard.Disabled, AnsightToolGuard.ReadOnly -> ToolPolicy.Read
+        AnsightToolGuard.ReadWrite -> ToolPolicy.Write
+        AnsightToolGuard.FullAccess -> ToolPolicy.Critical
     }
     return JSONObject()
         .put("discoveryEnabled", this != AnsightToolGuard.Disabled)
         .put("executionEnabled", this != AnsightToolGuard.Disabled)
-        .put("allowedScopes", JSONArray(scopes))
+        .put("maxPolicy", maxPolicy.wireName)
 }
 
 object ToolProtocol {

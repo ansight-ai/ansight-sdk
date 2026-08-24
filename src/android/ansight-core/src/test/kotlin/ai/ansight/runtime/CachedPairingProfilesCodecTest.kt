@@ -146,8 +146,7 @@ class CachedPairingProfilesCodecTest {
                             .put("expiresAt", "2099-06-15T11:49:15.800804+10:00")
                             .put("grantExpiresAt", "2099-07-15T11:49:15.800804+10:00")
                             .put("maxUses", 1)
-                            .put("maxScopes", JSONArray().put("Read"))
-                            .put("allowCritical", false),
+                            .put("maxToolPolicy", "read"),
                     ),
             )
             .put("discovery", discovery)

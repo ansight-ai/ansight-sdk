@@ -14,9 +14,8 @@ public final class MoveFileTool: AnsightTool {
             name: "Move File",
             description: "Moves or renames a sandboxed file within approved roots.",
             category: "files",
-            scope: AnsightToolScope.write.rawValue,
+            policy: .write,
             keywords: "filesystem file move rename sandbox",
-            security: AnsightFileSystemToolSecurityProfiles.moveFile,
             argumentsSchema: AnsightFileSystemToolSchemas.moveFileArguments,
             resultSchema: AnsightFileSystemToolSchemas.moveFileResult
         )

@@ -14,9 +14,8 @@ public final class ListDatabasesTool: AnsightTool {
             name: "List Databases",
             description: "Lists the known app databases that can be inspected.",
             category: "data",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .read,
             keywords: "database sqlite storage schema",
-            security: AnsightDatabaseToolSecurityProfiles.listDatabases,
             argumentsSchema: AnsightDatabaseToolSchemas.listDatabasesArguments,
             resultSchema: AnsightDatabaseToolSchemas.listDatabasesResult
         )

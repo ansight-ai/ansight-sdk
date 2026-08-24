@@ -90,7 +90,7 @@ final class VisualTreeToolTests: XCTestCase {
         )
     }
 
-    func testVisualTreeCatalogIncludesSecurityMetadata() throws {
+    func testVisualTreeCatalogIncludesPolicies() throws {
         let bridge = bridge(
             tools: AnsightVisualTreeTools.tools(),
             guardPolicy: .fullAccess
@@ -113,15 +113,8 @@ final class VisualTreeToolTests: XCTestCase {
             return object
         }.first
 
-        guard let screenshotTool,
-              case .object(let security)? = screenshotTool["security"],
-              case .array(let implications)? = security["implications"] else {
-            return XCTFail("Expected screenshot security metadata.")
-        }
-
-        XCTAssertEqual(security["level"], .string("High"))
-        XCTAssertTrue(implications.contains(.string("captures_screenshots")))
-        XCTAssertTrue(implications.contains(.string("uses_binary_transfer")))
+        XCTAssertEqual(screenshotTool?["policy"], .string("read"))
+        XCTAssertNil(screenshotTool?["security"])
     }
 
     func testVisualTreeToolsReturnPlatformUnsupportedOnHost() throws {

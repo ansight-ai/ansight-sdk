@@ -11,7 +11,7 @@ public sealed class GetBindablePropertyTool : ITool
 {
     public string Category => "maui";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Read;
 
     public string Id => MauiToolIds.GetBindableProperty;
 
@@ -24,8 +24,6 @@ public sealed class GetBindablePropertyTool : ITool
     public ToolSchema ArgumentsSchema => MauiToolSchemas.GetBindablePropertyArguments;
 
     public ToolSchema ResultSchema => MauiToolSchemas.BindablePropertyResult;
-
-    public ToolSecurity Security => MauiToolSecurityProfiles.GetBindableProperty;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

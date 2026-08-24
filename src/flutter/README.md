@@ -17,7 +17,7 @@ Add the package to `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  ansight_flutter: ^1.3.0-preview.12
+  ansight_flutter: ^1.4.0-preview.12
 ```
 
 Then fetch dependencies:
@@ -222,7 +222,7 @@ host.
 
 ## Custom tools
 
-Flutter code can publish typed, security-described tools to a connected
+Flutter code can publish typed, policy-classified tools to a connected
 Ansight host:
 
 ```dart
@@ -232,10 +232,7 @@ final registration = await Ansight.instance.registerTool(
     name: 'Current user',
     description: 'Returns the non-sensitive current user summary.',
     category: 'app',
-    scope: AnsightToolScope.read,
-    security: AnsightToolSecurity(
-      level: AnsightToolSecurityLevel.low,
-    ),
+    policy: AnsightToolPolicy.read,
   ),
   (arguments, context) async => const AnsightToolResult.success(
     result: <String, Object?>{'signedIn': true},

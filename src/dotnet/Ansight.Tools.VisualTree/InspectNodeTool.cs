@@ -6,7 +6,7 @@ public sealed class InspectNodeTool : ITool
 {
     public string Category => "ui";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Read;
 
     public string Id => VisualTreeToolIds.InspectNode;
 
@@ -19,8 +19,6 @@ public sealed class InspectNodeTool : ITool
     public ToolSchema ArgumentsSchema => VisualTreeToolSchemas.InspectNodeArguments;
 
     public ToolSchema ResultSchema => VisualTreeToolSchemas.InspectNodeResult;
-
-    public ToolSecurity Security => VisualTreeToolSecurityProfiles.InspectNode;
 
     public async Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

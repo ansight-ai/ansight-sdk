@@ -23,9 +23,8 @@ public final class CountOpenFileDescriptorsTool: AnsightTool {
             name: "Count Open File Descriptors",
             description: "Counts live file descriptors owned by the current app process without returning descriptor details.",
             category: "file_descriptors",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .read,
             keywords: "file descriptors handles count limits diagnostics",
-            security: AnsightFileDescriptorDiagnosticsToolSecurityProfiles.countOpen,
             argumentsSchema: AnsightFileDescriptorDiagnosticsToolSchemas.countOpenArguments,
             resultSchema: AnsightFileDescriptorDiagnosticsToolSchemas.countOpenResult
         )

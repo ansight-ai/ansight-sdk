@@ -19,9 +19,8 @@ public final class ListReflectionRootsTool: AnsightTool {
             name: "List Reflection Roots",
             description: "Lists registered iOS runtime object roots available for reflection tools.",
             category: "reflect",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .read,
             keywords: "reflection runtime inspect roots objects",
-            security: AnsightReflectionToolSecurityProfiles.listRoots,
             argumentsSchema: AnsightReflectionToolSchemas.listRootsArguments,
             resultSchema: AnsightReflectionToolSchemas.listRootsResult
         )

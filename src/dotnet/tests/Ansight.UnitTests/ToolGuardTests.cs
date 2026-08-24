@@ -5,7 +5,7 @@ namespace Ansight.UnitTests;
 public sealed class ToolGuardTests
 {
     [Fact]
-    public void WithReadWriteToolAccess_EnablesReadAndWriteButNotDelete()
+    public void WithReadWriteToolAccess_SetsWriteAsMaximumPolicy()
     {
         var options = Options.CreateBuilder()
             .WithReadWriteToolAccess()
@@ -13,35 +13,35 @@ public sealed class ToolGuardTests
 
         Assert.True(options.ToolGuard.DiscoveryEnabled);
         Assert.True(options.ToolGuard.ExecutionEnabled);
-        Assert.Equal(new[] { ToolScope.Read, ToolScope.Write }, options.ToolGuard.AllowedScopes.OrderBy(scope => scope));
+        Assert.Equal(ToolPolicy.Write, options.ToolGuard.MaxPolicy);
     }
 
     [Fact]
-    public void ReadWriteGuard_CanExecuteReadAndWriteTools_ButRejectsDeleteTools()
+    public void ReadWriteGuard_CanExecuteReadAndWriteTools_ButRejectsCriticalTools()
     {
         var guard = ToolGuard.ReadWrite;
 
-        Assert.True(guard.CanExecute(new TestTool("test.read", ToolScope.Read), out var readReason));
+        Assert.True(guard.CanExecute(new TestTool("test.read", ToolPolicy.Read), out var readReason));
         Assert.Null(readReason);
 
-        Assert.True(guard.CanExecute(new TestTool("test.write", ToolScope.Write), out var writeReason));
+        Assert.True(guard.CanExecute(new TestTool("test.write", ToolPolicy.Write), out var writeReason));
         Assert.Null(writeReason);
 
-        Assert.False(guard.CanExecute(new TestTool("test.delete", ToolScope.Delete), out var deleteReason));
-        Assert.Contains("not enabled", deleteReason, StringComparison.OrdinalIgnoreCase);
+        Assert.False(guard.CanExecute(new TestTool("test.critical", ToolPolicy.Critical), out var criticalReason));
+        Assert.Contains("exceeds", criticalReason, StringComparison.OrdinalIgnoreCase);
     }
 
     private sealed class TestTool : ITool
     {
-        public TestTool(string id, ToolScope scope)
+        public TestTool(string id, ToolPolicy policy)
         {
             Id = id;
-            Scope = scope;
+            Policy = policy;
         }
 
         public string Category => "test";
 
-        public ToolScope Scope { get; }
+        public ToolPolicy Policy { get; }
 
         public string Id { get; }
 

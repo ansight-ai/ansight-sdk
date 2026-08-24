@@ -118,8 +118,7 @@ class PairingConfigDocumentServiceTest {
                 .put("expiresAt", inviteExpiry)
                 .put("grantExpiresAt", registrationExpiry)
                 .put("maxUses", 1)
-                .put("maxScopes", JSONArray().put("Read"))
-                .put("allowCritical", false),
+                .put("maxToolPolicy", "read"),
         )
         .toString()
 

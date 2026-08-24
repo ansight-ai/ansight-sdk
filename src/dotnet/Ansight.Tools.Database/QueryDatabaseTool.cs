@@ -22,7 +22,7 @@ public sealed class QueryDatabaseTool : ITool
 
     public string Category => "data";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Read;
 
     public string Id => DatabaseToolIds.Query;
 
@@ -35,8 +35,6 @@ public sealed class QueryDatabaseTool : ITool
     public ToolSchema ArgumentsSchema => DatabaseToolSchemas.QueryArguments;
 
     public ToolSchema ResultSchema => DatabaseToolSchemas.QueryResult;
-
-    public ToolSecurity Security => DatabaseToolSecurityProfiles.Query;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

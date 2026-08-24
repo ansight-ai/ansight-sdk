@@ -81,8 +81,7 @@ data class PairingEnrollment(
     val expiresAt: String,
     val grantExpiresAt: String,
     val maxUses: Int,
-    val maxScopes: List<String>,
-    val allowCritical: Boolean,
+    val maxToolPolicy: String,
 ) {
     companion object {
         fun fromJson(json: JSONObject): PairingEnrollment = PairingEnrollment(
@@ -90,8 +89,7 @@ data class PairingEnrollment(
             expiresAt = json.requiredString("expiresAt"),
             grantExpiresAt = json.requiredString("grantExpiresAt"),
             maxUses = json.optInt("maxUses", 1),
-            maxScopes = json.optJSONArray("maxScopes").toStringList(),
-            allowCritical = json.optBoolean("allowCritical", false),
+            maxToolPolicy = json.optString("maxToolPolicy", "read"),
         )
     }
 }
@@ -409,8 +407,7 @@ internal object LocalPairingDocumentFactory {
                     .put("expiresAt", expiresAt)
                     .put("grantExpiresAt", expiresAt)
                     .put("maxUses", 1)
-                    .put("maxScopes", JSONArray().put("Read").put("Write"))
-                    .put("allowCritical", false),
+                    .put("maxToolPolicy", "write"),
             )
         val discovery = JSONObject()
             .put("schema", "ansight.discovery-hint.v1")

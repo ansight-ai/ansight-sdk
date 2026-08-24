@@ -53,7 +53,7 @@ complete package matrix, guarded startup locations, and CLI verification.
 - baseline Apple device/app profile collection without direct PII, including runtime stack codes, app icon payloads, Metal GPU/render-backend details, and coarse network transport
 - Keychain-backed app-installation registration and remembered host profiles with explicit clearing
 - queued `ansight.file-transfer.v1` binary artifact transfers for screenshot and file-download tools during live Studio sessions
-- executable tool registration, tool guard policy, tool security metadata, reserved tool call context arguments, and `tool.query` / `tool.call` protocol handling
+- executable tool registration, ordered read/write/critical policy, tool guards, reserved tool call context arguments, and `tool.query` / `tool.call` protocol handling
 - app artifact providers with `artifacts.query`, `artifacts.request`, and live binary export
 - `AnsightToolsPreferences` SwiftPM product with `prefs.list_keys`, `prefs.get_value`, `prefs.set_value`, and `prefs.remove_key` for sandboxed `UserDefaults` access
 - `AnsightToolsFileSystem` SwiftPM product with sandboxed directory listing, file read/checksum/download, live binary download, push/copy/move/delete tools
@@ -333,15 +333,15 @@ await AnsightRuntime.shared.clearSessionProperties()
 
 ## Tool Guards
 
-| Preset | Allowed scopes |
+| Preset | Maximum policy |
 | --- | --- |
 | `.disabled` | None |
 | `.readOnly` | `.read` |
-| `.readWrite` | `.read`, `.write` |
-| `.fullAccess` | `.read`, `.write`, `.delete` |
+| `.readWrite` | `.write` |
+| `.fullAccess` | `.critical` |
 
-Delete-scoped tools, such as `files.delete_file`, `prefs.remove_key`,
-`secure.remove_key`, and overlay removal tools, require `.fullAccess`.
+Critical tools, such as `files.delete_file`, `prefs.remove_key`, secure-storage
+access, arbitrary reflection, and sensitive UI operations, require `.fullAccess`.
 
 ## Runtime Toggles
 
@@ -639,7 +639,7 @@ struct ReportArtifactProvider: AnsightArtifactProvider {
 try AnsightRuntime.shared.registerArtifactProvider(ReportArtifactProvider())
 ```
 
-Registering the first provider adds the read-scoped `artifacts.query` and
+Registering the first provider adds the `read` policy `artifacts.query` and
 `artifacts.request` tools automatically. Providers can also be passed through
 `AnsightRemoteToolOptions.artifactProviders`. Requests require a live Studio
 tool call; returned data is queued on the native binary-transfer channel.
@@ -659,7 +659,7 @@ struct StateSnapshotTool: AnsightTool {
             name: "State Snapshot",
             description: "Returns current app state.",
             category: "app",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .read,
             keywords: "state snapshot"
         )
     }

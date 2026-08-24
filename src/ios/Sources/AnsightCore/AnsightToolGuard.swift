@@ -4,47 +4,43 @@ public struct AnsightToolGuard: Sendable, Codable, Equatable {
     public static let disabled = AnsightToolGuard(
         discoveryEnabled: false,
         executionEnabled: false,
-        allowedScopes: []
+        maxPolicy: .read
     )
 
     public static let readOnly = AnsightToolGuard(
         discoveryEnabled: true,
         executionEnabled: true,
-        allowedScopes: [.read]
+        maxPolicy: .read
     )
 
     public static let readWrite = AnsightToolGuard(
         discoveryEnabled: true,
         executionEnabled: true,
-        allowedScopes: [.read, .write]
+        maxPolicy: .write
     )
 
     public static let fullAccess = AnsightToolGuard(
         discoveryEnabled: true,
         executionEnabled: true,
-        allowedScopes: AnsightToolScope.allCases
+        maxPolicy: .critical
     )
 
     public let discoveryEnabled: Bool
     public let executionEnabled: Bool
-    public let allowedScopes: [AnsightToolScope]
+    public let maxPolicy: AnsightToolPolicy
 
     public init(
         discoveryEnabled: Bool,
         executionEnabled: Bool,
-        allowedScopes: [AnsightToolScope]
+        maxPolicy: AnsightToolPolicy
     ) {
         self.discoveryEnabled = discoveryEnabled
         self.executionEnabled = executionEnabled
-        self.allowedScopes = allowedScopes
+        self.maxPolicy = maxPolicy
     }
 
     public func validate() throws {
-        if executionEnabled && allowedScopes.isEmpty {
-            throw RuntimeError.invalidInput(
-                "Tool execution cannot be enabled without at least one allowed scope."
-            )
-        }
+        // The enum guarantees that maxPolicy is valid.
     }
 
     func isVisible(_ descriptor: AnsightToolDescriptor) -> Bool {
@@ -57,17 +53,13 @@ public struct AnsightToolGuard: Sendable, Codable, Equatable {
         }
 
         guard isAllowed(descriptor) else {
-            return "Tool scope '\(descriptor.scope)' is not enabled by the current guard policy."
+            return "Tool policy '\(descriptor.policy.rawValue)' exceeds the current '\(maxPolicy.rawValue)' grant."
         }
 
         return nil
     }
 
     private func isAllowed(_ descriptor: AnsightToolDescriptor) -> Bool {
-        guard let scope = descriptor.scopeValue else {
-            return false
-        }
-
-        return allowedScopes.contains(scope)
+        return descriptor.policy <= maxPolicy
     }
 }

@@ -7,7 +7,7 @@ public sealed class GetBindingContextTool : ITool
 {
     public string Category => "maui";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Critical;
 
     public string Id => MauiToolIds.GetBindingContext;
 
@@ -20,8 +20,6 @@ public sealed class GetBindingContextTool : ITool
     public ToolSchema ArgumentsSchema => MauiToolSchemas.GetBindingContextArguments;
 
     public ToolSchema ResultSchema => MauiToolSchemas.BindingContextResult;
-
-    public ToolSecurity Security => MauiToolSecurityProfiles.GetBindingContext;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

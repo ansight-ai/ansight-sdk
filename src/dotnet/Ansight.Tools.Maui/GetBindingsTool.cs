@@ -11,7 +11,7 @@ public sealed class GetBindingsTool : ITool
 {
     public string Category => "maui";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Critical;
 
     public string Id => MauiToolIds.GetBindings;
 
@@ -24,8 +24,6 @@ public sealed class GetBindingsTool : ITool
     public ToolSchema ArgumentsSchema => MauiToolSchemas.GetBindingsArguments;
 
     public ToolSchema ResultSchema => MauiToolSchemas.BindingsResult;
-
-    public ToolSecurity Security => MauiToolSecurityProfiles.GetBindings;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

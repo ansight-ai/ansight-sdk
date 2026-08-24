@@ -11,7 +11,7 @@ import ai.ansight.runtime.AnsightSessionJpegCaptureOptions
 import ai.ansight.runtime.FunctionAndroidTool
 import ai.ansight.runtime.HostConnectionResult
 import ai.ansight.runtime.ToolDefinition
-import ai.ansight.runtime.ToolScope
+import ai.ansight.runtime.ToolPolicy
 import ai.ansight.runtime.ToolSchema
 import ai.ansight.tools.reflection.AndroidReflectionRootRegistry
 import android.app.AlertDialog
@@ -791,7 +791,7 @@ class MainActivity : AppCompatActivity() {
                 name = "Inspect Harness State",
                 description = "Returns app-specific harness navigation, database, scene, and runtime state.",
                 category = "harness",
-                scope = ToolScope.Read,
+                policy = ToolPolicy.Read,
                 keywords = "harness android state navigation database scene",
                 argumentsSchema = ToolSchema.obj(description = "No arguments."),
                 resultSchema = ToolSchema.obj(additionalProperties = true),
@@ -805,7 +805,7 @@ class MainActivity : AppCompatActivity() {
                 name = "Advance Harness State",
                 description = "Mutates the harness state using a named action.",
                 category = "harness",
-                scope = ToolScope.Write,
+                policy = ToolPolicy.Write,
                 keywords = "harness android mutate navigation database tab",
                 argumentsSchema = ToolSchema.obj(
                     description = "Harness state mutation arguments.",
@@ -839,7 +839,7 @@ class MainActivity : AppCompatActivity() {
                 name = "Harness Database Summary",
                 description = "Returns a focused summary of the seeded harness SQLite database.",
                 category = "harness",
-                scope = ToolScope.Read,
+                policy = ToolPolicy.Read,
                 keywords = "harness android sqlite database summary",
                 argumentsSchema = ToolSchema.obj(description = "No arguments."),
                 resultSchema = ToolSchema.obj(additionalProperties = true),

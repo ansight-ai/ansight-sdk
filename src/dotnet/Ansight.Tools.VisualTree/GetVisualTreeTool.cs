@@ -4,7 +4,7 @@ public sealed class GetVisualTreeTool : ITool
 {
     public string Category => "ui";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Read;
 
     public string Id => VisualTreeToolIds.GetVisualTree;
 
@@ -17,8 +17,6 @@ public sealed class GetVisualTreeTool : ITool
     public ToolSchema ArgumentsSchema => VisualTreeToolSchemas.GetVisualTreeArguments;
 
     public ToolSchema ResultSchema => VisualTreeToolSchemas.VisualTreeResult;
-
-    public ToolSecurity Security => VisualTreeToolSecurityProfiles.GetVisualTree;
 
     public async Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

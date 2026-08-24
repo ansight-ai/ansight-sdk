@@ -14,9 +14,8 @@ public final class ListDirectoryTool: AnsightTool {
             name: "List Directory",
             description: "Lists files and folders inside the app sandbox.",
             category: "files",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .read,
             keywords: "filesystem files directory sandbox",
-            security: AnsightFileSystemToolSecurityProfiles.listDirectory,
             argumentsSchema: AnsightFileSystemToolSchemas.listDirectoryArguments,
             resultSchema: AnsightFileSystemToolSchemas.listDirectoryResult
         )

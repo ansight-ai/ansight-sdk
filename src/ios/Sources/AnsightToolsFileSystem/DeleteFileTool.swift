@@ -14,9 +14,8 @@ public final class DeleteFileTool: AnsightTool {
             name: "Delete File",
             description: "Deletes a sandboxed file from an approved root.",
             category: "files",
-            scope: AnsightToolScope.delete.rawValue,
+            policy: .critical,
             keywords: "filesystem file delete remove sandbox",
-            security: AnsightFileSystemToolSecurityProfiles.deleteFile,
             argumentsSchema: AnsightFileSystemToolSchemas.deleteFileArguments,
             resultSchema: AnsightFileSystemToolSchemas.deleteFileResult
         )

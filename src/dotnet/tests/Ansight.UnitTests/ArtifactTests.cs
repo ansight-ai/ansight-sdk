@@ -140,10 +140,7 @@ public sealed class ArtifactTests
                         SizeKnownBeforeCreation = false
                     },
                     ToolSchema.Object(),
-                    new ToolSecurity(
-                        ToolSecurityLevel.High,
-                        "Exports report data.",
-                        ToolSecurityImplications.ExportsData))
+                    ToolPolicy.Read)
                 {
                     Tags = new[] { "csv" },
                     Metadata = new Dictionary<string, string>(StringComparer.Ordinal)

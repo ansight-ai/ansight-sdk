@@ -40,8 +40,7 @@ internal static class PairingTestDocumentFactory
                 ExpiresAt = expires,
                 GrantExpiresAt = registrationExpiresAt ?? DateTimeOffset.UtcNow.AddDays(14),
                 MaxUses = 1,
-                MaxScopes = ["Read"],
-                AllowCritical = false
+                MaxToolPolicy = "read"
             }
         };
     }

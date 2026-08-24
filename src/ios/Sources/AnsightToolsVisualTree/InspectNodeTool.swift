@@ -10,9 +10,8 @@ public final class InspectNodeTool: AnsightTool {
             name: "Inspect Node",
             description: "Returns detailed metadata for a visual tree node.",
             category: "ui",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .read,
             keywords: "ui node inspect accessibility layout",
-            security: AnsightVisualTreeToolSecurityProfiles.inspectNode,
             argumentsSchema: AnsightVisualTreeToolSchemas.inspectNodeArguments,
             resultSchema: AnsightVisualTreeToolSchemas.inspectNodeResult
         )

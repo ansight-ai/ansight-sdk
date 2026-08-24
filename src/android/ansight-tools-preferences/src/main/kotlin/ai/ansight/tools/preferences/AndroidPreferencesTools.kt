@@ -2,7 +2,7 @@ package ai.ansight.tools.preferences
 
 import ai.ansight.runtime.AndroidTool
 import ai.ansight.runtime.AndroidToolResult
-import ai.ansight.runtime.ToolScope
+import ai.ansight.runtime.ToolPolicy
 import ai.ansight.runtime.androidPreferencesTool
 import ai.ansight.runtime.putNullable
 import android.app.Application
@@ -55,7 +55,7 @@ object AndroidPreferencesTools {
             PreferencesToolIds.SetValue,
             "Set Preference Value",
             "Writes one SharedPreferences string value.",
-            ToolScope.Write,
+            ToolPolicy.Write,
         ) { args, context ->
             val key = args["key"] ?: return@androidPreferencesTool AndroidToolResult.failure(
                 "Preference key is required.",
@@ -73,7 +73,7 @@ object AndroidPreferencesTools {
             PreferencesToolIds.RemoveKey,
             "Remove Preference Key",
             "Removes one SharedPreferences key.",
-            ToolScope.Delete,
+            ToolPolicy.Critical,
         ) { args, context ->
             val key = args["key"] ?: return@androidPreferencesTool AndroidToolResult.failure(
                 "Preference key is required.",

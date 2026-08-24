@@ -11,7 +11,7 @@ public sealed class MoveFileTool : ITool
 
     public string Category => "files";
 
-    public ToolScope Scope => ToolScope.Write;
+    public ToolPolicy Policy => ToolPolicy.Write;
 
     public string Id => FileSystemToolIds.MoveFile;
 
@@ -24,8 +24,6 @@ public sealed class MoveFileTool : ITool
     public ToolSchema ArgumentsSchema => FileSystemToolSchemas.MoveFileArguments;
 
     public ToolSchema ResultSchema => FileSystemToolSchemas.MoveFileResult;
-
-    public ToolSecurity Security => FileSystemToolSecurityProfiles.MoveFile;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

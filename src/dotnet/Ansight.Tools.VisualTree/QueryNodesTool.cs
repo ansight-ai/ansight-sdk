@@ -8,14 +8,13 @@ using System.Text.Json.Nodes;
 public sealed class QueryNodesTool : IJsonTool
 {
     public string Category => "ui";
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Read;
     public string Id => VisualTreeToolIds.QueryNodes;
     public string Name => "Query UI Nodes";
     public string Description => "Captures or reuses a UI snapshot and returns framework-neutral node references.";
     public string Keywords => "ui query find node selector automation id role text type";
     public ToolSchema ArgumentsSchema => VisualTreeToolSchemas.QueryNodesArguments;
     public ToolSchema ResultSchema => VisualTreeToolSchemas.QueryNodesResult;
-    public ToolSecurity Security => VisualTreeToolSecurityProfiles.QueryNodes;
 
     public async Task<ToolResult> ExecuteAsync(
         ToolInvocation invocation,

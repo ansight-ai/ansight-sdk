@@ -14,9 +14,8 @@ public final class DownloadFileTool: AnsightTool {
             name: "Download File",
             description: "Downloads a sandboxed file in resumable chunks with text or base64 payloads.",
             category: "files",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .read,
             keywords: "filesystem file download stream sandbox base64 text binary",
-            security: AnsightFileSystemToolSecurityProfiles.downloadFile,
             argumentsSchema: AnsightFileSystemToolSchemas.downloadFileArguments,
             resultSchema: AnsightFileSystemToolSchemas.downloadFileResult
         )

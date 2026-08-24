@@ -14,9 +14,8 @@ public final class SetSecureStorageValueTool: AnsightTool {
             name: "Set Secure Storage Value",
             description: "Writes a value into the configured secure storage backend.",
             category: "secure",
-            scope: AnsightToolScope.write.rawValue,
+            policy: .critical,
             keywords: "secure storage keychain keystore encrypted write",
-            security: AnsightSecureStorageToolSecurityProfiles.setValue,
             argumentsSchema: AnsightSecureStorageToolSchemas.setValueArguments,
             resultSchema: AnsightSecureStorageToolSchemas.setValueResult
         )

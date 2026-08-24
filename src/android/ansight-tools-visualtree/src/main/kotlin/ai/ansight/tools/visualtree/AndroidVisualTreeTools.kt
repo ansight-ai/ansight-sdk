@@ -6,7 +6,7 @@ import ai.ansight.runtime.AndroidUiEvidence
 import ai.ansight.runtime.AnsightSessionJpegCaptureOptions
 import ai.ansight.runtime.BinaryTransferDescriptor
 import ai.ansight.runtime.PairingFileTransferWireProtocol
-import ai.ansight.runtime.ToolScope
+import ai.ansight.runtime.ToolPolicy
 import ai.ansight.runtime.androidUiTool
 import ai.ansight.runtime.intArg
 import ai.ansight.runtime.queueBinaryTransfer
@@ -117,7 +117,7 @@ object AndroidVisualTreeTools {
             VisualTreeToolIds.ShowOverlay,
             "Show Overlay",
             "Shows a rectangular diagnostic overlay.",
-            ToolScope.Write,
+            ToolPolicy.Write,
         ) { args, _ ->
             AndroidToolResult.success(AndroidUiEvidence.showOverlay(args))
         },
@@ -140,7 +140,7 @@ object AndroidVisualTreeTools {
             VisualTreeToolIds.UpdateOverlay,
             "Update Overlay",
             "Updates a diagnostic overlay.",
-            ToolScope.Write,
+            ToolPolicy.Write,
         ) { args, _ ->
             AndroidToolResult.success(AndroidUiEvidence.updateOverlay(args))
         },
@@ -148,7 +148,7 @@ object AndroidVisualTreeTools {
             VisualTreeToolIds.RemoveOverlay,
             "Remove Overlay",
             "Removes a diagnostic overlay.",
-            ToolScope.Write,
+            ToolPolicy.Write,
         ) { args, _ ->
             val id = args["id"] ?: return@androidUiTool AndroidToolResult.failure("Overlay id is required.", "overlay_id_required")
             AndroidToolResult.success(AndroidUiEvidence.removeOverlay(id))
@@ -157,7 +157,7 @@ object AndroidVisualTreeTools {
             VisualTreeToolIds.ClearOverlays,
             "Clear Overlays",
             "Clears diagnostic overlays.",
-            ToolScope.Write,
+            ToolPolicy.Write,
         ) { _, _ ->
             AndroidToolResult.success(AndroidUiEvidence.clearOverlays())
         },

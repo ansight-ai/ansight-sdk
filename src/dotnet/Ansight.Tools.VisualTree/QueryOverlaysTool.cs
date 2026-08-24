@@ -4,7 +4,7 @@ public sealed class QueryOverlaysTool : ITool
 {
     public string Category => "ui";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Read;
 
     public string Id => VisualTreeToolIds.QueryOverlays;
 
@@ -17,8 +17,6 @@ public sealed class QueryOverlaysTool : ITool
     public ToolSchema ArgumentsSchema => VisualTreeToolSchemas.QueryOverlaysArguments;
 
     public ToolSchema ResultSchema => VisualTreeToolSchemas.QueryOverlaysResult;
-
-    public ToolSecurity Security => VisualTreeToolSecurityProfiles.QueryOverlays;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

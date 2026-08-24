@@ -80,8 +80,8 @@ bundle; its API requires the native Ansight module.
 
 This package version expects matching native SDK packages:
 
-- CocoaPods: `Ansight`, `AnsightObjC` version `1.3.0-preview.12`
-- Maven: `ai.ansight:ansight-android:1.3.0-preview.12`
+- CocoaPods: `Ansight`, `AnsightObjC` version `1.4.0-preview.12`
+- Maven: `ai.ansight:ansight-android:1.4.0-preview.12`
 
 ## Quickstart
 
@@ -461,12 +461,12 @@ locale; if the app selects a different language through an i18n library, set
 
 ## Tool Guards
 
-| Value | Allowed scopes |
+| Value | Maximum policy |
 | --- | --- |
 | `"disabled"` | None |
 | `"readOnly"` | Read |
-| `"readWrite"` | Read, Write |
-| `"fullAccess"` | Read, Write, Delete |
+| `"readWrite"` | Write |
+| `"fullAccess"` | Critical |
 
 `"full"` is accepted as a compatibility alias for `"fullAccess"`.
 
@@ -481,7 +481,7 @@ const registration = Ansight.registerTool(
     name: "State Snapshot",
     description: "Returns current app state.",
     category: "app",
-    scope: "Read",
+    policy: "read",
     keywords: "state snapshot",
     argumentsSchema: { type: "object", additionalProperties: true },
     resultSchema: { type: "object", additionalProperties: true },
@@ -544,7 +544,7 @@ const reportProvider = Ansight.registerArtifactProvider({
 await reportProvider.ready;
 ```
 
-The first provider installs the read-scoped `artifacts.query` and
+The first provider installs the `read` policy `artifacts.query` and
 `artifacts.request` JavaScript tools in the native registry. A provider can
 return text, base64, byte arrays, `ArrayBuffer`, or `Uint8Array`. Artifact
 requests require a live Studio tool call; the bridge forwards the returned

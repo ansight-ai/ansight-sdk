@@ -11,7 +11,7 @@ public sealed class ListReflectionRootsTool : ITool
 
     public string Category => "reflect";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Read;
 
     public string Id => ReflectionToolIds.ListRoots;
 
@@ -24,8 +24,6 @@ public sealed class ListReflectionRootsTool : ITool
     public ToolSchema ArgumentsSchema => ReflectionToolSchemas.ListRootsArguments;
 
     public ToolSchema ResultSchema => ReflectionToolSchemas.ListRootsResult;
-
-    public ToolSecurity Security => ReflectionToolSecurityProfiles.ListRoots;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

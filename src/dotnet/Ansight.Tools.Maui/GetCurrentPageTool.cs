@@ -11,7 +11,7 @@ public sealed class GetCurrentPageTool : ITool
 {
     public string Category => "maui";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Read;
 
     public string Id => MauiToolIds.GetCurrentPage;
 
@@ -24,8 +24,6 @@ public sealed class GetCurrentPageTool : ITool
     public ToolSchema ArgumentsSchema => MauiToolSchemas.GetCurrentPageArguments;
 
     public ToolSchema ResultSchema => MauiToolSchemas.CurrentPageResult;
-
-    public ToolSecurity Security => MauiToolSecurityProfiles.GetCurrentPage;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

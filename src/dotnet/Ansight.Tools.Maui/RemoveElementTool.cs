@@ -7,7 +7,7 @@ public sealed class RemoveElementTool : ITool
 {
     public string Category => "maui";
 
-    public ToolScope Scope => ToolScope.Write;
+    public ToolPolicy Policy => ToolPolicy.Critical;
 
     public string Id => MauiToolIds.RemoveElement;
 
@@ -20,8 +20,6 @@ public sealed class RemoveElementTool : ITool
     public ToolSchema ArgumentsSchema => MauiToolSchemas.RemoveElementArguments;
 
     public ToolSchema ResultSchema => MauiToolSchemas.ElementTreeMutationResult;
-
-    public ToolSecurity Security => MauiToolSecurityProfiles.RemoveElement;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

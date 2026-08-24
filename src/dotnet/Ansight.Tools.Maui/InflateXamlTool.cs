@@ -12,7 +12,7 @@ public sealed class InflateXamlTool : ITool
 {
     public string Category => "maui";
 
-    public ToolScope Scope => ToolScope.Write;
+    public ToolPolicy Policy => ToolPolicy.Critical;
 
     public string Id => MauiToolIds.InflateXaml;
 
@@ -25,8 +25,6 @@ public sealed class InflateXamlTool : ITool
     public ToolSchema ArgumentsSchema => MauiToolSchemas.InflateXamlArguments;
 
     public ToolSchema ResultSchema => MauiToolSchemas.InflateXamlResult;
-
-    public ToolSecurity Security => MauiToolSecurityProfiles.InflateXaml;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

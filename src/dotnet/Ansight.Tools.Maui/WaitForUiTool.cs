@@ -13,7 +13,7 @@ public sealed class WaitForUiTool : ITool
 {
     public string Category => "maui";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Read;
 
     public string Id => MauiToolIds.WaitForUi;
 
@@ -26,8 +26,6 @@ public sealed class WaitForUiTool : ITool
     public ToolSchema ArgumentsSchema => MauiToolSchemas.WaitForUiArguments;
 
     public ToolSchema ResultSchema => MauiToolSchemas.WaitForUiResult;
-
-    public ToolSecurity Security => MauiToolSecurityProfiles.WaitForUi;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

@@ -10,8 +10,9 @@ iOS live-object reflection tools.
 - `reflect.set_member_value`
 - `reflect.invoke_method`
 
-List, inspect, and describe are read-scoped. Setting member values and invoking
-methods are write-scoped and require a tool guard that permits write tools.
+List and describe use `.read`. Inspecting reachable objects, setting members,
+and invoking methods use `.critical` because they can expose sensitive state or
+execute arbitrary app code; they require a critical-enabled tool guard.
 
 Swift does not expose arbitrary runtime property writes or method invocation in
 the same way as .NET and the JVM. Inspection uses `Mirror`; writes and method

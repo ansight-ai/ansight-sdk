@@ -68,7 +68,7 @@ final class PreferencesToolTests: XCTestCase {
         XCTAssertEqual(removeResult["removed"], .bool(true))
     }
 
-    func testPreferencesCatalogIncludesSecurityMetadata() throws {
+    func testPreferencesCatalogIncludesPolicies() throws {
         let bridge = bridge(
             tools: AnsightPreferencesTools.tools(),
             guardPolicy: .fullAccess
@@ -90,15 +90,8 @@ final class PreferencesToolTests: XCTestCase {
             return object
         }.first
 
-        guard let getValueTool,
-              case .object(let security)? = getValueTool["security"],
-              case .array(let implications)? = security["implications"] else {
-            return XCTFail("Expected get-value security metadata.")
-        }
-
-        XCTAssertEqual(security["level"], .string("High"))
-        XCTAssertTrue(implications.contains(.string("reads_app_data")))
-        XCTAssertTrue(implications.contains(.string("accesses_preferences")))
+        XCTAssertEqual(getValueTool?["policy"], .string("read"))
+        XCTAssertNil(getValueTool?["security"])
     }
 
     func testPreferencesAllowListFailureReturnsToolError() throws {

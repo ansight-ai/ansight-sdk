@@ -27,11 +27,13 @@ var options = Options.CreateBuilder()
         secure.WithStorageIdentifier("MyApp");
         secure.AllowKeys("session_token", "refresh_token");
     })
-    .WithReadWriteToolAccess()
+    .WithAllToolAccess()
     .Build();
 ```
 
-`secure.remove_key` is delete-scoped. Use `WithAllToolAccess()` or a custom `ToolGuard` if you want delete operations to execute.
+All secure-storage tools use `ToolPolicy.Critical`, including reads, because
+they expose or mutate secrets. Use `WithAllToolAccess()` or a custom
+critical-enabled `ToolGuard` to execute them.
 
 When using the `Ansight` or `Ansight.Maui` all-in-one packages, configure secure-storage access inside the setup callback:
 

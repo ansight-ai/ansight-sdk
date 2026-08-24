@@ -10,9 +10,8 @@ public final class QueryOverlaysTool: AnsightTool {
             name: "Query Overlays",
             description: "Lists live diagnostic overlays and supports simple metadata filtering.",
             category: "ui",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .read,
             keywords: "ui overlay highlight query list metadata",
-            security: AnsightVisualTreeToolSecurityProfiles.queryOverlays,
             argumentsSchema: AnsightVisualTreeToolSchemas.queryOverlaysArguments,
             resultSchema: AnsightVisualTreeToolSchemas.queryOverlaysResult
         )

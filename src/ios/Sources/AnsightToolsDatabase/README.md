@@ -9,7 +9,7 @@ sandbox roots.
 - `data.describe_schema`
 - `data.query`
 
-All database tools are read-scoped and available with `.readOnly`.
+All database tools use `.read` and are available with `.readOnly`.
 
 ## Usage
 

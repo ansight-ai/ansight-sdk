@@ -11,7 +11,7 @@ public sealed class PushFileTool : ITool
 
     public string Category => "files";
 
-    public ToolScope Scope => ToolScope.Write;
+    public ToolPolicy Policy => ToolPolicy.Write;
 
     public string Id => FileSystemToolIds.PushFile;
 
@@ -24,8 +24,6 @@ public sealed class PushFileTool : ITool
     public ToolSchema ArgumentsSchema => FileSystemToolSchemas.PushFileArguments;
 
     public ToolSchema ResultSchema => FileSystemToolSchemas.PushFileResult;
-
-    public ToolSecurity Security => FileSystemToolSecurityProfiles.PushFile;
 
     public async Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

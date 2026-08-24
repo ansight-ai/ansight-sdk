@@ -14,9 +14,8 @@ public final class GetScreenshotTool: AnsightTool {
             name: "Get Screenshot",
             description: "Captures a screenshot of the current app scene.",
             category: "ui",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .read,
             keywords: "ui screenshot image capture",
-            security: AnsightVisualTreeToolSecurityProfiles.getScreenshot,
             argumentsSchema: AnsightVisualTreeToolSchemas.getScreenshotArguments,
             resultSchema: AnsightVisualTreeToolSchemas.screenshotResult
         )

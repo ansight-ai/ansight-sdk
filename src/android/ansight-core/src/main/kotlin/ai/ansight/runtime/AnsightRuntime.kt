@@ -766,7 +766,7 @@ object AnsightRuntime {
                         name = tool.name,
                         description = "Custom app tool '${tool.name}'.",
                         category = "custom",
-                        scope = tool.scope.toToolScope(),
+                        policy = tool.policy.toToolPolicy(),
                         keywords = "custom app tool",
                     ),
                 ) { _, _ ->
@@ -1437,7 +1437,7 @@ object AnsightRuntime {
         tools[definition.id] = AnsightToolDescriptor(
             id = definition.id,
             name = definition.name,
-            scope = definition.scope.name,
+            policy = definition.policy.wireName,
         )
     }
 
@@ -1501,7 +1501,7 @@ object AnsightRuntime {
         val currentOptions = catalogState.third
         val response = if (app == null) {
             toolErrorEnvelope(request, "runtime_unavailable", "AnsightRuntime is not initialized.")
-        } else if (!currentOptions.toolGuard.canDiscover(ToolScope.Read)) {
+        } else if (!currentOptions.toolGuard.canDiscover(ToolPolicy.Read)) {
             toolErrorEnvelope(request, "tool_discovery_disabled", "Tool discovery is disabled by the current guard policy.")
         } else {
             val context = AndroidToolExecutionContext(
@@ -1649,8 +1649,8 @@ object AnsightRuntime {
         val tool = synchronized(lock) { toolRegistry.get(toolId) }
             ?: return toolErrorEnvelope(request, "tool_not_found", "Tool '$toolId' is not registered.")
         val guard = synchronized(lock) { options.toolGuard }
-        if (!guard.canExecute(tool.definition.scope)) {
-            return toolErrorEnvelope(request, "tool_execution_denied", "Tool scope '${tool.definition.scope}' is not enabled by the current guard policy.")
+        if (!guard.canExecute(tool.definition.policy)) {
+            return toolErrorEnvelope(request, "tool_execution_denied", "Tool policy '${tool.definition.policy.wireName}' exceeds the current grant.")
         }
 
         val argumentObject = when (val arguments = payload.opt("arguments")) {

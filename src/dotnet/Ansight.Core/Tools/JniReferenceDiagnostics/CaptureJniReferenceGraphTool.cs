@@ -16,7 +16,7 @@ public sealed class CaptureJniReferenceGraphTool : ITool
 
     public string Category => "jni_references";
 
-    public ToolScope Scope => ToolScope.Read;
+    public ToolPolicy Policy => ToolPolicy.Read;
 
     public string Id => JniReferenceDiagnosticsToolIds.CaptureGraph;
 
@@ -58,14 +58,6 @@ public sealed class CaptureJniReferenceGraphTool : ITool
             "truncated"
         ],
         additionalProperties: true);
-
-    public ToolSecurity Security => new(
-        ToolSecurityLevel.High,
-        "Captures redacted Android heap topology and temporarily writes an HPROF snapshot.",
-        "metadata_disclosure",
-        "inspects_runtime_state",
-        "temporarily_pauses_app",
-        "writes_temporary_heap_snapshot");
 
     public ValueTask<ToolAvailability> GetAvailabilityAsync(ToolAvailabilityContext context)
     {

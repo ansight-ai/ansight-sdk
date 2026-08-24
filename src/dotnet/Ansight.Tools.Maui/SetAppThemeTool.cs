@@ -12,7 +12,7 @@ public sealed class SetAppThemeTool : ITool
 {
     public string Category => "maui";
 
-    public ToolScope Scope => ToolScope.Write;
+    public ToolPolicy Policy => ToolPolicy.Critical;
 
     public string Id => MauiToolIds.SetAppTheme;
 
@@ -25,8 +25,6 @@ public sealed class SetAppThemeTool : ITool
     public ToolSchema ArgumentsSchema => MauiToolSchemas.SetAppThemeArguments;
 
     public ToolSchema ResultSchema => MauiToolSchemas.AppThemeResult;
-
-    public ToolSecurity Security => MauiToolSecurityProfiles.SetAppTheme;
 
     public Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {

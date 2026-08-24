@@ -14,9 +14,8 @@ public final class RemoveSecureStorageKeyTool: AnsightTool {
             name: "Remove Secure Storage Key",
             description: "Deletes a value from the configured secure storage backend.",
             category: "secure",
-            scope: AnsightToolScope.delete.rawValue,
+            policy: .critical,
             keywords: "secure storage keychain keystore encrypted delete remove",
-            security: AnsightSecureStorageToolSecurityProfiles.removeKey,
             argumentsSchema: AnsightSecureStorageToolSchemas.removeKeyArguments,
             resultSchema: AnsightSecureStorageToolSchemas.removeKeyResult
         )

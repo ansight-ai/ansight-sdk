@@ -34,8 +34,8 @@ public sealed class AnsightAllInOneTests
         Assert.True(options.HostAutoProbe.Enabled);
         Assert.Equal(bundledConfigAssembly, options.HostConnection.BundledConfigAssembly);
         Assert.Equal(
-            [ToolScope.Read, ToolScope.Write, ToolScope.Delete],
-            options.ToolGuard.AllowedScopes.OrderBy(scope => scope));
+            ToolPolicy.Critical,
+            options.ToolGuard.MaxPolicy);
 
         Assert.Equal(expectedRemoteToolIds, options.Tools.Select(tool => tool.Id));
     }
@@ -65,7 +65,7 @@ public sealed class AnsightAllInOneTests
             .WithAnsightSdk(ansight => ansight.WithReadOnlyToolAccess())
             .Build();
 
-        Assert.Equal([ToolScope.Read], options.ToolGuard.AllowedScopes.OrderBy(scope => scope));
+        Assert.Equal(ToolPolicy.Read, options.ToolGuard.MaxPolicy);
         Assert.Equal(expectedRemoteToolIds, options.Tools.Select(tool => tool.Id));
     }
 
@@ -104,8 +104,8 @@ public sealed class AnsightAllInOneTests
             expectedRemoteToolIds.Concat(expectedMauiToolIds),
             options.Tools.Select(tool => tool.Id));
         Assert.Equal(
-            [ToolScope.Read, ToolScope.Write, ToolScope.Delete],
-            options.ToolGuard.AllowedScopes.OrderBy(scope => scope));
+            ToolPolicy.Critical,
+            options.ToolGuard.MaxPolicy);
     }
 
     [Fact]

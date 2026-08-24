@@ -10,9 +10,8 @@ public final class ShowOverlayTool: AnsightTool {
             name: "Show Overlay",
             description: "Draws an input-transparent diagnostic overlay over the active app window.",
             category: "ui",
-            scope: AnsightToolScope.write.rawValue,
+            policy: .write,
             keywords: "ui overlay highlight box rectangle diagnostic",
-            security: AnsightVisualTreeToolSecurityProfiles.showOverlay,
             argumentsSchema: AnsightVisualTreeToolSchemas.showOverlayArguments,
             resultSchema: AnsightVisualTreeToolSchemas.overlayResult
         )

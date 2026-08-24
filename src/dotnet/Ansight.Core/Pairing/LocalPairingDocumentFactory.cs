@@ -35,8 +35,7 @@ internal static class LocalPairingDocumentFactory
                     ExpiresAt = expiresAt,
                     GrantExpiresAt = expiresAt,
                     MaxUses = 1,
-                    MaxScopes = ["Read", "Write"],
-                    AllowCritical = false
+                    MaxToolPolicy = "write"
                 }
             },
             DiscoveryHint = new PairingDiscoveryHint

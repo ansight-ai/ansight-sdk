@@ -38,25 +38,12 @@ enum AnsightToolGuard {
   final String wireName;
 }
 
-enum AnsightToolScope {
+enum AnsightToolPolicy {
   read('read'),
   write('write'),
-  delete('delete');
-
-  const AnsightToolScope(this.wireName);
-
-  final String wireName;
-}
-
-enum AnsightToolSecurityLevel {
-  unspecified('unspecified'),
-  low('low'),
-  medium('medium'),
-  moderate('moderate'),
-  high('high'),
   critical('critical');
 
-  const AnsightToolSecurityLevel(this.wireName);
+  const AnsightToolPolicy(this.wireName);
 
   final String wireName;
 }

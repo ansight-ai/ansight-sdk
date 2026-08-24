@@ -14,16 +14,8 @@ final class HarnessListReflectionRootsTool: AnsightTool, @unchecked Sendable {
             name: "List Harness Reflection Roots",
             description: "Lists the harness-registered state roots available for custom inspection.",
             category: "Harness",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .read,
             keywords: "harness reflection roots inspect custom state",
-            security: AnsightToolSecurity(
-                level: .low,
-                summary: "Lists diagnostic reflection-style roots registered by the harness.",
-                implications: [
-                    AnsightToolSecurityImplications.inspectsRuntimeState,
-                    AnsightToolSecurityImplications.metadataDisclosure,
-                ]
-            ),
             resultSchema: HarnessToolSchemas.reflectionRootsResult
         )
     }

@@ -5,10 +5,8 @@ import ai.ansight.runtime.AndroidToolResult
 import ai.ansight.runtime.AnsightClock
 import ai.ansight.runtime.FunctionAndroidTool
 import ai.ansight.runtime.ToolDefinition
-import ai.ansight.runtime.ToolScope
+import ai.ansight.runtime.ToolPolicy
 import ai.ansight.runtime.ToolSchema
-import ai.ansight.runtime.ToolSecurity
-import ai.ansight.runtime.ToolSecurityLevel
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Locale
@@ -30,7 +28,6 @@ object AndroidFileDescriptorDiagnosticsTools {
             description = "Lists live file descriptors owned by the current app process.",
             argumentsSchema = FileDescriptorDiagnosticsSchemas.listOpenArguments,
             resultSchema = FileDescriptorDiagnosticsSchemas.listOpenResult,
-            security = listSecurity,
         ) { arguments ->
             runTool("file_descriptor_list_failed") {
                 val snapshot = collector.snapshot(options)
@@ -58,7 +55,6 @@ object AndroidFileDescriptorDiagnosticsTools {
             description = "Counts live file descriptors owned by the current app process without returning descriptor details.",
             argumentsSchema = FileDescriptorDiagnosticsSchemas.countOpenArguments,
             resultSchema = FileDescriptorDiagnosticsSchemas.countOpenResult,
-            security = countSecurity,
         ) {
             runTool("file_descriptor_count_failed") {
                 val snapshot = collector.count()
@@ -71,7 +67,6 @@ object AndroidFileDescriptorDiagnosticsTools {
             description = "Returns metadata for one live file descriptor in the current app process.",
             argumentsSchema = FileDescriptorDiagnosticsSchemas.inspectArguments,
             resultSchema = FileDescriptorDiagnosticsSchemas.inspectResult,
-            security = listSecurity,
         ) { arguments ->
             val descriptor = arguments["descriptor"]?.toIntOrNull()
                 ?: return@tool AndroidToolResult.failure("Argument 'descriptor' is required.", "file_descriptor_invalid_argument")
@@ -97,7 +92,6 @@ object AndroidFileDescriptorDiagnosticsTools {
             description = "Reports current open descriptor usage against the process soft and hard limits.",
             argumentsSchema = FileDescriptorDiagnosticsSchemas.getUsageArguments,
             resultSchema = FileDescriptorDiagnosticsSchemas.getUsageResult,
-            security = countSecurity,
         ) {
             runTool("file_descriptor_usage_failed") {
                 val snapshot = collector.count()
@@ -122,22 +116,12 @@ object AndroidFileDescriptorDiagnosticsTools {
         },
     )
 
-    private val countSecurity = ToolSecurity(
-        ToolSecurityLevel.Medium,
-        listOf("metadata_disclosure", "inspects_runtime_state"),
-    )
-    private val listSecurity = ToolSecurity(
-        ToolSecurityLevel.High,
-        listOf("metadata_disclosure", "inspects_runtime_state", "accesses_file_system"),
-    )
-
     private fun tool(
         id: String,
         name: String,
         description: String,
         argumentsSchema: ToolSchema,
         resultSchema: ToolSchema,
-        security: ToolSecurity,
         handler: (Map<String, String>) -> AndroidToolResult,
     ): AndroidTool = FunctionAndroidTool(
         ToolDefinition(
@@ -145,11 +129,10 @@ object AndroidFileDescriptorDiagnosticsTools {
             name = name,
             description = description,
             category = "file_descriptors",
-            scope = ToolScope.Read,
+            policy = ToolPolicy.Read,
             keywords = "file descriptors handles open files sockets pipes limits diagnostics",
             argumentsSchema = argumentsSchema,
             resultSchema = resultSchema,
-            security = security,
         ),
     ) { arguments, _ -> handler(arguments) }
 

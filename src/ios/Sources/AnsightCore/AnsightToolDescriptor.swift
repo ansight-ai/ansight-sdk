@@ -5,9 +5,8 @@ public struct AnsightToolDescriptor: Sendable, Codable, Equatable {
     public let name: String
     public let description: String
     public let category: String
-    public let scope: String
+    public let policy: AnsightToolPolicy
     public let keywords: String
-    public let security: AnsightToolSecurity
     public let argumentsSchema: AnsightToolSchema
     public let resultSchema: AnsightToolSchema
 
@@ -16,9 +15,8 @@ public struct AnsightToolDescriptor: Sendable, Codable, Equatable {
         name: String,
         description: String = "",
         category: String = "Diagnostics",
-        scope: String = AnsightToolScope.read.rawValue,
+        policy: AnsightToolPolicy = .read,
         keywords: String = "",
-        security: AnsightToolSecurity = .unspecified,
         argumentsSchema: AnsightToolSchema = .emptyObject,
         resultSchema: AnsightToolSchema = .emptyObject
     ) {
@@ -26,14 +24,10 @@ public struct AnsightToolDescriptor: Sendable, Codable, Equatable {
         self.name = name
         self.description = description
         self.category = category
-        self.scope = scope
+        self.policy = policy
         self.keywords = keywords
-        self.security = security
         self.argumentsSchema = argumentsSchema
         self.resultSchema = resultSchema
     }
 
-    public var scopeValue: AnsightToolScope? {
-        AnsightToolScope(rawValue: scope)
-    }
 }

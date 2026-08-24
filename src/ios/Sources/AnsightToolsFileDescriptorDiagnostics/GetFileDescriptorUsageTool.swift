@@ -23,9 +23,8 @@ public final class GetFileDescriptorUsageTool: AnsightTool {
             name: "Get File Descriptor Usage",
             description: "Reports current open descriptor usage against the process soft and hard limits.",
             category: "file_descriptors",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .read,
             keywords: "file descriptors handles usage limits exhaustion diagnostics",
-            security: AnsightFileDescriptorDiagnosticsToolSecurityProfiles.getUsage,
             argumentsSchema: AnsightFileDescriptorDiagnosticsToolSchemas.getUsageArguments,
             resultSchema: AnsightFileDescriptorDiagnosticsToolSchemas.getUsageResult
         )

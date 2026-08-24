@@ -19,9 +19,8 @@ public final class InvokeMethodTool: AnsightTool {
             name: "Invoke Method",
             description: "Invokes an opt-in method reachable from a registered iOS object root.",
             category: "reflect",
-            scope: AnsightToolScope.write.rawValue,
+            policy: .critical,
             keywords: "reflection invoke method runtime",
-            security: AnsightReflectionToolSecurityProfiles.invokeMethod,
             argumentsSchema: AnsightReflectionToolSchemas.invokeMethodArguments,
             resultSchema: AnsightReflectionToolSchemas.invokeMethodResult
         )

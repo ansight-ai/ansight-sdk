@@ -14,9 +14,8 @@ public final class ListPreferenceKeysTool: AnsightTool {
             name: "List Preference Keys",
             description: "Lists visible keys from an iOS UserDefaults store.",
             category: "prefs",
-            scope: AnsightToolScope.read.rawValue,
+            policy: .read,
             keywords: "preferences userdefaults keys settings",
-            security: AnsightPreferencesToolSecurityProfiles.listKeys,
             argumentsSchema: AnsightPreferencesToolSchemas.listKeysArguments,
             resultSchema: AnsightPreferencesToolSchemas.listKeysResult
         )
