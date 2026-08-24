@@ -1,65 +1,78 @@
-# Install once, run
+# Getting started
 
-Ansight's default development connection flow is:
+This quickstart ends with a development build connected to the local Ansight
+host. An account is not required for this workflow.
 
-1. Install the SDK and initialize its developer preset.
-2. Run the app while Ansight Studio is open and signed in.
+## 1. Install and check the CLI
 
-Simulators, emulators, Mac Catalyst apps, and desktop apps register
-automatically through loopback. There is no pairing config, Studio build probe,
-generated file, certificate, signing key, host address, build constant, or
-approval service to set up. If Studio is closed or signed out, the SDK remains
-dormant and retries later without failing or delaying the app.
-Host-local discovery checks the supported installed and source-build Studio
-ports with short loopback-only timeouts before considering older stored state.
+On macOS or Linux:
 
-A physical phone cannot use the host's loopback interface. Open Studio's
-**Pair Any App** screen and scan its generic one-use QR. No app entry or
-app-specific invite is created first: the scanning SDK sends its runtime app
-identity, Studio registers it after authorization, and the SDK saves the
-app-scoped registration in private storage for later reconnects.
+```sh
+curl -fsSL https://www.ansight.ai/install.sh | bash
+```
 
-## Android
+On Windows PowerShell:
 
-Install the aggregate Android artifact and initialize the runtime:
+```powershell
+irm https://www.ansight.ai/install.ps1 | iex
+```
+
+Open a new terminal, then verify the installation:
+
+```sh
+ansight --version
+ansight doctor
+```
+
+## 2. Initialize a development build
+
+Use the all-in-one package for the first integration. Keep package inclusion,
+initialization, enrollment UI, and remote tools behind the app's existing
+development or QA build guard.
+
+### Android
+
+Initialize the aggregate Android artifact from the app's `Application`:
 
 ```kotlin
-Ansight.initializeAndActivate(application)
+if (BuildConfig.DEBUG) {
+    Ansight.initializeAndActivateDeveloperMode(
+        application = application,
+        clientName = "Android App",
+    )
+}
 ```
 
-Android emulators connect automatically. For a physical device, invoke
-`Ansight.enrollFromQrCode(activity)` from a developer-only screen. Google Code
-Scanner owns the camera interaction, so the host app does not need to request
-`CAMERA`. The SDK declares only the ordinary network permissions it uses and
-does not change the host app's `usesCleartextTraffic` or network-security
-policy.
+Google Code Scanner owns physical-device camera interaction, so the host app
+does not need to request `CAMERA`. The SDK declares the ordinary network
+permissions it uses. Kotlin source projects need Kotlin Gradle plugin 1.8 or
+newer.
 
-Kotlin source projects need Kotlin Gradle plugin 1.8 or newer.
+### iOS
 
-## iOS
-
-Install the aggregate `Ansight` Swift package:
+Initialize the aggregate `Ansight` Swift package once from app startup:
 
 ```swift
+#if DEBUG
 try AnsightRuntime.shared.initializeAndActivateAnsightSdk()
+#endif
 ```
 
-iOS Simulator and Mac Catalyst connect automatically. A physical iPhone uses
-`await AnsightRuntime.shared.connect(.qrCode(...))` once. The SDK-owned scanner
-requires `NSCameraUsageDescription`, and direct LAN access triggers Apple's
-Local Network privacy control. Ansight does not request Bluetooth, location,
-contacts, photos, or Bonjour discovery.
+The SDK-owned physical-device scanner requires `NSCameraUsageDescription`, and
+direct LAN access triggers Apple's Local Network privacy control. Ansight does
+not request Bluetooth, location, contacts, photos, or Bonjour discovery.
 
-## React Native
+### React Native
 
 ```ts
-await Ansight.initializeAndActivate({
-  useNativeAllInOneDefaults: __DEV__,
-});
+if (__DEV__) {
+  await Ansight.initializeAndActivate({
+    useNativeAllInOneDefaults: true,
+    clientName: "React Native App",
+    toolGuard: "readOnly",
+  });
+}
 ```
-
-The native simulator/emulator runtime connects automatically. Call
-`Ansight.enrollFromQrCode()` only on a physical device.
 
 Expo apps use the same `@ansight/react-native` package. Add
 `@ansight/react-native` to the app config `plugins` array, then create an Expo
@@ -67,59 +80,117 @@ development or EAS build so the native module and iOS permission descriptions
 are included. Expo Go and Expo Web are not supported. See the
 [React Native SDK guide](../src/react-native/README.md#expo-development-builds).
 
-## Capacitor
+### Capacitor
 
 ```ts
-await Ansight.initializeAndActivate(
-  Ansight.createOptionsBuilder().withAnsightDefaults().build(),
-);
+if (isDevelopmentBuild) {
+  await Ansight.initializeAndActivate(
+    Ansight.createOptionsBuilder()
+      .withAnsightDefaults()
+      .withReadOnlyToolAccess()
+      .withDomTools()
+      .withErrorCapture()
+      .build(),
+  );
+}
 ```
 
-The native simulator/emulator runtime connects automatically. Call
-`Ansight.enrollFromQrCode()` only on a physical device.
-
-## Flutter
+### Flutter
 
 ```dart
-await Ansight.instance.initializeAndActivate(AnsightOptions.developer());
-await AnsightFlutterInstrumentation.instance.install();
+if (kDebugMode) {
+  await Ansight.instance.initializeAndActivate(
+    AnsightOptions.developer(
+      clientName: 'My Flutter App',
+      toolGuard: AnsightToolGuard.readOnly,
+    ),
+  );
+  await AnsightFlutterInstrumentation.instance.install();
+}
 ```
 
-The native simulator/emulator runtime connects automatically. Call
-`Ansight.instance.enrollFromQrCode()` only on a physical device.
+### .NET and MAUI
 
-## .NET and MAUI
-
-Initialize the all-in-one SDK during app startup. Its platform pairing reader
-opens the native enrollment scanner:
+Initialize the all-in-one SDK once during app startup:
 
 ```csharp
+#if DEBUG
 var options = Options.CreateBuilder()
     .WithAnsightSdk()
     .Build();
 
 Runtime.InitializeAndActivate(options);
+#endif
 ```
 
-Simulator and Mac Catalyst targets connect automatically through the native
-bridge. Use `HostConnectionRequest.QrCode()` once for a physical device. The
-exact initialization entry point varies between the portable, MAUI, and native
-binding packages, but all use the same runtime enrollment protocol.
+For MAUI, use `builder.UseAnsight<App>()` inside the same development-build
+guard. The exact startup location varies by platform, but initialize once
+rather than from a page or screen.
 
-For an unattended physical-device test build, add
-`.WithUnattendedProvisioning()`. The host runner can then inject a one-use
-enrollment payload at process launch: `ANSIGHT_ENROLLMENT_PAYLOAD` on iOS, or
-the `ai.ansight.bootstrap.payload` launcher Intent extra on Android. The option
-is disabled by default and successful enrollment is remembered privately by
-the app installation.
+## 3. Start the host and launch the app
+
+Start the local host and leave it running:
+
+```sh
+ansight host run
+```
+
+Launch the development build. Simulators, emulators, Mac Catalyst, and desktop
+apps register automatically through loopback. There is no pairing file,
+generated resource, certificate, signing key, host address, build constant, or
+account setup. If the host is unavailable, the SDK retries without failing or
+delaying the app.
+
+## 4. Verify the connection
+
+From another terminal, list connected sessions and inspect the enabled tool
+catalog:
+
+```sh
+ansight session list --connected --json
+ansight app tools <session-id> --json
+```
+
+## Connect a physical device
+
+A physical device cannot use the host's loopback interface. With the local host
+running, issue a one-use QR in another terminal:
+
+```sh
+ansight pairing issue --qr
+```
+
+Open the SDK's enrollment scanner from a developer-only app surface and scan
+the QR:
+
+| Platform | Scanner API |
+| --- | --- |
+| Android | `Ansight.enrollFromQrCode(activity)` |
+| iOS | `AnsightRuntime.shared.connect(.qrCode(...))` |
+| React Native | `Ansight.enrollFromQrCode(...)` |
+| Capacitor | `Ansight.enrollFromQrCode(...)` |
+| Flutter | `Ansight.instance.enrollFromQrCode(...)` |
+| .NET | `Runtime.HostConnection.ConnectAsync(HostConnectionRequest.QrCode())` |
+
+The invite is not tied to a pre-registered app. The SDK supplies its runtime
+app id, the host registers a random app-installation id, and the SDK saves the
+registration in private storage for later reconnects.
+
+For an unattended physical-device test build, the native .NET, Android, and
+iOS options expose explicit unattended provisioning. The host runner can inject
+a fresh one-use enrollment payload at process launch:
+`ANSIGHT_ENROLLMENT_PAYLOAD` on iOS, or the
+`ai.ansight.bootstrap.payload` launcher Intent extra on Android. The option is
+disabled by default and successful enrollment is remembered privately by the
+app installation.
 
 ## Network model
 
-Enrollment uses UDP followed by `ws://`. Local automatic enrollment is accepted
-only from loopback and only while Studio is signed in. Physical-device
-enrollment uses a one-use bearer invite over the local network. No certificate
-is needed. Traffic is not encrypted or authenticated against an active network
-attacker, so use physical-device connections only on a network you trust.
+Enrollment uses UDP followed by `ws://`. Automatic local registration is
+loopback-only. Physical-device enrollment uses a one-use bearer invite over the
+local network. No certificate is needed. Traffic is not encrypted or
+authenticated against an active network attacker, so use physical-device
+connections only on a network you trust.
 
 Android manifest integration is automatic. The iOS client uses
 Network.framework directly, so it does not need an ATS clear-text exception.
@@ -133,9 +204,8 @@ Scan a new QR when:
 
 - this physical installation has never registered;
 - app storage was cleared or the app was reinstalled;
-- the registration expired or Studio revoked it;
+- the registration expired or the host revoked it;
 - a different phone tries to use an invite that was already consumed.
 
-The generic QR is claimed by the first scanning app installation. The
-registered phone does not need to rescan merely because the original QR later
-expires.
+The QR is claimed by the first scanning app installation. The registered phone
+does not need to rescan merely because the original QR later expires.

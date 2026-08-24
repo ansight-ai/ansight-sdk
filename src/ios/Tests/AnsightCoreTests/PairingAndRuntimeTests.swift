@@ -1254,53 +1254,6 @@ final class PairingAndRuntimeTests: XCTestCase {
         )
     }
 
-    func testAdaptiveScreenCaptureIntervalBacksOffAndRecovers() {
-        XCTAssertEqual(
-            AnsightRuntime.adaptiveScreenCaptureIntervalMilliseconds(
-                configuredIntervalMilliseconds: 1_000,
-                currentIntervalMilliseconds: 1_000,
-                renderMilliseconds: 18
-            ),
-            1_500
-        )
-
-        XCTAssertEqual(
-            AnsightRuntime.adaptiveScreenCaptureIntervalMilliseconds(
-                configuredIntervalMilliseconds: 1_000,
-                currentIntervalMilliseconds: 1_500,
-                renderMilliseconds: 18
-            ),
-            2_250
-        )
-
-        XCTAssertEqual(
-            AnsightRuntime.adaptiveScreenCaptureIntervalMilliseconds(
-                configuredIntervalMilliseconds: 1_000,
-                currentIntervalMilliseconds: 5_000,
-                renderMilliseconds: 18
-            ),
-            5_000
-        )
-
-        XCTAssertEqual(
-            AnsightRuntime.adaptiveScreenCaptureIntervalMilliseconds(
-                configuredIntervalMilliseconds: 1_000,
-                currentIntervalMilliseconds: 2_250,
-                renderMilliseconds: 10
-            ),
-            1_625
-        )
-
-        XCTAssertEqual(
-            AnsightRuntime.adaptiveScreenCaptureIntervalMilliseconds(
-                configuredIntervalMilliseconds: 1_000,
-                currentIntervalMilliseconds: 1_000,
-                renderMilliseconds: nil
-            ),
-            1_000
-        )
-    }
-
     func testTelemetrySequencesContinueAfterRetentionTrim() throws {
         try AnsightRuntime.shared.initialize(
             options: AnsightOptions(

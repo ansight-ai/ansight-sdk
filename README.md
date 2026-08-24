@@ -19,8 +19,8 @@ Current SDK features include:
 
 - live and retained metrics, events, lifecycle, screen-view, memory, FPS, and
   battery telemetry
-- zero-touch Studio enrollment for simulators, emulators, and desktop apps,
-  plus one-scan enrollment for physical devices
+- automatic local-host registration for simulators, emulators, and desktop
+  apps, plus one-scan enrollment for physical devices
 - live screenshots, host-owned simulator/emulator capture, touch capture,
   session properties, device profiles, and app-provided logs
 - HTTP request capture with app-configurable and
@@ -37,12 +37,14 @@ Current SDK features include:
 - Flutter widget-tree inspection, navigation and lifecycle tracking, Dart
   tools and artifacts, frame timing, and framework error capture
 
-All SDKs start the same runtime connection loop when activated. A simulator,
-emulator, Mac Catalyst app, or desktop app registers with a signed-in Studio on
-the same machine without a QR or build-time configuration. Physical devices
-scan one short-lived Studio QR once, then reconnect from app-private
-registration state. If Studio is closed or signed out, the attempt is ignored
-and retried without affecting the app.
+All SDKs start the same runtime connection loop when activated. Start the local
+host with `ansight host run`; no account is required. A simulator, emulator,
+Mac Catalyst app, or desktop app registers through loopback without a QR or
+build-time configuration. For a physical device, run
+`ansight pairing issue --qr` and scan the one-use QR from the SDK's
+developer-only enrollment UI. The app then reconnects from private
+registration state. If the host is unavailable, the SDK retries without
+affecting the app.
 
 > **Important:** Screen capture is not free. Periodic or manual screenshot/JPEG
 > capture will result in an FPS drop while frames are being rendered, encoded,
@@ -51,7 +53,7 @@ and retried without affecting the app.
 
 ## Docs
 
-- [Install once, run](docs/getting-started.md)
+- [Getting started](docs/getting-started.md)
 - [Current Feature Catalog](docs/features.md)
 - [Cross-SDK API Parity](docs/sdk-api-parity.md)
 - [.NET SDK Guide](src/dotnet/README.md)

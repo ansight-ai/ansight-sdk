@@ -8,11 +8,17 @@ native iOS tool suites.
 ## Usage
 
 ```swift
+#if DEBUG
 import Ansight
 
 try AnsightRuntime.shared.initializeAndActivateAnsightSdk()
-await AnsightRuntime.shared.connect(.auto(clientName: "iOS App"))
+#endif
 ```
+
+Start the local host with `ansight host run`. iOS Simulator and Mac Catalyst
+register automatically through loopback; no explicit `.auto(...)` connection is
+needed. For a physical device, run `ansight pairing issue --qr`, then present
+`.qrCode(...)` from a developer-only app surface.
 
 `initializeAndActivateAnsightSdk(...)` applies the aligned all-in-one defaults:
 400 ms sampling, 120 second retention, FPS, UIKit lifecycle capture, touch
@@ -26,4 +32,6 @@ file/QR pairing, and all native tool suites.
 
 Customize registered tool suites with `AnsightRemoteToolOptions`.
 
-See [../../README.md](../../README.md) for the full iOS guide.
+See the [iOS getting-started guide](https://www.ansight.ai/docs/sdk/ios/setup)
+for guarded setup and CLI verification, or [../../README.md](../../README.md)
+for the complete SDK reference.

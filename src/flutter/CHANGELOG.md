@@ -1,3 +1,12 @@
+## 1.3.0-preview.12
+
+- Improve visual-tree coverage and coordinate metadata across native, React
+  Native, and Capacitor applications, including multiple active windows and
+  richer action semantics.
+- Report stable Android emulator or device identifiers in device profiles.
+- Build Android native libraries with verified 16 KB ELF alignment.
+- Align Flutter's native dependencies with the synchronized SDK release.
+
 ## 1.3.0-preview.11
 
 - Add opt-in HTTP request capture with typed request and response models.

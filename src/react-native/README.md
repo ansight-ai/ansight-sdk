@@ -8,6 +8,9 @@ handled by the Ansight iOS and Android SDKs. The JavaScript layer normalizes
 React Native inputs, forwards runtime calls to the native bridge, and registers
 JavaScript-backed tools for React component-tree inspection.
 
+For guarded startup and CLI verification, see the
+[React Native getting-started guide](https://www.ansight.ai/docs/sdk/react-native/setup).
+
 ## Install
 
 ### React Native CLI
@@ -36,7 +39,7 @@ npx expo install @ansight/react-native
 
 Add the bundled config plugin to the app config. It supplies the iOS camera
 usage description required by QR enrollment and the local-network description
-used when connecting to Ansight Studio:
+used when connecting to the local Ansight host:
 
 ```json
 {
@@ -45,8 +48,8 @@ used when connecting to Ansight Studio:
       [
         "@ansight/react-native",
         {
-          "cameraPermission": "Allow $(PRODUCT_NAME) to scan an Ansight Studio enrollment QR code.",
-          "localNetworkPermission": "Allow $(PRODUCT_NAME) to connect to Ansight Studio on your local network."
+          "cameraPermission": "Allow $(PRODUCT_NAME) to scan an Ansight enrollment QR code.",
+          "localNetworkPermission": "Allow $(PRODUCT_NAME) to connect to the Ansight host on your local network."
         }
       ]
     ]
@@ -77,25 +80,48 @@ bundle; its API requires the native Ansight module.
 
 This package version expects matching native SDK packages:
 
-- CocoaPods: `Ansight`, `AnsightObjC` version `1.3.0-preview.11`
-- Maven: `ai.ansight:ansight-android:1.3.0-preview.11`
+- CocoaPods: `Ansight`, `AnsightObjC` version `1.3.0-preview.12`
+- Maven: `ai.ansight:ansight-android:1.3.0-preview.12`
 
 ## Quickstart
 
 ```ts
 import Ansight from "@ansight/react-native";
 
-await Ansight.initializeAndActivate({
-  useNativeAllInOneDefaults: __DEV__,
-  clientName: "My React Native App",
-  toolGuard: __DEV__ ? "readOnly" : "disabled",
-  lifecycle: true,
-});
+let ansightStarted = false;
+
+export async function startAnsight() {
+  if (!__DEV__ || ansightStarted) {
+    return;
+  }
+  ansightStarted = true;
+
+  await Ansight.initializeAndActivate({
+    useNativeAllInOneDefaults: true,
+    clientName: "React Native App",
+    toolGuard: "readOnly",
+  });
+}
+```
+
+Call `startAnsight()` once from app bootstrap. Start the local host in one
+terminal and leave it running:
+
+```sh
+ansight host run
+```
+
+Launch the native development build, then verify the connected session and tool
+catalog from another terminal:
+
+```sh
+ansight session list --connected --json
+ansight app tools <session-id> --json
 ```
 
 The native iOS Simulator or Android emulator runtime registers automatically
-with a running, signed-in Studio. No pairing file, environment variable, host
-address, or build-time Studio probe is required.
+through loopback. No account, pairing file, environment variable, host address,
+or build-time host probe is required.
 
 `useNativeAllInOneDefaults` defaults to `false`. It only applies the native
 iOS/Android all-in-one defaults: 400 ms sampling, 120 second retention, FPS,
@@ -293,25 +319,19 @@ compatibility alias for `remoteTools.secureStorage`.
 
 ## Host Connection
 
-No connection call is needed for a simulator or emulator. On a physical
-device, scan the QR displayed by Studio once:
+No connection call is needed for a simulator or emulator. For a physical
+device, run `ansight pairing issue --qr`, then open the SDK scanner from a
+developer-only app surface:
 
 ```ts
 await Ansight.enrollFromQrCode({
   clientName: "My React Native App",
-  expectedAppId: "com.example.app",
 });
 ```
 
-After physical-device enrollment, `connect(null, options)` and the runtime
-connection loop use the remembered registration:
-
-```ts
-await Ansight.connect(null, { clientName: "My React Native App" });
-```
-
-When Studio is closed or signed out, automatic attempts remain dormant and
-retry later without failing the React Native app.
+The SDK supplies the native app id, stores the installation registration
+privately, and reconnects automatically on later launches. If the host is
+unavailable, retry attempts do not fail the React Native app.
 
 If the app already owns a scanner, pass its result through the explicit payload
 API:
@@ -319,17 +339,17 @@ API:
 ```ts
 await Ansight.connect(enrollmentPayload, {
   clientName: "My React Native App",
-  expectedAppId: "com.example.app",
-  hostAddressOverride: "192.168.1.20",
 });
 
 await Ansight.clearCachedSession();
 await Ansight.disconnect();
 ```
 
-`openSession(pairingPayload, options)` is the low-level direct session path.
-Prefer `connect(...)` for normal Studio sessions because it coordinates saved
-config, host auto-probe, status, telemetry, and live tool handling.
+`openSession(enrollmentPayload, options)` is the low-level direct session path.
+Prefer automatic registration for simulators and emulators or
+`enrollFromQrCode(...)` for physical devices. Use `connect(...)` only when the
+app already owns the scanner; it coordinates saved registration, host
+auto-probe, status, telemetry, and live tool handling.
 
 ## Runtime API
 
@@ -339,7 +359,7 @@ The bridge exposes the native SDK runtime surface:
 | --- | --- |
 | `initialize`, `initializeAndActivate`, `activate`, `deactivate`, `clear` | Runtime lifecycle. |
 | `connect`, `disconnect`, `openSession`, `completeSession`, `closeSession` | Host and live-session control. |
-| `savePairingConfig`, `clearSavedPairing`, `clearCachedSession` | Pairing persistence. |
+| `clearCachedSession` | Clears remembered app-installation registration state. |
 | `status`, `snapshot`, `hostConnectionStatus`, `currentOptions` | Diagnostics and state. |
 | `registerMetricChannel`, `metric`, `recordMetric` | Metric channels and samples. |
 | `event`, `recordEvent`, `screenViewed`, `trackRoute` | App events and screen views. |

@@ -8,13 +8,16 @@ instrumentation.
 The package supports Flutter 3.0 or newer, Android API 24 or newer, and iOS
 15 or newer.
 
+For guarded startup and CLI verification, see the
+[Flutter getting-started guide](https://www.ansight.ai/docs/sdk/flutter/setup).
+
 ## Install
 
 Add the package to `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  ansight_flutter: ^1.3.0-preview.11
+  ansight_flutter: ^1.3.0-preview.12
 ```
 
 Then fetch dependencies:
@@ -30,18 +33,21 @@ Flutter instrumentation:
 
 ```dart
 import 'package:ansight_flutter/ansight.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Ansight.instance.initializeAndActivate(
-    AnsightOptions.developer(
-      clientName: 'My Flutter App',
-      toolGuard: AnsightToolGuard.readOnly,
-    ),
-  );
-  await AnsightFlutterInstrumentation.instance.install();
+  if (kDebugMode) {
+    await Ansight.instance.initializeAndActivate(
+      AnsightOptions.developer(
+        clientName: 'My Flutter App',
+        toolGuard: AnsightToolGuard.readOnly,
+      ),
+    );
+    await AnsightFlutterInstrumentation.instance.install();
+  }
 
   runApp(const MyApp());
 }
@@ -51,9 +57,23 @@ Future<void> main() async {
 timings, app lifecycle changes, and exposes Flutter widget inspection tools.
 Its options can disable any of those integrations.
 
+Start the local host in one terminal and leave it running:
+
+```sh
+ansight host run
+```
+
+Launch the development app, then verify the connected session and tool catalog
+from another terminal:
+
+```sh
+ansight session list --connected --json
+ansight app tools <session-id> --json
+```
+
 The native iOS Simulator or Android emulator runtime registers automatically
-with a running, signed-in Studio. No build-time Studio probe or enrollment
-payload is required.
+through loopback. No account, build-time host probe, or enrollment payload is
+required.
 
 Add the navigator observer to record route changes and screen views:
 
@@ -156,40 +176,40 @@ Caller values win when they use the same group and key. Clearing session
 properties, or removing one automatic property, restores the current
 bridge-owned values.
 
-## Pairing and sessions
+## Enrollment and sessions
 
-No connection call is needed for a simulator or emulator. On a physical
-device, scan the QR displayed by Studio once:
+No connection call is needed for a simulator or emulator. For a physical
+device, run `ansight pairing issue --qr`, then open the native scanner from a
+developer-only app surface:
 
 ```dart
 final result = await Ansight.instance.enrollFromQrCode(
   clientName: 'My Flutter App',
-  expectedAppId: 'com.example.my_app',
 );
 ```
 
-No pairing file, build variable, or host address is required. The physical
-device's first scan stores its app-installation registration; later launches
+The native SDK supplies its real app id. No pairing file, prior app
+registration, app-specific invite, build variable, or host address is required.
+The first scan stores the app-installation registration; later launches
 reconnect automatically.
 
-For advanced paste, file-import, CI, or custom-UI flows, pairing payloads may be
-JSON strings or decoded JSON-compatible objects:
+If the app already owns a scanner, pass the current enrollment payload as a JSON
+string or decoded JSON-compatible object:
 
 ```dart
 final result = await Ansight.instance.openSession(
-  pairingPayload,
+  enrollmentPayload,
   clientName: 'My Flutter App',
-  expectedAppId: 'com.example.my_app',
 );
 ```
 
-Saved enrollment, automatic runtime connection, and host-address overrides are
-available through `AnsightOptions` and the connection APIs. Bundling an
-enrollment payload is not part of the normal setup.
+Saved enrollment and automatic runtime connection are available through
+`AnsightOptions` and the connection APIs. Bundling an enrollment payload is not
+part of normal setup.
 
-Cellular host connections are disabled by default for bundled configs, QR
-scans, remembered/saved profiles, and manual connections. Enable them only for
-a trusted development host or personal hotspot:
+Cellular host connections are disabled by default for QR scans, remembered
+profiles, and explicit payload connections. Enable them only for a trusted
+development host or personal hotspot:
 
 ```dart
 final options =

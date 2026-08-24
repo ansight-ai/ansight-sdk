@@ -10,7 +10,7 @@
 
     <IsPackable>true</IsPackable>
     <PackageId>Ansight.Pairing</PackageId>
-    <Description>Native QR pairing acquisition for Ansight mobile apps.</Description>
+    <Description>Native QR enrollment acquisition for Ansight mobile apps.</Description>
     <PackageTags>ansight;pairing;qr;android;ios;maccatalyst;maui</PackageTags>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>

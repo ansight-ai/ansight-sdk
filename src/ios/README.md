@@ -13,6 +13,29 @@ The Ansight SDK is source-available software under the
 It is not open-source software. Production use is licensed only for use with
 Ansight Services.
 
+## Install
+
+Add the package with SwiftPM and select the aggregate `Ansight` product for the
+first integration:
+
+```swift
+.package(
+    url: "https://github.com/ansight-ai/ansight-sdk.git",
+    exact: "1.3.0-preview.11"
+)
+```
+
+The matching CocoaPod is also published:
+
+```ruby
+pod 'Ansight', '1.3.0-preview.11'
+```
+
+Use `AnsightCore` plus selected tool products or pods only when the app needs a
+narrower surface. See the
+[iOS getting-started guide](https://www.ansight.ai/docs/sdk/ios/setup) for the
+complete package matrix, guarded startup locations, and CLI verification.
+
 ## Current capabilities
 
 - runtime initialization, activation, deactivation, clearing, manual and automatic UIKit lifecycle state, screen views, custom metrics, custom events, and structured debug snapshots
@@ -50,26 +73,13 @@ automatically for the `AnsightCore` target. Set
 concrete `AnsightTool` implementations. Enrollment has no build-time host probe
 or generated resource.
 
-## CocoaPods
+## CocoaPods package model
 
-The iOS SDK also ships local podspecs that mirror the SwiftPM products:
-
-```ruby
-pod 'Ansight', :path => '/path/to/ansight-sdk/src/ios'
-```
-
-For minimal integrations, depend on only the modules you need:
-
-```ruby
-pod 'AnsightCore', :path => '/path/to/ansight-sdk/src/ios'
-pod 'AnsightPairingQR', :path => '/path/to/ansight-sdk/src/ios'
-pod 'AnsightToolsFileDescriptorDiagnostics', :path => '/path/to/ansight-sdk/src/ios'
-pod 'AnsightToolsFileSystem', :path => '/path/to/ansight-sdk/src/ios'
-pod 'AnsightToolsReflection', :path => '/path/to/ansight-sdk/src/ios'
-pod 'AnsightToolsVisualTree', :path => '/path/to/ansight-sdk/src/ios'
-```
-
-The aggregate `Ansight` pod depends on `AnsightCore`, `AnsightPairingQR`, `AnsightToolsDatabase`, `AnsightToolsFileDescriptorDiagnostics`, `AnsightToolsFileSystem`, `AnsightToolsPreferences`, `AnsightToolsReflection`, `AnsightToolsSecureStorage`, and `AnsightToolsVisualTree`.
+The aggregate `Ansight` pod depends on `AnsightCore`, `AnsightPairingQR`,
+`AnsightToolsDatabase`, `AnsightToolsFileDescriptorDiagnostics`,
+`AnsightToolsFileSystem`, `AnsightToolsPreferences`, `AnsightToolsReflection`,
+`AnsightToolsSecureStorage`, and `AnsightToolsVisualTree`. Each component is
+also published as an individual pod for minimal integrations.
 
 The `AnsightCore` pod runs the same remote-tool build enforcement before
 compile and honors `ANSIGHT_ALLOW_REMOTE_TOOLS`.
@@ -80,23 +90,39 @@ Use the aggregate product for the developer preset and all current native tool
 suites:
 
 ```swift
+#if DEBUG
 import Ansight
 
 try AnsightRuntime.shared.initializeAndActivateAnsightSdk()
+#endif
 ```
 
-The iOS Simulator and Mac Catalyst register automatically with a running,
-signed-in Studio on the same Mac. No pairing file, build environment variable,
-host address, or build-time Studio process is required. If Studio is
-unavailable, the SDK keeps retrying without affecting the app.
+Start the local host in one terminal and leave it running:
 
-On a physical iPhone, open Studio's **Pair Any App** screen and call
-`.qrCode(...)` once to scan the generic one-use QR. Studio registers the
-runtime bundle id automatically; no app entry is required first. The scanner requires
-`NSCameraUsageDescription`, and direct Studio access uses Apple's Local Network
-privacy control. Later launches reconnect from app-private registration state.
-Ansight does not add Bluetooth, location, Bonjour discovery, contacts, photos,
-or associated-domains access.
+```sh
+ansight host run
+```
+
+Launch the app in iOS Simulator or Mac Catalyst, then verify the connected
+session and tool catalog from another terminal:
+
+```sh
+ansight session list --connected --json
+ansight app tools <session-id> --json
+```
+
+The iOS Simulator and Mac Catalyst register automatically through loopback. No
+account, pairing file, build environment variable, host address, or build-time
+host process is required. If the host is unavailable, the SDK keeps retrying
+without affecting the app.
+
+On a physical iPhone, run `ansight pairing issue --qr`, then call
+`.qrCode(...)` once from a developer-only app surface. The host registers the
+runtime bundle id automatically; no prior app entry or app-specific invite is
+required. The scanner requires `NSCameraUsageDescription`, and direct host
+access uses Apple's Local Network privacy control. Later launches reconnect
+from app-private registration state. Ansight does not add Bluetooth, location,
+Bonjour discovery, contacts, photos, or associated-domains access.
 
 The aggregate preset mirrors the .NET all-in-one defaults:
 
@@ -173,6 +199,8 @@ only with a trusted development host.
 ## Host Connection
 
 Runtime-owned host connection APIs live on `AnsightRuntime.shared`.
+For a physical device, first run `ansight pairing issue --qr` against the local
+host, then open the scanner from a developer-only surface:
 
 ```swift
 let result = await AnsightRuntime.shared.connect(
@@ -200,7 +228,7 @@ profiles. A successful connection saves the registration in Keychain and
 clears the process environment value. The option is disabled by default and
 should be enabled only in development or test builds. A host runner can launch
 a signed app with `xcrun devicectl device process launch --environment-variables`
-to supply a fresh, app-specific, one-use enrollment payload without user input.
+to supply a fresh one-use enrollment payload without user input.
 
 For iOS Simulator and Mac Catalyst, activation automatically performs local
 enrollment and connection; no explicit `connect` call is required.
@@ -239,8 +267,6 @@ await AnsightRuntime.shared.connect(
     )
 )
 
-AnsightRuntime.shared.savePairingConfig(pairingJson)
-AnsightRuntime.shared.clearSavedPairing()
 AnsightRuntime.shared.clearCachedSession()
 await AnsightRuntime.shared.disconnect()
 ```
@@ -428,15 +454,19 @@ try AnsightRuntime.shared.initializeAndActivateAnsightSdk()
 
 Returning `nil` or a blank route name keeps the default descriptor.
 
-## File and QR pairing payloads
+## Enrollment scanners
 
-The aggregate `Ansight` product registers `PlatformHostConnectionConfigReader` by default from `initializeAndActivateAnsightSdk(...)`. It presents a UIKit document picker for `.file` requests and a UIKit/AVFoundation QR scanner for `.qrCode` requests:
+The aggregate `Ansight` product registers
+`PlatformHostConnectionConfigReader` by default from
+`initializeAndActivateAnsightSdk(...)`. For a physical device, run
+`ansight pairing issue --qr`, then open its UIKit/AVFoundation QR scanner from a
+developer-only app surface:
 
 ```swift
 import Ansight
 
 try AnsightRuntime.shared.initializeAndActivateAnsightSdk()
-await AnsightRuntime.shared.connect(.qrCode(title: "Scan Pairing QR"))
+await AnsightRuntime.shared.connect(.qrCode(title: "Scan Ansight Enrollment QR"))
 ```
 
 Lower-level `AnsightCore` integrations should add `AnsightPairingQR` and register the platform reader explicitly:
@@ -450,10 +480,14 @@ AnsightRuntime.shared.setHostConnectionConfigReader(PlatformHostConnectionConfig
 
 Apps that use `.qrCode` must include `NSCameraUsageDescription` in `Info.plist`.
 
-Apps that need custom pairing UI can provide their own reader. The reader owns the UI, then returns the pairing payload string to the normal `connect(...)` flow:
+Apps that already own an enrollment scanner can provide their own reader. The
+reader owns the UI, then returns the current one-use enrollment payload to the
+normal `connect(...)` flow. `.file(...)` remains available for an approved
+workflow that imports the same current invite as a file; bundled configuration
+is not part of normal setup.
 
 ```swift
-final class MyPairingReader: HostConnectionConfigReading {
+final class MyEnrollmentReader: HostConnectionConfigReading {
     func canRead(_ kind: HostConnectionRequestKind) -> Bool {
         kind == .file || kind == .qrCode
     }
@@ -464,8 +498,8 @@ final class MyPairingReader: HostConnectionConfigReading {
     }
 }
 
-AnsightRuntime.shared.setHostConnectionConfigReader(MyPairingReader())
-await AnsightRuntime.shared.connect(.qrCode(title: "Scan Pairing QR"))
+AnsightRuntime.shared.setHostConnectionConfigReader(MyEnrollmentReader())
+await AnsightRuntime.shared.connect(.qrCode(title: "Scan Ansight Enrollment QR"))
 ```
 
 ## Remote tools

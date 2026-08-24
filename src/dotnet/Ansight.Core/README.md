@@ -6,6 +6,13 @@ from an app process.
 
 The runtime namespace remains `Ansight`. This package supports direct/manual pairing, the Ansight UDP pairing handshake, tool abstractions, and the build-time safety targets. Use the `Ansight` package for the all-in-one app setup, or `Ansight.Maui` for the MAUI all-in-one setup.
 
+See the [.NET getting-started guide](https://www.ansight.ai/docs/sdk/dotnet/setup)
+before choosing this lower-level package.
+
+```sh
+dotnet add package Ansight.Core --prerelease
+```
+
 On Android, iOS, and Mac Catalyst, `Ansight.Core` automatically includes a thin
 binding to the platform Ansight runtime. The Kotlin or Swift runtime owns the
 saved registration, auto-connect loop, telemetry buffer, capture hooks, live
@@ -26,6 +33,7 @@ Ansight Services.
 ```csharp
 using Ansight;
 
+#if DEBUG
 var options = Options.CreateBuilder()
     .WithFramesPerSecond()
     // Battery level is opt-in and only emits on platforms that expose a battery API.
@@ -40,7 +48,11 @@ Runtime.InitializeAndActivate(options);
 Runtime.Metric(123, channel: 10);
 Runtime.Event("network_request_started");
 Runtime.ScreenViewed("CheckoutPage");
+#endif
 ```
+
+Use the app's approved internal-build symbol instead of `DEBUG` when
+appropriate.
 
 `Runtime.ScreenViewed(...)` is the manual screen-view API for core and non-MAUI integrations. The `Ansight.Maui` all-in-one package records default MAUI page views automatically from `Application.PageAppearing` when the app is configured through `builder.UseAnsight(...)`.
 
@@ -56,12 +68,16 @@ to use the lower-overhead capture path when that content is not required.
 
 Host auto-probe is enabled by default. While `Runtime` is active, Ansight remembers previous host connections and retries those profiles so the app can reconnect after the host disappears and later reappears. Probing pauses while a session stays open and resumes after the retry delay if the session closes. Remembered profiles are keyed by the Wi-Fi network reported by the host, store the latest host/LAN address, host name, discovery metadata, and app-installation registration for that network, and expire after 14 days by default. Disable auto-probe with `WithoutHostAutoProbe()`, customize the probing loop with `WithHostAutoProbe(new HostAutoProbeOptions { ... })`, or change profile expiry with `WithHostConnectionProfileRetention(...)`.
 
-Runtime-owned host connection also owns saved-registration reconnect,
-remembered, saved, bundled, and developer enrollment-invite resolution. QR is the
-normal first-use path. Build-time config embedding is an advanced option for
-CI, simulators, and workflows that cannot scan.
+The runtime-owned host connection handles automatic loopback registration,
+remembered physical-device registrations, and explicit current enrollment
+invites. A bundled pairing file is not part of normal setup. Approved unattended
+physical-device test builds can instead opt into launch-time provisioning with
+a fresh one-use invite.
 
 Install `Ansight.Pairing` when you are staying on `Ansight.Core` but still want Ansight to own native QR pairing acquisition. The `Ansight` and `Ansight.Maui` all-in-one packages already include it where supported.
+
+For a physical device, run `ansight pairing issue --qr` against the local host,
+then open the reader from a developer-only app surface:
 
 ```csharp
 public static class AppBootstrap
@@ -117,9 +133,10 @@ var allMetrics = sink.Metrics;
 var allEvents = sink.Events;
 ```
 
-## Enrollment quickstart
+## Low-level session client
 
-Open a session from a current enrollment invite:
+Most apps should use `Runtime.HostConnection` as shown above. Protocol-level
+integrations can open a session from a current enrollment invite directly:
 
 ```csharp
 using Ansight.Pairing;
@@ -257,11 +274,13 @@ extension point for its opt-in feedback service.
 
 ## Enrollment setup
 
-Install the SDK, initialize it, and call
+Install the SDK and initialize it inside the app's development-build guard.
+Host-local runtimes register automatically while `ansight host run` is active.
+For a physical device, run `ansight pairing issue --qr`, then call
 `Runtime.HostConnection.ConnectAsync(HostConnectionRequest.QrCode())` from a
 developer-only surface. The first successful scan registers the installation;
-later launches reconnect from app-private state. No MSBuild property, embedded
-resource, generated file, certificate, or host address is required.
+later launches reconnect from app-private state. No account, MSBuild property,
+embedded resource, generated file, certificate, or host address is required.
 
 ## Build-time Remote Tool Enforcement
 
@@ -296,7 +315,7 @@ Use `Allowed` only when the build intentionally includes remote tools and you do
 - `Ansight.Core`: core runtime package
 - `Ansight.Annotations`: opt-in Debug-only annotated feedback
 - `Ansight.OfflineCapture`: retained offline sessions, export, and team upload
-- `Ansight.Pairing`: native QR pairing acquisition for runtime-owned host connections
+- `Ansight.Pairing`: native QR enrollment acquisition for runtime-owned host connections
 - `Ansight.Tools.Maui`: MAUI inspection and mutation tools
 - `Ansight.Tools.VisualTree`: UI hierarchy and screenshot tools
 - `Ansight.Tools.Reflection`: live object reflection and guarded runtime mutation tools
@@ -309,4 +328,7 @@ Use `Allowed` only when the build intentionally includes remote tools and you do
 
 - Ansight is best-effort telemetry and has observer overhead.
 - Use platform profilers for authoritative measurements.
-- Pairing requires a config document with a current discovery hint, an explicit `HostAddressOverride`, or a known simulator/emulator where the SDK can fall back to the host machine address.
+- Host-local runtimes register automatically through loopback. Physical devices
+  use the current one-use invite from `ansight pairing issue --qr` and retain
+  the resulting app-installation registration privately. `HostAddressOverride`
+  is only for an explicit advanced network route.

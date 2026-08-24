@@ -1235,8 +1235,8 @@ internal static partial class VisualTreeSupport
         out bool truncated,
         out string? error)
     {
-        var window = GetActiveWindow();
-        if (window == null)
+        var windows = GetActiveWindows();
+        if (windows.Count == 0)
         {
             rootNode = null;
             nodeCount = 0;
@@ -1246,7 +1246,54 @@ internal static partial class VisualTreeSupport
         }
 
         var state = new VisualTreeCaptureState(maxNodes);
-        rootNode = BuildAppleNode(window, window, includeProperties, maxDepth, state);
+        if (windows.Count == 1)
+        {
+            var window = windows[0];
+            rootNode = BuildAppleNode(window, window, includeProperties, maxDepth, state);
+        }
+        else
+        {
+            state.TryAddNode();
+            var children = new List<VisualNode>(windows.Count);
+            foreach (var window in windows)
+            {
+                if (maxDepth <= 0 || state.NodeCount >= state.MaxNodes)
+                {
+                    state.MarkTruncated();
+                    break;
+                }
+
+                children.Add(BuildAppleNode(window, window, includeProperties, maxDepth - 1, state));
+            }
+
+            var frames = windows.Select(window => window.ConvertRectToView(window.Bounds, null)).ToList();
+            var left = frames.Min(frame => (double)frame.Left);
+            var top = frames.Min(frame => (double)frame.Top);
+            var right = frames.Max(frame => (double)frame.Right);
+            var bottom = frames.Max(frame => (double)frame.Bottom);
+            rootNode = new VisualNode(
+                id: "windows",
+                type: "UIWindowCollection",
+                automationId: null,
+                label: "Application windows",
+                role: "group",
+                supportedActions: [],
+                isVisible: true,
+                isEnabled: true,
+                isFocusable: false,
+                bounds: new JsonObject
+                {
+                    ["x"] = left,
+                    ["y"] = top,
+                    ["width"] = Math.Max(0, right - left),
+                    ["height"] = Math.Max(0, bottom - top)
+                },
+                visual: new JsonObject(),
+                zIndex: null,
+                properties: null,
+                childCount: windows.Count,
+                children: children);
+        }
         nodeCount = state.NodeCount;
         truncated = state.Truncated;
         error = null;
@@ -1558,23 +1605,49 @@ internal static partial class VisualTreeSupport
 
     private static UIWindow? GetActiveWindow()
     {
+        var windows = GetActiveWindows();
+        return windows.FirstOrDefault(window => window.IsKeyWindow) ?? windows.LastOrDefault();
+    }
+
+    private static List<UIWindow> GetActiveWindows()
+    {
+        var windows = new List<UIWindow>();
+        var seenHandles = new HashSet<nint>();
         var connectedScenes = UIApplication.SharedApplication.ConnectedScenes;
         foreach (var scene in connectedScenes)
         {
-            if (scene is not UIWindowScene windowScene)
+            if (scene is not UIWindowScene windowScene ||
+                scene.ActivationState is not (UISceneActivationState.ForegroundActive or UISceneActivationState.ForegroundInactive))
             {
                 continue;
             }
 
-            var activeWindow = windowScene.Windows.FirstOrDefault(window => window.IsKeyWindow)
-                ?? windowScene.Windows.FirstOrDefault(window => !window.Hidden);
-            if (activeWindow != null)
+            foreach (var window in windowScene.Windows)
             {
-                return activeWindow;
+                if (!window.Hidden &&
+                    window.Alpha > 0 &&
+                    window.Bounds.Width > 0 &&
+                    window.Bounds.Height > 0 &&
+                    seenHandles.Add(window.Handle))
+                {
+                    windows.Add(window);
+                }
             }
         }
 
-        return null;
+        windows.Sort((left, right) =>
+        {
+            var levelComparison = ((double)left.WindowLevel).CompareTo((double)right.WindowLevel);
+            if (levelComparison != 0)
+            {
+                return levelComparison;
+            }
+
+            return left.IsKeyWindow == right.IsKeyWindow
+                ? 0
+                : left.IsKeyWindow ? 1 : -1;
+        });
+        return windows;
     }
 
     private static nfloat GetRenderScale(UIWindow window)

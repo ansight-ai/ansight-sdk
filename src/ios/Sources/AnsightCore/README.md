@@ -9,6 +9,7 @@ the aggregate `Ansight` product for the all-in-one developer preset.
 ## Usage
 
 ```swift
+#if DEBUG
 import AnsightCore
 
 try AnsightRuntime.shared.initializeAndActivate(
@@ -18,17 +19,19 @@ try AnsightRuntime.shared.initializeAndActivate(
         toolGuard: .readOnly
     )
 )
+#endif
 ```
 
-Core defaults keep remote tools disabled. Register tool products explicitly and
-set `toolGuard` to allow discovery/execution.
+Use the app's approved internal-build condition instead of `DEBUG` when
+appropriate. Core defaults keep remote tools disabled. Register tool products
+explicitly and set `toolGuard` to allow discovery/execution.
 
 ## Main APIs
 
 - `initialize`, `initializeAndActivate`, `activate`, `deactivate`, `clear`
 - `metric`, `event`, `screenViewed`, `setAppLifecycleState`
 - `registerMetricChannel`, `registerMetricStream`
-- `connect`, `disconnect`, `savePairingConfig`, `clearSavedPairing`, `clearCachedSession`
+- `connect`, `disconnect`, `clearCachedSession`
 - `sendClientLog`, `updateSessionProperties`
 - `registerTool`, `isToolRegistered`, `handleToolProtocolMessage`
 - `registerArtifactProvider`, `artifacts.query`, `artifacts.request`

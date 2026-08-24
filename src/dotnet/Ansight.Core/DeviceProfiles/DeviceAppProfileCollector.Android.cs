@@ -21,13 +21,15 @@ internal static partial class DeviceAppProfileCollector
 
     private static partial void PopulateDeviceProfile(DeviceProfile profile)
     {
+        var isEmulator = ResolveAndroidIsEmulator();
         profile.Manufacturer = NullIfWhiteSpace(Build.Manufacturer);
         profile.Brand = NullIfWhiteSpace(Build.Brand);
         profile.Model = NullIfWhiteSpace(Build.Model);
         profile.Product = NullIfWhiteSpace(Build.Product);
         profile.FormFactor = ResolveAndroidFormFactor();
         profile.DeviceClassCode = ResolveAppleOrAndroidDeviceClassCode(isDesktop: false);
-        SetVirtualDeviceState(profile, ResolveAndroidIsEmulator());
+        SetVirtualDeviceState(profile, isEmulator);
+        profile.NativeDeviceId = ResolveAndroidNativeDeviceId(isEmulator);
         profile.OsName = "android";
         profile.OsVersion = NullIfWhiteSpace(Build.VERSION.Release);
         profile.OsBuild = NullIfWhiteSpace(Build.Display);
@@ -38,6 +40,47 @@ internal static partial class DeviceAppProfileCollector
             .ToList();
         profile.Display = CreateAndroidDisplayProfile();
         profile.Battery = CreateAndroidBatteryProfile();
+    }
+
+    private static string? ResolveAndroidNativeDeviceId(bool isEmulator)
+    {
+        if (isEmulator)
+        {
+            return ReadAndroidSystemProperty("ro.boot.qemu.avd_name")
+                   ?? ReadAndroidSystemProperty("ro.kernel.qemu.avd_name");
+        }
+
+        try
+        {
+            return OperatingSystem.IsAndroidVersionAtLeast(26)
+                ? NullIfWhiteSpace(Build.GetSerial())
+#pragma warning disable CS0618
+                : NullIfWhiteSpace(Build.Serial);
+#pragma warning restore CS0618
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string? ReadAndroidSystemProperty(string propertyName)
+    {
+        try
+        {
+            using var process = Java.Lang.Runtime.GetRuntime()?.Exec(["/system/bin/getprop", propertyName]);
+            if (process?.InputStream is null)
+            {
+                return null;
+            }
+
+            using var reader = new StreamReader(process.InputStream);
+            return NullIfWhiteSpace(reader.ReadLine());
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static partial void PopulateApplicationProfile(DeviceApplicationProfile profile)

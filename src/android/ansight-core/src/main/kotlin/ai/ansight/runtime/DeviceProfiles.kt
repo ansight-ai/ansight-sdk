@@ -254,6 +254,7 @@ object DeviceAppProfileCollector {
         val display = displayProfile(application)
         val locale = Locale.getDefault()
         val timeZone = TimeZone.getDefault()
+        val emulator = isEmulator()
         return DeviceAppProfile(
             sentAt = System.currentTimeMillis(),
             reasonCode = reasonCode,
@@ -282,8 +283,8 @@ object DeviceAppProfileCollector {
                 product = Build.PRODUCT.nullIfBlank(),
                 formFactor = resolveFormFactor(application),
                 deviceClassCode = 1,
-                isVirtual = isEmulator(),
-                isEmulator = isEmulator(),
+                isVirtual = emulator,
+                isEmulator = emulator,
                 locale = locale.toLanguageTag().nullIfBlank(),
                 timeZone = timeZone.id.nullIfBlank(),
                 osName = "android",
@@ -300,6 +301,7 @@ object DeviceAppProfileCollector {
                 battery = batteryProfile(application),
                 display = display,
                 network = networkProfile(application),
+                nativeDeviceId = resolveAndroidNativeDeviceId(emulator),
                 language = locale.language.nullIfBlank(),
                 region = locale.country.nullIfBlank(),
                 utcOffsetMinutes = timeZone.getOffset(System.currentTimeMillis()) / 60_000,
@@ -334,6 +336,53 @@ object DeviceAppProfileCollector {
             ),
             graphics = DeviceGraphicsProfile(display),
         )
+    }
+
+    internal fun resolveAndroidNativeDeviceId(
+        isEmulator: Boolean,
+        readSystemProperty: (String) -> String? = ::readAndroidSystemProperty,
+        readDeviceSerial: () -> String? = ::readAndroidDeviceSerial,
+    ): String? {
+        if (isEmulator) {
+            return sequenceOf("ro.boot.qemu.avd_name", "ro.kernel.qemu.avd_name")
+                .mapNotNull { propertyName -> readSystemProperty(propertyName).normalizedDeviceId() }
+                .firstOrNull()
+        }
+
+        return readDeviceSerial().normalizedDeviceId()
+    }
+
+    private fun readAndroidSystemProperty(propertyName: String): String? {
+        val reflectedValue = runCatching {
+            val systemProperties = Class.forName("android.os.SystemProperties")
+            val get = systemProperties.getDeclaredMethod("get", String::class.java)
+            get.invoke(null, propertyName) as? String
+        }.getOrNull().normalizedDeviceId()
+        if (reflectedValue != null) {
+            return reflectedValue
+        }
+
+        return runCatching {
+            val process = ProcessBuilder("/system/bin/getprop", propertyName)
+                .redirectErrorStream(true)
+                .start()
+            try {
+                process.inputStream.bufferedReader().use { reader -> reader.readLine() }
+            } finally {
+                process.destroy()
+            }
+        }.getOrNull().normalizedDeviceId()
+    }
+
+    private fun readAndroidDeviceSerial(): String? {
+        return runCatching {
+            if (Build.VERSION.SDK_INT >= 26) {
+                Build::class.java.getDeclaredMethod("getSerial").invoke(null) as? String
+            } else {
+                @Suppress("DEPRECATION")
+                Build.SERIAL
+            }
+        }.getOrNull().normalizedDeviceId()
     }
 
     private fun packageInfo(application: Application): PackageInfo? {
@@ -476,6 +525,15 @@ object DeviceAppProfileCollector {
     private fun Long.bytesToMb(): Long = this / (1024L * 1024L)
 
     private fun String?.nullIfBlank(): String? = this?.trim()?.ifBlank { null }
+}
+
+private fun String?.normalizedDeviceId(): String? {
+    val value = this?.trim()
+    return value?.takeUnless {
+        it.isEmpty() ||
+            it.equals("unknown", ignoreCase = true) ||
+            it.equals("null", ignoreCase = true)
+    }
 }
 
 internal object AndroidMetricSampler {

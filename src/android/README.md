@@ -7,13 +7,16 @@ packages when you need a smaller runtime surface.
 
 The native harness app lives in `harness/`.
 
+For the guarded setup and verification workflow, see the
+[Android getting-started guide](https://www.ansight.ai/docs/sdk/android/setup).
+
 ## Install
 
 Use the all-in-one package for development builds:
 
 ```kotlin
 dependencies {
-    implementation("ai.ansight:ansight-android:1.3.0-preview.11")
+    implementation("ai.ansight:ansight-android:1.3.0-preview.12")
 }
 ```
 
@@ -24,18 +27,18 @@ Minimal integrations can depend on only the packages they need:
 
 ```kotlin
 dependencies {
-    implementation("ai.ansight:ansight-core-android:1.3.0-preview.11")
-    implementation("ai.ansight:ansight-pairing-android:1.3.0-preview.11")
-    implementation("ai.ansight:ansight-tools-filedescriptordiagnostics-android:1.3.0-preview.11")
-    implementation("ai.ansight:ansight-tools-jnireferencediagnostics-android:1.3.0-preview.11")
-    implementation("ai.ansight:ansight-tools-visualtree-android:1.3.0-preview.11")
+    implementation("ai.ansight:ansight-core-android:1.3.0-preview.12")
+    implementation("ai.ansight:ansight-pairing-android:1.3.0-preview.12")
+    implementation("ai.ansight:ansight-tools-filedescriptordiagnostics-android:1.3.0-preview.12")
+    implementation("ai.ansight:ansight-tools-jnireferencediagnostics-android:1.3.0-preview.12")
+    implementation("ai.ansight:ansight-tools-visualtree-android:1.3.0-preview.12")
 }
 ```
 
 ## Quickstart
 
-Initialize from your `Application`. No pairing file or build constant is
-required:
+Initialize from your `Application` only in the app's approved development or QA
+variant:
 
 ```kotlin
 import ai.ansight.Ansight
@@ -45,26 +48,49 @@ class MyApplication : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        Ansight.initializeAndActivate(application = this)
+        if (BuildConfig.DEBUG) {
+            Ansight.initializeAndActivateDeveloperMode(
+                application = this,
+                clientName = "Android App",
+            )
+        }
     }
 }
 ```
 
-An emulator now registers automatically with a running, signed-in Studio on the
-host. There is no build-time Studio probe. If Studio is unavailable, the SDK
-keeps retrying without affecting the app.
+Start the local host in one terminal and leave it running:
 
-On a physical device, open Studio's **Pair Any App** screen and scan its
-generic one-use QR from a developer-only screen:
+```sh
+ansight host run
+```
+
+Launch the app on an emulator, then verify the connected session and tool
+catalog from another terminal:
+
+```sh
+ansight session list --connected --json
+ansight app tools <session-id> --json
+```
+
+An emulator registers automatically through loopback. No account, pairing
+file, build constant, host address, or build-time host probe is required. If
+the host is unavailable, the SDK keeps retrying without affecting the app.
+
+For a physical device, issue a one-use QR from the running host, then scan it
+from a developer-only screen:
+
+```sh
+ansight pairing issue --qr
+```
 
 ```kotlin
 Ansight.enrollFromQrCode(activity)
 ```
 
-No app registration is required in Studio beforehand. The physical-device
-scan sends the runtime package id, registers a random app-installation id, and
-stores the resulting app-scoped registration in private storage. Later
-launches reconnect automatically.
+No prior app registration is required. The physical-device scan sends the
+runtime package id, registers a random app-installation id, and stores the
+resulting app-scoped registration in private storage. Later launches reconnect
+automatically.
 Google Code Scanner owns the camera interaction, so the app does not need the
 `CAMERA` permission.
 
@@ -83,8 +109,8 @@ The SDK then consumes the `ai.ansight.bootstrap.payload` string extra from the
 first launcher Activity Intent, removes it immediately, enrolls through the
 existing payload connection path, and saves the registration in app-private
 storage. The option is disabled by default and should be enabled only in
-development or test builds. A host runner can supply a fresh, app-specific,
-one-use payload with `adb shell am start --es` without user input.
+development or test builds. A host runner can supply a fresh one-use payload
+with `adb shell am start --es` without user input.
 
 `Ansight.developerOptions(...)` applies the all-in-one developer preset:
 
@@ -224,7 +250,8 @@ val options = AnsightOptions.createBuilder()
 Use `withoutHostAutoProbe()` for flows where reconnects should only happen
 after an explicit app action.
 
-The all-in-one package exposes QR enrollment for physical devices:
+The all-in-one package exposes QR enrollment for physical devices. Generate
+the QR with `ansight pairing issue --qr`, then open the scanner:
 
 ```kotlin
 Ansight.enrollFromQrCode(

@@ -2,7 +2,40 @@ import XCTest
 @testable import AnsightCore
 @testable import AnsightToolsVisualTree
 
+#if canImport(UIKit)
+import UIKit
+#endif
+
 final class VisualTreeToolTests: XCTestCase {
+    #if canImport(UIKit)
+    @MainActor
+    func testVisualTreeIncludesVirtualAccessibilityElements() {
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 400, height: 800))
+        let container = UIView(frame: window.bounds)
+        window.addSubview(container)
+
+        let modalAction = UIAccessibilityElement(accessibilityContainer: container)
+        modalAction.accessibilityIdentifier = "modal.dismiss"
+        modalAction.accessibilityLabel = "Dismiss"
+        modalAction.accessibilityTraits = .button
+        modalAction.accessibilityFrame = CGRect(x: 100, y: 300, width: 200, height: 44)
+        container.accessibilityElements = [modalAction]
+
+        let tree = AnsightVisualTreeSupport.buildNode(
+            view: window,
+            window: window,
+            includeProperties: true
+        )
+        let match = tree.descendants().first { $0.automationId == "modal.dismiss" }
+
+        XCTAssertEqual(match?.label, "Dismiss")
+        XCTAssertEqual(match?.role, "button")
+        XCTAssertEqual(match?.supportedActions, ["tap"])
+        XCTAssertEqual(match?.bounds?.x, 100)
+        XCTAssertEqual(match?.bounds?.y, 300)
+    }
+    #endif
+
     func testVisualNodeIncludesAutomationIdentifier() {
         let node = AnsightVisualNode(
             id: "node-1",

@@ -1,6 +1,7 @@
 # Ansight.Pairing
 
-`Ansight.Pairing` adds package-owned native pairing acquisition to `Ansight.Core`.
+`Ansight.Pairing` adds package-owned native enrollment acquisition to
+`Ansight.Core`.
 
 It provides:
 
@@ -10,6 +11,10 @@ It provides:
 
 The `Ansight` and `Ansight.Maui` all-in-one packages include this package where supported.
 
+```sh
+dotnet add package Ansight.Pairing --prerelease
+```
+
 ## License
 
 The Ansight SDK is source-available software under the
@@ -18,6 +23,16 @@ It is not open-source software. Production use is licensed only for use with
 Ansight Services.
 
 ## Usage
+
+Start the local host with `ansight host run`. Host-local runtimes register
+automatically and do not need this UI. For a physical device, issue a one-use
+QR:
+
+```sh
+ansight pairing issue --qr
+```
+
+Open the reader only from a developer-only app surface:
 
 ```csharp
 using Ansight;
@@ -42,10 +57,14 @@ await Runtime.HostConnection.ConnectAsync(HostConnectionRequest.Auto());
 await Runtime.HostConnection.ConnectAsync(HostConnectionRequest.PayloadText(payload));
 ```
 
-`QrCode()` is the normal first-use flow. It registers a random app-installation
-id using the one-use Studio invite. `Auto()` and host auto-probe then use the
-saved registration for reconnect. Payload and bundled inputs remain advanced
-alternatives for CI and simulator workflows.
+`QrCode()` is the normal physical-device first-use flow. It registers a random
+app-installation id using the one-use host invite. `Auto()` and host auto-probe
+then use the saved registration for reconnect. `PayloadText(...)` is for apps
+that already own the scanner; a bundled pairing file is not part of normal
+setup.
+
+See the [.NET enrollment guide](https://www.ansight.ai/docs/sdk/dotnet/pairing)
+for the complete physical-device flow.
 
 Configure profile retention through the core options builder:
 

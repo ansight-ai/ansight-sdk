@@ -337,9 +337,10 @@ the maps below with idiomatic Dart naming.
 
 ## Host Connection
 
-Host-local runtimes enroll automatically through loopback when Studio is open
-and signed in. Physical devices exchange one QR invite for an app-installation
-registration, then reconnect from app-private state.
+Host-local runtimes register automatically through loopback while
+`ansight host run` is active; no account is required. For a physical device,
+run `ansight pairing issue --qr`, then exchange that one-use invite for an
+app-installation registration. Later launches reconnect from app-private state.
 
 | Concept | .NET | Android | iOS | React Native |
 | --- | --- | --- | --- | --- |

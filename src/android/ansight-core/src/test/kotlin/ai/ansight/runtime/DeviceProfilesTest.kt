@@ -7,6 +7,47 @@ import org.junit.Test
 
 class DeviceProfilesTest {
     @Test
+    fun androidEmulatorUsesAvdNameAsNativeDeviceId() {
+        val requestedProperties = mutableListOf<String>()
+
+        val deviceId = DeviceAppProfileCollector.resolveAndroidNativeDeviceId(
+            isEmulator = true,
+            readSystemProperty = { propertyName ->
+                requestedProperties += propertyName
+                if (propertyName == "ro.boot.qemu.avd_name") " Pixel_9a " else null
+            },
+            readDeviceSerial = { error("An emulator must not fall back to a hardware serial.") },
+        )
+
+        assertEquals("Pixel_9a", deviceId)
+        assertEquals(listOf("ro.boot.qemu.avd_name"), requestedProperties)
+    }
+
+    @Test
+    fun androidEmulatorFallsBackToLegacyAvdProperty() {
+        val deviceId = DeviceAppProfileCollector.resolveAndroidNativeDeviceId(
+            isEmulator = true,
+            readSystemProperty = { propertyName ->
+                if (propertyName == "ro.kernel.qemu.avd_name") "Legacy_AVD" else null
+            },
+            readDeviceSerial = { null },
+        )
+
+        assertEquals("Legacy_AVD", deviceId)
+    }
+
+    @Test
+    fun physicalAndroidDeviceUsesSafelyAvailableSerial() {
+        val deviceId = DeviceAppProfileCollector.resolveAndroidNativeDeviceId(
+            isEmulator = false,
+            readSystemProperty = { error("A physical device must not read emulator properties.") },
+            readDeviceSerial = { " physical-serial " },
+        )
+
+        assertEquals("physical-serial", deviceId)
+    }
+
+    @Test
     fun deviceProfileSerializesNormalizedLocalizationFields() {
         val json = DeviceProfile(
             manufacturer = null,

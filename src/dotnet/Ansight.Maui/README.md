@@ -7,6 +7,13 @@ This package references `Ansight`, adds the MAUI remote tools, and provides
 `Ansight.Annotations` and `Ansight.OfflineCapture` are included transitively but
 remain opt-in.
 
+See the [.NET MAUI getting-started guide](https://www.ansight.ai/docs/sdk/dotnet/setup)
+for package installation, the development-build guard, and CLI verification.
+
+```sh
+dotnet add package Ansight.Maui --prerelease
+```
+
 ## License
 
 The Ansight SDK is source-available software under the
@@ -15,15 +22,19 @@ It is not open-source software. Production use is licensed only for use with
 Ansight Services.
 
 ```csharp
+#if DEBUG
 using Ansight.Maui;
+#endif
 
 public static MauiApp CreateMauiApp()
 {
     var builder = MauiApp.CreateBuilder();
 
-    builder
-        .UseMauiApp<App>()
-        .UseAnsight<App>();
+    builder.UseMauiApp<App>();
+
+#if DEBUG
+    builder.UseAnsight<App>();
+#endif
 
     return builder.Build();
 }
@@ -31,7 +42,13 @@ public static MauiApp CreateMauiApp()
 
 Use `UseAnsight<App>()` to initialize and activate the runtime from the MAUI builder. It also automatically records foreground/background lifecycle transitions and records a screen-view event whenever a MAUI page appears. No `AppDelegate`, Android `Application`, or page `OnAppearing` calls are required for the default telemetry.
 
-From a developer-only button or command, scan Studio's QR once:
+Start the local host with `ansight host run`. Simulators and Mac Catalyst
+register automatically through loopback; no explicit connection call is
+required. Verify with `ansight session list --connected --json` and
+`ansight app tools <session-id> --json`.
+
+For a physical device, run `ansight pairing issue --qr`, then scan it from a
+developer-only button or command:
 
 ```csharp
 await Runtime.HostConnection.ConnectAsync(HostConnectionRequest.QrCode());

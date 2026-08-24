@@ -17,16 +17,19 @@ class MyApplication : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        AnsightRuntime.initializeAndActivate(
-            application = this,
-            options = AnsightOptions(),
-        )
+        if (BuildConfig.DEBUG) {
+            AnsightRuntime.initializeAndActivate(
+                application = this,
+                options = AnsightOptions(),
+            )
+        }
     }
 }
 ```
 
-Core defaults keep remote tools disabled. Register tool packages explicitly and
-set `toolGuard` to allow discovery/execution.
+Use the app's approved development-variant flag instead of `BuildConfig.DEBUG`
+when appropriate. Core defaults keep remote tools disabled. Register tool
+packages explicitly and set `toolGuard` to allow discovery/execution.
 
 Session JPEG capture is configured with `AnsightSessionJpegCaptureOptions`.
 `captureGpuBackedSurfaces` is accepted for cross-platform configuration parity
@@ -42,7 +45,7 @@ iOS.
 - `AnsightRuntime.initialize`, `initializeAndActivate`, `activate`, `deactivate`, `clear`
 - `metric`, `event`, `screenViewed`, `setAppLifecycleState`
 - `registerMetricChannel`, `registerMetricStream`
-- `connect`, `disconnect`, `savePairingConfig`, `clearSavedPairingConfig`
+- `connect`, `disconnect`, `clearCachedSession`
 - `sendClientLog`, `updateCustomProperties`
 - `registerTool`, `isToolRegistered`
 - `addArtifactProvider`, `artifacts.query`, `artifacts.request`

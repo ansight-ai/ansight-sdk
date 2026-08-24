@@ -4,8 +4,13 @@ plugins {
     id("maven-publish")
 }
 
+val verifyAndroidElfAlignmentScript = rootProject.file(
+    "../../scripts/verify_android_elf_alignment.py",
+)
+val releaseAar = layout.buildDirectory.file("outputs/aar/ansight-core-release.aar")
+
 group = providers.gradleProperty("ansightAndroidGroup").orElse("ai.ansight").get()
-version = providers.gradleProperty("ansightAndroidVersion").orElse("1.3.0-preview.11").get()
+version = providers.gradleProperty("ansightAndroidVersion").orElse("1.3.0-preview.12").get()
 
 val ansightAndroidArtifactId = providers
     .gradleProperty("ansightAndroidCoreArtifactId")
@@ -72,8 +77,23 @@ val copyDotnetRuntimeDependencies by tasks.registering(Copy::class) {
     into(layout.buildDirectory.dir("dotnet-runtime"))
 }
 
+val verifyReleaseElfAlignment by tasks.registering(Exec::class) {
+    group = "verification"
+    description = "Verifies 16 KB ELF alignment in the release AAR."
+    dependsOn("bundleReleaseAar")
+
+    inputs.file(verifyAndroidElfAlignmentScript)
+    inputs.file(releaseAar)
+    commandLine("python3", verifyAndroidElfAlignmentScript, releaseAar.get().asFile)
+}
+
 tasks.matching { it.name == "assembleRelease" }.configureEach {
     finalizedBy(copyDotnetRuntimeDependencies)
+    finalizedBy(verifyReleaseElfAlignment)
+}
+
+tasks.matching { it.name == "check" || it.name.startsWith("publish") }.configureEach {
+    dependsOn(verifyReleaseElfAlignment)
 }
 
 afterEvaluate {

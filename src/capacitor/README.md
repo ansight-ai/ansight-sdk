@@ -6,6 +6,9 @@ session properties, logs, guarded remote tools, JavaScript custom tools,
 artifacts, DOM inspection, route tracking, lifecycle tracking, and JavaScript
 error capture through one TypeScript API.
 
+For guarded startup and CLI verification, see the
+[Capacitor getting-started guide](https://www.ansight.ai/docs/sdk/cordova/setup).
+
 ## Install
 
 ```bash
@@ -22,41 +25,65 @@ Requirements are Node 22+, Capacitor 8, Android API 24+ with Java 21, and iOS
 ```ts
 import Ansight from '@ansight/capacitor';
 
-await Ansight.initializeAndActivate(
-  Ansight.createOptionsBuilder()
-    .withAnsightDefaults()
-    .withReadOnlyToolAccess()
-    .withDomTools()
-    .withErrorCapture()
-    .registerCustomProperty('app', 'flavour', 'development')
-    .build(),
-);
+export async function startAnsight(isDevelopmentBuild: boolean): Promise<void> {
+  if (!isDevelopmentBuild) {
+    return;
+  }
+
+  await Ansight.initializeAndActivate(
+    Ansight.createOptionsBuilder()
+      .withAnsightDefaults()
+      .withReadOnlyToolAccess()
+      .withDomTools()
+      .withErrorCapture()
+      .registerCustomProperty('app', 'flavour', 'development')
+      .build(),
+  );
+}
+```
+
+Call `startAnsight(...)` once after the Capacitor runtime and document are
+available, passing the app's existing development-variant flag.
+
+Start the local host in one terminal and leave it running:
+
+```sh
+ansight host run
+```
+
+Launch the native development app, then verify the connected session and tool
+catalog from another terminal:
+
+```sh
+ansight session list --connected --json
+ansight app tools <session-id> --json
 ```
 
 The native iOS Simulator or Android emulator runtime registers automatically
-with a running, signed-in Studio. No pairing file, build variable, host address,
-or build-time Studio probe is required. On a physical device, call
-`Ansight.enrollFromQrCode(...)` once; later launches use the saved
-app-installation registration.
+through loopback. No account, pairing file, build variable, host address, or
+build-time host probe is required.
+
+For a physical device, run `ansight pairing issue --qr`, then call
+`Ansight.enrollFromQrCode(...)` from a developer-only app surface. The native
+SDK supplies its real app id and stores the app-installation registration;
+later launches reconnect automatically.
 
 Use `.withAnsightSdk()` or `.withAllToolAccess()` only in trusted development
 builds. Do not ship unrestricted remote tools in
 store builds.
 
-For advanced paste, file-import, CI, or custom-UI flows, pair with an explicit
-JSON document:
+If the app already owns a scanner, pass its current enrollment payload through
+the explicit connection API:
 
 ```ts
-await Ansight.savePairingConfig(pairingJson);
-await Ansight.connect(pairingJson, {
-  expectedAppId: 'your-app-id',
+await Ansight.connect(enrollmentPayload, {
   clientName: 'Capacitor app',
 });
 ```
 
-Cellular host connections are disabled by default for bundled configs,
-QR/payload flows, remembered/saved profiles, and manual connections. Enable
-them only for a trusted development host or personal hotspot:
+Cellular host connections are disabled by default for QR enrollment, explicit
+payload connections, and remembered profiles. Enable them only for a trusted
+development host or personal hotspot:
 
 ```ts
 const options = Ansight.createOptionsBuilder()
@@ -193,21 +220,29 @@ Binary payloads use the native live-session transfer channel.
 
 `.withDomTools()` registers `dom.get_document`, `dom.inspect_node`, and
 `dom.query_selector`. Pass `{ allowActions: true }` to add the write-scoped
-`dom.invoke_action` tool for click, focus, blur, and value-change operations.
+`dom.invoke_action` tool for `tap`, `typeText`, focus, and blur operations.
+The legacy `click` and `setValue` action names remain accepted. DOM trees use
+the WebView viewport as their coordinate space, so Studio can render their
+wireframes and translate host input through the same bounds.
 Native `ui.*` tools remain available for the Android/iOS view hierarchy.
 Call `uninstallDomTools()` to remove the adapter and its registrations.
 
 For no-bundler applications, `dist/standalone.js` is a self-contained script
-that initializes the developer defaults. Configure it before loading:
+that initializes the developer defaults with read-only remote-tool access. Set
+`toolGuard` before loading the script to keep that access read-only or disable
+remote tools entirely:
 
 ```html
 <script>
   globalThis.__ANSIGHT_CAPACITOR_STANDALONE_OPTIONS__ = {
-    toolGuard: 'readOnly',
+    toolGuard: 'readOnly', // Or 'disabled'.
   };
 </script>
 <script src="./node_modules/@ansight/capacitor/dist/standalone.js"></script>
 ```
+
+The standalone script does not promote either safe guard to read-write or full
+access. Keep the script and all remote tools limited to development builds.
 
 ## Validation
 

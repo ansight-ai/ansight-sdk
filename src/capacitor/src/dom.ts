@@ -42,6 +42,17 @@ interface DomTypeRegistry {
   types: string[];
 }
 
+interface DomCoordinateSpace {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  source: "dom.viewport";
+}
+
+type DomWindowViewport = Pick<Window, "innerWidth" | "innerHeight">;
+type DomDocumentViewport = Pick<HTMLElement, "clientWidth" | "clientHeight">;
+
 function createTypeRegistry(): DomTypeRegistry {
   return { idsByTypeName: new Map(), types: [] };
 }
@@ -123,6 +134,20 @@ function automationId(element: Element): string | undefined {
   );
 }
 
+const tapRoles = new Set([
+  "button",
+  "checkbox",
+  "combobox",
+  "link",
+  "menuitem",
+  "menuitemcheckbox",
+  "menuitemradio",
+  "option",
+  "radio",
+  "switch",
+  "tab",
+]);
+
 function semanticRole(element: Element): string {
   const declared = element.getAttribute("role")?.trim().toLowerCase();
   if (declared) return declared;
@@ -144,28 +169,64 @@ function semanticRole(element: Element): string {
 function supportedActions(element: Element, allowActions: boolean): string[] {
   if (!allowActions) return [];
   const actions: string[] = [];
+  const htmlElement = element as HTMLElement;
+  const role = semanticRole(element);
   if (
     ["A", "BUTTON", "SUMMARY"].includes(element.tagName) ||
-    element instanceof HTMLInputElement
+    element instanceof HTMLInputElement ||
+    tapRoles.has(role) ||
+    element.hasAttribute("onclick") ||
+    typeof htmlElement.onclick === "function"
   ) {
     actions.push("tap");
   }
   if (
     element instanceof HTMLInputElement ||
     element instanceof HTMLTextAreaElement ||
-    element instanceof HTMLSelectElement
+    element instanceof HTMLSelectElement ||
+    htmlElement.isContentEditable
   ) {
     actions.push("typeText", "focus");
-  } else if ((element as HTMLElement).tabIndex >= 0) {
+  } else if (htmlElement.tabIndex >= 0) {
     actions.push("focus");
   }
   if (
-    (element as HTMLElement).scrollHeight >
-    (element as HTMLElement).clientHeight
+    htmlElement.scrollHeight > htmlElement.clientHeight ||
+    htmlElement.scrollWidth > htmlElement.clientWidth
   ) {
     actions.push("scroll", "swipe");
   }
   return [...new Set(actions)];
+}
+
+function positiveFinite(value: unknown): number | undefined {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+export function createDomCoordinateSpace(
+  browserWindow: DomWindowViewport | undefined = typeof window === "undefined"
+    ? undefined
+    : window,
+  documentElement: DomDocumentViewport | null = typeof document === "undefined"
+    ? null
+    : document.documentElement,
+): DomCoordinateSpace | undefined {
+  const width =
+    positiveFinite(browserWindow?.innerWidth) ??
+    positiveFinite(documentElement?.clientWidth);
+  const height =
+    positiveFinite(browserWindow?.innerHeight) ??
+    positiveFinite(documentElement?.clientHeight);
+  if (width === undefined || height === undefined) return undefined;
+
+  return { x: 0, y: 0, width, height, source: "dom.viewport" };
+}
+
+export function normalizeDomAction(action: unknown): string {
+  if (action === "tap") return "click";
+  if (action === "typeText") return "setValue";
+  return String(action ?? "");
 }
 
 function computedColorToArgbHex(value: string): string | undefined {
@@ -382,6 +443,7 @@ export function installDomTools(
             platform: "web",
             source: options.source,
             adapter: "@ansight/capacitor",
+            coordinateSpace: createDomCoordinateSpace(),
             capturedAtUtc: new Date().toISOString(),
             types: typeRegistry.types,
             truncated: limits.count >= limits.maxNodes,
@@ -423,6 +485,7 @@ export function installDomTools(
             platform: "web",
             source: options.source,
             adapter: "@ansight/capacitor",
+            coordinateSpace: createDomCoordinateSpace(),
             capturedAtUtc: new Date().toISOString(),
             types: typeRegistry.types,
             node,
@@ -476,7 +539,7 @@ export function installDomTools(
         {
           id: "dom.invoke_action",
           name: "Invoke DOM action",
-          description: "Clicks, focuses, blurs, or changes a DOM node.",
+          description: "Taps, focuses, blurs, or enters text in a DOM node.",
           category: "UI",
           scope: "write",
           argumentsSchema: {
@@ -484,7 +547,10 @@ export function installDomTools(
             required: ["nodeId", "action"],
             properties: {
               nodeId: { type: "string" },
-              action: { enum: ["click", "focus", "blur", "setValue"] },
+              action: {
+                type: "string",
+                enum: ["tap", "typeText", "click", "focus", "blur", "setValue"],
+              },
               value: { type: "string" },
             },
           },
@@ -502,16 +568,25 @@ export function installDomTools(
               errorCode: "dom_node_not_found",
             };
           }
-          if (action === "click") element.click();
-          else if (action === "focus") element.focus();
-          else if (action === "blur") element.blur();
+          const normalizedAction = normalizeDomAction(action);
+          if (normalizedAction === "click") element.click();
+          else if (normalizedAction === "focus") element.focus();
+          else if (normalizedAction === "blur") element.blur();
           else if (
-            action === "setValue" &&
+            normalizedAction === "setValue" &&
             (element instanceof HTMLInputElement ||
               element instanceof HTMLTextAreaElement ||
-              element instanceof HTMLSelectElement)
+              element instanceof HTMLSelectElement ||
+              element.isContentEditable)
           ) {
-            element.value = value ?? "";
+            if (element.isContentEditable) {
+              element.textContent = value ?? "";
+            } else {
+              (
+                element as
+                  HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+              ).value = value ?? "";
+            }
             element.dispatchEvent(new Event("input", { bubbles: true }));
             element.dispatchEvent(new Event("change", { bubbles: true }));
           } else {
@@ -522,7 +597,7 @@ export function installDomTools(
             };
           }
           return successful(
-            { nodeId: id, action },
+            { nodeId: id, action, performedAction: normalizedAction },
             `DOM action '${action}' invoked.`,
           );
         },

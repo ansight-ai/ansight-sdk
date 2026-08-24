@@ -214,23 +214,11 @@ internal enum AnsightVisualTreeSupport {
 
     static func boundsForNode(nodeId: String) throws -> AnsightVisualTreeBounds {
         #if canImport(UIKit)
-        return try runOnMainActor {
-            guard let window = activeWindow() else {
-                throw AnsightVisualTreeToolError.unavailable("No active UIWindow is available.")
-            }
-
-            guard let view = findView(in: window, nodeId: nodeId) else {
+        let tree = try captureTree(includeProperties: false)
+        guard let node = tree.find(nodeId), let bounds = node.bounds else {
                 throw AnsightVisualTreeToolError.unavailable("The node '\(nodeId)' was not found.")
-            }
-
-            let frame = view.convert(view.bounds, to: window)
-            return AnsightVisualTreeBounds(
-                x: Double(frame.origin.x),
-                y: Double(frame.origin.y),
-                width: Double(frame.width),
-                height: Double(frame.height)
-            )
         }
+        return bounds
         #else
         throw AnsightVisualTreeToolError.platformUnsupported
         #endif
@@ -357,8 +345,52 @@ internal enum AnsightVisualTreeSupport {
 
     @MainActor
     static func buildNode(view: UIView, window: UIWindow, includeProperties: Bool) -> AnsightVisualNode {
+        var visited = Set<ObjectIdentifier>()
+        return buildNode(
+            view: view,
+            window: window,
+            includeProperties: includeProperties,
+            visited: &visited
+        )
+    }
+
+    @MainActor
+    private static func buildNode(
+        view: UIView,
+        window: UIWindow,
+        includeProperties: Bool,
+        visited: inout Set<ObjectIdentifier>
+    ) -> AnsightVisualNode {
+        visited.insert(ObjectIdentifier(view))
         let frame = view.convert(view.bounds, to: window)
         let properties = includeProperties ? propertiesForView(view) : [:]
+        var children: [AnsightVisualNode] = []
+        for child in view.subviews {
+            children.append(
+                buildNode(
+                    view: child,
+                    window: window,
+                    includeProperties: includeProperties,
+                    visited: &visited
+                )
+            )
+        }
+
+        for (index, element) in accessibilityChildren(of: view).enumerated() {
+            guard visited.insert(ObjectIdentifier(element)).inserted else {
+                continue
+            }
+            children.append(
+                buildAccessibilityNode(
+                    element: element,
+                    nodeId: "\(nodeId(for: view)).accessibility.\(index)",
+                    window: window,
+                    includeProperties: includeProperties,
+                    visited: &visited
+                )
+            )
+        }
+
         return AnsightVisualNode(
             id: nodeId(for: view),
             type: String(describing: type(of: view)),
@@ -378,8 +410,163 @@ internal enum AnsightVisualTreeSupport {
             visual: visualForView(view),
             z: zIndexForView(view),
             properties: properties,
-            children: view.subviews.map { buildNode(view: $0, window: window, includeProperties: includeProperties) }
+            children: children
         )
+    }
+
+    @MainActor
+    private static func buildAccessibilityNode(
+        element: NSObject,
+        nodeId: String,
+        window: UIWindow,
+        includeProperties: Bool,
+        visited: inout Set<ObjectIdentifier>
+    ) -> AnsightVisualNode {
+        let screenFrame = accessibilityFrame(for: element)
+        let frame = screenFrame.isNull || screenFrame.isInfinite
+            ? .zero
+            : window.convert(screenFrame, from: nil)
+        let traits = element.accessibilityTraits
+        let automationId = accessibilityIdentifier(for: element)
+        let label = normalized(element.accessibilityLabel)
+            ?? normalized(automationId)
+        let value = normalized(element.accessibilityValue)
+        var visual: [String: JSONValue] = ["opacity": .number(1)]
+        if let label {
+            visual["text"] = .string(label)
+        }
+        if let value {
+            visual["value"] = .string(value)
+        }
+
+        var properties: [String: JSONValue] = [:]
+        if includeProperties {
+            properties["accessibilityIdentifier"] = automationId.map(JSONValue.string) ?? .null
+            properties["accessibilityLabel"] = element.accessibilityLabel.map(JSONValue.string) ?? .null
+            properties["accessibilityHint"] = element.accessibilityHint.map(JSONValue.string) ?? .null
+            properties["accessibilityValue"] = element.accessibilityValue.map(JSONValue.string) ?? .null
+            properties["accessibilityTraits"] = .string(String(traits.rawValue))
+        }
+
+        var children: [AnsightVisualNode] = []
+        for (index, child) in accessibilityChildren(of: element).enumerated() {
+            guard visited.insert(ObjectIdentifier(child)).inserted else {
+                continue
+            }
+            children.append(
+                buildAccessibilityNode(
+                    element: child,
+                    nodeId: "\(nodeId).\(index)",
+                    window: window,
+                    includeProperties: includeProperties,
+                    visited: &visited
+                )
+            )
+        }
+
+        return AnsightVisualNode(
+            id: nodeId,
+            type: String(describing: type(of: element)),
+            automationId: normalized(automationId),
+            label: label,
+            role: accessibilityRole(for: traits),
+            supportedActions: accessibilityActions(for: element, traits: traits),
+            visible: !element.accessibilityElementsHidden && !frame.isEmpty,
+            enabled: !traits.contains(.notEnabled),
+            focusable: element.isAccessibilityElement || label != nil,
+            bounds: AnsightVisualTreeBounds(
+                x: Double(frame.origin.x),
+                y: Double(frame.origin.y),
+                width: Double(frame.width),
+                height: Double(frame.height)
+            ),
+            visual: visual,
+            z: nil,
+            properties: properties,
+            children: children
+        )
+    }
+
+    @MainActor
+    private static func accessibilityChildren(of container: NSObject) -> [NSObject] {
+        if let elements = container.accessibilityElements, !elements.isEmpty {
+            return elements.compactMap { $0 as? NSObject }
+        }
+
+        let typeName = String(describing: type(of: container))
+        guard typeName.localizedCaseInsensitiveContains("hosting") ||
+            typeName.localizedCaseInsensitiveContains("swiftui")
+        else {
+            return []
+        }
+
+        let count = container.accessibilityElementCount()
+        guard count > 0, count <= 2_000 else {
+            return []
+        }
+
+        return (0 ..< count).compactMap { index in
+            container.accessibilityElement(at: index) as? NSObject
+        }
+    }
+
+    @MainActor
+    private static func accessibilityFrame(for element: NSObject) -> CGRect {
+        let frame = element.accessibilityFrame
+        if !frame.isNull, !frame.isInfinite, !frame.isEmpty {
+            return frame
+        }
+        return element.accessibilityPath?.bounds ?? frame
+    }
+
+    @MainActor
+    private static func accessibilityIdentifier(for element: NSObject) -> String? {
+        (element as? any UIAccessibilityIdentification)?.accessibilityIdentifier
+    }
+
+    @MainActor
+    private static func accessibilityRole(for traits: UIAccessibilityTraits) -> String {
+        if traits.contains(.button) || traits.contains(.keyboardKey) {
+            return "button"
+        }
+        if traits.contains(.link) {
+            return "link"
+        }
+        if traits.contains(.searchField) {
+            return "textbox"
+        }
+        if traits.contains(.adjustable) {
+            return "slider"
+        }
+        if traits.contains(.header) {
+            return "heading"
+        }
+        if traits.contains(.image) {
+            return "image"
+        }
+        if traits.contains(.staticText) {
+            return "text"
+        }
+        return "accessibilityElement"
+    }
+
+    @MainActor
+    private static func accessibilityActions(
+        for element: NSObject,
+        traits: UIAccessibilityTraits
+    ) -> [String] {
+        var actions: [String] = []
+        if traits.contains(.button) ||
+            traits.contains(.link) ||
+            traits.contains(.keyboardKey) ||
+            !(element.accessibilityCustomActions ?? []).isEmpty
+        {
+            actions.append("tap")
+        }
+        if traits.contains(.adjustable) {
+            actions.append(contentsOf: ["increment", "decrement"])
+        }
+        return actions
     }
 
     @MainActor

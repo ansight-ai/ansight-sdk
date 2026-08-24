@@ -288,16 +288,69 @@ internal static class AndroidSceneCapture
                             if (viewsHandle != IntPtr.Zero)
                             {
                                 using var views = Java.Lang.Object.GetObject<JavaList<View>>(viewsHandle, JniHandleOwnership.TransferLocalRef);
-                                if (views == null)
+                                if (views != null)
                                 {
-                                    return topLevelViews;
-                                }
-
-                                foreach (var view in views)
-                                {
-                                    if (view != null && ShouldCaptureTopLevelView(view, activity, packageName))
+                                    foreach (var view in views)
                                     {
-                                        topLevelViews.Add(view);
+                                        if (view != null &&
+                                            ShouldCaptureTopLevelView(view, activity, packageName) &&
+                                            !topLevelViews.Any(existing => IsSameJavaObject(existing, view)))
+                                        {
+                                            topLevelViews.Add(view);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        var rootsField = JNIEnv.GetFieldID(windowManagerGlobalClass, "mRoots", "Ljava/util/ArrayList;");
+                        if (rootsField != IntPtr.Zero)
+                        {
+                            var rootsHandle = JNIEnv.GetObjectField(windowManagerGlobal.Handle, rootsField);
+                            if (rootsHandle != IntPtr.Zero)
+                            {
+                                using var roots = Java.Lang.Object.GetObject<JavaList<Java.Lang.Object>>(rootsHandle, JniHandleOwnership.TransferLocalRef);
+                                if (roots != null)
+                                {
+                                    foreach (var root in roots)
+                                    {
+                                        if (root == null || root.Handle == IntPtr.Zero)
+                                        {
+                                            continue;
+                                        }
+
+                                        var rootClass = JNIEnv.GetObjectClass(root.Handle);
+                                        if (rootClass == IntPtr.Zero)
+                                        {
+                                            continue;
+                                        }
+
+                                        try
+                                        {
+                                            var viewField = JNIEnv.GetFieldID(rootClass, "mView", "Landroid/view/View;");
+                                            if (viewField == IntPtr.Zero)
+                                            {
+                                                continue;
+                                            }
+
+                                            var viewHandle = JNIEnv.GetObjectField(root.Handle, viewField);
+                                            if (viewHandle == IntPtr.Zero)
+                                            {
+                                                continue;
+                                            }
+
+                                            var view = Java.Lang.Object.GetObject<View>(viewHandle, JniHandleOwnership.TransferLocalRef);
+                                            if (view != null &&
+                                                ShouldCaptureTopLevelView(view, activity, packageName) &&
+                                                !topLevelViews.Any(existing => IsSameJavaObject(existing, view)))
+                                            {
+                                                topLevelViews.Add(view);
+                                            }
+                                        }
+                                        finally
+                                        {
+                                            JNIEnv.DeleteLocalRef(rootClass);
+                                        }
                                     }
                                 }
                             }
@@ -315,7 +368,7 @@ internal static class AndroidSceneCapture
             var orderedViews = new List<View> { activityRootView };
             foreach (var topLevelView in topLevelViews)
             {
-                if (!IsSameJavaObject(topLevelView, activityRootView))
+                if (!orderedViews.Any(existing => IsSameJavaObject(existing, topLevelView)))
                 {
                     orderedViews.Add(topLevelView);
                 }

@@ -1,7 +1,20 @@
 "use strict";
 
+const { ensureReactInspectionHook } = require("./react-inspection-hook");
+const { createReactCoordinateSpace } = require("./react-tree-geometry");
+const { reactSemanticRole, reactSupportedActions } = require("./react-tree-semantics");
+
+// Production React Native renderers only look for the DevTools hook once, when
+// the renderer module initializes. Install a minimal root tracker while this
+// package is loading so Fabric and Paper can report their roots before the app's
+// first render. Development runtimes keep their full React DevTools hook.
+if (typeof __DEV__ === "undefined" || !__DEV__) {
+  ensureReactInspectionHook(typeof global !== "undefined" ? global : undefined);
+}
+
 const {
   AppState,
+  Dimensions,
   NativeEventEmitter,
   NativeModules,
   Platform,
@@ -1531,36 +1544,16 @@ function summarizeProps(props) {
   return summary;
 }
 
-function reactSemanticRole(type, props, fiberTag) {
-  const declared = props && (props.accessibilityRole || props.role);
-  if (declared) return String(declared).toLowerCase();
-  if (fiberTag === 6 || /text/i.test(type)) return "text";
-  if (/button|pressable|touchable/i.test(type)) return "button";
-  if (/textinput/i.test(type)) return "textbox";
-  if (/switch/i.test(type)) return "switch";
-  if (/scrollview|flatlist|sectionlist/i.test(type)) return "scrollview";
-  return "view";
-}
-
-function reactSupportedActions(type, props) {
-  const actions = [];
-  if (props && typeof props.onPress === "function") actions.push("tap");
-  if (props && (typeof props.onChangeText === "function" || /textinput/i.test(type))) {
-    actions.push("typeText", "focus");
-  }
-  if (/scrollview|flatlist|sectionlist/i.test(type) || (props && typeof props.onScroll === "function")) {
-    actions.push("scroll", "swipe");
-  }
-  return actions;
-}
-
 function applyReactTargetability(node, fiber, props, type) {
   const style = StyleSheet && typeof StyleSheet.flatten === "function"
     ? StyleSheet.flatten(props && props.style)
     : props && props.style;
   node.text = node.label || (node.visual && node.visual.text) || null;
-  node.role = reactSemanticRole(type, props, fiber.tag);
   node.supportedActions = reactSupportedActions(type, props);
+  node.role = reactSemanticRole(type, props, fiber.tag);
+  if (node.role === "view" && node.supportedActions.includes("tap")) {
+    node.role = "button";
+  }
   node.visible = !(style && style.display === "none") && !(props && props.accessibilityElementsHidden);
   node.enabled = !(props && (props.disabled === true || props.accessibilityState && props.accessibilityState.disabled === true));
   node.focusable = !!(props && props.focusable) || node.supportedActions.includes("focus");
@@ -1914,6 +1907,7 @@ async function captureReactVisualTree(rawOptions = {}) {
     source: "react",
     adapter: "react.fiber",
     treeKind: "component",
+    coordinateSpace: createReactCoordinateSpace(Dimensions, context.nodesWithNativeTags),
     capturedAtUtc: new Date().toISOString(),
     hookAvailable: roots.hookAvailable,
     renderers: roots.renderers,
@@ -1974,6 +1968,7 @@ async function captureReactShadowTree(rawOptions = {}) {
     source: "react-native",
     adapter: "react-native.host-fiber",
     treeKind: "shadow",
+    coordinateSpace: createReactCoordinateSpace(Dimensions, context.nodesWithNativeTags),
     capturedAtUtc: new Date().toISOString(),
     hookAvailable: roots.hookAvailable,
     renderers: roots.renderers,

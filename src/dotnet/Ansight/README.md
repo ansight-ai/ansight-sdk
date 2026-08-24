@@ -6,6 +6,13 @@ This package references `Ansight.Core`, `Ansight.Annotations`,
 `Ansight.OfflineCapture`, native pairing where supported, and all non-MAUI
 remote tool packages. The runtime namespace remains `Ansight`.
 
+See the [.NET getting-started guide](https://www.ansight.ai/docs/sdk/dotnet/setup)
+for package installation, guarded startup locations, and CLI verification.
+
+```sh
+dotnet add package Ansight --prerelease
+```
+
 ## License
 
 The Ansight SDK is source-available software under the
@@ -16,17 +23,31 @@ Ansight Services.
 ```csharp
 using Ansight;
 
+#if DEBUG
 var options = Options.CreateBuilder()
     .WithAnsightSdk()
     .Build();
 
 Runtime.InitializeAndActivate(options);
+#endif
+```
+
+Start the local host with `ansight host run`. Simulators, Mac Catalyst, and
+desktop apps register automatically through loopback; no account or explicit
+connection call is required. Verify with
+`ansight session list --connected --json` and
+`ansight app tools <session-id> --json`.
+
+For a physical device, run `ansight pairing issue --qr`, then call the platform
+QR reader from a developer-only app surface:
+
+```csharp
 await Runtime.HostConnection.ConnectAsync(HostConnectionRequest.QrCode());
 ```
 
-The all-in-one package registers the platform QR reader and tracks the current
-Android activity automatically. A first scan stores this app installation's
-registration; later launches reconnect without a pairing file or another scan.
+The first scan stores this app installation's registration; later launches
+reconnect without a pairing file or another scan. The all-in-one package tracks
+the current Android activity automatically.
 
 In-app annotations are bundled but deliberately not enabled by the all-in-one defaults. Opt in explicitly from a Debug application build:
 

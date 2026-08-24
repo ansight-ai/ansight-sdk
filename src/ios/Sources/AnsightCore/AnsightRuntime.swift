@@ -32,7 +32,6 @@ public final class AnsightRuntime: @unchecked Sendable {
 
     private static let screenCaptureRenderBudgetMilliseconds = 14
     private static let screenCaptureMinimumAdaptiveMaxWidth = 720
-    private static let screenCaptureMaximumAdaptiveIntervalMilliseconds = 5_000
 
     private let lock = NSLock()
     private let pairingDocumentService = PairingConfigDocumentService()
@@ -2691,13 +2690,9 @@ public final class AnsightRuntime: @unchecked Sendable {
                 captureOptions.maxWidth = adjustedMaxWidth
             }
 
-            captureOptions.intervalMilliseconds = Self.adaptiveScreenCaptureIntervalMilliseconds(
-                configuredIntervalMilliseconds: options.intervalMilliseconds,
-                currentIntervalMilliseconds: captureOptions.intervalMilliseconds,
-                renderMilliseconds: preparation.renderMilliseconds
-            )
-
-            let captureIntervalNanoseconds = UInt64(captureOptions.intervalMilliseconds) * 1_000_000
+            // The configured cadence is part of the capture contract. Slow renders may
+            // reduce resolution above, while the latest-value buffer bounds delivery work.
+            let captureIntervalNanoseconds = UInt64(options.intervalMilliseconds) * 1_000_000
             nextCaptureDeadlineNanoseconds += captureIntervalNanoseconds
             let currentTimeNanoseconds = DispatchTime.now().uptimeNanoseconds
             while nextCaptureDeadlineNanoseconds <= currentTimeNanoseconds {
@@ -2749,34 +2744,6 @@ public final class AnsightRuntime: @unchecked Sendable {
             return currentMaxWidth
         }
         return nextWidth
-    }
-
-    static func adaptiveScreenCaptureIntervalMilliseconds(
-        configuredIntervalMilliseconds: Int,
-        currentIntervalMilliseconds: Int,
-        renderMilliseconds: Int?
-    ) -> Int {
-        let configuredInterval = max(250, configuredIntervalMilliseconds)
-        let currentInterval = max(configuredInterval, currentIntervalMilliseconds)
-        guard let renderMilliseconds else {
-            return currentInterval
-        }
-
-        if renderMilliseconds > screenCaptureRenderBudgetMilliseconds {
-            let maximumInterval = max(
-                configuredInterval,
-                screenCaptureMaximumAdaptiveIntervalMilliseconds
-            )
-            let increasedInterval = Int((Double(currentInterval) * 1.5).rounded(.up))
-            return min(maximumInterval, max(currentInterval + 250, increasedInterval))
-        }
-
-        guard currentInterval > configuredInterval else {
-            return configuredInterval
-        }
-
-        let recoveryStep = max(250, (currentInterval - configuredInterval) / 2)
-        return max(configuredInterval, currentInterval - recoveryStep)
     }
 
     private func openLiveTransportSession(url: URL, config: PairingConfig, clientName: String) async -> LiveSessionOpenAttempt {

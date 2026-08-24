@@ -2,6 +2,9 @@
 
 Ansight provides in-process telemetry, host pairing, live JPEG capture, and guarded remote tools for .NET Android, iOS, and Mac Catalyst apps.
 
+For guarded package setup and CLI verification, see the
+[.NET getting-started guide](https://www.ansight.ai/docs/sdk/dotnet/setup).
+
 ## License
 
 The Ansight SDK is source-available software under the
@@ -37,27 +40,44 @@ buffer, so existing snapshot, event, and offline-capture consumers continue to
 work against the same recorded data.
 
 The bridge packages are implementation details; applications do not install or
-configure them separately. Install the SDK and initialize it. Simulator,
-Mac Catalyst, and desktop runtimes register automatically with a running,
-signed-in Studio; physical devices scan the generic one-use QR from Studio's
-**Pair Any App** screen and then reconnect from app-private registration state.
-The runtime app id is registered automatically after the scan.
+configure them separately. Install the SDK and initialize it in a development
+build. With `ansight host run` active, Simulator, Mac Catalyst, and desktop
+runtimes register automatically through loopback; no account is required. For
+a physical device, run `ansight pairing issue --qr` and scan from the SDK's
+developer-only enrollment UI. The runtime app id is registered automatically,
+and later launches reconnect from app-private registration state.
 
 ## All-In-One
 
 ```csharp
 using Ansight;
 
+#if DEBUG
 var options = Options.CreateBuilder()
     .WithAnsightSdk()
     .Build();
 
 Runtime.InitializeAndActivate(options);
+#endif
+```
+
+Start the local host in one terminal and leave it running:
+
+```sh
+ansight host run
+```
+
+Launch the development app, then verify the session and tool catalog from
+another terminal:
+
+```sh
+ansight session list --connected --json
+ansight app tools <session-id> --json
 ```
 
 The all-in-one package starts runtime enrollment automatically and registers
 platform QR support for physical devices, including current Android activity
-tracking. No pairing file, MSBuild property, host address, Studio build probe,
+tracking. No pairing file, MSBuild property, host address, build-time host probe,
 or activity-provider callback is required.
 
 The all-in-one packages include annotations but do not enable them by default. To expose an in-app feedback action, opt in explicitly; the runtime activates it only for a Debug application build:
@@ -92,8 +112,8 @@ encrypted export, annotation-bundle storage, and team upload.
 
 Cellular host connections remain disabled in every preset. To allow a personal
 hotspot or another cellular path, add `.WithCellularHostConnections()` to the
-options builder. The opt-in applies to bundled configs, QR scans, saved
-profiles, and manual connections. It can consume mobile data and broaden
+options builder. The opt-in applies to QR enrollment, saved profiles, and
+explicit payload connections. It can consume mobile data and broaden
 network exposure, so use it only with a trusted development host.
 
 > **Important:** Screen capture will result in an FPS drop while frames are
@@ -125,15 +145,19 @@ Use `WithAnsightDefaults()` when you want the runtime defaults without remote to
 ## MAUI
 
 ```csharp
+#if DEBUG
 using Ansight.Maui;
+#endif
 
 public static MauiApp CreateMauiApp()
 {
     var builder = MauiApp.CreateBuilder();
 
-    builder
-        .UseMauiApp<App>()
-        .UseAnsight<App>();
+    builder.UseMauiApp<App>();
+
+#if DEBUG
+    builder.UseAnsight<App>();
+#endif
 
     return builder.Build();
 }
@@ -168,7 +192,7 @@ builder.UseAnsight<App>(ansight =>
 
 ## Core Runtime
 
-For apps that only want telemetry and pairing infrastructure:
+For apps that only want telemetry and host-connection infrastructure:
 
 ```csharp
 using Ansight;
@@ -177,7 +201,6 @@ var options = Options.CreateBuilder()
     .WithFramesPerSecond()
     .WithBatteryLevel()
     .WithSessionJpegCapture(intervalMilliseconds: 2000, quality: 60, maxWidth: 720)
-    .WithBundledHostConnection(typeof(AppBootstrap).Assembly)
     .Build();
 
 Runtime.InitializeAndActivate(options);
@@ -384,8 +407,9 @@ var options = Options.CreateBuilder()
 
 `HostConnectionRequest.Auto()` uses the remembered app-installation
 registration. Background host auto-probe retries that state while the runtime
-is active. `QrCode` is the normal first-use path; `PayloadText` supports apps
-that already own the scanner UI.
+is active. For a physical device, run `ansight pairing issue --qr`; `QrCode` is
+the normal first-use scanner path, while `PayloadText` supports apps that
+already own the scanner UI.
 
 For unattended physical-device test runs, opt in only for development or test
 builds:
@@ -400,7 +424,7 @@ var options = Options.CreateBuilder()
 At launch, the native iOS bridge consumes `ANSIGHT_ENROLLMENT_PAYLOAD` from the
 process environment. The Android bridge consumes the
 `ai.ansight.bootstrap.payload` string extra from the launcher Activity Intent.
-The runner must supply a fresh, app-specific, one-use enrollment payload. On a
+The runner must supply a fresh one-use enrollment payload. On a
 successful connection, the native SDK saves the resulting app-installation
 registration in platform-private storage for later automatic reconnects.
 
@@ -422,10 +446,12 @@ Use `WithoutHostAutoProbe()` for flows where reconnects should only happen after
 
 ## Enrollment setup
 
-Install the SDK and initialize it. Host-local runtimes enroll automatically
-while Studio is open and signed in. Open `HostConnectionRequest.QrCode()` only
-from a physical device's developer-only surface. No build target, Studio build
-probe, pairing file, certificate, signing key, or host address is required.
+Install the SDK and initialize it inside the app's development-build guard.
+Host-local runtimes register automatically while `ansight host run` is active.
+For a physical device, run `ansight pairing issue --qr`, then open
+`HostConnectionRequest.QrCode()` only from a developer-only surface. No account,
+build target, build-time host probe, pairing file, certificate, signing key, or
+host address is required.
 
 ## Build-Time Remote Tool Enforcement
 

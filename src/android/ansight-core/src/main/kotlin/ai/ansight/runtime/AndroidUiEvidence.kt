@@ -414,21 +414,48 @@ object AndroidUiEvidence {
         return try {
             val globalClass = Class.forName("android.view.WindowManagerGlobal")
             val getInstance = globalClass.getDeclaredMethod("getInstance")
-            val global = getInstance.invoke(null)
-            val viewsField = globalClass.getDeclaredField("mViews").apply { isAccessible = true }
-            val views = viewsField.get(global)
-            val rawViews = when (views) {
-                is List<*> -> views
-                is Array<*> -> views.toList()
-                else -> emptyList<Any?>()
-            }
-            rawViews
+            val global = getInstance.invoke(null) ?: return emptyList()
+            val directViews = reflectedCollectionField(globalClass, global, "mViews")
                 .filterIsInstance<View>()
+            val rootViews = reflectedCollectionField(globalClass, global, "mRoots")
+                .mapNotNull { root -> reflectedViewField(root, "mView") }
+
+            (directViews + rootViews)
                 .map { it.rootView ?: it }
+                .distinctBy { view -> System.identityHashCode(view) }
                 .filter { view -> view.isRenderable() }
         } catch (_: Exception) {
             emptyList()
         }
+    }
+
+    private fun reflectedCollectionField(ownerClass: Class<*>, owner: Any, fieldName: String): List<Any?> {
+        val value = runCatching {
+            ownerClass.getDeclaredField(fieldName)
+                .apply { isAccessible = true }
+                .get(owner)
+        }.getOrNull()
+        return when (value) {
+            is List<*> -> value
+            is Array<*> -> value.toList()
+            else -> emptyList()
+        }
+    }
+
+    private fun reflectedViewField(owner: Any?, fieldName: String): View? {
+        var currentClass = owner?.javaClass ?: return null
+        while (currentClass != Any::class.java) {
+            val view = runCatching {
+                currentClass.getDeclaredField(fieldName)
+                    .apply { isAccessible = true }
+                    .get(owner) as? View
+            }.getOrNull()
+            if (view != null) {
+                return view
+            }
+            currentClass = currentClass.superclass ?: break
+        }
+        return null
     }
 
     fun visualTree(maxDepth: Int = 40, maxNodes: Int = 2_000): JSONObject {
