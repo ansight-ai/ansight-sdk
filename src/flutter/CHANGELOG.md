@@ -1,3 +1,13 @@
+## 1.4.0-preview.1
+
+- Add generic `ui.*` inspection and interaction tools with explicit node
+  identity, snapshot freshness, and stale-reference handling across SDKs.
+- Add batched inspect-act-verify workflows for more reliable host and CLI
+  automation.
+- Collapse granular tool scopes into the simpler read, write, and critical
+  authorization policies.
+- Align Flutter's native dependencies with the synchronized SDK release.
+
 ## 1.3.0-preview.12
 
 - Improve visual-tree coverage and coordinate metadata across native, React
