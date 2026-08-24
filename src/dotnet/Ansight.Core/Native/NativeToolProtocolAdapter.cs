@@ -52,7 +52,8 @@ internal static class NativeToolProtocolAdapter
         if (string.IsNullOrWhiteSpace(requestJson) ||
             !toolBridge.TryParseEnvelope(requestJson, out var envelope, out _) ||
             envelope is null ||
-            !string.Equals(envelope.Type, ToolProtocolBridge.CallType, StringComparison.Ordinal) ||
+            (!string.Equals(envelope.Type, ToolProtocolBridge.CallType, StringComparison.Ordinal)
+             && !string.Equals(envelope.Type, ToolProtocolBridge.BatchType, StringComparison.Ordinal)) ||
             !Runtime.IsInitialized)
         {
             return;

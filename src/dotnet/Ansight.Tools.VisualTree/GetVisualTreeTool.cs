@@ -24,14 +24,6 @@ public sealed class GetVisualTreeTool : ITool
     {
         ArgumentNullException.ThrowIfNull(arguments);
         arguments.TryGetValue("source", out var source);
-        if (!VisualTreeProviderRegistry.TryGet(source, out var provider) || provider is null)
-        {
-            var normalizedSource = VisualTreeProviderRegistry.NormalizeSourceOrDefault(source);
-            return ToolResult.Failure(
-                $"No visual tree provider is registered for source '{normalizedSource}'.",
-                errorCode: "visual_tree_provider_not_found");
-        }
-
-        return await provider.GetVisualTreeAsync(arguments);
+        return await VisualTreeSnapshotStore.CaptureAsync(source, arguments);
     }
 }

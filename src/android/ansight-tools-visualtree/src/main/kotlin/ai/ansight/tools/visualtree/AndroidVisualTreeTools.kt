@@ -9,7 +9,7 @@ import ai.ansight.runtime.PairingFileTransferWireProtocol
 import ai.ansight.runtime.ToolScope
 import ai.ansight.runtime.androidUiTool
 import ai.ansight.runtime.intArg
-import ai.ansight.runtime.sendBinaryTransfer
+import ai.ansight.runtime.queueBinaryTransfer
 
 object AndroidVisualTreeTools {
     fun create(): List<AndroidTool> = listOf(
@@ -18,13 +18,7 @@ object AndroidVisualTreeTools {
             "Get Visual Tree",
             "Returns the current visual hierarchy for the requested source.",
         ) { args, context ->
-            val source = AndroidVisualTreeProviderRegistry.normalizeSourceOrDefault(args["source"])
-            val provider = AndroidVisualTreeProviderRegistry.provider(source)
-                ?: return@androidUiTool AndroidToolResult.failure(
-                    "No visual tree provider is registered for source '$source'.",
-                    "visual_tree_provider_not_found",
-                )
-            provider.getVisualTree(args, context)
+            AndroidVisualTreeSnapshotStore.capture(args["source"], args, context)
         },
         androidUiTool(
             VisualTreeToolIds.GetScreenshot,
@@ -56,14 +50,8 @@ object AndroidVisualTreeTools {
                 .put("width", screenshot.width)
                 .put("height", screenshot.height)
 
-            context.transport?.takeIf { it.isOpen }?.let { transport ->
-                Thread {
-                    transport.sendBinaryTransfer(transferId, screenshot.bytes, chunkBytes)
-                }.apply {
-                    name = "AnsightAndroidScreenshotTransfer"
-                    isDaemon = true
-                    start()
-                }
+            context.transport?.takeIf { it.isOpen }?.let {
+                context.queueBinaryTransfer(transferId, screenshot.bytes, chunkBytes)
             }
             AndroidToolResult.success(descriptor)
         },
@@ -72,13 +60,58 @@ object AndroidVisualTreeTools {
             "Inspect Node",
             "Returns one node from the current visual tree.",
         ) { args, context ->
-            val source = AndroidVisualTreeProviderRegistry.normalizeSourceOrDefault(args["source"])
-            val provider = AndroidVisualTreeProviderRegistry.provider(source)
+            val reference = args["reference"]?.let { raw ->
+                runCatching { org.json.JSONObject(raw) }.getOrNull()
+            }
+            val source = args["source"] ?: reference?.optString("source")?.takeIf { it.isNotBlank() }
+            val nodeId = args["nodeId"] ?: args["id"]
+                ?: reference?.optString("nodeId")?.takeIf { it.isNotBlank() }
+                ?: return@androidUiTool AndroidToolResult.failure("Node id is required.", "node_id_required")
+            val snapshotIdArgument = args["snapshotId"]
+                ?: reference?.optString("snapshotId")?.takeIf { it.isNotBlank() }
+            val providerArguments = args.toMutableMap().apply {
+                put("nodeId", nodeId)
+                source?.let { put("source", it) }
+            }
+            val snapshot = snapshotIdArgument?.let { snapshotId ->
+                val (stored, error) = AndroidVisualTreeSnapshotStore.validateNode(snapshotId, source, nodeId)
+                if (stored == null) return@androidUiTool error!!
+                stored
+            } ?: run {
+                val capture = AndroidVisualTreeSnapshotStore.capture(source, providerArguments, context)
+                if (!capture.success) return@androidUiTool capture
+                val snapshotId = capture.payload?.optString("snapshotId").orEmpty()
+                val (captured, error) = AndroidVisualTreeSnapshotStore.validateNode(snapshotId, source, nodeId)
+                if (captured == null) return@androidUiTool error!!
+                captured
+            }
+            val provider = AndroidVisualTreeProviderRegistry.provider(snapshot.source)
                 ?: return@androidUiTool AndroidToolResult.failure(
-                    "No visual tree provider is registered for source '$source'.",
+                    "No visual tree provider is registered for source '${snapshot.source}'.",
                     "visual_tree_provider_not_found",
                 )
-            provider.inspectNode(args, context)
+            providerArguments["source"] = snapshot.source
+            providerArguments["snapshotId"] = snapshot.snapshotId
+            val result = provider.inspectNode(providerArguments, context)
+            if (!result.success) {
+                if (result.errorCode in setOf("visual_tree_node_not_found", "node_not_found", "dom_node_not_found")) {
+                    return@androidUiTool AndroidToolResult.failure(
+                        "Node '$nodeId' is no longer valid for snapshot '${snapshot.snapshotId}'.",
+                        "stale_node_reference",
+                        org.json.JSONObject()
+                            .put("reference", AndroidVisualTreeSnapshotStore.reference(snapshot, nodeId))
+                            .put("providerError", result.errorCode)
+                            .put("refreshWith", VisualTreeToolIds.QueryNodes),
+                    )
+                }
+                return@androidUiTool result
+            }
+            result.payload
+                ?.put("source", snapshot.source)
+                ?.put("snapshotId", snapshot.snapshotId)
+                ?.put("revision", snapshot.revision)
+                ?.put("reference", AndroidVisualTreeSnapshotStore.reference(snapshot, nodeId))
+            result
         },
         androidUiTool(
             VisualTreeToolIds.ShowOverlay,
@@ -128,5 +161,5 @@ object AndroidVisualTreeTools {
         ) { _, _ ->
             AndroidToolResult.success(AndroidUiEvidence.clearOverlays())
         },
-    )
+    ) + AndroidGenericUiTools.create()
 }

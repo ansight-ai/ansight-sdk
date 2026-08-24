@@ -136,6 +136,71 @@ internal enum AnsightVisualTreeSupport {
         }
     }
 
+    static func performNativeAction(_ request: AnsightVisualTreeActionRequest) -> AnsightToolExecutionResult {
+        #if canImport(UIKit)
+        return runOnMainActor {
+            let view = activeWindows().lazy.compactMap { findView(in: $0, nodeId: request.nodeId) }.first
+            guard let view else {
+                return .failure(
+                    "The native node '\(request.nodeId)' was not found.",
+                    errorCode: "visual_tree_node_not_found"
+                )
+            }
+            let invoked: Bool
+            switch request.action.lowercased() {
+            case "tap":
+                if let control = view as? UIControl {
+                    control.sendActions(for: .touchUpInside)
+                    invoked = true
+                } else {
+                    invoked = false
+                }
+            case "focus":
+                invoked = view.becomeFirstResponder()
+            case "unfocus":
+                invoked = view.resignFirstResponder()
+            case "setvalue", "typetext":
+                guard case .string(let text)? = request.value else { invoked = false; break }
+                if let textField = view as? UITextField {
+                    textField.text = text
+                    textField.sendActions(for: .editingChanged)
+                    invoked = true
+                } else if let textView = view as? UITextView {
+                    textView.text = text
+                    invoked = true
+                } else {
+                    invoked = false
+                }
+            case "toggle":
+                if let toggle = view as? UISwitch {
+                    toggle.setOn(!toggle.isOn, animated: true)
+                    toggle.sendActions(for: .valueChanged)
+                    invoked = true
+                } else {
+                    invoked = false
+                }
+            default:
+                invoked = false
+            }
+            guard invoked else {
+                return .failure(
+                    "Native node '\(request.nodeId)' does not support action '\(request.action)'.",
+                    errorCode: "ui_action_not_supported"
+                )
+            }
+            return .success(.object([
+                "platform": .string(currentPlatform),
+                "capturedAtUtc": .string(AnsightClock.isoNow()),
+                "nodeId": .string(request.nodeId),
+                "action": .string(request.action),
+                "invoked": .bool(true),
+            ]))
+        }
+        #else
+        return .failure("Native UI actions require UIKit.", errorCode: "visual_tree_unsupported_platform")
+        #endif
+    }
+
     static func captureScreenshot(arguments: [String: String]) -> Result<AnsightVisualTreeScreenshot, AnsightVisualTreeToolError> {
         do {
             let rawFormat = (AnsightVisualTreeArgumentReader.string(arguments, key: "format") ?? "png").lowercased()

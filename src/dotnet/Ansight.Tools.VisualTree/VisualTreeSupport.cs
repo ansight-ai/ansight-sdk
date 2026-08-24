@@ -174,6 +174,81 @@ internal static partial class VisualTreeSupport
         });
     }
 
+    internal static Task<ToolResult> PerformNativeActionAsync(
+        VisualTreeActionRequest request,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+#if ANDROID
+        return RunOnUiThreadAsync(() =>
+        {
+            var activity = AndroidActivityTracker.GetCurrentActivity();
+            var view = activity is null ? null : FindAndroidView(activity, request.NodeId);
+            if (view is null)
+            {
+                return ToolResult.Failure(
+                    $"The native node '{request.NodeId}' was not found.",
+                    errorCode: "visual_tree_node_not_found");
+            }
+
+            var invoked = request.Action.Trim().ToLowerInvariant() switch
+            {
+                "tap" => view.PerformClick(),
+                "focus" => view.RequestFocus(),
+                "unfocus" => ClearAndroidFocus(view),
+                "setvalue" or "typetext" => SetAndroidText(view, request.Value),
+                "toggle" => ToggleAndroidView(view),
+                _ => false
+            };
+            return invoked
+                ? ToolResult.Success(CreateNativeActionPayload(request))
+                : ToolResult.Failure(
+                    $"Native node '{request.NodeId}' does not support action '{request.Action}'.",
+                    errorCode: "ui_action_not_supported");
+        });
+#elif IOS || MACCATALYST
+        return RunOnUiThreadAsync(() =>
+        {
+            var view = FindAppleView(request.NodeId);
+            if (view is null)
+            {
+                return ToolResult.Failure(
+                    $"The native node '{request.NodeId}' was not found.",
+                    errorCode: "visual_tree_node_not_found");
+            }
+
+            var invoked = request.Action.Trim().ToLowerInvariant() switch
+            {
+                "tap" => TapAppleView(view),
+                "focus" => view.BecomeFirstResponder(),
+                "unfocus" => view.ResignFirstResponder(),
+                "setvalue" or "typetext" => SetAppleText(view, request.Value),
+                "toggle" => ToggleAppleView(view),
+                _ => false
+            };
+            return invoked
+                ? ToolResult.Success(CreateNativeActionPayload(request))
+                : ToolResult.Failure(
+                    $"Native node '{request.NodeId}' does not support action '{request.Action}'.",
+                    errorCode: "ui_action_not_supported");
+        });
+#else
+        return Task.FromResult(ToolResult.Failure(
+            "Native UI actions require an Android, iOS, or Mac Catalyst runtime.",
+            errorCode: "visual_tree_unsupported_platform"));
+#endif
+    }
+
+    private static JsonObject CreateNativeActionPayload(VisualTreeActionRequest request)
+        => new()
+        {
+            ["platform"] = CurrentPlatform,
+            ["capturedAtUtc"] = DateTime.UtcNow.ToString("O"),
+            ["nodeId"] = request.NodeId,
+            ["action"] = request.Action,
+            ["invoked"] = true
+        };
+
     internal static Task<ToolResult> GetScreenshotAsync(IReadOnlyDictionary<string, string> arguments)
     {
         var format = (GetString(arguments, "format") ?? "png").Trim().ToLowerInvariant();
@@ -675,6 +750,74 @@ internal static partial class VisualTreeSupport
     private sealed record ScreenshotCapture(string Format, int Width, int Height, byte[] Bytes, bool AnnotationApplied);
 
 #if ANDROID
+    private static View? FindAndroidView(Activity activity, string nodeId)
+    {
+        foreach (var root in AndroidSceneCapture.GetTopLevelViews(activity))
+        {
+            var match = FindAndroidView(root, nodeId);
+            if (match is not null)
+            {
+                return match;
+            }
+        }
+
+        return null;
+    }
+
+    private static View? FindAndroidView(View view, string nodeId)
+    {
+        var id = view.Handle != IntPtr.Zero
+            ? view.Handle.ToInt64().ToString()
+            : view.GetHashCode().ToString();
+        if (string.Equals(id, nodeId, StringComparison.Ordinal))
+        {
+            return view;
+        }
+
+        if (view is ViewGroup group)
+        {
+            for (var index = 0; index < group.ChildCount; index++)
+            {
+                var child = group.GetChildAt(index);
+                if (child is not null && FindAndroidView(child, nodeId) is { } match)
+                {
+                    return match;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static bool ClearAndroidFocus(View view)
+    {
+        view.ClearFocus();
+        return true;
+    }
+
+    private static bool SetAndroidText(View view, JsonNode? value)
+    {
+        if (view is not EditText editText || value is null)
+        {
+            return false;
+        }
+
+        editText.Text = value.GetValue<string>();
+        editText.SetSelection(editText.Text?.Length ?? 0);
+        return true;
+    }
+
+    private static bool ToggleAndroidView(View view)
+    {
+        if (view is not CompoundButton toggle)
+        {
+            return false;
+        }
+
+        toggle.Checked = !toggle.Checked;
+        return true;
+    }
+
     private static Task<ToolResult> RunOnUiThreadAsync(Func<ToolResult> action)
     {
         var activity = AndroidActivityTracker.GetCurrentActivity();
@@ -1207,6 +1350,85 @@ internal static partial class VisualTreeSupport
         public void OnActivityStopped(Activity activity) { }
     }
 #elif IOS || MACCATALYST
+    private static UIView? FindAppleView(string nodeId)
+    {
+        foreach (var window in GetActiveWindows())
+        {
+            if (FindAppleView(window, nodeId) is { } match)
+            {
+                return match;
+            }
+        }
+
+        return null;
+    }
+
+    private static UIView? FindAppleView(UIView view, string nodeId)
+    {
+        var id = !string.IsNullOrWhiteSpace(view.Handle.ToString())
+            ? view.Handle.ToString()
+            : view.GetHashCode().ToString();
+        if (string.Equals(id, nodeId, StringComparison.Ordinal))
+        {
+            return view;
+        }
+
+        foreach (var child in view.Subviews)
+        {
+            if (FindAppleView(child, nodeId) is { } match)
+            {
+                return match;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool TapAppleView(UIView view)
+    {
+        if (view is not UIControl control)
+        {
+            return false;
+        }
+
+        control.SendActionForControlEvents(UIControlEvent.TouchUpInside);
+        return true;
+    }
+
+    private static bool SetAppleText(UIView view, JsonNode? value)
+    {
+        if (value is null)
+        {
+            return false;
+        }
+
+        var text = value.GetValue<string>();
+        switch (view)
+        {
+            case UITextField textField:
+                textField.Text = text;
+                textField.SendActionForControlEvents(UIControlEvent.EditingChanged);
+                return true;
+            case UITextView textView:
+                textView.Text = text;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static bool ToggleAppleView(UIView view)
+    {
+        if (view is not UISwitch toggle)
+        {
+            return false;
+        }
+
+        toggle.SetState(!toggle.On, animated: true);
+        toggle.SendActionForControlEvents(UIControlEvent.ValueChanged);
+        return true;
+    }
+
     private static Task<ToolResult> RunOnUiThreadAsync(Func<ToolResult> action)
     {
         var completion = new TaskCompletionSource<ToolResult>(TaskCreationOptions.RunContinuationsAsynchronously);

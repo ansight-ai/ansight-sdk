@@ -8,6 +8,11 @@ fun androidUiTool(
     handler: (Map<String, String>, AndroidToolExecutionContext) -> AndroidToolResult,
 ) = androidSimpleTool(id, name, description, "ui", scope, "ui android view screenshot overlay", handler)
 
+fun androidJsonUiTool(
+    definition: ToolDefinition,
+    handler: (org.json.JSONObject, AndroidToolExecutionContext) -> AndroidToolResult,
+): AndroidTool = FunctionJsonAndroidTool(definition, handler = handler)
+
 fun androidFileTool(
     id: String,
     name: String,

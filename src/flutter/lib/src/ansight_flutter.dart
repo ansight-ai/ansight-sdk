@@ -69,7 +69,8 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
     _restorePlatformErrorHandler();
     Ansight.instance
       ..removeLocalToolHandler(_visualTreeHandlerId)
-      ..removeLocalToolHandler(_inspectNodeHandlerId);
+      ..removeLocalToolHandler(_inspectNodeHandlerId)
+      ..removeLocalToolHandler(_performActionHandlerId);
     _elements.clear();
     _installed = false;
   }
@@ -199,7 +200,11 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
   Future<void> _registerWidgetTools() async {
     Ansight.instance
       ..registerLocalToolHandler(_visualTreeHandlerId, _getWidgetTree)
-      ..registerLocalToolHandler(_inspectNodeHandlerId, _inspectWidget);
+      ..registerLocalToolHandler(_inspectNodeHandlerId, _inspectWidget)
+      ..registerLocalToolHandler(
+        _performActionHandlerId,
+        _performWidgetAction,
+      );
 
     await _registerOrReplaceTool(
       const AnsightToolDefinition(
@@ -535,6 +540,75 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
     );
   }
 
+  Future<AnsightToolResult> _performWidgetAction(
+    Map<String, String> arguments,
+    AnsightToolContext context,
+  ) async {
+    final id = arguments['nodeId'];
+    final action = arguments['action']?.trim().toLowerCase();
+    if (id == null || id.isEmpty || action == null || action.isEmpty) {
+      return const AnsightToolResult.failure(
+        message: 'nodeId and action are required.',
+        errorCode: 'ui_action_arguments_invalid',
+      );
+    }
+    var element = _elements[id];
+    if (element == null || element.owner == null) {
+      await _getWidgetTree(const <String, String>{}, context);
+      element = _elements[id];
+    }
+    if (element == null || element.owner == null) {
+      return AnsightToolResult.failure(
+        message: "Flutter widget node '$id' was not found.",
+        errorCode: 'node_not_found',
+      );
+    }
+
+    final widget = element.widget;
+    var invoked = false;
+    if (action == 'tap' && widget is GestureDetector && widget.onTap != null) {
+      widget.onTap!.call();
+      invoked = true;
+    } else if (action == 'tap' &&
+        widget is Semantics &&
+        widget.properties.onTap != null) {
+      widget.properties.onTap!.call();
+      invoked = true;
+    } else if (action == 'focus') {
+      final focusNode = Focus.maybeOf(element);
+      if (focusNode != null) {
+        focusNode.requestFocus();
+        invoked = true;
+      }
+    } else if (action == 'unfocus') {
+      FocusManager.instance.primaryFocus?.unfocus();
+      invoked = true;
+    } else if ((action == 'setvalue' || action == 'typetext') &&
+        widget is EditableText) {
+      widget.controller.text = arguments['value'] ?? '';
+      widget.onChanged?.call(widget.controller.text);
+      invoked = true;
+    }
+
+    if (!invoked) {
+      return AnsightToolResult.failure(
+        message:
+            "Flutter widget '$id' does not support action '${arguments['action']}'.",
+        errorCode: 'ui_action_not_supported',
+      );
+    }
+    return AnsightToolResult.success(
+      message: 'Flutter widget action invoked.',
+      result: <String, Object?>{
+        'platform': 'flutter',
+        'capturedAtUtc': DateTime.now().toUtc().toIso8601String(),
+        'nodeId': id,
+        'action': arguments['action'],
+        'invoked': true,
+      },
+    );
+  }
+
   Future<AnsightToolResult> _findWidgets(
     Map<String, String> arguments,
     AnsightToolContext context,
@@ -813,6 +887,8 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
 
   static const String _visualTreeHandlerId = '__ansight_flutter.visual_tree';
   static const String _inspectNodeHandlerId = '__ansight_flutter.inspect_node';
+  static const String _performActionHandlerId =
+      '__ansight_flutter.perform_action';
 }
 
 /// A navigator observer that records route changes and screen views.

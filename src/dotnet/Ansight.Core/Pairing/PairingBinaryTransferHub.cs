@@ -3,7 +3,7 @@ namespace Ansight.Pairing;
 internal sealed class PairingBinaryTransferHub
 {
     private readonly Lock gate = new();
-    private readonly Dictionary<string, PendingBinaryTransfer> pendingTransfers = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, List<PendingBinaryTransfer>> pendingTransfers = new(StringComparer.Ordinal);
     private IPairingBinaryTransport? transport;
 
     internal void AttachTransport(IPairingBinaryTransport transport)
@@ -46,12 +46,13 @@ internal sealed class PairingBinaryTransferHub
                 return false;
             }
 
-            if (pendingTransfers.TryGetValue(requestId, out var existingTransfer))
+            if (!pendingTransfers.TryGetValue(requestId, out var requestTransfers))
             {
-                existingTransfer.Abandon();
+                requestTransfers = [];
+                pendingTransfers[requestId] = requestTransfers;
             }
 
-            pendingTransfers[requestId] = transfer;
+            requestTransfers.Add(transfer);
         }
 
         Logger.Info($"Queued binary transfer '{transfer.Description}' for request '{requestId}'.");
@@ -61,12 +62,12 @@ internal sealed class PairingBinaryTransferHub
 
     internal bool TryStartQueuedTransfer(string requestId)
     {
-        PendingBinaryTransfer? transfer;
+        List<PendingBinaryTransfer>? transfers;
         IPairingBinaryTransport? transport;
 
         lock (gate)
         {
-            if (!pendingTransfers.Remove(requestId, out transfer))
+            if (!pendingTransfers.Remove(requestId, out transfers))
             {
                 return false;
             }
@@ -74,30 +75,36 @@ internal sealed class PairingBinaryTransferHub
             transport = this.transport;
         }
 
-        if (transfer is null)
+        if (transfers is null || transfers.Count == 0)
         {
             return false;
         }
 
         if (transport is null || !transport.IsOpen)
         {
-            transfer.Abandon();
+            foreach (var transfer in transfers)
+            {
+                transfer.Abandon();
+            }
             return false;
         }
 
-        Logger.Info($"Starting binary transfer '{transfer.Description}' for request '{requestId}'.");
+        Logger.Info($"Starting {transfers.Count} binary transfer(s) for request '{requestId}'.");
         _ = Task.Run(async () =>
         {
-            try
+            foreach (var transfer in transfers)
             {
-                await transfer.StartAsync(transport, CancellationToken.None);
-            }
-            catch (OperationCanceledException)
-            {
-            }
-            catch (Exception exception)
-            {
-                Logger.Warning($"Binary transfer '{transfer.Description}' failed: {exception.Message}");
+                try
+                {
+                    await transfer.StartAsync(transport, CancellationToken.None);
+                }
+                catch (OperationCanceledException)
+                {
+                }
+                catch (Exception exception)
+                {
+                    Logger.Warning($"Binary transfer '{transfer.Description}' failed: {exception.Message}");
+                }
             }
         });
 
@@ -106,9 +113,12 @@ internal sealed class PairingBinaryTransferHub
 
     private void ClearPendingTransfersUnsafe()
     {
-        foreach (var pendingTransfer in pendingTransfers.Values)
+        foreach (var requestTransfers in pendingTransfers.Values)
         {
-            pendingTransfer.Abandon();
+            foreach (var pendingTransfer in requestTransfers)
+            {
+                pendingTransfer.Abandon();
+            }
         }
 
         pendingTransfers.Clear();

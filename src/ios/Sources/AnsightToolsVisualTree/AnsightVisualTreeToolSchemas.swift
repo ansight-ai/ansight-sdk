@@ -30,13 +30,14 @@ internal enum AnsightVisualTreeToolSchemas {
     static let inspectNodeArguments = object(
         description: "Arguments for inspecting a specific node.",
         properties: [
+            "reference": nodeReference,
             "source": string("Optional visual tree provider source. Defaults to native.", nullable: true),
-            "nodeId": string("Identifier of the node to inspect."),
+            "snapshotId": string("Optional current snapshot that owns nodeId. May be supplied through reference.", nullable: true),
+            "nodeId": string("Identifier of the node to inspect. May be supplied through reference.", nullable: true),
             "includeAncestors": boolean("Include ancestor nodes in the response."),
             "includeDescendants": boolean("Include descendant nodes in the response."),
             "includeProperties": boolean("Include implementation-specific node properties."),
-        ],
-        required: ["nodeId"]
+        ]
     )
 
     static let inspectNodeResult = object(
@@ -47,12 +48,87 @@ internal enum AnsightVisualTreeToolSchemas {
             "source": string("Visual tree provider source."),
             "adapter": string("Implementation adapter that produced the tree.", nullable: true),
             "capturedAtUtc": string("UTC timestamp for capture.", format: "date-time"),
+            "snapshotId": string("Snapshot that owns the returned node reference."),
+            "revision": integer("Monotonic process-local snapshot revision."),
+            "reference": nodeReference,
             "types": array(string("Registered platform view type."), "Type registry referenced by node typeId fields."),
             "node": visualNode,
             "ancestors": array(visualNode, "Optional ancestor chain.", nullable: true),
             "descendants": array(genericObject, "Optional descendant list.", nullable: true),
         ],
-        required: ["format", "platform", "source", "capturedAtUtc", "types", "node"]
+        required: ["format", "platform", "source", "capturedAtUtc", "snapshotId", "revision", "reference", "types", "node"]
+    )
+
+    static let queryNodesArguments = object(
+        description: "Framework-neutral UI node query and capture options.",
+        properties: queryFilterProperties
+    )
+
+    static let queryNodesResult = object(
+        description: "Snapshot-scoped UI query result.",
+        properties: [
+            "source": string("Visual-tree provider source."),
+            "snapshotId": string("Snapshot searched by the query."),
+            "revision": integer("Monotonic process-local snapshot revision."),
+            "count": integer("Number of returned matches."),
+            "totalMatches": integer("Total matches before result limiting."),
+            "truncated": boolean("Whether matching results were limited."),
+            "matches": array(objectJSON(
+                description: "Provider-neutral node data with a snapshot-scoped reference.",
+                properties: ["reference": nodeReference],
+                required: ["reference"],
+                additionalProperties: true
+            ), "Matching nodes."),
+        ],
+        required: ["source", "snapshotId", "revision", "count", "totalMatches", "truncated", "matches"]
+    )
+
+    static let performActionArguments = object(
+        description: "Framework-neutral action targeting a snapshot-scoped node.",
+        properties: [
+            "reference": nodeReference,
+            "source": string("Optional visual-tree provider source.", nullable: true),
+            "snapshotId": string("Current snapshot that owns nodeId. May be supplied through reference.", nullable: true),
+            "nodeId": string("Node id within snapshotId. May be supplied through reference.", nullable: true),
+            "action": string("Semantic action.", enumValues: ["tap", "focus", "unfocus", "setValue", "typeText", "toggle", "select", "selectTab"]),
+            "value": string("String action value.", nullable: true),
+            "index": integer("Numeric selection index.", nullable: true),
+            "checked": boolean("Explicit boolean value.", nullable: true),
+            "options": objectJSON(description: "Provider-specific action options.", additionalProperties: true, nullable: true),
+        ],
+        required: ["action"]
+    )
+
+    static let performActionResult = AnsightToolSchema(json: objectJSON(
+        description: "Framework-neutral UI action result.",
+        properties: [
+            "source": string("Visual-tree provider source."),
+            "action": string("Performed semantic action."),
+            "reference": nodeReference,
+        ],
+        required: ["source", "action", "reference"],
+        additionalProperties: true
+    ))
+
+    static let waitArguments = object(
+        description: "Framework-neutral UI wait condition and query filters.",
+        properties: queryFilterProperties.merging([
+            "condition": string("Condition to wait for.", enumValues: ["exists", "notExists", "visible", "enabled"]),
+            "timeoutMilliseconds": integer("Maximum wait duration."),
+            "pollMilliseconds": integer("Delay between fresh snapshots."),
+        ]) { _, new in new },
+        required: ["condition"]
+    )
+
+    static let waitResult = object(
+        description: "Successful UI wait result.",
+        properties: [
+            "condition": string("Satisfied condition."),
+            "matched": boolean("Whether the condition matched."),
+            "elapsedMilliseconds": integer("Elapsed wait duration."),
+            "query": queryNodesResult.json,
+        ],
+        required: ["condition", "matched", "elapsedMilliseconds", "query"]
     )
 
     static let getScreenshotArguments = object(
@@ -197,6 +273,39 @@ internal enum AnsightVisualTreeToolSchemas {
         description: "Arbitrary object with implementation-specific fields.",
         additionalProperties: true
     )
+
+    private static let nodeReference = objectJSON(
+        description: "Snapshot-scoped UI node identity.",
+        properties: [
+            "source": string("Visual-tree provider source."),
+            "snapshotId": string("Snapshot that owns the node identity."),
+            "revision": integer("Monotonic process-local snapshot revision."),
+            "nodeId": string("Provider node id, valid only within the snapshot."),
+        ],
+        required: ["source", "snapshotId", "revision", "nodeId"]
+    )
+
+    private static let queryFilterProperties: [String: JSONValue] = [
+        "source": string("Optional visual-tree provider source.", nullable: true),
+        "snapshotId": string("Optional current snapshot to query.", nullable: true),
+        "nodeId": string("Exact node id.", nullable: true),
+        "automationId": string("Exact platform automation id.", nullable: true),
+        "role": string("Exact semantic role.", nullable: true),
+        "type": string("Case-insensitive type-name fragment.", nullable: true),
+        "textContains": string("Case-insensitive visible/accessibility text fragment.", nullable: true),
+        "action": string("Required supported semantic action.", nullable: true),
+        "visible": boolean("Match visible state.", nullable: true),
+        "enabled": boolean("Match enabled state.", nullable: true),
+        "maxResults": integer("Maximum returned matches."),
+        "includeBounds": boolean("Include bounds during fresh capture."),
+        "includeComputedStyles": boolean("Include native properties during fresh capture."),
+        "includeProperties": boolean("Include framework properties during fresh capture."),
+        "includeInactivePages": boolean("Include inactive framework pages during fresh capture."),
+        "root": string("Optional provider root scope.", nullable: true),
+        "rootNodeId": string("Optional subtree root.", nullable: true),
+        "maxDepth": integer("Maximum capture depth."),
+        "maxNodes": integer("Maximum capture nodes."),
+    ]
 
     private static let genericObjectNullable = objectJSON(
         description: "Arbitrary object with implementation-specific fields, or null.",

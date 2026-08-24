@@ -66,6 +66,47 @@ data class BinaryTransferDescriptor(
         .put("status", status)
 }
 
+class PendingBinaryTransferQueue internal constructor() {
+    private val transfers = mutableListOf<PendingBinaryTransfer>()
+
+    internal fun enqueue(transferId: String, bytes: ByteArray, chunkBytes: Int) {
+        transfers += PendingBinaryTransfer(transferId, bytes, chunkBytes)
+    }
+
+    internal fun start(transport: PairingLiveSessionTransport) {
+        if (transfers.isEmpty()) return
+        val queued = transfers.toList()
+        Thread {
+            queued.forEach { transfer ->
+                transport.sendBinaryTransfer(
+                    transfer.transferId,
+                    transfer.bytes,
+                    transfer.chunkBytes,
+                    initialDelayMilliseconds = 0,
+                )
+            }
+        }.apply {
+            name = "AnsightAndroidBinaryTransfers"
+            isDaemon = true
+            start()
+        }
+    }
+}
+
+private data class PendingBinaryTransfer(
+    val transferId: String,
+    val bytes: ByteArray,
+    val chunkBytes: Int,
+)
+
+fun AndroidToolExecutionContext.queueBinaryTransfer(
+    transferId: String,
+    bytes: ByteArray,
+    chunkBytes: Int = 64 * 1024,
+) {
+    pendingBinaryTransfers.enqueue(transferId, bytes, chunkBytes)
+}
+
 fun PairingLiveSessionTransport.sendBinaryTransfer(
     transferId: String,
     bytes: ByteArray,

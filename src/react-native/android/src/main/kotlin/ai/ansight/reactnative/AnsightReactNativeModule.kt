@@ -55,6 +55,10 @@ import ai.ansight.tools.reflection.AndroidReflectionToolsOptions
 import ai.ansight.tools.reflection.withReflectionTools
 import ai.ansight.tools.securestorage.withSecureStorageTools
 import ai.ansight.tools.visualtree.withVisualTreeTools
+import ai.ansight.tools.visualtree.AndroidVisualTreeActionRequest
+import ai.ansight.tools.visualtree.AndroidVisualTreeInteractionProvider
+import ai.ansight.tools.visualtree.AndroidVisualTreeProvider
+import ai.ansight.tools.visualtree.AndroidVisualTreeProviderRegistry
 import android.app.Activity
 import android.app.Application
 import android.util.Base64
@@ -657,6 +661,58 @@ class AnsightReactNativeModule(
             },
             replaceExisting = true,
         )
+        if (definition.id == "react.get_component_tree") {
+            AndroidVisualTreeProviderRegistry.register(
+                object : AndroidVisualTreeProvider, AndroidVisualTreeInteractionProvider {
+                    override val source = "react"
+                    override val displayName = "React Native"
+
+                    override fun getVisualTree(
+                        arguments: Map<String, String>,
+                        context: AndroidToolExecutionContext,
+                    ): AndroidToolResult = executeJavaScriptTool(
+                        "react.get_component_tree",
+                        arguments,
+                        context,
+                        registration.timeoutMilliseconds,
+                    )
+
+                    override fun inspectNode(
+                        arguments: Map<String, String>,
+                        context: AndroidToolExecutionContext,
+                    ): AndroidToolResult = executeJavaScriptTool(
+                        "react.get_component",
+                        arguments,
+                        context,
+                        registration.timeoutMilliseconds,
+                    )
+
+                    override fun performAction(
+                        request: AndroidVisualTreeActionRequest,
+                        context: AndroidToolExecutionContext,
+                    ): AndroidToolResult {
+                        val prop = when (request.action.lowercase()) {
+                            "tap" -> "onPress"
+                            "focus" -> "onFocus"
+                            "setvalue", "typetext" -> "onChangeText"
+                            "toggle" -> "onValueChange"
+                            else -> request.options.optString("prop", request.action)
+                        }
+                        return executeJavaScriptTool(
+                            "react.invoke_component_action",
+                            buildMap {
+                                put("nodeId", request.nodeId)
+                                put("prop", prop)
+                                request.value?.let { put("value", it.toString()) }
+                            },
+                            context,
+                            registration.timeoutMilliseconds,
+                        )
+                    }
+                },
+                replaceExisting = true,
+            )
+        }
     }
 
     private fun emitToolCall(

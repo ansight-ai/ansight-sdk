@@ -67,7 +67,8 @@ internal static class PairingToolProtocolProcessor
 
         await sendAsync(webSocket, SerializeToolEnvelope(response), cancellationToken);
         if (Runtime.IsInitialized &&
-            string.Equals(envelope!.Type, ToolProtocolBridge.CallType, StringComparison.Ordinal))
+            (string.Equals(envelope!.Type, ToolProtocolBridge.CallType, StringComparison.Ordinal)
+             || string.Equals(envelope.Type, ToolProtocolBridge.BatchType, StringComparison.Ordinal)))
         {
             Runtime.MutableInstance.BinaryTransferHub.TryStartQueuedTransfer(envelope.Id);
         }
@@ -101,7 +102,8 @@ internal static class PairingToolProtocolProcessor
 
             var type = typeElement.GetString();
             if (!string.Equals(type, ToolProtocolBridge.QueryType, StringComparison.Ordinal) &&
-                !string.Equals(type, ToolProtocolBridge.CallType, StringComparison.Ordinal))
+                !string.Equals(type, ToolProtocolBridge.CallType, StringComparison.Ordinal) &&
+                !string.Equals(type, ToolProtocolBridge.BatchType, StringComparison.Ordinal))
             {
                 return false;
             }

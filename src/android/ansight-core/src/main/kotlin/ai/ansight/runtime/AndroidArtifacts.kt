@@ -255,13 +255,7 @@ object AndroidArtifactTools {
                 chunkBytes = chunkBytes,
             ).toJson()
 
-            Thread {
-                transport.sendBinaryTransfer(transferId, bytes, chunkBytes)
-            }.apply {
-                name = "AnsightAndroidArtifactTransfer"
-                isDaemon = true
-                start()
-            }
+            context.queueBinaryTransfer(transferId, bytes, chunkBytes)
 
             AndroidToolResult.success(
                 JSONObject()

@@ -31,6 +31,9 @@ class AnsightAggregateTest {
             VisualTreeToolIds.GetVisualTree,
             VisualTreeToolIds.GetScreenshot,
             VisualTreeToolIds.InspectNode,
+            VisualTreeToolIds.QueryNodes,
+            VisualTreeToolIds.PerformAction,
+            VisualTreeToolIds.Wait,
             VisualTreeToolIds.ShowOverlay,
             VisualTreeToolIds.GetOverlay,
             VisualTreeToolIds.QueryOverlays,
@@ -90,7 +93,7 @@ class AnsightAggregateTest {
 
     @Test
     fun developerOptionsWireAllStandardTools() {
-        assertEquals(38, Ansight.developerOptions().initialTools.size)
+        assertEquals(41, Ansight.developerOptions().initialTools.size)
     }
 
     @Test
@@ -100,7 +103,7 @@ class AnsightAggregateTest {
             withSessionJpegCapture(intervalMilliseconds = 1_500, quality = 65, maxWidth = 600)
         }
 
-        assertEquals(38, options.initialTools.size)
+        assertEquals(41, options.initialTools.size)
         assertEquals(AnsightToolGuard.ReadOnly, options.toolGuard)
         assertEquals(1_500, options.sessionJpegCapture?.intervalMilliseconds)
         assertEquals(65, options.sessionJpegCapture?.quality)
@@ -119,8 +122,8 @@ class AnsightAggregateTest {
             .build()
         val toolIds = options.initialTools.map { it.definition.id }
 
-        assertEquals(38, toolIds.size)
-        assertEquals(38, toolIds.toSet().size)
+        assertEquals(41, toolIds.size)
+        assertEquals(41, toolIds.toSet().size)
         assertEquals(AnsightToolGuard.FullAccess, options.toolGuard)
         assertTrue(toolIds.contains(FileSystemToolIds.ListDirectory))
         assertTrue(toolIds.contains(VisualTreeToolIds.GetVisualTree))

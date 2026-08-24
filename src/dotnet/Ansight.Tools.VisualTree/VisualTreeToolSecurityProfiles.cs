@@ -22,6 +22,24 @@ public static class VisualTreeToolSecurityProfiles
         ToolSecurityImplications.MetadataDisclosure,
         ToolSecurityImplications.InspectsUi);
 
+    public static ToolSecurity QueryNodes { get; } = new(
+        ToolSecurityLevel.High,
+        "Searches the live UI hierarchy and returns snapshot-scoped node references.",
+        ToolSecurityImplications.MetadataDisclosure,
+        ToolSecurityImplications.InspectsUi);
+
+    public static ToolSecurity PerformAction { get; } = new(
+        ToolSecurityLevel.Critical,
+        "Performs a user-like action against the live app UI.",
+        ToolSecurityImplications.InspectsUi,
+        ToolSecurityImplications.MutatesRuntimeState);
+
+    public static ToolSecurity Wait { get; } = new(
+        ToolSecurityLevel.High,
+        "Repeatedly captures and searches the live UI until a condition is met.",
+        ToolSecurityImplications.MetadataDisclosure,
+        ToolSecurityImplications.InspectsUi);
+
     public static ToolSecurity ShowOverlay { get; } = new(
         ToolSecurityLevel.High,
         "Adds an input-transparent diagnostic overlay to the live app window.",

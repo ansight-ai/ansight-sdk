@@ -55,6 +55,10 @@ import ai.ansight.tools.reflection.AndroidReflectionToolsOptions
 import ai.ansight.tools.reflection.withReflectionTools
 import ai.ansight.tools.securestorage.withSecureStorageTools
 import ai.ansight.tools.visualtree.withVisualTreeTools
+import ai.ansight.tools.visualtree.AndroidVisualTreeActionRequest
+import ai.ansight.tools.visualtree.AndroidVisualTreeInteractionProvider
+import ai.ansight.tools.visualtree.AndroidVisualTreeProvider
+import ai.ansight.tools.visualtree.AndroidVisualTreeProviderRegistry
 import ai.ansight.pairing.AnsightPairing
 import android.app.Application
 import android.os.Handler
@@ -606,6 +610,49 @@ class AnsightCapacitorPlugin : Plugin() {
             },
             replaceExisting = true,
         )
+        if (registration.definition.id == "dom.get_document") {
+            AndroidVisualTreeProviderRegistry.register(
+                object : AndroidVisualTreeProvider, AndroidVisualTreeInteractionProvider {
+                    override val source = "dom"
+                    override val displayName = "Capacitor DOM"
+
+                    override fun getVisualTree(
+                        arguments: Map<String, String>,
+                        context: AndroidToolExecutionContext,
+                    ): AndroidToolResult = executeJavaScriptTool(
+                        "dom.get_document",
+                        arguments,
+                        context,
+                        registration.timeoutMilliseconds,
+                    )
+
+                    override fun inspectNode(
+                        arguments: Map<String, String>,
+                        context: AndroidToolExecutionContext,
+                    ): AndroidToolResult = executeJavaScriptTool(
+                        "dom.inspect_node",
+                        arguments,
+                        context,
+                        registration.timeoutMilliseconds,
+                    )
+
+                    override fun performAction(
+                        request: AndroidVisualTreeActionRequest,
+                        context: AndroidToolExecutionContext,
+                    ): AndroidToolResult = executeJavaScriptTool(
+                        "dom.invoke_action",
+                        buildMap {
+                            put("nodeId", request.nodeId)
+                            put("action", request.action)
+                            request.value?.let { put("value", it.toString()) }
+                        },
+                        context,
+                        registration.timeoutMilliseconds,
+                    )
+                },
+                replaceExisting = true,
+            )
+        }
     }
 
     private fun buildOptions(map: JSObject): AnsightOptions {

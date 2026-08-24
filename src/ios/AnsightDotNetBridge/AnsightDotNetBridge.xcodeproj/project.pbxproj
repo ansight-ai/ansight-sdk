@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		F10000000000000000000001 /* AnsightJSONTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000001 /* AnsightJSONTool.swift */; };
+		F10000000000000000000002 /* AnsightToolSchemaValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000002 /* AnsightToolSchemaValidator.swift */; };
 		0131D3723158B41EB3215455 /* AppLifecycleState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE8603BC7DCD5966BD0047B2 /* AppLifecycleState.swift */; };
 		094D61E729E05304EDD27426 /* RecordedEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7FEE214D4F5B43CFF640B01 /* RecordedEvent.swift */; };
 		0BDCE3252503B37C7826FE15 /* AnsightScreenCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE13235F2D4516B40B712CD8 /* AnsightScreenCapture.swift */; };
@@ -169,6 +171,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		F20000000000000000000001 /* AnsightJSONTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightJSONTool.swift; sourceTree = "<group>"; };
+		F20000000000000000000002 /* AnsightToolSchemaValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightToolSchemaValidator.swift; sourceTree = "<group>"; };
 		012703ACE3E2C8A383580921 /* URLSessionPairingWebSocket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = URLSessionPairingWebSocket.swift; sourceTree = "<group>"; };
 		026E435E4787579806672F58 /* Array+AnsightPairing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Array+AnsightPairing.swift"; sourceTree = "<group>"; };
 		03DA6CB7EA3D08F2CB6B17FA /* DeviceProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceProfile.swift; sourceTree = "<group>"; };
@@ -336,6 +340,7 @@
 		1F9C46205FD3EDFD914595A6 /* AnsightCore */ = {
 			isa = PBXGroup;
 			children = (
+				F20000000000000000000001 /* AnsightJSONTool.swift */,
 				A466C65EB64AF95E451AC37E /* AnsightArtifacts.swift */,
 				0C597845189A5AE2B97CE4AC /* AnsightBuildArtifactsClassProbe.swift */,
 				E8869E6E852DC0CB6A571078 /* AnsightBuildArtifactsProviding.swift */,
@@ -392,6 +397,7 @@
 				A1591B65DCC879A0B53BAB86 /* AnsightToolProtocolBridge.swift */,
 				A155537B79B6E14678D781E3 /* AnsightToolProtocolEnvelope.swift */,
 				8E9C10CDBE0457295FAE0090 /* AnsightToolSchema.swift */,
+				F20000000000000000000002 /* AnsightToolSchemaValidator.swift */,
 				6634936B556E5DBEDBB9E0BB /* AnsightToolScope.swift */,
 				C32C005E66007890A7965577 /* AnsightToolSecurity.swift */,
 				1BA4571EA676E4DBCE7666FA /* AnsightToolSecurityImplications.swift */,
@@ -609,6 +615,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F10000000000000000000001 /* AnsightJSONTool.swift in Sources */,
 				FA4BFDFECBF3076AFA2A9B01 /* AnsightArtifacts.swift in Sources */,
 				737665FDA20B8E3F6F1714B4 /* AnsightBuildArtifactsClassProbe.swift in Sources */,
 				CC2C50CCFC3AAD6A082A2583 /* AnsightBuildArtifactsProviding.swift in Sources */,
@@ -668,6 +675,7 @@
 				4DABC4CA99AF6BE0CB64FE70 /* AnsightToolProtocolBridge.swift in Sources */,
 				4941512D05A15F58339B2503 /* AnsightToolProtocolEnvelope.swift in Sources */,
 				314906D3D5B66C996B27A05C /* AnsightToolSchema.swift in Sources */,
+				F10000000000000000000002 /* AnsightToolSchemaValidator.swift in Sources */,
 				4D54D4209AE06AC0ED7AA253 /* AnsightToolScope.swift in Sources */,
 				45967C417EFAF7994C93EAF3 /* AnsightToolSecurity.swift in Sources */,
 				3D86DA6BA75BA5AA1BDF098B /* AnsightToolSecurityImplications.swift in Sources */,

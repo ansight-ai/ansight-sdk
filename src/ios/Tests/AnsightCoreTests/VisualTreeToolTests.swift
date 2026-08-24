@@ -76,6 +76,9 @@ final class VisualTreeToolTests: XCTestCase {
                 AnsightVisualTreeToolIds.getVisualTree,
                 AnsightVisualTreeToolIds.getScreenshot,
                 AnsightVisualTreeToolIds.inspectNode,
+                AnsightVisualTreeToolIds.queryNodes,
+                AnsightVisualTreeToolIds.performAction,
+                AnsightVisualTreeToolIds.wait,
                 AnsightVisualTreeToolIds.showOverlay,
                 AnsightVisualTreeToolIds.getOverlay,
                 AnsightVisualTreeToolIds.queryOverlays,
@@ -100,7 +103,7 @@ final class VisualTreeToolTests: XCTestCase {
             return XCTFail("Expected catalog tools.")
         }
 
-        XCTAssertEqual(payload["count"], .integer(9))
+        XCTAssertEqual(payload["count"], .integer(12))
         let screenshotTool = tools.compactMap { tool -> [String: JSONValue]? in
             guard case .object(let object) = tool,
                   object["id"] == .string(AnsightVisualTreeToolIds.getScreenshot) else {

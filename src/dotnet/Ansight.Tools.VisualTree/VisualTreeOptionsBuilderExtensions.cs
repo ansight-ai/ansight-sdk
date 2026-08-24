@@ -23,7 +23,10 @@ public static class VisualTreeOptionsBuilderExtensions
             foreach (var provider in VisualTreeProviderRegistry.GetProviders())
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var result = await provider.GetVisualTreeAsync(arguments);
+                var result = await VisualTreeSnapshotStore.CaptureAsync(
+                    provider.Source,
+                    arguments,
+                    cancellationToken);
                 if (result.IsSuccess && result.Payload is JsonObject payload)
                 {
                     snapshots.Add(payload.DeepClone() as JsonObject ?? new JsonObject());
@@ -38,6 +41,9 @@ public static class VisualTreeOptionsBuilderExtensions
             new GetVisualTreeTool(),
             new GetScreenshotTool(),
             new InspectNodeTool(),
+            new QueryNodesTool(),
+            new PerformActionTool(),
+            new WaitForUiConditionTool(),
             new ShowOverlayTool(),
             new GetOverlayTool(),
             new QueryOverlaysTool(),

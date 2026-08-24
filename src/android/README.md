@@ -522,6 +522,13 @@ AndroidVisualTreeProviderRegistry.register(myProvider, replaceExisting = true)
 
 React Native registers a `react` provider through `@ansight/react-native`.
 
+All providers share the same generic automation tools: `ui.query_nodes`,
+`ui.perform_action`, and `ui.wait`. Query results contain snapshot-scoped
+references (`source`, `snapshotId`, `revision`, and `nodeId`). Re-query after a
+`stale_node_reference` error before retrying an action. Flutter registers a
+`flutter` provider, React Native registers `react`, and Capacitor registers
+`dom`, so Host and CLI workflows do not need framework-specific tool ids.
+
 ## Status And Debugging
 
 Use these APIs for diagnostics:

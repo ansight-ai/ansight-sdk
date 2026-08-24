@@ -30,6 +30,33 @@ public enum AnsightVisualTreeToolSecurityProfiles {
         ]
     )
 
+    public static let queryNodes = AnsightToolSecurity(
+        level: .high,
+        summary: "Searches the live UI hierarchy and returns snapshot-scoped node references.",
+        implications: [
+            AnsightToolSecurityImplications.inspectsUi,
+            AnsightToolSecurityImplications.metadataDisclosure,
+        ]
+    )
+
+    public static let performAction = AnsightToolSecurity(
+        level: .critical,
+        summary: "Performs a user-like action against the live app UI.",
+        implications: [
+            AnsightToolSecurityImplications.inspectsUi,
+            AnsightToolSecurityImplications.mutatesRuntimeState,
+        ]
+    )
+
+    public static let wait = AnsightToolSecurity(
+        level: .high,
+        summary: "Repeatedly captures and searches the live UI until a condition is met.",
+        implications: [
+            AnsightToolSecurityImplications.inspectsUi,
+            AnsightToolSecurityImplications.metadataDisclosure,
+        ]
+    )
+
     public static let showOverlay = AnsightToolSecurity(
         level: .moderate,
         summary: "Draws an input-transparent diagnostic overlay over the active UI.",

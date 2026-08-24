@@ -9,6 +9,7 @@ import android.view.Choreographer
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
@@ -1447,13 +1448,13 @@ object AnsightRuntime {
             return
         }
         when (json.optionalString("type")) {
-            ToolProtocol.QueryType, ToolProtocol.CallType -> {
+            ToolProtocol.QueryType, ToolProtocol.CallType, ToolProtocol.BatchType -> {
                 val externalHandler = synchronized(lock) { externalToolProtocolHandler }
                 if (externalHandler == null) {
-                    if (json.optionalString("type") == ToolProtocol.QueryType) {
-                        sendToolCatalog(json)
-                    } else {
-                        executeToolCall(json)
+                    when (json.optionalString("type")) {
+                        ToolProtocol.QueryType -> sendToolCatalog(json)
+                        ToolProtocol.BatchType -> executeToolBatch(json)
+                        else -> executeToolCall(json)
                     }
                 } else {
                     executeExternalToolProtocol(text, json, externalHandler)
@@ -1512,9 +1513,14 @@ object AnsightRuntime {
             )
             val visibleTools = synchronized(lock) {
                 toolRegistry.visible(currentOptions.toolGuard)
-            }.map { tool ->
+            }.sortedBy { it.definition.id }
+            val revision = toolCatalogRevision(visibleTools, currentOptions.toolGuard)
+            val requestedRevision = request.optJSONObject("payload")?.optionalString("ifRevision")
+            val unchanged = requestedRevision == revision
+            val catalogTools = if (unchanged) emptyList() else visibleTools.map { tool ->
                 val availability = tool.availability(context)
                 tool.definition.toJson()
+                    .put("argumentEncoding", if (tool is JsonAndroidTool) "json" else "flattened-string")
                     .put("runtime", availability.toJson())
                     .put("executable", availability.available)
             }
@@ -1522,8 +1528,13 @@ object AnsightRuntime {
                 type = ToolProtocol.CatalogType,
                 request = request,
                 payload = JSONObject()
+                    .put("schema", ToolProtocol.CatalogSchema)
+                    .put("revision", revision)
+                    .put("catalogHash", revision)
+                    .put("unchanged", unchanged)
+                    .put("manifest", toolCapabilityManifest(visibleTools, revision))
                     .put("guard", currentOptions.toolGuard.toProtocolJson())
-                    .put("tools", JSONArray(visibleTools))
+                    .put("tools", JSONArray(catalogTools))
                     .put("count", visibleTools.size),
             )
         }
@@ -1532,12 +1543,16 @@ object AnsightRuntime {
 
     private fun executeToolCall(request: JSONObject) {
         Thread {
+            val pendingBinaryTransfers = PendingBinaryTransferQueue()
             val response = try {
-                executeToolCallCore(request)
+                executeToolCallCore(request, pendingBinaryTransfers)
             } catch (ex: Exception) {
                 toolErrorEnvelope(request, "tool_execution_exception", ex.message ?: "Tool execution failed.")
             }
-            synchronized(lock) { liveTransport }?.sendText(response.toString())
+            val transport = synchronized(lock) { liveTransport }
+            if (transport?.sendText(response.toString())?.success == true) {
+                pendingBinaryTransfers.start(transport)
+            }
         }.apply {
             name = "AnsightAndroidToolCall"
             isDaemon = true
@@ -1545,7 +1560,86 @@ object AnsightRuntime {
         }
     }
 
-    private fun executeToolCallCore(request: JSONObject): JSONObject {
+    private fun executeToolBatch(request: JSONObject) {
+        Thread {
+            val pendingBinaryTransfers = PendingBinaryTransferQueue()
+            val response = try {
+                executeToolBatchCore(request, pendingBinaryTransfers)
+            } catch (ex: Exception) {
+                toolErrorEnvelope(request, "tool_execution_exception", ex.message ?: "Tool batch failed.")
+            }
+            val transport = synchronized(lock) { liveTransport }
+            if (transport?.sendText(response.toString())?.success == true) {
+                pendingBinaryTransfers.start(transport)
+            }
+        }.apply {
+            name = "AnsightAndroidToolBatch"
+            isDaemon = true
+            start()
+        }
+    }
+
+    private fun executeToolBatchCore(
+        request: JSONObject,
+        pendingBinaryTransfers: PendingBinaryTransferQueue,
+    ): JSONObject {
+        val payload = request.optJSONObject("payload")
+            ?: return toolErrorEnvelope(request, "tool_batch_payload_invalid", "Tool batch payload must be a JSON object.")
+        val calls = payload.optJSONArray("calls")
+            ?: return toolErrorEnvelope(request, "tool_batch_payload_invalid", "Tool batch payload must contain a 'calls' array.")
+        if (calls.length() !in 1..32) {
+            return toolErrorEnvelope(request, "tool_batch_size_invalid", "Tool batches must contain between 1 and 32 calls.")
+        }
+
+        val continueOnError = payload.optBoolean("continueOnError", false)
+        val results = JSONArray()
+        var completed = 0
+        for (index in 0 until calls.length()) {
+            val call = calls.optJSONObject(index)
+            if (call == null) {
+                results.put(JSONObject()
+                    .put("index", index)
+                    .put("success", false)
+                    .put("error", JSONObject()
+                        .put("code", "tool_batch_call_invalid")
+                        .put("message", "Each batch call must be a JSON object.")
+                        .put("retryable", false)))
+                if (!continueOnError) break
+                continue
+            }
+
+            val callRequest = JSONObject(request.toString()).put("payload", call)
+            val response = executeToolCallCore(callRequest, pendingBinaryTransfers)
+            val success = response.optString("type") == ToolProtocol.ResultType
+            val responsePayload = response.optJSONObject("payload") ?: JSONObject()
+            val item = if (success) JSONObject(responsePayload.toString()) else JSONObject()
+                .put("toolId", call.optionalString("toolId"))
+                .put("success", false)
+                .put("error", JSONObject(responsePayload.toString()))
+            item.put("index", index)
+            call.optionalString("callId")?.let { item.put("callId", it) }
+            results.put(item)
+            completed++
+            if (!success && !continueOnError) break
+        }
+
+        val allSucceeded = (0 until results.length()).all { results.optJSONObject(it)?.optBoolean("success") == true }
+        return toolEnvelope(
+            type = ToolProtocol.BatchResultType,
+            request = request,
+            payload = JSONObject()
+                .put("success", allSucceeded)
+                .put("completed", completed)
+                .put("requested", calls.length())
+                .put("stoppedEarly", results.length() < calls.length())
+                .put("results", results),
+        )
+    }
+
+    private fun executeToolCallCore(
+        request: JSONObject,
+        pendingBinaryTransfers: PendingBinaryTransferQueue,
+    ): JSONObject {
         val payload = request.optJSONObject("payload")
             ?: return toolErrorEnvelope(request, "tool_call_payload_invalid", "Tool call payload must be a JSON object.")
         val toolId = payload.optionalString("toolId")
@@ -1559,8 +1653,13 @@ object AnsightRuntime {
             return toolErrorEnvelope(request, "tool_execution_denied", "Tool scope '${tool.definition.scope}' is not enabled by the current guard policy.")
         }
 
+        val argumentObject = when (val arguments = payload.opt("arguments")) {
+            null, JSONObject.NULL -> JSONObject()
+            is JSONObject -> arguments
+            else -> return toolErrorEnvelope(request, "tool_arguments_invalid", "Tool arguments must be a JSON object.")
+        }
         val args = mutableMapOf<String, String>()
-        payload.optJSONObject("arguments")?.let { argumentObject ->
+        argumentObject.let {
             argumentObject.keys().forEach { key ->
                 val value = argumentObject.opt(key)
                 if (value != null && value != JSONObject.NULL) {
@@ -1575,6 +1674,7 @@ object AnsightRuntime {
                 sessionId = sessionId,
                 requestId = request.optionalString("id"),
                 options = options,
+                pendingBinaryTransfers = pendingBinaryTransfers,
             )
         }
         val availability = tool.availability(context)
@@ -1587,7 +1687,20 @@ object AnsightRuntime {
                 retryable = availability.retryable,
             )
         }
-        val result = tool.execute(args, context)
+        val result = if (tool is JsonAndroidTool) {
+            val errors = ToolSchemaValidator.validate(tool.definition.argumentsSchema, argumentObject)
+            if (errors.isNotEmpty()) {
+                return toolErrorEnvelope(
+                    request,
+                    "tool_arguments_schema_invalid",
+                    "Arguments for '$toolId' do not satisfy its schema.",
+                    ToolSchemaValidator.errorsJson(errors),
+                )
+            }
+            tool.executeJson(argumentObject, context)
+        } else {
+            tool.execute(args, context)
+        }
         if (!result.success) {
             return toolErrorEnvelope(
                 request = request,
@@ -1596,6 +1709,23 @@ object AnsightRuntime {
                 details = result.payload,
             )
         }
+        if (tool is JsonAndroidTool) {
+            val errors = ToolSchemaValidator.validate(tool.definition.resultSchema, result.payload)
+            if (errors.isNotEmpty()) {
+                return toolErrorEnvelope(
+                    request,
+                    "tool_result_schema_invalid",
+                    "Result from '$toolId' does not satisfy its schema.",
+                    ToolSchemaValidator.errorsJson(errors),
+                )
+            }
+        }
+        val evidence = capturePostCallEvidence(
+            request,
+            payload,
+            toolId,
+            pendingBinaryTransfers,
+        )
         return toolEnvelope(
             type = ToolProtocol.ResultType,
             request = request,
@@ -1603,8 +1733,81 @@ object AnsightRuntime {
                 .put("toolId", toolId)
                 .put("success", true)
                 .putNullable("message", result.message)
-                .putNullable("result", result.payload),
+                .putNullable("result", result.payload)
+                .putNullable("evidence", evidence),
         )
+    }
+
+    private fun capturePostCallEvidence(
+        request: JSONObject,
+        payload: JSONObject,
+        invokedToolId: String,
+        pendingBinaryTransfers: PendingBinaryTransferQueue,
+    ): JSONObject? {
+        val after = payload.optJSONObject("after") ?: return null
+        val delayMilliseconds = after.optInt("delayMilliseconds", 0).coerceIn(0, 2_000)
+        if (delayMilliseconds > 0) Thread.sleep(delayMilliseconds.toLong())
+        val include = after.optJSONArray("include") ?: JSONArray(listOf("visualTree"))
+        val evidence = JSONObject()
+        for (index in 0 until include.length()) {
+            val name = include.optString(index)
+            val evidenceToolId = when (name) {
+                "tree", "visualTree", "visual_tree" -> "ui.get_visual_tree"
+                "screenshot" -> "ui.get_screenshot"
+                else -> null
+            } ?: continue
+            if (evidenceToolId == invokedToolId) continue
+            val argumentsName = if (evidenceToolId == "ui.get_screenshot") "screenshotArguments" else "visualTreeArguments"
+            val evidenceRequest = JSONObject(request.toString()).put(
+                "payload",
+                JSONObject()
+                    .put("toolId", evidenceToolId)
+                    .put("arguments", after.optJSONObject(argumentsName) ?: JSONObject()),
+            )
+            val response = executeToolCallCore(evidenceRequest, pendingBinaryTransfers)
+            evidence.put(name, response.optJSONObject("payload") ?: JSONObject())
+        }
+        return evidence.takeIf { it.length() > 0 }
+    }
+
+    private fun toolCatalogRevision(tools: List<AndroidTool>, guard: AnsightToolGuard): String {
+        val input = JSONObject()
+            .put("schema", ToolProtocol.CatalogSchema)
+            .put("guard", guard.toProtocolJson())
+            .put("tools", JSONArray(tools.sortedBy { it.definition.id }.map { tool ->
+                tool.definition.toJson().put("argumentEncoding", if (tool is JsonAndroidTool) "json" else "flattened-string")
+            }))
+            .toString()
+        val bytes = MessageDigest.getInstance("SHA-256").digest(input.toByteArray(Charsets.UTF_8))
+        return "sha256:" + bytes.joinToString("") { "%02x".format(it.toInt() and 0xff) }
+    }
+
+    private fun toolCapabilityManifest(tools: List<AndroidTool>, revision: String): JSONObject {
+        val capabilities = JSONObject().put(
+            ToolProtocol.Capability,
+            JSONObject()
+                .put("version", 2)
+                .put("features", JSONArray(listOf(
+                    "batch",
+                    "catalog-revision",
+                    "json-arguments",
+                    "post-evidence",
+                    "runtime-availability",
+                    "schema-validation",
+                ))),
+        )
+        tools.groupBy { it.definition.category }.toSortedMap().forEach { (category, categoryTools) ->
+            capabilities.put(
+                "$category.tools",
+                JSONObject()
+                    .put("version", 1)
+                    .put("features", JSONArray(categoryTools.map { it.definition.id }.sorted())),
+            )
+        }
+        return JSONObject()
+            .put("schema", "ansight.capabilities.v1")
+            .put("revision", revision)
+            .put("capabilities", capabilities)
     }
 
     private fun toolEnvelope(type: String, request: JSONObject, payload: JSONObject): JSONObject = JSONObject()

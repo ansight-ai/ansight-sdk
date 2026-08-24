@@ -1,7 +1,7 @@
 import AnsightCore
 import Foundation
 
-public final class AnsightNativeVisualTreeProvider: AnsightVisualTreeProvider {
+public final class AnsightNativeVisualTreeProvider: AnsightVisualTreeProvider, AnsightVisualTreeInteractionProvider {
     public let source = AnsightVisualTreeProviderRegistry.nativeSource
     public let displayName = "Native"
 
@@ -13,5 +13,9 @@ public final class AnsightNativeVisualTreeProvider: AnsightVisualTreeProvider {
 
     public func inspectNode(arguments: [String: String]) -> AnsightToolExecutionResult {
         AnsightVisualTreeSupport.inspectNativeNode(arguments: arguments)
+    }
+
+    public func performAction(_ request: AnsightVisualTreeActionRequest) -> AnsightToolExecutionResult {
+        AnsightVisualTreeSupport.performNativeAction(request)
     }
 }

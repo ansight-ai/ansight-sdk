@@ -65,10 +65,13 @@ final class AnsightAggregateTests: XCTestCase {
                 AnsightVisualTreeToolIds.getScreenshot,
                 AnsightVisualTreeToolIds.getVisualTree,
                 AnsightVisualTreeToolIds.inspectNode,
+                AnsightVisualTreeToolIds.performAction,
+                AnsightVisualTreeToolIds.queryNodes,
                 AnsightVisualTreeToolIds.queryOverlays,
                 AnsightVisualTreeToolIds.removeOverlay,
                 AnsightVisualTreeToolIds.showOverlay,
                 AnsightVisualTreeToolIds.updateOverlay,
+                AnsightVisualTreeToolIds.wait,
             ].sorted()
         )
     }

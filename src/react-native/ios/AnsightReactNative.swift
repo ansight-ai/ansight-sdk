@@ -137,6 +137,53 @@ final class AnsightReactNative: RCTEventEmitter {
         }
     }
 
+    private final class ReactNativeVisualTreeProvider: AnsightVisualTreeProvider, AnsightVisualTreeInteractionProvider, @unchecked Sendable {
+        let source = "react"
+        let displayName = "React Native"
+        private weak var module: AnsightReactNative?
+        private let timeoutMilliseconds: Int
+
+        init(module: AnsightReactNative, timeoutMilliseconds: Int) {
+            self.module = module
+            self.timeoutMilliseconds = timeoutMilliseconds
+        }
+
+        func getVisualTree(arguments: [String: String]) -> AnsightToolExecutionResult {
+            module?.executeJavaScriptTool(
+                toolId: "react.get_component_tree",
+                arguments: arguments,
+                timeoutMilliseconds: timeoutMilliseconds
+            ) ?? .failure("React Native bridge is unavailable.", errorCode: "javascript_bridge_unavailable")
+        }
+
+        func inspectNode(arguments: [String: String]) -> AnsightToolExecutionResult {
+            module?.executeJavaScriptTool(
+                toolId: "react.get_component",
+                arguments: arguments,
+                timeoutMilliseconds: timeoutMilliseconds
+            ) ?? .failure("React Native bridge is unavailable.", errorCode: "javascript_bridge_unavailable")
+        }
+
+        func performAction(_ request: AnsightVisualTreeActionRequest) -> AnsightToolExecutionResult {
+            let prop: String
+            switch request.action.lowercased() {
+            case "tap": prop = "onPress"
+            case "focus": prop = "onFocus"
+            case "setvalue", "typetext": prop = "onChangeText"
+            case "toggle": prop = "onValueChange"
+            default:
+                if case .string(let configured)? = request.options["prop"] { prop = configured } else { prop = request.action }
+            }
+            var arguments = ["nodeId": request.nodeId, "prop": prop]
+            if let value = request.value?.stringValue { arguments["value"] = value }
+            return module?.executeJavaScriptTool(
+                toolId: "react.invoke_component_action",
+                arguments: arguments,
+                timeoutMilliseconds: timeoutMilliseconds
+            ) ?? .failure("React Native bridge is unavailable.", errorCode: "javascript_bridge_unavailable")
+        }
+    }
+
     private let lock = NSLock()
     private var hasListeners = false
     private var hostConnectionStatusSubscription: HostConnectionStatusSubscription?
@@ -702,6 +749,12 @@ final class AnsightReactNative: RCTEventEmitter {
                 ReactNativeTool(descriptor: descriptor, module: self, timeoutMilliseconds: timeout),
                 replaceExisting: true
             )
+            if descriptor.id == "react.get_component_tree" {
+                try AnsightVisualTreeProviderRegistry.register(
+                    ReactNativeVisualTreeProvider(module: self, timeoutMilliseconds: timeout),
+                    replaceExisting: true
+                )
+            }
             resolve(["id": descriptor.id, "registered": true])
         } catch {
             reject("ansight_error", error.localizedDescription, error)

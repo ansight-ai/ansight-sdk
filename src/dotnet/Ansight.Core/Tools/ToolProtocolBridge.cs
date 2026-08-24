@@ -1,99 +1,63 @@
 namespace Ansight.Tools;
 
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
 /// <summary>
-/// Protocol adapter that exposes registered tools through the Ansight tool query/call envelope format.
+/// Exposes registered tools through the versioned Ansight query, call, and batch protocol.
 /// </summary>
 public sealed class ToolProtocolBridge
 {
-    /// <summary>
-    /// Capability identifier declared on tool protocol envelopes handled by this bridge.
-    /// </summary>
     public const string Capability = "tool.exec";
-
-    /// <summary>
-    /// Envelope type used by clients to query the visible tool catalog.
-    /// </summary>
     public const string QueryType = "tool.query";
-
-    /// <summary>
-    /// Envelope type used by the bridge to return a tool catalog.
-    /// </summary>
     public const string CatalogType = "tool.catalog";
-
-    /// <summary>
-    /// Envelope type used by clients to invoke a tool.
-    /// </summary>
     public const string CallType = "tool.call";
-
-    /// <summary>
-    /// Envelope type used by the bridge to return a successful tool call result.
-    /// </summary>
+    public const string BatchType = "tool.batch";
     public const string ResultType = "tool.result";
-
-    /// <summary>
-    /// Envelope type used by the bridge to return a protocol or execution error.
-    /// </summary>
+    public const string BatchResultType = "tool.batch.result";
     public const string ErrorType = "tool.error";
+    public const string CatalogSchema = "ansight.tool-catalog.v2";
 
+    private const int MaximumBatchSize = 32;
+    private const int MaximumEvidenceDelayMilliseconds = 2_000;
     private readonly ToolRegistry registry;
     private readonly ToolGuard guard;
 
-    /// <summary>
-    /// Creates a protocol bridge over a tool registry and guard policy.
-    /// </summary>
-    /// <param name="registry">Tool registry that supplies the catalog and execution targets.</param>
-    /// <param name="guard">Guard policy that controls discovery and execution.</param>
     public ToolProtocolBridge(ToolRegistry registry, ToolGuard guard)
     {
         this.registry = registry ?? throw new ArgumentNullException(nameof(registry));
         this.guard = guard ?? throw new ArgumentNullException(nameof(guard));
     }
 
-    /// <summary>
-    /// Guard policy currently applied by the bridge.
-    /// </summary>
     public ToolGuard Guard => guard;
 
-    /// <summary>
-    /// Returns the visible tool catalog after applying the current guard policy.
-    /// </summary>
-    /// <returns>Visible tool definitions.</returns>
     public IReadOnlyList<ToolDefinition> GetVisibleTools()
         => registry.Where(guard.IsToolVisible).Select(tool => tool.Definition).ToList();
 
-    /// <summary>
-    /// Handles a tool-protocol envelope and returns the corresponding catalog, result, or error envelope.
-    /// </summary>
-    /// <param name="envelope">Incoming tool-protocol envelope.</param>
-    /// <param name="cancellationToken">Cancellation token for tool execution.</param>
-    /// <returns>Response envelope produced by the bridge.</returns>
-    public async Task<ToolProtocolEnvelope> HandleAsync(ToolProtocolEnvelope envelope, CancellationToken cancellationToken = default)
+    public async Task<ToolProtocolEnvelope> HandleAsync(
+        ToolProtocolEnvelope envelope,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(envelope);
-
         return envelope.Type switch
         {
             QueryType => await CreateCatalogEnvelopeAsync(envelope),
             CallType => await ExecuteEnvelopeAsync(envelope, cancellationToken),
-            _ => CreateErrorEnvelope(envelope, "tool_protocol_unknown_type", $"Unsupported tool protocol message type '{envelope.Type}'.", retryable: false)
+            BatchType => await ExecuteBatchEnvelopeAsync(envelope, cancellationToken),
+            _ => CreateErrorEnvelope(
+                envelope,
+                "tool_protocol_unknown_type",
+                $"Unsupported tool protocol message type '{envelope.Type}'.",
+                false)
         };
     }
 
-    /// <summary>
-    /// Attempts to parse a JSON tool-protocol envelope.
-    /// </summary>
-    /// <param name="json">JSON text to parse.</param>
-    /// <param name="envelope">Parsed envelope when parsing succeeds.</param>
-    /// <param name="error">Parsing or validation error message when parsing fails.</param>
-    /// <returns><see langword="true"/> when the JSON parsed into a valid envelope; otherwise, <see langword="false"/>.</returns>
     public bool TryParseEnvelope(string json, out ToolProtocolEnvelope? envelope, out string error)
     {
         envelope = null;
         error = string.Empty;
-
         try
         {
             envelope = JsonSerializer.Deserialize<ToolProtocolEnvelope>(json, Pairing.PairingJson.Compact);
@@ -113,36 +77,38 @@ public sealed class ToolProtocolBridge
         }
     }
 
-    /// <summary>
-    /// Serializes a tool-protocol envelope to JSON.
-    /// </summary>
-    /// <param name="envelope">Envelope to serialize.</param>
-    /// <param name="indented"><see langword="true"/> to format the JSON with indentation.</param>
-    /// <returns>Serialized envelope JSON.</returns>
     public string SerializeEnvelope(ToolProtocolEnvelope envelope, bool indented = false)
     {
         ArgumentNullException.ThrowIfNull(envelope);
-        return JsonSerializer.Serialize(envelope, indented ? Pairing.PairingJson.Pretty : Pairing.PairingJson.Compact);
+        return JsonSerializer.Serialize(
+            envelope,
+            indented ? Pairing.PairingJson.Pretty : Pairing.PairingJson.Compact);
     }
 
     private async Task<ToolProtocolEnvelope> CreateCatalogEnvelopeAsync(ToolProtocolEnvelope request)
     {
         if (!guard.DiscoveryEnabled)
         {
-            return CreateErrorEnvelope(request, "tool_discovery_disabled", "Tool discovery is disabled by the current guard policy.", retryable: false);
+            return CreateErrorEnvelope(
+                request,
+                "tool_discovery_disabled",
+                "Tool discovery is disabled by the current guard policy.",
+                false);
         }
 
+        var visibleTools = registry.Where(guard.IsToolVisible).ToList();
+        var revision = ComputeCatalogRevision(visibleTools);
+        var requestedRevision = (request.Payload as JsonObject)?["ifRevision"]?.GetValue<string>();
+        var unchanged = string.Equals(requestedRevision, revision, StringComparison.Ordinal);
         var tools = new JsonArray();
-        foreach (var tool in registry)
+        if (!unchanged)
         {
-            if (!guard.IsToolVisible(tool))
+            foreach (var tool in visibleTools)
             {
-                continue;
+                var availability = await tool.GetAvailabilityAsync(
+                    new ToolAvailabilityContext(request.SessionId, request.Id));
+                tools.Add(ToJson(tool, availability));
             }
-
-            var availability = await tool.GetAvailabilityAsync(
-                new ToolAvailabilityContext(request.SessionId, request.Id));
-            tools.Add(ToJson(tool.Definition, availability));
         }
 
         return new ToolProtocolEnvelope
@@ -155,109 +121,317 @@ public sealed class ToolProtocolBridge
             SentAt = DateTimeOffset.UtcNow,
             Payload = new JsonObject
             {
+                ["schema"] = CatalogSchema,
+                ["revision"] = revision,
+                ["catalogHash"] = revision,
+                ["unchanged"] = unchanged,
+                ["manifest"] = CreateCapabilityManifest(visibleTools, revision).ToJson(),
                 ["guard"] = guard.ToJson(),
                 ["tools"] = tools,
-                ["count"] = tools.Count
+                ["count"] = visibleTools.Count
             }
         };
     }
 
-    private async Task<ToolProtocolEnvelope> ExecuteEnvelopeAsync(ToolProtocolEnvelope request, CancellationToken cancellationToken)
+    private async Task<ToolProtocolEnvelope> ExecuteEnvelopeAsync(
+        ToolProtocolEnvelope request,
+        CancellationToken cancellationToken)
     {
         if (request.Payload is not JsonObject payload)
         {
-            return CreateErrorEnvelope(request, "tool_call_payload_invalid", "Tool call payload must be a JSON object.", retryable: false);
+            return CreateErrorEnvelope(
+                request,
+                "tool_call_payload_invalid",
+                "Tool call payload must be a JSON object.",
+                false);
         }
 
+        var outcome = await ExecuteCallAsync(request, payload, cancellationToken);
+        return outcome.IsSuccess
+            ? CreateResultEnvelope(request, ResultType, outcome.ToJson())
+            : CreateErrorEnvelope(
+                request,
+                outcome.ErrorCode ?? "tool_execution_failed",
+                outcome.Message ?? "Tool execution failed.",
+                outcome.Retryable,
+                outcome.Payload);
+    }
+
+    private async Task<ToolProtocolEnvelope> ExecuteBatchEnvelopeAsync(
+        ToolProtocolEnvelope request,
+        CancellationToken cancellationToken)
+    {
+        if (request.Payload is not JsonObject payload || payload["calls"] is not JsonArray calls)
+        {
+            return CreateErrorEnvelope(
+                request,
+                "tool_batch_payload_invalid",
+                "Tool batch payload must contain a 'calls' array.",
+                false);
+        }
+
+        if (calls.Count == 0 || calls.Count > MaximumBatchSize)
+        {
+            return CreateErrorEnvelope(
+                request,
+                "tool_batch_size_invalid",
+                $"Tool batches must contain between 1 and {MaximumBatchSize} calls.",
+                false);
+        }
+
+        var continueOnError = payload["continueOnError"]?.GetValue<bool>() ?? false;
+        var results = new JsonArray();
+        var completed = 0;
+        for (var index = 0; index < calls.Count; index++)
+        {
+            if (calls[index] is not JsonObject call)
+            {
+                results.Add(CreateBatchInputError(index));
+                if (!continueOnError)
+                {
+                    break;
+                }
+
+                continue;
+            }
+
+            var outcome = await ExecuteCallAsync(request, call, cancellationToken);
+            var item = outcome.ToJson();
+            item["index"] = index;
+            item["callId"] = call["callId"]?.DeepClone();
+            results.Add(item);
+            completed++;
+            if (!outcome.IsSuccess && !continueOnError)
+            {
+                break;
+            }
+        }
+
+        var batchResult = new JsonObject
+        {
+            ["success"] = results.All(result => result?["success"]?.GetValue<bool>() == true),
+            ["completed"] = completed,
+            ["requested"] = calls.Count,
+            ["stoppedEarly"] = results.Count < calls.Count,
+            ["results"] = results
+        };
+        return CreateResultEnvelope(request, BatchResultType, batchResult);
+    }
+
+    private async Task<ToolCallExecutionOutcome> ExecuteCallAsync(
+        ToolProtocolEnvelope request,
+        JsonObject payload,
+        CancellationToken cancellationToken)
+    {
         var toolId = payload["toolId"]?.GetValue<string>();
         if (string.IsNullOrWhiteSpace(toolId))
         {
-            return CreateErrorEnvelope(request, "tool_call_missing_id", "Tool call payload must include 'toolId'.", retryable: false);
+            return ToolCallExecutionOutcome.Failure(
+                null,
+                "tool_call_missing_id",
+                "Tool call payload must include 'toolId'.");
         }
 
         if (!registry.TryGet(toolId, out var tool) || tool == null)
         {
-            return CreateErrorEnvelope(request, "tool_not_found", $"Tool '{toolId}' is not registered.", retryable: false);
+            return ToolCallExecutionOutcome.Failure(
+                toolId,
+                "tool_not_found",
+                $"Tool '{toolId}' is not registered.");
         }
 
         if (!guard.CanExecute(tool, out var denialReason))
         {
-            return CreateErrorEnvelope(request, "tool_execution_denied", denialReason ?? "Tool execution is denied by the current guard policy.", retryable: false);
+            return ToolCallExecutionOutcome.Failure(
+                toolId,
+                "tool_execution_denied",
+                denialReason ?? "Tool execution is denied by the current guard policy.");
         }
 
         var availability = await tool.GetAvailabilityAsync(
             new ToolAvailabilityContext(request.SessionId, request.Id));
         if (!availability.IsAvailable)
         {
-            return CreateErrorEnvelope(
-                request,
+            return ToolCallExecutionOutcome.Failure(
+                toolId,
                 availability.ReasonCode ?? "tool_unavailable",
                 availability.Reason ?? $"Tool '{toolId}' is not available in the current runtime state.",
                 availability.Retryable,
                 availability.ToJson());
         }
 
-        var arguments = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        if (payload["arguments"] is JsonObject argumentObject)
+        var arguments = payload["arguments"] switch
         {
-            foreach (var property in argumentObject)
-            {
-                if (property.Value == null)
-                {
-                    continue;
-                }
-
-                arguments[property.Key] = property.Value.ToJsonString();
-                if (property.Value is JsonValue value)
-                {
-                    arguments[property.Key] = value.ToString();
-                }
-            }
-        }
-
-        arguments[ToolExecutionArgumentNames.RequestId] = request.Id;
-        if (!string.IsNullOrWhiteSpace(request.SessionId))
+            null => new JsonObject(),
+            JsonObject jsonArguments => (JsonObject)jsonArguments.DeepClone(),
+            _ => null
+        };
+        if (arguments is null)
         {
-            arguments[ToolExecutionArgumentNames.SessionId] = request.SessionId!;
+            return ToolCallExecutionOutcome.Failure(
+                toolId,
+                "tool_arguments_invalid",
+                "Tool arguments must be a JSON object.");
         }
 
         try
         {
-            var result = await tool.Execute(arguments);
-            if (!result.IsSuccess)
+            ToolResult result;
+            if (tool is IJsonTool jsonTool)
             {
-                return CreateErrorEnvelope(
-                    request,
-                    result.ErrorCode ?? "tool_execution_failed",
-                    result.Message ?? $"Tool '{toolId}' failed.",
-                    retryable: false,
-                    details: result.Payload);
+                var argumentValidation = ToolSchemaValidator.Validate(tool.ArgumentsSchema, arguments);
+                if (!argumentValidation.IsValid)
+                {
+                    return ToolCallExecutionOutcome.Failure(
+                        toolId,
+                        "tool_arguments_schema_invalid",
+                        $"Arguments for '{toolId}' do not satisfy its schema.",
+                        payload: argumentValidation.ToJson());
+                }
+
+                result = await jsonTool.ExecuteAsync(
+                    new ToolInvocation(
+                        arguments,
+                        new ToolInvocationContext(
+                            request.Id,
+                            request.SessionId,
+                            payload["callId"]?.GetValue<string>())),
+                    cancellationToken);
+            }
+            else
+            {
+                result = await tool.Execute(CreateLegacyArguments(arguments, request));
             }
 
-            var resultPayload = new JsonObject
+            if (!result.IsSuccess)
             {
-                ["toolId"] = toolId,
-                ["success"] = true,
-                ["message"] = result.Message,
-                ["result"] = result.Payload
-            };
+                return ToolCallExecutionOutcome.Failure(
+                    toolId,
+                    result.ErrorCode ?? "tool_execution_failed",
+                    result.Message ?? $"Tool '{toolId}' failed.",
+                    payload: result.Payload);
+            }
 
-            return new ToolProtocolEnvelope
+            if (tool is IJsonTool)
             {
-                Type = ResultType,
-                Id = CreateResponseId(request.Id),
-                ReplyTo = request.Id,
-                SessionId = request.SessionId,
-                Capability = Capability,
-                SentAt = DateTimeOffset.UtcNow,
-                Payload = ToolProtocolPayloadEncoding.EncodeIfBeneficial(resultPayload, Pairing.PairingJson.Compact)
-            };
+                var resultValidation = ToolSchemaValidator.Validate(tool.ResultSchema, result.Payload);
+                if (!resultValidation.IsValid)
+                {
+                    return ToolCallExecutionOutcome.Failure(
+                        toolId,
+                        "tool_result_schema_invalid",
+                        $"Result from '{toolId}' does not satisfy its schema.",
+                        payload: resultValidation.ToJson());
+                }
+            }
+
+            var evidence = await CaptureEvidenceAsync(request, payload, toolId, cancellationToken);
+            return ToolCallExecutionOutcome.Success(toolId, result.Message, result.Payload, evidence);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception exception)
         {
-            return CreateErrorEnvelope(request, "tool_execution_exception", exception.Message, retryable: false);
+            return ToolCallExecutionOutcome.Failure(
+                toolId,
+                "tool_execution_exception",
+                exception.Message);
         }
     }
+
+    private async Task<JsonObject?> CaptureEvidenceAsync(
+        ToolProtocolEnvelope request,
+        JsonObject call,
+        string invokedToolId,
+        CancellationToken cancellationToken)
+    {
+        if (call["after"] is not JsonObject after)
+        {
+            return null;
+        }
+
+        var delayMilliseconds = Math.Clamp(
+            after["delayMilliseconds"]?.GetValue<int>() ?? 0,
+            0,
+            MaximumEvidenceDelayMilliseconds);
+        if (delayMilliseconds > 0)
+        {
+            await Task.Delay(delayMilliseconds, cancellationToken);
+        }
+
+        var include = after["include"] as JsonArray ?? new JsonArray("visualTree");
+        var evidence = new JsonObject();
+        foreach (var requestedEvidence in include)
+        {
+            var evidenceName = requestedEvidence?.GetValue<string>();
+            var evidenceToolId = evidenceName switch
+            {
+                "tree" or "visualTree" or "visual_tree" => "ui.get_visual_tree",
+                "screenshot" => "ui.get_screenshot",
+                _ => null
+            };
+            if (evidenceToolId is null || string.Equals(evidenceToolId, invokedToolId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var argumentName = evidenceToolId == "ui.get_screenshot"
+                ? "screenshotArguments"
+                : "visualTreeArguments";
+            var evidenceCall = new JsonObject
+            {
+                ["toolId"] = evidenceToolId,
+                ["arguments"] = after[argumentName]?.DeepClone() ?? new JsonObject()
+            };
+            evidence[evidenceName ?? evidenceToolId] =
+                (await ExecuteCallAsync(request, evidenceCall, cancellationToken)).ToJson();
+        }
+
+        return evidence.Count == 0 ? null : evidence;
+    }
+
+    private static Dictionary<string, string> CreateLegacyArguments(
+        JsonObject arguments,
+        ToolProtocolEnvelope request)
+    {
+        var flattened = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var property in arguments)
+        {
+            if (property.Value == null)
+            {
+                continue;
+            }
+
+            flattened[property.Key] = property.Value is JsonValue value
+                ? value.ToString()
+                : property.Value.ToJsonString();
+        }
+
+        flattened[ToolExecutionArgumentNames.RequestId] = request.Id;
+        if (!string.IsNullOrWhiteSpace(request.SessionId))
+        {
+            flattened[ToolExecutionArgumentNames.SessionId] = request.SessionId;
+        }
+
+        return flattened;
+    }
+
+    private ToolProtocolEnvelope CreateResultEnvelope(
+        ToolProtocolEnvelope request,
+        string type,
+        JsonObject payload)
+        => new()
+        {
+            Type = type,
+            Id = CreateResponseId(request.Id),
+            ReplyTo = request.Id,
+            SessionId = request.SessionId,
+            Capability = Capability,
+            SentAt = DateTimeOffset.UtcNow,
+            Payload = ToolProtocolPayloadEncoding.EncodeIfBeneficial(payload, Pairing.PairingJson.Compact)
+        };
 
     private ToolProtocolEnvelope CreateErrorEnvelope(
         ToolProtocolEnvelope request,
@@ -265,8 +439,7 @@ public sealed class ToolProtocolBridge
         string message,
         bool retryable,
         JsonNode? details = null)
-    {
-        return new ToolProtocolEnvelope
+        => new()
         {
             Type = ErrorType,
             Id = CreateResponseId(request.Id),
@@ -282,12 +455,64 @@ public sealed class ToolProtocolBridge
                 ["details"] = details
             }
         };
+
+    private string ComputeCatalogRevision(IReadOnlyList<ITool> tools)
+    {
+        var revisionInput = new JsonObject
+        {
+            ["schema"] = CatalogSchema,
+            ["guard"] = guard.ToJson(),
+            ["tools"] = new JsonArray(
+                tools
+                    .OrderBy(tool => tool.Id, StringComparer.Ordinal)
+                    .Select(tool => (JsonNode?)ToStaticJson(tool))
+                    .ToArray())
+        };
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(revisionInput.ToJsonString()));
+        return $"sha256:{Convert.ToHexString(hash).ToLowerInvariant()}";
     }
 
-    private static string CreateResponseId(string requestId) => $"{requestId}.response";
-
-    private static JsonObject ToJson(ToolDefinition definition, ToolAvailability availability)
+    private static ToolCapabilityManifest CreateCapabilityManifest(
+        IReadOnlyList<ITool> tools,
+        string revision)
     {
+        var capabilities = new Dictionary<string, ToolCapabilityDefinition>(StringComparer.Ordinal)
+        {
+            [Capability] = new(
+                2,
+                [
+                    "batch",
+                    "catalog-revision",
+                    "json-arguments",
+                    "post-evidence",
+                    "runtime-availability",
+                    "schema-validation"
+                ])
+        };
+        foreach (var category in tools.GroupBy(tool => tool.Category, StringComparer.Ordinal))
+        {
+            capabilities[$"{category}.tools"] = new(
+                1,
+                category.Select(tool => tool.Id).OrderBy(id => id, StringComparer.Ordinal).ToArray());
+        }
+
+        return new ToolCapabilityManifest(
+            ToolCapabilityManifest.CurrentSchema,
+            revision,
+            capabilities);
+    }
+
+    private static JsonObject ToJson(ITool tool, ToolAvailability availability)
+    {
+        var json = ToStaticJson(tool);
+        json["runtime"] = availability.ToJson();
+        json["executable"] = availability.IsAvailable;
+        return json;
+    }
+
+    private static JsonObject ToStaticJson(ITool tool)
+    {
+        var definition = tool.Definition;
         var json = new JsonObject
         {
             ["id"] = definition.Id,
@@ -296,18 +521,82 @@ public sealed class ToolProtocolBridge
             ["category"] = definition.Category,
             ["scope"] = definition.Scope.ToString(),
             ["keywords"] = definition.Keywords,
+            ["argumentEncoding"] = tool is IJsonTool ? "json" : "flattened-string",
             ["argumentsSchema"] = definition.ArgumentsSchema.ToJson(),
             ["resultSchema"] = definition.ResultSchema.ToJson()
         };
-
-        json["runtime"] = availability.ToJson();
-        json["executable"] = availability.IsAvailable;
-
         if (definition.Security is { IsSpecified: true } security)
         {
             json["security"] = security.ToJson();
         }
 
         return json;
+    }
+
+    private static JsonObject CreateBatchInputError(int index)
+        => new()
+        {
+            ["index"] = index,
+            ["success"] = false,
+            ["error"] = new JsonObject
+            {
+                ["code"] = "tool_batch_call_invalid",
+                ["message"] = "Each batch call must be a JSON object.",
+                ["retryable"] = false
+            }
+        };
+
+    private static string CreateResponseId(string requestId) => $"{requestId}.response";
+
+    private sealed record ToolCallExecutionOutcome(
+        bool IsSuccess,
+        string? ToolId,
+        string? Message,
+        string? ErrorCode,
+        bool Retryable,
+        JsonNode? Payload,
+        JsonObject? Evidence)
+    {
+        public static ToolCallExecutionOutcome Success(
+            string toolId,
+            string? message,
+            JsonNode? payload,
+            JsonObject? evidence)
+            => new(true, toolId, message, null, false, payload, evidence);
+
+        public static ToolCallExecutionOutcome Failure(
+            string? toolId,
+            string errorCode,
+            string message,
+            bool retryable = false,
+            JsonNode? payload = null)
+            => new(false, toolId, message, errorCode, retryable, payload, null);
+
+        public JsonObject ToJson()
+        {
+            var json = new JsonObject
+            {
+                ["toolId"] = ToolId,
+                ["success"] = IsSuccess,
+                ["message"] = Message
+            };
+            if (IsSuccess)
+            {
+                json["result"] = Payload;
+                json["evidence"] = Evidence;
+            }
+            else
+            {
+                json["error"] = new JsonObject
+                {
+                    ["code"] = ErrorCode,
+                    ["message"] = Message,
+                    ["retryable"] = Retryable,
+                    ["details"] = Payload
+                };
+            }
+
+            return json;
+        }
     }
 }

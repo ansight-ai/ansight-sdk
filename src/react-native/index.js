@@ -2298,7 +2298,7 @@ function installReactTools(options = {}) {
             errorCode: "react_action_not_found",
           };
         }
-        await action();
+        await action(args.value);
         return {
           success: true,
           message: `Invoked React component action '${prop}'.`,

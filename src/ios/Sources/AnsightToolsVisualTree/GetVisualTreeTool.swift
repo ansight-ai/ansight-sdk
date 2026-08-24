@@ -19,6 +19,6 @@ public final class GetVisualTreeTool: AnsightTool {
     }
 
     public func execute(arguments: [String: String]) throws -> AnsightToolExecutionResult {
-        AnsightVisualTreeSupport.getVisualTree(arguments: arguments)
+        AnsightVisualTreeSnapshotStore.capture(source: arguments["source"], arguments: arguments)
     }
 }

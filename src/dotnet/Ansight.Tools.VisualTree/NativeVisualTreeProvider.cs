@@ -3,7 +3,7 @@ namespace Ansight.Tools.VisualTree;
 /// <summary>
 /// Captures the built-in Android or Apple native view hierarchy.
 /// </summary>
-public sealed class NativeVisualTreeProvider : IVisualTreeProvider
+public sealed class NativeVisualTreeProvider : IVisualTreeProvider, IVisualTreeInteractionProvider
 {
     /// <summary>
     /// Shared stateless provider instance.
@@ -23,4 +23,9 @@ public sealed class NativeVisualTreeProvider : IVisualTreeProvider
 
     public Task<ToolResult> InspectNodeAsync(IReadOnlyDictionary<string, string> arguments)
         => VisualTreeSupport.InspectNativeNodeAsync(arguments);
+
+    public Task<ToolResult> PerformActionAsync(
+        VisualTreeActionRequest request,
+        CancellationToken cancellationToken)
+        => VisualTreeSupport.PerformNativeActionAsync(request, cancellationToken);
 }

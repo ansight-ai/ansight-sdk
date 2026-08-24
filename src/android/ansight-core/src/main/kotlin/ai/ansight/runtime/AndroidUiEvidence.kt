@@ -567,6 +567,58 @@ object AndroidUiEvidence {
             .put("node", node)
     }
 
+    fun performAction(nodeId: String, action: String, value: Any? = null): JSONObject {
+        return runOnMain {
+            val activity = currentActivity.get() ?: bindCurrentActivity()
+                ?: error("No resumed Android activity is available for UI actions.")
+            val view = resolveView(activity, nodeId)
+                ?: throw IllegalArgumentException("Node '$nodeId' was not found.")
+            val invoked = when (action.trim().lowercase(Locale.US)) {
+                "tap" -> view.performClick()
+                "focus" -> view.requestFocus()
+                "unfocus" -> {
+                    view.clearFocus()
+                    true
+                }
+                "setvalue", "typetext" -> if (view is EditText && value != null) {
+                    view.setText(value.toString())
+                    view.setSelection(view.text?.length ?: 0)
+                    true
+                } else {
+                    false
+                }
+                "toggle" -> if (view is CompoundButton) {
+                    view.isChecked = !view.isChecked
+                    true
+                } else {
+                    false
+                }
+                else -> false
+            }
+            if (!invoked) {
+                throw UnsupportedOperationException("Node '$nodeId' does not support action '$action'.")
+            }
+            JSONObject()
+                .put("platform", "android")
+                .put("capturedAtUtc", AnsightClock.isoNow())
+                .put("nodeId", nodeId)
+                .put("action", action)
+                .put("invoked", true)
+        }
+    }
+
+    private fun resolveView(activity: Activity, nodeId: String): View? {
+        val parts = nodeId.split('.')
+        if (parts.size < 2 || parts[0] != "window") return null
+        val windowIndex = parts[1].toIntOrNull() ?: return null
+        var view = captureTargets(activity).getOrNull(windowIndex)?.view ?: return null
+        for (index in 2 until parts.size) {
+            val childIndex = parts[index].toIntOrNull() ?: return null
+            view = (view as? ViewGroup)?.getChildAt(childIndex) ?: return null
+        }
+        return view
+    }
+
     fun showOverlay(arguments: Map<String, String>): JSONObject {
         val id = arguments["id"]?.trim()?.ifBlank { null } ?: UUID.randomUUID().toString()
         val spec = OverlaySpec(

@@ -44,7 +44,7 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
         }
     }
 
-    private final class FlutterVisualTreeProvider: AnsightVisualTreeProvider, @unchecked Sendable {
+    private final class FlutterVisualTreeProvider: AnsightVisualTreeProvider, AnsightVisualTreeInteractionProvider, @unchecked Sendable {
         let source = "flutter"
         let displayName = "Flutter"
         private weak var plugin: AnsightFlutterPlugin?
@@ -65,6 +65,22 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
         func inspectNode(arguments: [String: String]) -> AnsightToolExecutionResult {
             plugin?.executeDartTool(
                 toolId: "__ansight_flutter.inspect_node",
+                arguments: arguments,
+                timeoutMilliseconds: 30_000,
+                requireRegistration: false
+            ) ?? .failure("Flutter bridge is unavailable.", errorCode: "dart_bridge_unavailable")
+        }
+
+        func performAction(_ request: AnsightVisualTreeActionRequest) -> AnsightToolExecutionResult {
+            var arguments = [
+                "nodeId": request.nodeId,
+                "action": request.action,
+            ]
+            if let value = request.value?.stringValue {
+                arguments["value"] = value
+            }
+            return plugin?.executeDartTool(
+                toolId: "__ansight_flutter.perform_action",
                 arguments: arguments,
                 timeoutMilliseconds: 30_000,
                 requireRegistration: false

@@ -83,6 +83,44 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
+    private final class CapacitorVisualTreeProvider: AnsightVisualTreeProvider, AnsightVisualTreeInteractionProvider, @unchecked Sendable {
+        let source = "dom"
+        let displayName = "Capacitor DOM"
+        private weak var plugin: AnsightCapacitorPlugin?
+        private let timeoutMilliseconds: Int
+
+        init(plugin: AnsightCapacitorPlugin, timeoutMilliseconds: Int) {
+            self.plugin = plugin
+            self.timeoutMilliseconds = timeoutMilliseconds
+        }
+
+        func getVisualTree(arguments: [String: String]) -> AnsightToolExecutionResult {
+            plugin?.executeJavaScriptTool(
+                toolId: "dom.get_document",
+                arguments: arguments,
+                timeoutMilliseconds: timeoutMilliseconds
+            ) ?? .failure("Capacitor bridge is unavailable.", errorCode: "javascript_bridge_unavailable")
+        }
+
+        func inspectNode(arguments: [String: String]) -> AnsightToolExecutionResult {
+            plugin?.executeJavaScriptTool(
+                toolId: "dom.inspect_node",
+                arguments: arguments,
+                timeoutMilliseconds: timeoutMilliseconds
+            ) ?? .failure("Capacitor bridge is unavailable.", errorCode: "javascript_bridge_unavailable")
+        }
+
+        func performAction(_ request: AnsightVisualTreeActionRequest) -> AnsightToolExecutionResult {
+            var arguments = ["nodeId": request.nodeId, "action": request.action]
+            if let value = request.value?.stringValue { arguments["value"] = value }
+            return plugin?.executeJavaScriptTool(
+                toolId: "dom.invoke_action",
+                arguments: arguments,
+                timeoutMilliseconds: timeoutMilliseconds
+            ) ?? .failure("Capacitor bridge is unavailable.", errorCode: "javascript_bridge_unavailable")
+        }
+    }
+
     private let lock = NSLock()
     private var activeCustomToolIds: Set<String> = []
     private var pendingToolCalls: [String: PendingToolCall] = [:]
@@ -488,6 +526,12 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
                 CapacitorTool(descriptor: descriptor, plugin: self, timeoutMilliseconds: timeout),
                 replaceExisting: true
             )
+            if descriptor.id == "dom.get_document" {
+                try AnsightVisualTreeProviderRegistry.register(
+                    CapacitorVisualTreeProvider(plugin: self, timeoutMilliseconds: timeout),
+                    replaceExisting: true
+                )
+            }
             call.resolve(["success": true, "message": "Tool registered.", "id": descriptor.id])
         } catch {
             call.reject(error.localizedDescription, "ansight_error", error)

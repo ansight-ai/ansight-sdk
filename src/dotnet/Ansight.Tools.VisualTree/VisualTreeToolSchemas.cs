@@ -19,6 +19,41 @@ internal static class VisualTreeToolSchemas
         description: "Arbitrary object with implementation-specific fields.",
         additionalProperties: true);
 
+    private static readonly ToolSchema NodeReferenceSchema = ToolSchema.Object(
+        description: "Snapshot-scoped UI node identity.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["source"] = ToolSchema.String("Visual-tree provider source."),
+            ["snapshotId"] = ToolSchema.String("Snapshot that owns the node identity."),
+            ["revision"] = ToolSchema.Integer("Monotonic process-local snapshot revision."),
+            ["nodeId"] = ToolSchema.String("Provider node id, valid only within the snapshot.")
+        },
+        required: new[] { "source", "snapshotId", "revision", "nodeId" });
+
+    private static readonly IReadOnlyDictionary<string, ToolSchema> QueryFilterProperties =
+        new Dictionary<string, ToolSchema>
+        {
+            ["source"] = ToolSchema.String("Optional visual-tree provider source. Defaults to native.", nullable: true),
+            ["snapshotId"] = ToolSchema.String("Optional current snapshot to query. A fresh snapshot is captured when omitted.", nullable: true),
+            ["nodeId"] = ToolSchema.String("Exact node id.", nullable: true),
+            ["automationId"] = ToolSchema.String("Exact platform automation id.", nullable: true),
+            ["role"] = ToolSchema.String("Exact semantic role.", nullable: true),
+            ["type"] = ToolSchema.String("Case-insensitive type-name fragment.", nullable: true),
+            ["textContains"] = ToolSchema.String("Case-insensitive visible/accessibility text fragment.", nullable: true),
+            ["action"] = ToolSchema.String("Required supported semantic action.", nullable: true),
+            ["visible"] = ToolSchema.Boolean("Match visible state.", nullable: true),
+            ["enabled"] = ToolSchema.Boolean("Match enabled state.", nullable: true),
+            ["maxResults"] = ToolSchema.Integer("Maximum returned matches."),
+            ["includeBounds"] = ToolSchema.Boolean("Include bounds during fresh capture."),
+            ["includeComputedStyles"] = ToolSchema.Boolean("Include native computed properties during fresh capture."),
+            ["includeProperties"] = ToolSchema.Boolean("Include framework properties during fresh capture."),
+            ["includeInactivePages"] = ToolSchema.Boolean("Include inactive framework navigation pages during fresh capture."),
+            ["root"] = ToolSchema.String("Optional provider root scope.", nullable: true),
+            ["rootNodeId"] = ToolSchema.String("Optional subtree root for fresh capture.", nullable: true),
+            ["maxDepth"] = ToolSchema.Integer("Maximum fresh-capture depth."),
+            ["maxNodes"] = ToolSchema.Integer("Maximum fresh-capture nodes.")
+        };
+
     private static readonly ToolSchema OverlayMetadataSchema = ToolSchema.Object(
         description: "Small caller-provided scalar metadata dictionary that explains why the overlay exists.",
         additionalProperties: true,
@@ -125,22 +160,26 @@ internal static class VisualTreeToolSchemas
             ["source"] = ToolSchema.String("Visual-tree provider source.", nullable: true),
             ["adapter"] = ToolSchema.String("Provider adapter identifier.", nullable: true),
             ["capturedAtUtc"] = ToolSchema.String("UTC timestamp for capture.", format: "date-time"),
+            ["snapshotId"] = ToolSchema.String("Identity of this visual-tree snapshot."),
+            ["revision"] = ToolSchema.Integer("Monotonic process-local snapshot revision."),
+            ["nodeIdentity"] = ToolSchema.Object("Node identity and staleness policy.", additionalProperties: true),
             ["types"] = ToolSchema.Array(ToolSchema.String("Registered platform view type."), "Type registry referenced by node typeId fields."),
             ["root"] = VisualNodeSchema
         },
-        required: new[] { "format", "platform", "capturedAtUtc", "types", "root" });
+        required: new[] { "format", "platform", "capturedAtUtc", "snapshotId", "revision", "nodeIdentity", "types", "root" });
 
     internal static ToolSchema InspectNodeArguments { get; } = ToolSchema.Object(
         description: "Arguments for inspecting a specific node.",
         properties: new Dictionary<string, ToolSchema>
         {
+            ["reference"] = NodeReferenceSchema,
             ["source"] = ToolSchema.String("Optional visual tree provider source. Defaults to native.", nullable: true),
-            ["nodeId"] = ToolSchema.String("Identifier of the node to inspect."),
+            ["snapshotId"] = ToolSchema.String("Optional current snapshot that owns nodeId. A fresh snapshot is captured when omitted.", nullable: true),
+            ["nodeId"] = ToolSchema.String("Identifier of the node to inspect. May be supplied through reference.", nullable: true),
             ["includeAncestors"] = ToolSchema.Boolean("Include ancestor nodes in the response."),
             ["includeDescendants"] = ToolSchema.Boolean("Include descendant nodes in the response."),
             ["includeProperties"] = ToolSchema.Boolean("Include implementation-specific node properties.")
-        },
-        required: new[] { "nodeId" });
+        });
 
     internal static ToolSchema InspectNodeResult { get; } = ToolSchema.Object(
         description: "Detailed node inspection payload.",
@@ -151,12 +190,96 @@ internal static class VisualTreeToolSchemas
             ["source"] = ToolSchema.String("Visual-tree provider source.", nullable: true),
             ["adapter"] = ToolSchema.String("Provider adapter identifier.", nullable: true),
             ["capturedAtUtc"] = ToolSchema.String("UTC timestamp for capture.", format: "date-time"),
+            ["snapshotId"] = ToolSchema.String("Identity of the snapshot that owns the returned node reference."),
+            ["revision"] = ToolSchema.Integer("Monotonic process-local snapshot revision."),
+            ["reference"] = NodeReferenceSchema,
             ["types"] = ToolSchema.Array(ToolSchema.String("Registered platform view type."), "Type registry referenced by node typeId fields."),
             ["node"] = VisualNodeSchema,
             ["ancestors"] = ToolSchema.Array(VisualNodeSchema, "Optional ancestor chain.", nullable: true),
             ["descendants"] = ToolSchema.Array(GenericObjectSchema, "Optional descendant list.", nullable: true)
         },
-        required: new[] { "format", "platform", "capturedAtUtc", "types", "node" });
+        required: new[] { "format", "platform", "capturedAtUtc", "snapshotId", "revision", "reference", "types", "node" });
+
+    internal static ToolSchema QueryNodesArguments { get; } = ToolSchema.Object(
+        description: "Framework-neutral UI node query and capture options.",
+        properties: QueryFilterProperties);
+
+    internal static ToolSchema QueryNodesResult { get; } = ToolSchema.Object(
+        description: "Snapshot-scoped UI query result.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["source"] = ToolSchema.String("Visual-tree provider source."),
+            ["snapshotId"] = ToolSchema.String("Snapshot searched by the query."),
+            ["revision"] = ToolSchema.Integer("Monotonic process-local snapshot revision."),
+            ["count"] = ToolSchema.Integer("Number of returned matches."),
+            ["totalMatches"] = ToolSchema.Integer("Total matches before result limiting."),
+            ["truncated"] = ToolSchema.Boolean("Whether matching results were limited."),
+            ["matches"] = ToolSchema.Array(
+                ToolSchema.Object(
+                    "Provider-neutral node data with a snapshot-scoped reference.",
+                    properties: new Dictionary<string, ToolSchema>
+                    {
+                        ["reference"] = NodeReferenceSchema
+                    },
+                    required: new[] { "reference" },
+                    additionalProperties: true),
+                "Matching nodes.")
+        },
+        required: new[] { "source", "snapshotId", "revision", "count", "totalMatches", "truncated", "matches" });
+
+    internal static ToolSchema PerformActionArguments { get; } = ToolSchema.Object(
+        description: "Framework-neutral action targeting a snapshot-scoped node.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["reference"] = NodeReferenceSchema,
+            ["source"] = ToolSchema.String("Optional visual-tree provider source. Defaults to native.", nullable: true),
+            ["snapshotId"] = ToolSchema.String("Current snapshot that owns nodeId. May be supplied through reference.", nullable: true),
+            ["nodeId"] = ToolSchema.String("Node id within snapshotId. May be supplied through reference.", nullable: true),
+            ["action"] = ToolSchema.String(
+                "Semantic action.",
+                enumValues: new[] { "tap", "focus", "unfocus", "setValue", "typeText", "toggle", "select", "selectTab" }),
+            ["value"] = ToolSchema.String("String value for setValue/typeText/select.", nullable: true),
+            ["index"] = ToolSchema.Integer("Numeric index for select/selectTab.", nullable: true),
+            ["checked"] = ToolSchema.Boolean("Explicit boolean action value when supported.", nullable: true),
+            ["options"] = ToolSchema.Object("Provider-specific action options.", additionalProperties: true, nullable: true)
+        },
+        required: new[] { "action" });
+
+    internal static ToolSchema PerformActionResult { get; } = ToolSchema.Object(
+        description: "Framework-neutral action result.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["source"] = ToolSchema.String("Visual-tree provider source."),
+            ["action"] = ToolSchema.String("Performed semantic action."),
+            ["reference"] = NodeReferenceSchema
+        },
+        required: new[] { "source", "action", "reference" },
+        additionalProperties: true);
+
+    internal static ToolSchema WaitArguments { get; } = ToolSchema.Object(
+        description: "Framework-neutral UI wait condition and query filters.",
+        properties: QueryFilterProperties
+            .Concat(new Dictionary<string, ToolSchema>
+            {
+                ["condition"] = ToolSchema.String(
+                    "Condition to wait for.",
+                    enumValues: new[] { "exists", "notExists", "visible", "enabled" }),
+                ["timeoutMilliseconds"] = ToolSchema.Integer("Maximum wait duration."),
+                ["pollMilliseconds"] = ToolSchema.Integer("Delay between fresh snapshots.")
+            })
+            .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.Ordinal),
+        required: new[] { "condition" });
+
+    internal static ToolSchema WaitResult { get; } = ToolSchema.Object(
+        description: "Successful UI wait result.",
+        properties: new Dictionary<string, ToolSchema>
+        {
+            ["condition"] = ToolSchema.String("Satisfied condition."),
+            ["matched"] = ToolSchema.Boolean("Whether the condition matched."),
+            ["elapsedMilliseconds"] = ToolSchema.Integer("Elapsed wait duration."),
+            ["query"] = QueryNodesResult
+        },
+        required: new[] { "condition", "matched", "elapsedMilliseconds", "query" });
 
     internal static ToolSchema GetScreenshotArguments { get; } = ToolSchema.Object(
         description: "Arguments for capturing a screenshot.",

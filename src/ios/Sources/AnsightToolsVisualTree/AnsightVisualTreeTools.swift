@@ -5,7 +5,7 @@ public enum AnsightVisualTreeTools {
     public static func tools(runtime: AnsightRuntime = .shared) -> [any AnsightTool] {
         AnsightSessionVisualTreeCaptureRegistry.setProvider {
             AnsightVisualTreeProviderRegistry.registeredProviders().compactMap { provider in
-                provider.getVisualTree(arguments: [
+                AnsightVisualTreeSnapshotStore.capture(source: provider.source, arguments: [
                     "includeBounds": "true",
                     "includeComputedStyles": "true",
                     "maxDepth": "40",
@@ -18,6 +18,9 @@ public enum AnsightVisualTreeTools {
             GetVisualTreeTool(),
             GetScreenshotTool(runtime: runtime),
             InspectNodeTool(),
+            QueryNodesTool(),
+            PerformActionTool(),
+            WaitForUIConditionTool(),
             ShowOverlayTool(),
             GetOverlayTool(),
             QueryOverlaysTool(),

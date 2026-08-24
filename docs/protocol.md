@@ -400,27 +400,116 @@ tool guard.
 ```json
 {
   "type": "tool.query",
-  "requestId": "tool_query_1"
+  "id": "tool_query_1",
+  "payload": {
+    "ifRevision": "sha256:known-catalog-revision"
+  }
 }
 ```
 
 The client responds with its catalog of tool ids, descriptions, argument
-schemas, scopes, and security metadata.
+schemas, result schemas, scopes, security metadata, argument encoding, and a
+deterministic `revision`. A matching `ifRevision` produces a compact catalog
+with `unchanged: true`. Catalog schema version 2 also includes a capability
+manifest and its hash so hosts can cache and compare SDK capabilities without
+reinterpreting descriptions.
 
 ### Call
 
 ```json
 {
   "type": "tool.call",
-  "requestId": "tool_call_1",
-  "toolId": "ui.get_visual_tree",
-  "arguments": {}
+  "id": "tool_call_1",
+  "payload": {
+    "toolId": "ui.perform_action",
+    "arguments": {
+      "reference": {
+        "source": "native",
+        "snapshotId": "native:42:...",
+        "revision": 42,
+        "nodeId": "window.0.child.3"
+      },
+      "action": "tap"
+    },
+    "after": {
+      "include": ["visualTree", "screenshot"],
+      "delayMilliseconds": 100
+    }
+  }
 }
 ```
 
-The response carries the same `requestId`, a success flag, and either a result
-or a structured error. Large binary results may be transferred through the
-`ASFT` stream and referenced by transfer id.
+The response uses `replyTo` to correlate the request and carries a success flag
+and either a result or a structured error. `after` composes act and verify in
+one round trip. It supports `visualTree`, `screenshot`, a delay from 0 through
+2000 milliseconds, and tool-specific evidence arguments. Large binary results
+may be transferred through the `ASFT` stream and referenced by transfer id.
+
+Tools that implement the native JSON contract receive JSON objects directly
+and validate input and output schemas. Older flattened-string tools remain
+compatible and advertise `argumentEncoding: "flattened-string"` in the
+catalog; native JSON tools advertise `argumentEncoding: "json"`.
+
+### Batch
+
+`tool.batch` executes between 1 and 32 calls sequentially. Each call may have a
+caller-defined `callId`, arguments, and an `after` evidence request.
+
+```json
+{
+  "type": "tool.batch",
+  "id": "checkout_workflow_1",
+  "payload": {
+    "continueOnError": false,
+    "calls": [
+      {
+        "callId": "find-save",
+        "toolId": "ui.query_nodes",
+        "arguments": { "automationId": "save" }
+      },
+      {
+        "callId": "tap-save",
+        "toolId": "ui.perform_action",
+        "arguments": {
+          "reference": {
+            "source": "native",
+            "snapshotId": "native:42:...",
+            "revision": 42,
+            "nodeId": "window.0.child.3"
+          },
+          "action": "tap"
+        },
+        "after": { "include": ["visualTree"] }
+      }
+    ]
+  }
+}
+```
+
+The app answers with `tool.batch.result`. Results retain input order and include
+`index`, `callId`, `toolId`, success/error state, and any evidence. Unless
+`continueOnError` is true, execution stops after the first error.
+
+### Generic UI contract
+
+Every visual-tree SDK exposes these framework-neutral operations:
+
+- `ui.get_visual_tree` captures a source and returns `source`, `snapshotId`,
+  monotonically increasing `revision`, and `nodeIdentity` metadata.
+- `ui.query_nodes` captures or reuses a snapshot, filters nodes by stable
+  semantic fields, and returns a complete `reference` for every match.
+- `ui.inspect_node` accepts a node reference and returns the same identity
+  fields with node details.
+- `ui.perform_action` accepts a reference and an action such as `tap`, `focus`,
+  `unfocus`, `setValue`, `typeText`, or `toggle`, depending on the provider.
+- `ui.wait` repeatedly captures and queries until `exists`, `notExists`,
+  `visible`, or `enabled` is satisfied or the timeout expires.
+
+`source` selects the provider: `native`, `maui`, `react`, `flutter`, or `dom`
+where installed. A reference is snapshot-scoped. Once a newer snapshot is
+captured for that source, operations on an older reference fail with
+`stale_node_reference` and `refreshWith: "ui.query_nodes"`. This makes race
+conditions explicit instead of silently acting on a reused framework id.
 
 ### Artifact Tools
 

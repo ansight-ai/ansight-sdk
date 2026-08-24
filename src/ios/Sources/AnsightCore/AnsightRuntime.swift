@@ -98,7 +98,7 @@ public final class AnsightRuntime: @unchecked Sendable {
     private var touchesCaptured = 0
     private var touchesSent = 0
     private var lastTouchCaptureMessage: String?
-    private var pendingBinaryTransfers: [String: AnsightPendingBinaryTransfer] = [:]
+    private var pendingBinaryTransfers: [String: [AnsightPendingBinaryTransfer]] = [:]
     private var hostConnectionStatusListeners: [UUID: HostConnectionStatusListener] = [:]
     private var lastPublishedHostConnectionStatus: HostConnectionStatus?
     private var lastPublishedHostConnectionCapabilities: HostConnectionCapabilities?
@@ -1625,11 +1625,20 @@ public final class AnsightRuntime: @unchecked Sendable {
                 throw RuntimeError.invalidInput("A tool with id '\(descriptor.id)' has already been registered.")
             }
 
-            tools[normalizedId] = RegisteredTool(
-                descriptor: descriptor,
-                availability: tool.availability(context:),
-                execute: tool.execute(arguments:)
-            )
+            if let jsonTool = tool as? any AnsightJSONTool {
+                tools[normalizedId] = RegisteredTool(
+                    descriptor: descriptor,
+                    availability: tool.availability(context:),
+                    execute: tool.execute(arguments:),
+                    executeJSON: jsonTool.execute(arguments:)
+                )
+            } else {
+                tools[normalizedId] = RegisteredTool(
+                    descriptor: descriptor,
+                    availability: tool.availability(context:),
+                    execute: tool.execute(arguments:)
+                )
+            }
             sessionMessage = "Registered executable tool \(descriptor.id)."
         }
     }
@@ -1799,7 +1808,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             description: description
         )
         lock.withLock {
-            pendingBinaryTransfers[requestId] = transfer
+            pendingBinaryTransfers[requestId, default: []].append(transfer)
         }
         return .success("Binary transfer queued.")
     }
@@ -1999,19 +2008,22 @@ public final class AnsightRuntime: @unchecked Sendable {
         guard let data = json.data(using: .utf8),
               let envelope = try? JSONDecoder.ansightDecoder.decode(AnsightToolProtocolEnvelope.self, from: data),
               envelope.type == AnsightToolProtocolBridge.callType
+                || envelope.type == AnsightToolProtocolBridge.batchType
         else {
             return
         }
 
-        let transfer = lock.withLock {
+        let transfers = lock.withLock {
             pendingBinaryTransfers.removeValue(forKey: envelope.id)
         }
-        guard let transfer else {
+        guard let transfers, !transfers.isEmpty else {
             return
         }
 
         Task { [weak self] in
-            await self?.streamBinaryTransfer(transfer)
+            for transfer in transfers {
+                await self?.streamBinaryTransfer(transfer)
+            }
         }
     }
 

@@ -170,12 +170,26 @@ class AndroidToolExecutionContext(
     val sessionId: String?,
     val requestId: String?,
     val options: AnsightOptions,
+    internal val pendingBinaryTransfers: PendingBinaryTransferQueue = PendingBinaryTransferQueue(),
 )
 
 interface AndroidTool {
     val definition: ToolDefinition
     fun availability(context: AndroidToolExecutionContext): ToolAvailability = ToolAvailability.Available
     fun execute(arguments: Map<String, String>, context: AndroidToolExecutionContext): AndroidToolResult
+}
+
+/** A tool that receives protocol arguments as structured JSON. */
+interface JsonAndroidTool : AndroidTool {
+    fun executeJson(arguments: JSONObject, context: AndroidToolExecutionContext): AndroidToolResult
+
+    override fun execute(arguments: Map<String, String>, context: AndroidToolExecutionContext): AndroidToolResult {
+        val json = JSONObject()
+        arguments.forEach { (key, value) ->
+            json.put(key, runCatching { org.json.JSONTokener(value).nextValue() }.getOrDefault(value))
+        }
+        return executeJson(json, context)
+    }
 }
 
 fun interface ExternalToolProtocolHandler {
@@ -191,6 +205,123 @@ class FunctionAndroidTool(
 
     override fun execute(arguments: Map<String, String>, context: AndroidToolExecutionContext): AndroidToolResult =
         handler(arguments, context)
+}
+
+class FunctionJsonAndroidTool(
+    override val definition: ToolDefinition,
+    private val availabilityHandler: (AndroidToolExecutionContext) -> ToolAvailability = { ToolAvailability.Available },
+    private val handler: (JSONObject, AndroidToolExecutionContext) -> AndroidToolResult,
+) : JsonAndroidTool {
+    override fun availability(context: AndroidToolExecutionContext): ToolAvailability = availabilityHandler(context)
+
+    override fun executeJson(arguments: JSONObject, context: AndroidToolExecutionContext): AndroidToolResult =
+        handler(arguments, context)
+}
+
+data class ToolSchemaValidationError(
+    val path: String,
+    val code: String,
+    val message: String,
+) {
+    fun toJson(): JSONObject = JSONObject()
+        .put("path", path)
+        .put("code", code)
+        .put("message", message)
+}
+
+object ToolSchemaValidator {
+    fun validate(schema: ToolSchema, value: Any?): List<ToolSchemaValidationError> {
+        val errors = mutableListOf<ToolSchemaValidationError>()
+        validateValue(schema, value, "$", errors)
+        return errors
+    }
+
+    private fun validateValue(
+        schema: ToolSchema,
+        value: Any?,
+        path: String,
+        errors: MutableList<ToolSchemaValidationError>,
+    ) {
+        if (value == null || value == JSONObject.NULL) {
+            if (!schema.nullable) {
+                errors += ToolSchemaValidationError(path, "null_not_allowed", "The value cannot be null.")
+            }
+            return
+        }
+
+        when (schema.type) {
+            "object" -> validateObject(schema, value, path, errors)
+            "array" -> validateArray(schema, value, path, errors)
+            "string" -> {
+                if (value !is String) {
+                    typeError(path, "string", errors)
+                } else if (schema.enumValues.isNotEmpty() && value !in schema.enumValues) {
+                    errors += ToolSchemaValidationError(path, "enum_value_invalid", "The value is not in the declared enum.")
+                }
+            }
+            "integer" -> if (value !is Byte && value !is Short && value !is Int && value !is Long) {
+                typeError(path, "integer", errors)
+            }
+            "number" -> if (value !is Number) typeError(path, "number", errors)
+            "boolean" -> if (value !is Boolean) typeError(path, "boolean", errors)
+        }
+    }
+
+    private fun validateObject(
+        schema: ToolSchema,
+        value: Any,
+        path: String,
+        errors: MutableList<ToolSchemaValidationError>,
+    ) {
+        if (value !is JSONObject) {
+            typeError(path, "object", errors)
+            return
+        }
+        schema.required.forEach { name ->
+            if (!value.has(name) || value.isNull(name)) {
+                errors += ToolSchemaValidationError("$path.$name", "required_property_missing", "The required property '$name' is missing.")
+            }
+        }
+        value.keys().forEach { name ->
+            val propertySchema = schema.properties[name]
+            if (propertySchema == null) {
+                if (!schema.additionalProperties) {
+                    errors += ToolSchemaValidationError("$path.$name", "additional_property_not_allowed", "The property '$name' is not declared by the schema.")
+                }
+            } else {
+                validateValue(propertySchema, value.opt(name), "$path.$name", errors)
+            }
+        }
+    }
+
+    private fun validateArray(
+        schema: ToolSchema,
+        value: Any,
+        path: String,
+        errors: MutableList<ToolSchemaValidationError>,
+    ) {
+        if (value !is JSONArray) {
+            typeError(path, "array", errors)
+            return
+        }
+        schema.items?.let { itemSchema ->
+            for (index in 0 until value.length()) {
+                validateValue(itemSchema, value.opt(index), "$path[$index]", errors)
+            }
+        }
+    }
+
+    private fun typeError(
+        path: String,
+        expected: String,
+        errors: MutableList<ToolSchemaValidationError>,
+    ) {
+        errors += ToolSchemaValidationError(path, "type_mismatch", "The value must be a JSON $expected.")
+    }
+
+    fun errorsJson(errors: List<ToolSchemaValidationError>): JSONObject = JSONObject()
+        .put("valid", errors.isEmpty())
+        .put("errors", JSONArray(errors.map { it.toJson() }))
 }
 
 class AndroidToolRegistry(tools: Iterable<AndroidTool> = emptyList()) {
@@ -267,6 +398,9 @@ object ToolProtocol {
     const val QueryType = "tool.query"
     const val CatalogType = "tool.catalog"
     const val CallType = "tool.call"
+    const val BatchType = "tool.batch"
     const val ResultType = "tool.result"
+    const val BatchResultType = "tool.batch.result"
     const val ErrorType = "tool.error"
+    const val CatalogSchema = "ansight.tool-catalog.v2"
 }

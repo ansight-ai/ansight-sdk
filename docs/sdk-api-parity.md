@@ -443,9 +443,14 @@ runtime reflection; iOS roots opt in to `reflect.set_member_value` and
 `reflect.invoke_method` by conforming to `AnsightReflectionMutableRoot` and
 `AnsightReflectionInvokableRoot`.
 
-Each SDK emits the same `tool.query`, `tool.catalog`, `tool.call`,
-`tool.result`, and `tool.error` protocol shapes described in
+Each SDK emits the same `tool.query`, `tool.catalog`, `tool.call`, `tool.batch`,
+`tool.batch.result`, `tool.result`, and `tool.error` protocol shapes described in
 [Protocol](protocol.md#remote-tool-protocol).
+
+All visual-tree implementations also expose `ui.query_nodes`,
+`ui.perform_action`, and `ui.wait`. The same node-reference contract applies to
+native Android/iOS, MAUI, Flutter, React Native, and Capacitor DOM sources;
+framework-prefixed tools remain available for framework-specific diagnostics.
 
 Tool-suite registration follows the same app-code convention:
 

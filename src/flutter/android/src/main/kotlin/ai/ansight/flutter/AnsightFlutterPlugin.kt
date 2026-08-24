@@ -56,6 +56,8 @@ import ai.ansight.tools.reflection.withReflectionTools
 import ai.ansight.tools.securestorage.withSecureStorageTools
 import ai.ansight.tools.visualtree.AndroidVisualTreeProvider
 import ai.ansight.tools.visualtree.AndroidVisualTreeProviderRegistry
+import ai.ansight.tools.visualtree.AndroidVisualTreeInteractionProvider
+import ai.ansight.tools.visualtree.AndroidVisualTreeActionRequest
 import ai.ansight.tools.visualtree.withVisualTreeTools
 import android.app.Activity
 import android.app.Application
@@ -532,7 +534,7 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
 
     private fun enableFlutterVisualTreeProvider(): JSONObject {
         AndroidVisualTreeProviderRegistry.register(
-            object : AndroidVisualTreeProvider {
+            object : AndroidVisualTreeProvider, AndroidVisualTreeInteractionProvider {
                 override val source = "flutter"
                 override val displayName = "Flutter"
 
@@ -553,6 +555,21 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
                 ): AndroidToolResult = executeDartTool(
                     "__ansight_flutter.inspect_node",
                     arguments,
+                    context,
+                    30_000,
+                    requireRegistration = false,
+                )
+
+                override fun performAction(
+                    request: AndroidVisualTreeActionRequest,
+                    context: AndroidToolExecutionContext,
+                ): AndroidToolResult = executeDartTool(
+                    "__ansight_flutter.perform_action",
+                    buildMap {
+                        put("nodeId", request.nodeId)
+                        put("action", request.action)
+                        request.value?.let { put("value", it.toString()) }
+                    },
                     context,
                     30_000,
                     requireRegistration = false,

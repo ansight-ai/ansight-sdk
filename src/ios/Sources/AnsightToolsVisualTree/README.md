@@ -5,6 +5,9 @@ UIKit visual tree, screenshot, and diagnostic overlay tools.
 ## Tools
 
 - `ui.get_visual_tree`
+- `ui.query_nodes`
+- `ui.perform_action`
+- `ui.wait`
 - `ui.get_screenshot`
 - `ui.inspect_node`
 - `ui.show_overlay`
@@ -14,8 +17,10 @@ UIKit visual tree, screenshot, and diagnostic overlay tools.
 - `ui.remove_overlay`
 - `ui.clear_overlays`
 
-Read tools are available with `.readOnly`. All overlay mutation, including
-removal and clearing, requires `.readWrite`.
+Read tools are available with `.readOnly`. `ui.query_nodes` returns
+snapshot-scoped references and stale references fail with
+`stale_node_reference`. `ui.perform_action` and all overlay mutation require
+`.readWrite`.
 
 > **Important:** Calling screenshot tools will result in an FPS drop while the
 > current frame is captured, encoded, and transferred. Avoid screenshot-heavy
