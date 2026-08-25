@@ -1094,6 +1094,7 @@ class AnsightReactNativeModule(
             },
             argumentsSchema = schemaFrom(map.getMapOrNull("argumentsSchema")),
             resultSchema = schemaFrom(map.getMapOrNull("resultSchema")),
+            prerequisiteToolIds = map.getArrayOrNull("prerequisiteToolIds").toStringList(),
         ).validated()
 
     private fun schemaFrom(map: ReadableMap?): ToolSchema {

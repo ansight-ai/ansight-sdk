@@ -319,6 +319,7 @@ export interface AnsightToolDefinition {
   keywords?: string | string[];
   argumentsSchema?: object;
   resultSchema?: object;
+  prerequisiteToolIds?: string[];
   timeoutMilliseconds?: number;
 }
 

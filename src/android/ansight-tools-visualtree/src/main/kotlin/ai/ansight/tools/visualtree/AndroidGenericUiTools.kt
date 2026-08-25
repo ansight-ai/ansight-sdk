@@ -59,6 +59,7 @@ internal object AndroidGenericUiTools {
                 required = listOf("source", "action", "reference"),
                 additionalProperties = true,
             ),
+            prerequisiteToolIds = listOf(VisualTreeToolIds.QueryNodes),
         ),
     ) { arguments, context -> performAction(arguments, context) }
 

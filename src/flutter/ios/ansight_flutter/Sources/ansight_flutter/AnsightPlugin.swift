@@ -981,7 +981,8 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
             ),
             resultSchema: AnsightToolSchema(
                 json: jsonValue(dictionary["resultSchema"]) ?? .object([:])
-            )
+            ),
+            prerequisiteToolIds: stringArray(dictionary, "prerequisiteToolIds")
         )
     }
 

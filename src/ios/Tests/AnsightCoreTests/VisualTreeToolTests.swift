@@ -98,8 +98,8 @@ final class VisualTreeToolTests: XCTestCase {
 
         let envelope = try queryCatalog(bridge)
         XCTAssertEqual(envelope.type, "tool.catalog")
-        guard case .object(let payload) = envelope.payload,
-              case .array(let tools)? = payload["tools"] else {
+        let payload = try decodedToolProtocolPayload(envelope)
+        guard case .array(let tools)? = payload["tools"] else {
             return XCTFail("Expected catalog tools.")
         }
 

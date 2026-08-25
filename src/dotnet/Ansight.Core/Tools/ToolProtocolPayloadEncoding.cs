@@ -33,13 +33,7 @@ public static class ToolProtocolPayloadEncoding
         }
 
         var compressedBytes = Compress(sourceBytes);
-        var encodedBytes = Encoding.ASCII.GetByteCount(Convert.ToBase64String(compressedBytes));
-        if (encodedBytes >= sourceBytes.Length)
-        {
-            return payload;
-        }
-
-        return new JsonObject
+        var encodedPayload = new JsonObject
         {
             [EncodingPropertyName] = GzipBase64JsonEncoding,
             ["contentType"] = "application/json",
@@ -47,6 +41,9 @@ public static class ToolProtocolPayloadEncoding
             ["compressedByteCount"] = compressedBytes.Length,
             ["data"] = Convert.ToBase64String(compressedBytes)
         };
+        return JsonSerializer.SerializeToUtf8Bytes(encodedPayload, jsonOptions).Length < sourceBytes.Length
+            ? encodedPayload
+            : payload;
     }
 
     /// <summary>
@@ -99,7 +96,7 @@ public static class ToolProtocolPayloadEncoding
     private static byte[] Compress(byte[] sourceBytes)
     {
         using var compressedStream = new MemoryStream();
-        using (var gzipStream = new GZipStream(compressedStream, CompressionLevel.Fastest, leaveOpen: true))
+        using (var gzipStream = new GZipStream(compressedStream, CompressionLevel.Optimal, leaveOpen: true))
         {
             gzipStream.Write(sourceBytes, 0, sourceBytes.Length);
         }

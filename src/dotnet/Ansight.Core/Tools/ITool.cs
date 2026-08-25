@@ -46,6 +46,11 @@ public interface ITool
     ToolSchema ResultSchema { get; }
 
     /// <summary>
+    /// Tool identifiers that should be discovered or invoked before this tool.
+    /// </summary>
+    IReadOnlyList<string> PrerequisiteToolIds => Array.Empty<string>();
+
+    /// <summary>
     /// Convenience metadata record built from the tool's public properties.
     /// </summary>
     ToolDefinition Definition => new(
@@ -56,7 +61,8 @@ public interface ITool
         Policy,
         Keywords,
         ArgumentsSchema,
-        ResultSchema);
+        ResultSchema,
+        PrerequisiteToolIds);
 
     /// <summary>
     /// Evaluates whether the tool can execute in the app's current runtime state.

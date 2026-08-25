@@ -44,15 +44,13 @@ public struct AnsightToolAvailability: Sendable, Codable, Equatable {
     }
 
     internal var jsonValue: JSONValue {
-        .object([
-            "available": .bool(available),
-            "reasonCode": reasonCode.map(JSONValue.string) ?? .null,
-            "reason": reason.map(JSONValue.string) ?? .null,
-            "requiredState": requiredState.map(JSONValue.string) ?? .null,
-            "remediation": remediation.map(JSONValue.string) ?? .null,
-            "retryable": .bool(retryable),
-            "evaluatedAtUtc": .string(ISO8601DateFormatter().string(from: Date())),
-        ])
+        var value: [String: JSONValue] = ["available": .bool(available)]
+        if let reasonCode, !reasonCode.isEmpty { value["code"] = .string(reasonCode) }
+        if let reason, !reason.isEmpty { value["reason"] = .string(reason) }
+        if let requiredState, !requiredState.isEmpty { value["requiredState"] = .string(requiredState) }
+        if let remediation, !remediation.isEmpty { value["remediation"] = .string(remediation) }
+        if retryable { value["retryable"] = .bool(true) }
+        return .object(value)
     }
 }
 

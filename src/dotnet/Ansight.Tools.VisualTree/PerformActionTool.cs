@@ -15,6 +15,7 @@ public sealed class PerformActionTool : IJsonTool
     public string Keywords => "ui action tap focus set value toggle select node snapshot";
     public ToolSchema ArgumentsSchema => VisualTreeToolSchemas.PerformActionArguments;
     public ToolSchema ResultSchema => VisualTreeToolSchemas.PerformActionResult;
+    public IReadOnlyList<string> PrerequisiteToolIds => [VisualTreeToolIds.QueryNodes];
 
     public async Task<ToolResult> ExecuteAsync(
         ToolInvocation invocation,

@@ -10,6 +10,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.security.MessageDigest
+import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
@@ -18,6 +19,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 object AnsightRuntime {
+    private const val MaximumCatalogResults = 1_000
     private val lock = Any()
     private var application: Application? = null
     private val connector = PairingSessionConnector(
@@ -1504,6 +1506,8 @@ object AnsightRuntime {
         } else if (!currentOptions.toolGuard.canDiscover(ToolPolicy.Read)) {
             toolErrorEnvelope(request, "tool_discovery_disabled", "Tool discovery is disabled by the current guard policy.")
         } else {
+            val requestPayload = request.optJSONObject("payload") ?: JSONObject()
+            val detail = catalogDetail(requestPayload)
             val context = AndroidToolExecutionContext(
                 application = app,
                 transport = transport,
@@ -1514,31 +1518,72 @@ object AnsightRuntime {
             val visibleTools = synchronized(lock) {
                 toolRegistry.visible(currentOptions.toolGuard)
             }.sortedBy { it.definition.id }
-            val revision = toolCatalogRevision(visibleTools, currentOptions.toolGuard)
-            val requestedRevision = request.optJSONObject("payload")?.optionalString("ifRevision")
-            val unchanged = requestedRevision == revision
-            val catalogTools = if (unchanged) emptyList() else visibleTools.map { tool ->
-                val availability = tool.availability(context)
-                tool.definition.toJson()
-                    .put("argumentEncoding", if (tool is JsonAndroidTool) "json" else "flattened-string")
-                    .put("runtime", availability.toJson())
-                    .put("executable", availability.available)
+            val toolStates = visibleTools.map { tool ->
+                createCatalogToolState(tool, tool.availability(context))
             }
-            toolEnvelope(
-                type = ToolProtocol.CatalogType,
-                request = request,
-                payload = JSONObject()
+            val revision = toolCatalogRevision(toolStates, currentOptions.toolGuard)
+            val availabilityRevision = toolAvailabilityRevision(toolStates)
+            val requestedRevision = requestPayload.optionalString("ifRevision")
+            val requestedAvailabilityRevision = requestPayload.optionalString("ifAvailabilityRevision")
+            val staticUnchanged = requestedRevision == revision
+            val availabilityUnchanged = requestedAvailabilityRevision == null || requestedAvailabilityRevision == availabilityRevision
+            val isDefinitionProjection = detail == ToolProtocol.DefinitionsCatalogDetail
+
+            if (staticUnchanged && availabilityUnchanged && !isDefinitionProjection) {
+                toolEnvelope(
+                    type = ToolProtocol.CatalogType,
+                    request = request,
+                    payload = JSONObject()
+                        .put("schema", ToolProtocol.CatalogSchema)
+                        .put("revision", revision)
+                        .put("unchanged", true),
+                )
+            } else if (staticUnchanged && !availabilityUnchanged && !isDefinitionProjection) {
+                toolEnvelope(
+                    type = ToolProtocol.CatalogType,
+                    request = request,
+                    payload = JSONObject()
+                        .put("schema", ToolProtocol.CatalogSchema)
+                        .put("revision", revision)
+                        .put("unchanged", true)
+                        .put("availabilityRevision", availabilityRevision)
+                        .put("evaluatedAtUtc", AnsightClock.isoNow())
+                        .put("changes", availabilityChanges(toolStates)),
+                )
+            } else {
+                val selectedStates = applyCatalogFilters(toolStates, requestPayload)
+                val catalogTools = selectedStates.map { state ->
+                    when (detail) {
+                        ToolProtocol.IndexCatalogDetail -> indexCatalogEntry(state)
+                        ToolProtocol.DefinitionsCatalogDetail -> definitionCatalogEntry(state)
+                        else -> fullCatalogEntry(state)
+                    }
+                }
+                val catalogPayload = JSONObject()
                     .put("schema", ToolProtocol.CatalogSchema)
                     .put("revision", revision)
-                    .put("catalogHash", revision)
-                    .put("unchanged", unchanged)
-                    .put("manifest", toolCapabilityManifest(visibleTools, revision))
-                    .put("guard", currentOptions.toolGuard.toProtocolJson())
                     .put("tools", JSONArray(catalogTools))
-                    .put("count", visibleTools.size),
-            )
+                    .put("count", catalogTools.size)
+                if (detail != ToolProtocol.FullCatalogDetail) {
+                    catalogPayload.put("detail", detail)
+                }
+                if (!isDefinitionProjection) {
+                    catalogPayload
+                        .put("availabilityRevision", availabilityRevision)
+                        .put("evaluatedAtUtc", AnsightClock.isoNow())
+                        .put("totalCount", toolStates.size)
+                        .put("categories", categoryCounts(toolStates))
+                }
+                toolEnvelope(
+                    type = ToolProtocol.CatalogType,
+                    request = request,
+                    payload = catalogPayload,
+                )
+            }
         }
-        synchronized(lock) { liveTransport }?.sendText(response.toString())
+        synchronized(lock) { liveTransport }?.sendText(
+            ToolProtocolPayloadEncoding.encodeEnvelopeIfBeneficial(response).toString(),
+        )
     }
 
     private fun executeToolCall(request: JSONObject) {
@@ -1550,7 +1595,8 @@ object AnsightRuntime {
                 toolErrorEnvelope(request, "tool_execution_exception", ex.message ?: "Tool execution failed.")
             }
             val transport = synchronized(lock) { liveTransport }
-            if (transport?.sendText(response.toString())?.success == true) {
+            val responseJson = ToolProtocolPayloadEncoding.encodeEnvelopeIfBeneficial(response).toString()
+            if (transport?.sendText(responseJson)?.success == true) {
                 pendingBinaryTransfers.start(transport)
             }
         }.apply {
@@ -1569,7 +1615,8 @@ object AnsightRuntime {
                 toolErrorEnvelope(request, "tool_execution_exception", ex.message ?: "Tool batch failed.")
             }
             val transport = synchronized(lock) { liveTransport }
-            if (transport?.sendText(response.toString())?.success == true) {
+            val responseJson = ToolProtocolPayloadEncoding.encodeEnvelopeIfBeneficial(response).toString()
+            if (transport?.sendText(responseJson)?.success == true) {
                 pendingBinaryTransfers.start(transport)
             }
         }.apply {
@@ -1770,44 +1817,167 @@ object AnsightRuntime {
         return evidence.takeIf { it.length() > 0 }
     }
 
-    private fun toolCatalogRevision(tools: List<AndroidTool>, guard: AnsightToolGuard): String {
-        val input = JSONObject()
-            .put("schema", ToolProtocol.CatalogSchema)
-            .put("guard", guard.toProtocolJson())
-            .put("tools", JSONArray(tools.sortedBy { it.definition.id }.map { tool ->
-                tool.definition.toJson().put("argumentEncoding", if (tool is JsonAndroidTool) "json" else "flattened-string")
-            }))
-            .toString()
-        val bytes = MessageDigest.getInstance("SHA-256").digest(input.toByteArray(Charsets.UTF_8))
-        return "sha256:" + bytes.joinToString("") { "%02x".format(it.toInt() and 0xff) }
+    private data class CatalogToolState(
+        val tool: AndroidTool,
+        val availability: ToolAvailability,
+        val definitionRevision: String,
+    )
+
+    private fun createCatalogToolState(tool: AndroidTool, availability: ToolAvailability): CatalogToolState {
+        return CatalogToolState(
+            tool = tool,
+            availability = availability,
+            definitionRevision = toolRevision(staticDefinitionJson(tool)),
+        )
     }
 
-    private fun toolCapabilityManifest(tools: List<AndroidTool>, revision: String): JSONObject {
-        val capabilities = JSONObject().put(
-            ToolProtocol.Capability,
-            JSONObject()
-                .put("version", 2)
-                .put("features", JSONArray(listOf(
-                    "batch",
-                    "catalog-revision",
-                    "json-arguments",
-                    "post-evidence",
-                    "runtime-availability",
-                    "schema-validation",
-                ))),
-        )
-        tools.groupBy { it.definition.category }.toSortedMap().forEach { (category, categoryTools) ->
-            capabilities.put(
-                "$category.tools",
-                JSONObject()
-                    .put("version", 1)
-                    .put("features", JSONArray(categoryTools.map { it.definition.id }.sorted())),
-            )
+    private fun indexCatalogEntry(state: CatalogToolState): JSONObject {
+        val definition = state.tool.definition
+        return JSONObject().apply {
+            put("id", definition.id)
+            put("name", definition.name)
+            put("description", definition.description)
+            put("category", definition.category)
+            put("policy", definition.policy.wireName)
+            put("definitionRevision", state.definitionRevision)
+            if (definition.keywords.isNotBlank()) put("keywords", definition.keywords)
+            if (definition.prerequisiteToolIds.isNotEmpty()) {
+                put("prerequisiteToolIds", JSONArray(definition.prerequisiteToolIds))
+            }
+            addAvailability(this, state.availability)
         }
-        return JSONObject()
-            .put("schema", "ansight.capabilities.v1")
-            .put("revision", revision)
-            .put("capabilities", capabilities)
+    }
+
+    private fun definitionCatalogEntry(state: CatalogToolState): JSONObject {
+        return JSONObject(staticDefinitionJson(state.tool).toString())
+            .put("definitionRevision", state.definitionRevision)
+    }
+
+    private fun fullCatalogEntry(state: CatalogToolState): JSONObject {
+        return definitionCatalogEntry(state).also { addAvailability(it, state.availability) }
+    }
+
+    private fun staticDefinitionJson(tool: AndroidTool): JSONObject {
+        return tool.definition.toJson().apply {
+            if (tool !is JsonAndroidTool) put("argumentEncoding", "flattened-string")
+        }
+    }
+
+    private fun addAvailability(json: JSONObject, availability: ToolAvailability) {
+        if (!availability.available) {
+            json.put("runtime", availability.toJson())
+            json.put("executable", false)
+        }
+    }
+
+    private fun toolCatalogRevision(states: List<CatalogToolState>, guard: AnsightToolGuard): String {
+        val tools = states.sortedBy { it.tool.definition.id }.map { state ->
+            JSONObject()
+                .put("id", state.tool.definition.id)
+                .put("definitionRevision", state.definitionRevision)
+        }
+        return toolRevision(
+            JSONObject()
+                .put("schema", ToolProtocol.CatalogSchema)
+                .put("guard", guard.toProtocolJson())
+                .put("tools", JSONArray(tools)),
+        )
+    }
+
+    private fun toolAvailabilityRevision(states: List<CatalogToolState>): String {
+        val tools = states.sortedBy { it.tool.definition.id }.map { state ->
+            JSONObject()
+                .put("id", state.tool.definition.id)
+                .put("runtime", state.availability.toJson())
+        }
+        return toolRevision(JSONObject().put("tools", JSONArray(tools)))
+    }
+
+    private fun availabilityChanges(states: List<CatalogToolState>): JSONObject {
+        return JSONObject().apply {
+            states.filter { !it.availability.available }.forEach { state ->
+                put(state.tool.definition.id, state.availability.toJson())
+            }
+        }
+    }
+
+    private fun categoryCounts(states: List<CatalogToolState>): JSONObject {
+        return JSONObject().apply {
+            states.groupBy { it.tool.definition.category }.toSortedMap().forEach { (category, categoryStates) ->
+                put(category, categoryStates.size)
+            }
+        }
+    }
+
+    private fun applyCatalogFilters(
+        states: List<CatalogToolState>,
+        payload: JSONObject,
+    ): List<CatalogToolState> {
+        val requestedIds = payload.optJSONArray("ids")?.let { ids ->
+            (0 until ids.length()).mapNotNull { ids.optString(it).takeIf(String::isNotBlank) }.toSet()
+        }.orEmpty()
+        val queryTerms = catalogTerms(payload.optionalString("query"))
+        val featureTerms = catalogTerms(payload.optionalString("feature"))
+        val requestedPolicy = payload.optionalString("policy")
+        val executableOnly = payload.optBoolean("executableOnly", false)
+        val requestedLimit = when {
+            payload.has("limit") -> payload.optInt("limit", MaximumCatalogResults)
+            payload.has("maxResults") -> payload.optInt("maxResults", MaximumCatalogResults)
+            else -> MaximumCatalogResults
+        }.coerceIn(1, MaximumCatalogResults)
+
+        return states.asSequence()
+            .filter { requestedIds.isEmpty() || it.tool.definition.id in requestedIds }
+            .filter { requestedPolicy == null || it.tool.definition.policy.wireName.equals(requestedPolicy, ignoreCase = true) }
+            .filter { !executableOnly || it.availability.available }
+            .filter { matchesCatalogTerms(it.tool.definition, queryTerms, featureTerms) }
+            .take(requestedLimit)
+            .toList()
+    }
+
+    private fun matchesCatalogTerms(
+        definition: ToolDefinition,
+        queryTerms: List<String>,
+        featureTerms: List<String>,
+    ): Boolean {
+        val searchableText = normalizeCatalogSearchText(
+            listOf(
+                definition.id,
+                definition.name,
+                definition.description,
+                definition.category,
+                definition.keywords,
+                definition.prerequisiteToolIds.joinToString(" "),
+            ).joinToString(" "),
+        )
+        return queryTerms.all(searchableText::contains) && featureTerms.all(searchableText::contains)
+    }
+
+    private fun catalogDetail(payload: JSONObject): String {
+        return when (payload.optionalString("detail")?.lowercase(Locale.US)) {
+            ToolProtocol.IndexCatalogDetail -> ToolProtocol.IndexCatalogDetail
+            ToolProtocol.DefinitionsCatalogDetail -> ToolProtocol.DefinitionsCatalogDetail
+            else -> ToolProtocol.FullCatalogDetail
+        }
+    }
+
+    private fun catalogTerms(value: String?): List<String> {
+        return normalizeCatalogSearchText(value.orEmpty())
+            .split(' ')
+            .filter(String::isNotBlank)
+            .distinct()
+    }
+
+    private fun normalizeCatalogSearchText(value: String): String {
+        return value.lowercase(Locale.US).map { character ->
+            if (character.isLetterOrDigit()) character else ' '
+        }.joinToString("")
+    }
+
+    private fun toolRevision(value: JSONObject): String {
+        val bytes = MessageDigest.getInstance("SHA-256")
+            .digest(value.toString().toByteArray(Charsets.UTF_8))
+        return "sha256:" + bytes.joinToString("") { "%02x".format(it.toInt() and 0xff) }
     }
 
     private fun toolEnvelope(type: String, request: JSONObject, payload: JSONObject): JSONObject = JSONObject()

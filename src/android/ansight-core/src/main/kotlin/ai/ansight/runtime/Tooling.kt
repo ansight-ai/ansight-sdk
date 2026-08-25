@@ -77,6 +77,7 @@ data class ToolDefinition(
     val keywords: String,
     val argumentsSchema: ToolSchema = ToolSchema.obj(additionalProperties = true),
     val resultSchema: ToolSchema = ToolSchema.obj(additionalProperties = true),
+    val prerequisiteToolIds: List<String> = emptyList(),
 ) {
     fun validated(): ToolDefinition {
         require(id.isNotBlank()) { "Tool id must not be blank." }
@@ -88,18 +89,27 @@ data class ToolDefinition(
             description = description.trim(),
             category = category.trim(),
             keywords = keywords.trim(),
+            prerequisiteToolIds = prerequisiteToolIds
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .distinct()
+                .sorted(),
         )
     }
 
-    fun toJson(): JSONObject = JSONObject()
-        .put("id", id)
-        .put("name", name)
-        .put("description", description)
-        .put("category", category)
-        .put("policy", policy.wireName)
-        .put("keywords", keywords)
-        .put("argumentsSchema", argumentsSchema.toJson())
-        .put("resultSchema", resultSchema.toJson())
+    fun toJson(): JSONObject = JSONObject().apply {
+        put("id", id)
+        put("name", name)
+        put("description", description)
+        put("category", category)
+        put("policy", policy.wireName)
+        if (keywords.isNotBlank()) put("keywords", keywords)
+        put("argumentsSchema", argumentsSchema.toProtocolJson())
+        put("resultSchema", resultSchema.toProtocolJson())
+        if (prerequisiteToolIds.isNotEmpty()) {
+            put("prerequisiteToolIds", JSONArray(prerequisiteToolIds))
+        }
+    }
 }
 
 data class AndroidToolResult(
@@ -123,14 +133,14 @@ data class ToolAvailability(
     val remediation: String? = null,
     val retryable: Boolean = false,
 ) {
-    fun toJson(): JSONObject = JSONObject()
-        .put("available", available)
-        .putNullable("reasonCode", reasonCode)
-        .putNullable("reason", reason)
-        .putNullable("requiredState", requiredState)
-        .putNullable("remediation", remediation)
-        .put("retryable", retryable)
-        .put("evaluatedAtUtc", AnsightClock.isoNow())
+    fun toJson(): JSONObject = JSONObject().apply {
+        put("available", available)
+        reasonCode?.takeIf { it.isNotBlank() }?.let { put("code", it) }
+        reason?.takeIf { it.isNotBlank() }?.let { put("reason", it) }
+        requiredState?.takeIf { it.isNotBlank() }?.let { put("requiredState", it) }
+        remediation?.takeIf { it.isNotBlank() }?.let { put("remediation", it) }
+        if (retryable) put("retryable", true)
+    }
 
     companion object {
         val Available = ToolAvailability(true)
@@ -382,5 +392,24 @@ object ToolProtocol {
     const val ResultType = "tool.result"
     const val BatchResultType = "tool.batch.result"
     const val ErrorType = "tool.error"
-    const val CatalogSchema = "ansight.tool-catalog.v2"
+    const val CatalogSchema = "ansight.tool-catalog.v3"
+    const val FullCatalogDetail = "full"
+    const val IndexCatalogDetail = "index"
+    const val DefinitionsCatalogDetail = "definitions"
+}
+
+private fun ToolSchema.toProtocolJson(): JSONObject {
+    val json = JSONObject().put("type", if (nullable) JSONArray(listOf(type, "null")) else type)
+    if (additionalProperties) json.put("additionalProperties", true)
+    json.putIfNotNull("description", description)
+    json.putIfNotNull("format", format)
+    if (properties.isNotEmpty()) {
+        val propertyJson = JSONObject()
+        properties.entries.sortedBy { it.key }.forEach { propertyJson.put(it.key, it.value.toProtocolJson()) }
+        json.put("properties", propertyJson)
+    }
+    if (required.isNotEmpty()) json.put("required", JSONArray(required))
+    if (items != null) json.put("items", items.toProtocolJson())
+    if (enumValues.isNotEmpty()) json.put("enum", JSONArray(enumValues))
+    return json
 }

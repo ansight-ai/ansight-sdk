@@ -5,8 +5,18 @@ fun androidUiTool(
     name: String,
     description: String,
     policy: ToolPolicy = ToolPolicy.Read,
+    prerequisiteToolIds: List<String> = emptyList(),
     handler: (Map<String, String>, AndroidToolExecutionContext) -> AndroidToolResult,
-) = androidSimpleTool(id, name, description, "ui", policy, "ui android view screenshot overlay", handler)
+) = androidSimpleTool(
+    id,
+    name,
+    description,
+    "ui",
+    policy,
+    "ui android view screenshot overlay",
+    prerequisiteToolIds,
+    handler,
+)
 
 fun androidJsonUiTool(
     definition: ToolDefinition,
@@ -19,7 +29,7 @@ fun androidFileTool(
     description: String,
     policy: ToolPolicy = ToolPolicy.Read,
     handler: (Map<String, String>, AndroidToolExecutionContext) -> AndroidToolResult,
-) = androidSimpleTool(id, name, description, "files", policy, "files sandbox app data cache", handler)
+) = androidSimpleTool(id, name, description, "files", policy, "files sandbox app data cache", handler = handler)
 
 fun androidPreferencesTool(
     id: String,
@@ -27,7 +37,7 @@ fun androidPreferencesTool(
     description: String,
     policy: ToolPolicy = ToolPolicy.Read,
     handler: (Map<String, String>, AndroidToolExecutionContext) -> AndroidToolResult,
-) = androidSimpleTool(id, name, description, "prefs", policy, "preferences sharedpreferences settings", handler)
+) = androidSimpleTool(id, name, description, "prefs", policy, "preferences sharedpreferences settings", handler = handler)
 
 fun androidSecureStorageTool(
     id: String,
@@ -42,7 +52,7 @@ fun androidSecureStorageTool(
     "secure",
     policy,
     "secure storage keystore allow-list",
-    handler,
+    handler = handler,
 )
 
 fun androidDatabaseTool(
@@ -58,7 +68,7 @@ fun androidDatabaseTool(
     "data",
     policy,
     "sqlite database query schema",
-    handler,
+    handler = handler,
 )
 
 fun androidReflectionTool(
@@ -84,6 +94,7 @@ fun androidSimpleTool(
     category: String,
     policy: ToolPolicy,
     keywords: String,
+    prerequisiteToolIds: List<String> = emptyList(),
     handler: (Map<String, String>, AndroidToolExecutionContext) -> AndroidToolResult,
 ): AndroidTool = FunctionAndroidTool(
     ToolDefinition(
@@ -95,6 +106,7 @@ fun androidSimpleTool(
         keywords = keywords,
         argumentsSchema = ToolSchema.obj(additionalProperties = true),
         resultSchema = ToolSchema.obj(additionalProperties = true),
+        prerequisiteToolIds = prerequisiteToolIds,
     ),
     handler = handler,
 )

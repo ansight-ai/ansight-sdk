@@ -10,7 +10,12 @@ internal struct AnsightToolProtocolBridge {
     static let resultType = "tool.result"
     static let batchResultType = "tool.batch.result"
     static let errorType = "tool.error"
-    static let catalogSchema = "ansight.tool-catalog.v2"
+    static let catalogSchema = "ansight.tool-catalog.v3"
+
+    private static let fullCatalogDetail = "full"
+    private static let indexCatalogDetail = "index"
+    private static let definitionsCatalogDetail = "definitions"
+    private static let maximumCatalogResults = 1_000
 
     let registry: [String: RegisteredTool]
     let guardPolicy: AnsightToolGuard
@@ -82,49 +87,103 @@ internal struct AnsightToolProtocolBridge {
             )
         }
 
-        let availabilityContext = AnsightToolAvailabilityContext(
-            sessionId: request.sessionId,
-            requestId: request.id
-        )
+        let requestPayload: [String: JSONValue]
+        if case .object(let payload) = request.payload {
+            requestPayload = payload
+        } else {
+            requestPayload = [:]
+        }
+        let detail = Self.catalogDetail(requestPayload)
         let visibleTools = registry.values
             .filter { guardPolicy.isVisible($0.descriptor) }
             .sorted {
                 $0.descriptor.id.localizedCaseInsensitiveCompare($1.descriptor.id) == .orderedAscending
             }
-        let revision = Self.catalogRevision(tools: visibleTools, guardPolicy: guardPolicy)
-        let requestedRevision: String?
-        if case .object(let payload) = request.payload,
-           case .string(let value)? = payload["ifRevision"] {
-            requestedRevision = value
-        } else {
-            requestedRevision = nil
+        let availabilityContext = AnsightToolAvailabilityContext(
+            sessionId: request.sessionId,
+            requestId: request.id
+        )
+        let toolStates = visibleTools.map { tool in
+            Self.catalogToolState(
+                tool: tool,
+                availability: tool.availability(availabilityContext)
+            )
         }
-        let unchanged = requestedRevision == revision
+        let revision = Self.catalogRevision(states: toolStates, guardPolicy: guardPolicy)
+        let availabilityRevision = Self.availabilityRevision(states: toolStates)
+        let requestedRevision = Self.string(requestPayload["ifRevision"])
+        let requestedAvailabilityRevision = Self.string(requestPayload["ifAvailabilityRevision"])
+        let staticUnchanged = requestedRevision == revision
+        let availabilityUnchanged = requestedAvailabilityRevision == nil
+            || requestedAvailabilityRevision == availabilityRevision
+        let isDefinitionProjection = detail == Self.definitionsCatalogDetail
+
+        if staticUnchanged && availabilityUnchanged && !isDefinitionProjection {
+            return AnsightToolProtocolEnvelope(
+                type: Self.catalogType,
+                id: "\(request.id).response",
+                replyTo: request.id,
+                sessionId: request.sessionId,
+                payload: .object([
+                    "schema": .string(Self.catalogSchema),
+                    "revision": .string(revision),
+                    "unchanged": .bool(true),
+                ])
+            )
+        }
+
+        let evaluatedAtUtc = ISO8601DateFormatter().string(from: Date())
+        if staticUnchanged && !availabilityUnchanged && !isDefinitionProjection {
+            return AnsightToolProtocolEnvelope(
+                type: Self.catalogType,
+                id: "\(request.id).response",
+                replyTo: request.id,
+                sessionId: request.sessionId,
+                payload: .object([
+                    "schema": .string(Self.catalogSchema),
+                    "revision": .string(revision),
+                    "unchanged": .bool(true),
+                    "availabilityRevision": .string(availabilityRevision),
+                    "evaluatedAtUtc": .string(evaluatedAtUtc),
+                    "changes": Self.availabilityChanges(states: toolStates),
+                ])
+            )
+        }
+
+        let selectedStates = Self.applyCatalogFilters(states: toolStates, payload: requestPayload)
+        let serializedTools = selectedStates.map { state in
+            switch detail {
+            case Self.indexCatalogDetail:
+                return Self.indexCatalogEntry(state)
+            case Self.definitionsCatalogDetail:
+                return Self.definitionCatalogEntry(state)
+            default:
+                return Self.fullCatalogEntry(state)
+            }
+        }
+
+        var catalogPayload: [String: JSONValue] = [
+            "schema": .string(Self.catalogSchema),
+            "revision": .string(revision),
+            "tools": .array(serializedTools),
+            "count": .integer(Int64(serializedTools.count)),
+        ]
+        if detail != Self.fullCatalogDetail {
+            catalogPayload["detail"] = .string(detail)
+        }
+        if !isDefinitionProjection {
+            catalogPayload["availabilityRevision"] = .string(availabilityRevision)
+            catalogPayload["evaluatedAtUtc"] = .string(evaluatedAtUtc)
+            catalogPayload["totalCount"] = .integer(Int64(toolStates.count))
+            catalogPayload["categories"] = Self.categoryCounts(states: toolStates)
+        }
 
         return AnsightToolProtocolEnvelope(
             type: Self.catalogType,
             id: "\(request.id).response",
             replyTo: request.id,
             sessionId: request.sessionId,
-            payload: .object([
-                "schema": .string(Self.catalogSchema),
-                "revision": .string(revision),
-                "catalogHash": .string(revision),
-                "unchanged": .bool(unchanged),
-                "manifest": Self.capabilityManifest(tools: visibleTools, revision: revision),
-                "guard": .object([
-                    "discoveryEnabled": .bool(guardPolicy.discoveryEnabled),
-                    "executionEnabled": .bool(guardPolicy.executionEnabled),
-                    "maxPolicy": .string(guardPolicy.maxPolicy.rawValue),
-                ]),
-                "tools": .array(unchanged ? [] : visibleTools.map {
-                    Self.catalogEntry(
-                        for: $0,
-                        availability: $0.availability(availabilityContext)
-                    )
-                }),
-                "count": .integer(Int64(visibleTools.count)),
-            ])
+            payload: .object(catalogPayload)
         )
     }
 
@@ -482,7 +541,16 @@ internal struct AnsightToolProtocolBridge {
     }
 
     private func serializeEnvelope(_ envelope: AnsightToolProtocolEnvelope) throws -> String {
-        let data = try JSONEncoder().encode(envelope)
+        let encodedEnvelope = AnsightToolProtocolEnvelope(
+            type: envelope.type,
+            id: envelope.id,
+            replyTo: envelope.replyTo,
+            sessionId: envelope.sessionId,
+            sentAt: envelope.sentAt,
+            capability: envelope.capability,
+            payload: AnsightToolProtocolPayloadEncoding.encodeIfBeneficial(envelope.payload)
+        )
+        let data = try JSONEncoder().encode(encodedEnvelope)
         guard let json = String(data: data, encoding: .utf8) else {
             throw RuntimeError.invalidInput("Tool protocol response could not be encoded as UTF-8.")
         }
@@ -515,78 +583,259 @@ internal struct AnsightToolProtocolBridge {
         toolId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
-    private static func catalogEntry(
-        for tool: RegisteredTool,
-        availability: AnsightToolAvailability
-    ) -> JSONValue {
-        guard case .object(var result) = staticCatalogEntry(for: tool) else { return .object([:]) }
-        result["runtime"] = availability.jsonValue
-        result["executable"] = .bool(availability.available && (tool.execute != nil || tool.executeJSON != nil))
-        return .object(result)
+    private struct CatalogToolState {
+        let tool: RegisteredTool
+        let availability: AnsightToolAvailability
+        let executable: Bool
+        let definitionRevision: String
     }
 
-    private static func staticCatalogEntry(for tool: RegisteredTool) -> JSONValue {
-        let descriptor = tool.descriptor
-        let result: [String: JSONValue] = [
+    private static func catalogToolState(
+        tool: RegisteredTool,
+        availability: AnsightToolAvailability
+    ) -> CatalogToolState {
+        CatalogToolState(
+            tool: tool,
+            availability: availability,
+            executable: availability.available && (tool.execute != nil || tool.executeJSON != nil),
+            definitionRevision: revision(of: staticDefinitionEntry(for: tool))
+        )
+    }
+
+    private static func indexCatalogEntry(_ state: CatalogToolState) -> JSONValue {
+        let descriptor = state.tool.descriptor
+        var result: [String: JSONValue] = [
             "id": .string(descriptor.id),
             "name": .string(descriptor.name),
             "description": .string(descriptor.description),
             "category": .string(descriptor.category),
             "policy": .string(descriptor.policy.rawValue),
-            "keywords": .string(descriptor.keywords),
-            "argumentEncoding": .string(tool.executeJSON == nil ? "flattened-string" : "json"),
-            "argumentsSchema": descriptor.argumentsSchema.json,
-            "resultSchema": descriptor.resultSchema.json,
+            "definitionRevision": .string(state.definitionRevision),
         ]
-
+        addOptionalDiscoveryMetadata(&result, descriptor: descriptor)
+        addAvailability(&result, state: state)
         return .object(result)
     }
 
-    private static func catalogRevision(
-        tools: [RegisteredTool],
-        guardPolicy: AnsightToolGuard
-    ) -> String {
-        let input = JSONValue.object([
-            "schema": .string(catalogSchema),
-            "guard": guardJSON(guardPolicy),
-            "tools": .array(tools.map { staticCatalogEntry(for: $0) }),
-        ])
-        let data = (try? input.jsonData()) ?? Data()
-        let digest = SHA256.hash(data: data)
-        return "sha256:" + digest.map { String(format: "%02x", $0) }.joined()
+    private static func definitionCatalogEntry(_ state: CatalogToolState) -> JSONValue {
+        guard case .object(var result) = staticDefinitionEntry(for: state.tool) else {
+            return .object([:])
+        }
+        result["definitionRevision"] = .string(state.definitionRevision)
+        return .object(result)
     }
 
-    private static func capabilityManifest(
-        tools: [RegisteredTool],
-        revision: String
-    ) -> JSONValue {
-        var capabilities: [String: JSONValue] = [
-            capability: .object([
-                "version": .integer(2),
-                "features": .array([
-                    "batch",
-                    "catalog-revision",
-                    "json-arguments",
-                    "post-evidence",
-                    "runtime-availability",
-                    "schema-validation",
-                ].map(JSONValue.string)),
-            ]),
-        ]
-        Dictionary(grouping: tools, by: { $0.descriptor.category }).forEach { category, categoryTools in
-            capabilities["\(category).tools"] = .object([
-                "version": .integer(1),
-                "features": .array(categoryTools
-                    .map { $0.descriptor.id }
-                    .sorted()
-                    .map(JSONValue.string)),
-            ])
+    private static func fullCatalogEntry(_ state: CatalogToolState) -> JSONValue {
+        guard case .object(var result) = definitionCatalogEntry(state) else {
+            return .object([:])
         }
-        return .object([
-            "schema": .string("ansight.capabilities.v1"),
-            "revision": .string(revision),
-            "capabilities": .object(capabilities),
-        ])
+        addAvailability(&result, state: state)
+        return .object(result)
+    }
+
+    private static func staticDefinitionEntry(for tool: RegisteredTool) -> JSONValue {
+        let descriptor = tool.descriptor
+        var result: [String: JSONValue] = [
+            "id": .string(descriptor.id),
+            "name": .string(descriptor.name),
+            "description": .string(descriptor.description),
+            "category": .string(descriptor.category),
+            "policy": .string(descriptor.policy.rawValue),
+            "argumentsSchema": compactSchema(descriptor.argumentsSchema.json),
+            "resultSchema": compactSchema(descriptor.resultSchema.json),
+        ]
+        addOptionalDiscoveryMetadata(&result, descriptor: descriptor)
+        if tool.executeJSON == nil {
+            result["argumentEncoding"] = .string("flattened-string")
+        }
+        return .object(result)
+    }
+
+    private static func addOptionalDiscoveryMetadata(
+        _ result: inout [String: JSONValue],
+        descriptor: AnsightToolDescriptor
+    ) {
+        let keywords = descriptor.keywords.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !keywords.isEmpty {
+            result["keywords"] = .string(keywords)
+        }
+        let prerequisiteToolIds = Array(Set(descriptor.prerequisiteToolIds
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }))
+            .sorted()
+        if !prerequisiteToolIds.isEmpty {
+            result["prerequisiteToolIds"] = .array(prerequisiteToolIds.map(JSONValue.string))
+        }
+    }
+
+    private static func addAvailability(
+        _ result: inout [String: JSONValue],
+        state: CatalogToolState
+    ) {
+        if !state.availability.available {
+            result["runtime"] = state.availability.jsonValue
+        }
+        if !state.executable {
+            result["executable"] = .bool(false)
+        }
+    }
+
+    private static func catalogRevision(
+        states: [CatalogToolState],
+        guardPolicy: AnsightToolGuard
+    ) -> String {
+        revision(of: .object([
+            "schema": .string(catalogSchema),
+            "guard": guardJSON(guardPolicy),
+            "tools": .array(states.map { state in
+                .object([
+                    "id": .string(state.tool.descriptor.id),
+                    "definitionRevision": .string(state.definitionRevision),
+                ])
+            }),
+        ]))
+    }
+
+    private static func availabilityRevision(states: [CatalogToolState]) -> String {
+        revision(of: .object([
+            "tools": .array(states.map { state in
+                .object([
+                    "id": .string(state.tool.descriptor.id),
+                    "runtime": availabilityState(state),
+                ])
+            }),
+        ]))
+    }
+
+    private static func availabilityState(_ state: CatalogToolState) -> JSONValue {
+        guard case .object(var result) = state.availability.jsonValue else {
+            return .object([:])
+        }
+        if !state.executable {
+            result["executable"] = .bool(false)
+        }
+        return .object(result)
+    }
+
+    private static func availabilityChanges(states: [CatalogToolState]) -> JSONValue {
+        var changes: [String: JSONValue] = [:]
+        states.filter { !$0.availability.available || !$0.executable }.forEach { state in
+            changes[state.tool.descriptor.id] = availabilityState(state)
+        }
+        return .object(changes)
+    }
+
+    private static func categoryCounts(states: [CatalogToolState]) -> JSONValue {
+        var categories: [String: JSONValue] = [:]
+        Dictionary(grouping: states, by: { $0.tool.descriptor.category })
+            .forEach { category, categoryStates in
+                categories[category] = .integer(Int64(categoryStates.count))
+            }
+        return .object(categories)
+    }
+
+    private static func applyCatalogFilters(
+        states: [CatalogToolState],
+        payload: [String: JSONValue]
+    ) -> [CatalogToolState] {
+        let requestedIds = Set(stringArray(payload["ids"]))
+        let queryTerms = terms(string(payload["query"]))
+        let featureTerms = terms(string(payload["feature"]))
+        let requestedPolicy = string(payload["policy"])
+        let executableOnly = bool(payload["executableOnly"]) ?? false
+        let requestedLimit = integer(payload["limit"]) ?? integer(payload["maxResults"])
+            ?? maximumCatalogResults
+        let limit = min(max(requestedLimit, 1), maximumCatalogResults)
+
+        return Array(states
+            .filter { requestedIds.isEmpty || requestedIds.contains($0.tool.descriptor.id) }
+            .filter { requestedPolicy == nil || $0.tool.descriptor.policy.rawValue.caseInsensitiveCompare(requestedPolicy!) == .orderedSame }
+            .filter { !executableOnly || $0.executable }
+            .filter { matchesTerms($0.tool.descriptor, queryTerms: queryTerms, featureTerms: featureTerms) }
+            .prefix(limit))
+    }
+
+    private static func matchesTerms(
+        _ descriptor: AnsightToolDescriptor,
+        queryTerms: [String],
+        featureTerms: [String]
+    ) -> Bool {
+        let searchableText = normalizeSearchText([
+            descriptor.id,
+            descriptor.name,
+            descriptor.description,
+            descriptor.category,
+            descriptor.keywords,
+            descriptor.prerequisiteToolIds.joined(separator: " "),
+        ].joined(separator: " "))
+        return queryTerms.allSatisfy(searchableText.contains)
+            && featureTerms.allSatisfy(searchableText.contains)
+    }
+
+    private static func catalogDetail(_ payload: [String: JSONValue]) -> String {
+        switch string(payload["detail"])?.lowercased() {
+        case indexCatalogDetail:
+            return indexCatalogDetail
+        case definitionsCatalogDetail:
+            return definitionsCatalogDetail
+        default:
+            return fullCatalogDetail
+        }
+    }
+
+    private static func string(_ value: JSONValue?) -> String? {
+        guard case .string(let text)? = value else { return nil }
+        let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return normalized.isEmpty ? nil : normalized
+    }
+
+    private static func stringArray(_ value: JSONValue?) -> [String] {
+        guard case .array(let values)? = value else { return [] }
+        return values.compactMap(string)
+    }
+
+    private static func bool(_ value: JSONValue?) -> Bool? {
+        guard case .bool(let result)? = value else { return nil }
+        return result
+    }
+
+    private static func integer(_ value: JSONValue?) -> Int? {
+        guard case .integer(let result)? = value,
+              let integer = Int(exactly: result) else { return nil }
+        return integer
+    }
+
+    private static func terms(_ value: String?) -> [String] {
+        Array(Set(normalizeSearchText(value ?? "")
+            .split(separator: " ")
+            .map(String.init)))
+            .sorted()
+    }
+
+    private static func normalizeSearchText(_ value: String) -> String {
+        String(value.lowercased().map { character in
+            character.isLetter || character.isNumber ? character : " "
+        })
+    }
+
+    private static func compactSchema(_ value: JSONValue) -> JSONValue {
+        guard case .object(var object) = value else { return value }
+        if object["additionalProperties"] == .bool(false) {
+            object.removeValue(forKey: "additionalProperties")
+        }
+        if case .object(let properties)? = object["properties"] {
+            object["properties"] = .object(properties.mapValues(compactSchema))
+        }
+        if let items = object["items"] {
+            object["items"] = compactSchema(items)
+        }
+        return .object(object)
+    }
+
+    private static func revision(of value: JSONValue) -> String {
+        let data = (try? value.jsonData()) ?? Data()
+        let digest = SHA256.hash(data: data)
+        return "sha256:" + digest.map { String(format: "%02x", $0) }.joined()
     }
 
     private static func guardJSON(_ guardPolicy: AnsightToolGuard) -> JSONValue {

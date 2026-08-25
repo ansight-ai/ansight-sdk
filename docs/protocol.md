@@ -401,18 +401,41 @@ tool guard.
   "type": "tool.query",
   "id": "tool_query_1",
   "payload": {
-    "ifRevision": "sha256:known-catalog-revision"
+    "detail": "index",
+    "ifRevision": "sha256:known-catalog-revision",
+    "ifAvailabilityRevision": "sha256:known-availability-revision"
   }
 }
 ```
 
-The client responds with its catalog of tool ids, descriptions, argument
-schemas, result schemas, ordered `policy`, argument encoding, and a
-deterministic `revision`. `policy` is one of `read`, `write`, or `critical`.
-A matching `ifRevision` produces a compact catalog
-with `unchanged: true`. Catalog schema version 2 also includes a capability
-manifest and its hash so hosts can cache and compare SDK capabilities without
-reinterpreting descriptions.
+Catalog schema version 3 separates the static tool index from runtime
+availability. `detail: "index"` returns ids, names, descriptions, category,
+ordered `policy`, explicit prerequisite ids, and a per-tool
+`definitionRevision` without argument or result schemas. Hosts fetch schemas
+only for selected ids with `detail: "definitions"` and an `ids` array. A
+legacy request without `detail` returns full definitions.
+
+The static `revision` changes only when the visible definitions or guard
+change. `availabilityRevision` tracks runtime executability independently.
+When both supplied revisions match, the response contains only `schema`,
+`revision`, and `unchanged: true`. When only availability changed, `changes`
+is a replacement snapshot containing only non-default availability entries;
+all omitted tools default to available and executable. One envelope-level
+`evaluatedAtUtc` timestamps the snapshot.
+
+Queries may also include `ids`, `query`, `feature`, `policy`,
+`executableOnly`, and `limit`/`maxResults`. Filtering is applied in the SDK
+before serialization. `policy` is one of `read`, `write`, or `critical`.
+JSON argument encoding, available/executable state, empty keywords, and
+`additionalProperties: false` are protocol defaults and are omitted, as are
+`unchanged: false` and the default `detail: "full"`. Definition projections
+omit availability, timestamp, category, and total-count fields already held
+with the index. Category
+counts replace the older capability manifest's repeated tool-id lists.
+
+Large catalog, result, batch, and error payloads use `gzip-base64-json` when
+the complete encoded wrapper is smaller than the original JSON. The wrapper
+reports `originalByteCount` and `compressedByteCount` for host metrics.
 
 ### Call
 

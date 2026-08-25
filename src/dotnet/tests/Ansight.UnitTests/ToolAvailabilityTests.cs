@@ -24,8 +24,10 @@ public sealed class ToolAvailabilityTests
         var entry = Assert.IsType<JsonObject>(Assert.Single(tools));
         var runtime = Assert.IsType<JsonObject>(entry["runtime"]);
         Assert.False(entry["executable"]?.GetValue<bool>());
-        Assert.Equal("screen_not_registered", runtime["reasonCode"]?.GetValue<string>());
+        Assert.Equal("screen_not_registered", runtime["code"]?.GetValue<string>());
         Assert.Equal("MapWorkScreen registered", runtime["requiredState"]?.GetValue<string>());
+        Assert.Null(runtime["evaluatedAtUtc"]);
+        Assert.NotNull(catalogPayload["evaluatedAtUtc"]);
 
         var call = await bridge.HandleAsync(new ToolProtocolEnvelope
         {

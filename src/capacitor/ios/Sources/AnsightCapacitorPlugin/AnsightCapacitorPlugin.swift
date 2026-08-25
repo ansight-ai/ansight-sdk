@@ -847,7 +847,8 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
             policy: toolPolicy(stringValue(dictionary, "policy")),
             keywords: keywords(dictionary?["keywords"]),
             argumentsSchema: AnsightToolSchema(json: jsonValue(dictionary?["argumentsSchema"]) ?? .object([:])),
-            resultSchema: AnsightToolSchema(json: jsonValue(dictionary?["resultSchema"]) ?? .object([:]))
+            resultSchema: AnsightToolSchema(json: jsonValue(dictionary?["resultSchema"]) ?? .object([:])),
+            prerequisiteToolIds: stringArray(dictionary, "prerequisiteToolIds")
         )
     }
 

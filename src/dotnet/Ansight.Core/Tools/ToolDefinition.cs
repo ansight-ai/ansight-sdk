@@ -11,6 +11,7 @@ namespace Ansight.Tools;
 /// <param name="Keywords">Search keywords that help clients discover the tool.</param>
 /// <param name="ArgumentsSchema">Schema describing the tool's flattened string arguments.</param>
 /// <param name="ResultSchema">Schema describing the tool's JSON result payload.</param>
+/// <param name="PrerequisiteToolIds">Tool identifiers that should be discovered or invoked before this tool.</param>
 public sealed record ToolDefinition(
     string Id,
     string Name,
@@ -19,4 +20,5 @@ public sealed record ToolDefinition(
     ToolPolicy Policy,
     string Keywords,
     ToolSchema ArgumentsSchema,
-    ToolSchema ResultSchema);
+    ToolSchema ResultSchema,
+    IReadOnlyList<string>? PrerequisiteToolIds = null);

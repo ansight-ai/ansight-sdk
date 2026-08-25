@@ -13,6 +13,7 @@ class AnsightToolDefinition {
     this.keywords = const <String>[],
     this.argumentsSchema = const <String, Object?>{},
     this.resultSchema = const <String, Object?>{},
+    this.prerequisiteToolIds = const <String>[],
     this.timeout = const Duration(seconds: 30),
   });
 
@@ -24,6 +25,7 @@ class AnsightToolDefinition {
   final List<String> keywords;
   final AnsightJson argumentsSchema;
   final AnsightJson resultSchema;
+  final List<String> prerequisiteToolIds;
   final Duration timeout;
 
   AnsightJson toJson() => <String, Object?>{
@@ -35,6 +37,7 @@ class AnsightToolDefinition {
         'keywords': keywords,
         'argumentsSchema': argumentsSchema,
         'resultSchema': resultSchema,
+        'prerequisiteToolIds': prerequisiteToolIds,
         'timeoutMilliseconds': timeout.inMilliseconds,
       };
 }

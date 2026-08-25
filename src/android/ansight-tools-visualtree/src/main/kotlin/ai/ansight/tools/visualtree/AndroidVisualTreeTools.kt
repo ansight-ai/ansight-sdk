@@ -59,6 +59,7 @@ object AndroidVisualTreeTools {
             VisualTreeToolIds.InspectNode,
             "Inspect Node",
             "Returns one node from the current visual tree.",
+            prerequisiteToolIds = listOf(VisualTreeToolIds.QueryNodes),
         ) { args, context ->
             val reference = args["reference"]?.let { raw ->
                 runCatching { org.json.JSONObject(raw) }.getOrNull()

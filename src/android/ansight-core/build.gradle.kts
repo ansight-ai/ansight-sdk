@@ -10,7 +10,7 @@ val verifyAndroidElfAlignmentScript = rootProject.file(
 val releaseAar = layout.buildDirectory.file("outputs/aar/ansight-core-release.aar")
 
 group = providers.gradleProperty("ansightAndroidGroup").orElse("ai.ansight").get()
-version = providers.gradleProperty("ansightAndroidVersion").orElse("1.4.0-preview.1").get()
+version = providers.gradleProperty("ansightAndroidVersion").orElse("1.4.0-preview.2").get()
 
 val ansightAndroidArtifactId = providers
     .gradleProperty("ansightAndroidCoreArtifactId")

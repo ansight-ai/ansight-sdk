@@ -13,7 +13,8 @@ public final class InspectNodeTool: AnsightTool {
             policy: .read,
             keywords: "ui node inspect accessibility layout",
             argumentsSchema: AnsightVisualTreeToolSchemas.inspectNodeArguments,
-            resultSchema: AnsightVisualTreeToolSchemas.inspectNodeResult
+            resultSchema: AnsightVisualTreeToolSchemas.inspectNodeResult,
+            prerequisiteToolIds: [AnsightVisualTreeToolIds.queryNodes]
         )
     }
 

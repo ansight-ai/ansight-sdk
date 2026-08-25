@@ -887,6 +887,7 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
             ?: map.stringList("keywords").joinToString(" ").ifBlank { "flutter dart custom tool" },
         argumentsSchema = schema(map.objectValueOrNull("argumentsSchema")),
         resultSchema = schema(map.objectValueOrNull("resultSchema")),
+        prerequisiteToolIds = map.stringList("prerequisiteToolIds"),
     ).validated()
 
     private fun schema(map: JSONObject?): ToolSchema {

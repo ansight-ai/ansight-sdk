@@ -34,7 +34,8 @@ public final class PerformActionTool: AnsightJSONTool {
             policy: .write,
             keywords: "ui action tap focus set value toggle select node snapshot",
             argumentsSchema: AnsightVisualTreeToolSchemas.performActionArguments,
-            resultSchema: AnsightVisualTreeToolSchemas.performActionResult
+            resultSchema: AnsightVisualTreeToolSchemas.performActionResult,
+            prerequisiteToolIds: [AnsightVisualTreeToolIds.queryNodes]
         )
     }
 

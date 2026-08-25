@@ -20,6 +20,8 @@ public sealed class InspectNodeTool : ITool
 
     public ToolSchema ResultSchema => VisualTreeToolSchemas.InspectNodeResult;
 
+    public IReadOnlyList<string> PrerequisiteToolIds => [VisualTreeToolIds.QueryNodes];
+
     public async Task<ToolResult> Execute(IReadOnlyDictionary<string, string> arguments)
     {
         ArgumentNullException.ThrowIfNull(arguments);

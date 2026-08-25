@@ -1,10 +1,13 @@
 package ai.ansight.runtime
 
+import android.app.Application
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import android.app.Application
+import java.util.Base64
+import java.util.zip.GZIPInputStream
 
 class ToolingProtocolTest {
     @Test
@@ -27,6 +30,61 @@ class ToolingProtocolTest {
         assertEquals("object", schema.getString("type"))
         assertTrue(schema.getJSONObject("properties").has("path"))
         assertEquals("path", schema.getJSONArray("required").getString(0))
+    }
+
+    @Test
+    fun toolDefinitionSerializesCompactV3Metadata() {
+        val definition = ToolDefinition(
+            id = "map.capture",
+            name = "Capture Map",
+            description = "Capture the current map.",
+            category = "map",
+            policy = ToolPolicy.Read,
+            keywords = "",
+            argumentsSchema = ToolSchema.obj(
+                properties = mapOf("quality" to ToolSchema.integer()),
+            ),
+            resultSchema = ToolSchema.obj(),
+            prerequisiteToolIds = listOf("route.open"),
+        ).toJson()
+
+        assertEquals("ansight.tool-catalog.v3", ToolProtocol.CatalogSchema)
+        assertFalse(definition.has("keywords"))
+        assertFalse(definition.getJSONObject("argumentsSchema").has("additionalProperties"))
+        assertEquals("route.open", definition.getJSONArray("prerequisiteToolIds").getString(0))
+        assertFalse(ToolAvailability.Available.toJson().has("evaluatedAtUtc"))
+        assertFalse(ToolAvailability.Available.toJson().has("retryable"))
+    }
+
+    @Test
+    fun toolProtocolPayloadEncodingRoundTripsLargeEnvelope() {
+        val envelope = JSONObject()
+            .put("type", ToolProtocol.CatalogType)
+            .put("payload", JSONObject().put("description", "x".repeat(64 * 1024)))
+
+        val encodedEnvelope = ToolProtocolPayloadEncoding.encodeEnvelopeIfBeneficial(envelope)
+        val encodedPayload = encodedEnvelope.getJSONObject("payload")
+        assertEquals("gzip-base64-json", encodedPayload.getString("\$ansightEncoding"))
+        assertTrue(encodedPayload.getInt("originalByteCount") > encodedPayload.getInt("compressedByteCount"))
+
+        val standardDecodedPayload = GZIPInputStream(
+            Base64.getDecoder().decode(encodedPayload.getString("data")).inputStream(),
+        ).bufferedReader().use { reader -> JSONObject(reader.readText()) }
+        assertEquals("x".repeat(64 * 1024), standardDecodedPayload.getString("description"))
+
+        val decodedPayload = ToolProtocolPayloadEncoding.decodeIfNeeded(encodedPayload)!!
+        assertEquals("x".repeat(64 * 1024), decodedPayload.getString("description"))
+    }
+
+    @Test
+    fun toolProtocolPayloadEncodingLeavesSmallEnvelopeUnchanged() {
+        val envelope = JSONObject()
+            .put("type", ToolProtocol.CatalogType)
+            .put("payload", JSONObject().put("count", 1))
+
+        val encodedEnvelope = ToolProtocolPayloadEncoding.encodeEnvelopeIfBeneficial(envelope)
+
+        assertFalse(encodedEnvelope.getJSONObject("payload").has("\$ansightEncoding"))
     }
 
     @Test

@@ -30,6 +30,114 @@ final class ToolProtocolTests: XCTestCase {
         XCTAssertEqual(count, 1)
     }
 
+    func testQueryCompressesLargeCatalogAndPreservesConditionalRevision() throws {
+        let descriptor = AnsightToolDescriptor(
+            id: "large.catalog",
+            name: "Large Catalog Tool",
+            description: String(repeating: "x", count: 64 * 1024),
+            category: "Diagnostics"
+        )
+        let bridge = AnsightToolProtocolBridge(
+            registry: [
+                "large.catalog": RegisteredTool(
+                    descriptor: descriptor,
+                    execute: nil
+                ),
+            ],
+            guardPolicy: .readOnly
+        )
+
+        let responseJson = try bridge.handleIfSupported(
+            #"{"type":"tool.query","id":"large_1","sessionId":"sess_1","capability":"tool.exec","payload":{}}"#
+        )
+        let envelope = try XCTUnwrap(decodeEnvelope(responseJson))
+        guard case .object(let encodedPayload) = envelope.payload,
+              case .string(let encoding)? = encodedPayload["$ansightEncoding"],
+              case .integer(let originalByteCount)? = encodedPayload["originalByteCount"],
+              case .integer(let compressedByteCount)? = encodedPayload["compressedByteCount"] else {
+            return XCTFail("Expected encoded catalog payload.")
+        }
+        XCTAssertEqual(encoding, "gzip-base64-json")
+        XCTAssertGreaterThan(originalByteCount, compressedByteCount)
+
+        let decodedPayload = try XCTUnwrap(
+            AnsightToolProtocolPayloadEncoding.decodeIfNeeded(envelope.payload)
+        )
+        guard case .object(let catalogPayload) = decodedPayload,
+              case .string(let revision)? = catalogPayload["revision"],
+              case .integer(let count)? = catalogPayload["count"],
+              case .array(let tools)? = catalogPayload["tools"] else {
+            return XCTFail("Expected decoded catalog payload.")
+        }
+        XCTAssertEqual(count, 1)
+        XCTAssertEqual(tools.count, 1)
+
+        let conditionalJson = try bridge.handleIfSupported(
+            """
+            {"type":"tool.query","id":"large_2","sessionId":"sess_1","capability":"tool.exec","payload":{"ifRevision":"\(revision)"}}
+            """
+        )
+        let conditionalEnvelope = try XCTUnwrap(decodeEnvelope(conditionalJson))
+        guard case .object(let conditionalPayload) = conditionalEnvelope.payload,
+              case .bool(let unchanged)? = conditionalPayload["unchanged"] else {
+            return XCTFail("Expected conditional catalog payload.")
+        }
+        XCTAssertNil(conditionalPayload["$ansightEncoding"])
+        XCTAssertTrue(unchanged)
+        XCTAssertNil(conditionalPayload["tools"])
+        XCTAssertEqual(conditionalPayload.count, 3)
+    }
+
+    func testQuerySupportsCompactIndexAndFocusedDefinitions() throws {
+        let route = AnsightToolDescriptor(
+            id: "route.open",
+            name: "Open Route",
+            description: "Open a route."
+        )
+        let map = AnsightToolDescriptor(
+            id: "map.capture",
+            name: "Capture Map",
+            description: "Capture the current map.",
+            prerequisiteToolIds: [route.id]
+        )
+        let bridge = AnsightToolProtocolBridge(
+            registry: [
+                route.id: RegisteredTool(descriptor: route, execute: nil),
+                map.id: RegisteredTool(descriptor: map, execute: nil),
+            ],
+            guardPolicy: .readOnly
+        )
+
+        let indexJson = try bridge.handleIfSupported(
+            #"{"type":"tool.query","id":"index_1","capability":"tool.exec","payload":{"detail":"index","query":"map","limit":1}}"#
+        )
+        let indexEnvelope = try XCTUnwrap(decodeEnvelope(indexJson))
+        guard case .object(let indexPayload) = indexEnvelope.payload,
+              case .array(let indexTools)? = indexPayload["tools"],
+              case .object(let indexTool) = indexTools.first,
+              case .string(let toolId)? = indexTool["id"],
+              case .array(let prerequisites)? = indexTool["prerequisiteToolIds"],
+              case .string(let prerequisiteId) = prerequisites.first else {
+            return XCTFail("Expected a focused compact index entry.")
+        }
+        XCTAssertEqual(toolId, map.id)
+        XCTAssertEqual(prerequisiteId, route.id)
+        XCTAssertNil(indexTool["argumentsSchema"])
+        XCTAssertNotNil(indexTool["definitionRevision"])
+
+        let definitionJson = try bridge.handleIfSupported(
+            #"{"type":"tool.query","id":"definitions_1","capability":"tool.exec","payload":{"detail":"definitions","ids":["map.capture"]}}"#
+        )
+        let definitionEnvelope = try XCTUnwrap(decodeEnvelope(definitionJson))
+        guard case .object(let definitionPayload) = definitionEnvelope.payload,
+              case .array(let definitions)? = definitionPayload["tools"],
+              case .object(let definition) = definitions.first else {
+            return XCTFail("Expected a focused tool definition.")
+        }
+        XCTAssertNotNil(definition["argumentsSchema"])
+        XCTAssertNil(definition["runtime"])
+    }
+
     func testCallExecutesRegisteredTool() throws {
         let bridge = AnsightToolProtocolBridge(
             registry: [
@@ -91,7 +199,7 @@ final class ToolProtocolTests: XCTestCase {
               case .object(let entry) = tools.first,
               case .bool(let executable)? = entry["executable"],
               case .object(let runtime)? = entry["runtime"],
-              case .string(let reasonCode)? = runtime["reasonCode"] else {
+              case .string(let reasonCode)? = runtime["code"] else {
             return XCTFail("Expected runtime availability in the tool catalog.")
         }
         XCTAssertFalse(executable)

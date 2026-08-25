@@ -18,8 +18,12 @@ public sealed class ToolProtocolCompositionTests
         var firstPayload = Assert.IsType<JsonObject>(first.Payload);
         var revision = firstPayload["revision"]!.GetValue<string>();
         var tools = Assert.IsType<JsonArray>(firstPayload["tools"]);
-        Assert.Equal("ansight.tool-catalog.v2", firstPayload["schema"]?.GetValue<string>());
-        Assert.Equal("json", tools[0]?["argumentEncoding"]?.GetValue<string>());
+        Assert.Equal("ansight.tool-catalog.v3", firstPayload["schema"]?.GetValue<string>());
+        Assert.Null(tools[0]?["argumentEncoding"]);
+        Assert.NotNull(tools[0]?["definitionRevision"]);
+        Assert.Equal(1, firstPayload["categories"]?["test"]?.GetValue<int>());
+        Assert.Null(firstPayload["manifest"]);
+        Assert.Null(firstPayload["catalogHash"]);
 
         var second = await bridge.HandleAsync(Request(
             ToolProtocolBridge.QueryType,
@@ -27,8 +31,113 @@ public sealed class ToolProtocolCompositionTests
             new JsonObject { ["ifRevision"] = revision }));
         var secondPayload = Assert.IsType<JsonObject>(second.Payload);
         Assert.True(secondPayload["unchanged"]?.GetValue<bool>());
-        Assert.Empty(Assert.IsType<JsonArray>(secondPayload["tools"]));
+        Assert.Equal(3, secondPayload.Count);
+        Assert.Null(secondPayload["tools"]);
         Assert.Equal(revision, secondPayload["revision"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task Catalog_CompressesLargePayloadAndPreservesConditionalRevision()
+    {
+        var bridge = new ToolRegistry([
+            new RecordingJsonTool(
+                "large.catalog",
+                description: new string('x', 64 * 1024))
+        ]).CreateBridge(ToolGuard.ReadOnly);
+
+        var first = await bridge.HandleAsync(Request(
+            ToolProtocolBridge.QueryType,
+            "large-catalog-1",
+            new JsonObject()));
+        var encodedPayload = Assert.IsType<JsonObject>(first.Payload);
+        Assert.Equal("gzip-base64-json", encodedPayload["$ansightEncoding"]?.GetValue<string>());
+        var originalByteCount = encodedPayload["originalByteCount"]!.GetValue<int>();
+        var compressedByteCount = encodedPayload["compressedByteCount"]!.GetValue<int>();
+        Assert.True(originalByteCount > compressedByteCount);
+        Assert.True(
+            ToolProtocolPayloadEncoding.TryDecode(first.Payload, out var decodedPayload, out var decodeError),
+            decodeError);
+
+        var catalogPayload = Assert.IsType<JsonObject>(decodedPayload);
+        Assert.Equal(1, catalogPayload["count"]?.GetValue<int>());
+        Assert.Single(Assert.IsType<JsonArray>(catalogPayload["tools"]));
+        var revision = catalogPayload["revision"]!.GetValue<string>();
+
+        var second = await bridge.HandleAsync(Request(
+            ToolProtocolBridge.QueryType,
+            "large-catalog-2",
+            new JsonObject { ["ifRevision"] = revision }));
+        var conditionalPayload = Assert.IsType<JsonObject>(second.Payload);
+        Assert.False(conditionalPayload.ContainsKey("$ansightEncoding"));
+        Assert.True(conditionalPayload["unchanged"]?.GetValue<bool>());
+        Assert.Null(conditionalPayload["tools"]);
+        Assert.Equal(revision, conditionalPayload["revision"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task Catalog_SupportsCompactIndexFocusedDefinitionsAndAvailabilityChanges()
+    {
+        var routeTool = new RecordingJsonTool("route.open");
+        var mapTool = new RecordingJsonTool(
+            "map.capture",
+            prerequisites: [routeTool.Id]);
+        var bridge = new ToolRegistry([routeTool, mapTool]).CreateBridge(ToolGuard.ReadOnly);
+
+        var indexResponse = await bridge.HandleAsync(Request(
+            ToolProtocolBridge.QueryType,
+            "index-1",
+            new JsonObject
+            {
+                ["detail"] = "index",
+                ["query"] = "map",
+                ["limit"] = 1
+            }));
+        var index = Assert.IsType<JsonObject>(indexResponse.Payload);
+        var indexTools = Assert.IsType<JsonArray>(index["tools"]);
+        var indexTool = Assert.IsType<JsonObject>(Assert.Single(indexTools));
+        Assert.Equal(mapTool.Id, indexTool["id"]?.GetValue<string>());
+        Assert.Null(indexTool["argumentsSchema"]);
+        Assert.Equal(routeTool.Id, indexTool["prerequisiteToolIds"]?[0]?.GetValue<string>());
+
+        var definitionsResponse = await bridge.HandleAsync(Request(
+            ToolProtocolBridge.QueryType,
+            "definitions-1",
+            new JsonObject
+            {
+                ["detail"] = "definitions",
+                ["ids"] = new JsonArray(mapTool.Id)
+            }));
+        var definitions = Assert.IsType<JsonObject>(definitionsResponse.Payload);
+        var definition = Assert.IsType<JsonObject>(Assert.Single(Assert.IsType<JsonArray>(definitions["tools"])));
+        Assert.NotNull(definition["argumentsSchema"]);
+        Assert.Null(definition["runtime"]);
+
+        var revision = index["revision"]!.GetValue<string>();
+        var availabilityRevision = index["availabilityRevision"]!.GetValue<string>();
+        mapTool.Availability = ToolAvailability.Unavailable(
+            "map_not_loaded",
+            "Load a map before capturing it.");
+
+        var availabilityResponse = await bridge.HandleAsync(Request(
+            ToolProtocolBridge.QueryType,
+            "index-2",
+            new JsonObject
+            {
+                ["detail"] = "index",
+                ["ifRevision"] = revision,
+                ["ifAvailabilityRevision"] = availabilityRevision
+            }));
+        var availabilityPayload = Assert.IsType<JsonObject>(availabilityResponse.Payload);
+        Assert.True(availabilityPayload["unchanged"]?.GetValue<bool>());
+        Assert.Equal(revision, availabilityPayload["revision"]?.GetValue<string>());
+        Assert.NotEqual(
+            availabilityRevision,
+            availabilityPayload["availabilityRevision"]?.GetValue<string>());
+        var changes = Assert.IsType<JsonObject>(availabilityPayload["changes"]);
+        Assert.Equal(false, changes[mapTool.Id]?["available"]?.GetValue<bool>());
+        Assert.Equal("map_not_loaded", changes[mapTool.Id]?["code"]?.GetValue<string>());
+        Assert.Null(changes[routeTool.Id]);
+        Assert.NotNull(availabilityPayload["evaluatedAtUtc"]);
     }
 
     [Fact]
@@ -109,11 +218,18 @@ public sealed class ToolProtocolCompositionTests
     private sealed class RecordingJsonTool : IJsonTool
     {
         private readonly bool shouldFail;
+        private readonly string description;
 
-        public RecordingJsonTool(string id, bool shouldFail = false)
+        public RecordingJsonTool(
+            string id,
+            bool shouldFail = false,
+            string? description = null,
+            IReadOnlyList<string>? prerequisites = null)
         {
             Id = id;
             this.shouldFail = shouldFail;
+            this.description = description ?? "Test JSON tool.";
+            PrerequisiteToolIds = prerequisites ?? Array.Empty<string>();
         }
 
         public int ExecutionCount { get; private set; }
@@ -121,10 +237,15 @@ public sealed class ToolProtocolCompositionTests
         public ToolPolicy Policy => ToolPolicy.Read;
         public string Id { get; }
         public string Name => Id;
-        public string Description => "Test JSON tool.";
+        public string Description => description;
         public string Keywords => "test";
         public ToolSchema ArgumentsSchema => ToolSchema.Object(additionalProperties: true);
         public ToolSchema ResultSchema => ToolSchema.Object(additionalProperties: true);
+        public IReadOnlyList<string> PrerequisiteToolIds { get; }
+        public ToolAvailability Availability { get; set; } = ToolAvailability.Available;
+
+        public ValueTask<ToolAvailability> GetAvailabilityAsync(ToolAvailabilityContext context)
+            => ValueTask.FromResult(Availability);
 
         public Task<ToolResult> ExecuteAsync(
             ToolInvocation invocation,

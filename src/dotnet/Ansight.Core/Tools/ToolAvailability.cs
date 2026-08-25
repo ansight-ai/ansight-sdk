@@ -30,16 +30,38 @@ public sealed record ToolAvailability(
         => new(false, reasonCode, reason, requiredState, remediation, retryable);
 
     internal JsonObject ToJson()
-        => new()
+    {
+        var json = new JsonObject
         {
-            ["available"] = IsAvailable,
-            ["reasonCode"] = ReasonCode,
-            ["reason"] = Reason,
-            ["requiredState"] = RequiredState,
-            ["remediation"] = Remediation,
-            ["retryable"] = Retryable,
-            ["evaluatedAtUtc"] = DateTimeOffset.UtcNow
+            ["available"] = IsAvailable
         };
+        if (!string.IsNullOrWhiteSpace(ReasonCode))
+        {
+            json["code"] = ReasonCode;
+        }
+
+        if (!string.IsNullOrWhiteSpace(Reason))
+        {
+            json["reason"] = Reason;
+        }
+
+        if (!string.IsNullOrWhiteSpace(RequiredState))
+        {
+            json["requiredState"] = RequiredState;
+        }
+
+        if (!string.IsNullOrWhiteSpace(Remediation))
+        {
+            json["remediation"] = Remediation;
+        }
+
+        if (Retryable)
+        {
+            json["retryable"] = true;
+        }
+
+        return json;
+    }
 }
 
 /// <summary>

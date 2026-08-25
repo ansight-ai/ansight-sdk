@@ -18,10 +18,14 @@ public sealed class ToolProtocolBridge
     public const string ResultType = "tool.result";
     public const string BatchResultType = "tool.batch.result";
     public const string ErrorType = "tool.error";
-    public const string CatalogSchema = "ansight.tool-catalog.v2";
+    public const string CatalogSchema = "ansight.tool-catalog.v3";
 
     private const int MaximumBatchSize = 32;
     private const int MaximumEvidenceDelayMilliseconds = 2_000;
+    private const int MaximumCatalogResults = 1_000;
+    private const string FullCatalogDetail = "full";
+    private const string IndexCatalogDetail = "index";
+    private const string DefinitionsCatalogDetail = "definitions";
     private readonly ToolRegistry registry;
     private readonly ToolGuard guard;
 
@@ -96,41 +100,92 @@ public sealed class ToolProtocolBridge
                 false);
         }
 
-        var visibleTools = registry.Where(guard.IsToolVisible).ToList();
-        var revision = ComputeCatalogRevision(visibleTools);
-        var requestedRevision = (request.Payload as JsonObject)?["ifRevision"]?.GetValue<string>();
-        var unchanged = string.Equals(requestedRevision, revision, StringComparison.Ordinal);
-        var tools = new JsonArray();
-        if (!unchanged)
+        var requestPayload = request.Payload as JsonObject;
+        var detail = ReadCatalogDetail(requestPayload);
+        var visibleTools = registry
+            .Where(guard.IsToolVisible)
+            .OrderBy(tool => tool.Id, StringComparer.Ordinal)
+            .ToList();
+        var evaluatedAtUtc = DateTimeOffset.UtcNow;
+        var toolStates = new List<CatalogToolState>(visibleTools.Count);
+        foreach (var tool in visibleTools)
         {
-            foreach (var tool in visibleTools)
-            {
-                var availability = await tool.GetAvailabilityAsync(
-                    new ToolAvailabilityContext(request.SessionId, request.Id));
-                tools.Add(ToJson(tool, availability));
-            }
+            var availability = await tool.GetAvailabilityAsync(
+                new ToolAvailabilityContext(request.SessionId, request.Id));
+            toolStates.Add(CreateCatalogToolState(tool, availability));
         }
 
-        return new ToolProtocolEnvelope
+        var revision = ComputeCatalogRevision(toolStates);
+        var availabilityRevision = ComputeAvailabilityRevision(toolStates);
+        var requestedRevision = ReadString(requestPayload?["ifRevision"]);
+        var requestedAvailabilityRevision = ReadString(requestPayload?["ifAvailabilityRevision"]);
+        var staticUnchanged = string.Equals(requestedRevision, revision, StringComparison.Ordinal);
+        var availabilityUnchanged = string.IsNullOrWhiteSpace(requestedAvailabilityRevision)
+            || string.Equals(requestedAvailabilityRevision, availabilityRevision, StringComparison.Ordinal);
+        var isDefinitionProjection = string.Equals(detail, DefinitionsCatalogDetail, StringComparison.Ordinal);
+
+        if (staticUnchanged && availabilityUnchanged && !isDefinitionProjection)
         {
-            Type = CatalogType,
-            Id = CreateResponseId(request.Id),
-            ReplyTo = request.Id,
-            SessionId = request.SessionId,
-            Capability = Capability,
-            SentAt = DateTimeOffset.UtcNow,
-            Payload = new JsonObject
+            return CreateResponseEnvelope(
+                request,
+                CatalogType,
+                new JsonObject
+                {
+                    ["schema"] = CatalogSchema,
+                    ["revision"] = revision,
+                    ["unchanged"] = true
+                });
+        }
+
+        if (staticUnchanged && !availabilityUnchanged && !isDefinitionProjection)
+        {
+            return CreateResponseEnvelope(
+                request,
+                CatalogType,
+                new JsonObject
+                {
+                    ["schema"] = CatalogSchema,
+                    ["revision"] = revision,
+                    ["unchanged"] = true,
+                    ["availabilityRevision"] = availabilityRevision,
+                    ["evaluatedAtUtc"] = evaluatedAtUtc,
+                    ["changes"] = CreateAvailabilityChanges(toolStates)
+                });
+        }
+
+        var selectedStates = ApplyCatalogFilters(toolStates, requestPayload);
+        var serializedTools = new JsonArray();
+        foreach (var state in selectedStates)
+        {
+            serializedTools.Add(detail switch
             {
-                ["schema"] = CatalogSchema,
-                ["revision"] = revision,
-                ["catalogHash"] = revision,
-                ["unchanged"] = unchanged,
-                ["manifest"] = CreateCapabilityManifest(visibleTools, revision).ToJson(),
-                ["guard"] = guard.ToJson(),
-                ["tools"] = tools,
-                ["count"] = visibleTools.Count
-            }
+                IndexCatalogDetail => ToIndexJson(state),
+                DefinitionsCatalogDetail => ToDefinitionJson(state),
+                _ => ToFullJson(state)
+            });
+        }
+
+        var catalogPayload = new JsonObject
+        {
+            ["schema"] = CatalogSchema,
+            ["revision"] = revision,
+            ["tools"] = serializedTools,
+            ["count"] = serializedTools.Count
         };
+        if (!string.Equals(detail, FullCatalogDetail, StringComparison.Ordinal))
+        {
+            catalogPayload["detail"] = detail;
+        }
+
+        if (!isDefinitionProjection)
+        {
+            catalogPayload["availabilityRevision"] = availabilityRevision;
+            catalogPayload["evaluatedAtUtc"] = evaluatedAtUtc;
+            catalogPayload["totalCount"] = toolStates.Count;
+            catalogPayload["categories"] = CreateCategoryCounts(toolStates);
+        }
+
+        return CreateResponseEnvelope(request, CatalogType, catalogPayload);
     }
 
     private async Task<ToolProtocolEnvelope> ExecuteEnvelopeAsync(
@@ -148,7 +203,7 @@ public sealed class ToolProtocolBridge
 
         var outcome = await ExecuteCallAsync(request, payload, cancellationToken);
         return outcome.IsSuccess
-            ? CreateResultEnvelope(request, ResultType, outcome.ToJson())
+            ? CreateResponseEnvelope(request, ResultType, outcome.ToJson())
             : CreateErrorEnvelope(
                 request,
                 outcome.ErrorCode ?? "tool_execution_failed",
@@ -215,7 +270,7 @@ public sealed class ToolProtocolBridge
             ["stoppedEarly"] = results.Count < calls.Count,
             ["results"] = results
         };
-        return CreateResultEnvelope(request, BatchResultType, batchResult);
+        return CreateResponseEnvelope(request, BatchResultType, batchResult);
     }
 
     private async Task<ToolCallExecutionOutcome> ExecuteCallAsync(
@@ -418,7 +473,7 @@ public sealed class ToolProtocolBridge
         return flattened;
     }
 
-    private ToolProtocolEnvelope CreateResultEnvelope(
+    private ToolProtocolEnvelope CreateResponseEnvelope(
         ToolProtocolEnvelope request,
         string type,
         JsonObject payload)
@@ -439,92 +494,369 @@ public sealed class ToolProtocolBridge
         string message,
         bool retryable,
         JsonNode? details = null)
-        => new()
-        {
-            Type = ErrorType,
-            Id = CreateResponseId(request.Id),
-            ReplyTo = request.Id,
-            SessionId = request.SessionId,
-            Capability = Capability,
-            SentAt = DateTimeOffset.UtcNow,
-            Payload = new JsonObject
+        => CreateResponseEnvelope(
+            request,
+            ErrorType,
+            new JsonObject
             {
                 ["code"] = code,
                 ["message"] = message,
                 ["retryable"] = retryable,
                 ["details"] = details
-            }
-        };
+            });
 
-    private string ComputeCatalogRevision(IReadOnlyList<ITool> tools)
-    {
-        var revisionInput = new JsonObject
+    private string ComputeCatalogRevision(IReadOnlyList<CatalogToolState> states)
+        => ComputeRevision(new JsonObject
         {
             ["schema"] = CatalogSchema,
             ["guard"] = guard.ToJson(),
-            ["tools"] = new JsonArray(
-                tools
-                    .OrderBy(tool => tool.Id, StringComparer.Ordinal)
-                    .Select(tool => (JsonNode?)ToStaticJson(tool))
-                    .ToArray())
-        };
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(revisionInput.ToJsonString()));
-        return $"sha256:{Convert.ToHexString(hash).ToLowerInvariant()}";
-    }
+            ["tools"] = new JsonArray(states
+                .OrderBy(state => state.Tool.Id, StringComparer.Ordinal)
+                .Select(state => (JsonNode?)new JsonObject
+                {
+                    ["id"] = state.Tool.Id,
+                    ["definitionRevision"] = state.DefinitionRevision
+                })
+                .ToArray())
+        });
 
-    private static ToolCapabilityManifest CreateCapabilityManifest(
-        IReadOnlyList<ITool> tools,
-        string revision)
-    {
-        var capabilities = new Dictionary<string, ToolCapabilityDefinition>(StringComparer.Ordinal)
+    private static string ComputeAvailabilityRevision(IReadOnlyList<CatalogToolState> states)
+        => ComputeRevision(new JsonObject
         {
-            [Capability] = new(
-                2,
-                [
-                    "batch",
-                    "catalog-revision",
-                    "json-arguments",
-                    "post-evidence",
-                    "runtime-availability",
-                    "schema-validation"
-                ])
-        };
-        foreach (var category in tools.GroupBy(tool => tool.Category, StringComparer.Ordinal))
-        {
-            capabilities[$"{category}.tools"] = new(
-                1,
-                category.Select(tool => tool.Id).OrderBy(id => id, StringComparer.Ordinal).ToArray());
-        }
+            ["tools"] = new JsonArray(states
+                .OrderBy(state => state.Tool.Id, StringComparer.Ordinal)
+                .Select(state => (JsonNode?)new JsonObject
+                {
+                    ["id"] = state.Tool.Id,
+                    ["runtime"] = CreateAvailabilityRevisionJson(state.Availability)
+                })
+                .ToArray())
+        });
 
-        return new ToolCapabilityManifest(
-            ToolCapabilityManifest.CurrentSchema,
-            revision,
-            capabilities);
+    private static CatalogToolState CreateCatalogToolState(ITool tool, ToolAvailability availability)
+    {
+        var staticDefinition = CreateStaticDefinitionJson(tool);
+        return new CatalogToolState(
+            tool,
+            availability,
+            ComputeRevision(staticDefinition));
     }
 
-    private static JsonObject ToJson(ITool tool, ToolAvailability availability)
+    private static JsonObject ToIndexJson(CatalogToolState state)
     {
-        var json = ToStaticJson(tool);
-        json["runtime"] = availability.ToJson();
-        json["executable"] = availability.IsAvailable;
-        return json;
-    }
-
-    private static JsonObject ToStaticJson(ITool tool)
-    {
-        var definition = tool.Definition;
-        return new JsonObject
+        var definition = state.Tool.Definition;
+        var json = new JsonObject
         {
             ["id"] = definition.Id,
             ["name"] = definition.Name,
             ["description"] = definition.Description,
             ["category"] = definition.Category,
             ["policy"] = definition.Policy.ToString().ToLowerInvariant(),
-            ["keywords"] = definition.Keywords,
-            ["argumentEncoding"] = tool is IJsonTool ? "json" : "flattened-string",
-            ["argumentsSchema"] = definition.ArgumentsSchema.ToJson(),
-            ["resultSchema"] = definition.ResultSchema.ToJson()
+            ["definitionRevision"] = state.DefinitionRevision
         };
+        AddOptionalDiscoveryMetadata(json, definition);
+        AddAvailability(json, state.Availability);
+        return json;
+    }
+
+    private static JsonObject ToDefinitionJson(CatalogToolState state)
+    {
+        var json = CreateStaticDefinitionJson(state.Tool);
+        json["definitionRevision"] = state.DefinitionRevision;
+        return json;
+    }
+
+    private static JsonObject ToFullJson(CatalogToolState state)
+    {
+        var json = ToDefinitionJson(state);
+        AddAvailability(json, state.Availability);
+        return json;
+    }
+
+    private static JsonObject CreateStaticDefinitionJson(ITool tool)
+    {
+        var definition = tool.Definition;
+        var json = new JsonObject
+        {
+            ["id"] = definition.Id,
+            ["name"] = definition.Name,
+            ["description"] = definition.Description,
+            ["category"] = definition.Category,
+            ["policy"] = definition.Policy.ToString().ToLowerInvariant(),
+            ["argumentsSchema"] = ToProtocolSchemaJson(definition.ArgumentsSchema),
+            ["resultSchema"] = ToProtocolSchemaJson(definition.ResultSchema)
+        };
+        AddOptionalDiscoveryMetadata(json, definition);
+        if (tool is not IJsonTool)
+        {
+            json["argumentEncoding"] = "flattened-string";
+        }
+
+        return json;
+    }
+
+    private static void AddOptionalDiscoveryMetadata(JsonObject json, ToolDefinition definition)
+    {
+        if (!string.IsNullOrWhiteSpace(definition.Keywords))
+        {
+            json["keywords"] = definition.Keywords;
+        }
+
+        var prerequisiteToolIds = (definition.PrerequisiteToolIds ?? Array.Empty<string>())
+            .Where(toolId => !string.IsNullOrWhiteSpace(toolId))
+            .Select(toolId => toolId.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(toolId => toolId, StringComparer.Ordinal)
+            .ToArray();
+        if (prerequisiteToolIds.Length > 0)
+        {
+            json["prerequisiteToolIds"] = new JsonArray(
+                prerequisiteToolIds.Select(toolId => (JsonNode?)toolId).ToArray());
+        }
+    }
+
+    private static void AddAvailability(JsonObject json, ToolAvailability availability)
+    {
+        if (availability.IsAvailable)
+        {
+            return;
+        }
+
+        json["runtime"] = CreateCompactAvailabilityJson(availability);
+        json["executable"] = false;
+    }
+
+    private static JsonObject CreateCompactAvailabilityJson(ToolAvailability availability)
+    {
+        var json = new JsonObject
+        {
+            ["available"] = availability.IsAvailable
+        };
+        if (!string.IsNullOrWhiteSpace(availability.ReasonCode))
+        {
+            json["code"] = availability.ReasonCode;
+        }
+
+        if (!string.IsNullOrWhiteSpace(availability.Reason))
+        {
+            json["reason"] = availability.Reason;
+        }
+
+        if (!string.IsNullOrWhiteSpace(availability.RequiredState))
+        {
+            json["requiredState"] = availability.RequiredState;
+        }
+
+        if (!string.IsNullOrWhiteSpace(availability.Remediation))
+        {
+            json["remediation"] = availability.Remediation;
+        }
+
+        if (availability.Retryable)
+        {
+            json["retryable"] = true;
+        }
+
+        return json;
+    }
+
+    private static JsonObject CreateAvailabilityRevisionJson(ToolAvailability availability)
+        => availability.IsAvailable
+            ? new JsonObject { ["available"] = true }
+            : CreateCompactAvailabilityJson(availability);
+
+    private static JsonObject CreateAvailabilityChanges(IReadOnlyList<CatalogToolState> states)
+    {
+        var changes = new JsonObject();
+        foreach (var state in states.Where(state => !state.Availability.IsAvailable))
+        {
+            changes[state.Tool.Id] = CreateCompactAvailabilityJson(state.Availability);
+        }
+
+        return changes;
+    }
+
+    private static JsonObject CreateCategoryCounts(IReadOnlyList<CatalogToolState> states)
+    {
+        var categories = new JsonObject();
+        foreach (var category in states
+                     .GroupBy(state => state.Tool.Category, StringComparer.Ordinal)
+                     .OrderBy(category => category.Key, StringComparer.Ordinal))
+        {
+            categories[category.Key] = category.Count();
+        }
+
+        return categories;
+    }
+
+    private static IReadOnlyList<CatalogToolState> ApplyCatalogFilters(
+        IReadOnlyList<CatalogToolState> states,
+        JsonObject? payload)
+    {
+        var requestedIds = ReadStringArray(payload?["ids"]);
+        var requestedIdSet = requestedIds.Count == 0
+            ? null
+            : requestedIds.ToHashSet(StringComparer.Ordinal);
+        var queryTerms = SplitTerms(ReadString(payload?["query"]));
+        var featureTerms = SplitTerms(ReadString(payload?["feature"]));
+        var policy = ReadString(payload?["policy"]);
+        var executableOnly = ReadBoolean(payload?["executableOnly"], fallback: false);
+        var limit = Math.Clamp(
+            ReadInteger(payload?["limit"] ?? payload?["maxResults"], MaximumCatalogResults),
+            1,
+            MaximumCatalogResults);
+
+        return states
+            .Where(state => requestedIdSet is null || requestedIdSet.Contains(state.Tool.Id))
+            .Where(state => policy is null
+                            || string.Equals(
+                                state.Tool.Policy.ToString(),
+                                policy,
+                                StringComparison.OrdinalIgnoreCase))
+            .Where(state => !executableOnly || state.Availability.IsAvailable)
+            .Where(state => MatchesTerms(state.Tool.Definition, queryTerms, featureTerms))
+            .Take(limit)
+            .ToArray();
+    }
+
+    private static bool MatchesTerms(
+        ToolDefinition definition,
+        IReadOnlyList<string> queryTerms,
+        IReadOnlyList<string> featureTerms)
+    {
+        var searchableText = NormalizeSearchText(string.Join(
+            ' ',
+            definition.Id,
+            definition.Name,
+            definition.Description,
+            definition.Category,
+            definition.Keywords,
+            string.Join(' ', definition.PrerequisiteToolIds ?? Array.Empty<string>())));
+        return queryTerms.All(searchableText.Contains)
+               && featureTerms.All(searchableText.Contains);
+    }
+
+    private static string ReadCatalogDetail(JsonObject? payload)
+    {
+        var detail = ReadString(payload?["detail"])?.ToLowerInvariant();
+        return detail is IndexCatalogDetail or DefinitionsCatalogDetail or FullCatalogDetail
+            ? detail
+            : FullCatalogDetail;
+    }
+
+    private static string? ReadString(JsonNode? value)
+        => value is JsonValue jsonValue
+           && jsonValue.TryGetValue<string>(out var text)
+           && !string.IsNullOrWhiteSpace(text)
+            ? text.Trim()
+            : null;
+
+    private static IReadOnlyList<string> ReadStringArray(JsonNode? value)
+        => value is JsonArray array
+            ? array
+                .Select(ReadString)
+                .Where(text => text is not null)
+                .Select(text => text!)
+                .Distinct(StringComparer.Ordinal)
+                .ToArray()
+            : Array.Empty<string>();
+
+    private static bool ReadBoolean(JsonNode? value, bool fallback)
+        => value is JsonValue jsonValue && jsonValue.TryGetValue<bool>(out var result)
+            ? result
+            : fallback;
+
+    private static int ReadInteger(JsonNode? value, int fallback)
+        => value is JsonValue jsonValue && jsonValue.TryGetValue<int>(out var result)
+            ? result
+            : fallback;
+
+    private static IReadOnlyList<string> SplitTerms(string? value)
+        => NormalizeSearchText(value)
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+    private static string NormalizeSearchText(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        return new string(value
+            .ToLowerInvariant()
+            .Select(character => char.IsLetterOrDigit(character) ? character : ' ')
+            .ToArray());
+    }
+
+    private static JsonObject ToProtocolSchemaJson(ToolSchema schema)
+    {
+        var json = new JsonObject
+        {
+            ["type"] = schema.Nullable
+                ? new JsonArray(ToJsonType(schema.Type), "null")
+                : ToJsonType(schema.Type)
+        };
+        if (schema.AdditionalProperties)
+        {
+            json["additionalProperties"] = true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(schema.Description))
+        {
+            json["description"] = schema.Description;
+        }
+
+        if (!string.IsNullOrWhiteSpace(schema.Format))
+        {
+            json["format"] = schema.Format;
+        }
+
+        if (schema.EnumValues.Count > 0)
+        {
+            json["enum"] = new JsonArray(schema.EnumValues.Select(value => (JsonNode?)value).ToArray());
+        }
+
+        if (schema.Items is not null)
+        {
+            json["items"] = ToProtocolSchemaJson(schema.Items);
+        }
+
+        if (schema.Properties.Count > 0)
+        {
+            var properties = new JsonObject();
+            foreach (var property in schema.Properties.OrderBy(property => property.Key, StringComparer.Ordinal))
+            {
+                properties[property.Key] = ToProtocolSchemaJson(property.Value);
+            }
+
+            json["properties"] = properties;
+        }
+
+        if (schema.Required.Count > 0)
+        {
+            json["required"] = new JsonArray(schema.Required.Select(value => (JsonNode?)value).ToArray());
+        }
+
+        return json;
+    }
+
+    private static string ToJsonType(ToolSchemaType type) => type switch
+    {
+        ToolSchemaType.Object => "object",
+        ToolSchemaType.Array => "array",
+        ToolSchemaType.String => "string",
+        ToolSchemaType.Integer => "integer",
+        ToolSchemaType.Number => "number",
+        ToolSchemaType.Boolean => "boolean",
+        _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
+    };
+
+    private static string ComputeRevision(JsonNode value)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(value.ToJsonString()));
+        return $"sha256:{Convert.ToHexString(hash).ToLowerInvariant()}";
     }
 
     private static JsonObject CreateBatchInputError(int index)
@@ -541,6 +873,11 @@ public sealed class ToolProtocolBridge
         };
 
     private static string CreateResponseId(string requestId) => $"{requestId}.response";
+
+    private sealed record CatalogToolState(
+        ITool Tool,
+        ToolAvailability Availability,
+        string DefinitionRevision);
 
     private sealed record ToolCallExecutionOutcome(
         bool IsSuccess,

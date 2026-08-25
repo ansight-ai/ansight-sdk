@@ -9,6 +9,7 @@ public struct AnsightToolDescriptor: Sendable, Codable, Equatable {
     public let keywords: String
     public let argumentsSchema: AnsightToolSchema
     public let resultSchema: AnsightToolSchema
+    public let prerequisiteToolIds: [String]
 
     public init(
         id: String,
@@ -18,7 +19,8 @@ public struct AnsightToolDescriptor: Sendable, Codable, Equatable {
         policy: AnsightToolPolicy = .read,
         keywords: String = "",
         argumentsSchema: AnsightToolSchema = .emptyObject,
-        resultSchema: AnsightToolSchema = .emptyObject
+        resultSchema: AnsightToolSchema = .emptyObject,
+        prerequisiteToolIds: [String] = []
     ) {
         self.id = id
         self.name = name
@@ -28,6 +30,7 @@ public struct AnsightToolDescriptor: Sendable, Codable, Equatable {
         self.keywords = keywords
         self.argumentsSchema = argumentsSchema
         self.resultSchema = resultSchema
+        self.prerequisiteToolIds = prerequisiteToolIds
     }
 
 }
