@@ -1,3 +1,12 @@
+## 1.4.0-preview.3
+
+- Compress tool-catalog responses and report their original and compressed
+  byte counts.
+- Add compact indexed catalog discovery, stable catalog and availability
+  revisions, focused filtering, and per-tool definition revisions.
+- Declare tool prerequisites explicitly and align Flutter's native dependencies
+  with the synchronized SDK release.
+
 ## 1.4.0-preview.1
 
 - Add generic `ui.*` inspection and interaction tools with explicit node
