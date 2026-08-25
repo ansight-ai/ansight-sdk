@@ -55,6 +55,7 @@
 		4CFB098EF0CE16411B5E1C23 /* AnsightHostConnectionOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31C0823ABB8E53D73435D60D /* AnsightHostConnectionOptions.swift */; };
 		4D54D4209AE06AC0ED7AA253 /* AnsightToolPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6634936B556E5DBEDBB9E0BB /* AnsightToolPolicy.swift */; };
 		4DABC4CA99AF6BE0CB64FE70 /* AnsightToolProtocolBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1591B65DCC879A0B53BAB86 /* AnsightToolProtocolBridge.swift */; };
+		F40000000000000000000001 /* AnsightToolProtocolPayloadEncoding.swift in Sources */ = {isa = PBXBuildFile; fileRef = F30000000000000000000001 /* AnsightToolProtocolPayloadEncoding.swift */; };
 		4E0A239BD7E2A9E13B94085C /* CachedPairingProfileDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = B280E1B6FCC5F1261B8C6E93 /* CachedPairingProfileDocument.swift */; };
 		4EF9C7A8C5A6A0F0560C517E /* PairingHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06BFB269042126B1F3D11834 /* PairingHost.swift */; };
 		516ACE0634B320EB5E388F60 /* RecordedMetric.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9859ED36870A369547508FD4 /* RecordedMetric.swift */; };
@@ -267,6 +268,7 @@
 		A1056A526687945C8CC02AFC /* SessionJpegWireProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionJpegWireProtocol.swift; sourceTree = "<group>"; };
 		A155537B79B6E14678D781E3 /* AnsightToolProtocolEnvelope.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightToolProtocolEnvelope.swift; sourceTree = "<group>"; };
 		A1591B65DCC879A0B53BAB86 /* AnsightToolProtocolBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightToolProtocolBridge.swift; sourceTree = "<group>"; };
+		F30000000000000000000001 /* AnsightToolProtocolPayloadEncoding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightToolProtocolPayloadEncoding.swift; sourceTree = "<group>"; };
 		A1F0AE58641F6DAE30DF069B /* DefaultMemoryChannels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultMemoryChannels.swift; sourceTree = "<group>"; };
 		A31E5BDC9D4C1BA29B27A3BE /* HostConnectionRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostConnectionRequest.swift; sourceTree = "<group>"; };
 		A466C65EB64AF95E451AC37E /* AnsightArtifacts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightArtifacts.swift; sourceTree = "<group>"; };
@@ -389,6 +391,7 @@
 				C493D8FA56DEE59F4D388B91 /* AnsightToolExecutionResult.swift */,
 				7754C88F473CEFD5FED1BFD0 /* AnsightToolGuard.swift */,
 				A1591B65DCC879A0B53BAB86 /* AnsightToolProtocolBridge.swift */,
+				F30000000000000000000001 /* AnsightToolProtocolPayloadEncoding.swift */,
 				A155537B79B6E14678D781E3 /* AnsightToolProtocolEnvelope.swift */,
 				8E9C10CDBE0457295FAE0090 /* AnsightToolSchema.swift */,
 				F20000000000000000000002 /* AnsightToolSchemaValidator.swift */,
@@ -664,6 +667,7 @@
 				BE52C4C8E0620FE667403907 /* AnsightToolExecutionResult.swift in Sources */,
 				35F88EE8316B045041BADDC5 /* AnsightToolGuard.swift in Sources */,
 				4DABC4CA99AF6BE0CB64FE70 /* AnsightToolProtocolBridge.swift in Sources */,
+				F40000000000000000000001 /* AnsightToolProtocolPayloadEncoding.swift in Sources */,
 				4941512D05A15F58339B2503 /* AnsightToolProtocolEnvelope.swift in Sources */,
 				314906D3D5B66C996B27A05C /* AnsightToolSchema.swift in Sources */,
 				F10000000000000000000002 /* AnsightToolSchemaValidator.swift in Sources */,

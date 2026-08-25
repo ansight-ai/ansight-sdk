@@ -49,6 +49,6 @@ android {
 dependencies {
     implementation project(":capacitor-android")
     def ansightAndroidVersion =
-            findProperty("ansightAndroidVersion") ?: "1.4.0-preview.2"
-    implementation "ai.ansight:ansight-android:1.4.0-preview.2"
+            findProperty("ansightAndroidVersion") ?: "1.4.0-preview.3"
+    implementation "ai.ansight:ansight-android:1.4.0-preview.3"
 }
