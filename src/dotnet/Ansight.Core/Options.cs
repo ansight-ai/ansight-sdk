@@ -29,6 +29,7 @@ public class Options
         ToolGuard = ToolGuard.Disabled,
         CustomProperties = new SessionCustomProperties(),
         CrashCapture = new CrashCaptureOptions(),
+        AutomaticNetworkCapture = null,
         HostAutoProbe = HostAutoProbeOptions.EnabledDefault.Clone(),
         HostConnection = HostConnectionOptions.Default.Clone()
     };
@@ -124,6 +125,32 @@ public class Options
     /// Durable native crash capture and next-launch delivery policy.
     /// </summary>
     public CrashCaptureOptions CrashCapture { get; private set; } = new();
+
+    /// <summary>
+    /// Optional process-wide HTTP capture. On Apple platforms this enables the native
+    /// <c>NSURLProtocol</c> interceptor for HTTP(S) traffic handled by the URL Loading System.
+    /// On managed platforms it observes <see cref="System.Net.Http.HttpClient"/> diagnostics.
+    /// </summary>
+    public Network.NetworkRequestSanitizationOptions? AutomaticNetworkCapture { get; private set; }
+
+    internal bool? NetworkCaptureEnabledOverride { get; private set; }
+
+    internal Network.NetworkRequestSanitizationOptions? ResolveNetworkCaptureOptions()
+    {
+        if (NetworkCaptureEnabledOverride == false)
+        {
+            return null;
+        }
+
+        if (AutomaticNetworkCapture is not null)
+        {
+            return AutomaticNetworkCapture;
+        }
+
+        return NetworkCaptureEnabledOverride == true || Network.NetworkCaptureEnvironment.IsSimulatorOrEmulator
+            ? new Network.NetworkRequestSanitizationOptions()
+            : null;
+    }
 
     /// <summary>
     /// Background host auto-probe policy used while the runtime is active.
@@ -300,6 +327,10 @@ public class Options
                 ToolGuard = initialOptions.ToolGuard ?? ToolGuard.Disabled,
                 CustomProperties = initialOptions.CustomProperties?.Clone() ?? new SessionCustomProperties(),
                 CrashCapture = initialOptions.CrashCapture?.Clone() ?? new CrashCaptureOptions(),
+                AutomaticNetworkCapture = initialOptions.AutomaticNetworkCapture is null
+                    ? null
+                    : new Network.NetworkRequestSanitizationOptionsBuilder(initialOptions.AutomaticNetworkCapture).Build(),
+                NetworkCaptureEnabledOverride = initialOptions.NetworkCaptureEnabledOverride,
                 HostAutoProbe = initialOptions.HostAutoProbe?.Clone() ?? HostAutoProbeOptions.EnabledDefault.Clone(),
                 HostConnection = initialOptions.HostConnection?.Clone() ?? HostConnectionOptions.Default.Clone()
             };
@@ -378,6 +409,62 @@ public class Options
             options.EnableJniReferenceCountTracking = false;
             return this;
         }
+
+        /// <summary>
+        /// Enables process-wide network capture. Apple apps use a native <c>NSURLProtocol</c>
+        /// interceptor; other .NET apps observe <see cref="System.Net.Http.HttpClient"/> requests.
+        /// </summary>
+        public OptionsBuilder WithNetworkCapture()
+        {
+            options.AutomaticNetworkCapture = new Network.NetworkRequestSanitizationOptions();
+            options.NetworkCaptureEnabledOverride = true;
+            return this;
+        }
+
+        /// <summary>
+        /// Enables process-wide network capture using the supplied app-side privacy and
+        /// sanitization policy.
+        /// </summary>
+        public OptionsBuilder WithNetworkCapture(
+            Action<Network.NetworkRequestSanitizationOptionsBuilder> configure)
+        {
+            ArgumentNullException.ThrowIfNull(configure);
+            var builder = new Network.NetworkRequestSanitizationOptionsBuilder();
+            configure(builder);
+            options.AutomaticNetworkCapture = builder.Build();
+            options.NetworkCaptureEnabledOverride = true;
+            return this;
+        }
+
+        /// <summary>
+        /// Compatibility alias for <see cref="WithNetworkCapture()"/>.
+        /// </summary>
+        public OptionsBuilder WithAutomaticNetworkCapture()
+            => WithNetworkCapture();
+
+        /// <summary>
+        /// Compatibility alias for <see cref="WithNetworkCapture(Action{Network.NetworkRequestSanitizationOptionsBuilder})"/>.
+        /// </summary>
+        public OptionsBuilder WithAutomaticNetworkCapture(
+            Action<Network.NetworkRequestSanitizationOptionsBuilder> configure)
+            => WithNetworkCapture(configure);
+
+        /// <summary>
+        /// Disables process-wide automatic <see cref="System.Net.Http.HttpClient"/> capture.
+        /// Explicit <see cref="Ansight.Network.AnsightHttpMessageHandler"/> instances remain active.
+        /// </summary>
+        public OptionsBuilder WithoutNetworkCapture()
+        {
+            options.AutomaticNetworkCapture = null;
+            options.NetworkCaptureEnabledOverride = false;
+            return this;
+        }
+
+        /// <summary>
+        /// Compatibility alias for <see cref="WithoutNetworkCapture()"/>.
+        /// </summary>
+        public OptionsBuilder WithoutAutomaticNetworkCapture()
+            => WithoutNetworkCapture();
 
         /// <summary>
         /// Sets the retention period, in seconds, for buffered samples.

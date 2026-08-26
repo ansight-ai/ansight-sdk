@@ -159,6 +159,21 @@ public final class AnsightOptionsBuilder {
     }
 
     @discardableResult
+    public func withNetworkCapture(
+        _ networkCapture: AnsightNetworkCaptureOptions = AnsightNetworkCaptureOptions(enabled: true)
+    ) -> AnsightOptionsBuilder {
+        options.networkCapture = networkCapture
+        options.networkCapture.enabled = true
+        return self
+    }
+
+    @discardableResult
+    public func withoutNetworkCapture() -> AnsightOptionsBuilder {
+        options.networkCapture.enabled = false
+        return self
+    }
+
+    @discardableResult
     public func withToolGuard(_ toolGuard: AnsightToolGuard) -> AnsightOptionsBuilder {
         options.toolGuard = toolGuard
         return self

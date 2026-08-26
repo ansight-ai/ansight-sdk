@@ -54,6 +54,9 @@ internal sealed class AppleNativeRuntimeBridge : INativeRuntimeBridge
         => ANSDotNetRuntime.RecordNetworkRequest(
             JsonSerializer.Serialize(request, PairingJson.Compact));
 
+    public void SetNetworkCaptureRedactionEnabled(bool enabled)
+        => ANSDotNetRuntime.SetNetworkCaptureRedactionEnabled(enabled);
+
     public string? RecordCrashCandidate(
         string runtime,
         string kind,

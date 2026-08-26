@@ -16,6 +16,7 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
     public var hostAutoProbe: AnsightHostAutoProbeOptions
     public var hostConnection: AnsightHostConnectionOptions
     public var crashCapture: AnsightCrashCaptureOptions
+    public var networkCapture: AnsightNetworkCaptureOptions
 
     public init(
         sampleFrequencyMilliseconds: Int = AnsightSamplingLimits.defaultSampleFrequencyMilliseconds,
@@ -32,7 +33,8 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
         customProperties: [String: [String: String]] = [:],
         hostAutoProbe: AnsightHostAutoProbeOptions = .enabledDefault,
         hostConnection: AnsightHostConnectionOptions = AnsightHostConnectionOptions(),
-        crashCapture: AnsightCrashCaptureOptions = AnsightCrashCaptureOptions()
+        crashCapture: AnsightCrashCaptureOptions = AnsightCrashCaptureOptions(),
+        networkCapture: AnsightNetworkCaptureOptions = AnsightNetworkCaptureOptions()
     ) {
         self.sampleFrequencyMilliseconds = sampleFrequencyMilliseconds
         self.retentionPeriodSeconds = retentionPeriodSeconds
@@ -49,6 +51,7 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
         self.hostAutoProbe = hostAutoProbe
         self.hostConnection = hostConnection
         self.crashCapture = crashCapture
+        self.networkCapture = networkCapture
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -67,6 +70,7 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
         case hostAutoProbe
         case hostConnection
         case crashCapture
+        case networkCapture
     }
 
     public init(from decoder: Decoder) throws {
@@ -95,6 +99,10 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
             AnsightCrashCaptureOptions.self,
             forKey: .crashCapture
         ) ?? AnsightCrashCaptureOptions()
+        networkCapture = try container.decodeIfPresent(
+            AnsightNetworkCaptureOptions.self,
+            forKey: .networkCapture
+        ) ?? AnsightNetworkCaptureOptions()
     }
 
     public static func createBuilder() -> AnsightOptionsBuilder {
@@ -139,6 +147,7 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
         copy.hostAutoProbe.validate()
         try copy.hostConnection.validate()
         copy.crashCapture.validate()
+        copy.networkCapture.validate()
         return copy
     }
 }

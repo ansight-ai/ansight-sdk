@@ -1036,8 +1036,10 @@ internal static partial class VisualTreeSupport
                 ["width"] = view.Width,
                 ["height"] = view.Height
             },
-            visual: CreateAndroidVisual(view),
-            zIndex: CreateAndroidZIndex(view),
+            visual: includeProperties
+                ? CreateAndroidVisual(view)
+                : CreateAndroidSemanticVisual(view),
+            zIndex: includeProperties ? CreateAndroidZIndex(view) : null,
             properties: properties,
             childCount: childCount,
             children: children);
@@ -1050,6 +1052,12 @@ internal static partial class VisualTreeSupport
             ? null
             : zIndex;
     }
+
+    private static JsonObject CreateAndroidSemanticVisual(View view)
+        => new()
+        {
+            ["opacity"] = Math.Clamp(view.Alpha, 0f, 1f)
+        };
 
     private static string? GetAndroidLabel(View view)
     {
@@ -1568,7 +1576,7 @@ internal static partial class VisualTreeSupport
             id: !string.IsNullOrWhiteSpace(view.Handle.ToString()) ? view.Handle.ToString() : view.GetHashCode().ToString(),
             type: view.GetType().Name,
             automationId: string.IsNullOrWhiteSpace(view.AccessibilityIdentifier) ? null : view.AccessibilityIdentifier.Trim(),
-            label: GetAppleLabel(view),
+            label: GetAppleLabel(view, includeProperties),
             role: GetAppleRole(view),
             supportedActions: GetAppleSupportedActions(view),
             isVisible: !view.Hidden && view.Alpha > 0,
@@ -1581,8 +1589,10 @@ internal static partial class VisualTreeSupport
                 ["width"] = (double)frame.Width,
                 ["height"] = (double)frame.Height
             },
-            visual: CreateAppleVisual(view),
-            zIndex: CreateAppleZIndex(view),
+            visual: includeProperties
+                ? CreateAppleVisual(view)
+                : CreateAppleSemanticVisual(view),
+            zIndex: includeProperties ? CreateAppleZIndex(view) : null,
             properties: properties,
             childCount: subviews.Length,
             children: children);
@@ -1596,18 +1606,25 @@ internal static partial class VisualTreeSupport
             : zIndex;
     }
 
-    private static string? GetAppleLabel(UIView view)
+    private static string? GetAppleLabel(UIView view, bool includeComputedStyles)
     {
         return view switch
         {
             UILabel label when !string.IsNullOrWhiteSpace(label.Text) => label.Text,
             UIButton button when !string.IsNullOrWhiteSpace(button.CurrentTitle) => button.CurrentTitle,
-            UITextField { SecureTextEntry: true } textField => GetAppleTextFieldPlaceholder(textField) ?? view.AccessibilityLabel ?? view.AccessibilityIdentifier,
+            UITextField { SecureTextEntry: true } textField when includeComputedStyles => GetAppleTextFieldPlaceholder(textField) ?? view.AccessibilityLabel ?? view.AccessibilityIdentifier,
+            UITextField { SecureTextEntry: true } => view.AccessibilityLabel ?? view.AccessibilityIdentifier,
             UITextField textField when !string.IsNullOrWhiteSpace(textField.Text) => textField.Text,
             UITextView textView when !string.IsNullOrWhiteSpace(textView.Text) => textView.Text,
             _ => view.AccessibilityLabel ?? view.AccessibilityIdentifier
         };
     }
+
+    private static JsonObject CreateAppleSemanticVisual(UIView view)
+        => new()
+        {
+            ["opacity"] = Math.Clamp((double)view.Alpha, 0d, 1d)
+        };
 
     private static string GetAppleRole(UIView view)
     {

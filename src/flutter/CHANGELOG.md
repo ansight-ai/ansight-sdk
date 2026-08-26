@@ -1,3 +1,11 @@
+## 1.4.0-preview.5
+
+- Align native dependencies with the SDK release that automatically captures
+  simulator HTTP traffic while excluding Ansight control and WebSocket
+  channels before evidence creation.
+- Add runtime-configurable network redaction and safer handling of deeply
+  nested visual-tree tool responses.
+
 ## 1.4.0-preview.3
 
 - Compress tool-catalog responses and report their original and compressed

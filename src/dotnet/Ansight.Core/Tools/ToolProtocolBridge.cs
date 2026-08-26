@@ -89,6 +89,13 @@ public sealed class ToolProtocolBridge
             indented ? Pairing.PairingJson.Pretty : Pairing.PairingJson.Compact);
     }
 
+    internal ToolProtocolEnvelope CreateBridgeFailureEnvelope(ToolProtocolEnvelope request)
+        => CreateErrorEnvelope(
+            request,
+            "tool_protocol_bridge_failed",
+            "Ansight could not encode the tool response. The app remains running.",
+            retryable: true);
+
     private async Task<ToolProtocolEnvelope> CreateCatalogEnvelopeAsync(ToolProtocolEnvelope request)
     {
         if (!guard.DiscoveryEnabled)

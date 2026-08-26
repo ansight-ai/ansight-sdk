@@ -48,6 +48,11 @@ public final class ANSDotNetRuntime: NSObject {
         }
     }
 
+    @objc(setNetworkCaptureRedactionEnabled:)
+    public static func setNetworkCaptureRedactionEnabled(_ enabled: Bool) {
+        AnsightRuntime.shared.setNetworkCaptureRedactionEnabled(enabled)
+    }
+
     @objc(recordCrashCandidateWithRuntime:kind:message:stack:fatal:metadataJson:)
     public static func recordCrashCandidate(
         runtime: String,
@@ -426,6 +431,20 @@ public final class ANSDotNetRuntime: NSObject {
                 maximumTraceBytes: crashCapture.maximumTraceBytes
             )
         }
+        if let networkCapture = bridgeOptions.networkCapture {
+            options.networkCapture = AnsightNetworkCaptureOptions(
+                enabled: networkCapture.enabled,
+                redactSensitiveData: networkCapture.redactSensitiveData,
+                includeRequestHeaders: networkCapture.includeRequestHeaders,
+                includeResponseHeaders: networkCapture.includeResponseHeaders,
+                includeQueryString: networkCapture.includeQueryString,
+                includeBodySizes: networkCapture.includeBodySizes,
+                captureRequestBody: networkCapture.captureRequestBody,
+                captureResponseBody: networkCapture.captureResponseBody,
+                maximumBodyBytes: networkCapture.maximumBodyBytes,
+                captureBinaryBodies: networkCapture.captureBinaryBodies
+            )
+        }
 
         options.toolGuard = toolGuard(bridgeOptions.toolGuard)
         options.customProperties = bridgeOptions.customProperties ?? [:]
@@ -658,6 +677,7 @@ private struct BridgeOptions: Decodable {
     let sessionJpegCapture: BridgeSessionJpegCapture?
     let touchCapture: BridgeTouchCapture?
     let crashCapture: BridgeCrashCapture?
+    let networkCapture: BridgeNetworkCapture?
     let toolGuard: String?
     let customProperties: [String: [String: String]]?
     let hostAutoProbe: BridgeHostAutoProbe?
@@ -670,6 +690,19 @@ private struct BridgeOptions: Decodable {
     var hasTouchCapture: Bool {
         touchCapture != nil
     }
+}
+
+private struct BridgeNetworkCapture: Decodable {
+    let enabled: Bool
+    let redactSensitiveData: Bool
+    let includeRequestHeaders: Bool
+    let includeResponseHeaders: Bool
+    let includeQueryString: Bool
+    let includeBodySizes: Bool
+    let captureRequestBody: Bool
+    let captureResponseBody: Bool
+    let maximumBodyBytes: Int
+    let captureBinaryBodies: Bool
 }
 
 private struct BridgeCrashCapture: Decodable {

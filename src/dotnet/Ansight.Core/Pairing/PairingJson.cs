@@ -8,11 +8,19 @@ namespace Ansight.Pairing;
 public static class PairingJson
 {
     /// <summary>
+    /// Maximum supported JSON depth for protocol envelopes and tool payloads. Visual trees can
+    /// legitimately contain 64 nested UI nodes, with child arrays and envelope objects adding
+    /// additional JSON levels around them.
+    /// </summary>
+    public const int MaximumDepth = 256;
+
+    /// <summary>
     /// Compact camel-case JSON settings used for on-the-wire pairing payloads.
     /// </summary>
     public static readonly JsonSerializerOptions Compact = new()
     {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        MaxDepth = MaximumDepth
     };
 
     /// <summary>

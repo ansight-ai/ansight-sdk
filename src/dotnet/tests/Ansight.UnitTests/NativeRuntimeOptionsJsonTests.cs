@@ -37,6 +37,9 @@ public sealed class NativeRuntimeOptionsJsonTests
                 MaximumBreadcrumbs = 20,
                 MaximumTraceBytes = 64 * 1024
             })
+            .WithNetworkCapture(builder => builder
+                .WithoutRequestBodies()
+                .WithMaximumBodyBytes(8 * 1024))
             .RegisterCustomProperty("flags", "beta", true)
             .RegisterCustomProperty("limits", "count", 5)
             .Build();
@@ -58,6 +61,9 @@ public sealed class NativeRuntimeOptionsJsonTests
         Assert.True(json["crashCapture"]!["enabled"]!.GetValue<bool>());
         Assert.Equal(4, json["crashCapture"]!["maximumPendingReports"]!.GetValue<int>());
         Assert.Equal(64 * 1024, json["crashCapture"]!["maximumTraceBytes"]!.GetValue<int>());
+        Assert.True(json["networkCapture"]!["enabled"]!.GetValue<bool>());
+        Assert.False(json["networkCapture"]!["captureRequestBody"]!.GetValue<bool>());
+        Assert.Equal(8 * 1024, json["networkCapture"]!["maximumBodyBytes"]!.GetValue<int>());
         Assert.Equal("true", json["customProperties"]!["flags"]!["beta"]!.GetValue<string>());
         Assert.Equal("5", json["customProperties"]!["limits"]!["count"]!.GetValue<string>());
         Assert.Equal(

@@ -54,6 +54,10 @@ internal sealed class NullNativeRuntimeBridge : INativeRuntimeBridge
     {
     }
 
+    public void SetNetworkCaptureRedactionEnabled(bool enabled)
+    {
+    }
+
     public string? RecordCrashCandidate(
         string runtime,
         string kind,

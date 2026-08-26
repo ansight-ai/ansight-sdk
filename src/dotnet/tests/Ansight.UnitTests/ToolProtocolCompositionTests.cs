@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using Ansight.Native;
 using Ansight.Tools;
 
 namespace Ansight.UnitTests;
@@ -199,6 +200,52 @@ public sealed class ToolProtocolCompositionTests
         Assert.Equal(1, treeTool.ExecutionCount);
     }
 
+    [Fact]
+    public async Task Call_SerializesDeepVisualTreePayloadWithinProtocolLimit()
+    {
+        var bridge = new ToolRegistry([new DeepJsonTool("ui.get_visual_tree", depth: 80)])
+            .CreateBridge(ToolGuard.ReadOnly);
+
+        var response = await bridge.HandleAsync(Request(
+            ToolProtocolBridge.CallType,
+            "deep-tree",
+            new JsonObject
+            {
+                ["toolId"] = "ui.get_visual_tree",
+                ["arguments"] = new JsonObject()
+            }));
+
+        Assert.Equal(ToolProtocolBridge.ResultType, response.Type);
+        var json = bridge.SerializeEnvelope(response);
+        Assert.Contains("deep-tree.response", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void NativeAdapter_ContainsResponseEncodingFailures()
+    {
+        var bridge = new ToolRegistry([new DeepJsonTool("ui.get_visual_tree", depth: 300)])
+            .CreateBridge(ToolGuard.ReadOnly);
+        var request = Request(
+            ToolProtocolBridge.CallType,
+            "too-deep-tree",
+            new JsonObject
+            {
+                ["toolId"] = "ui.get_visual_tree",
+                ["arguments"] = new JsonObject()
+            });
+
+        var responseJson = NativeToolProtocolAdapter.Handle(
+            bridge,
+            bridge.SerializeEnvelope(request));
+
+        Assert.NotNull(responseJson);
+        Assert.True(bridge.TryParseEnvelope(responseJson, out var response, out var error), error);
+        Assert.Equal(ToolProtocolBridge.ErrorType, response?.Type);
+        Assert.Equal(
+            "tool_protocol_bridge_failed",
+            response?.Payload?["code"]?.GetValue<string>());
+    }
+
     private static ToolProtocolEnvelope Request(string type, string id, JsonObject payload)
         => new()
         {
@@ -259,6 +306,42 @@ public sealed class ToolProtocolCompositionTests
                     ["execution"] = ExecutionCount,
                     ["arguments"] = invocation.Arguments.DeepClone()
                 }));
+        }
+    }
+
+    private sealed class DeepJsonTool : IJsonTool
+    {
+        private readonly int depth;
+
+        public DeepJsonTool(string id, int depth)
+        {
+            Id = id;
+            this.depth = depth;
+        }
+
+        public string Category => "test";
+        public ToolPolicy Policy => ToolPolicy.Read;
+        public string Id { get; }
+        public string Name => Id;
+        public string Description => "Returns a deeply nested visual-tree-shaped payload.";
+        public string Keywords => "test deep tree";
+        public ToolSchema ArgumentsSchema => ToolSchema.Object(additionalProperties: true);
+        public ToolSchema ResultSchema => ToolSchema.Object(additionalProperties: true);
+
+        public Task<ToolResult> ExecuteAsync(
+            ToolInvocation invocation,
+            CancellationToken cancellationToken)
+        {
+            var root = new JsonObject();
+            var current = root;
+            for (var index = 0; index < depth; index++)
+            {
+                var child = new JsonObject();
+                current["children"] = new JsonArray(child);
+                current = child;
+            }
+
+            return Task.FromResult(ToolResult.Success(root));
         }
     }
 }

@@ -53,6 +53,10 @@ interface ANSDotNetRuntime
     void RecordNetworkRequest(string requestJson);
 
     [Static]
+    [Export("setNetworkCaptureRedactionEnabled:")]
+    void SetNetworkCaptureRedactionEnabled(bool enabled);
+
+    [Static]
     [return: NullAllowed]
     [Export("recordCrashCandidateWithRuntime:kind:message:stack:fatal:metadataJson:")]
     string RecordCrashCandidate(

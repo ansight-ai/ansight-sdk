@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name         = "AnsightToolsPreferences"
-  s.version      = "1.4.0-preview.3"
+  s.version      = "1.4.0-preview.5"
   s.summary      = "Ansight UserDefaults remote tools for native iOS apps"
   s.homepage     = "https://github.com/ansight-ai/ansight-sdk"
   s.license      = { :type => "Ansight SDK Source-Available License", :file => "LICENSE" }

@@ -1,5 +1,6 @@
 namespace Ansight.OfflineCapture;
 
+using Ansight.Network;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -190,6 +191,7 @@ public sealed class OfflineCaptureUploader
                 {
                     Content = content
                 };
+                AnsightHttpMessageHandler.MarkAsInternalTraffic(request);
                 request.Headers.TryAddWithoutValidation("x-upsert", "false");
                 using var response = await httpClient.SendAsync(
                     request,
@@ -237,6 +239,7 @@ public sealed class OfflineCaptureUploader
                 {
                     Content = JsonContent.Create(body)
                 };
+                AnsightHttpMessageHandler.MarkAsInternalTraffic(request);
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", options.ApiKey);
                 request.Headers.TryAddWithoutValidation("x-client-info", "ansight-offline-capture-dotnet");
                 if (!string.IsNullOrWhiteSpace(idempotencyKey))

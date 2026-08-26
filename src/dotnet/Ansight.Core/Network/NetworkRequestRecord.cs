@@ -52,6 +52,12 @@ public sealed record class NetworkRequestRecord
     public required string Url { get; init; }
 
     /// <summary>
+    /// Whether sensitive values in this captured record should be redacted by downstream hosts.
+    /// Defaults to <see langword="true"/>.
+    /// </summary>
+    public bool RedactSensitiveData { get; init; } = true;
+
+    /// <summary>
     /// Negotiated HTTP protocol version when available.
     /// </summary>
     public string? Protocol { get; init; }

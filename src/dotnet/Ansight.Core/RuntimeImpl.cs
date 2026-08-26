@@ -30,9 +30,11 @@ internal class RuntimeImpl : IRuntime
     private readonly IHostConnection hostConnection;
     private readonly SessionCustomProperties customProperties;
     private readonly INativeRuntimeBridge nativeRuntime;
+    private readonly IDisposable? automaticNetworkCapture;
     private readonly bool usesNativeRuntime;
     private bool fpsTrackingEnabled;
     private readonly bool batteryLevelTrackingEnabled;
+    private bool networkCaptureRedactionEnabled;
 
     public IDataSink DataSink => dataSink;
     internal Options Options => options;
@@ -42,10 +44,13 @@ internal class RuntimeImpl : IRuntime
     internal AppLifecycleState CurrentAppLifecycleState => mutableDataSink.CurrentAppLifecycleState;
     internal DateTimeOffset? CurrentAppLifecycleStateChangedUtc => mutableDataSink.CurrentAppLifecycleStateChangedUtc;
     internal string ProcessSessionId => nativeRuntime.ProcessSessionId;
+    internal bool IsAutomaticNetworkCaptureInstalled => automaticNetworkCapture is not null;
 
     internal void RecordNetworkRequest(NetworkRequestRecord request)
     {
-        var normalized = NetworkRequestSanitizer.SanitizeForTransport(request);
+        var normalized = NetworkRequestSanitizer.SanitizeForTransport(
+            request,
+            Volatile.Read(ref networkCaptureRedactionEnabled));
 
         NetworkRequestHub.Record(normalized);
         if (usesNativeRuntime)
@@ -72,6 +77,7 @@ internal class RuntimeImpl : IRuntime
         usesNativeRuntime = nativeRuntime.IsAvailable;
         fpsTrackingEnabled = options.EnableFramesPerSecond;
         batteryLevelTrackingEnabled = options.EnableBatteryLevel && batteryLevelMonitor.IsSupported;
+        networkCaptureRedactionEnabled = options.ResolveNetworkCaptureOptions()?.RedactSensitiveData ?? true;
         ToolBridge = options.Tools.CreateBridge(options.ToolGuard);
         if (usesNativeRuntime)
         {
@@ -87,6 +93,18 @@ internal class RuntimeImpl : IRuntime
                 cachedProfileRetention: options.HostConnection.ConnectionProfileRetention);
             hostConnection = new HostPairingManager(managedHostConnection, options.HostConnection);
         }
+#if IOS || MACCATALYST
+        // Apple native capture is installed by AnsightCore through NSURLProtocol. Running the
+        // managed DiagnosticListener as well would duplicate URLSession-backed HttpClient traffic.
+        automaticNetworkCapture = null;
+#else
+        automaticNetworkCapture = options.ResolveNetworkCaptureOptions() is { } networkCaptureOptions
+            ? new AutomaticHttpClientNetworkCapture(
+                () => hostConnection.IsConnected,
+                RecordNetworkRequest,
+                networkCaptureOptions)
+            : null;
+#endif
         InitializeRuntimeFeatures();
     }
 
@@ -95,6 +113,12 @@ internal class RuntimeImpl : IRuntime
     public bool IsFramesPerSecondEnabled => fpsTrackingEnabled;
 
     public bool IsTouchCaptureEnabled => TouchCaptureHub.IsRuntimeCaptureEnabled;
+
+    public void SetNetworkCaptureRedactionEnabled(bool enabled)
+    {
+        Volatile.Write(ref networkCaptureRedactionEnabled, enabled);
+        nativeRuntime.SetNetworkCaptureRedactionEnabled(enabled);
+    }
 
     public event EventHandler? OnActivated;
 

@@ -11,6 +11,11 @@ namespace Ansight.Network;
 public sealed class AnsightHttpMessageHandler : DelegatingHandler
 {
     private const int temporaryFileThresholdBytes = 1024 * 1024;
+    internal const string InternalTrafficHeaderName = "X-Ansight-Internal-Traffic";
+    internal static readonly HttpRequestOptionsKey<bool> ExplicitCaptureMarker =
+        new("Ansight.ExplicitNetworkCapture");
+    internal static readonly HttpRequestOptionsKey<bool> InternalTrafficMarker =
+        new("Ansight.InternalNetworkTraffic");
     private readonly NetworkRequestSanitizationOptions sanitizationOptions;
 
     /// <summary>
@@ -73,6 +78,11 @@ public sealed class AnsightHttpMessageHandler : DelegatingHandler
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
+        if (IsInternalTraffic(request))
+        {
+            return await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        }
+        request.Options.Set(ExplicitCaptureMarker, true);
         if (!Runtime.HostConnection.IsConnected)
         {
             return await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
@@ -141,6 +151,26 @@ public sealed class AnsightHttpMessageHandler : DelegatingHandler
             }
         }
     }
+
+    internal static void MarkAsInternalTraffic(HttpRequestMessage request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        request.Options.Set(InternalTrafficMarker, true);
+#if IOS || MACCATALYST
+        // NSURLProtocol cannot see HttpRequestMessage.Options. The native interceptor consumes
+        // and removes this private marker before forwarding, so it never reaches the server.
+        if (Runtime.IsInitialized
+            && Runtime.MutableInstance.Options.ResolveNetworkCaptureOptions() is not null)
+        {
+            request.Headers.TryAddWithoutValidation(InternalTrafficHeaderName, "1");
+        }
+#endif
+    }
+
+    internal static bool IsInternalTraffic(HttpRequestMessage request)
+        => request.Options.TryGetValue(InternalTrafficMarker, out var internalTraffic)
+           && internalTraffic
+           || request.Headers.Contains(InternalTrafficHeaderName);
 
     private static NetworkRequestSanitizationOptions BuildOptions(
         Action<NetworkRequestSanitizationOptionsBuilder> configure)

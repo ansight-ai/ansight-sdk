@@ -49,6 +49,7 @@ public struct AnsightNetworkRequest: Codable, Equatable, Sendable {
     public let durationMilliseconds: Double
     public let method: String
     public let url: String
+    public let redactSensitiveData: Bool
     public let `protocol`: String?
     public let requestHeaders: [AnsightNetworkHeader]
     public let requestBodySizeBytes: Int64?
@@ -70,6 +71,7 @@ public struct AnsightNetworkRequest: Codable, Equatable, Sendable {
         durationMilliseconds: Double,
         method: String,
         url: String,
+        redactSensitiveData: Bool = true,
         protocol: String? = nil,
         requestHeaders: [AnsightNetworkHeader] = [],
         requestBodySizeBytes: Int64? = nil,
@@ -90,6 +92,7 @@ public struct AnsightNetworkRequest: Codable, Equatable, Sendable {
         self.durationMilliseconds = durationMilliseconds
         self.method = method
         self.url = url
+        self.redactSensitiveData = redactSensitiveData
         self.protocol = `protocol`
         self.requestHeaders = requestHeaders
         self.requestBodySizeBytes = requestBodySizeBytes
@@ -101,6 +104,31 @@ public struct AnsightNetworkRequest: Codable, Equatable, Sendable {
         self.responseBody = responseBody
         self.errorType = errorType
         self.errorMessage = errorMessage
+    }
+
+    func withRedactSensitiveData(_ enabled: Bool) -> AnsightNetworkRequest {
+        AnsightNetworkRequest(
+            schema: schema,
+            id: id,
+            source: source,
+            startedAtUtc: startedAtUtc,
+            completedAtUtc: completedAtUtc,
+            durationMilliseconds: durationMilliseconds,
+            method: method,
+            url: url,
+            redactSensitiveData: enabled,
+            protocol: `protocol`,
+            requestHeaders: requestHeaders,
+            requestBodySizeBytes: requestBodySizeBytes,
+            requestBody: requestBody,
+            statusCode: statusCode,
+            reasonPhrase: reasonPhrase,
+            responseHeaders: responseHeaders,
+            responseBodySizeBytes: responseBodySizeBytes,
+            responseBody: responseBody,
+            errorType: errorType,
+            errorMessage: errorMessage
+        )
     }
 }
 
@@ -192,6 +220,7 @@ public enum AnsightNetworkRequestSanitizer {
                 : 0,
             method: normalizeRequired(request.method, fallback: "GET", maximumLength: 32).uppercased(),
             url: sanitizeUrl(request.url),
+            redactSensitiveData: true,
             protocol: normalizeOptional(request.protocol, maximumLength: 64),
             requestHeaders: sanitizeHeaders(request.requestHeaders),
             requestBodySizeBytes: normalizeSize(request.requestBodySizeBytes),

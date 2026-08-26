@@ -37,7 +37,7 @@ public sealed class NetworkRequestSanitizerTests
     }
 
     [Fact]
-    public void Sanitize_AppliesAppPolicyAndMandatoryRedactionAgain()
+    public void Sanitize_AppliesAppPolicyAndDefaultRedactionAgain()
     {
         var result = NetworkRequestSanitizer.Sanitize(
             new NetworkRequestRecord
@@ -76,6 +76,44 @@ public sealed class NetworkRequestSanitizerTests
         Assert.Null(result.RequestBodySizeBytes);
         Assert.Equal("<redacted>", result.RequestHeaders[0].Value);
         Assert.Equal("<redacted>", result.RequestHeaders[2].Value);
+    }
+
+    [Fact]
+    public void Sanitize_CanExplicitlyRetainSensitiveValues()
+    {
+        var result = NetworkRequestSanitizer.Sanitize(
+            new NetworkRequestRecord
+            {
+                Id = "request-raw",
+                Source = "test",
+                StartedAtUtc = DateTimeOffset.Parse("2026-08-23T00:00:00Z"),
+                CompletedAtUtc = DateTimeOffset.Parse("2026-08-23T00:00:01Z"),
+                DurationMilliseconds = 1000,
+                Method = "POST",
+                Url = "https://example.test/path?access_token=raw-token",
+                RequestHeaders =
+                [
+                    new NetworkHeader { Name = "Authorization", Value = "Bearer raw-token" }
+                ],
+                RequestBody = new NetworkBody
+                {
+                    ContentType = "application/json",
+                    Encoding = NetworkBody.Utf8Encoding,
+                    Data = "{\"token\":\"raw-token\"}",
+                    CapturedBytes = 21,
+                    TotalBytes = 21,
+                    Truncated = false
+                }
+            },
+            new NetworkRequestSanitizationOptions
+            {
+                RedactSensitiveData = false
+            });
+
+        Assert.NotNull(result);
+        Assert.Contains("access_token=raw-token", result.Url, StringComparison.Ordinal);
+        Assert.Equal("Bearer raw-token", result.RequestHeaders[0].Value);
+        Assert.Contains("raw-token", result.RequestBody!.Data, StringComparison.Ordinal);
     }
 
     [Fact]

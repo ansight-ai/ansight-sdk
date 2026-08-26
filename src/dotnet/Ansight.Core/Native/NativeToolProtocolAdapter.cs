@@ -39,11 +39,31 @@ internal static class NativeToolProtocolAdapter
             return null;
         }
 
-        var response = toolBridge.HandleAsync(envelope, CancellationToken.None)
-            .ConfigureAwait(false)
-            .GetAwaiter()
-            .GetResult();
-        return toolBridge.SerializeEnvelope(response);
+        try
+        {
+            var response = toolBridge.HandleAsync(envelope, CancellationToken.None)
+                .ConfigureAwait(false)
+                .GetAwaiter()
+                .GetResult();
+            return toolBridge.SerializeEnvelope(response);
+        }
+        catch (Exception exception)
+        {
+            // A managed exception must never cross the Swift/Objective-C callback boundary. Apple
+            // turns such an escape into an uncaught native exception, terminating the target app.
+            Logger.Warning(
+                $"Native tool protocol request '{envelope.Id}' failed safely: {exception.Message}");
+            try
+            {
+                return toolBridge.SerializeEnvelope(toolBridge.CreateBridgeFailureEnvelope(envelope));
+            }
+            catch (Exception responseException)
+            {
+                Logger.Warning(
+                    $"Native tool protocol failure response could not be encoded: {responseException.Message}");
+                return null;
+            }
+        }
     }
 
     internal static void ResponseSent(ToolProtocolBridge toolBridge, string? requestJson)

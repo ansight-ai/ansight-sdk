@@ -82,7 +82,12 @@ public static class ToolProtocolPayloadEncoding
         {
             var compressedBytes = Convert.FromBase64String(encodedData);
             var json = Encoding.UTF8.GetString(Decompress(compressedBytes));
-            decodedPayload = JsonNode.Parse(json);
+            decodedPayload = JsonNode.Parse(
+                json,
+                documentOptions: new JsonDocumentOptions
+                {
+                    MaxDepth = Pairing.PairingJson.MaximumDepth
+                });
             return true;
         }
         catch (Exception exception)

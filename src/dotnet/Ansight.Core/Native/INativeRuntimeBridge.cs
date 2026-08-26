@@ -30,6 +30,8 @@ internal interface INativeRuntimeBridge
 
     void RecordNetworkRequest(NetworkRequestRecord request);
 
+    void SetNetworkCaptureRedactionEnabled(bool enabled);
+
     string? RecordCrashCandidate(
         string runtime,
         string kind,

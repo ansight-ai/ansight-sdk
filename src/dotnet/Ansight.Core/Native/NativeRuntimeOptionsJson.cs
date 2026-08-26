@@ -11,6 +11,7 @@ internal static class NativeRuntimeOptionsJson
     {
         ArgumentNullException.ThrowIfNull(options);
 
+        var networkCaptureOptions = options.ResolveNetworkCaptureOptions();
         var root = new JsonObject
         {
             ["sampleFrequencyMilliseconds"] = options.SampleFrequencyMilliseconds,
@@ -24,6 +25,7 @@ internal static class NativeRuntimeOptionsJson
             ["sessionJpegCapture"] = SerializeSessionJpegCapture(options.SessionJpegCapture),
             ["touchCapture"] = SerializeTouchCapture(options.TouchCapture),
             ["crashCapture"] = SerializeCrashCapture(options.CrashCapture),
+            ["networkCapture"] = SerializeNetworkCapture(networkCaptureOptions),
             ["toolGuard"] = SerializeToolGuard(options.ToolGuard),
             ["customProperties"] = SerializeCustomProperties(options.CustomProperties),
             ["hostAutoProbe"] = SerializeHostAutoProbe(options.HostAutoProbe),
@@ -106,6 +108,24 @@ internal static class NativeRuntimeOptionsJson
             ["retentionDays"] = options.RetentionDays,
             ["maximumBreadcrumbs"] = options.MaximumBreadcrumbs,
             ["maximumTraceBytes"] = options.MaximumTraceBytes
+        };
+    }
+
+    private static JsonObject SerializeNetworkCapture(
+        Network.NetworkRequestSanitizationOptions? options)
+    {
+        return new JsonObject
+        {
+            ["enabled"] = options is not null,
+            ["redactSensitiveData"] = options?.RedactSensitiveData ?? true,
+            ["includeRequestHeaders"] = options?.IncludeRequestHeaders ?? true,
+            ["includeResponseHeaders"] = options?.IncludeResponseHeaders ?? true,
+            ["includeQueryString"] = options?.IncludeQueryString ?? true,
+            ["includeBodySizes"] = options?.IncludeBodySizes ?? true,
+            ["captureRequestBody"] = options?.CaptureRequestBody ?? true,
+            ["captureResponseBody"] = options?.CaptureResponseBody ?? true,
+            ["maximumBodyBytes"] = Math.Max(0, options?.MaximumBodyBytes ?? 64 * 1024),
+            ["captureBinaryBodies"] = options?.CaptureBinaryBodies ?? false
         };
     }
 

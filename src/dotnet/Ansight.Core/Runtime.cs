@@ -191,6 +191,20 @@ public static class Runtime
     }
 
     /// <summary>
+    /// Enables or disables sensitive-value redaction for subsequent network captures without
+    /// restarting the runtime. Redaction is enabled by default.
+    /// </summary>
+    public static void SetNetworkCaptureRedactionEnabled(bool enabled)
+    {
+        if (!IsInitialized)
+        {
+            return;
+        }
+
+        Instance.SetNetworkCaptureRedactionEnabled(enabled);
+    }
+
+    /// <summary>
     /// Adds framework-specific context to the durable native crash outbox.
     /// Non-fatal candidates are retained only as context for independently confirmed native exits.
     /// </summary>

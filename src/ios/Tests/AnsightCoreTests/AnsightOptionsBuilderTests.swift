@@ -19,6 +19,12 @@ final class AnsightOptionsBuilderTests: XCTestCase {
             .withoutDefaultMemoryChannels(.nativeHeap)
             .withSessionJpegCapture()
             .withTouchCapture(moveCaptureFramesPerSecond: 12)
+            .withNetworkCapture(
+                AnsightNetworkCaptureOptions(
+                    maximumBodyBytes: 8 * 1_024,
+                    captureBinaryBodies: true
+                )
+            )
             .withReadWriteToolAccess()
             .registerCustomProperty(" runtime ", " sdk ", " ios ")
             .withBundledHostConnection(bundledConfigJson: "{profile}")
@@ -42,6 +48,9 @@ final class AnsightOptionsBuilderTests: XCTestCase {
         XCTAssertEqual(options.sessionJpegCapture?.captureKeyboardPresence, false)
         XCTAssertEqual(options.sessionJpegCapture?.mode, .screenshotOnly)
         XCTAssertEqual(options.touchCapture?.moveCaptureFramesPerSecond, 12)
+        XCTAssertTrue(options.networkCapture.enabled)
+        XCTAssertEqual(options.networkCapture.maximumBodyBytes, 8 * 1_024)
+        XCTAssertTrue(options.networkCapture.captureBinaryBodies)
         XCTAssertEqual(options.toolGuard, .readWrite)
         XCTAssertEqual(options.customProperties["runtime"]?["sdk"], "ios")
         XCTAssertEqual(options.hostConnection.bundledConfigJson, "{profile}")
@@ -51,6 +60,17 @@ final class AnsightOptionsBuilderTests: XCTestCase {
         XCTAssertTrue(options.hostConnection.allowUnattendedProvisioning)
         XCTAssertFalse(AnsightOptions().hostConnection.allowCellularConnections)
         XCTAssertFalse(AnsightOptions().hostConnection.allowUnattendedProvisioning)
+    }
+
+    func testNetworkCaptureDefaultsOffAndCanBeDisabledAgain() throws {
+        XCTAssertFalse(AnsightOptions().networkCapture.enabled)
+
+        let options = try AnsightOptions.createBuilder()
+            .withNetworkCapture()
+            .withoutNetworkCapture()
+            .build()
+
+        XCTAssertFalse(options.networkCapture.enabled)
     }
 
     func testOpenFileHandleTrackingDefaultsOffAndCanBeDisabledAgain() throws {

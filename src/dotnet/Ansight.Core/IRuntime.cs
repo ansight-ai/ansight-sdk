@@ -85,6 +85,12 @@ public interface IRuntime
     void SetTouchCaptureGuard(Func<bool>? guard);
 
     /// <summary>
+    /// Enables or disables sensitive-value redaction for subsequent network captures at runtime.
+    /// Redaction is enabled by default. Disable it only for an explicitly trusted local capture.
+    /// </summary>
+    void SetNetworkCaptureRedactionEnabled(bool enabled);
+
+    /// <summary>
     /// Captures a new metric using the given <paramref name="value"/> against the <paramref name="channel"/>.
     /// </summary>
     void Metric(long value, byte channel);

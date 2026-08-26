@@ -7,6 +7,12 @@ namespace Ansight.Network;
 public sealed class NetworkRequestSanitizationOptions
 {
     /// <summary>
+    /// Whether credential-bearing headers, query parameters, and text values are redacted.
+    /// Defaults to <see langword="true"/>. Disable only for an explicitly trusted local capture.
+    /// </summary>
+    public bool RedactSensitiveData { get; init; } = true;
+
+    /// <summary>
     /// Whether sanitized request headers are retained. Defaults to <see langword="true"/>.
     /// </summary>
     public bool IncludeRequestHeaders { get; init; } = true;

@@ -47,6 +47,11 @@ internal sealed class AndroidNativeRuntimeBridge : INativeRuntimeBridge
         => AnsightDotNetBridge.RecordNetworkRequest(
             JsonSerializer.Serialize(request, PairingJson.Compact));
 
+    public void SetNetworkCaptureRedactionEnabled(bool enabled)
+    {
+        // Android's automatic .NET capture is normalized by RuntimeImpl before native transport.
+    }
+
     public string? RecordCrashCandidate(
         string runtime,
         string kind,

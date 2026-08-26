@@ -4,7 +4,7 @@ using System.Text;
 namespace Ansight.Network;
 
 /// <summary>
-/// Applies mandatory and app-configured privacy controls to captured network metadata.
+/// Applies bounded normalization and app-configured privacy controls to captured network metadata.
 /// </summary>
 public static class NetworkRequestSanitizer
 {
@@ -107,8 +107,16 @@ public static class NetworkRequestSanitizer
         }
     }
 
-    internal static NetworkRequestRecord SanitizeForTransport(NetworkRequestRecord request)
-        => NormalizeCore(request, null, preserveCapturedBodies: true);
+    internal static NetworkRequestRecord SanitizeForTransport(
+        NetworkRequestRecord request,
+        bool redactSensitiveData = true)
+        => NormalizeCore(
+            request,
+            new NetworkRequestSanitizationOptions
+            {
+                RedactSensitiveData = redactSensitiveData
+            },
+            preserveCapturedBodies: true);
 
     private static NetworkRequestRecord NormalizeCore(
         NetworkRequestRecord request,
@@ -134,6 +142,7 @@ public static class NetworkRequestSanitizer
                 : Math.Max(0, (completedAtUtc - startedAtUtc).TotalMilliseconds),
             Method = NormalizeRequired(request.Method, "GET", 32).ToUpperInvariant(),
             Url = SanitizeUrl(request.Url, options),
+            RedactSensitiveData = options?.RedactSensitiveData != false,
             Protocol = NormalizeOptional(request.Protocol, 64),
             RequestHeaders = options?.IncludeRequestHeaders == false
                 ? Array.Empty<NetworkHeader>()
@@ -283,6 +292,11 @@ public static class NetworkRequestSanitizer
         string value,
         NetworkRequestSanitizationOptions? options)
     {
+        if (options?.RedactSensitiveData == false)
+        {
+            return value;
+        }
+
         var assignmentsRedacted = sensitiveAssignmentPattern.Replace(
             value,
             match => $"{match.Groups["name"].Value}{match.Groups["separator"].Value}{RedactedValue}");
@@ -329,7 +343,7 @@ public static class NetworkRequestSanitizer
                 return new NetworkHeader
                 {
                     Name = name,
-                    Value = IsSensitiveHeader(name, options)
+                    Value = options?.RedactSensitiveData != false && IsSensitiveHeader(name, options)
                         ? RedactedValue
                         : NormalizeRequired(header.Value, string.Empty, MaximumHeaderValueLength)
                 };
@@ -342,6 +356,10 @@ public static class NetworkRequestSanitizer
         NetworkRequestSanitizationOptions? options)
     {
         var normalized = NormalizeRequired(value, "<unknown>", MaximumUrlLength);
+        if (options?.RedactSensitiveData == false && options.IncludeQueryString != false)
+        {
+            return normalized;
+        }
         if (!Uri.TryCreate(normalized, UriKind.RelativeOrAbsolute, out var uri)
             || !uri.IsAbsoluteUri)
         {
@@ -399,6 +417,10 @@ public static class NetworkRequestSanitizer
         if (normalized.Length == 0)
         {
             return string.Empty;
+        }
+        if (options?.RedactSensitiveData == false)
+        {
+            return normalized;
         }
 
         var pairs = normalized.Split('&');
@@ -486,6 +508,10 @@ public static class NetworkRequestSanitizer
         if (normalized is null)
         {
             return null;
+        }
+        if (options?.RedactSensitiveData == false)
+        {
+            return normalized;
         }
 
         var assignmentsRedacted = sensitiveAssignmentPattern.Replace(

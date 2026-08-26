@@ -102,6 +102,7 @@ public final class AnsightRuntime: @unchecked Sendable {
     private var hostConnectionStatusListeners: [UUID: HostConnectionStatusListener] = [:]
     private var lastPublishedHostConnectionStatus: HostConnectionStatus?
     private var lastPublishedHostConnectionCapabilities: HostConnectionCapabilities?
+    private var networkCaptureRedactionEnabled = true
 
     private init() {}
 
@@ -128,9 +129,11 @@ public final class AnsightRuntime: @unchecked Sendable {
         stopTouchCapture(message: "Touch capture stopped.")
         let validatedOptions = try options.validated()
         AnsightCrashCapture.shared.initialize(options: validatedOptions.crashCapture)
+        AnsightNativeNetworkCapture.configure(validatedOptions.networkCapture)
 
         lock.withLock {
             self.options = validatedOptions
+            networkCaptureRedactionEnabled = validatedOptions.networkCapture.redactSensitiveData
             self.savedPairingStore = KeychainPairingConfigStore(account: validatedOptions.hostConnection.savedConfigKey)
             self.cachedPairingProfileStore = KeychainPairingConfigStore(
                 account: Self.cachedPairingProfileKey(for: validatedOptions.hostConnection.savedConfigKey)
@@ -1427,18 +1430,31 @@ public final class AnsightRuntime: @unchecked Sendable {
         guard liveTransport.isOpen else {
             return .failure("WebSocket session is not open.")
         }
-        let sanitized = AnsightNetworkRequestSanitizer.sanitize(request)
+        let shouldRedact = lock.withLock { networkCaptureRedactionEnabled }
+        let normalizedRequest = shouldRedact
+            ? AnsightNetworkRequestSanitizer.sanitize(request)
+            : request
+        let capturedRequest = normalizedRequest.withRedactSensitiveData(shouldRedact)
 
         do {
             let envelope = JSONValue.object([
                 "type": .string("CLIENT_NETWORK_REQUEST"),
                 "sentAtUtc": .string(AnsightClock.isoNow()),
-                "request": try JSONValue.fromEncodable(sanitized),
+                "request": try JSONValue.fromEncodable(capturedRequest),
             ])
             return await liveTransport.sendText(try envelope.jsonString())
         } catch {
             return .failure("Failed to encode network request: \(error.localizedDescription)")
         }
+    }
+
+    /// Changes sensitive-value redaction for subsequent network captures without restarting.
+    public func setNetworkCaptureRedactionEnabled(_ enabled: Bool) {
+        lock.withLock {
+            networkCaptureRedactionEnabled = enabled
+            options.networkCapture.redactSensitiveData = enabled
+        }
+        AnsightNativeNetworkCapture.setRedactionEnabled(enabled)
     }
 
     /// Backwards-compatible JSON bridge used by managed native bindings.
