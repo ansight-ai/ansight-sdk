@@ -1,0 +1,55 @@
+<Project>
+  <PropertyGroup Condition="'$(AnsightProfilingEnabled)' == 'true'">
+    <_AnsightProfilingAddress Condition="'$(AnsightProfilingTarget)' == 'android-emulator'">10.0.2.2</_AnsightProfilingAddress>
+    <_AnsightProfilingAddress Condition="'$(AnsightProfilingTarget)' == 'android-device'">127.0.0.1</_AnsightProfilingAddress>
+    <_AnsightProfilingAddress Condition="'$(AnsightProfilingTarget)' == 'ios-simulator' Or '$(AnsightProfilingTarget)' == 'ios-device'">127.0.0.1</_AnsightProfilingAddress>
+    <_AnsightProfilingListenMode Condition="'$(AnsightProfilingTarget)' == 'android-emulator' Or '$(AnsightProfilingTarget)' == 'android-device'">connect</_AnsightProfilingListenMode>
+    <_AnsightProfilingListenMode Condition="'$(AnsightProfilingTarget)' == 'ios-simulator' Or '$(AnsightProfilingTarget)' == 'ios-device'">listen</_AnsightProfilingListenMode>
+    <_AnsightProfilingExpectedPlatform Condition="$([System.String]::Copy('$(AnsightProfilingTarget)').StartsWith('android-'))">android</_AnsightProfilingExpectedPlatform>
+    <_AnsightProfilingExpectedPlatform Condition="$([System.String]::Copy('$(AnsightProfilingTarget)').StartsWith('ios-'))">ios</_AnsightProfilingExpectedPlatform>
+
+    <EnableDiagnostics>true</EnableDiagnostics>
+    <AndroidEnableProfiler Condition="'$(_AnsightProfilingExpectedPlatform)' == 'android'">true</AndroidEnableProfiler>
+    <DiagnosticAddress>$(_AnsightProfilingAddress)</DiagnosticAddress>
+    <DiagnosticPort>9000</DiagnosticPort>
+    <DiagnosticSuspend>true</DiagnosticSuspend>
+    <DiagnosticListenMode>$(_AnsightProfilingListenMode)</DiagnosticListenMode>
+
+    <_AnsightProfilingManifestPath>$(IntermediateOutputPath)ansight-profiling/dotnet-profiling.json</_AnsightProfilingManifestPath>
+    <_AnsightProfilingManifestJson>{&quot;schema&quot;:&quot;ansight.dotnet-profile-app/v1&quot;,&quot;target&quot;:&quot;$(AnsightProfilingTarget)&quot;,&quot;diagnosticAddress&quot;:&quot;$(_AnsightProfilingAddress)&quot;,&quot;diagnosticPort&quot;:9000,&quot;diagnosticSuspend&quot;:true,&quot;diagnosticListenMode&quot;:&quot;$(_AnsightProfilingListenMode)&quot;,&quot;startupProvider&quot;:&quot;Ansight-DotNet-Startup&quot;,&quot;startupEvent&quot;:&quot;StartupComplete&quot;}</_AnsightProfilingManifestJson>
+  </PropertyGroup>
+
+  <Target Name="AnsightValidateDotNetProfilingConfiguration"
+          BeforeTargets="PrepareForBuild"
+          Condition="'$(AnsightProfilingEnabled)' == 'true' And '$(IsCrossTargetingBuild)' != 'true'">
+    <Error Condition="'$(_AnsightProfilingAddress)' == '' Or '$(_AnsightProfilingListenMode)' == ''"
+           Code="ANSPROF001"
+           Text="AnsightProfilingTarget must be android-emulator, android-device, ios-simulator, or ios-device." />
+    <Error Condition="'$(TargetPlatformIdentifier)' != '$(_AnsightProfilingExpectedPlatform)'"
+           Code="ANSPROF002"
+           Text="AnsightProfilingTarget '$(AnsightProfilingTarget)' requires a $(_AnsightProfilingExpectedPlatform) target framework, but this project targets '$(TargetFramework)'." />
+    <Warning Code="ANSPROF003"
+             Text="Ansight profiling diagnostics are enabled for this artifact. Use it only for development and performance testing; do not distribute it to production." />
+  </Target>
+
+  <Target Name="AnsightEmbedDotNetProfilingManifest"
+          BeforeTargets="PrepareForBuild"
+          DependsOnTargets="AnsightValidateDotNetProfilingConfiguration"
+          Condition="'$(AnsightProfilingEnabled)' == 'true' And '$(IsCrossTargetingBuild)' != 'true'">
+    <MakeDir Directories="$([System.IO.Path]::GetDirectoryName('$(_AnsightProfilingManifestPath)'))" />
+    <WriteLinesToFile File="$(_AnsightProfilingManifestPath)"
+                      Lines="$(_AnsightProfilingManifestJson)"
+                      Overwrite="true"
+                      Encoding="UTF-8" />
+    <ItemGroup>
+      <AndroidAsset Include="$(_AnsightProfilingManifestPath)"
+                    Condition="'$(TargetPlatformIdentifier)' == 'android'">
+        <Link>$(AnsightProfilingManifestRelativePath)</Link>
+      </AndroidAsset>
+      <BundleResource Include="$(_AnsightProfilingManifestPath)"
+                      Condition="'$(TargetPlatformIdentifier)' == 'ios'">
+        <LogicalName>$(AnsightProfilingManifestRelativePath)</LogicalName>
+      </BundleResource>
+    </ItemGroup>
+  </Target>
+</Project>

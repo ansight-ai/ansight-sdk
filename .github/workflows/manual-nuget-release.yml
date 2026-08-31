@@ -26,6 +26,7 @@ env:
     Ansight.Native.Apple.Binding
     Ansight.OfflineCapture
     Ansight.Pairing
+    Ansight.Profiling.DotNet
     Ansight.Tools.VisualTree
     Ansight.Tools.Database
     Ansight.Tools.FileSystem

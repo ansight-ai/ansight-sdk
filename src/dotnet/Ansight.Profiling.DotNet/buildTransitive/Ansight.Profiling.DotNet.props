@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <AnsightProfilingEnabled Condition="'$(AnsightProfilingEnabled)' == ''">false</AnsightProfilingEnabled>
+    <AnsightProfilingManifestRelativePath>ansight/dotnet-profiling.json</AnsightProfilingManifestRelativePath>
+  </PropertyGroup>
+</Project>

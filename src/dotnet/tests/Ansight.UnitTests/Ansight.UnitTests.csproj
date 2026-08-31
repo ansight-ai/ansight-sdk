@@ -26,6 +26,7 @@
     <ProjectReference Include="..\..\Ansight.Core\Ansight.Core.csproj" />
     <ProjectReference Include="..\..\Ansight.Annotations\Ansight.Annotations.csproj" />
     <ProjectReference Include="..\..\Ansight.OfflineCapture\Ansight.OfflineCapture.csproj" />
+    <ProjectReference Include="..\..\Ansight.Profiling.DotNet\Ansight.Profiling.DotNet.csproj" />
     <ProjectReference Include="..\..\Ansight\Ansight.csproj" />
     <ProjectReference Include="..\..\Ansight.Maui\Ansight.Maui.csproj" />
     <ProjectReference Include="..\..\Ansight.Tools.Database\Ansight.Tools.Database.csproj" />

@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <AssemblyName>Ansight.Profiling.DotNet</AssemblyName>
+    <RootNamespace>Ansight.Profiling</RootNamespace>
+
+    <IsPackable>true</IsPackable>
+    <PackageId>Ansight.Profiling.DotNet</PackageId>
+    <Description>Opt-in startup profiling support for .NET Android and iOS application artifacts captured by Ansight.</Description>
+    <PackageTags>ansight;profiling;dotnet;eventpipe;dotnet-trace;maui</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="buildTransitive/Ansight.Profiling.DotNet.props"
+          Pack="true"
+          PackagePath="buildTransitive/Ansight.Profiling.DotNet.props" />
+    <None Include="buildTransitive/Ansight.Profiling.DotNet.targets"
+          Pack="true"
+          PackagePath="buildTransitive/Ansight.Profiling.DotNet.targets" />
+  </ItemGroup>
+
+</Project>

@@ -19,6 +19,7 @@ Ansight Services.
 - `Ansight.OfflineCapture`: offline telemetry, event, touch, screenshot, and annotation storage with retention, ZIP/AES export, and team upload.
 - `Ansight`: all-in-one package for non-MAUI .NET apps. It depends on `Ansight.Core`, bundles annotations and offline capture without enabling either workflow, includes native pairing where supported, and includes all non-MAUI remote tool packages.
 - `Ansight.Maui`: all-in-one package for .NET MAUI apps. It depends on `Ansight`, bundles annotations and offline capture without enabling either workflow, and adds MAUI inspection/mutation tools plus `MauiAppBuilder` setup helpers with automatic lifecycle and page-view telemetry.
+- `Ansight.Profiling.DotNet`: opt-in build configuration and application-ready marker for .NET EventPipe startup profiles captured by Ansight.
 - `Ansight.Tools.*`: individual tool packages for apps that want explicit package-by-package control.
 
 The runtime namespace remains `Ansight` even when the NuGet package is `Ansight.Core`.
