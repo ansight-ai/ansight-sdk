@@ -20,9 +20,9 @@ npm run run:ios
 runs `cap sync`. Use Node 22+, Java 21, Android SDK 36, and Xcode 26+.
 
 The safe suite avoids host/session mutations. On an emulator or simulator, the
-harness enrolls automatically when Studio is open and signed in. Scan a Studio
+harness enrolls automatically when CLI host is running. Scan a host
 QR once only when running on a physical device. Every destructive connection
-check reconnects before it finishes, so the app remains visible in Studio.
+check reconnects before it finishes, so the app remains visible in host.
 
 For unattended local validation, add an ignored
 `public/ansight-autorun.json` containing `{"suite":"safe"}` or

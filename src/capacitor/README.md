@@ -222,7 +222,7 @@ Binary payloads use the native live-session transfer channel.
 `dom.query_selector`. Pass `{ allowActions: true }` to add the `write` policy
 `dom.invoke_action` tool for `tap`, `typeText`, focus, and blur operations.
 The legacy `click` and `setValue` action names remain accepted. DOM trees use
-the WebView viewport as their coordinate space, so Studio can render their
+the WebView viewport as their coordinate space, so host can render their
 wireframes and translate host input through the same bounds.
 Native `ui.*` tools remain available for the Android/iOS view hierarchy.
 Call `uninstallDomTools()` to remove the adapter and its registrations.

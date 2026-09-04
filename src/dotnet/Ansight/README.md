@@ -62,7 +62,7 @@ Runtime.InitializeAndActivate(options);
 await Feedback.PresentAsync();
 ```
 
-`WithAnnotatedFeedback()` remains disabled in Release builds. It captures the screenshot and all registered visual-tree sources, supports custom data/artifact hooks, submits to a connected Studio session, and participates in an active offline capture. See the `Ansight.Annotations` package documentation for configuration and native Android activity handling.
+`WithAnnotatedFeedback()` remains disabled in Release builds. It captures the screenshot and all registered visual-tree sources, supports custom data/artifact hooks, submits to a connected host session, and participates in an active offline capture. See the `Ansight.Annotations` package documentation for configuration and native Android activity handling.
 
 Offline capture is also bundled but does not initialize or start automatically.
 Use `OfflineCapture.Configure(...)` for retained local sessions, ZIP/AES export,

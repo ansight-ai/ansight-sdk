@@ -450,7 +450,7 @@ public final class AnsightDotNetBridge {
         } else {
             builder.withCrashCapture(new AnsightCrashCaptureOptions(
                 true,
-                crashCapture.optBoolean("studioHandoffEnabled", true),
+                crashCapture.optBoolean("hostHandoffEnabled", true),
                 crashCapture.optBoolean("offlineCaptureAttachmentEnabled", true),
                 crashCapture.optInt("maximumPendingReports", 8),
                 crashCapture.optInt("retentionDays", 7),

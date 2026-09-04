@@ -41,7 +41,7 @@ public sealed class ConnectRequest
     public required string DeviceId { get; set; }
 
     /// <summary>
-    /// Human-readable name presented to Studio for this device.
+    /// Human-readable name presented to host for this device.
     /// </summary>
     public required string DeviceName { get; set; }
 

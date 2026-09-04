@@ -21,7 +21,7 @@ public sealed class OfflineCaptureExportOptions
     public bool IncludeRootDirectory { get; set; } = true;
 
     /// <summary>
-    /// Retained for source compatibility. Offline capture exports no longer generate expanded Studio session entries.
+    /// Retained for source compatibility. Offline capture exports no longer generate expanded host session entries.
     /// </summary>
     public bool IncludeStudioSessionArchive { get; set; } = true;
 

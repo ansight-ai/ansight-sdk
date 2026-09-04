@@ -267,7 +267,7 @@ public final class ANSDotNetRuntime: NSObject {
         AnsightRuntime.shared.clearSavedPairing()
         return encode(
             BridgeHostConnectionResult.success(
-                "Saved Studio registration cleared.",
+                "Saved host registration cleared.",
                 kind: "clearSavedConfig",
                 source: "savedConfig"
             )
@@ -423,7 +423,7 @@ public final class ANSDotNetRuntime: NSObject {
         if let crashCapture = bridgeOptions.crashCapture {
             options.crashCapture = AnsightCrashCaptureOptions(
                 enabled: crashCapture.enabled,
-                studioHandoffEnabled: crashCapture.studioHandoffEnabled,
+                hostHandoffEnabled: crashCapture.hostHandoffEnabled,
                 offlineCaptureAttachmentEnabled: crashCapture.offlineCaptureAttachmentEnabled,
                 maximumPendingReports: crashCapture.maximumPendingReports,
                 retentionDays: crashCapture.retentionDays,
@@ -705,15 +705,7 @@ private struct BridgeNetworkCapture: Decodable {
     let captureBinaryBodies: Bool
 }
 
-private struct BridgeCrashCapture: Decodable {
-    let enabled: Bool
-    let studioHandoffEnabled: Bool
-    let offlineCaptureAttachmentEnabled: Bool
-    let maximumPendingReports: Int
-    let retentionDays: Int
-    let maximumBreadcrumbs: Int
-    let maximumTraceBytes: Int
-}
+private typealias BridgeCrashCapture = AnsightCrashCaptureOptions
 
 private struct BridgeChannel: Decodable {
     let id: Int

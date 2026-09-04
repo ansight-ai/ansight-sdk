@@ -265,7 +265,7 @@ The first configured provider automatically registers `artifacts.query` and
 secrets or other critical data should publish a purpose-built tool with
 `ToolPolicy.Critical` and remain protected by an appropriate `ToolGuard`. Requested bytes
 use the live pairing binary-transfer channel and are unavailable without an
-active Studio tool request.
+active host tool request.
 
 Separate packages can also initialize an SDK extension with
 `OptionsBuilder.AddRuntimeFeature(...)`. An `IRuntimeFeature` has a stable id

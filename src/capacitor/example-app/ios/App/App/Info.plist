@@ -25,7 +25,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Scan an Ansight pairing QR code to connect this test harness to Ansight Studio.</string>
+	<string>Scan an Ansight pairing QR code to connect this test harness to Ansight host.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

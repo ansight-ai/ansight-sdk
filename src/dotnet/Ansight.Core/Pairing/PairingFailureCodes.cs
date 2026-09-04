@@ -16,7 +16,7 @@ public static class PairingFailureCodes
     public const string WifiRequired = "WifiRequired";
 
     /// <summary>
-    /// The host requires a current Studio enrollment invite.
+    /// The host requires a current host enrollment invite.
     /// </summary>
     public const string EnrollmentRequired = "EnrollmentRequired";
 
@@ -46,7 +46,7 @@ public static class PairingFailureCodes
     public const string RegistrationExpired = "RegistrationExpired";
 
     /// <summary>
-    /// The host requires the user to sign in to Ansight Studio before an app can connect.
+    /// The host requires the user to sign in to Ansight host before an app can connect.
     /// </summary>
     public const string SignInRequired = "SignInRequired";
 

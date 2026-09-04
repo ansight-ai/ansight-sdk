@@ -157,7 +157,7 @@ object AnsightPairing {
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
         }
         val status = TextView(activity).apply {
-            text = "Scan the enrollment QR shown in Ansight Studio."
+            text = "Scan the enrollment QR shown by the Ansight CLI or local player."
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
         }
         val payloadInput = EditText(activity).apply {

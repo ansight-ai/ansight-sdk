@@ -443,7 +443,7 @@ class _HarnessHomeState extends State<HarnessHome>
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
         key: const Key('pairing-dialog'),
-        title: const Text('Enroll with Ansight Studio'),
+        title: const Text('Enroll with Ansight host'),
         content: SizedBox(
           width: 520,
           child: Column(
@@ -451,7 +451,7 @@ class _HarnessHomeState extends State<HarnessHome>
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               const Text(
-                'Scan the one-use Studio enrollment QR. The app reconnects '
+                'Scan the one-use host enrollment QR. The app reconnects '
                 'automatically after the first successful scan.',
               ),
               const SizedBox(height: 14),
@@ -828,7 +828,7 @@ class _HarnessHomeState extends State<HarnessHome>
       actions: <Widget>[
         IconButton(
           key: const Key('open-pairing-dialog'),
-          tooltip: 'Enroll with Studio',
+          tooltip: 'Enroll with host',
           onPressed: _busy ? null : _showPairingDialog,
           icon: const Icon(Icons.qr_code_scanner),
         ),
@@ -1493,7 +1493,7 @@ class _HarnessHomeState extends State<HarnessHome>
       const SizedBox(height: 6),
       const Text(
         'A native SQLite database, preferences, and document file are seeded '
-        'for Studio data and filesystem tools.',
+        'for host data and filesystem tools.',
       ),
       const SizedBox(height: 12),
       Wrap(
@@ -1561,7 +1561,7 @@ class _HarnessHomeState extends State<HarnessHome>
       ),
       const SizedBox(height: 6),
       const Text(
-        'Studio can inspect or mutate this screen through Dart handlers '
+        'host can inspect or mutate this screen through Dart handlers '
         'registered beside the standard native and Flutter tools.',
       ),
       const SizedBox(height: 12),

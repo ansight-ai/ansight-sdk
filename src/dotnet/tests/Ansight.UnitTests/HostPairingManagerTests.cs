@@ -191,7 +191,7 @@ public sealed class HostPairingManagerTests
         using var hostConnection = new FakeHostConnection();
         hostConnection.ConnectResults.Enqueue(CreateRejectedConnectionResult(
             PairingFailureCodes.SignInRequired,
-            "Sign in required. Sign in to Ansight Studio before connecting an app."));
+            "Sign in required. Sign in to Ansight host before connecting an app."));
         using var manager = CreateManager(
             hostConnection,
             savedConfigPath,

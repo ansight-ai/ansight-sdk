@@ -146,7 +146,7 @@ final class PairingAndRuntimeTests: XCTestCase {
             discoveryHint: PairingDiscoveryHint(
                 hostAddress: "127.0.0.1",
                 discoveryPort: 45123,
-                wifiName: "Studio Wi-Fi"
+                wifiName: "host Wi-Fi"
             )
         )
 
@@ -155,7 +155,7 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertFalse(attempt.success)
         XCTAssertEqual(attempt.failureCode, PairingFailureCodes.wifiRequired)
         XCTAssertTrue(attempt.message.contains("same Wi-Fi"))
-        XCTAssertTrue(attempt.message.contains("Last known Studio Wi-Fi: Studio Wi-Fi"))
+        XCTAssertTrue(attempt.message.contains("Last known host Wi-Fi: host Wi-Fi"))
         XCTAssertEqual(datagramClient.requestCount, 0)
     }
 
@@ -261,7 +261,7 @@ final class PairingAndRuntimeTests: XCTestCase {
             config: TestPairingFactory.enrollmentConfig(configId: "cfg-simulator-localhost"),
             discoveryHint: PairingDiscoveryHint(
                 discoveryPort: 45123,
-                wifiName: "Studio Wi-Fi"
+                wifiName: "host Wi-Fi"
             )
         )
 
@@ -324,7 +324,7 @@ final class PairingAndRuntimeTests: XCTestCase {
             discoveryHint: PairingDiscoveryHint(
                 hostAddress: "127.0.0.1",
                 discoveryPort: 45123,
-                wifiName: "Studio Wi-Fi"
+                wifiName: "host Wi-Fi"
             )
         )
 
@@ -333,7 +333,7 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertFalse(attempt.success)
         XCTAssertEqual(datagramClient.requestedTimeouts, [5])
         XCTAssertEqual(attempt.failureCode, PairingFailureCodes.udpBootstrapTimeout)
-        XCTAssertTrue(attempt.message.contains("Last known Studio Wi-Fi: Studio Wi-Fi"))
+        XCTAssertTrue(attempt.message.contains("Last known host Wi-Fi: host Wi-Fi"))
         XCTAssertTrue(attempt.message.contains("Scan a fresh QR code"))
         XCTAssertEqual(datagramClient.requestCount, 1)
     }
@@ -367,7 +367,7 @@ final class PairingAndRuntimeTests: XCTestCase {
             discoveryHint: PairingDiscoveryHint(
                 hostAddresses: ["192.0.2.1", "127.0.0.1"],
                 discoveryPort: 45123,
-                wifiName: "Studio Wi-Fi"
+                wifiName: "host Wi-Fi"
             )
         )
 

@@ -103,7 +103,7 @@ export interface AnsightNetworkCaptureOptions extends AnsightNetworkSanitization
 
 export interface AnsightCrashCaptureOptions {
   enabled?: boolean;
-  studioHandoffEnabled?: boolean;
+  hostHandoffEnabled?: boolean;
   offlineCaptureAttachmentEnabled?: boolean;
   maximumPendingReports?: number;
   retentionDays?: number;

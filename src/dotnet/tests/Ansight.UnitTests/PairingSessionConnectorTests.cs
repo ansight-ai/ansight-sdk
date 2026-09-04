@@ -550,10 +550,10 @@ public sealed class PairingSessionConnectorTests
                 RequestId = parsedRequest!.RequestId,
                 Accepted = false,
                 Reason = PairingFailureCodes.SignInRequired,
-                ReasonMessage = "Sign in required. Sign in to Ansight Studio before connecting an app.",
+                ReasonMessage = "Sign in required. Sign in to Ansight host before connecting an app.",
                 HostId = "host-1",
                 HostName = "Host",
-                Message = "Sign in required. Sign in to Ansight Studio before connecting an app."
+                Message = "Sign in required. Sign in to Ansight host before connecting an app."
             },
             PairingJson.Compact);
         await listener.SendAsync(payload, payload.Length, request.RemoteEndPoint);
@@ -562,10 +562,10 @@ public sealed class PairingSessionConnectorTests
 
         Assert.False(result.Success);
         Assert.False(result.Accepted);
-        Assert.Equal("Sign in required. Sign in to Ansight Studio before connecting an app.", result.Message);
+        Assert.Equal("Sign in required. Sign in to Ansight host before connecting an app.", result.Message);
         Assert.Equal(IPAddress.Loopback, result.HostAddress);
         Assert.NotNull(result.ConnectResponse);
         Assert.Equal(PairingFailureCodes.SignInRequired, result.ConnectResponse!.Reason);
-        Assert.Equal("Sign in required. Sign in to Ansight Studio before connecting an app.", result.ConnectResponse.ReasonMessage);
+        Assert.Equal("Sign in required. Sign in to Ansight host before connecting an app.", result.ConnectResponse.ReasonMessage);
     }
 }

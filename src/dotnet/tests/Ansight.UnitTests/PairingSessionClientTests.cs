@@ -110,7 +110,7 @@ public sealed class PairingSessionClientTests
             Reason = "accepted",
             HostId = "host-1",
             HostName = "new-host",
-            HostWifiName = "Studio Wi-Fi",
+            HostWifiName = "host Wi-Fi",
             Message = "accepted",
             WebSocketPort = 41001,
             WebSocketPath = "/ws",
@@ -126,6 +126,6 @@ public sealed class PairingSessionClientTests
         Assert.NotNull(cachedDocument.DiscoveryHint);
         Assert.Equal(new[] { "10.0.0.9" }, cachedDocument.DiscoveryHint!.HostAddresses);
         Assert.Equal("new-host", cachedDocument.DiscoveryHint.HostName);
-        Assert.Equal("Studio Wi-Fi", cachedDocument.DiscoveryHint.WifiName);
+        Assert.Equal("host Wi-Fi", cachedDocument.DiscoveryHint.WifiName);
     }
 }

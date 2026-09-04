@@ -36,7 +36,7 @@ Legend:
 | SDK diagnostic log callbacks | Yes | Yes | Yes | Native listener | Native listener |
 
 Automatic connection registers host-local runtimes directly with a signed-in
-Studio. Physical devices use the app-private registration created by their
+host. Physical devices use the app-private registration created by their
 first QR scan.
 
 ## Capture and diagnostics
@@ -59,7 +59,7 @@ Capacitor, or Flutter.
 | Automatic screenshot-aligned or touch-triggered visual-tree capture | Yes | Yes | Yes | Native | Native | Native |
 | On-demand screenshot (`ui.get_screenshot`; runtime helper where exposed) | Yes | Yes | Yes | Native | Native | Native |
 | GPU-backed surface capture option | Accepted for parity | Accepted for parity | Yes | Native; meaningful on iOS | Native; meaningful on iOS | Native; meaningful on iOS |
-| Studio-owned simulator/emulator screenshots | Yes | Yes | Yes | Native | Native | Native |
+| host-owned simulator/emulator screenshots | Yes | Yes | Yes | Native | Native | Native |
 | Touch capture and runtime enable/disable | Yes | Yes | Yes | Native | Native | Native |
 | Opt-in per-frame on-screen keyboard presence metadata | Yes | Yes | Yes | Native | Native | Native |
 | Touch-capture app guard | Yes | Yes | Yes | Native toggle; JS policy is app-owned | Native toggle; JS policy is app-owned | Native toggle; Dart policy is app-owned |
@@ -95,9 +95,9 @@ WebSocket delivery keep only the latest unsent frame so network backpressure
 drops stale evidence rather than slowing future capture.
 
 During `device.profile`, current runtimes advertise screenshot-control version
-1. Studio can respond with host capture mode for a simulator or emulator. The
-SDK then suspends its periodic in-app JPEG loop for that session so Studio can
-use `simctl`, `adb`, or another host-side capture source. If Studio does not
+1. host can respond with host capture mode for a simulator or emulator. The
+SDK then suspends its periodic in-app JPEG loop for that session so host can
+use `simctl`, `adb`, or another host-side capture source. If host does not
 request host capture, the configured SDK JPEG capture continues.
 
 Screen capture adds rendering, encoding, and transport work. Disable periodic
@@ -129,7 +129,7 @@ App artifact providers advertise dynamically available exports through
 `artifacts.query` and create one requested snapshot through
 `artifacts.request`. Text, bytes, streams, and app-local files are supported
 according to the platform API. Requested bytes are transferred over the live
-binary file-transfer channel, so artifact creation requires an active Studio
+binary file-transfer channel, so artifact creation requires an active host
 session.
 
 ## Framework and workflow features
@@ -141,7 +141,7 @@ session.
 | MAUI UI inspection, XAML inflation, mutation, resources, bindings, navigation, layout, and handler diagnostics | .NET MAUI | `Ansight.Tools.Maui` |
 | Annotated in-app feedback with screenshots, all visual-tree sources, hooks, artifacts, outbox, and live/offline delivery | .NET Android, iOS, and Mac Catalyst Debug app builds | `Ansight.Annotations` / `WithAnnotatedFeedback()` |
 | Offline telemetry, events, touches, screenshots, annotation bundles, retention, ZIP/AES export, and team upload | .NET | `Ansight.OfflineCapture` |
-| Native crash capture, prior-session association, Studio handoff, and offline capture attachment | All mobile SDKs; offline attachment currently uses `.NET` Offline Capture | Core runtime `crashCapture` options |
+| Native crash capture, prior-session association, host handoff, and offline capture attachment | All mobile SDKs; offline attachment currently uses `.NET` Offline Capture | Core runtime `crashCapture` options |
 | Objective-C facade | iOS | `AnsightObjC` |
 | React component and shadow-tree inspection | React Native | `installReactTools(...)` |
 | React Navigation route tracking | React Native | `createReactNavigationTracker(...)` |

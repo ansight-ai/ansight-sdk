@@ -8,12 +8,12 @@ namespace Ansight.Pairing.Models;
 public sealed class PairingConfig
 {
     /// <summary>
-    /// Current schema identifier for Studio enrollment invites.
+    /// Current schema identifier for host enrollment invites.
     /// </summary>
     public const string SchemaName = "ansight.enrollment-invite.v2";
 
     /// <summary>
-    /// App identifier used by a generic one-use invite. Studio binds the grant
+    /// App identifier used by a generic one-use invite. host binds the grant
     /// to the actual app identifier supplied by the scanning installation.
     /// </summary>
     public const string AnyAppId = "*";

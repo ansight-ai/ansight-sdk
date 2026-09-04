@@ -1,9 +1,9 @@
 "use strict";
 
 const DEFAULT_CAMERA_PERMISSION =
-  "Allow $(PRODUCT_NAME) to use the camera to scan an Ansight Studio enrollment QR code.";
+  "Allow $(PRODUCT_NAME) to use the camera to scan an Ansight host enrollment QR code.";
 const DEFAULT_LOCAL_NETWORK_PERMISSION =
-  "Allow $(PRODUCT_NAME) to connect to Ansight Studio on your local network during development.";
+  "Allow $(PRODUCT_NAME) to connect to Ansight host on your local network during development.";
 
 function withAnsightReactNative(config, options = {}) {
   const { withInfoPlist } = loadExpoConfigPlugins();

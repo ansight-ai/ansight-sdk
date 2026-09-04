@@ -310,7 +310,7 @@ internal sealed class HostSessionManager : IHostSessionConnection, IHostAutoProb
     {
         return ConnectCoreAsync(
             reuseExistingConnection: true,
-            "Looking for an authenticated Ansight Studio on this computer.",
+            "Looking for a running Ansight host on this computer.",
             HostConnectionActionKind.AutoConnect,
             HostConnectionSource.AutoProbe,
             (resolvedClientName, effectiveProgress, effectiveCancellationToken) =>

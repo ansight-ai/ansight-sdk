@@ -140,7 +140,7 @@ independent OS termination evidence.
 | Disable | `WithoutCrashCapture()` | `withoutCrashCapture()` | `withoutCrashCapture()` | `withoutCrashCapture()` | `withoutCrashCapture()` | `withoutCrashCapture()` |
 | Framework enrichment | `Runtime.RecordCrashCandidate(...)` and `AppDomain.UnhandledException` | `recordCrashCandidate(...)` | `recordCrashCandidate(...)` | `installErrorHandlers(...)` | `installErrorHandlers(...)` | instrumentation error hooks |
 
-The options independently control Studio handoff and attachment to an active
+The options independently control host handoff and attachment to an active
 offline capture, plus pending-report count, retention, breadcrumb count, and
 trace-byte limits. `processSessionId` is the correlation key shared by
 enrollment, live sessions, offline manifests, and recovered crash reports.
@@ -180,7 +180,7 @@ explicit test connection requests.
 
 Opting in can consume mobile data and permits discovery/session connection
 attempts over a broader or carrier-managed network. Use the option only with a
-trusted Studio host or personal hotspot.
+trusted host host or personal hotspot.
 
 ## Unattended Physical-Device Provisioning
 
@@ -359,7 +359,7 @@ manually configured host address.
 ## Screenshot Capture Ownership
 
 Current .NET, Android, and iOS runtimes add
-`sessionJpegCaptureControlVersion: 1` to `device.profile`. Studio may acknowledge
+`sessionJpegCaptureControlVersion: 1` to `device.profile`. host may acknowledge
 that profile with `sessionJpegCapture.mode: "host"` and an optional source such
 as `adb` or `simctl`. In host mode, the SDK suspends its periodic in-app JPEG
 loop for that live session. Missing or app mode keeps the configured SDK
@@ -378,7 +378,7 @@ Native, Capacitor, and Flutter:
 | `screenshotWithVisualTreeOnTouch` | `ScreenshotWithVisualTreeOnTouch` / `screenshotWithVisualTreeOnTouch` | Keeps screenshots on their configured schedule and captures best-effort visual trees on touch down and touch up; rapid boundaries are coalesced through a bounded latest-value queue. |
 
 Touch-triggered capture requires `touchCapture` to be configured and runtime
-touch capture to be enabled. It continues to work when Studio owns simulator
+touch capture to be enabled. It continues to work when host owns simulator
 or emulator screenshots because the visual-tree timeline is independent of
 the JPEG producer. Each emitted `CLIENT_VISUAL_TREE` has source
 `sdk.touchCapture`, a gesture id and phase, the triggering touch action and
@@ -431,7 +431,7 @@ framework-specific.
 | React Native | `react.get_component_tree`, `react.get_shadow_tree`, `react.find_components`, `react.get_component`, `react.get_navigation_state`, `react.invoke_component_action` |
 
 `reflect.list_roots` includes a `hostRuntime` descriptor for every root so
-Studio and agent bridges can distinguish which runtime owns the object graph.
+The host and agent bridges can distinguish which runtime owns the object graph.
 Current SDK roots report `kind: "dotnet"` for CLR roots, `kind: "jvm"` for
 Android JVM/ART roots, and `kind: "swift"` for iOS Swift/Objective-C roots.
 Future React Native JavaScript reflection roots can use the same field with

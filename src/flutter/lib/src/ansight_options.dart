@@ -84,7 +84,7 @@ class AnsightTouchCaptureOptions {
 class AnsightCrashCaptureOptions {
   const AnsightCrashCaptureOptions({
     this.enabled = true,
-    this.studioHandoffEnabled = true,
+    this.hostHandoffEnabled = true,
     this.offlineCaptureAttachmentEnabled = true,
     this.maximumPendingReports = 8,
     this.retentionDays = 7,
@@ -93,7 +93,7 @@ class AnsightCrashCaptureOptions {
   });
 
   final bool enabled;
-  final bool studioHandoffEnabled;
+  final bool hostHandoffEnabled;
   final bool offlineCaptureAttachmentEnabled;
   final int maximumPendingReports;
   final int retentionDays;
@@ -102,7 +102,7 @@ class AnsightCrashCaptureOptions {
 
   AnsightJson toJson() => <String, Object?>{
         'enabled': enabled,
-        'studioHandoffEnabled': studioHandoffEnabled,
+        'hostHandoffEnabled': hostHandoffEnabled,
         'offlineCaptureAttachmentEnabled': offlineCaptureAttachmentEnabled,
         'maximumPendingReports': maximumPendingReports,
         'retentionDays': retentionDays,

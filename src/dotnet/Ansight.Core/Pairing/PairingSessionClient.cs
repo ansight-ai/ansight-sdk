@@ -759,7 +759,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         }
 
         return lastResult ?? OpenSessionResult.FromFailure(
-            "No authenticated Ansight Studio was found on this computer.",
+            "No running Ansight host was found on this computer.",
             PairingFailureCodes.EnrollmentUnavailable);
     }
 

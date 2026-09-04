@@ -1,3 +1,8 @@
+## Unreleased
+
+- Add `hostHandoffEnabled` for crash delivery to the Ansight host.
+- Update pairing and SDK guidance for the CLI host and local player.
+
 ## 1.4.0-preview.5
 
 - Align native dependencies with the SDK release that automatically captures

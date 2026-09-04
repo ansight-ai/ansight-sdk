@@ -58,7 +58,7 @@ struct PairingConnectionAttempt: Sendable {
         PairingConnectionAttempt(
             success: true,
             accepted: true,
-            message: "Securely enrolled and connected to Ansight Studio.",
+            message: "Securely enrolled and connected to Ansight host.",
             hostAddress: hostAddress,
             connectResponse: response,
             webSocketURL: nil,

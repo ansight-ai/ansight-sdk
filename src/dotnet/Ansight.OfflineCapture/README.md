@@ -137,7 +137,7 @@ The SDK supports both file and stream export:
 - `OfflineCaptureExportOptions.Password` enables AES-256 entry encryption through SharpZipLib on current `net9.0` targets.
 - Without a password, export uses `System.IO.Compression.ZipArchive`.
 
-ZIP exports stream the raw `.ansight` session files directly. Export does not expand the captured JSONL into Studio archive JSON; Studio ingests the minified JSONL capture format directly. `IncludeStudioSessionArchive` and `IncludeRawCaptureFiles` are retained for source compatibility, but export no longer expands JSONL capture files into Studio-native aggregate JSON.
+ZIP exports stream the raw `.ansight` session files directly. Export does not expand the captured JSONL into host archive JSON; host ingests the minified JSONL capture format directly. `IncludeStudioSessionArchive` and `IncludeRawCaptureFiles` are retained for source compatibility, but export no longer expands JSONL capture files into host-native aggregate JSON.
 
 ## Samples
 

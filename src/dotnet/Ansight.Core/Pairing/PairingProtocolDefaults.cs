@@ -11,7 +11,7 @@ public static class PairingProtocolDefaults
     public const int DiscoveryPort = 45123;
 
     /// <summary>
-    /// Alternate UDP discovery port exposed by a source-built developer Studio.
+    /// Alternate UDP discovery port exposed by a source-built developer host.
     /// </summary>
     public const int DeveloperDiscoveryPort = 46123;
 

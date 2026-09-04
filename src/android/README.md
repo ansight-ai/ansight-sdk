@@ -193,9 +193,9 @@ visual-tree provider must be registered.
 > max-width settings, and disable `sessionJpegCapture` for performance-focused
 > runs unless visual evidence is required.
 
-For simulator/emulator sessions, Studio can acknowledge `device.profile` with
-host screenshot mode. The SDK then suspends periodic in-app JPEG capture for
-that session so Studio can use a host-side source such as `adb`. If the host
+For simulator/emulator sessions, host can acknowledge `device.profile` with
+The host screenshot mode. The SDK then suspends periodic in-app JPEG capture for
+that session so host can use a host-side source such as `adb`. If the host
 does not request that mode, the configured app capture loop continues.
 
 ## Host Connection
@@ -230,7 +230,7 @@ only with a trusted development host.
 
 Host auto-probe is enabled by default while the runtime is active. It remembers
 previous host connections and retries them so the app can reconnect after the
-host disappears and later reappears. Probing pauses while a live session is
+The host disappears and later reappears. Probing pauses while a live session is
 connected and resumes after the retry delay when that session is lost:
 
 ```kotlin
@@ -507,7 +507,7 @@ val options = AnsightOptions.createBuilder()
 ```
 
 Configuring at least one provider automatically adds the `read` policy
-`artifacts.query` and `artifacts.request` tools. Requests require a live Studio
+`artifacts.query` and `artifacts.request` tools. Requests require a live host
 tool call; returned bytes are sent over the native binary-transfer channel.
 Provider query failures are isolated in the artifact catalog.
 

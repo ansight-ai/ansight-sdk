@@ -514,7 +514,7 @@ object AnsightRuntime {
             JSONObject().put("reason", "client log stream complete"),
             timeoutMilliseconds = 10_000,
         )
-        AnsightCrashCapture.markStudioSessionCompleted()
+        AnsightCrashCapture.markHostSessionCompleted()
         closeSession()
     }
 
@@ -528,10 +528,10 @@ object AnsightRuntime {
         clearStoredPairingProfile(app)
         synchronized(lock) {
             stopAutoProbeLocked()
-            sessionMessage = "Saved Studio registration cleared."
+            sessionMessage = "Saved host registration cleared."
         }
         val result = HostConnectionResult.success(
-            "Saved Studio registration cleared.",
+            "Saved host registration cleared.",
             kind = HostConnectionActionKind.ClearSavedConfig,
             source = HostConnectionSource.SavedConfig,
         )
@@ -586,7 +586,7 @@ object AnsightRuntime {
             PairingConfigDocumentService.parseAndValidateDocument(pairingJson, normalizedExpectedAppId)
             savePairingConfigLocked(app, pairingJson)
             startAutoProbeIfNeeded(app)
-            val result = HostConnectionResult.success("Saved Studio registration.", source = HostConnectionSource.SavedConfig)
+            val result = HostConnectionResult.success("Saved host registration.", source = HostConnectionSource.SavedConfig)
             publishHostConnectionStatusIfChanged()
             result
         } catch (ex: Exception) {
@@ -1016,9 +1016,9 @@ object AnsightRuntime {
         val app = synchronized(lock) { application ?: error("AnsightRuntime has no application context.") }
         val candidates = resolveConnectionCandidates(app, request)
         if (candidates.isEmpty()) {
-            AnsightLogger.warning("No Studio registration is available for ${request.kind}.")
+            AnsightLogger.warning("No host registration is available for ${request.kind}.")
             return HostConnectionResult.failure(
-                "No Studio registration is available. Scan an enrollment QR in Ansight Studio.",
+                "No host registration is available. Scan an enrollment QR from the Ansight CLI or local player.",
                 kind = HostConnectionActionKind.Connect,
                 source = sourceFor(request.kind),
                 reasonCode = PairingFailureCodes.EnrollmentRequired,
@@ -1044,7 +1044,7 @@ object AnsightRuntime {
                             clearStoredPairingProfile(app)
                             finalCandidateWasClearedSavedRegistration = index == candidates.lastIndex
                             AnsightLogger.warning(
-                                "Saved Studio registration is invalid and was cleared. Scan a fresh enrollment QR code.",
+                                "Saved host registration is invalid and was cleared. Scan a fresh enrollment QR code.",
                             )
                         }
                     }
@@ -1058,7 +1058,7 @@ object AnsightRuntime {
         }
 
         if (finalCandidateWasClearedSavedRegistration) {
-            val message = "No Studio registration is available. Scan an enrollment QR in Ansight Studio."
+            val message = "No host registration is available. Scan an enrollment QR from the Ansight CLI or local player."
             synchronized(lock) {
                 connectionState = HostConnectionState.Disconnected
                 sessionMessage = message
@@ -1073,7 +1073,7 @@ object AnsightRuntime {
         }
 
         return lastResult ?: HostConnectionResult.failure(
-            "No Studio registration is available. Scan an enrollment QR in Ansight Studio.",
+            "No host registration is available. Scan an enrollment QR from the Ansight CLI or local player.",
             kind = HostConnectionActionKind.Connect,
             source = sourceFor(request.kind),
             reasonCode = PairingFailureCodes.EnrollmentRequired,
@@ -1235,7 +1235,7 @@ object AnsightRuntime {
             telemetryStreamLoopActive = false
             sessionMessage = "Connected to Ansight host."
         }
-        AnsightCrashCapture.associateStudioSession(
+        AnsightCrashCapture.associateHostSession(
             hostId = attempt.connectResponse.hostId,
             configId = document.config.configId,
             appId = document.config.appId,

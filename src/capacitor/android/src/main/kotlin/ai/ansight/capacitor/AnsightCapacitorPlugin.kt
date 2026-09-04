@@ -768,7 +768,7 @@ class AnsightCapacitorPlugin : Plugin() {
                     val crash = map.objectValue("crashCapture")
                     AnsightCrashCaptureOptions(
                         enabled = crash.booleanValue("enabled", true),
-                        studioHandoffEnabled = crash.booleanValue("studioHandoffEnabled", true),
+                        hostHandoffEnabled = crash.booleanValue("hostHandoffEnabled", true),
                         offlineCaptureAttachmentEnabled = crash.booleanValue("offlineCaptureAttachmentEnabled", true),
                         maximumPendingReports = crash.intValue("maximumPendingReports", 8),
                         retentionDays = crash.intValue("retentionDays", 7),

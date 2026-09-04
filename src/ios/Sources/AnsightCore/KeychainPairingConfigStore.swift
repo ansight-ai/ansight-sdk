@@ -37,7 +37,7 @@ final class KeychainPairingConfigStore: PairingConfigStore, @unchecked Sendable 
 
         let status = SecItemAdd(query as CFDictionary, nil)
         guard status == errSecSuccess else {
-            throw RuntimeError.invalidInput("Failed to save Studio registration to Keychain: \(status).")
+            throw RuntimeError.invalidInput("Failed to save host registration to Keychain: \(status).")
         }
     }
 

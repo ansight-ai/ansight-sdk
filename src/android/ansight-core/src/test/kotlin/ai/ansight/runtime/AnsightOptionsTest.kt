@@ -255,6 +255,15 @@ class AnsightOptionsTest {
         assertFalse(AnsightOptions.createBuilder().withoutCrashCapture().build().crashCapture.enabled)
     }
 
+    @Test
+    fun crashHandoffSettingSurvivesValidationAndCopies() {
+        val options = AnsightCrashCaptureOptions(hostHandoffEnabled = false)
+        assertFalse(options.validated().hostHandoffEnabled)
+        assertTrue(options.copy(hostHandoffEnabled = true).hostHandoffEnabled)
+        assertFalse(AnsightOptions.createBuilder().withCrashCapture(options).build().crashCapture.hostHandoffEnabled)
+        assertTrue(AnsightCrashCaptureOptions().hostHandoffEnabled)
+    }
+
     private class TestArtifactProvider : AndroidArtifactProvider {
         override val descriptor = AndroidArtifactProviderDescriptor(
             id = "app.report",

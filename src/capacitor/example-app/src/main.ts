@@ -1143,7 +1143,7 @@ async function restoreHarness(connectWhenConfigured = true): Promise<unknown> {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       harnessState.lastConnectionMessage = message;
-      log("Runtime enrollment is waiting for Studio.", message);
+      log("Runtime enrollment is waiting for host.", message);
     }
   }
   await Ansight.screenViewed("Harness.Runtime", {
@@ -1658,7 +1658,7 @@ const tests: TestCase[] = [
     group: "Native tool fixtures",
     name: "Remote validation contract",
     description:
-      "Publishes the native/JavaScript tool and secure-storage expectations used by Studio.",
+      "Publishes the native/JavaScript tool and secure-storage expectations used by host.",
     run: () => {
       const contract = expectedRemoteContract();
       assert(
@@ -1962,7 +1962,7 @@ const tests: TestCase[] = [
     group: "Pairing and sessions",
     name: "Disconnect + reconnect",
     description:
-      "Disconnects the transport, verifies it, then reconnects for Studio visibility.",
+      "Disconnects the transport, verifies it, then reconnects for host visibility.",
     pairing: true,
     unsafe: true,
     run: async () => {

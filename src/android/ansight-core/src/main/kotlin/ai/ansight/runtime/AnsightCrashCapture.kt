@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 data class AnsightCrashCaptureOptions(
     val enabled: Boolean = true,
-    val studioHandoffEnabled: Boolean = true,
+    val hostHandoffEnabled: Boolean = true,
     val offlineCaptureAttachmentEnabled: Boolean = true,
     val maximumPendingReports: Int = 8,
     val retentionDays: Int = 7,
@@ -125,19 +125,19 @@ internal object AnsightCrashCapture {
         }
     }
 
-    fun associateStudioSession(hostId: String?, configId: String?, appId: String?) {
+    fun associateHostSession(hostId: String?, configId: String?, appId: String?) {
         updateActiveSession { active ->
-            active.put("studioSessionId", ProcessSessionIdentity.current)
+            active.put("hostSessionId", ProcessSessionIdentity.current)
             active.putNullable("hostId", hostId)
             active.putNullable("configId", configId)
             active.putNullable("appId", appId)
-            active.put("studioOpenedAtUtc", AnsightClock.isoNow())
-            active.remove("studioCompletedAtUtc")
+            active.put("hostOpenedAtUtc", AnsightClock.isoNow())
+            active.remove("hostCompletedAtUtc")
         }
     }
 
-    fun markStudioSessionCompleted() {
-        updateActiveSession { active -> active.put("studioCompletedAtUtc", AnsightClock.isoNow()) }
+    fun markHostSessionCompleted() {
+        updateActiveSession { active -> active.put("hostCompletedAtUtc", AnsightClock.isoNow()) }
     }
 
     fun associateOfflineSession(sessionId: String, directory: String?) {
@@ -172,10 +172,10 @@ internal object AnsightCrashCapture {
     }
 
     fun deliverPendingReports(transport: PairingLiveSessionTransport) {
-        if (!options.enabled || !options.studioHandoffEnabled) return
+        if (!options.enabled || !options.hostHandoffEnabled) return
         for (file in pendingReportFiles()) {
             val report = readJson(file) ?: continue
-            if (report.optBoolean("studioAcknowledged", false)) {
+            if (report.optBoolean("hostAcknowledged", false)) {
                 deleteIfFullyDelivered(file, report)
                 continue
             }
@@ -185,13 +185,13 @@ internal object AnsightCrashCapture {
                 JSONObject()
                     .put("reportId", report.optString("reportId"))
                     .put("targetProcessSessionId", report.optString("previousProcessSessionId"))
-                    .putNullable("targetSessionId", report.optionalString("studioSessionId"))
+                    .putNullable("targetSessionId", report.optionalString("hostSessionId"))
                     .put("deliveryProcessSessionId", ProcessSessionIdentity.current)
                     .put("report", report),
             ).operationResult
             if (result.success) {
-                report.put("studioAcknowledged", true)
-                report.put("studioAcknowledgedAtUtc", AnsightClock.isoNow())
+                report.put("hostAcknowledged", true)
+                report.put("hostAcknowledgedAtUtc", AnsightClock.isoNow())
                 writeAtomic(file, report.toString())
                 deleteIfFullyDelivered(file, report)
             }
@@ -253,20 +253,20 @@ internal object AnsightCrashCapture {
                 .putNullable("termination", exit?.let(::exitJson) ?: matchingSignalEvidence?.toJson())
                 .putNullable("traceBase64", traceBase64)
                 .put("breadcrumbs", readBreadcrumbs(root))
-                .putNullable("studioSessionId", previousSession.optionalString("studioSessionId"))
+                .putNullable("hostSessionId", previousSession.optionalString("hostSessionId"))
                 .putNullable("hostId", previousSession.optionalString("hostId"))
                 .putNullable("configId", previousSession.optionalString("configId"))
                 .putNullable("appId", previousSession.optionalString("appId"))
                 .putNullable("offlineSessionId", previousSession.optionalString("offlineSessionId"))
                 .putNullable("offlineSessionDirectory", previousSession.optionalString("offlineSessionDirectory"))
-                .put("studioRequired", options.studioHandoffEnabled)
+                .put("hostRequired", options.hostHandoffEnabled)
                 .put(
                     "offlineCaptureRequired",
                     options.offlineCaptureAttachmentEnabled &&
                         previousSession.optionalString("offlineSessionId") != null &&
                         previousSession.optionalString("offlineCompletedAtUtc") == null,
                 )
-                .put("studioAcknowledged", false)
+                .put("hostAcknowledged", false)
                 .put("offlineCapturePersisted", false)
             writeAtomic(reportFile, report.toString())
         }
@@ -361,9 +361,9 @@ internal object AnsightCrashCapture {
     }
 
     private fun deleteIfFullyDelivered(file: File, report: JSONObject) {
-        val studioDelivered = !report.optBoolean("studioRequired", true) || report.optBoolean("studioAcknowledged")
+        val hostDelivered = !report.optBoolean("hostRequired", true) || report.optBoolean("hostAcknowledged")
         val offlineDelivered = !report.optBoolean("offlineCaptureRequired", false) || report.optBoolean("offlineCapturePersisted")
-        if (studioDelivered && offlineDelivered) file.delete()
+        if (hostDelivered && offlineDelivered) file.delete()
     }
 
     private fun findPreviousExit(previousSession: JSONObject): ApplicationExitInfo? {

@@ -1,7 +1,7 @@
 namespace Ansight.Annotations;
 
 /// <summary>
-/// Immutable, versioned annotation archive submitted to Studio or Offline Capture.
+/// Immutable, versioned annotation archive submitted to host or Offline Capture.
 /// </summary>
 public sealed class AnnotationBundle
 {

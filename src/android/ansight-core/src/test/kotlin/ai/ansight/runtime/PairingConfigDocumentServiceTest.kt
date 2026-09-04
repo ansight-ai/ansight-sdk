@@ -108,7 +108,7 @@ class PairingConfigDocumentServiceTest {
             "host",
             JSONObject()
                 .put("hostId", "host-1")
-                .put("hostName", "Studio")
+                .put("hostName", "host")
                 .put("discoveryPort", 45_123),
         )
         .put(

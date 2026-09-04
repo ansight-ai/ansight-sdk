@@ -20,7 +20,7 @@ internal sealed class LiveAnnotationSink : IAnnotationSink
     {
         if (!runtime.HostConnection.IsConnected)
         {
-            return AnnotationSinkResult.Failure(Id, "A live Ansight Studio session is not connected.");
+            return AnnotationSinkResult.Failure(Id, "A live Ansight host session is not connected.");
         }
 
         if (runtime is not RuntimeImpl runtimeImpl)

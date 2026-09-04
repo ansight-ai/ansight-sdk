@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Ansight connects to the developer-selected Studio host on the local network.</string>
+	<string>Ansight connects to the developer-selected host host on the local network.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
@@ -11,7 +11,7 @@
 	<key>CFBundleDisplayName</key>
 	<string>Ansight Flutter Harness</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Scan an Ansight pairing QR code to connect this harness to Studio.</string>
+	<string>Scan an Ansight pairing QR code to connect this harness to host.</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

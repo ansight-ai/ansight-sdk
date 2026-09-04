@@ -40,7 +40,7 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
         )
         guard !hostAddressCandidates.isEmpty else {
             return .failure(
-                "The scanned Ansight QR code does not contain a reachable Studio address.",
+                "The scanned Ansight QR code does not contain a reachable host address.",
                 code: PairingFailureCodes.hostAddressRequired
             )
         }
@@ -50,7 +50,7 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
             ?? document.config.host.discoveryPort
         guard (1...65_535).contains(discoveryPort) else {
             return .failure(
-                "Studio discovery port must be between 1 and 65535.",
+                "host discovery port must be between 1 and 65535.",
                 code: PairingFailureCodes.hostAddressRequired
             )
         }
@@ -63,13 +63,13 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
         let wifiStatus = hasSimulatorLocalHostCandidate ? PairingWifiPreflightStatus.connected : wifiStatusProvider()
         if wifiStatus == .notConnected {
             return .failure(
-                "This device must be on the same Wi-Fi network as Ansight Studio. \(hostNetworkCheckMessage)",
+                "This device must be on the same Wi-Fi network as Ansight host. \(hostNetworkCheckMessage)",
                 code: PairingFailureCodes.wifiRequired
             )
         }
         if wifiStatus == .cellular, options?.allowCellularConnections != true {
             return .failure(
-                "Cellular Studio connections are disabled.",
+                "Cellular host connections are disabled.",
                 code: PairingFailureCodes.wifiRequired
             )
         }
@@ -135,7 +135,7 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
             }
             guard let responseData else {
                 lastFailure = .failure(
-                    "No response from Studio at \(hostAddress). \(hostNetworkCheckMessage) Scan a fresh QR code if Studio's address changed.",
+                    "No response from host at \(hostAddress). \(hostNetworkCheckMessage) Scan a fresh QR code if host's address changed.",
                     code: PairingFailureCodes.udpBootstrapTimeout
                 )
                 continue
@@ -146,7 +146,7 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
                 response = try JSONDecoder.ansightDecoder.decode(ConnectResponse.self, from: responseData)
             } catch {
                 return .failure(
-                    "Studio enrollment response was malformed: \(error.localizedDescription)",
+                    "host enrollment response was malformed: \(error.localizedDescription)",
                     code: PairingFailureCodes.udpBootstrapFailed
                 )
             }
@@ -155,7 +155,7 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
                   response.requestId == requestId
             else {
                 return .failure(
-                    "Studio returned an unexpected enrollment response.",
+                    "host returned an unexpected enrollment response.",
                     code: PairingFailureCodes.udpBootstrapFailed
                 )
             }
@@ -169,7 +169,7 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
                   !webSocketToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             else {
                 return .failure(
-                    "Studio did not provide a WebSocket handoff.",
+                    "host did not provide a WebSocket handoff.",
                     code: PairingFailureCodes.webSocketHandoffUnavailable
                 )
             }
@@ -179,7 +179,7 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
                 string: "ws://\(authorityHost):\(webSocketPort)"
             ) else {
                 return .failure(
-                    "Studio WebSocket handoff was not a valid URL.",
+                    "host WebSocket handoff was not a valid URL.",
                     code: PairingFailureCodes.webSocketHandoffUnavailable
                 )
             }
@@ -187,7 +187,7 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
             components.queryItems = [URLQueryItem(name: "token", value: webSocketToken)]
             guard let url = components.url else {
                 return .failure(
-                    "Studio WebSocket handoff was not a valid URL.",
+                    "host WebSocket handoff was not a valid URL.",
                     code: PairingFailureCodes.webSocketHandoffUnavailable
                 )
             }
@@ -196,7 +196,7 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
         }
 
         return lastFailure ?? .failure(
-            "The scanned Ansight QR code does not contain a reachable Studio address.",
+            "The scanned Ansight QR code does not contain a reachable host address.",
             code: PairingFailureCodes.hostAddressRequired
         )
     }
@@ -235,7 +235,7 @@ public final class PairingSessionConnector: PairingSessionConnecting, @unchecked
     private static func hostNetworkCheckMessage(discoveryHint: PairingDiscoveryHint?) -> String {
         if let wifiName = discoveryHint?.wifiName?.trimmingCharacters(in: .whitespacesAndNewlines),
            !wifiName.isEmpty {
-            return "Last known Studio Wi-Fi: \(wifiName)."
+            return "Last known host Wi-Fi: \(wifiName)."
         }
         return "Check that both devices are on the same Wi-Fi network."
     }

@@ -79,7 +79,7 @@ enum LocalPairingDocumentFactory {
                 expiresAt: expiresAtValue,
                 host: PairingHost(
                     hostId: nil,
-                    hostName: "Local Ansight Studio",
+                    hostName: "Local Ansight host",
                     discoveryPort: discoveryPort
                 ),
                 enrollment: PairingEnrollment(
@@ -93,7 +93,7 @@ enum LocalPairingDocumentFactory {
                 source: "runtime-local",
                 hostAddresses: [hostAddress],
                 discoveryPort: discoveryPort,
-                hostName: "Local Ansight Studio",
+                hostName: "Local Ansight host",
                 capturedAt: nowValue
             )
         )

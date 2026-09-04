@@ -11,7 +11,7 @@ import MetricKit
 
 public struct AnsightCrashCaptureOptions: Sendable, Codable, Equatable {
     public var enabled: Bool
-    public var studioHandoffEnabled: Bool
+    public var hostHandoffEnabled: Bool
     public var offlineCaptureAttachmentEnabled: Bool
     public var maximumPendingReports: Int
     public var retentionDays: Int
@@ -20,7 +20,7 @@ public struct AnsightCrashCaptureOptions: Sendable, Codable, Equatable {
 
     public init(
         enabled: Bool = true,
-        studioHandoffEnabled: Bool = true,
+        hostHandoffEnabled: Bool = true,
         offlineCaptureAttachmentEnabled: Bool = true,
         maximumPendingReports: Int = 8,
         retentionDays: Int = 7,
@@ -28,7 +28,7 @@ public struct AnsightCrashCaptureOptions: Sendable, Codable, Equatable {
         maximumTraceBytes: Int = 1_048_576
     ) {
         self.enabled = enabled
-        self.studioHandoffEnabled = studioHandoffEnabled
+        self.hostHandoffEnabled = hostHandoffEnabled
         self.offlineCaptureAttachmentEnabled = offlineCaptureAttachmentEnabled
         self.maximumPendingReports = maximumPendingReports
         self.retentionDays = retentionDays
@@ -38,7 +38,7 @@ public struct AnsightCrashCaptureOptions: Sendable, Codable, Equatable {
 
     private enum CodingKeys: String, CodingKey {
         case enabled
-        case studioHandoffEnabled
+        case hostHandoffEnabled
         case offlineCaptureAttachmentEnabled
         case maximumPendingReports
         case retentionDays
@@ -49,7 +49,8 @@ public struct AnsightCrashCaptureOptions: Sendable, Codable, Equatable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
-        studioHandoffEnabled = try container.decodeIfPresent(Bool.self, forKey: .studioHandoffEnabled) ?? true
+        hostHandoffEnabled = try container.decodeIfPresent(Bool.self, forKey: .hostHandoffEnabled)
+            ?? true
         offlineCaptureAttachmentEnabled = try container.decodeIfPresent(
             Bool.self,
             forKey: .offlineCaptureAttachmentEnabled
@@ -173,19 +174,19 @@ final class AnsightCrashCapture: NSObject, @unchecked Sendable {
         }
     }
 
-    func associateStudioSession(hostId: String?, configId: String?, appId: String?) {
+    func associateHostSession(hostId: String?, configId: String?, appId: String?) {
         updateActiveSession { active in
-            active["studioSessionId"] = ProcessSessionIdentity.current
+            active["hostSessionId"] = ProcessSessionIdentity.current
             active["hostId"] = normalized(hostId)
             active["configId"] = normalized(configId)
             active["appId"] = normalized(appId)
-            active["studioOpenedAtUtc"] = AnsightClock.isoNow()
-            active.removeValue(forKey: "studioCompletedAtUtc")
+            active["hostOpenedAtUtc"] = AnsightClock.isoNow()
+            active.removeValue(forKey: "hostCompletedAtUtc")
         }
     }
 
-    func markStudioSessionCompleted() {
-        updateActiveSession { $0["studioCompletedAtUtc"] = AnsightClock.isoNow() }
+    func markHostSessionCompleted() {
+        updateActiveSession { $0["hostCompletedAtUtc"] = AnsightClock.isoNow() }
     }
 
     func associateOfflineSession(sessionId: String, directory: String?) {
@@ -220,10 +221,10 @@ final class AnsightCrashCapture: NSObject, @unchecked Sendable {
     }
 
     func deliverPendingReports(using transport: PairingLiveSessionTransport) async {
-        guard options.enabled, options.studioHandoffEnabled else { return }
+        guard options.enabled, options.hostHandoffEnabled else { return }
         for file in pendingReportFiles() {
             guard var report = readJSONObject(file) else { continue }
-            if report["studioAcknowledged"] as? Bool == true {
+            if report["hostAcknowledged"] as? Bool == true {
                 deleteIfFullyDelivered(file: file, report: report)
                 continue
             }
@@ -233,7 +234,7 @@ final class AnsightCrashCapture: NSObject, @unchecked Sendable {
                 payload = try .fromEncodable(CrashHandoffPayload(
                     reportId: report["reportId"] as? String ?? file.deletingPathExtension().lastPathComponent,
                     targetProcessSessionId: report["previousProcessSessionId"] as? String ?? "",
-                    targetSessionId: report["studioSessionId"] as? String,
+                    targetSessionId: report["hostSessionId"] as? String,
                     deliveryProcessSessionId: ProcessSessionIdentity.current,
                     report: try JSONValue.fromAnyCrashObject(report)
                 ))
@@ -246,8 +247,8 @@ final class AnsightCrashCapture: NSObject, @unchecked Sendable {
                 payload: payload
             ).operationResult
             if result.success {
-                report["studioAcknowledged"] = true
-                report["studioAcknowledgedAtUtc"] = AnsightClock.isoNow()
+                report["hostAcknowledged"] = true
+                report["hostAcknowledgedAtUtc"] = AnsightClock.isoNow()
                 writeJSON(report, to: file)
                 deleteIfFullyDelivered(file: file, report: report)
             }
@@ -303,11 +304,11 @@ final class AnsightCrashCapture: NSObject, @unchecked Sendable {
                 "kind": reason,
                 "confidence": "confirmed",
                 "breadcrumbs": readJSONArray(rootDirectory.appendingPathComponent("breadcrumbs.json")),
-                "studioRequired": options.studioHandoffEnabled,
+                "hostRequired": options.hostHandoffEnabled,
                 "offlineCaptureRequired": options.offlineCaptureAttachmentEnabled &&
                     previousSession["offlineSessionId"] != nil &&
                     previousSession["offlineCompletedAtUtc"] == nil,
-                "studioAcknowledged": false,
+                "hostAcknowledged": false,
                 "offlineCapturePersisted": false,
             ]
             if let candidate {
@@ -400,11 +401,11 @@ final class AnsightCrashCapture: NSObject, @unchecked Sendable {
             "kind": "native_crash",
             "confidence": "confirmed",
             "metricKitPayloadBase64": payload.prefix(options.maximumTraceBytes).base64EncodedString(),
-            "studioRequired": options.studioHandoffEnabled,
+            "hostRequired": options.hostHandoffEnabled,
             "offlineCaptureRequired": options.offlineCaptureAttachmentEnabled &&
                 previousSession["offlineSessionId"] != nil &&
                 previousSession["offlineCompletedAtUtc"] == nil,
-            "studioAcknowledged": false,
+            "hostAcknowledged": false,
             "offlineCapturePersisted": false,
         ]
         copyAssociationKeys(from: previousSession, to: &report)
@@ -434,9 +435,9 @@ final class AnsightCrashCapture: NSObject, @unchecked Sendable {
     }
 
     private func deleteIfFullyDelivered(file: URL, report: [String: Any]) {
-        let studioDelivered = report["studioRequired"] as? Bool == false || report["studioAcknowledged"] as? Bool == true
+        let hostDelivered = report["hostRequired"] as? Bool == false || report["hostAcknowledged"] as? Bool == true
         let offlineDelivered = report["offlineCaptureRequired"] as? Bool == false || report["offlineCapturePersisted"] as? Bool == true
-        if studioDelivered && offlineDelivered {
+        if hostDelivered && offlineDelivered {
             try? FileManager.default.removeItem(at: file)
         }
     }
@@ -532,7 +533,7 @@ final class AnsightCrashCapture: NSObject, @unchecked Sendable {
     }
 
     private func copyAssociationKeys(from source: [String: Any], to target: inout [String: Any]) {
-        for key in ["studioSessionId", "hostId", "configId", "appId", "offlineSessionId", "offlineSessionDirectory"] {
+        for key in ["hostSessionId", "hostId", "configId", "appId", "offlineSessionId", "offlineSessionDirectory"] {
             target[key] = source[key]
         }
     }

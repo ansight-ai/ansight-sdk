@@ -217,7 +217,7 @@ export interface AnsightOptions {
 
 export interface AnsightCrashCaptureOptions {
   enabled?: boolean;
-  studioHandoffEnabled?: boolean;
+  hostHandoffEnabled?: boolean;
   offlineCaptureAttachmentEnabled?: boolean;
   maximumPendingReports?: number;
   retentionDays?: number;
@@ -617,7 +617,7 @@ export function screenViewed(name: string, details?: Record<string, string>): Pr
 export function trackRoute(name: string, details?: Record<string, string>): Promise<AnsightDebugSnapshot>;
 export function setAppLifecycleState(state: AnsightLifecycleState): Promise<AnsightDebugSnapshot>;
 export function connect(pairingPayload?: string | object | null, options?: AnsightConnectOptions): Promise<AnsightHostConnectionResult>;
-/** Scans a one-use Studio invite, registers this installation, and saves automatic reconnect state. */
+/** Scans a one-use host invite, registers this installation, and saves automatic reconnect state. */
 export function enrollFromQrCode(options?: AnsightScanPairingOptions): Promise<AnsightHostConnectionResult>;
 export function scanPairingQrCode(options?: AnsightScanPairingOptions): Promise<AnsightHostConnectionResult>;
 export function openSession(pairingPayload: string | object, options?: AnsightOpenSessionOptions): Promise<AnsightHostConnectionResult>;

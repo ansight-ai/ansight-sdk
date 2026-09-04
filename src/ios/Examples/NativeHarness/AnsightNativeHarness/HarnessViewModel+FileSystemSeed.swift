@@ -11,7 +11,7 @@ extension HarnessViewModel {
         let contents = """
         Ansight Native Harness file-system sample.
         Seeded at \(seededAtUtc).
-        Use this file to validate iOS SDK file tools from Ansight Studio.
+        Use this file to validate iOS SDK file tools from Ansight host.
         """
         try Data(contents.utf8).write(to: file, options: [.atomic])
     }

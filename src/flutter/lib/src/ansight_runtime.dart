@@ -220,7 +220,7 @@ class Ansight {
     return AnsightHostConnectionResult.fromJson(result);
   }
 
-  /// Scans a one-use Studio invite, registers this installation, and saves
+  /// Scans a one-use host invite, registers this installation, and saves
   /// automatic reconnect state.
   Future<AnsightHostConnectionResult> enrollFromQrCode({
     String title = 'Scan Ansight Enrollment QR',
@@ -619,7 +619,7 @@ class Ansight {
           id: 'artifacts.request',
           name: 'Request App Artifact',
           description:
-              'Creates one app-provided artifact and transfers it to Studio.',
+              'Creates one app-provided artifact and transfers it to host.',
           category: 'artifacts',
           policy: AnsightToolPolicy.read,
         ),

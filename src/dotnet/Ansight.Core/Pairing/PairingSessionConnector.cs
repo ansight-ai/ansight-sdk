@@ -60,7 +60,7 @@ internal sealed class PairingSessionConnector
         if (hostAddressCandidates.Length == 0)
         {
             return PairingConnectionAttempt.FromFailure(
-                "The scanned Ansight QR code does not contain a reachable Studio address.",
+                "The scanned Ansight QR code does not contain a reachable host address.",
                 PairingFailureCodes.HostAddressRequired);
         }
 
@@ -175,7 +175,7 @@ internal sealed class PairingSessionConnector
             if (connectResponse is null)
             {
                 lastFailure = PairingConnectionAttempt.FromFailure(
-                    $"No connect response from Studio at {hostAddress}. {hostNetworkCheckMessage} Scan a fresh QR code if Studio's address changed.",
+                    $"No connect response from host at {hostAddress}. {hostNetworkCheckMessage} Scan a fresh QR code if host's address changed.",
                     PairingFailureCodes.UdpBootstrapTimeout);
                 continue;
             }
@@ -246,7 +246,7 @@ internal sealed class PairingSessionConnector
         }
 
         return lastFailure ?? PairingConnectionAttempt.FromFailure(
-            "The scanned Ansight QR code does not contain a reachable Studio address.",
+            "The scanned Ansight QR code does not contain a reachable host address.",
             PairingFailureCodes.HostAddressRequired);
     }
 

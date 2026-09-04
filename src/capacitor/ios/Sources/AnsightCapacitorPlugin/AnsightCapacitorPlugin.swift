@@ -724,7 +724,7 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
             } else if let crash = raw as? NSDictionary {
                 options.crashCapture = AnsightCrashCaptureOptions(
                     enabled: boolValue(crash, "enabled", defaultValue: true),
-                    studioHandoffEnabled: boolValue(crash, "studioHandoffEnabled", defaultValue: true),
+                    hostHandoffEnabled: boolValue(crash, "hostHandoffEnabled", defaultValue: true),
                     offlineCaptureAttachmentEnabled: boolValue(crash, "offlineCaptureAttachmentEnabled", defaultValue: true),
                     maximumPendingReports: intValue(crash, "maximumPendingReports", defaultValue: 8),
                     retentionDays: intValue(crash, "retentionDays", defaultValue: 7),

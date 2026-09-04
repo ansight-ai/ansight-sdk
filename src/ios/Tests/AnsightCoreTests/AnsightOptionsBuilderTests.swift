@@ -2,6 +2,15 @@ import XCTest
 @testable import AnsightCore
 
 final class AnsightOptionsBuilderTests: XCTestCase {
+    func testCrashHandoffSettingSurvivesEncodingAndBuilderCopy() throws {
+        for enabled in [false, true] {
+            let configured = AnsightCrashCaptureOptions(hostHandoffEnabled: enabled)
+            let decoded = try JSONDecoder().decode(AnsightCrashCaptureOptions.self, from: JSONEncoder().encode(configured))
+            let options = try AnsightOptions.createBuilder().withCrashCapture(decoded).build()
+            XCTAssertEqual(options.crashCapture.hostHandoffEnabled, enabled)
+        }
+    }
+
     func testRuntimeDiagnosticChannelsAreReserved() {
         XCTAssertTrue(AnsightChannels.reservedIds.contains(AnsightChannels.jniReferenceCount))
         XCTAssertTrue(AnsightChannels.reservedIds.contains(AnsightChannels.openFileHandles))
@@ -211,7 +220,7 @@ final class AnsightOptionsBuilderTests: XCTestCase {
         )
 
         XCTAssertTrue(options.enabled)
-        XCTAssertTrue(options.studioHandoffEnabled)
+        XCTAssertTrue(options.hostHandoffEnabled)
         XCTAssertTrue(options.offlineCaptureAttachmentEnabled)
         XCTAssertEqual(options.maximumPendingReports, 8)
         XCTAssertEqual(options.retentionDays, 7)

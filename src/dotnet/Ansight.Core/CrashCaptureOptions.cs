@@ -7,7 +7,7 @@ public sealed class CrashCaptureOptions
 {
     public bool Enabled { get; set; } = true;
 
-    public bool StudioHandoffEnabled { get; set; } = true;
+    public bool HostHandoffEnabled { get; set; } = true;
 
     public bool OfflineCaptureAttachmentEnabled { get; set; } = true;
 
@@ -24,7 +24,7 @@ public sealed class CrashCaptureOptions
         return new CrashCaptureOptions
         {
             Enabled = Enabled,
-            StudioHandoffEnabled = StudioHandoffEnabled,
+            HostHandoffEnabled = HostHandoffEnabled,
             OfflineCaptureAttachmentEnabled = OfflineCaptureAttachmentEnabled,
             MaximumPendingReports = MaximumPendingReports,
             RetentionDays = RetentionDays,

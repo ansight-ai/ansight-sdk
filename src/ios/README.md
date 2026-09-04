@@ -48,11 +48,11 @@ complete package matrix, guarded startup locations, and CLI verification.
 - live metric channel, metric sample, and app event streaming using the established `CLIENT_METRIC_CHANNELS`, `CLIENT_METRICS`, and `CLIENT_EVENTS` payloads
 - automatic UIKit foreground/background, UIKit view-controller screen-view, and SwiftUI `UIHostingController` root-view capture with explicit opt-out controls and app-provided route naming hooks
 - FPS telemetry sampling through `CADisplayLink` on UIKit platforms using the reserved FPS metric channel
-- live JPEG screen-frame capture using Studio's binary `ASJP` / `CLIENT_JPEG` WebSocket path
-- live UIKit touch capture using a simultaneous window gesture recognizer and Studio-compatible `CLIENT_TOUCH_INPUT` / `ansight.touches.v1` packed batches
+- live JPEG screen-frame capture using host's binary `ASJP` / `CLIENT_JPEG` WebSocket path
+- live UIKit touch capture using a simultaneous window gesture recognizer and host-compatible `CLIENT_TOUCH_INPUT` / `ansight.touches.v1` packed batches
 - baseline Apple device/app profile collection without direct PII, including runtime stack codes, app icon payloads, Metal GPU/render-backend details, and coarse network transport
 - Keychain-backed app-installation registration and remembered host profiles with explicit clearing
-- queued `ansight.file-transfer.v1` binary artifact transfers for screenshot and file-download tools during live Studio sessions
+- queued `ansight.file-transfer.v1` binary artifact transfers for screenshot and file-download tools during live host sessions
 - executable tool registration, ordered read/write/critical policy, tool guards, reserved tool call context arguments, and `tool.query` / `tool.call` protocol handling
 - app artifact providers with `artifacts.query`, `artifacts.request`, and live binary export
 - `AnsightToolsPreferences` SwiftPM product with `prefs.list_keys`, `prefs.get_value`, `prefs.set_value`, and `prefs.remove_key` for sandboxed `UserDefaults` access
@@ -113,7 +113,7 @@ ansight app tools <session-id> --json
 
 The iOS Simulator and Mac Catalyst register automatically through loopback. No
 account, pairing file, build environment variable, host address, or build-time
-host process is required. If the host is unavailable, the SDK keeps retrying
+The host process is required. If the host is unavailable, the SDK keeps retrying
 without affecting the app.
 
 On a physical iPhone, run `ansight pairing issue --qr`, then call
@@ -235,7 +235,7 @@ enrollment and connection; no explicit `connect` call is required.
 
 Host auto-probe is enabled by default while the runtime is active. It remembers
 previous host connections and retries them so the app can reconnect after the
-host disappears and later reappears. Probing pauses while a live session is
+The host disappears and later reappears. Probing pauses while a live session is
 connected and resumes after the retry delay when that session is lost:
 
 ```swift
@@ -370,7 +370,7 @@ AnsightRuntime.shared.setTouchCaptureGuard {
 > settings, and disable `sessionJpegCapture` for performance-focused runs unless
 > visual evidence is required.
 
-Configure `AnsightOptions.sessionJpegCapture` before connecting to Studio:
+Configure `AnsightOptions.sessionJpegCapture` before connecting to host:
 
 ```swift
 try AnsightRuntime.shared.initializeAndActivate(
@@ -414,7 +414,7 @@ try AnsightRuntime.shared.initializeAndActivateAnsightSdk(
 )
 ```
 
-When the WebSocket session opens, the SDK captures the foreground UIKit window on the main actor, encodes it as JPEG, and sends binary frames to Studio. Apps can also trigger a single frame with `await AnsightRuntime.shared.captureScreenFrame()`.
+When the WebSocket session opens, the SDK captures the foreground UIKit window on the main actor, encodes it as JPEG, and sends binary frames to the host. Apps can also trigger a single frame with `await AnsightRuntime.shared.captureScreenFrame()`.
 
 Set `mode: .screenshotWithVisualTreeOnTouch` to retain periodic screenshots
 while capturing visual trees only on touch down and touch up. Move and cancel
@@ -422,9 +422,9 @@ events do not trigger capture. Rapid boundaries are coalesced through a
 one-item pending queue and rate-limited to protect screenshot cadence. Touch
 capture and a session visual-tree provider must also be enabled.
 
-For Simulator sessions, Studio can acknowledge `device.profile` with host
+For Simulator sessions, host can acknowledge `device.profile` with host
 screenshot mode. The SDK then suspends periodic in-app JPEG capture for that
-session so Studio can use a host-side source such as `simctl`. If the host does
+session so host can use a host-side source such as `simctl`. If the host does
 not request that mode, the configured app capture loop continues.
 
 ## Screen route naming
@@ -504,7 +504,7 @@ await AnsightRuntime.shared.connect(.qrCode(title: "Scan Ansight Enrollment QR")
 
 ## Remote tools
 
-Tool products are opt-in. Register only the surfaces you want exposed to Studio:
+Tool products are opt-in. Register only the surfaces you want exposed to host:
 
 ```swift
 import AnsightCore
@@ -641,7 +641,7 @@ try AnsightRuntime.shared.registerArtifactProvider(ReportArtifactProvider())
 
 Registering the first provider adds the `read` policy `artifacts.query` and
 `artifacts.request` tools automatically. Providers can also be passed through
-`AnsightRemoteToolOptions.artifactProviders`. Requests require a live Studio
+`AnsightRemoteToolOptions.artifactProviders`. Requests require a live host
 tool call; returned data is queued on the native binary-transfer channel.
 
 ## Custom Tools
@@ -723,7 +723,7 @@ let events = AnsightRuntime.shared.recordedEvents()
 
 ## Current limits
 
-- `openSession(...)` remains a harness-only local compatibility API; use `connect(...)` or `openLiveSession(...)` for a real Studio session
+- `openSession(...)` remains a harness-only local compatibility API; use `connect(...)` or `openLiveSession(...)` for a real host session
 - Swift reflection writes and method invocation require opt-in roots through `AnsightReflectionMutableRoot` and `AnsightReflectionInvokableRoot`
 - SDK-owned file/QR pairing UI lives in the optional `AnsightPairingQR` product and is UIKit-only; macOS package builds compile the reader surface but report those request kinds unsupported
 - binary file/screenshot transfer requires a live tool-protocol request context; direct in-process execution still reports a transfer-unavailable error

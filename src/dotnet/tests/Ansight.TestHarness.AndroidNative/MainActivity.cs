@@ -36,7 +36,7 @@ public class MainActivity : Activity
             var hostStatus = Runtime.HostConnection.Status;
             nativeBindingStatus.Text =
                 $"{NativeBindingDiagnostics.GetStatus()}\n" +
-                $"Studio: {hostStatus.ConnectionState} • {hostStatus.SummaryMessage}";
+                $"host: {hostStatus.ConnectionState} • {hostStatus.SummaryMessage}";
         }
 
         Button BuildRuntimeButton(string text, Action action)

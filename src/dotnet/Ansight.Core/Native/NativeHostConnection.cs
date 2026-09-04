@@ -165,7 +165,7 @@ internal sealed class NativeHostConnection : IHostConnection, IDisposable
         }
 
         return HostConnectionResult.FromSuccess(
-            "Saved Studio registration and cached session cleared.",
+            "Saved host registration and cached session cleared.",
             HostConnectionActionKind.ClearSavedConfigs,
             HostConnectionSource.SavedConfig);
     }

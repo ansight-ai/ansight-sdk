@@ -26,7 +26,7 @@ internal static class LocalPairingDocumentFactory
                 AllowedTransports = ["ws"],
                 Host = new PairingHost
                 {
-                    HostName = "Local Ansight Studio",
+                    HostName = "Local Ansight host",
                     DiscoveryPort = discoveryPort
                 },
                 Enrollment = new PairingEnrollment
@@ -44,7 +44,7 @@ internal static class LocalPairingDocumentFactory
                 Source = "runtime-local",
                 HostAddresses = [hostAddress],
                 DiscoveryPort = discoveryPort,
-                HostName = "Local Ansight Studio",
+                HostName = "Local Ansight host",
                 CapturedAt = now
             }
         };

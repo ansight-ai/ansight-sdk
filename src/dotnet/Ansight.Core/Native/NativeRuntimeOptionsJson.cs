@@ -102,7 +102,7 @@ internal static class NativeRuntimeOptionsJson
         return new JsonObject
         {
             ["enabled"] = options.Enabled,
-            ["studioHandoffEnabled"] = options.StudioHandoffEnabled,
+            ["hostHandoffEnabled"] = options.HostHandoffEnabled,
             ["offlineCaptureAttachmentEnabled"] = options.OfflineCaptureAttachmentEnabled,
             ["maximumPendingReports"] = options.MaximumPendingReports,
             ["retentionDays"] = options.RetentionDays,

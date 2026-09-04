@@ -246,8 +246,8 @@ public partial class MainPage : ContentPage
             HostConnectionRequest.SavedConfig("simulator autorun"),
             "Ansight Offline Capture");
         captureHarness.RecordEvent(connectionResult.Success
-            ? "Connected to Ansight Studio"
-            : $"Ansight Studio connection failed: {connectionResult.Message}");
+            ? "Connected to Ansight host"
+            : $"Ansight host connection failed: {connectionResult.Message}");
         captureHarness.RegisterSessionProperty();
         captureHarness.RecordScreenView("Offline Capture Autorun");
         captureHarness.RecordInteraction("Autorun touch marker");

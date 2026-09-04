@@ -144,9 +144,9 @@ where reconnects should only happen after an explicit app action.
 > max-width settings, and disable `sessionJpegCapture` for performance-focused
 > runs unless visual evidence is required.
 
-For simulator/emulator sessions, Studio can acknowledge the native
+For simulator/emulator sessions, host can acknowledge the native
 `device.profile` with host screenshot mode. The native SDK then suspends
-periodic in-app JPEG capture for that session so Studio can use a host-side
+periodic in-app JPEG capture for that session so host can use a host-side
 source such as `simctl` or `adb`.
 
 ## Options
@@ -156,7 +156,7 @@ The TypeScript `AnsightOptions` surface mirrors Android `AnsightOptions`, iOS
 
 | Option | Purpose |
 | --- | --- |
-| `useNativeAllInOneDefaults` | Applies native iOS/Android all-in-one defaults when true. Defaults to false. This enables the native visual-tree/screenshot tools required by Studio visual tree inspection unless `remoteTools.visualTree` is explicitly false. Configure `toolGuard`, capture options, and `hostConnection` separately. |
+| `useNativeAllInOneDefaults` | Applies native iOS/Android all-in-one defaults when true. Defaults to false. This enables the native visual-tree/screenshot tools required by host visual tree inspection unless `remoteTools.visualTree` is explicitly false. Configure `toolGuard`, capture options, and `hostConnection` separately. |
 | `clientName` | Default client name for host auto-probe and connections. |
 | `sampleFrequencyMilliseconds` | Built-in telemetry sampling interval. |
 | `retentionPeriodSeconds` | Local metric/event retention window. |
@@ -273,7 +273,7 @@ app-side policy for inspection or testing.
 
 ## Native Tool Options
 
-`remoteTools` configures the native tool suites registered by the bridge. `useNativeAllInOneDefaults: true` enables visual tree tools by default so Studio can pair `ui.get_visual_tree` data with `ui.get_screenshot` frames. Apps that do not use all-in-one defaults can opt in explicitly:
+`remoteTools` configures the native tool suites registered by the bridge. `useNativeAllInOneDefaults: true` enables visual tree tools by default so host can pair `ui.get_visual_tree` data with `ui.get_screenshot` frames. Apps that do not use all-in-one defaults can opt in explicitly:
 
 ```ts
 await Ansight.initializeAndActivate(
@@ -472,7 +472,7 @@ locale; if the app selects a different language through an i18n library, set
 
 ## JavaScript Tools
 
-Custom JavaScript tools can be exposed to Ansight Studio:
+Custom JavaScript tools can be exposed to Ansight host:
 
 ```ts
 const registration = Ansight.registerTool(
@@ -547,7 +547,7 @@ await reportProvider.ready;
 The first provider installs the `read` policy `artifacts.query` and
 `artifacts.request` JavaScript tools in the native registry. A provider can
 return text, base64, byte arrays, `ArrayBuffer`, or `Uint8Array`. Artifact
-requests require a live Studio tool call; the bridge forwards the returned
+requests require a live host tool call; the bridge forwards the returned
 bytes through the native binary-transfer channel. Call
 `reportProvider.unregister()` during teardown or hot-reload cleanup.
 
@@ -670,5 +670,5 @@ The current-Expo validation app lives in:
 
 It is pinned to Expo SDK 57 and React Native 0.86 with the New Architecture and
 Hermes enabled. It validates Expo CNG/autolinking, the bundled config plugin,
-Android and iOS native builds, and the same live Studio feature surface as the
+Android and iOS native builds, and the same live host feature surface as the
 baseline harness.

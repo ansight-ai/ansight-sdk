@@ -12,8 +12,8 @@ The default developer flow is deliberately small:
 
 1. The app initializes and activates the SDK.
 2. A host-local runtime registers automatically with a running, signed-in
-   Studio through loopback.
-3. Studio shows one generic, short-lived, one-use enrollment QR.
+   host through loopback.
+3. host shows one generic, short-lived, one-use enrollment QR.
 4. A physical app scans it and registers itself automatically.
 5. Later launches reconnect automatically while the registration is valid.
 
@@ -88,10 +88,10 @@ ans2:<base64url(gzip(utf8-json-enrollment-invite-document))>
 
 The base64url value is unpadded.
 
-`appId: "*"` is the v2 any-app target. Studio uses it for the generic QR.
+`appId: "*"` is the v2 any-app target. The host uses it for the generic QR.
 The invite does not pre-register an app and the SDK never sends `*` as its
 runtime identity. The scanning SDK supplies its real package or bundle id in
-`ENROLLMENT_CONNECT`; Studio creates the app record after successful
+`ENROLLMENT_CONNECT`; host creates the app record after successful
 authorization. Existing app-specific v2 invites retain their exact app-id
 check.
 
@@ -101,12 +101,12 @@ Each SDK generates a random, stable `deviceId` and local enrollment token in
 app-private storage. It does not use a hardware identifier and does not require
 a platform permission.
 
-For host-local runtimes, Studio creates or reuses a local grant keyed by the
+For host-local runtimes, host creates or reuses a local grant keyed by the
 app id, installation id, and token. Local enrollment is accepted only when the
-UDP request originated from loopback and Studio has an authenticated account.
-The SDK checks its well-known installed and source-build Studio ports with
+UDP request originated from loopback and host has an authenticated account.
+The SDK checks its well-known installed and source-build host ports with
 short loopback-only timeouts before trying older stored registrations. It
-retries while active, so Studio does not need to be running during the app
+retries while active, so host does not need to be running during the app
 build or initial launch.
 
 The first successful use of an invite atomically binds its access token to:
@@ -244,24 +244,26 @@ Crash reporting is a two-process protocol. A fatal handler never opens a
 network connection. It writes a bounded record into app-private storage and
 allows the operating system's normal termination path to continue. On the next
 healthy launch, the SDK combines that record with the previous
-`processSessionId`, open Studio/offline session identifiers, recent
+`processSessionId`, open host/offline session identifiers, recent
 breadcrumbs, and OS termination diagnostics.
 
-When Studio is connected, the recovering process sends an acknowledged
+When the host is connected, the recovering process sends an acknowledged
 `crash.handoff` control request:
 
 ```json
 {
   "type": "CONTROL_REQ",
-  "requestId": "request_crash_1",
+  "id": "request_crash_1",
   "action": "crash.handoff",
   "payload": {
     "reportId": "6f914d7bdca928cfbf6e9691aefa0a42",
     "targetProcessSessionId": "process_that_crashed",
-    "targetSessionId": "previous_studio_session_if_known",
+    "targetSessionId": "previous_host_session_if_known",
     "deliveryProcessSessionId": "recovering_process",
     "report": {
       "schema": "ansight.crash.v1",
+      "reportId": "6f914d7bdca928cfbf6e9691aefa0a42",
+      "previousProcessSessionId": "process_that_crashed",
       "platform": "android",
       "kind": "native_crash",
       "confidence": "confirmed",
@@ -269,16 +271,16 @@ When Studio is connected, the recovering process sends an acknowledged
       "candidate": {},
       "termination": {},
       "breadcrumbs": [],
-      "traceBase64": "optional-bounded-os-trace"
+      "traceBase64": "dHJhY2U="
     }
   }
 }
 ```
 
-Studio uses `reportId` as an idempotency key and associates the report with
+The host uses the previous process identity and `reportId` as an idempotency key and associates the report with
 `targetSessionId` or `targetProcessSessionId`. It returns a successful
 `CONTROL_RESP` only after the report is durably stored. The SDK then marks the
-Studio delivery complete. Failed and interrupted requests remain in the
+The host delivery complete. Failed and interrupted requests remain in the
 bounded outbox for a later connection.
 
 If an offline capture was open when the process died, `.NET` recovery writes
@@ -287,6 +289,16 @@ manifest with the crash termination kind, and acknowledges the offline copy.
 The normal offline ZIP/upload path consequently transports the crash without
 network work in the fatal handler. A report is removed only after every
 delivery route required by its prior-session associations has succeeded.
+
+The receiving host validates report/envelope identities and the target app registration.
+It retains the report and decoded native trace or MetricKit payload as a `crash-report`
+session artifact. If the original session is unavailable, the delivering session retains
+it with the previous process identity in `report.json`. Reports are limited to 8 MiB
+of serialized JSON and each decoded trace to 4 MiB. Malformed or oversized reports
+are rejected without acknowledgement.
+
+The SDK option is `hostHandoffEnabled` (`HostHandoffEnabled` in .NET).
+It defaults to `true`; set it to `false` to disable delivery to the host.
 
 ### Telemetry streams
 
@@ -564,7 +576,7 @@ cannot raise the maximum beyond the app's local configuration.
 - Enrollment invites are bearer secrets. Do not publish, log, or ship them in
   production resources.
 - Local enrollment is rejected unless the datagram source is loopback and
-  Studio is authenticated.
+  host is authenticated.
 - The host consumes first registration atomically.
 - A registered installation reconnects with its saved state and does not need
   the original QR to remain unexpired.

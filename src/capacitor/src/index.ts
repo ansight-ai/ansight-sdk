@@ -388,7 +388,7 @@ export function scanPairingQrCode(
   return afterConnectionChange(() => AnsightNative.scanPairingQrCode(options));
 }
 
-/** Scans a one-use Studio invite, registers this installation, and saves automatic reconnect state. */
+/** Scans a one-use host invite, registers this installation, and saves automatic reconnect state. */
 export function enrollFromQrCode(
   options: AnsightQrPairingOptions = {},
 ): Promise<AnsightHostConnectionResult> {

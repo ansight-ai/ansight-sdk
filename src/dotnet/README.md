@@ -286,8 +286,8 @@ metadata, and mandatory redaction runs again on their result.
 V1 records method, sanitized URL, timing, protocol, headers, optional bounded
 bodies, status, and transport errors. Credential headers, cloud signed-URL
 fields, and sensitive text-body assignments are redacted before a record enters
-the runtime. The handler bypasses capture and body buffering while no Studio
-host is connected.
+the runtime. The handler bypasses capture and body buffering while no host
+The host is connected.
 
 ### Telemetry and sampled data
 
@@ -321,7 +321,7 @@ Android builds using `WithAnsightSdk()` also register
 `jni_references.capture_graph`. Lower-level Android integrations can register
 it explicitly with `WithJniReferenceDiagnosticsTools()`. The tool returns a
 bounded, redacted JNI-rooted object graph; it does not return object addresses
-or field values. Studio promotes the full result to a timeline artifact. JNI
+or field values. host promotes the full result to a timeline artifact. JNI
 reference-count telemetry remains the lightweight path for continuous
 monitoring, while graph capture is an explicit, potentially expensive heap
 diagnostic that briefly pauses the app.
@@ -391,7 +391,7 @@ and creates one requested snapshot from `CreateAsync(...)`. Use
 `FromFile(...)` for the returned payload. Registering a provider adds the
 `read` policy `artifacts.query` and `artifacts.request` tools automatically.
 Artifact bytes are streamed over the active pairing session, so requests
-require a live Studio connection. The shared result shape and error codes are
+require a live host connection. The shared result shape and error codes are
 documented in [Artifact Tools](../../docs/protocol.md#artifact-tools).
 
 ## Host Enrollment Memory
@@ -452,7 +452,7 @@ Host-local runtimes register automatically while `ansight host run` is active.
 For a physical device, run `ansight pairing issue --qr`, then open
 `HostConnectionRequest.QrCode()` only from a developer-only surface. No account,
 build target, build-time host probe, pairing file, certificate, signing key, or
-host address is required.
+The host address is required.
 
 ## Build-Time Remote Tool Enforcement
 

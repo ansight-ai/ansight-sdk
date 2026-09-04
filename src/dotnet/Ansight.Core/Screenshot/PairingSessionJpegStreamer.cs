@@ -30,7 +30,7 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
             HostPairingProgressReporter.Report(
                 progress,
                 HostConnectionProgressKind.SessionJpegCapture,
-                $"Session JPEG capture delegated to Studio ({hostCapturePolicy.Source ?? "external"}).",
+                $"Session JPEG capture delegated to host ({hostCapturePolicy.Source ?? "external"}).",
                 source: HostConnectionSource.SessionJpegCapture);
             return;
         }

@@ -55,7 +55,7 @@ Registering a root grants access to visible members and instance methods reachab
 Direct object roots use weak references by default when registered with `Register(...)`. Pass `ReferenceType.Strong` when the registry should retain the root for the lifetime of the toolsuite. Register a `Func<object?>` getter when the exposed root can change over time, such as the current view model or selected document; the root is reported as unavailable while the getter returns `null`. Runtime registration returns a `ReflectionRootRegistrationHandle`; dispose it or call `Deregister()` to remove that specific registration, or call `ReflectionRootRegistry.Deregister(id)` to remove the current root by identifier. Metadata, including `Description` and `Hints`, is supplied through the `ReflectionRootMetadata` argument.
 
 `reflect.list_roots` includes a `hostRuntime` descriptor on each root. .NET
-roots report `kind: "dotnet"` so Studio and agent bridges can distinguish
+roots report `kind: "dotnet"` so host and agent bridges can distinguish
 CLR-hosted roots from roots hosted by other SDK runtimes such as JVM, Swift, or
 future React Native JavaScript reflection roots.
 

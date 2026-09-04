@@ -54,12 +54,12 @@ Use one of the enrollment buttons in the app:
 
 The first successful scan stores a random installation id and enrollment state
 privately. Host auto-probe retries that remembered registration while the
-runtime is active, so the app reconnects after Studio disappears and later
+runtime is active, so the app reconnects after host disappears and later
 reappears. The harness has no bundled connection file or build-time secret.
 
 ## Validation Checklist
 
-After enrollment with Ansight Studio, validate:
+After enrollment with Ansight host, validate:
 
 - App profile: app id, app name, icon, simulator/device details.
 - Telemetry: custom metric channel `42`, lifecycle events, manual events, screen views, FPS metrics.
@@ -83,7 +83,7 @@ The `Re-seed Harness Data` button rewrites the sample Preferences, Documents, SQ
 
 ## Harness Reflection Roots
 
-The harness registers custom inspection roots for manual Studio validation:
+The harness registers custom inspection roots for manual host validation:
 
 - `ui.orderDraft`: bound text, picker, toggle, and quantity state.
 - `navigation.flow`: selected tab, active modal, flyout selection, pushed depth, and recent navigation events.

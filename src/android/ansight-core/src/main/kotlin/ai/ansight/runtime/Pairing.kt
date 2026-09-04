@@ -397,7 +397,7 @@ internal object LocalPairingDocumentFactory {
             .put(
                 "host",
                 JSONObject()
-                    .put("hostName", "Local Ansight Studio")
+                    .put("hostName", "Local Ansight host")
                     .put("discoveryPort", discoveryPort),
             )
             .put(
@@ -414,7 +414,7 @@ internal object LocalPairingDocumentFactory {
             .put("source", "runtime-local")
             .put("hostAddresses", JSONArray().put(hostAddress))
             .put("discoveryPort", discoveryPort)
-            .put("hostName", "Local Ansight Studio")
+            .put("hostName", "Local Ansight host")
             .put("capturedAt", now.toString())
         return JSONObject()
             .put("schema", PairingConfigDocumentService.ConfigDocumentSchemaName)
@@ -498,7 +498,7 @@ data class PairingConnectionAttempt(
             PairingConnectionAttempt(
                 success = true,
                 accepted = true,
-                message = "Connected to Studio.",
+                message = "Connected to host.",
                 hostAddress = hostAddress,
                 connectResponse = response,
                 transport = transport,
@@ -536,7 +536,7 @@ class PairingSessionConnector(
         )
         if (hostAddressCandidates.isEmpty()) {
             return PairingConnectionAttempt.failure(
-                "The scanned Ansight QR code does not contain a reachable Studio address.",
+                "The scanned Ansight QR code does not contain a reachable host address.",
                 PairingFailureCodes.HostAddressRequired,
             )
         }
@@ -546,7 +546,7 @@ class PairingSessionConnector(
             ?: document.config.host.discoveryPort
         if (discoveryPort !in 1..65_535) {
             return PairingConnectionAttempt.failure(
-                "Studio discovery port must be between 1 and 65535.",
+                "host discovery port must be between 1 and 65535.",
                 PairingFailureCodes.HostAddressRequired,
             )
         }
@@ -560,13 +560,13 @@ class PairingSessionConnector(
         }
         if (networkStatus == PairingNetworkPreflightStatus.NotConnected) {
             return PairingConnectionAttempt.failure(
-                "This device must be on the same Wi-Fi network as Ansight Studio.",
+                "This device must be on the same Wi-Fi network as Ansight host.",
                 PairingFailureCodes.WifiRequired,
             )
         }
         if (networkStatus == PairingNetworkPreflightStatus.Cellular && !options.allowCellularConnections) {
             return PairingConnectionAttempt.failure(
-                "Cellular Studio connections are disabled.",
+                "Cellular host connections are disabled.",
                 PairingFailureCodes.WifiRequired,
             )
         }
@@ -601,7 +601,7 @@ class PairingSessionConnector(
 
             if (connectResponse == null) {
                 lastFailure = PairingConnectionAttempt.failure(
-                    "No response from Studio at $hostAddress. Scan a fresh QR code if Studio's address changed.",
+                    "No response from host at $hostAddress. Scan a fresh QR code if host's address changed.",
                     PairingFailureCodes.UdpBootstrapTimeout,
                 )
                 continue
@@ -615,7 +615,7 @@ class PairingSessionConnector(
             val webSocketToken = connectResponse.webSocketToken?.trim()
             if (webSocketPort == null || webSocketPath.isNullOrBlank() || webSocketToken.isNullOrBlank()) {
                 return PairingConnectionAttempt.failure(
-                    "Studio did not provide a WebSocket handoff.",
+                    "host did not provide a WebSocket handoff.",
                     PairingFailureCodes.WebSocketHandoffUnavailable,
                 )
             }
@@ -633,7 +633,7 @@ class PairingSessionConnector(
         }
 
         return lastFailure ?: PairingConnectionAttempt.failure(
-            "The scanned Ansight QR code does not contain a reachable Studio address.",
+            "The scanned Ansight QR code does not contain a reachable host address.",
             PairingFailureCodes.HostAddressRequired,
         )
     }
@@ -685,7 +685,7 @@ class PairingSessionConnector(
                         response.ver == 2 &&
                         response.requestId == requestId
                 ) {
-                    "Studio returned an unexpected enrollment response."
+                    "host returned an unexpected enrollment response."
                 }
                 return response
             }

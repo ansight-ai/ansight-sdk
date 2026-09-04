@@ -23,9 +23,9 @@
     <key>UILaunchScreen</key>
     <dict/>
     <key>NSLocalNetworkUsageDescription</key>
-    <string>Ansight uses the local network to connect this harness to Ansight Studio during development.</string>
+    <string>Ansight uses the local network to connect this harness to Ansight host during development.</string>
     <key>NSCameraUsageDescription</key>
-    <string>Ansight uses the camera to scan pairing QR codes from Ansight Studio.</string>
+    <string>Ansight uses the camera to scan pairing QR codes from Ansight host.</string>
     <key>UIApplicationSceneManifest</key>
     <dict>
         <key>UIApplicationSupportsMultipleScenes</key>

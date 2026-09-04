@@ -297,7 +297,7 @@ public final class AnsightRuntime: @unchecked Sendable {
     public func clearSavedPairing() {
         savedPairingStore.clear()
         lock.withLock {
-            sessionMessage = "Saved Studio registration cleared."
+            sessionMessage = "Saved host registration cleared."
         }
         publishHostConnectionStatusIfChanged()
     }
@@ -315,7 +315,7 @@ public final class AnsightRuntime: @unchecked Sendable {
         guard isInitialized else {
             return HostConnectionResult(
                 success: false,
-                message: "AnsightRuntime must be initialized before saving a Studio registration.",
+                message: "AnsightRuntime must be initialized before saving a host registration.",
                 kind: .savedConfig,
                 source: .savedConfig
             )
@@ -346,12 +346,12 @@ public final class AnsightRuntime: @unchecked Sendable {
             _ = try pairingDocumentService.parseAndValidateDocument(trimmedJson, expectedAppId: effectiveExpectedAppId)
             try savedPairingStore.save(trimmedJson)
             lock.withLock {
-                sessionMessage = "Saved Studio registration."
+                sessionMessage = "Saved host registration."
             }
             publishHostConnectionStatusIfChanged()
             return HostConnectionResult(
                 success: true,
-                message: "Saved Studio registration.",
+                message: "Saved host registration.",
                 kind: .savedConfig,
                 source: .savedConfig
             )
@@ -937,7 +937,7 @@ public final class AnsightRuntime: @unchecked Sendable {
 
         return lastResult ?? HostConnectionResult(
             success: false,
-            message: "No Studio registration is available. Scan an enrollment QR in Ansight Studio.",
+            message: "No host registration is available. Scan an enrollment QR from the Ansight CLI or local player.",
             kind: request.kind,
             source: source(for: request.kind),
             reasonCode: nil
@@ -1115,7 +1115,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             lastDisconnectedAtUtc = nil
             sessionMessage = attempt.message
         }
-        AnsightCrashCapture.shared.associateStudioSession(
+        AnsightCrashCapture.shared.associateHostSession(
             hostId: connectResponse.hostId,
             configId: resolvedRequest.document.config.configId,
             appId: resolvedRequest.document.config.appId
@@ -1387,7 +1387,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             lastPairingDocument = document
             resolvedHostAddress = hintedHostAddress
             sessionMessage =
-                "Harness session opened locally for \(options.clientName) using config \(document.config.configId) at \(hintedHostAddress). Use connect(...) or openLiveSession(...) for a live Studio session."
+                "Harness session opened locally for \(options.clientName) using config \(document.config.configId) at \(hintedHostAddress). Use connect(...) or openLiveSession(...) for a live host session."
             return OpenSessionResult(
                 success: true,
                 message: sessionMessage ?? "Session opened.",
@@ -1548,7 +1548,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             result = .success("Session already closed.")
         }
 
-        AnsightCrashCapture.shared.markStudioSessionCompleted()
+        AnsightCrashCapture.shared.markHostSessionCompleted()
         closeSession()
         return result
     }
@@ -3112,7 +3112,7 @@ public final class AnsightRuntime: @unchecked Sendable {
 
     private func resolveConnectionRequest(_ request: HostConnectionRequest) throws -> ResolvedConnectionRequest {
         guard let resolvedRequest = try resolveConnectionRequests(request).first else {
-            throw RuntimeError.invalidInput("No Studio registration is available.")
+            throw RuntimeError.invalidInput("No host registration is available.")
         }
         return resolvedRequest
     }
@@ -3172,7 +3172,7 @@ public final class AnsightRuntime: @unchecked Sendable {
                 } catch {
                     savedPairingStore.clear()
                     AnsightLogger.warning(
-                        "Saved Studio registration is invalid and was cleared. Scan a fresh enrollment QR code.",
+                        "Saved host registration is invalid and was cleared. Scan a fresh enrollment QR code.",
                         error: error
                     )
                 }
@@ -3184,12 +3184,12 @@ public final class AnsightRuntime: @unchecked Sendable {
                 ))
             }
             guard !resolvedRequests.isEmpty else {
-                throw RuntimeError.invalidInput("No Studio registration is available. Scan an enrollment QR in Ansight Studio.")
+                throw RuntimeError.invalidInput("No host registration is available. Scan an enrollment QR from the Ansight CLI or local player.")
             }
             return resolvedRequests
         case .savedConfig:
             guard let savedJson = savedPairingStore.load(), !savedJson.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                throw PairingDocumentError.invalidDocument("No saved Studio registration is available.")
+                throw PairingDocumentError.invalidDocument("No saved host registration is available.")
             }
             return [try resolvedRequest(fromPayload: savedJson, source: .savedConfig)]
         case .bundledConfig:
@@ -3226,8 +3226,8 @@ public final class AnsightRuntime: @unchecked Sendable {
     }
 
     private func validatePinnedHostIdentity(for document: ParsedPairingDocument, source: HostConnectionSource) throws {
-        // Enrollment access is bound by Studio to the app-local device identity.
-        // A fresh QR can intentionally move an app instance to another Studio host.
+        // Enrollment access is bound by host to the app-local device identity.
+        // A fresh QR can intentionally move an app instance to another host host.
     }
 
     private func savePairingDocument(_ document: ParsedPairingDocument, connectedHostAddress: String?, connectResponse: ConnectResponse) {
@@ -3393,10 +3393,10 @@ public final class AnsightRuntime: @unchecked Sendable {
             message = hostName.map { "Connected to \($0)." } ?? "Connected to Ansight host."
         } else if availableConfigCount > 1 {
             summary = .disconnectedMultipleConfigsAvailable
-            message = "Disconnected. Multiple Studio registrations are available."
+            message = "Disconnected. Multiple host registrations are available."
         } else if saved {
             summary = .disconnectedSavedConfigAvailable
-            message = "Disconnected. A saved Studio registration is available."
+            message = "Disconnected. A saved host registration is available."
         } else if bundled {
             summary = .disconnectedBundledConfigAvailable
             message = "Disconnected. A bundled enrollment invite is available."
@@ -3405,7 +3405,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             message = "Disconnected. A cached session is available."
         } else {
             summary = .disconnectedNoConfigs
-            message = "Disconnected. Scan an enrollment QR in Ansight Studio."
+            message = "Disconnected. Scan an enrollment QR from the Ansight CLI or local player."
         }
 
         return HostConnectionStatus(
@@ -3773,7 +3773,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             message.contains("File and QR config readers") {
             return PairingFailureCodes.unsupportedSource
         }
-        if message.contains("No saved Studio registration") {
+        if message.contains("No saved host registration") {
             return PairingFailureCodes.noSavedConfig
         }
         if message.contains("No bundled enrollment invite") {

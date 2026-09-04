@@ -9,6 +9,19 @@ namespace Ansight.UnitTests;
 
 public sealed class NativeRuntimeOptionsJsonTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CrashHandoffSettingSurvivesBuilderCloneAndNativeSerialization(bool enabled)
+    {
+        var configured = Options.CreateBuilder()
+            .WithCrashCapture(new CrashCaptureOptions { HostHandoffEnabled = enabled })
+            .Build();
+        var copied = Options.CreateBuilder(configured).Build();
+        var json = JsonNode.Parse(NativeRuntimeOptionsJson.Serialize(copied))!["crashCapture"]!;
+        Assert.Equal(enabled, json["hostHandoffEnabled"]!.GetValue<bool>());
+    }
+
     [Fact]
     public void Serialize_MapsOptionsForNativeBindings()
     {

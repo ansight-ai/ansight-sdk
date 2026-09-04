@@ -453,6 +453,17 @@ void main() {
     expect(payload.bytes.length, greaterThan(5));
   });
 
+  test('host handoff serializes explicit delivery settings', () {
+    for (final enabled in [false, true]) {
+      final options = createOptionsBuilder()
+          .withCrashCapture(AnsightCrashCaptureOptions(hostHandoffEnabled: enabled))
+          .build()
+          .toJson();
+      expect((options['crashCapture'] as Map)['hostHandoffEnabled'], enabled);
+    }
+    expect(const AnsightCrashCaptureOptions().hostHandoffEnabled, isTrue);
+  });
+
   test('configures crash capture and records framework context', () async {
     final options = createOptionsBuilder()
         .withCrashCapture(

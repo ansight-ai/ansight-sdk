@@ -108,6 +108,6 @@ Options:
       --release      Run a release build.
   -h, --help         Show this help.
 
-Simulators and emulators enroll at runtime when Studio is open and signed in.
+Simulators and emulators enroll at runtime when CLI host is running.
 Use the harness QR action for a physical device's first enrollment.
 ''';
