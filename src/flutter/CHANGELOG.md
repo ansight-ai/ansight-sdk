@@ -1,5 +1,6 @@
-## Unreleased
+## 1.4.0
 
+- Promote all SDK packages and native dependencies to stable 1.4.0.
 - Add `hostHandoffEnabled` for crash delivery to the Ansight host.
 - Update pairing and SDK guidance for the CLI host and local player.
 
