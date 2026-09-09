@@ -10,7 +10,7 @@
 
     <IsPackable>true</IsPackable>
     <PackageId>Ansight</PackageId>
-    <Description>All-in-one Ansight SDK package for .NET apps, including core runtime, pairing, and remote tools.</Description>
+    <Description>.NET and MAUI SDK for Ansight: runtime evidence from your app for coding agents. Screenshots, visual trees, logs, network, telemetry, and app state, with pairing and remote tools included.</Description>
     <PackageTags>ansight;observability;debugging;telemetry;pairing;remote-tools;android;ios;maccatalyst</PackageTags>
     <NoWarn>$(NoWarn);NU5110;NU5111</NoWarn>
   </PropertyGroup>

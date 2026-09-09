@@ -11,7 +11,7 @@
     <!-- NuGet packaging -->
     <IsPackable>true</IsPackable>
     <PackageId>Ansight.Core</PackageId>
-    <Description>Core telemetry, pairing, and remote tool infrastructure for .NET Android, iOS, and Mac Catalyst apps.</Description>
+    <Description>Core runtime for the Ansight .NET SDK: telemetry, pairing, and remote tool infrastructure that gives coding agents runtime evidence from Android, iOS, and Mac Catalyst apps.</Description>
     <PackageTags>observability;memory;metrics;debugging;fps;telemetry;mobile;android;ios;mac;maccatalyst;performance</PackageTags>
     <NoWarn>$(NoWarn);NU5110;NU5111;CS1591</NoWarn>
   </PropertyGroup>
