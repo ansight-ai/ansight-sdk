@@ -269,7 +269,7 @@ object ToolSchemaValidator {
             return
         }
         schema.required.forEach { name ->
-            if (!value.has(name) || value.isNull(name)) {
+            if (!value.has(name)) {
                 errors += ToolSchemaValidationError("$path.$name", "required_property_missing", "The required property '$name' is missing.")
             }
         }

@@ -56,7 +56,7 @@ internal enum AnsightToolSchemaValidator {
             if case .array(let names)? = descriptor["required"] {
                 required = names.compactMap { if case .string(let name) = $0 { name } else { nil } }
             } else { required = [] }
-            required.filter { object[$0] == nil || object[$0] == .null }.forEach { name in
+            required.filter { object[$0] == nil }.forEach { name in
                 errors.append(.init(
                     path: "\(path).\(name)",
                     code: "required_property_missing",

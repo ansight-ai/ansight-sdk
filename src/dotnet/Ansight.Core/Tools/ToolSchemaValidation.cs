@@ -137,7 +137,7 @@ public static class ToolSchemaValidator
 
         foreach (var requiredProperty in schema.Required)
         {
-            if (!jsonObject.ContainsKey(requiredProperty) || jsonObject[requiredProperty] is null)
+            if (!jsonObject.ContainsKey(requiredProperty))
             {
                 errors.Add(new ToolSchemaValidationError(
                     AppendProperty(path, requiredProperty),
