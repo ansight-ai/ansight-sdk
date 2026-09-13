@@ -214,6 +214,7 @@ object AnsightRuntime {
     }
 
     fun clear() {
+        ai.ansight.runtime.purchases.PurchaseDiagnostics.shared.clear()
         synchronized(lock) {
             metrics.clear()
             events.clear()

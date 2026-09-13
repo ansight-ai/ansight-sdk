@@ -1,0 +1,647 @@
+{
+  "now": 100000,
+  "cases": [
+    {
+      "name": "verified_and_delivered",
+      "observations": [
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "store",
+          "state": "purchased",
+          "verification": "verified"
+        },
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "app",
+          "deliveryCount": 1
+        }
+      ],
+      "arguments": {
+        "productId": "premium",
+        "expectedEntitled": true
+      },
+      "status": "pass"
+    },
+    {
+      "name": "verified_but_not_delivered",
+      "observations": [
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "store",
+          "state": "purchased",
+          "verification": "verified"
+        },
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": false,
+          "source": "app",
+          "deliveryCount": 1
+        }
+      ],
+      "arguments": {
+        "productId": "premium",
+        "expectedEntitled": true
+      },
+      "status": "fail"
+    },
+    {
+      "name": "missing_app",
+      "observations": [
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "store",
+          "state": "purchased",
+          "verification": "verified"
+        }
+      ],
+      "arguments": {
+        "productId": "premium",
+        "expectedEntitled": true
+      },
+      "status": "inconclusive"
+    },
+    {
+      "name": "missing_all",
+      "observations": [],
+      "arguments": {
+        "productId": "premium",
+        "expectedEntitled": true
+      },
+      "status": "inconclusive"
+    },
+    {
+      "name": "pending_never_passes",
+      "observations": [
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "store",
+          "state": "pending",
+          "verification": "unknown"
+        },
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "app",
+          "deliveryCount": 1
+        }
+      ],
+      "arguments": {
+        "productId": "premium",
+        "expectedEntitled": true
+      },
+      "status": "fail"
+    },
+    {
+      "name": "unverified",
+      "observations": [
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "store",
+          "state": "purchased",
+          "verification": "unverified"
+        },
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "app",
+          "deliveryCount": 1
+        }
+      ],
+      "arguments": {
+        "productId": "premium",
+        "expectedEntitled": true
+      },
+      "status": "fail"
+    },
+    {
+      "name": "unknown_verification",
+      "observations": [
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "store",
+          "state": "purchased",
+          "verification": "unknown"
+        },
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "app",
+          "deliveryCount": 1
+        }
+      ],
+      "arguments": {
+        "productId": "premium",
+        "expectedEntitled": true
+      },
+      "status": "inconclusive"
+    },
+    {
+      "name": "stale",
+      "observations": [
+        {
+          "productId": "premium",
+          "observedAt": 1,
+          "entitled": true,
+          "source": "store",
+          "state": "purchased",
+          "verification": "verified"
+        },
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "app",
+          "deliveryCount": 1
+        }
+      ],
+      "arguments": {
+        "productId": "premium",
+        "expectedEntitled": true
+      },
+      "status": "inconclusive"
+    },
+    {
+      "name": "future",
+      "observations": [
+        {
+          "productId": "premium",
+          "observedAt": 100001,
+          "entitled": true,
+          "source": "store",
+          "state": "purchased",
+          "verification": "verified"
+        },
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "app",
+          "deliveryCount": 1
+        }
+      ],
+      "arguments": {
+        "productId": "premium",
+        "expectedEntitled": true
+      },
+      "status": "inconclusive"
+    },
+    {
+      "name": "expired",
+      "observations": [
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "store",
+          "state": "purchased",
+          "verification": "verified",
+          "expiresAt": 100000
+        },
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "app",
+          "deliveryCount": 1
+        }
+      ],
+      "arguments": {
+        "productId": "premium",
+        "expectedEntitled": true
+      },
+      "status": "fail"
+    },
+    {
+      "name": "negative_expectation",
+      "observations": [
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": false,
+          "source": "store",
+          "state": "revoked",
+          "verification": "verified"
+        },
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": false,
+          "source": "app",
+          "deliveryCount": 1
+        }
+      ],
+      "arguments": {
+        "productId": "premium",
+        "expectedEntitled": false
+      },
+      "status": "pass"
+    },
+    {
+      "name": "duplicate_delivery",
+      "observations": [
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "store",
+          "state": "purchased",
+          "verification": "verified"
+        },
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "app",
+          "deliveryCount": 2
+        }
+      ],
+      "arguments": {
+        "productId": "premium",
+        "expectedEntitled": true,
+        "expectedDeliveryCount": 1
+      },
+      "status": "fail"
+    },
+    {
+      "name": "unknown_delivery",
+      "observations": [
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "store",
+          "state": "purchased",
+          "verification": "verified"
+        },
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "app",
+          "deliveryCount": null
+        }
+      ],
+      "arguments": {
+        "productId": "premium",
+        "expectedEntitled": true,
+        "expectedDeliveryCount": 1
+      },
+      "status": "inconclusive"
+    },
+    {
+      "name": "google_backend",
+      "observations": [
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "store",
+          "state": "purchased",
+          "verification": "unknown"
+        },
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "app",
+          "deliveryCount": 1
+        },
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "backend",
+          "verification": "verified"
+        }
+      ],
+      "arguments": {
+        "productId": "premium",
+        "expectedEntitled": true,
+        "requireBackendVerification": true
+      },
+      "status": "pass"
+    },
+    {
+      "name": "missing_backend",
+      "observations": [
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "store",
+          "state": "purchased",
+          "verification": "unknown"
+        },
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "app",
+          "deliveryCount": 1
+        }
+      ],
+      "arguments": {
+        "productId": "premium",
+        "expectedEntitled": true,
+        "requireBackendVerification": true
+      },
+      "status": "inconclusive"
+    },
+    {
+      "name": "rejected_backend",
+      "observations": [
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "store",
+          "state": "purchased",
+          "verification": "verified"
+        },
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "app",
+          "deliveryCount": 1
+        },
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "backend",
+          "verification": "unverified"
+        }
+      ],
+      "arguments": {
+        "productId": "premium",
+        "expectedEntitled": true,
+        "requireBackendVerification": true
+      },
+      "status": "fail"
+    },
+    {
+      "name": "consumable_delivery",
+      "observations": [
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": null,
+          "source": "store",
+          "state": "purchased",
+          "verification": "verified",
+          "productType": "consumable"
+        },
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "app",
+          "deliveryCount": 1
+        }
+      ],
+      "arguments": {
+        "productId": "premium",
+        "expectedEntitled": true,
+        "expectedDeliveryCount": 1
+      },
+      "status": "pass"
+    },
+    {
+      "name": "latest_same_timestamp",
+      "observations": [
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "store",
+          "state": "purchased",
+          "verification": "verified"
+        },
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "app",
+          "deliveryCount": 1
+        },
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": false,
+          "source": "app",
+          "deliveryCount": 1
+        }
+      ],
+      "arguments": {
+        "productId": "premium",
+        "expectedEntitled": true
+      },
+      "status": "fail"
+    },
+    {
+      "name": "app_failed_to_revoke_after_expiry",
+      "observations": [
+        {
+          "productId": "premium",
+          "source": "store",
+          "observedAt": 100000,
+          "state": "expired",
+          "entitled": false
+        },
+        {
+          "productId": "premium",
+          "source": "app",
+          "observedAt": 100000,
+          "entitled": true,
+          "expiresAt": 99999
+        }
+      ],
+      "arguments": {
+        "productId": "premium",
+        "expectedEntitled": false
+      },
+      "status": "fail"
+    },
+    {
+      "name": "wrong_transaction_is_not_delivery_evidence",
+      "observations": [
+        {
+          "productId": "premium",
+          "source": "store",
+          "observedAt": 100000,
+          "state": "purchased",
+          "verification": "verified",
+          "entitled": true,
+          "transactionRef": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        {
+          "productId": "premium",
+          "source": "app",
+          "observedAt": 100000,
+          "entitled": true,
+          "transactionRef": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      ],
+      "arguments": {
+        "productId": "premium",
+        "expectedEntitled": true,
+        "transactionRef": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "status": "inconclusive"
+    },
+    {
+      "name": "backend_requirement_cannot_be_disabled_by_local_verification_flag",
+      "observations": [
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "store",
+          "state": "purchased",
+          "verification": "verified"
+        },
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "app",
+          "deliveryCount": 1
+        },
+        {
+          "productId": "premium",
+          "observedAt": 100000,
+          "entitled": true,
+          "source": "backend",
+          "verification": "unverified"
+        }
+      ],
+      "arguments": {
+        "productId": "premium",
+        "expectedEntitled": true,
+        "requireBackendVerification": true,
+        "requireVerified": false
+      },
+      "status": "fail"
+    },
+    {
+      "name": "grace_period_retains_access",
+      "observations": [
+        {
+          "productId": "premium",
+          "source": "store",
+          "observedAt": 100000,
+          "state": "gracePeriod",
+          "verification": "verified",
+          "entitled": true,
+          "expiresAt": 90000,
+          "gracePeriodExpiresAt": 110000
+        },
+        {
+          "productId": "premium",
+          "source": "app",
+          "observedAt": 100000,
+          "entitled": true
+        }
+      ],
+      "arguments": {
+        "productId": "premium",
+        "expectedEntitled": true
+      },
+      "status": "pass"
+    },
+    {
+      "name": "expired_grace_period",
+      "observations": [
+        {
+          "productId": "premium",
+          "source": "store",
+          "observedAt": 100000,
+          "state": "gracePeriod",
+          "verification": "verified",
+          "entitled": true,
+          "expiresAt": 90000,
+          "gracePeriodExpiresAt": 99999
+        },
+        {
+          "productId": "premium",
+          "source": "app",
+          "observedAt": 100000,
+          "entitled": true
+        }
+      ],
+      "arguments": {
+        "productId": "premium",
+        "expectedEntitled": true
+      },
+      "status": "fail"
+    },
+    {
+      "name": "grace_period_requires_known_bound",
+      "observations": [
+        {
+          "productId": "premium",
+          "source": "store",
+          "observedAt": 100000,
+          "state": "gracePeriod",
+          "verification": "verified",
+          "entitled": true,
+          "expiresAt": 90000,
+          "gracePeriodExpiresAt": null
+        },
+        {
+          "productId": "premium",
+          "source": "app",
+          "observedAt": 100000,
+          "entitled": true
+        }
+      ],
+      "arguments": {
+        "productId": "premium",
+        "expectedEntitled": true
+      },
+      "status": "inconclusive"
+    },
+    {
+      "name": "verification_rejection_with_unknown_entitlement",
+      "observations": [
+        {
+          "productId": "premium",
+          "source": "store",
+          "observedAt": 100000,
+          "verification": "unverified",
+          "entitled": null
+        },
+        {
+          "productId": "premium",
+          "source": "app",
+          "observedAt": 100000,
+          "entitled": true
+        }
+      ],
+      "arguments": {
+        "productId": "premium",
+        "expectedEntitled": true
+      },
+      "status": "fail"
+    }
+  ]
+}

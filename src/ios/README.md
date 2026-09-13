@@ -728,3 +728,7 @@ let events = AnsightRuntime.shared.recordedEvents()
 - SDK-owned file/QR pairing UI lives in the optional `AnsightPairingQR` product and is UIKit-only; macOS package builds compile the reader surface but report those request kinds unsupported
 - binary file/screenshot transfer requires a live tool-protocol request context; direct in-process execution still reports a transfer-unavailable error
 - public CocoaPods release publication still needs final source URL, signing, and versioning metadata
+
+## Purchase diagnostics
+
+See [purchase observations, adapters, and remote validation](../../docs/purchases.md) for the base SDK purchase suite.

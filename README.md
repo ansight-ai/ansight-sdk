@@ -74,3 +74,7 @@ It is not open-source software. Production use is licensed only for use with
 Ansight Services.
 
 Clipboard remote tools: [API, platform behaviour and registration](docs/clipboard-tools.md).
+
+### Purchase diagnostics
+
+The base SDK supports opt-in purchase observations and remote validation across .NET, Swift, Kotlin, React Native, Capacitor, and Flutter. See [integration and tool contracts](docs/purchases.md).

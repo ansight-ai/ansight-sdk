@@ -34,7 +34,9 @@
     "expo-plugin.js",
     "tsconfig.json",
     "AnsightReactNative.podspec",
-    "react-native.config.js"
+    "react-native.config.js",
+    "purchases.js",
+    "purchases.d.ts"
   ],
   "keywords": [
     "ansight",

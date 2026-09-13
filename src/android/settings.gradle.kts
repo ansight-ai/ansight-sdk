@@ -30,3 +30,5 @@ include(":ansight-tools-reflection")
 include(":ansight-pairing")
 include(":ansight")
 include(":harness")
+
+include(":ansight-purchases-googleplay")

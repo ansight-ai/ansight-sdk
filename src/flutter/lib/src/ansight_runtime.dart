@@ -7,6 +7,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 
 import 'ansight_models.dart';
+import 'ansight_purchases.dart';
 import 'ansight_network_models.dart';
 import 'ansight_options.dart';
 import 'session_properties.dart';
@@ -14,6 +15,7 @@ import 'ansight_tooling.dart';
 import 'native_transport.dart';
 
 class Ansight {
+  late final PurchaseDiagnostics purchases = PurchaseDiagnostics(_invoke);
   Ansight._(this._transport) {
     _transport.eventCallback = _handleNativeEvent;
     _transport.toolCallCallback = _handleNativeToolCall;

@@ -26,10 +26,12 @@
 		2106545C6E50AF3CF9B55918 /* AnsightTouchMoveThrottle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CD727CA7020AF774FC38FCD /* AnsightTouchMoveThrottle.swift */; };
 		21E94073FEDF3C2091CDFF77 /* AnsightRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 448A79C0955E16D7B7B26C2F /* AnsightRuntime.swift */; };
 		21F7F571F7BA8EF7D8EDC501 /* PairingFileTransferFrameType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EC2EE67D055C72069FE5793 /* PairingFileTransferFrameType.swift */; };
+		22DD67BE9DD5A7A632B08D2E /* PurchaseSchemas.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BF8E27FE8341C56F82E9D2F /* PurchaseSchemas.swift */; };
 		23A175311A853BD619932524 /* AnsightJSONTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 609C5DCDD81620D361C6B97F /* AnsightJSONTool.swift */; };
 		23DF41B67269EBEDE92864C2 /* PairingDatagramClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6369438C593724F49F3F398E /* PairingDatagramClient.swift */; };
 		25991348750E8FC595537619 /* URLSessionPairingWebSocket.swift in Sources */ = {isa = PBXBuildFile; fileRef = 012703ACE3E2C8A383580921 /* URLSessionPairingWebSocket.swift */; };
 		26099B4F5BD05E431D482D94 /* AnsightEventType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 238A876807F43DC898E4B479 /* AnsightEventType.swift */; };
+		265544240729EC2F56D13F3D /* PurchaseStoreKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEECE93D6FAC56FDC71F2FEA /* PurchaseStoreKit.swift */; };
 		26D008A82987AECE752475FA /* DeviceSdkProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47E6CBD2A66A5285403E72EB /* DeviceSdkProfile.swift */; };
 		26E5C48D1185D65469B1DE0D /* PairingProtocolDefaults.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFDE0530BA58C06F86CF8801 /* PairingProtocolDefaults.swift */; };
 		2737D9AE44695C499A042729 /* DeviceDisplayProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7007228CE5491D4011E3D0FF /* DeviceDisplayProfile.swift */; };
@@ -73,6 +75,7 @@
 		6693D988A71C54BED9CDFBD5 /* DeviceNetworkProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AE131D0ADCCC422C33C0B4E /* DeviceNetworkProfile.swift */; };
 		677C3F955A11491D6C61B1FE /* HostConnectionRequestKind.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAE82968AE8DE1AE95DE54F4 /* HostConnectionRequestKind.swift */; };
 		694D4B6515D9151A921EB43E /* PairingConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19A39EE77998819EF77DF694 /* PairingConfig.swift */; };
+		6A21D89E12F76361FEB224D1 /* PurchaseEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1EB19663417409B54A1D365 /* PurchaseEnvironment.swift */; };
 		6BF232078C9E40D30FCD9ECA /* AnsightCapturedTouch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A66F934FDD16B416B3122B99 /* AnsightCapturedTouch.swift */; };
 		6D16DF0BAB51FB8A068C2D32 /* PairingConnectionAttempt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33EA5B8306C2012F635D6481 /* PairingConnectionAttempt.swift */; };
 		6E42AE44394B9875A5146F9D /* PairingWifiPreflight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 612F54EBEECBE06AF3A56B54 /* PairingWifiPreflight.swift */; };
@@ -125,10 +128,12 @@
 		AD92EF4C8DEBE378895D0934 /* HostConnectionSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF989403F1617B8030BAECEC /* HostConnectionSource.swift */; };
 		ADC1ACE703BAD0C627190651 /* NSLock+AnsightConcurrency.swift in Sources */ = {isa = PBXBuildFile; fileRef = F70A03147093AA2383F0A7E5 /* NSLock+AnsightConcurrency.swift */; };
 		B1539A19B9BCFD5C27649FAD /* AnsightHostAutoProbeOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BBE4F45F0385C0AD7DDF8F0 /* AnsightHostAutoProbeOptions.swift */; };
+		B26AF2D16D9B43D3CA3DD0C5 /* PurchaseDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1B3105D9EBAC5945D4164F2 /* PurchaseDiagnostics.swift */; };
 		B397F5A48233444B8DA24BBE /* HostSessionJpegCapturePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = C73A7DA40274A2AD13E3B955 /* HostSessionJpegCapturePolicy.swift */; };
 		B50918A8D4758FA701B68813 /* DeviceBatteryProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = D57CFA30FCC75258D7C1A9AC /* DeviceBatteryProfile.swift */; };
 		B68CBAA074938A866DAEAF1A /* PairingSessionConnecting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA0188836D2CE4551912B4C /* PairingSessionConnecting.swift */; };
 		B78E696033D667E053208A0B /* AnsightTouchCaptureOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20A1287C7BBDA74635D7D21 /* AnsightTouchCaptureOptions.swift */; };
+		B7CE6595CA4BFE3394291C87 /* PurchaseObjC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FE16F57242254A427F1996A /* PurchaseObjC.swift */; };
 		BE52C4C8E0620FE667403907 /* AnsightToolExecutionResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = C493D8FA56DEE59F4D388B91 /* AnsightToolExecutionResult.swift */; };
 		C08F4A7C64D3332E99FCCDD1 /* RuntimeError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33FC643FF68BD101794ACEF6 /* RuntimeError.swift */; };
 		C09163EFBA4DFFE4229AE5DA /* ConnectResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3374B22C733BFECB3B297DEB /* ConnectResponse.swift */; };
@@ -159,6 +164,7 @@
 		F0B63B079F8D493DCB85CA11 /* AnsightInstalledTouchRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6322C6C2283A92653F7DDB7B /* AnsightInstalledTouchRecognizer.swift */; };
 		F302C18F86CA90D4109842C2 /* LiveSessionOpenAttempt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58F373638863A6C6E5C9C88D /* LiveSessionOpenAttempt.swift */; };
 		F60C8798BCB84734A2C61340 /* AnsightTouchCaptureSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52C76E7D63F4BBA69E4DC80E /* AnsightTouchCaptureSession.swift */; };
+		F663EB94941974C13A9936CC /* PurchaseProduct.swift in Sources */ = {isa = PBXBuildFile; fileRef = D847A3761AED00612FD96AD6 /* PurchaseProduct.swift */; };
 		F6F5F76769E412AF5EDA3F55 /* AnsightScreenRouteResolution.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C4222CB367B9F6A93A24F04 /* AnsightScreenRouteResolution.swift */; };
 		F7A246985F649165738B9963 /* AnsightScreenCaptureError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85D0B2B386968063C9013FE0 /* AnsightScreenCaptureError.swift */; };
 		F864CA91A364F393350697BC /* AnsightLatestValueBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6199059B4F60CD9A326138C3 /* AnsightLatestValueBuffer.swift */; };
@@ -225,6 +231,7 @@
 		55FAB5CA7F9B1B2546A71556 /* AnsightToolPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightToolPolicy.swift; sourceTree = "<group>"; };
 		58F373638863A6C6E5C9C88D /* LiveSessionOpenAttempt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveSessionOpenAttempt.swift; sourceTree = "<group>"; };
 		5DA0188836D2CE4551912B4C /* PairingSessionConnecting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingSessionConnecting.swift; sourceTree = "<group>"; };
+		5FE16F57242254A427F1996A /* PurchaseObjC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseObjC.swift; sourceTree = "<group>"; };
 		609C5DCDD81620D361C6B97F /* AnsightJSONTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightJSONTool.swift; sourceTree = "<group>"; };
 		612F54EBEECBE06AF3A56B54 /* PairingWifiPreflight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingWifiPreflight.swift; sourceTree = "<group>"; };
 		618BCFAEDB0AE5385398B332 /* DeviceRuntimeStackEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceRuntimeStackEntry.swift; sourceTree = "<group>"; };
@@ -267,12 +274,14 @@
 		973398D7C1792968A828E593 /* AnsightLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightLogger.swift; sourceTree = "<group>"; };
 		9859ED36870A369547508FD4 /* RecordedMetric.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordedMetric.swift; sourceTree = "<group>"; };
 		9B84B046FBA165EC19A6021D /* AnsightTiming.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightTiming.swift; sourceTree = "<group>"; };
+		9BF8E27FE8341C56F82E9D2F /* PurchaseSchemas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseSchemas.swift; sourceTree = "<group>"; };
 		9D136A05E3B3F93EB49247BD /* AnsightNetworkCaptureOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightNetworkCaptureOptions.swift; sourceTree = "<group>"; };
 		9DE5CBD17849664539345B9D /* AnsightRuntime+ValidationTouchInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AnsightRuntime+ValidationTouchInput.swift"; sourceTree = "<group>"; };
 		A0C617EE65E34324E2C3A432 /* AnsightTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightTool.swift; sourceTree = "<group>"; };
 		A1056A526687945C8CC02AFC /* SessionJpegWireProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionJpegWireProtocol.swift; sourceTree = "<group>"; };
 		A155537B79B6E14678D781E3 /* AnsightToolProtocolEnvelope.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightToolProtocolEnvelope.swift; sourceTree = "<group>"; };
 		A1591B65DCC879A0B53BAB86 /* AnsightToolProtocolBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightToolProtocolBridge.swift; sourceTree = "<group>"; };
+		A1EB19663417409B54A1D365 /* PurchaseEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseEnvironment.swift; sourceTree = "<group>"; };
 		A1F0AE58641F6DAE30DF069B /* DefaultMemoryChannels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultMemoryChannels.swift; sourceTree = "<group>"; };
 		A31E5BDC9D4C1BA29B27A3BE /* HostConnectionRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostConnectionRequest.swift; sourceTree = "<group>"; };
 		A466C65EB64AF95E451AC37E /* AnsightArtifacts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightArtifacts.swift; sourceTree = "<group>"; };
@@ -288,6 +297,7 @@
 		AD865673FAA5B9AEA10E2D2C /* PairingFailureCodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingFailureCodes.swift; sourceTree = "<group>"; };
 		AE8603BC7DCD5966BD0047B2 /* AppLifecycleState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLifecycleState.swift; sourceTree = "<group>"; };
 		AFF110F55C0FDA62B690020E /* JSONEncoder+AnsightTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "JSONEncoder+AnsightTransport.swift"; sourceTree = "<group>"; };
+		B1B3105D9EBAC5945D4164F2 /* PurchaseDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseDiagnostics.swift; sourceTree = "<group>"; };
 		B20A1287C7BBDA74635D7D21 /* AnsightTouchCaptureOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightTouchCaptureOptions.swift; sourceTree = "<group>"; };
 		B280E1B6FCC5F1261B8C6E93 /* CachedPairingProfileDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedPairingProfileDocument.swift; sourceTree = "<group>"; };
 		B42AF612618D4F9F5286391B /* AnsightWindowTouchCaptureRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightWindowTouchCaptureRecognizer.swift; sourceTree = "<group>"; };
@@ -299,6 +309,7 @@
 		BB4A9720061F9FD0C0DFD97B /* PairingLiveSessionTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingLiveSessionTransport.swift; sourceTree = "<group>"; };
 		BC0C01BE5EE7FBB13A210F1A /* PairingControlActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingControlActions.swift; sourceTree = "<group>"; };
 		BE3DD20489F8F721D2EE5833 /* AnsightTouchCaptureStreamer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightTouchCaptureStreamer.swift; sourceTree = "<group>"; };
+		BEECE93D6FAC56FDC71F2FEA /* PurchaseStoreKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseStoreKit.swift; sourceTree = "<group>"; };
 		BF756897ABEFD57178B01879 /* ConnectRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectRequest.swift; sourceTree = "<group>"; };
 		BF989403F1617B8030BAECEC /* HostConnectionSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostConnectionSource.swift; sourceTree = "<group>"; };
 		C05C0E772D0EDACE73017392 /* AnsightSimultaneousGestureDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightSimultaneousGestureDelegate.swift; sourceTree = "<group>"; };
@@ -315,6 +326,7 @@
 		CFDE0530BA58C06F86CF8801 /* PairingProtocolDefaults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingProtocolDefaults.swift; sourceTree = "<group>"; };
 		D57CFA30FCC75258D7C1A9AC /* DeviceBatteryProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceBatteryProfile.swift; sourceTree = "<group>"; };
 		D61A09B35916D072565E621F /* AnsightDebugSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightDebugSnapshot.swift; sourceTree = "<group>"; };
+		D847A3761AED00612FD96AD6 /* PurchaseProduct.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseProduct.swift; sourceTree = "<group>"; };
 		D95B00917A3EF79C5BF36942 /* AnsightKeyboardPresenceTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightKeyboardPresenceTracker.swift; sourceTree = "<group>"; };
 		DA5477FD51593FC28131618A /* PairingConfigStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingConfigStore.swift; sourceTree = "<group>"; };
 		DAE6F59F058BFD3AD2FCC9B3 /* AnsightChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightChannel.swift; sourceTree = "<group>"; };
@@ -497,9 +509,23 @@
 				A1056A526687945C8CC02AFC /* SessionJpegWireProtocol.swift */,
 				AD45F542C9022AB3AEAC9953 /* TransportError.swift */,
 				012703ACE3E2C8A383580921 /* URLSessionPairingWebSocket.swift */,
+				47CF417103F1101479E0356C /* Purchases */,
 			);
 			name = AnsightCore;
 			path = ../Sources/AnsightCore;
+			sourceTree = "<group>";
+		};
+		47CF417103F1101479E0356C /* Purchases */ = {
+			isa = PBXGroup;
+			children = (
+				B1B3105D9EBAC5945D4164F2 /* PurchaseDiagnostics.swift */,
+				A1EB19663417409B54A1D365 /* PurchaseEnvironment.swift */,
+				5FE16F57242254A427F1996A /* PurchaseObjC.swift */,
+				D847A3761AED00612FD96AD6 /* PurchaseProduct.swift */,
+				9BF8E27FE8341C56F82E9D2F /* PurchaseSchemas.swift */,
+				BEECE93D6FAC56FDC71F2FEA /* PurchaseStoreKit.swift */,
+			);
+			path = Purchases;
 			sourceTree = "<group>";
 		};
 		8B8124223D123DB0C4FA8DCD /* Products */ = {
@@ -762,6 +788,12 @@
 				1F17DD55F756FA8CD0007B03 /* PairingWifiPreflightStatus.swift in Sources */,
 				9A57009204E5D5744B4A1F39 /* ParsedPairingDocument.swift in Sources */,
 				DCC21495100B3B71B615A023 /* ProcessSessionIdentity.swift in Sources */,
+				B26AF2D16D9B43D3CA3DD0C5 /* PurchaseDiagnostics.swift in Sources */,
+				6A21D89E12F76361FEB224D1 /* PurchaseEnvironment.swift in Sources */,
+				B7CE6595CA4BFE3394291C87 /* PurchaseObjC.swift in Sources */,
+				F663EB94941974C13A9936CC /* PurchaseProduct.swift in Sources */,
+				22DD67BE9DD5A7A632B08D2E /* PurchaseSchemas.swift in Sources */,
+				265544240729EC2F56D13F3D /* PurchaseStoreKit.swift in Sources */,
 				094D61E729E05304EDD27426 /* RecordedEvent.swift in Sources */,
 				516ACE0634B320EB5E388F60 /* RecordedMetric.swift in Sources */,
 				3AD9D877495822D46E43CA81 /* RecordedScreenView.swift in Sources */,

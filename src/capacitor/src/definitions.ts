@@ -573,6 +573,7 @@ export interface AnsightOptionsBuilderApi {
 }
 
 export interface AnsightCapacitorPlugin {
+  purchaseCommand(options: { json: string }): Promise<{ json: string }>;
   initialize(options: AnsightOptions): Promise<AnsightDebugSnapshot>;
   initializeAndActivate(options: AnsightOptions): Promise<AnsightDebugSnapshot>;
   activate(): Promise<AnsightDebugSnapshot>;

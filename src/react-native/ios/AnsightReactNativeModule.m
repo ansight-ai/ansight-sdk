@@ -3,6 +3,10 @@
 
 @interface RCT_EXTERN_MODULE(AnsightReactNative, RCTEventEmitter)
 
+RCT_EXTERN_METHOD(purchaseCommand:(NSString *)json
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+
 RCT_EXTERN_METHOD(initialize:(NSDictionary *)options
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)

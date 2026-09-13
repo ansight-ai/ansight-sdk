@@ -672,3 +672,7 @@ It is pinned to Expo SDK 57 and React Native 0.86 with the New Architecture and
 Hermes enabled. It validates Expo CNG/autolinking, the bundled config plugin,
 Android and iOS native builds, and the same live host feature surface as the
 baseline harness.
+
+## Purchase diagnostics
+
+See [purchase observations, adapters, and remote validation](../../docs/purchases.md) for the base SDK purchase suite.

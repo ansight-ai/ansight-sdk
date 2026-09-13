@@ -262,6 +262,7 @@ public final class AnsightRuntime: @unchecked Sendable {
     }
 
     public func clear() {
+        PurchaseDiagnostics.shared.clear()
         lock.withLock {
             metrics.removeAll()
             events.removeAll()

@@ -1,0 +1,206 @@
+{
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "enum": [
+        "ansight.purchases.v1"
+      ]
+    },
+    "capturedAt": {
+      "type": "integer"
+    },
+    "droppedEvents": {
+      "type": "integer"
+    },
+    "coverage": {
+      "type": "string",
+      "enum": [
+        "observedOnly"
+      ]
+    },
+    "observations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "verification": {
+            "type": "string"
+          },
+          "environment": {
+            "type": "string"
+          },
+          "productType": {
+            "type": "string"
+          },
+          "transactionRef": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "observedAt": {
+            "type": "integer"
+          },
+          "entitled": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "finished": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "acknowledged": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "consumed": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "deliveryCount": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "expiresAt": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "gracePeriodExpiresAt": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "productId",
+          "source",
+          "observedAt",
+          "state",
+          "verification",
+          "environment",
+          "productType"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "products": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "observedAt": {
+            "type": "integer"
+          },
+          "productType": {
+            "type": "string"
+          },
+          "displayPrice": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "price": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "currencyCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "productId",
+          "available",
+          "observedAt",
+          "productType"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "fail",
+        "inconclusive"
+      ]
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pass",
+              "fail",
+              "inconclusive"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "status",
+          "reason"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "nextCursor": {
+      "type": "integer"
+    },
+    "cursorGap": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "schema",
+    "capturedAt",
+    "droppedEvents",
+    "coverage",
+    "observations",
+    "products"
+  ],
+  "additionalProperties": false
+}

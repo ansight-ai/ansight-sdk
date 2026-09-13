@@ -138,6 +138,13 @@ class AnsightReactNativeModule(
     override fun onHostDestroy() = Unit
 
     @ReactMethod
+    fun purchaseCommand(json: String, promise: Promise) {
+        try { promise.resolve(ai.ansight.runtime.purchases.PurchaseDiagnostics.shared.command(json)) }
+        catch (error: ai.ansight.runtime.purchases.PurchaseEnvironmentException) { promise.reject(ai.ansight.runtime.purchases.PurchaseEnvironmentException.ERROR_CODE, error.message, error) }
+        catch (error: Exception) { promise.reject("purchases_command_failed", "Purchase command failed.", error) }
+    }
+
+    @ReactMethod
     fun addListener(eventName: String) {
         listenerCount.incrementAndGet()
     }

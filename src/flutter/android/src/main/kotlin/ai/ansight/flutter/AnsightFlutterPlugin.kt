@@ -246,6 +246,11 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
     }
 
     private fun dispatch(method: String, map: JSONObject): JSONObject = when (method) {
+        "purchaseCommand" -> try {
+            JSONObject().put("json", ai.ansight.runtime.purchases.PurchaseDiagnostics.shared.command(map.getString("json")))
+        } catch (error: ai.ansight.runtime.purchases.PurchaseEnvironmentException) {
+            throw FlutterError(ai.ansight.runtime.purchases.PurchaseEnvironmentException.ERROR_CODE, error.message, null)
+        }
         "initialize" -> {
             Ansight.initialize(requireApplication(), buildOptions(map))
             installRegisteredCustomTools()

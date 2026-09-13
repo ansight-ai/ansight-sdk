@@ -357,6 +357,11 @@ class AnsightCapacitorPlugin : Plugin() {
     fun status(call: PluginCall) = resolve(call) { snapshot() }
 
     @PluginMethod
+    fun purchaseCommand(call: PluginCall) = resolve(call) {
+        JSObject().apply { put("json", ai.ansight.runtime.purchases.PurchaseDiagnostics.shared.command(requireNotNull(call.getString("json")))) }
+    }
+
+    @PluginMethod
     fun snapshot(call: PluginCall) = resolve(call) { snapshot() }
 
     @PluginMethod
@@ -1117,7 +1122,7 @@ class AnsightCapacitorPlugin : Plugin() {
     private fun resolve(call: PluginCall, block: () -> JSObject) {
         runCatching(block).fold(
             onSuccess = call::resolve,
-            onFailure = { call.reject(it.message ?: "Ansight operation failed.", "ansight_error", it as? Exception) },
+            onFailure = { call.reject(it.message ?: "Ansight operation failed.", if (it is ai.ansight.runtime.purchases.PurchaseEnvironmentException) ai.ansight.runtime.purchases.PurchaseEnvironmentException.ERROR_CODE else "ansight_error", it as? Exception) },
         )
     }
 

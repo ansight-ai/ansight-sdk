@@ -5,6 +5,16 @@ public final class ANSDotNetRuntime: NSObject {
     private static let customPropertiesLock = NSLock()
     private nonisolated(unsafe) static var customProperties: [String: [String: String]] = [:]
 
+    @objc(purchaseCommand:completion:)
+    public static func purchaseCommand(_ json: String, completion: @escaping (String) -> Void) {
+        let completionBox = BridgeStringCompletion(completion)
+        Task {
+            do { completionBox.call(try await PurchaseDiagnostics.shared.commandAsync(json)) }
+            catch PurchaseDiagnosticsError.environmentNotAllowed { completionBox.call("{\"error\":\"purchases_environment_not_allowed\"}") }
+            catch { completionBox.call("{\"error\":\"purchases_command_failed\"}") }
+        }
+    }
+
     @objc public static var bridgeVersion: String { "1" }
 
     @objc public static var isInitialized: Bool {

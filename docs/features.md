@@ -121,6 +121,7 @@ guards progressively expose `Read`, `Write`, and `Delete` scopes.
 | Preferences (`prefs.*`) | Yes | Yes | Yes | Native | Native |
 | Secure storage (`secure.*`) | Yes | Yes | Yes | Native | Native |
 | SQLite discovery/schema/read query (`data.*`) | Yes | Yes | Yes | Native | Native |
+| Purchase observations and validation (`purchases.*`, opt-in) | Core + Apple/Play adapters | Core + Play adapter | Core + StoreKit 2 | Native core facade | Native core facade |
 | Registered-root reflection (`reflect.*`) | Yes | Yes | Yes | Native | Native |
 | .NET MAUI inspection and mutation (`maui.*`) | Framework | No | No | No | No |
 | React component/shadow tree and actions (`react.*`) | No | No | No | Framework | No |
@@ -185,3 +186,5 @@ distributable builds.
 - [.NET annotated feedback](../src/dotnet/Ansight.Annotations/README.md)
 - [.NET offline capture](../src/dotnet/Ansight.OfflineCapture/README.md)
 - [.NET MAUI tools](../src/dotnet/Ansight.Tools.Maui/README.md)
+
+Purchase reporting, validation, supported adapters, and Flutter integration are documented in [Purchase diagnostics](purchases.md).

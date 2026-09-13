@@ -1,4 +1,5 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
+import { createPurchaseDiagnostics } from "./purchases";
 
 import { installDomTools as installDomToolsCore } from "./dom";
 import { AnsightOptionsBuilder, createOptionsBuilder } from "./options";
@@ -46,10 +47,14 @@ import type {
 } from "./definitions";
 
 export * from "./definitions";
+export * from "./purchases";
 export { sanitizeNetworkRequest } from "./network";
 export { AnsightOptionsBuilder, createOptionsBuilder };
 
 export const AnsightNative = registerPlugin<AnsightCapacitorPlugin>("Ansight");
+export const purchases = createPurchaseDiagnostics(
+  async (json) => (await AnsightNative.purchaseCommand({ json })).json,
+);
 
 const toolHandlers = new Map<string, AnsightToolHandler>();
 const artifactProviders = new Map<string, AnsightArtifactProvider>();
@@ -922,6 +927,7 @@ export function createRouteTracker(
 }
 
 const Ansight = {
+  purchases,
   initialize,
   initializeAndActivate,
   activate,

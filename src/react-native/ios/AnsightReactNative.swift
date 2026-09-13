@@ -4,6 +4,15 @@ import React
 
 @objc(AnsightReactNative)
 final class AnsightReactNative: RCTEventEmitter {
+    @objc(purchaseCommand:resolver:rejecter:)
+    func purchaseCommand(_ json: String, resolver resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) {
+        Task {
+            do { resolve(try await PurchaseDiagnostics.shared.commandAsync(json)) }
+            catch PurchaseDiagnosticsError.environmentNotAllowed { reject(PurchaseDiagnosticsError.environmentErrorCode, "Purchase interop is restricted to simulators and emulators.", PurchaseDiagnosticsError.environmentNotAllowed) }
+            catch { reject("purchases_command_failed", "Purchase command failed.", error) }
+        }
+    }
+
     private final class PendingToolCall {
         let semaphore = DispatchSemaphore(value: 0)
         var result: AnsightToolExecutionResult?

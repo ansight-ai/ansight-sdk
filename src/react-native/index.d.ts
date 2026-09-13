@@ -1,3 +1,6 @@
+import type { PurchaseDiagnostics } from "./purchases";
+export * from "./purchases";
+export const purchases: PurchaseDiagnostics;
 export type AnsightLifecycleState = "unknown" | "foreground" | "background";
 export type AnsightToolPolicy = "read" | "write" | "critical";
 
@@ -679,6 +682,7 @@ export function installErrorHandlers(options?: { chain?: boolean }): () => void;
 export function createReactNavigationTracker(navigationRef: unknown, options?: { recordInitial?: boolean }): ReactNavigationTracker;
 
 declare const Ansight: {
+  purchases: PurchaseDiagnostics;
   initialize: typeof initialize;
   initializeAndActivate: typeof initializeAndActivate;
   activate: typeof activate;

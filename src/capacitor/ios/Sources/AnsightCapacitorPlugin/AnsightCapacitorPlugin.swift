@@ -7,6 +7,7 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "AnsightCapacitorPlugin"
     public let jsName = "Ansight"
     public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "purchaseCommand", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "initialize", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "initializeAndActivate", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "activate", returnType: CAPPluginReturnPromise),
@@ -396,6 +397,15 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func status(_ call: CAPPluginCall) {
         call.resolve(snapshotDictionary())
+    }
+
+    @objc func purchaseCommand(_ call: CAPPluginCall) {
+        guard let json = call.getString("json") else { call.reject("Missing purchase command."); return }
+        Task {
+            do { call.resolve(["json": try await PurchaseDiagnostics.shared.commandAsync(json)]) }
+            catch PurchaseDiagnosticsError.environmentNotAllowed { call.reject("Purchase interop is restricted to simulators and emulators.", PurchaseDiagnosticsError.environmentErrorCode) }
+            catch { call.reject("Purchase command failed.", "purchases_command_failed", error) }
+        }
     }
 
     @objc func snapshot(_ call: CAPPluginCall) {

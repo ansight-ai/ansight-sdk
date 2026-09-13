@@ -15,6 +15,10 @@ delegate string ANSToolProtocolHandler(string requestJson);
 interface ANSDotNetRuntime
 {
     [Static]
+    [Export("purchaseCommand:completion:")]
+    void PurchaseCommand(string json, ANSStringResultHandler completion);
+
+    [Static]
     [Export("bridgeVersion")]
     string BridgeVersion { get; }
 

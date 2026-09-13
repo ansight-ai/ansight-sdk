@@ -565,3 +565,7 @@ For file inspection, `Ansight.Tools.FileSystem` exposes `files.get_file_checksum
 - `net9.0-android`
 - `net9.0-ios`
 - `net9.0-maccatalyst`
+
+## Purchase diagnostics
+
+See [purchase observations, adapters, and remote validation](../../docs/purchases.md) for the base SDK purchase suite.

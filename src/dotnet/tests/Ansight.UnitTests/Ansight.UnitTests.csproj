@@ -43,4 +43,7 @@
     <EmbeddedResource Include="Resources\bundled-profile.txt" LogicalName="ansight.json" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="../../../../docs/contracts/purchases/validation-cases.json" Link="purchase-validation-cases.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

@@ -255,3 +255,7 @@ buildable Android and iOS projects. The repository also provides a pinned
 npm --prefix src/capacitor run verify
 node scripts/setup-capacitor-test-apps.mjs
 ```
+
+## Purchase diagnostics
+
+See [purchase observations, adapters, and remote validation](../../docs/purchases.md) for the base SDK purchase suite.

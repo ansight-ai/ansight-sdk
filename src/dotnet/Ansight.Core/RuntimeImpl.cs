@@ -650,6 +650,7 @@ internal class RuntimeImpl : IRuntime
 
     public void Clear()
     {
+        Purchases.PurchaseDiagnostics.Shared.Clear();
         if (usesNativeRuntime)
         {
             nativeRuntime.Clear();

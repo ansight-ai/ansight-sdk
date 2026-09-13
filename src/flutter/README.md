@@ -289,3 +289,7 @@ That wrapper reapplies the small compatibility transforms required by Flutter
 
 This SDK is source-available software, not open-source software. See
 `LICENSE` for the permitted uses and restrictions.
+
+## Purchase diagnostics
+
+See [purchase observations, adapters, and remote validation](../../docs/purchases.md) for the base SDK purchase suite.

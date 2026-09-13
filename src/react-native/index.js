@@ -2674,3 +2674,6 @@ module.exports.recordNetworkRequest = recordNetworkRequest;
 module.exports.installNetworkCapture = installNetworkCapture;
 module.exports.uninstallNetworkCapture = uninstallNetworkCapture;
 module.exports.sanitizeNetworkRequest = sanitizeNetworkRequest;
+
+module.exports.purchases = require("./purchases").createPurchaseDiagnostics((json) => nativeModule.purchaseCommand(json));
+module.exports.createPurchaseDiagnostics = require("./purchases").createPurchaseDiagnostics;

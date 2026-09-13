@@ -137,6 +137,9 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
             do {
                 let value = try await dispatch(method: method, arguments: arguments)
                 completion(.success(try encodeObject(value)))
+            } catch PurchaseDiagnosticsError.environmentNotAllowed {
+                completion(.failure(PigeonError(code: PurchaseDiagnosticsError.environmentErrorCode,
+                    message: "Purchase interop is restricted to simulators and emulators.", details: nil)))
             } catch {
                 completion(.failure(error))
             }
@@ -247,6 +250,9 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
 
     private func dispatch(method: String, arguments: NSDictionary) async throws -> Any {
         switch method {
+        case "purchaseCommand":
+            guard let json = arguments["json"] as? String else { throw PurchaseDiagnosticsError.invalidArguments }
+            return ["json": try await PurchaseDiagnostics.shared.commandAsync(json)]
         case "initialize":
             try AnsightRuntime.shared.initialize(options: buildOptions(arguments))
             try AnsightRuntime.shared.registerAnsightRemoteTools(
