@@ -29,6 +29,7 @@ env:
     Ansight.Profiling.DotNet
     Ansight.Tools.VisualTree
     Ansight.Tools.Database
+    Ansight.Tools.Clipboard
     Ansight.Tools.FileSystem
     Ansight.Tools.Maui
     Ansight.Tools.Preferences

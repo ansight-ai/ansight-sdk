@@ -14,6 +14,7 @@ Pod::Spec.new do |s|
   s.dependency "AnsightToolsFileDescriptorDiagnostics", s.version.to_s
   s.dependency "AnsightToolsFileSystem", s.version.to_s
   s.dependency "AnsightToolsPreferences", s.version.to_s
+  s.dependency "AnsightToolsClipboard", s.version.to_s
   s.dependency "AnsightToolsReflection", s.version.to_s
   s.dependency "AnsightToolsSecureStorage", s.version.to_s
   s.dependency "AnsightToolsVisualTree", s.version.to_s

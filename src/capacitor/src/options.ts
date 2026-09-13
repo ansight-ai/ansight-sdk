@@ -425,6 +425,14 @@ export class AnsightOptionsBuilder implements AnsightOptionsBuilderApi {
     return this;
   }
 
+  withClipboardTools(enabled = true): this {
+    this.options.remoteTools = {
+      ...this.options.remoteTools,
+      clipboard: enabled,
+    };
+    return this;
+  }
+
   withPreferencesTools(
     options: NonNullable<AnsightRemoteToolsOptions["preferences"]> = {},
   ): this {

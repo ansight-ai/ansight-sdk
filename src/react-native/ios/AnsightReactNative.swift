@@ -1153,6 +1153,7 @@ final class AnsightReactNative: RCTEventEmitter {
                 remoteTools?["visualTree"],
                 defaultValue: useNativeAllInOneDefaults
             ),
+            clipboard: boolValue(remoteTools, "clipboard", defaultValue: true),
             database: databaseToolsOptions(remoteTools?["database"] as? NSDictionary),
             fileSystem: fileSystemToolsOptions(remoteTools?["fileSystem"] as? NSDictionary),
             preferences: preferencesToolsOptions(remoteTools?["preferences"] as? NSDictionary),

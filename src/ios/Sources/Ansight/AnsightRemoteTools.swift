@@ -1,3 +1,4 @@
+import AnsightToolsClipboard
 import AnsightCore
 import AnsightToolsDatabase
 import AnsightToolsFileDescriptorDiagnostics
@@ -28,6 +29,7 @@ public enum AnsightRemoteTools {
             + AnsightFileDescriptorDiagnosticsTools.tools(options: options.fileDescriptorDiagnostics)
             + AnsightFileSystemTools.tools(options: options.fileSystem)
             + AnsightPreferencesTools.tools(options: options.preferences)
+            + (options.clipboard ? AnsightClipboardTools.tools() : [])
             + AnsightReflectionTools.tools(options: options.reflection, runtime: runtime)
             + AnsightSecureStorageTools.tools(options: options.secureStorage)
             + artifactTools

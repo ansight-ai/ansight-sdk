@@ -5,6 +5,7 @@ import ai.ansight.tools.database.AndroidDatabaseTools
 import ai.ansight.tools.filedescriptordiagnostics.AndroidFileDescriptorDiagnosticsTools
 import ai.ansight.tools.filesystem.AndroidFileSystemTools
 import ai.ansight.tools.jnireferencediagnostics.AndroidJniReferenceDiagnosticsTools
+import ai.ansight.tools.clipboard.AndroidClipboardTools
 import ai.ansight.tools.preferences.AndroidPreferencesTools
 import ai.ansight.tools.reflection.AndroidReflectionTools
 import ai.ansight.tools.securestorage.AndroidSecureStorageTools
@@ -17,6 +18,7 @@ object AnsightStandardTools {
             AndroidJniReferenceDiagnosticsTools.create() +
             AndroidFileSystemTools.create() +
             AndroidPreferencesTools.create() +
+            AndroidClipboardTools.create() +
             AndroidSecureStorageTools.create() +
             AndroidDatabaseTools.create() +
             AndroidReflectionTools.create()

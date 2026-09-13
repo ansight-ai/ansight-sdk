@@ -7,3 +7,5 @@
 @_exported import AnsightToolsReflection
 @_exported import AnsightToolsSecureStorage
 @_exported import AnsightToolsVisualTree
+
+@_exported import AnsightToolsClipboard

@@ -6,6 +6,7 @@ using Ansight.Tools.FileSystem;
 using Ansight.Tools.JniReferenceDiagnostics;
 #endif
 using Ansight.Tools.Preferences;
+using Ansight.Tools.Clipboard;
 using Ansight.Tools.Reflection;
 using Ansight.Tools.SecureStorage;
 using Ansight.Tools.VisualTree;
@@ -122,6 +123,11 @@ public static class AnsightOptionsBuilderExtensions
         }
 #endif
 
+        if (!ContainsAnyTool(builder, clipboardSuiteToolIds))
+        {
+            builder = builder.WithClipboardTools();
+        }
+
         if (!ContainsAnyTool(builder, preferencesSuiteToolIds))
         {
             builder = builder.WithPreferencesTools();
@@ -219,4 +225,6 @@ public static class AnsightOptionsBuilderExtensions
         SecureStorageToolIds.SetValue,
         SecureStorageToolIds.RemoveKey
     ];
+    private static readonly string[] clipboardSuiteToolIds =
+        [ClipboardToolIds.GetText, ClipboardToolIds.HasText, ClipboardToolIds.SetText, ClipboardToolIds.Clear];
 }

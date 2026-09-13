@@ -608,6 +608,11 @@ class AnsightOptionsBuilder {
     return this;
   }
 
+  withClipboardTools(enabled = true) {
+    this._options.remoteTools = { ...this._options.remoteTools, clipboard: enabled };
+    return this;
+  }
+
   withPreferencesTools(options = {}) {
     this._options.remoteTools = {
       ...(this._options.remoteTools || {}),

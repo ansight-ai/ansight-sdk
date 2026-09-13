@@ -6,3 +6,5 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("Ansight.Annotations")]
 [assembly: InternalsVisibleTo("Ansight.Tools.FileSystem")]
 [assembly: InternalsVisibleTo("Ansight.Tools.VisualTree")]
+
+[assembly: InternalsVisibleTo("Ansight.Tools.Clipboard")]

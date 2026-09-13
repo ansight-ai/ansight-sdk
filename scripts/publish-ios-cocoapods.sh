@@ -20,6 +20,7 @@ native_podspecs=(
   "AnsightToolsFileDescriptorDiagnostics.podspec"
   "AnsightToolsFileSystem.podspec"
   "AnsightToolsPreferences.podspec"
+  "AnsightToolsClipboard.podspec"
   "AnsightToolsReflection.podspec"
   "AnsightToolsSecureStorage.podspec"
   "AnsightToolsVisualTree.podspec"

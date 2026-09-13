@@ -3,6 +3,16 @@ import { describe, expect, it } from "vitest";
 import { createOptionsBuilder } from "../src/options";
 
 describe("AnsightOptionsBuilder", () => {
+  it("preserves clipboard registration choices", () => {
+    const enabled = createOptionsBuilder().withClipboardTools().build();
+    expect(enabled.remoteTools?.clipboard).toBe(true);
+    expect(
+      createOptionsBuilder(enabled).withClipboardTools(false).build()
+        .remoteTools?.clipboard,
+    ).toBe(false);
+    expect(enabled.remoteTools?.clipboard).toBe(true);
+  });
+
   it("applies the cross-SDK developer defaults", () => {
     const options = createOptionsBuilder().withAnsightDefaults().build();
 

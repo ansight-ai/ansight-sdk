@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net9.0;net9.0-android;net9.0-ios;net9.0-maccatalyst</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>Ansight.Tools.Clipboard</AssemblyName>
+    <RootNamespace>Ansight.Tools.Clipboard</RootNamespace>
+
+    <IsPackable>true</IsPackable>
+    <PackageId>Ansight.Tools.Clipboard</PackageId>
+    <Description>System clipboard remote tools for the Ansight .NET SDK.</Description>
+    <PackageTags>ansight;tools;clipboard;copy;paste</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Ansight.Core\Ansight.Core.csproj" />
+  </ItemGroup>
+
+</Project>

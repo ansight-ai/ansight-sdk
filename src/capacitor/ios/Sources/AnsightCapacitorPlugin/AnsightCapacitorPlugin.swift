@@ -793,6 +793,7 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
         let defaultEnabled = boolValue(dictionary, "useNativeAllInOneDefaults", defaultValue: false)
         return AnsightRemoteToolOptions(
             visualTree: toolSuiteEnabled(remoteTools?["visualTree"], defaultValue: defaultEnabled),
+            clipboard: boolValue(remoteTools, "clipboard", defaultValue: true),
             database: AnsightDatabaseToolsOptions(
                 additionalRoots: rootDictionaries((remoteTools?["database"] as? NSDictionary)?["additionalRoots"]).map {
                     AnsightDatabaseRoot(alias: stringValue($0, "alias") ?? "", path: stringValue($0, "path") ?? "")

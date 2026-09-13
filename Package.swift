@@ -21,6 +21,10 @@ let package = Package(
             targets: ["AnsightPairingQR"]
         ),
         .library(
+            name: "AnsightToolsClipboard",
+            targets: ["AnsightToolsClipboard"]
+        ),
+        .library(
             name: "AnsightToolsPreferences",
             targets: ["AnsightToolsPreferences"]
         ),
@@ -63,6 +67,7 @@ let package = Package(
                 "AnsightToolsFileDescriptorDiagnostics",
                 "AnsightToolsFileSystem",
                 "AnsightToolsPreferences",
+                "AnsightToolsClipboard",
                 "AnsightToolsReflection",
                 "AnsightToolsSecureStorage",
                 "AnsightToolsVisualTree",
@@ -87,6 +92,14 @@ let package = Package(
                 "AnsightCore",
             ],
             path: "src/ios/Sources/AnsightPairingQR",
+            exclude: ["README.md"]
+        ),
+        .target(
+            name: "AnsightToolsClipboard",
+            dependencies: [
+                "AnsightCore",
+            ],
+            path: "src/ios/Sources/AnsightToolsClipboard",
             exclude: ["README.md"]
         ),
         .target(
@@ -184,6 +197,7 @@ let package = Package(
                 "AnsightToolsFileDescriptorDiagnostics",
                 "AnsightToolsFileSystem",
                 "AnsightToolsPreferences",
+                "AnsightToolsClipboard",
                 "AnsightToolsReflection",
                 "AnsightToolsSecureStorage",
                 "AnsightToolsVisualTree",

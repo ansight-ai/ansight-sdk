@@ -21,6 +21,7 @@ matrix, including framework-specific and .NET-only workflows.
 | File descriptor diagnostics | — | `ai.ansight:ansight-tools-filedescriptordiagnostics-android` | `AnsightToolsFileDescriptorDiagnostics` | Native aggregate defaults | Native aggregate defaults |
 | JNI reference diagnostics | `Ansight.Core` (Android target) | `ai.ansight:ansight-tools-jnireferencediagnostics-android` | — | Android native bridge | Android native bridge |
 | Preferences tools | `Ansight.Tools.Preferences` | `ai.ansight:ansight-tools-preferences-android` | `AnsightToolsPreferences` | Native bridge | Native bridge |
+| Clipboard tools | `Ansight.Tools.Clipboard` | `ai.ansight:ansight-tools-clipboard-android` | `AnsightToolsClipboard` | Native bridge | Native bridge |
 | Secure storage tools | `Ansight.Tools.SecureStorage` | `ai.ansight:ansight-tools-securestorage-android` | `AnsightToolsSecureStorage` | Native bridge | Native bridge |
 | Database tools | `Ansight.Tools.Database` | `ai.ansight:ansight-tools-database-android` | `AnsightToolsDatabase` | Native bridge | Native bridge |
 | Reflection tools | `Ansight.Tools.Reflection` | `ai.ansight:ansight-tools-reflection-android` | `AnsightToolsReflection` | Native bridge | Native bridge |

@@ -123,6 +123,11 @@ class StreamingClient extends http.BaseClient {
 }
 
 void main() {
+  test('clipboard tool registration choice is preserved', () {
+    expect(const AnsightRemoteToolsOptions(clipboard: false).toJson()['clipboard'], false);
+    expect(const AnsightRemoteToolsOptions(clipboard: true).toJson()['clipboard'], true);
+  });
+
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test('cellular host connections are explicit and disabled by default', () {

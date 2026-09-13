@@ -4,6 +4,7 @@ using Ansight.Tools.Database;
 using Ansight.Tools.FileSystem;
 using Ansight.Tools.Maui;
 using Ansight.Tools.Preferences;
+using Ansight.Tools.Clipboard;
 using Ansight.Tools.Reflection;
 using Ansight.Tools.SecureStorage;
 using Ansight.Tools.VisualTree;
@@ -165,6 +166,10 @@ public sealed class AnsightAllInOneTests
         FileSystemToolIds.CopyFile,
         FileSystemToolIds.MoveFile,
         FileSystemToolIds.DeleteFile,
+        ClipboardToolIds.GetText,
+        ClipboardToolIds.HasText,
+        ClipboardToolIds.SetText,
+        ClipboardToolIds.Clear,
         PreferencesToolIds.ListKeys,
         PreferencesToolIds.GetValue,
         PreferencesToolIds.SetValue,

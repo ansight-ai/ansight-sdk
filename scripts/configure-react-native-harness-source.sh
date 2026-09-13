@@ -121,6 +121,7 @@ if (fs.existsSync(podfilePath)) {
     "AnsightCore",
     "AnsightPairingQR",
     "AnsightToolsPreferences",
+    "AnsightToolsClipboard",
     "AnsightToolsFileSystem",
     "AnsightToolsDatabase",
     "AnsightToolsFileDescriptorDiagnostics",

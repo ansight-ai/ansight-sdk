@@ -10,6 +10,7 @@ import Foundation
 public struct AnsightRemoteToolOptions: Sendable, Equatable {
     public static let `default` = AnsightRemoteToolOptions()
 
+    public var clipboard: Bool
     public var visualTree: Bool
     public var database: AnsightDatabaseToolsOptions
     public var fileDescriptorDiagnostics: AnsightFileDescriptorDiagnosticsOptions
@@ -21,6 +22,7 @@ public struct AnsightRemoteToolOptions: Sendable, Equatable {
 
     public init(
         visualTree: Bool = true,
+        clipboard: Bool = true,
         database: AnsightDatabaseToolsOptions = .default,
         fileDescriptorDiagnostics: AnsightFileDescriptorDiagnosticsOptions = .default,
         fileSystem: AnsightFileSystemToolsOptions = .default,
@@ -29,6 +31,7 @@ public struct AnsightRemoteToolOptions: Sendable, Equatable {
         secureStorage: AnsightSecureStorageToolsOptions = .default,
         artifactProviders: [any AnsightArtifactProvider] = []
     ) {
+        self.clipboard = clipboard
         self.visualTree = visualTree
         self.database = database
         self.fileDescriptorDiagnostics = fileDescriptorDiagnostics
@@ -40,6 +43,7 @@ public struct AnsightRemoteToolOptions: Sendable, Equatable {
     }
 
     public static func == (lhs: AnsightRemoteToolOptions, rhs: AnsightRemoteToolOptions) -> Bool {
+        lhs.clipboard == rhs.clipboard &&
         lhs.visualTree == rhs.visualTree &&
         lhs.database == rhs.database &&
         lhs.fileDescriptorDiagnostics == rhs.fileDescriptorDiagnostics &&

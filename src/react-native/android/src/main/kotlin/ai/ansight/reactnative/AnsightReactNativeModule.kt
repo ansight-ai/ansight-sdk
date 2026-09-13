@@ -48,6 +48,8 @@ import ai.ansight.tools.filesystem.AndroidFileSystemRoot
 import ai.ansight.tools.filesystem.AndroidFileSystemToolsOptions
 import ai.ansight.tools.filesystem.withFileSystemTools
 import ai.ansight.tools.preferences.AndroidPreferencesToolsOptions
+import ai.ansight.tools.clipboard.ClipboardToolIds
+import ai.ansight.tools.clipboard.withClipboardTools
 import ai.ansight.tools.preferences.withPreferencesTools
 import ai.ansight.tools.reflection.AndroidReflectionToolsOptions
 import ai.ansight.tools.reflection.withReflectionTools
@@ -962,6 +964,11 @@ class AnsightReactNativeModule(
     ): AnsightOptions {
         val remoteTools = map.getMapOrNull("remoteTools")
         val builder = AnsightOptions.createBuilder(this)
+        val clipboardIds = setOf(ClipboardToolIds.GetText, ClipboardToolIds.HasText, ClipboardToolIds.SetText, ClipboardToolIds.Clear)
+        builder.withTools(initialTools.filterNot { it.definition.id in clipboardIds })
+        if (remoteTools.booleanValue("clipboard", true)) {
+            builder.withClipboardTools()
+        }
         if (remoteTools.toolSuiteEnabled("visualTree", enableVisualTreeToolsByDefault)) {
             builder.withVisualTreeTools()
         }

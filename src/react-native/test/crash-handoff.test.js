@@ -50,3 +50,15 @@ for (const method of ["initialize", "initializeAndActivate"]) {
     assert.equal(calls.at(-1).crashCapture, false);
   });
 }
+
+test("clipboard tools option survives builder snapshots and native initialization", async () => {
+  const calls = [];
+  const runtime = loadRuntime(calls);
+  const enabled = runtime.createOptionsBuilder().withClipboardTools().build();
+  assert.equal(enabled.remoteTools.clipboard, true);
+  const disabled = runtime.createOptionsBuilder(enabled).withClipboardTools(false).build();
+  assert.equal(disabled.remoteTools.clipboard, false);
+  assert.equal(enabled.remoteTools.clipboard, true);
+  await runtime.initialize({ ...disabled, lifecycle: false, networkCapture: false });
+  assert.equal(calls[0].remoteTools.clipboard, false);
+});

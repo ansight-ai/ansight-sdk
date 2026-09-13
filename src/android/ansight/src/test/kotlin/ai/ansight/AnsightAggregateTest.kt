@@ -6,6 +6,7 @@ import ai.ansight.tools.filedescriptordiagnostics.FileDescriptorDiagnosticsToolI
 import ai.ansight.tools.filesystem.FileSystemToolIds
 import ai.ansight.tools.jnireferencediagnostics.JniReferenceDiagnosticsToolIds
 import ai.ansight.tools.preferences.PreferencesToolIds
+import ai.ansight.tools.clipboard.ClipboardToolIds
 import ai.ansight.tools.reflection.ReflectionToolIds
 import ai.ansight.tools.securestorage.SecureStorageToolIds
 import ai.ansight.tools.visualtree.AndroidVisualTreeProvider
@@ -54,6 +55,10 @@ class AnsightAggregateTest {
             FileSystemToolIds.CopyFile,
             FileSystemToolIds.MoveFile,
             FileSystemToolIds.DeleteFile,
+            ClipboardToolIds.GetText,
+            ClipboardToolIds.HasText,
+            ClipboardToolIds.SetText,
+            ClipboardToolIds.Clear,
             PreferencesToolIds.ListKeys,
             PreferencesToolIds.GetValue,
             PreferencesToolIds.SetValue,
@@ -93,7 +98,7 @@ class AnsightAggregateTest {
 
     @Test
     fun developerOptionsWireAllStandardTools() {
-        assertEquals(41, Ansight.developerOptions().initialTools.size)
+        assertEquals(45, Ansight.developerOptions().initialTools.size)
     }
 
     @Test
@@ -103,7 +108,7 @@ class AnsightAggregateTest {
             withSessionJpegCapture(intervalMilliseconds = 1_500, quality = 65, maxWidth = 600)
         }
 
-        assertEquals(41, options.initialTools.size)
+        assertEquals(45, options.initialTools.size)
         assertEquals(AnsightToolGuard.ReadOnly, options.toolGuard)
         assertEquals(1_500, options.sessionJpegCapture?.intervalMilliseconds)
         assertEquals(65, options.sessionJpegCapture?.quality)
@@ -122,8 +127,8 @@ class AnsightAggregateTest {
             .build()
         val toolIds = options.initialTools.map { it.definition.id }
 
-        assertEquals(41, toolIds.size)
-        assertEquals(41, toolIds.toSet().size)
+        assertEquals(45, toolIds.size)
+        assertEquals(45, toolIds.toSet().size)
         assertEquals(AnsightToolGuard.FullAccess, options.toolGuard)
         assertTrue(toolIds.contains(FileSystemToolIds.ListDirectory))
         assertTrue(toolIds.contains(VisualTreeToolIds.GetVisualTree))

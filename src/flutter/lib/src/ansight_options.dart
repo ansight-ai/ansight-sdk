@@ -285,6 +285,7 @@ class AnsightSecureStorageToolsOptions {
 
 class AnsightRemoteToolsOptions {
   const AnsightRemoteToolsOptions({
+    this.clipboard,
     this.visualTree,
     this.fileSystem,
     this.database,
@@ -293,6 +294,8 @@ class AnsightRemoteToolsOptions {
     this.secureStorage,
   });
 
+  /// Include native clipboard tools; defaults to true.
+  final bool? clipboard;
   final bool? visualTree;
   final AnsightFileSystemToolsOptions? fileSystem;
   final AnsightDatabaseToolsOptions? database;
@@ -301,6 +304,7 @@ class AnsightRemoteToolsOptions {
   final AnsightSecureStorageToolsOptions? secureStorage;
 
   AnsightJson toJson() => <String, Object?>{
+        if (clipboard != null) 'clipboard': clipboard,
         if (visualTree != null) 'visualTree': visualTree,
         if (fileSystem != null) 'fileSystem': fileSystem!.toJson(),
         if (database != null) 'database': database!.toJson(),

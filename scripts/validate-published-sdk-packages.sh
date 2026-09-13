@@ -117,6 +117,7 @@ for artifact in \
   ansight-tools-jnireferencediagnostics-android \
   ansight-tools-filesystem-android \
   ansight-tools-preferences-android \
+  ansight-tools-clipboard-android \
   ansight-tools-securestorage-android \
   ansight-tools-database-android \
   ansight-tools-reflection-android \
@@ -136,6 +137,7 @@ if [[ "${skip_cocoapods}" != "true" ]]; then
       AnsightCore \
       AnsightPairingQR \
       AnsightToolsPreferences \
+      AnsightToolsClipboard \
       AnsightToolsFileDescriptorDiagnostics \
       AnsightToolsFileSystem \
       AnsightToolsDatabase \

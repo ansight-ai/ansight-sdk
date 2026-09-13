@@ -117,6 +117,8 @@ export interface AnsightNativeToolRoot {
 }
 
 export interface AnsightRemoteToolsOptions {
+  /** Include native clipboard tools; defaults to true. */
+  clipboard?: boolean;
   visualTree?: boolean | { enabled?: boolean };
   fileSystem?: { additionalRoots?: AnsightNativeToolRoot[] };
   database?: {
@@ -555,6 +557,7 @@ export interface AnsightOptionsBuilderApi {
   withDatabaseTools(
     options?: NonNullable<AnsightRemoteToolsOptions["database"]>,
   ): this;
+  withClipboardTools(enabled?: boolean): this;
   withPreferencesTools(
     options?: NonNullable<AnsightRemoteToolsOptions["preferences"]>,
   ): this;

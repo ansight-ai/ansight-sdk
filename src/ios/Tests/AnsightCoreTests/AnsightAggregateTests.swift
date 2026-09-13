@@ -6,6 +6,7 @@ import XCTest
 @testable import AnsightToolsFileDescriptorDiagnostics
 @testable import AnsightToolsFileSystem
 @testable import AnsightToolsPreferences
+@testable import AnsightToolsClipboard
 @testable import AnsightToolsReflection
 @testable import AnsightToolsSecureStorage
 @testable import AnsightToolsVisualTree
@@ -48,6 +49,10 @@ final class AnsightAggregateTests: XCTestCase {
                 AnsightFileSystemToolIds.moveFile,
                 AnsightFileSystemToolIds.pushFile,
                 AnsightFileSystemToolIds.readFile,
+                AnsightClipboardToolIds.getText,
+                AnsightClipboardToolIds.hasText,
+                AnsightClipboardToolIds.setText,
+                AnsightClipboardToolIds.clear,
                 AnsightPreferencesToolIds.getValue,
                 AnsightPreferencesToolIds.listKeys,
                 AnsightPreferencesToolIds.removeKey,

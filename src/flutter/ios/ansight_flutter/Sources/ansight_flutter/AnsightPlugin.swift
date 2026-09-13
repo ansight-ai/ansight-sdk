@@ -890,6 +890,7 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
         )
         return AnsightRemoteToolOptions(
             visualTree: toolSuiteEnabled(remote?["visualTree"], defaultValue: defaults),
+            clipboard: boolValue(remote, "clipboard", defaultValue: true),
             database: AnsightDatabaseToolsOptions(
                 additionalRoots: rootDictionaries(
                     (remote?["database"] as? NSDictionary)?["additionalRoots"]

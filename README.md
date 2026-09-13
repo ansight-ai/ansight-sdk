@@ -72,3 +72,5 @@ The Ansight SDK is source-available software under the
 [Ansight SDK Source-Available License](https://github.com/ansight-ai/ansight-sdk/blob/main/LICENSE).
 It is not open-source software. Production use is licensed only for use with
 Ansight Services.
+
+Clipboard remote tools: [API, platform behaviour and registration](docs/clipboard-tools.md).

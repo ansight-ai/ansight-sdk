@@ -48,6 +48,8 @@ import ai.ansight.tools.filesystem.AndroidFileSystemRoot
 import ai.ansight.tools.filesystem.AndroidFileSystemToolsOptions
 import ai.ansight.tools.filesystem.withFileSystemTools
 import ai.ansight.tools.preferences.AndroidPreferencesToolsOptions
+import ai.ansight.tools.clipboard.ClipboardToolIds
+import ai.ansight.tools.clipboard.withClipboardTools
 import ai.ansight.tools.preferences.withPreferencesTools
 import ai.ansight.tools.reflection.AndroidReflectionToolsOptions
 import ai.ansight.tools.reflection.withReflectionTools
@@ -838,6 +840,11 @@ class AnsightCapacitorPlugin : Plugin() {
     private fun AnsightOptions.withNativeTools(map: JSObject, enableVisualTreeByDefault: Boolean): AnsightOptions {
         val remote = map.objectValue("remoteTools")
         val builder = AnsightOptions.createBuilder(this)
+        val clipboardIds = setOf(ClipboardToolIds.GetText, ClipboardToolIds.HasText, ClipboardToolIds.SetText, ClipboardToolIds.Clear)
+        builder.withTools(initialTools.filterNot { it.definition.id in clipboardIds })
+        if (remote.booleanValue("clipboard", true)) {
+            builder.withClipboardTools()
+        }
         if (remote.toolSuiteEnabled("visualTree", enableVisualTreeByDefault)) {
             builder.withVisualTreeTools()
         }

@@ -9,6 +9,8 @@ import ai.ansight.tools.filesystem.FileSystemToolIds
 import ai.ansight.tools.filesystem.withFileSystemTools
 import ai.ansight.tools.jnireferencediagnostics.JniReferenceDiagnosticsToolIds
 import ai.ansight.tools.jnireferencediagnostics.withJniReferenceDiagnosticsTools
+import ai.ansight.tools.clipboard.ClipboardToolIds
+import ai.ansight.tools.clipboard.withClipboardTools
 import ai.ansight.tools.preferences.PreferencesToolIds
 import ai.ansight.tools.preferences.withPreferencesTools
 import ai.ansight.tools.reflection.ReflectionToolIds
@@ -60,6 +62,10 @@ fun AnsightOptionsBuilder.withAnsightRemoteTools(): AnsightOptionsBuilder {
     if (!containsAnyTool(jniReferenceDiagnosticsSuiteToolIds)) {
         withJniReferenceDiagnosticsTools()
     }
+    if (!containsAnyTool(clipboardSuiteToolIds)) {
+        withClipboardTools()
+    }
+
     if (!containsAnyTool(preferencesSuiteToolIds)) {
         withPreferencesTools()
     }
@@ -138,3 +144,5 @@ private val secureStorageSuiteToolIds = listOf(
     SecureStorageToolIds.SetValue,
     SecureStorageToolIds.RemoveKey,
 )
+
+private val clipboardSuiteToolIds = listOf(ClipboardToolIds.GetText, ClipboardToolIds.HasText, ClipboardToolIds.SetText, ClipboardToolIds.Clear)

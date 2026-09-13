@@ -35,6 +35,7 @@ target 'Runner' do
   pod 'AnsightToolsFileDescriptorDiagnostics', :path => ansight_ios_path
   pod 'AnsightToolsFileSystem', :path => ansight_ios_path
   pod 'AnsightToolsPreferences', :path => ansight_ios_path
+  pod 'AnsightToolsClipboard', :path => ansight_ios_path
   pod 'AnsightToolsReflection', :path => ansight_ios_path
   pod 'AnsightToolsSecureStorage', :path => ansight_ios_path
   pod 'AnsightToolsVisualTree', :path => ansight_ios_path

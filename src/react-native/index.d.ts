@@ -144,6 +144,8 @@ export interface AnsightVisualTreeToolsOptions {
 }
 
 export interface AnsightRemoteToolsOptions {
+  /** Include native clipboard tools; defaults to true. */
+  clipboard?: boolean;
   visualTree?: boolean | AnsightVisualTreeToolsOptions;
   fileSystem?: AnsightFileSystemToolsOptions;
   database?: AnsightDatabaseToolsOptions;
@@ -392,6 +394,7 @@ export class AnsightOptionsBuilder {
   withoutVisualTreeTools(): this;
   withFileSystemTools(options?: AnsightFileSystemToolsOptions): this;
   withDatabaseTools(options?: AnsightDatabaseToolsOptions): this;
+  withClipboardTools(enabled?: boolean): this;
   withPreferencesTools(options?: AnsightPreferencesToolsOptions): this;
   withReflectionTools(options?: AnsightReflectionToolsOptions): this;
   build(): AnsightOptions;

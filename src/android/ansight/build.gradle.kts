@@ -40,6 +40,7 @@ dependencies {
     api(project(":ansight-tools-file-descriptor-diagnostics"))
     api(project(":ansight-tools-jni-reference-diagnostics"))
     api(project(":ansight-tools-preferences"))
+    api(project(":ansight-tools-clipboard"))
     api(project(":ansight-tools-securestorage"))
     api(project(":ansight-tools-database"))
     api(project(":ansight-tools-reflection"))
