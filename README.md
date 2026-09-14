@@ -2,18 +2,58 @@
 
 ![`branding/logo.png`](branding/logo.png)
 
-Ansight SDK provides cross-platform observability tooling for mobile applications, with SDKs for:
+Ansight gives coding agents the runtime evidence to verify their own work in
+your mobile app. The SDK runs inside a development build and streams what the
+app actually did to a local host on your machine. Your agent reads that
+evidence through the `ansight` CLI, so it can inspect a live screen, reproduce
+a bug from a report, run a release test suite, and check performance against
+an acceptable range, all against the running app instead of guessing from
+code. People review the same sessions in a browser-based local player.
+Nothing leaves your machine unless you export or share it.
 
-- .NET / MAUI (`src/dotnet`)
-- Android (`src/android`)
+**Captured while the app runs**
+
+- Screenshots, periodic or on demand, and host-owned simulator and emulator
+  capture
+- Visual trees with framework-aware inspection: MAUI pages and bindings,
+  Flutter widgets, React components, and WebView DOM, alongside native views
+- Touches: taps, drags, long presses, and cancelled gestures, aligned to frames
+- Logs from the app, plus SDK diagnostics
+- Crashes and unhandled errors, native and framework, with a durable outbox
+  that hands the previous session's crash to the next launch
+- HTTP requests
+- Screen views, navigation, and app lifecycle events
+- App events, custom metrics, and sampled memory, FPS, frame timing, and
+  battery
+- Session properties and device and app profiles
+
+**Available on request, through guarded tools**
+
+- App state through registered-root reflection
+- Preferences and secure storage
+- Sandboxed files, and SQLite discovery, schema, and read-only queries
+- File-descriptor and JNI reference diagnostics
+- Artifact exports your app defines, such as network traces or support bundles
+- Your own custom tools, exposing app-specific diagnostics and domain state
+- Annotated in-app feedback and startup profiling on .NET
+
+SDKs in this repository, all in beta:
+
+- .NET and MAUI (`src/dotnet`)
 - iOS (`src/ios`)
-- React Native (`src/react-native`)
-- Capacitor (`src/capacitor`)
+- Android (`src/android`)
+- React Native and Expo (`src/react-native`)
 - Flutter (`src/flutter`)
+- Capacitor (`src/capacitor`)
 
-The Android, iOS, React Native, Capacitor, and Flutter SDKs are pre-release
-packages that mirror the same native runtime, host connection, telemetry,
-screenshot, touch capture, and remote-tool protocol used by the .NET SDK.
+The Android, iOS, React Native, Capacitor, and Flutter SDKs mirror the same
+native runtime, host connection, telemetry, screenshot, touch capture, and
+remote-tool protocol used by the .NET SDK.
+
+- Website: https://www.ansight.ai
+- Getting started: https://www.ansight.ai/docs/getting-started
+- How Ansight compares: https://www.ansight.ai/why-ansight
+- License: Ansight SDK Source-Available License
 
 Current SDK features include:
 

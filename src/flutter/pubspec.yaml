@@ -1,5 +1,5 @@
 name: ansight_flutter
-description: Cross-platform observability, inspection, and remote tooling for Flutter applications.
+description: Flutter SDK for Ansight - runtime evidence from your app for coding agents. Screenshots, widget trees, logs, network, telemetry, and app state.
 version: 1.4.0
 homepage: https://github.com/ansight-ai/ansight-sdk
 repository: https://github.com/ansight-ai/ansight-sdk

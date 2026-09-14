@@ -1,5 +1,15 @@
 # Ansight for Capacitor
 
+Ansight gives coding agents the runtime evidence to verify their own work in
+Capacitor 8 apps. The SDK captures screenshots, visual trees, touches, logs,
+crashes and unhandled errors, HTTP requests, screen views and navigation, lifecycle events, app events, custom metrics, and sampled memory,
+FPS, frame timing, and battery while the app runs, and exposes app state,
+preferences, secure storage, files, SQLite, artifacts, and your own custom
+tools through guarded remote tools on request. Your agent reads all of it
+through the `ansight` CLI. Nothing leaves your machine unless you export or
+share it. See https://www.ansight.ai and the
+[getting started guide](https://www.ansight.ai/docs/getting-started).
+
 `@ansight/capacitor` brings the Ansight Android and iOS runtimes to Capacitor 8
 applications. It exposes native telemetry, pairing, screenshots, touch capture,
 session properties, logs, guarded remote tools, JavaScript custom tools,

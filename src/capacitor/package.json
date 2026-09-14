@@ -1,7 +1,7 @@
 {
   "name": "@ansight/capacitor",
   "version": "1.4.0",
-  "description": "Capacitor bridge for the Ansight mobile observability and remote inspection SDK.",
+  "description": "Capacitor bridge for Ansight: runtime evidence from your app for coding agents. Screenshots, DOM and native trees, logs, network, and app state.",
   "main": "dist/plugin.cjs.js",
   "module": "dist/esm/index.js",
   "types": "dist/esm/index.d.ts",
