@@ -1,3 +1,11 @@
+## 1.5.0
+
+- Add opt-in purchase diagnostics across native, React Native, Capacitor, and
+  Flutter SDKs, including StoreKit and Google Play integrations.
+- Add clipboard remote tools across the supported SDK platforms.
+- Correct tool-schema validation so required nullable properties are accepted
+  when present with a null value.
+
 ## 1.4.0
 
 - Promote all SDK packages and native dependencies to stable 1.4.0.

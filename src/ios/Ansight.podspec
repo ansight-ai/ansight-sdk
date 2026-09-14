@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name         = "Ansight"
-  s.version      = "1.4.0"
+  s.version      = "1.5.0"
   s.summary      = "iOS SDK for Ansight: runtime evidence from your app for coding agents. Screenshots, view trees, logs, network, telemetry, and app state."
   s.homepage     = "https://github.com/ansight-ai/ansight-sdk"
   s.license      = { :type => "Ansight SDK Source-Available License", :file => "LICENSE" }
