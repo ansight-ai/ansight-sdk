@@ -34,6 +34,40 @@ final class VisualTreeToolTests: XCTestCase {
         XCTAssertEqual(match?.bounds?.x, 100)
         XCTAssertEqual(match?.bounds?.y, 300)
     }
+
+    @MainActor
+    func testVisualTreePrefersAutomationElements() throws {
+        guard #available(iOS 17.0, tvOS 17.0, *) else {
+            throw XCTSkip("Automation-specific accessibility containers require iOS 17 or newer.")
+        }
+
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 400, height: 800))
+        let container = UIView(frame: window.bounds)
+        window.addSubview(container)
+
+        let accessibilityAction = UIAccessibilityElement(accessibilityContainer: container)
+        accessibilityAction.accessibilityIdentifier = "accessibility.action"
+        accessibilityAction.accessibilityLabel = "Accessibility action"
+        accessibilityAction.accessibilityTraits = .button
+        accessibilityAction.accessibilityFrame = CGRect(x: 100, y: 200, width: 200, height: 44)
+        container.accessibilityElements = [accessibilityAction]
+
+        let automationAction = UIAccessibilityElement(accessibilityContainer: container)
+        automationAction.accessibilityIdentifier = "automation.action"
+        automationAction.accessibilityLabel = "Automation action"
+        automationAction.accessibilityTraits = .button
+        automationAction.accessibilityFrame = CGRect(x: 100, y: 300, width: 200, height: 44)
+        container.automationElements = [automationAction]
+
+        let tree = AnsightVisualTreeSupport.buildNode(
+            view: window,
+            window: window,
+            includeProperties: true
+        )
+
+        XCTAssertNotNil(tree.descendants().first { $0.automationId == "automation.action" })
+        XCTAssertNil(tree.descendants().first { $0.automationId == "accessibility.action" })
+    }
     #endif
 
     func testVisualNodeIncludesAutomationIdentifier() {

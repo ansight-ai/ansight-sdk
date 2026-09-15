@@ -554,6 +554,26 @@ internal enum AnsightVisualTreeSupport {
 
     @MainActor
     private static func accessibilityChildren(of container: NSObject) -> [NSObject] {
+        // UIKit exposes a distinct automation hierarchy from iOS 17 onward.
+        // SwiftUI uses this hierarchy for synthetic controls and text that do not
+        // have backing UIViews, so consulting accessibilityElements alone drops
+        // most of a SwiftUI screen from Ansight's visual tree.
+        if #available(iOS 17.0, tvOS 17.0, *) {
+            if container.responds(to: NSSelectorFromString("automationElementsBlock")) {
+                if let elements = container.automationElementsBlock?(), !elements.isEmpty {
+                    return elements.compactMap { $0 as? NSObject }
+                }
+            }
+            if let elements = container.automationElements, !elements.isEmpty {
+                return elements.compactMap { $0 as? NSObject }
+            }
+            if container.responds(to: NSSelectorFromString("accessibilityElementsBlock")) {
+                if let elements = container.accessibilityElementsBlock?(), !elements.isEmpty {
+                    return elements.compactMap { $0 as? NSObject }
+                }
+            }
+        }
+
         if let elements = container.accessibilityElements, !elements.isEmpty {
             return elements.compactMap { $0 as? NSObject }
         }
