@@ -1322,6 +1322,48 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertEqual(completeObject["reason"], .string("client log stream complete"))
     }
 
+    func testSessionConfigurationPropertiesIncludeNormalizedCaptureAndTelemetrySettings() throws {
+        let options = try AnsightOptions(
+            sampleFrequencyMilliseconds: 10,
+            retentionPeriodSeconds: 9_999,
+            enableFramesPerSecond: true,
+            enableBatteryLevel: true,
+            enableOpenFileHandleTracking: true,
+            sessionJpegCapture: AnsightSessionJpegCaptureOptions(
+                intervalMilliseconds: 100,
+                quality: 200,
+                maxWidth: 9_000,
+                captureGpuBackedSurfaces: false,
+                mode: .screenshotWithVisualTreeOnTouch,
+                captureKeyboardPresence: true
+            ),
+            customProperties: [
+                AnsightSessionConfigurationProperties.captureGroup: ["quality": "spoofed"],
+                "app": ["tenant": "acme"],
+            ]
+        ).validated()
+
+        let properties = AnsightSessionConfigurationProperties.create(
+            options: options,
+            capturePolicy: .app
+        )
+
+        XCTAssertEqual(properties["app"]?["tenant"], "acme")
+        XCTAssertEqual(properties[AnsightSessionConfigurationProperties.captureGroup]?["enabled"], "true")
+        XCTAssertEqual(properties[AnsightSessionConfigurationProperties.captureGroup]?["owner"], "app")
+        XCTAssertEqual(properties[AnsightSessionConfigurationProperties.captureGroup]?["intervalMilliseconds"], "250")
+        XCTAssertEqual(properties[AnsightSessionConfigurationProperties.captureGroup]?["quality"], "100")
+        XCTAssertEqual(properties[AnsightSessionConfigurationProperties.captureGroup]?["maxWidth"], "8192")
+        XCTAssertEqual(properties[AnsightSessionConfigurationProperties.captureGroup]?["captureGpuBackedSurfaces"], "false")
+        XCTAssertEqual(properties[AnsightSessionConfigurationProperties.captureGroup]?["captureKeyboardPresence"], "true")
+        XCTAssertEqual(properties[AnsightSessionConfigurationProperties.captureGroup]?["mode"], "screenshotWithVisualTreeOnTouch")
+        XCTAssertEqual(properties[AnsightSessionConfigurationProperties.telemetryGroup]?["sampleFrequencyMilliseconds"], "200")
+        XCTAssertEqual(properties[AnsightSessionConfigurationProperties.telemetryGroup]?["retentionPeriodSeconds"], "3600")
+        XCTAssertEqual(properties[AnsightSessionConfigurationProperties.telemetryGroup]?["framesPerSecond"], "true")
+        XCTAssertEqual(properties[AnsightSessionConfigurationProperties.telemetryGroup]?["batteryLevel"], "true")
+        XCTAssertEqual(properties[AnsightSessionConfigurationProperties.telemetryGroup]?["openFileHandles"], "true")
+    }
+
     func testTelemetryPayloadBuildersMatchProtocolShape() throws {
         let metricsPayload = AnsightRuntime.makeMetricsPayload([
             RecordedMetric(value: 123, channel: 42, capturedAtUtc: "2026-06-14T00:00:00Z"),

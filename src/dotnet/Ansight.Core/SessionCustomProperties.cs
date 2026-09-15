@@ -95,6 +95,15 @@ public sealed class SessionCustomProperties
         }
     }
 
+    internal void RemoveGroup(string group)
+    {
+        var normalizedGroup = NormalizeName(group, nameof(group), MaximumGroupLength);
+        lock (propertyLock)
+        {
+            properties.Remove(normalizedGroup);
+        }
+    }
+
     /// <summary>
     /// Creates a detached copy of the current properties.
     /// </summary>

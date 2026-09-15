@@ -645,7 +645,9 @@ internal class RuntimeImpl : IRuntime
 
     internal SessionCustomProperties CreateCustomPropertiesSnapshot()
     {
-        return DotNetSessionProperties.CreateEffective(customProperties);
+        var properties = DotNetSessionProperties.CreateEffective(customProperties);
+        AnsightSessionConfigurationProperties.Apply(properties, options, HostSessionJpegCapturePolicy.App);
+        return properties;
     }
 
     public void Clear()

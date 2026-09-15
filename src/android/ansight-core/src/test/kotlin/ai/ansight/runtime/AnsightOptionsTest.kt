@@ -73,6 +73,51 @@ class AnsightOptionsTest {
     }
 
     @Test
+    fun sessionConfigurationPropertiesIncludeNormalizedCaptureAndTelemetrySettings() {
+        val options = AnsightOptions(
+            sampleFrequencyMilliseconds = 10,
+            retentionPeriodSeconds = 9_999,
+            enableFramesPerSecond = true,
+            enableBatteryLevel = true,
+            enableOpenFileHandleTracking = true,
+            enableJniReferenceCountTracking = true,
+            sessionJpegCapture = AnsightSessionJpegCaptureOptions(
+                intervalMilliseconds = 100,
+                quality = 200,
+                maxWidth = 9_000,
+                captureGpuBackedSurfaces = false,
+                captureKeyboardPresence = true,
+                mode = AnsightSessionJpegCaptureMode.ScreenshotWithVisualTreeOnTouch,
+            ),
+            customProperties = mapOf(
+                AnsightSessionConfigurationProperties.CaptureGroup to mapOf("quality" to "spoofed"),
+                "app" to mapOf("tenant" to "acme"),
+            ),
+        ).validated()
+
+        val properties = AnsightSessionConfigurationProperties.create(
+            options,
+            HostSessionJpegCapturePolicy.App,
+        )
+
+        assertEquals("acme", properties["app"]?.get("tenant"))
+        assertEquals("true", properties[AnsightSessionConfigurationProperties.CaptureGroup]?.get("enabled"))
+        assertEquals("app", properties[AnsightSessionConfigurationProperties.CaptureGroup]?.get("owner"))
+        assertEquals("250", properties[AnsightSessionConfigurationProperties.CaptureGroup]?.get("intervalMilliseconds"))
+        assertEquals("100", properties[AnsightSessionConfigurationProperties.CaptureGroup]?.get("quality"))
+        assertEquals("8192", properties[AnsightSessionConfigurationProperties.CaptureGroup]?.get("maxWidth"))
+        assertEquals("false", properties[AnsightSessionConfigurationProperties.CaptureGroup]?.get("captureGpuBackedSurfaces"))
+        assertEquals("true", properties[AnsightSessionConfigurationProperties.CaptureGroup]?.get("captureKeyboardPresence"))
+        assertEquals("screenshotWithVisualTreeOnTouch", properties[AnsightSessionConfigurationProperties.CaptureGroup]?.get("mode"))
+        assertEquals("200", properties[AnsightSessionConfigurationProperties.TelemetryGroup]?.get("sampleFrequencyMilliseconds"))
+        assertEquals("3600", properties[AnsightSessionConfigurationProperties.TelemetryGroup]?.get("retentionPeriodSeconds"))
+        assertEquals("true", properties[AnsightSessionConfigurationProperties.TelemetryGroup]?.get("framesPerSecond"))
+        assertEquals("true", properties[AnsightSessionConfigurationProperties.TelemetryGroup]?.get("batteryLevel"))
+        assertEquals("true", properties[AnsightSessionConfigurationProperties.TelemetryGroup]?.get("openFileHandles"))
+        assertEquals("true", properties[AnsightSessionConfigurationProperties.TelemetryGroup]?.get("jniReferenceCount"))
+    }
+
+    @Test
     fun secureStorageDefaultsToDenyAllAndNormalizesAllowLists() {
         val defaultOptions = AnsightOptions().validated()
         assertEquals(false, defaultOptions.secureStorage.isAllowed("token"))

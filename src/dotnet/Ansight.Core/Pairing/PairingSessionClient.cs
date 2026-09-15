@@ -534,6 +534,30 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
             HostConnectionProgressKind.Connection);
         jpegStreamer.SetHostCapturePolicy(
             HostSessionJpegCapturePolicy.FromPayload(result.Response?.Payload));
+        if (result.OperationResult.Success && Runtime.IsInitialized && transport.IsOpen)
+        {
+            SessionCustomProperties? connectionCustomProperties;
+            lock (runtimeCustomPropertiesLock)
+            {
+                connectionCustomProperties = sessionConnectionCustomProperties?.Clone();
+            }
+
+            var propertiesResult = await transport.SendControlRequestAsync(
+                PairingControlActions.SessionProperties,
+                CreateSessionPropertiesPayload(CreateEffectiveCustomProperties(connectionCustomProperties)),
+                "WS -> session.properties",
+                "Session properties updated.",
+                "Failed to update session properties",
+                progress: null,
+                acknowledgementTimeout: TimeSpan.FromSeconds(10),
+                cancellationToken: CancellationToken.None,
+                source: HostConnectionSource.Transport,
+                kind: HostConnectionProgressKind.Transport);
+            if (!propertiesResult.Success)
+            {
+                Logger.Warning(propertiesResult.Message);
+            }
+        }
         return result.OperationResult;
     }
 
@@ -981,7 +1005,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
         };
     }
 
-    private static SessionCustomProperties? CreateEffectiveCustomProperties(
+    private SessionCustomProperties? CreateEffectiveCustomProperties(
         SessionCustomProperties? connectionCustomProperties,
         SessionCustomProperties? runtimeCustomProperties = null)
     {
@@ -990,6 +1014,14 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
                              ? Runtime.MutableInstance.CreateCustomPropertiesSnapshot()
                              : new SessionCustomProperties());
         properties.MergeFrom(connectionCustomProperties);
+
+        if (Runtime.IsInitialized)
+        {
+            AnsightSessionConfigurationProperties.Apply(
+                properties,
+                Runtime.MutableInstance.Options,
+                jpegStreamer.HostCapturePolicy);
+        }
 
         return properties.IsEmpty ? null : properties;
     }

@@ -1171,10 +1171,10 @@ object AnsightRuntime {
             .put("configId", document.config.configId)
             .put("appId", document.config.appId)
             .put("openedAtUtc", AnsightClock.isoNow())
-        val customProperties = synchronized(lock) { options.customProperties }
-        if (customProperties.isNotEmpty()) {
-            openPayload.put("customProperties", customProperties.toJSONObject())
+        val customProperties = synchronized(lock) {
+            AnsightSessionConfigurationProperties.create(options, hostSessionJpegCapturePolicy)
         }
+        openPayload.put("customProperties", customProperties.toJSONObject())
 
         val sessionOpenResult = transport.sendControlRequest(PairingControlActions.SessionOpen, openPayload)
         if (!sessionOpenResult.success) {
@@ -1394,7 +1394,13 @@ object AnsightRuntime {
                 .put("sdk", "ansight-core-android")
                 .put("sessionId", ProcessSessionIdentity.current)
                 .put("updatedAtUtc", AnsightClock.isoNow())
-                .put("customProperties", options.customProperties.toJSONObject())
+                .put(
+                    "customProperties",
+                    AnsightSessionConfigurationProperties.create(
+                        options,
+                        hostSessionJpegCapturePolicy,
+                    ).toJSONObject(),
+                )
                 .put("toolGuard", options.toolGuard.toProtocolJson())
                 .put("capabilities", JSONArray(capabilities))
                 .put("tools", JSONObject()

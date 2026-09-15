@@ -21,6 +21,8 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
         this.transport = transport;
     }
 
+    internal HostSessionJpegCapturePolicy HostCapturePolicy => hostCapturePolicy;
+
     public async Task StartAsync(IProgress<HostConnectionProgressUpdate>? progress)
     {
         await StopAsync(CancellationToken.None);

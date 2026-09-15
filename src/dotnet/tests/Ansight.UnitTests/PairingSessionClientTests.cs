@@ -67,6 +67,50 @@ public sealed class PairingSessionClientTests
     }
 
     [Fact]
+    public void SessionConfigurationPropertiesIncludeNormalizedCaptureAndTelemetrySettings()
+    {
+        var options = Options.CreateBuilder()
+            .WithSampleFrequencyMilliseconds(10)
+            .WithRetentionPeriodSeconds(9_999)
+            .WithFramesPerSecond()
+            .WithBatteryLevel()
+            .WithOpenFileHandleTracking()
+            .WithJniReferenceCountTracking()
+            .WithSessionJpegCapture(
+                intervalMilliseconds: 100,
+                quality: 200,
+                maxWidth: 9_000,
+                captureGpuBackedSurfaces: false,
+                mode: SessionJpegCaptureMode.ScreenshotWithVisualTreeOnTouch,
+                captureKeyboardPresence: true)
+            .RegisterCustomProperty(AnsightSessionConfigurationProperties.CaptureGroup, "quality", "spoofed")
+            .RegisterCustomProperty(AnsightSessionConfigurationProperties.CaptureGroup, "invented", "spoofed")
+            .RegisterCustomProperty("app", "tenant", "acme")
+            .Build();
+        var properties = options.CustomProperties.Clone();
+
+        AnsightSessionConfigurationProperties.Apply(properties, options, HostSessionJpegCapturePolicy.App);
+
+        var json = properties.ToJsonObject();
+        Assert.Equal("acme", json["app"]?["tenant"]?.GetValue<string>());
+        Assert.Equal("true", json[AnsightSessionConfigurationProperties.CaptureGroup]?["enabled"]?.GetValue<string>());
+        Assert.Equal("app", json[AnsightSessionConfigurationProperties.CaptureGroup]?["owner"]?.GetValue<string>());
+        Assert.Equal("250", json[AnsightSessionConfigurationProperties.CaptureGroup]?["intervalMilliseconds"]?.GetValue<string>());
+        Assert.Equal("100", json[AnsightSessionConfigurationProperties.CaptureGroup]?["quality"]?.GetValue<string>());
+        Assert.Equal("8192", json[AnsightSessionConfigurationProperties.CaptureGroup]?["maxWidth"]?.GetValue<string>());
+        Assert.Equal("false", json[AnsightSessionConfigurationProperties.CaptureGroup]?["captureGpuBackedSurfaces"]?.GetValue<string>());
+        Assert.Equal("true", json[AnsightSessionConfigurationProperties.CaptureGroup]?["captureKeyboardPresence"]?.GetValue<string>());
+        Assert.Equal("screenshotWithVisualTreeOnTouch", json[AnsightSessionConfigurationProperties.CaptureGroup]?["mode"]?.GetValue<string>());
+        Assert.Equal("200", json[AnsightSessionConfigurationProperties.TelemetryGroup]?["sampleFrequencyMilliseconds"]?.GetValue<string>());
+        Assert.Equal("3600", json[AnsightSessionConfigurationProperties.TelemetryGroup]?["retentionPeriodSeconds"]?.GetValue<string>());
+        Assert.Equal("true", json[AnsightSessionConfigurationProperties.TelemetryGroup]?["framesPerSecond"]?.GetValue<string>());
+        Assert.Equal("true", json[AnsightSessionConfigurationProperties.TelemetryGroup]?["batteryLevel"]?.GetValue<string>());
+        Assert.Equal("true", json[AnsightSessionConfigurationProperties.TelemetryGroup]?["openFileHandles"]?.GetValue<string>());
+        Assert.Equal("true", json[AnsightSessionConfigurationProperties.TelemetryGroup]?["jniReferenceCount"]?.GetValue<string>());
+        Assert.Null(json[AnsightSessionConfigurationProperties.CaptureGroup]?["invented"]);
+    }
+
+    [Fact]
     public void CreateCachedDocument_WhenConnectedHostAddressIsAvailable_AddsDiscoveryHint()
     {
         var document = new ParsedPairingDocument

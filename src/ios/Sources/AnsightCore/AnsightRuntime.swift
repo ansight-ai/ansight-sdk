@@ -1076,6 +1076,8 @@ public final class AnsightRuntime: @unchecked Sendable {
             )
         }
 
+        _ = await sendCurrentSessionProperties()
+
         lock.withLock {
             lastStreamedMetricSequence = 0
             lastStreamedEventSequence = 0
@@ -1494,16 +1496,20 @@ public final class AnsightRuntime: @unchecked Sendable {
 
     public func updateSessionProperties(_ customProperties: [String: [String: String]]) async -> OperationResult {
         let normalized = Self.normalizedCustomProperties(customProperties)
-        lock.withLock {
+        let effectiveProperties = lock.withLock {
             options.customProperties = normalized
             sessionMessage = "Session properties updated locally."
+            return AnsightSessionConfigurationProperties.create(
+                options: options,
+                capturePolicy: hostSessionJpegCapturePolicy
+            )
         }
 
         guard liveTransport.isOpen else {
             return .success("Session properties updated locally.")
         }
 
-        let payload = Self.makeSessionPropertiesPayload(normalized)
+        let payload = Self.makeSessionPropertiesPayload(effectiveProperties)
         let transport = liveTransport
         Task { [weak self] in
             let result = await transport.sendControlRequest(
@@ -2878,10 +2884,13 @@ public final class AnsightRuntime: @unchecked Sendable {
             "openedAtUtc": .string(AnsightClock.isoNow()),
         ]
 
-        let customProperties = lock.withLock { options.customProperties }
-        if !customProperties.isEmpty {
-            payload["customProperties"] = .object(fromGrouped: customProperties)
+        let customProperties = lock.withLock {
+            AnsightSessionConfigurationProperties.create(
+                options: options,
+                capturePolicy: hostSessionJpegCapturePolicy
+            )
         }
+        payload["customProperties"] = .object(fromGrouped: customProperties)
 
         return await liveTransport.sendControlRequest(
             action: PairingControlActions.sessionOpen,
@@ -2912,6 +2921,22 @@ public final class AnsightRuntime: @unchecked Sendable {
             }
             return .failure("Failed to encode device profile: \(error.localizedDescription)")
         }
+    }
+
+    private func sendCurrentSessionProperties() async -> OperationResult {
+        let payload = lock.withLock {
+            Self.makeSessionPropertiesPayload(
+                AnsightSessionConfigurationProperties.create(
+                    options: options,
+                    capturePolicy: hostSessionJpegCapturePolicy
+                )
+            )
+        }
+        return await liveTransport.sendControlRequest(
+            action: PairingControlActions.sessionProperties,
+            payload: payload,
+            acknowledgementTimeoutSeconds: 10
+        )
     }
 
     private func sendCurrentAppState() async {
