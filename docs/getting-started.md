@@ -98,6 +98,8 @@ if (isDevelopmentBuild) {
 ### Flutter
 
 ```dart
+final captureController = AnsightFlutterCaptureController();
+
 if (kDebugMode) {
   await Ansight.instance.initializeAndActivate(
     AnsightOptions.developer(
@@ -110,6 +112,7 @@ if (kDebugMode) {
 
 runApp(
   AnsightFlutterCaptureBoundary(
+    controller: captureController,
     child: const MyApp(),
   ),
 );

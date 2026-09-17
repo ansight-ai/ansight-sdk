@@ -63,6 +63,8 @@ import 'package:ansight_flutter/ansight.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+final captureController = AnsightFlutterCaptureController();
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -78,6 +80,7 @@ Future<void> main() async {
 
   runApp(
     AnsightFlutterCaptureBoundary(
+      controller: captureController,
       child: const MyApp(),
     ),
   );

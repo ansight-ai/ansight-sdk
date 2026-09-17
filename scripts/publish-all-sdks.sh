@@ -2,8 +2,12 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+explicit_pod_source_tag="${ANSIGHT_POD_SOURCE_TAG:-}"
 source "${repo_root}/scripts/load-publishing-env.sh"
 load_publishing_env "${repo_root}"
+if [[ -n "${explicit_pod_source_tag}" ]]; then
+  export ANSIGHT_POD_SOURCE_TAG="${explicit_pod_source_tag}"
+fi
 
 publish=false
 skip_tests=false

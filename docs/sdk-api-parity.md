@@ -269,6 +269,8 @@ Flutter:
 import 'package:ansight_flutter/ansight.dart';
 import 'package:flutter/widgets.dart';
 
+final captureController = AnsightFlutterCaptureController();
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Ansight.instance.initializeAndActivate(
@@ -281,6 +283,7 @@ Future<void> main() async {
   await Ansight.instance.enrollFromQrCode(clientName: 'Flutter App');
   runApp(
     AnsightFlutterCaptureBoundary(
+      controller: captureController,
       child: const App(),
     ),
   );
