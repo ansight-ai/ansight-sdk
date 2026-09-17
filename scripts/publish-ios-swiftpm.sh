@@ -66,6 +66,7 @@ if [[ -z "${tag_name}" ]]; then
 fi
 
 if [[ "${skip_tests}" != "true" ]]; then
+  "${repo_root}/scripts/validate-ios-bundled-tools.sh"
   (cd "${repo_root}/src/ios" && ANSIGHT_ALLOW_REMOTE_TOOLS="${ANSIGHT_ALLOW_REMOTE_TOOLS:-true}" swift test)
   swift package --package-path "${repo_root}" describe >/dev/null
 fi

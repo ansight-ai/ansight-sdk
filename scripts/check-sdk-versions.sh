@@ -121,8 +121,16 @@ add_version \
   "$(extract_first 's\.version\s*=\s*['\''"]([^'\''"]+)['\''"]' "${repo_root}/src/flutter/ios/ansight_flutter.podspec")"
 
 add_version \
+  "flutter:macOS CocoaPods" \
+  "$(extract_first 's\.version\s*=\s*['\''"]([^'\''"]+)['\''"]' "${repo_root}/src/flutter/macos/ansight_flutter.podspec")"
+
+add_version \
   "flutter:SwiftPM dependency" \
   "$(extract_first 'ansight-sdk\.git",\s*exact:\s*"([^"]+)"' "${repo_root}/src/flutter/ios/ansight_flutter/Package.swift")"
+
+add_version \
+  "flutter:macOS SwiftPM dependency" \
+  "$(extract_first 'ansight-sdk\.git",\s*exact:\s*"([^"]+)"' "${repo_root}/src/flutter/macos/ansight_flutter/Package.swift")"
 
 add_version \
   "react-native:README CocoaPods" \

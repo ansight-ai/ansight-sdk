@@ -11,12 +11,29 @@ share it. See https://www.ansight.ai and the
 [getting started guide](https://www.ansight.ai/docs/getting-started).
 
 `ansight_flutter` adds Ansight runtime evidence and remote inspection to Flutter
-applications. It combines the native Android and iOS runtimes with
+applications. It combines the native Android and Apple runtimes with
 Flutter-aware lifecycle, navigation, error, frame-timing, and widget-tree
 instrumentation.
 
-The package supports Flutter 3.0 or newer, Android API 24 or newer, and iOS
-15 or newer.
+The package supports Flutter 3.0 or newer, Android API 24 or newer, iOS 15 or
+newer, and macOS 10.15 or newer.
+
+On macOS, the Flutter widget tree, navigation, lifecycle, errors, frame timing,
+Dart HTTP capture, telemetry, custom tools, artifacts, loopback host
+connection, filesystem, preferences, SQLite, secure storage, reflection, file
+descriptor diagnostics, clipboard tools, Flutter-rendered screenshots, and
+correlated Flutter visual-tree snapshots are supported. Desktop FPS samples
+are derived from Flutter frame timings, and pointer input wrapped by
+`AnsightFlutterCaptureBoundary` is retained as session touch evidence. Native
+AppKit screenshots, native AppKit visual-tree inspection and actions, native
+AppKit touch capture outside that Flutter boundary, QR enrollment UI, and
+purchase diagnostics are not currently available.
+
+`AnsightFlutterCaptureBoundary` automatically records macOS Flutter frames at
+the SDK screenshot cadence (2 seconds by default). Pass
+`automaticCaptureOptions: null` for a manual-only boundary, or provide
+`AnsightSessionJpegCaptureOptions` to change its cadence, quality, width, or
+visual-tree mode.
 
 For guarded startup and CLI verification, see the
 [Flutter getting-started guide](https://www.ansight.ai/docs/sdk/flutter/setup).
@@ -27,7 +44,7 @@ Add the package to `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  ansight_flutter: ^1.5.0
+  ansight_flutter: ^1.6.0
 ```
 
 Then fetch dependencies:
@@ -59,13 +76,19 @@ Future<void> main() async {
     await AnsightFlutterInstrumentation.instance.install();
   }
 
-  runApp(const MyApp());
+  runApp(
+    AnsightFlutterCaptureBoundary(
+      child: const MyApp(),
+    ),
+  );
 }
 ```
 
 `install()` is idempotent. By default it captures Flutter errors, frame
 timings, app lifecycle changes, and exposes Flutter widget inspection tools.
-Its options can disable any of those integrations.
+Its options can disable any of those integrations. The capture boundary is
+required for Flutter-rendered screenshots, visual trees, and pointer evidence
+on macOS.
 
 Start the local host in one terminal and leave it running:
 
@@ -81,9 +104,9 @@ ansight session list --connected --json
 ansight app tools <session-id> --json
 ```
 
-The native iOS Simulator or Android emulator runtime registers automatically
-through loopback. No account, build-time host probe, or enrollment payload is
-required.
+The native iOS Simulator, Android emulator, or macOS runtime registers
+automatically through loopback. No account, build-time host probe, or
+enrollment payload is required.
 
 Add the navigator observer to record route changes and screen views:
 
@@ -270,12 +293,19 @@ description because development pairing connects to the Ansight host:
 <string>Connect to the Ansight developer host on the local network.</string>
 ```
 
+macOS requires a deployment target of 10.15 or newer. It connects to a host on
+the same machine through loopback and does not require QR enrollment.
+
 ## Harness and validation
 
 The package includes a feature-complete app in `example/`. It exercises
 runtime state, all telemetry types, pairing and sessions, screenshots, touch
 capture, widget tools, navigation, errors, custom tools, artifacts, binary
 transfer, properties, options, capabilities, and logs.
+
+The macOS integration test records a real Ansight session and fails unless it
+contains a Flutter-rendered screenshot, a timestamp-correlated Flutter visual
+tree, channel 3 FPS samples, and Flutter pointer/touch records.
 
 Run the package and harness checks with:
 
@@ -285,6 +315,7 @@ flutter test
 flutter test example/integration_test -d <device-id>
 flutter build apk --debug --target example/lib/main.dart
 flutter build ios --simulator --no-codesign --target example/lib/main.dart
+../../scripts/validate-flutter-macos.sh
 ```
 
 `tool/flutter_corpus.dart` integrates and validates the SDK against the

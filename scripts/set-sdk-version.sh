@@ -117,8 +117,14 @@ perl -0pi -e 's/(findProperty\("ansightAndroidVersion"\)\s*\?:\s*")[^"]+(")/$1$E
 perl -0pi -e 's/(s\.version\s*=\s*'\''|s\.version\s*=\s*")[^'\''"]+(['\''"])/$1$ENV{VERSION}$2/g' \
   "${repo_root}/src/flutter/ios/ansight_flutter.podspec"
 
+perl -0pi -e 's/(s\.version\s*=\s*'\''|s\.version\s*=\s*")[^'\''"]+(['\''"])/$1$ENV{VERSION}$2/g' \
+  "${repo_root}/src/flutter/macos/ansight_flutter.podspec"
+
 perl -0pi -e 's|(ansight-sdk\.git",\s*exact:\s*")[^"]+(")|$1$ENV{VERSION}$2|g' \
   "${repo_root}/src/flutter/ios/ansight_flutter/Package.swift"
+
+perl -0pi -e 's|(ansight-sdk\.git",\s*exact:\s*")[^"]+(")|$1$ENV{VERSION}$2|g' \
+  "${repo_root}/src/flutter/macos/ansight_flutter/Package.swift"
 
 perl -0pi -e 's/(ansight_flutter:\s*\^)[0-9A-Za-z.+-]+/$1$ENV{VERSION}/g' \
   "${repo_root}/src/flutter/README.md"

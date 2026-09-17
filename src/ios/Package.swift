@@ -5,7 +5,7 @@ let package = Package(
     name: "AnsightSDK",
     platforms: [
         .iOS(.v15),
-        .macOS(.v11),
+        .macOS(.v10_15),
     ],
     products: [
         .library(
@@ -85,9 +85,6 @@ let package = Package(
             linkerSettings: [
                 .linkedLibrary("z"),
             ],
-            plugins: [
-                .plugin(name: "AnsightBuildToolPlugin"),
-            ]
         ),
         .target(
             name: "CAnsightCrashCapture",

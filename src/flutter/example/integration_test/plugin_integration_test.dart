@@ -12,7 +12,11 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
-      const AnsightHarnessApp(enableSceneAnimation: false),
+      AnsightFlutterCaptureBoundary(
+        controller: ansightHarnessCaptureController,
+        automaticCaptureOptions: null,
+        child: const AnsightHarnessApp(enableSceneAnimation: false),
+      ),
     );
     await tester.pump();
 
@@ -44,6 +48,16 @@ void main() {
       Ansight.instance.registeredToolIds,
       contains('harness.database_summary'),
       reason: 'Harness fixtures and custom tools did not finish initializing.',
+    );
+
+    AnsightHostConnectionStatus? connection;
+    await Future<void>.delayed(const Duration(seconds: 12));
+    await tester.pump();
+    connection = await Ansight.instance.hostConnectionStatus();
+    expect(
+      connection.isConnected,
+      isTrue,
+      reason: 'Harness did not connect to the Ansight host in time.',
     );
 
     await tester.scrollUntilVisible(
@@ -92,6 +106,17 @@ void main() {
     );
     expect(Ansight.instance.registeredArtifactProviderIds, contains('harness'));
 
+    await Ansight.instance.enableTouchCapture();
+    final beforeTouch = await Ansight.instance.snapshot();
+    await tester.tapAt(const Offset(400, 100));
+    await tester.pump(const Duration(milliseconds: 300));
+    final afterTouch = await Ansight.instance.snapshot();
+    expect(
+      afterTouch.touchesCaptured,
+      greaterThan(beforeTouch.touchesCaptured ?? 0),
+      reason: 'Flutter pointer input did not reach native touch capture.',
+    );
+
     final store = HarnessFixtureStore();
     await store.initialize();
     final database = await store.summary();
@@ -121,6 +146,18 @@ void main() {
     expect(deactivated.active, isFalse);
     final reactivated = await Ansight.instance.activate();
     expect(reactivated.active, isTrue);
+    for (var attempt = 0; attempt < 120; attempt += 1) {
+      connection = await Ansight.instance.hostConnectionStatus();
+      if (connection.isConnected) {
+        break;
+      }
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(
+      connection?.isConnected,
+      isTrue,
+      reason: 'Harness did not reconnect after runtime reactivation.',
+    );
     await Ansight.instance.removeCustomProperty('harness', 'scenario');
     await Ansight.instance.clearSessionProperties();
 
@@ -131,5 +168,25 @@ void main() {
       events.map((AnsightRecordedEvent event) => event.type),
       contains(AnsightEventType.navigation.wireName),
     );
+    AnsightOperationResult capture = const AnsightOperationResult(
+      success: false,
+      message: 'Flutter capture has not run.',
+    );
+    for (var attempt = 0; attempt < 5; attempt += 1) {
+      await tester.pump();
+      capture = await ansightHarnessCaptureController.capture(
+        includeVisualTree: true,
+      );
+      if (capture.success) {
+        break;
+      }
+    }
+    expect(capture.success, isTrue, reason: capture.message);
+    await Ansight.instance.sendClientLog(
+      'Flutter macOS harness integration test completed',
+    );
+    for (var frame = 0; frame < 90; frame += 1) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
   });
 }

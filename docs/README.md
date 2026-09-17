@@ -13,6 +13,7 @@ Platform guides:
 - [React Native SDK Guide](../src/react-native/README.md)
 - [Capacitor SDK Guide](../src/capacitor/README.md)
 - [Flutter SDK Guide](../src/flutter/README.md)
+- [Publishing SDK releases](releasing.md)
 
 .NET workflow guides:
 

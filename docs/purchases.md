@@ -58,7 +58,7 @@ constructors/factories; they do not enable a runtime override.
 | .NET / MAUI | Models and tools in `Ansight.Core`; Swift StoreKit 2 through the existing Apple binding on iOS/Mac Catalyst; binding-neutral Google Play callback helper. Plain .NET targets expose the contract but block interop without a recognized platform environment. |
 | React Native | Typed `purchases` facade over native core, exported from the existing package. |
 | Capacitor | Typed `purchases` export over native core, including Cordova plugin transport. Requires a native mobile runtime. |
-| Flutter | `Ansight.instance.purchases` and typed observation/product inputs over native core. Requires an iOS/Android runtime. |
+| Flutter | `Ansight.instance.purchases` and typed observation/product inputs over native core. Requires an iOS/Android runtime; Flutter macOS is intentionally blocked. |
 
 The optional Play adapter does not bring its own BillingClient or package the
 billing library. Supply Play Billing 9.1.0 in the host application. Applications

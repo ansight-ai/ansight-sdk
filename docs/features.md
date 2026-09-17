@@ -94,6 +94,12 @@ deadlines instead of issuing catch-up bursts. Runtimes with asynchronous
 WebSocket delivery keep only the latest unsent frame so network backpressure
 drops stale evidence rather than slowing future capture.
 
+Flutter macOS capture is framework-owned: wrap the app in
+`AnsightFlutterCaptureBoundary` to retain Flutter compositor screenshots,
+Flutter visual trees, and pointer evidence. The boundary follows the configured
+JPEG cadence and deduplicates unchanged frames. AppKit content outside the
+boundary is not captured by the Flutter integration.
+
 During `device.profile`, current runtimes advertise screenshot-control version
 1. host can respond with host capture mode for a simulator or emulator. The
 SDK then suspends its periodic in-app JPEG loop for that session so host can

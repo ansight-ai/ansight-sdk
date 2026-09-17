@@ -3,7 +3,7 @@
 ![`branding/logo.png`](branding/logo.png)
 
 Ansight gives coding agents the runtime evidence to verify their own work in
-your mobile app. The SDK runs inside a development build and streams what the
+your mobile or macOS app. The SDK runs inside a development build and streams what the
 app actually did to a local host on your machine. Your agent reads that
 evidence through the `ansight` CLI, so it can inspect a live screen, reproduce
 a bug from a report, run a release test suite, and check performance against
@@ -40,7 +40,7 @@ Nothing leaves your machine unless you export or share it.
 SDKs in this repository, all in beta:
 
 - .NET and MAUI (`src/dotnet`)
-- iOS (`src/ios`)
+- iOS and macOS Swift (`src/ios`)
 - Android (`src/android`)
 - React Native and Expo (`src/react-native`)
 - Flutter (`src/flutter`)
@@ -49,6 +49,11 @@ SDKs in this repository, all in beta:
 The Android, iOS, React Native, Capacitor, and Flutter SDKs mirror the same
 native runtime, host connection, telemetry, screenshot, touch capture, and
 remote-tool protocol used by the .NET SDK.
+
+Flutter macOS uses the Swift runtime plus Flutter-owned compositor, widget-tree,
+frame-timing, and pointer capture. Native AppKit screenshots, AppKit visual-tree
+inspection, and AppKit touch capture outside `AnsightFlutterCaptureBoundary`
+are not yet available.
 
 - Website: https://www.ansight.ai
 - Getting started: https://www.ansight.ai/docs/getting-started
@@ -75,7 +80,8 @@ Current SDK features include:
 - Capacitor WebView DOM inspection and actions, route/lifecycle tracking,
   JavaScript tools, artifacts, and error capture
 - Flutter widget-tree inspection, navigation and lifecycle tracking, Dart
-  tools and artifacts, frame timing, and framework error capture
+  tools and artifacts, frame timing, and framework error capture, including
+  macOS desktop builds
 
 All SDKs start the same runtime connection loop when activated. Start the local
 host with `ansight host run`; no account is required. A simulator, emulator,
@@ -104,6 +110,7 @@ affecting the app.
 - [Capacitor Test Corpus](test-apps/README.md)
 - [Flutter SDK Guide](src/flutter/README.md)
 - [Flutter Test Corpus](src/flutter/validation/flutter-corpus-results.md)
+- [Publishing SDK releases](docs/releasing.md)
 - [Protocol](docs/protocol.md)
 
 ## License

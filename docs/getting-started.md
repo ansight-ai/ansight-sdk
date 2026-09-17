@@ -107,7 +107,18 @@ if (kDebugMode) {
   );
   await AnsightFlutterInstrumentation.instance.install();
 }
+
+runApp(
+  AnsightFlutterCaptureBoundary(
+    child: const MyApp(),
+  ),
+);
 ```
+
+The capture boundary is required for Flutter-rendered screenshots, visual
+trees, and pointer evidence on macOS. It automatically follows the configured
+screenshot cadence; pass `automaticCaptureOptions: null` only when the app owns
+manual capture scheduling.
 
 ### .NET and MAUI
 

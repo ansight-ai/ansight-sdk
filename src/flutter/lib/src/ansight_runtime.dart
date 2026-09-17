@@ -363,6 +363,49 @@ class Ansight {
         await _invoke('captureScreenFrame', options.toJson()),
       );
 
+  /// Submits a Flutter-rendered PNG frame to the native session stream.
+  ///
+  /// Flutter desktop uses this path because its pixels live in the Flutter
+  /// compositor rather than a UIKit window hierarchy.
+  Future<AnsightOperationResult> submitFlutterScreenFrame({
+    required Uint8List pngBytes,
+    required int width,
+    required int height,
+    int quality = 60,
+    List<AnsightJson> visualTrees = const <AnsightJson>[],
+  }) async =>
+      AnsightOperationResult.fromJson(
+        await _invoke('submitFlutterScreenFrame', <String, Object?>{
+          'pngBase64': base64Encode(pngBytes),
+          'width': width,
+          'height': height,
+          'quality': quality.clamp(1, 100),
+          'visualTrees': visualTrees,
+        }),
+      );
+
+  /// Submits a Flutter pointer event to the native session touch stream.
+  Future<AnsightOperationResult> submitFlutterPointerEvent({
+    required String action,
+    required int pointerId,
+    required double x,
+    required double y,
+    required double surfaceWidth,
+    required double surfaceHeight,
+    required double surfaceScale,
+  }) async =>
+      AnsightOperationResult.fromJson(
+        await _invoke('submitFlutterPointerEvent', <String, Object?>{
+          'action': action,
+          'pointerId': pointerId,
+          'x': x,
+          'y': y,
+          'surfaceWidth': surfaceWidth,
+          'surfaceHeight': surfaceHeight,
+          'surfaceScale': surfaceScale,
+        }),
+      );
+
   Future<AnsightOperationResult> enableTouchCapture() async =>
       AnsightOperationResult.fromJson(await _invoke('enableTouchCapture'));
 

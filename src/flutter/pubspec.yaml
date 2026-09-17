@@ -1,6 +1,6 @@
 name: ansight_flutter
 description: Flutter SDK for Ansight - runtime evidence from your app for coding agents. Screenshots, widget trees, logs, network, telemetry, and app state.
-version: 1.5.0
+version: 1.6.0
 homepage: https://github.com/ansight-ai/ansight-sdk
 repository: https://github.com/ansight-ai/ansight-sdk
 issue_tracker: https://github.com/ansight-ai/ansight-sdk/issues
@@ -17,6 +17,8 @@ dependencies:
 
 dev_dependencies:
   flutter_test:
+    sdk: flutter
+  integration_test:
     sdk: flutter
   flutter_lints: ^6.0.0
   pigeon: ^27.3.0
@@ -42,6 +44,8 @@ flutter:
         package: ai.ansight.flutter
         pluginClass: AnsightFlutterPlugin
       ios:
+        pluginClass: AnsightFlutterPlugin
+      macos:
         pluginClass: AnsightFlutterPlugin
 
   # To add assets to your plugin package, add an assets section, like this:

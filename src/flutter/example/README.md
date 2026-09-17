@@ -6,7 +6,8 @@ inspection, navigation, errors, pairing and sessions, properties, custom tools,
 artifact providers, binary transfer, native options and capabilities, and
 runtime logs.
 
-Run it on a simulator or emulator while CLI host is running:
+Run it on a simulator, emulator, or macOS desktop while the CLI host is
+running:
 
 ```shell
 flutter run
@@ -20,8 +21,8 @@ dart run tool/run_harness.dart --device <device-id>
 ```
 
 For a physical phone, scan a host QR once from the harness's QR action and
-accept the platform's local-network permission. The app id on Android and iOS
-is `ai.ansight.flutter.harness`.
+accept the platform's local-network permission. The app id on Android, iOS,
+and macOS is `ai.ansight.flutter.harness`.
 
 The app exposes pairing from the QR icon in the app bar and from
 `Host pairing and sessions` → `QR pairing dialog`. The dialog can invoke each
@@ -40,3 +41,8 @@ Run its automated checks from the package root:
 flutter test example/test
 flutter test example/integration_test -d <device-id>
 ```
+
+The persistent macOS runner and retained-session workflow live in the sibling
+`ansight-test-apps/flutter-desktop-harness` project. Its `scripts/record.sh`
+command runs this harness, resolves the exact new session, pins and tags the
+recording, and writes `validation/latest-session.json`.

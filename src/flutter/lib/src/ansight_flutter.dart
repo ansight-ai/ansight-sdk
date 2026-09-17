@@ -6,8 +6,242 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
 import 'ansight_models.dart';
+import 'ansight_options.dart';
 import 'ansight_runtime.dart';
 import 'ansight_tooling.dart';
+
+/// Owns a repaint boundary that can submit Flutter-rendered session frames.
+class AnsightFlutterCaptureController {
+  final GlobalKey _boundaryKey = GlobalKey(
+    debugLabel: 'ansight-flutter-capture-boundary',
+  );
+
+  /// Captures the wrapped Flutter UI and its widget tree into the live session.
+  Future<AnsightOperationResult> capture({
+    int quality = 60,
+    int maxWidth = 960,
+    bool includeVisualTree = true,
+  }) async {
+    if (defaultTargetPlatform != TargetPlatform.macOS) {
+      return Ansight.instance.captureScreenFrame(
+        options: AnsightSessionJpegCaptureOptions(
+          quality: quality,
+          maxWidth: maxWidth,
+          mode: includeVisualTree
+              ? AnsightSessionJpegCaptureMode.screenshotAndVisualTree
+              : AnsightSessionJpegCaptureMode.screenshotOnly,
+        ),
+      );
+    }
+
+    var boundary = _boundaryKey.currentContext?.findRenderObject();
+    if (boundary is RenderRepaintBoundary && boundary.debugNeedsPaint) {
+      WidgetsBinding.instance.scheduleFrame();
+      try {
+        await WidgetsBinding.instance.endOfFrame.timeout(
+          const Duration(seconds: 1),
+        );
+      } on TimeoutException {
+        return const AnsightOperationResult(
+          success: false,
+          message: 'Flutter capture boundary is awaiting its next frame.',
+        );
+      }
+      boundary = _boundaryKey.currentContext?.findRenderObject();
+    }
+    if (boundary is! RenderRepaintBoundary || boundary.debugNeedsPaint) {
+      return const AnsightOperationResult(
+        success: false,
+        message: 'Flutter capture boundary is not ready.',
+      );
+    }
+
+    final logicalWidth = boundary.size.width;
+    if (logicalWidth <= 0 || boundary.size.height <= 0) {
+      return const AnsightOperationResult(
+        success: false,
+        message: 'Flutter capture boundary has no visible size.',
+      );
+    }
+    final devicePixelRatio =
+        View.of(_boundaryKey.currentContext!).devicePixelRatio;
+    final boundedPixelRatio = maxWidth > 0
+        ? (maxWidth / logicalWidth).clamp(0.1, devicePixelRatio).toDouble()
+        : devicePixelRatio;
+    final image = await boundary.toImage(pixelRatio: boundedPixelRatio);
+    try {
+      final bytes = await image.toByteData(format: ImageByteFormat.png);
+      if (bytes == null) {
+        return const AnsightOperationResult(
+          success: false,
+          message: 'Flutter frame could not be encoded as PNG.',
+        );
+      }
+
+      final visualTrees = <AnsightJson>[];
+      if (includeVisualTree) {
+        final tree = await AnsightFlutterInstrumentation.instance
+            ._captureWidgetTreeForSession(
+          rootElement: _boundaryKey.currentContext is Element
+              ? _boundaryKey.currentContext! as Element
+              : null,
+        );
+        if (tree != null) {
+          visualTrees.add(tree);
+        }
+      }
+      return Ansight.instance.submitFlutterScreenFrame(
+        pngBytes: bytes.buffer.asUint8List(
+          bytes.offsetInBytes,
+          bytes.lengthInBytes,
+        ),
+        width: image.width,
+        height: image.height,
+        quality: quality,
+        visualTrees: visualTrees,
+      );
+    } finally {
+      image.dispose();
+    }
+  }
+
+  Future<void> _submitPointer(PointerEvent event, String action) async {
+    if (defaultTargetPlatform != TargetPlatform.macOS) {
+      return;
+    }
+    final boundary = _boundaryKey.currentContext?.findRenderObject();
+    if (boundary is! RenderBox || !boundary.hasSize) {
+      return;
+    }
+    final result = await Ansight.instance.submitFlutterPointerEvent(
+      action: action,
+      pointerId: event.pointer,
+      x: event.localPosition.dx,
+      y: event.localPosition.dy,
+      surfaceWidth: boundary.size.width,
+      surfaceHeight: boundary.size.height,
+      surfaceScale: View.of(_boundaryKey.currentContext!).devicePixelRatio,
+    );
+    if (!result.success) {
+      debugPrint('Ansight Flutter touch capture skipped an event: '
+          '${result.message}');
+    }
+  }
+}
+
+/// Marks Flutter content that can be captured into an Ansight desktop session.
+class AnsightFlutterCaptureBoundary extends StatefulWidget {
+  const AnsightFlutterCaptureBoundary({
+    super.key,
+    required this.controller,
+    required this.child,
+    this.automaticCaptureOptions = const AnsightSessionJpegCaptureOptions(),
+  });
+
+  final AnsightFlutterCaptureController controller;
+  final Widget child;
+
+  /// Periodically captures the Flutter compositor on macOS.
+  ///
+  /// Pass null to keep this boundary manual-only. Other platforms continue to
+  /// use their native session capture implementation.
+  final AnsightSessionJpegCaptureOptions? automaticCaptureOptions;
+
+  @override
+  State<AnsightFlutterCaptureBoundary> createState() =>
+      _AnsightFlutterCaptureBoundaryState();
+}
+
+class _AnsightFlutterCaptureBoundaryState
+    extends State<AnsightFlutterCaptureBoundary> {
+  Timer? automaticCaptureTimer;
+  bool automaticCaptureInProgress = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleAutomaticCapture(const Duration(milliseconds: 750));
+  }
+
+  @override
+  void didUpdateWidget(AnsightFlutterCaptureBoundary oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.automaticCaptureOptions != widget.automaticCaptureOptions ||
+        oldWidget.controller != widget.controller) {
+      automaticCaptureTimer?.cancel();
+      _scheduleAutomaticCapture(const Duration(milliseconds: 250));
+    }
+  }
+
+  @override
+  void dispose() {
+    automaticCaptureTimer?.cancel();
+    super.dispose();
+  }
+
+  void _scheduleAutomaticCapture(Duration delay) {
+    if (defaultTargetPlatform != TargetPlatform.macOS ||
+        widget.automaticCaptureOptions == null ||
+        !mounted) {
+      return;
+    }
+    automaticCaptureTimer?.cancel();
+    automaticCaptureTimer = Timer(delay, () {
+      unawaited(_captureAutomatically());
+    });
+  }
+
+  Future<void> _captureAutomatically() async {
+    final options = widget.automaticCaptureOptions;
+    if (options == null || automaticCaptureInProgress || !mounted) {
+      return;
+    }
+
+    automaticCaptureInProgress = true;
+    try {
+      await widget.controller.capture(
+        quality: options.quality,
+        maxWidth: options.maxWidth ?? 0,
+        includeVisualTree: options.mode ==
+            AnsightSessionJpegCaptureMode.screenshotAndVisualTree,
+      );
+    } on Object catch (error) {
+      debugPrint('Ansight Flutter automatic capture skipped a frame: $error');
+    } finally {
+      automaticCaptureInProgress = false;
+      if (mounted) {
+        _scheduleAutomaticCapture(
+          Duration(
+            milliseconds: options.intervalMilliseconds.clamp(250, 60000),
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final boundary = RepaintBoundary(
+      key: widget.controller._boundaryKey,
+      child: widget.child,
+    );
+    if (defaultTargetPlatform != TargetPlatform.macOS) {
+      return boundary;
+    }
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (PointerDownEvent event) =>
+          unawaited(widget.controller._submitPointer(event, 'down')),
+      onPointerMove: (PointerMoveEvent event) =>
+          unawaited(widget.controller._submitPointer(event, 'move')),
+      onPointerUp: (PointerUpEvent event) =>
+          unawaited(widget.controller._submitPointer(event, 'up')),
+      onPointerCancel: (PointerCancelEvent event) =>
+          unawaited(widget.controller._submitPointer(event, 'cancel')),
+      child: boundary,
+    );
+  }
+}
 
 /// Installs Flutter-specific lifecycle, navigation, frame, error, and widget
 /// inspection support on top of the native Ansight runtime.
@@ -20,11 +254,13 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
   final List<String> _navigationStack = <String>[];
   final Map<String, Element> _elements = <String, Element>{};
   final Expando<String> _elementIds = Expando<String>('ansightWidgetId');
+  final Stopwatch _desktopFrameClock = Stopwatch();
 
   bool _installed = false;
   bool _captureFrames = true;
   bool _captureErrors = true;
   int _nextElementId = 1;
+  int _desktopFrameCount = 0;
   FlutterExceptionHandler? _previousFlutterErrorHandler;
   bool Function(Object, StackTrace)? _previousPlatformErrorHandler;
 
@@ -46,6 +282,9 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
       WidgetsBinding.instance.addTimingsCallback(_onFrameTimings);
       _installErrorHooks();
       _installed = true;
+      _desktopFrameClock
+        ..reset()
+        ..start();
     }
 
     await _registerFlutterChannels();
@@ -72,6 +311,10 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
       ..removeLocalToolHandler(_inspectNodeHandlerId)
       ..removeLocalToolHandler(_performActionHandlerId);
     _elements.clear();
+    _desktopFrameClock
+      ..stop()
+      ..reset();
+    _desktopFrameCount = 0;
     _installed = false;
   }
 
@@ -293,6 +536,65 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
         );
       }
     }
+    _recordDesktopFramesPerSecond(timings.length);
+  }
+
+  void _recordDesktopFramesPerSecond(int frameCount) {
+    if (defaultTargetPlatform != TargetPlatform.macOS || frameCount <= 0) {
+      return;
+    }
+    _desktopFrameCount += frameCount;
+    final elapsedMicroseconds = _desktopFrameClock.elapsedMicroseconds;
+    if (elapsedMicroseconds < 500000) {
+      return;
+    }
+    final framesPerSecond = (_desktopFrameCount *
+            Duration.microsecondsPerSecond /
+            elapsedMicroseconds)
+        .round();
+    _desktopFrameCount = 0;
+    _desktopFrameClock.reset();
+    _ignore(Ansight.instance.metric(framesPerSecond, channel: 3));
+  }
+
+  Future<AnsightJson?> _captureWidgetTreeForSession(
+      {Element? rootElement}) async {
+    final result = await _getWidgetTree(
+      const <String, String>{
+        'includeBounds': 'true',
+        'includeComputedStyles': 'true',
+        'maxDepth': '100',
+        'maxNodes': '10000',
+      },
+      const AnsightToolContext(
+        requestId: 'flutter.session-capture',
+        toolId: 'flutter.get_widget_tree',
+        platform: 'flutter',
+      ),
+      rootElement:
+          rootElement == null ? null : _findSessionContentRoot(rootElement),
+      compactUnaryNodes: true,
+    );
+    final value = result.result;
+    return value is Map ? Map<String, Object?>.from(value) : null;
+  }
+
+  Element _findSessionContentRoot(Element fallback) {
+    Element? contentRoot;
+    void visit(Element element) {
+      if (contentRoot != null) {
+        return;
+      }
+      final type = element.widget.runtimeType.toString();
+      if (type == 'Scaffold' || type == 'CupertinoPageScaffold') {
+        contentRoot = element;
+        return;
+      }
+      element.visitChildren(visit);
+    }
+
+    fallback.visitChildren(visit);
+    return contentRoot ?? fallback;
   }
 
   void _installErrorHooks() {
@@ -380,8 +682,10 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
 
   Future<AnsightToolResult> _getWidgetTree(
     Map<String, String> arguments,
-    AnsightToolContext context,
-  ) async {
+    AnsightToolContext context, {
+    Element? rootElement,
+    bool compactUnaryNodes = false,
+  }) async {
     final maxDepth =
         int.tryParse(arguments['maxDepth'] ?? '')?.clamp(1, 100).toInt() ?? 40;
     final maxNodes =
@@ -389,7 +693,8 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
             2000;
     final types = <String>[];
     final typeIdsByName = <String, int>{};
-    var nodeCount = 0;
+    var visitedNodeCount = 0;
+    var retainedNodeCount = 0;
     var truncated = false;
     _elements.clear();
 
@@ -406,30 +711,45 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
     }
 
     AnsightJson? capture(Element element, int depth) {
-      if (depth > maxDepth || nodeCount >= maxNodes) {
+      if (compactUnaryNodes &&
+          element.widget is Offstage &&
+          (element.widget as Offstage).offstage) {
+        return null;
+      }
+      if (depth > maxDepth || visitedNodeCount >= maxNodes) {
         truncated = true;
         return null;
       }
 
+      visitedNodeCount++;
       final node = _describeElement(element, depth: depth);
+      final childElements = <Element>[];
+      element.visitChildren(childElements.add);
+      if (compactUnaryNodes &&
+          childElements.length == 1 &&
+          node['interactable'] != true &&
+          node['key'] == null) {
+        return capture(childElements.single, depth);
+      }
+
       final type = node.remove('type')?.toString() ?? 'FlutterWidget';
       node
         ..remove('parentId')
         ..remove('depth')
         ..remove('children')
         ..['typeId'] = registerType(type);
-      nodeCount++;
 
       final children = <Object?>[];
-      element.visitChildren((Element child) {
+      for (final child in childElements) {
         final capturedChild = capture(child, depth + 1);
         if (capturedChild != null) {
           children.add(capturedChild);
         }
-      });
+      }
       node
         ..['children'] = children
         ..['childCount'] = children.length;
+      retainedNodeCount++;
       return node;
     }
 
@@ -450,12 +770,18 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
     }
 
     final capturedRoots = <Object?>[];
-    // renderViewElement is the pre-Flutter-3.35 name for rootElement and
-    // remains as a deprecated compatibility alias in current Flutter.
-    // ignore: deprecated_member_use
-    final rootElement = WidgetsBinding.instance.renderViewElement;
-    if (rootElement != null) {
-      final capturedRoot = capture(rootElement, 0);
+    Element? captureRoot = rootElement;
+    // Keep the deprecated compatibility lookup on its own line so older
+    // Flutter releases can compile the package.
+    // ignore: prefer_conditional_assignment
+    if (captureRoot == null) {
+      // renderViewElement is the pre-Flutter-3.35 name for rootElement and
+      // remains as a deprecated compatibility alias in current Flutter.
+      // ignore: deprecated_member_use
+      captureRoot = WidgetsBinding.instance.renderViewElement;
+    }
+    if (captureRoot != null) {
+      final capturedRoot = capture(captureRoot, 0);
       if (capturedRoot != null) {
         capturedRoots.add(capturedRoot);
       }
@@ -473,7 +799,10 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
         'capturedAtUtc': DateTime.now().toUtc().toIso8601String(),
         'types': types,
         'root': treeRoot,
-        'nodeCount': nodeCount,
+        'nodeCount': retainedNodeCount,
+        'visitedNodeCount': visitedNodeCount,
+        'maxDepth': maxDepth,
+        'maxNodes': maxNodes,
         'truncated': truncated,
       },
     );

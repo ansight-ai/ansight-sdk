@@ -1,0 +1,111 @@
+PODS:
+  - Ansight (1.5.0):
+    - AnsightCore (= 1.5.0)
+    - AnsightPairingQR (= 1.5.0)
+    - AnsightToolsClipboard (= 1.5.0)
+    - AnsightToolsDatabase (= 1.5.0)
+    - AnsightToolsFileDescriptorDiagnostics (= 1.5.0)
+    - AnsightToolsFileSystem (= 1.5.0)
+    - AnsightToolsPreferences (= 1.5.0)
+    - AnsightToolsReflection (= 1.5.0)
+    - AnsightToolsSecureStorage (= 1.5.0)
+    - AnsightToolsVisualTree (= 1.5.0)
+  - ansight_flutter (1.5.0):
+    - Ansight (= 1.5.0)
+    - FlutterMacOS
+  - AnsightCore (1.5.0)
+  - AnsightPairingQR (1.5.0):
+    - AnsightCore (= 1.5.0)
+  - AnsightToolsClipboard (1.5.0):
+    - AnsightCore (= 1.5.0)
+  - AnsightToolsDatabase (1.5.0):
+    - AnsightCore (= 1.5.0)
+  - AnsightToolsFileDescriptorDiagnostics (1.5.0):
+    - AnsightCore (= 1.5.0)
+  - AnsightToolsFileSystem (1.5.0):
+    - AnsightCore (= 1.5.0)
+  - AnsightToolsPreferences (1.5.0):
+    - AnsightCore (= 1.5.0)
+  - AnsightToolsReflection (1.5.0):
+    - AnsightCore (= 1.5.0)
+  - AnsightToolsSecureStorage (1.5.0):
+    - AnsightCore (= 1.5.0)
+  - AnsightToolsVisualTree (1.5.0):
+    - AnsightCore (= 1.5.0)
+  - FlutterMacOS (1.0.0)
+  - shared_preferences_foundation (0.0.1):
+    - Flutter
+    - FlutterMacOS
+  - sqflite_darwin (0.0.4):
+    - Flutter
+    - FlutterMacOS
+
+DEPENDENCIES:
+  - Ansight (from `../../../ios`)
+  - ansight_flutter (from `Flutter/ephemeral/.symlinks/plugins/ansight_flutter/macos`)
+  - AnsightCore (from `../../../ios`)
+  - AnsightPairingQR (from `../../../ios`)
+  - AnsightToolsClipboard (from `../../../ios`)
+  - AnsightToolsDatabase (from `../../../ios`)
+  - AnsightToolsFileDescriptorDiagnostics (from `../../../ios`)
+  - AnsightToolsFileSystem (from `../../../ios`)
+  - AnsightToolsPreferences (from `../../../ios`)
+  - AnsightToolsReflection (from `../../../ios`)
+  - AnsightToolsSecureStorage (from `../../../ios`)
+  - AnsightToolsVisualTree (from `../../../ios`)
+  - FlutterMacOS (from `Flutter/ephemeral`)
+  - shared_preferences_foundation (from `Flutter/ephemeral/.symlinks/plugins/shared_preferences_foundation/darwin`)
+  - sqflite_darwin (from `Flutter/ephemeral/.symlinks/plugins/sqflite_darwin/darwin`)
+
+EXTERNAL SOURCES:
+  Ansight:
+    :path: "../../../ios"
+  ansight_flutter:
+    :path: Flutter/ephemeral/.symlinks/plugins/ansight_flutter/macos
+  AnsightCore:
+    :path: "../../../ios"
+  AnsightPairingQR:
+    :path: "../../../ios"
+  AnsightToolsClipboard:
+    :path: "../../../ios"
+  AnsightToolsDatabase:
+    :path: "../../../ios"
+  AnsightToolsFileDescriptorDiagnostics:
+    :path: "../../../ios"
+  AnsightToolsFileSystem:
+    :path: "../../../ios"
+  AnsightToolsPreferences:
+    :path: "../../../ios"
+  AnsightToolsReflection:
+    :path: "../../../ios"
+  AnsightToolsSecureStorage:
+    :path: "../../../ios"
+  AnsightToolsVisualTree:
+    :path: "../../../ios"
+  FlutterMacOS:
+    :path: Flutter/ephemeral
+  shared_preferences_foundation:
+    :path: Flutter/ephemeral/.symlinks/plugins/shared_preferences_foundation/darwin
+  sqflite_darwin:
+    :path: Flutter/ephemeral/.symlinks/plugins/sqflite_darwin/darwin
+
+SPEC CHECKSUMS:
+  Ansight: df96edb9965f54874093cde0d25f98255152e48a
+  ansight_flutter: 5b16c4b4a41753f6f739e4a2d813561a8102b6c2
+  AnsightCore: 7dffeac86bbc137e3da9a167215a7b25536e2137
+  AnsightPairingQR: 1e595d12017152134aa474836f4b45b07099e3f2
+  AnsightToolsClipboard: ee9da3acc9328c82abce9313fdcc0d6809b2130d
+  AnsightToolsDatabase: 8940c3051d7368aad9a1cf05ba80c9b600200bd6
+  AnsightToolsFileDescriptorDiagnostics: 7152581be14fef848d98895e76db7cf829d3dd5e
+  AnsightToolsFileSystem: f13a54ed9a01067795c20c4de7113363dcc41fe5
+  AnsightToolsPreferences: eb6ad33bf36e8b7de064a872c8641ecaaedbcc38
+  AnsightToolsReflection: fd841d64c8875bbc19977e5d0dab3bec2c2773d6
+  AnsightToolsSecureStorage: d4df3f0de8e008099157b4058115a782b1d6d1d0
+  AnsightToolsVisualTree: 5fa0655181ab8afdc81f7aca75b3d418142e02a7
+  FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
+  shared_preferences_foundation: 7036424c3d8ec98dfe75ff1667cb0cd531ec82bb
+  sqflite_darwin: 20b2a3a3b70e43edae938624ce550a3cbf66a3d0
+
+PODFILE CHECKSUM: 848ac378d03018afb4f5f22395713ede88d16ab2
+
+COCOAPODS: 1.16.2

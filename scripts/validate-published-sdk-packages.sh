@@ -86,6 +86,15 @@ check_maven_artifact() {
     check_url "https://repo1.maven.org/maven2/ai/ansight/${artifact_id}/${version}/${artifact_id}-${version}.pom"
 }
 
+check_nuget_package() {
+  local package_id="$1"
+  local normalized_id
+  normalized_id="$(printf '%s' "${package_id}" | tr '[:upper:]' '[:lower:]')"
+  check \
+    "NuGet ${package_id}" \
+    check_url "https://api.nuget.org/v3-flatcontainer/${normalized_id}/${version}/${normalized_id}.${version}.nupkg"
+}
+
 check_npm_package() {
   local package_name="$1"
   local resolved_version
@@ -108,6 +117,27 @@ check_swiftpm_tag_manifest() {
 
 echo "Validating published Ansight SDK packages at ${version}"
 echo
+
+for package_id in \
+  Ansight.Native.Android.Binding \
+  Ansight.Native.Apple.Binding \
+  Ansight.Core \
+  Ansight.Annotations \
+  Ansight.OfflineCapture \
+  Ansight.Pairing \
+  Ansight.Profiling.DotNet \
+  Ansight.Tools.Database \
+  Ansight.Tools.FileSystem \
+  Ansight.Tools.Preferences \
+  Ansight.Tools.Clipboard \
+  Ansight.Tools.Reflection \
+  Ansight.Tools.SecureStorage \
+  Ansight.Tools.VisualTree \
+  Ansight \
+  Ansight.Tools.Maui \
+  Ansight.Maui; do
+  check_nuget_package "${package_id}"
+done
 
 for artifact in \
   ansight-core-android \

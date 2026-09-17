@@ -47,6 +47,15 @@ if ! command -v flutter >/dev/null 2>&1; then
 fi
 
 if [[ "${skip_tests}" != "true" ]]; then
+  cmp \
+    "${package_root}/ios/ansight_flutter/Sources/ansight_flutter/AnsightPlugin.swift" \
+    "${package_root}/macos/ansight_flutter/Sources/ansight_flutter/AnsightPlugin.swift"
+  cmp \
+    "${package_root}/ios/ansight_flutter/Sources/ansight_flutter/AnsightMessages.g.swift" \
+    "${package_root}/macos/ansight_flutter/Sources/ansight_flutter/AnsightMessages.g.swift"
+  cmp \
+    "${package_root}/ios/ansight_flutter/Sources/ansight_flutter/PrivacyInfo.xcprivacy" \
+    "${package_root}/macos/ansight_flutter/Sources/ansight_flutter/PrivacyInfo.xcprivacy"
   (
     cd "${package_root}"
     flutter analyze
@@ -56,6 +65,7 @@ if [[ "${skip_tests}" != "true" ]]; then
     cd "${package_root}/example"
     flutter test
   )
+  "${repo_root}/scripts/validate-flutter-macos.sh"
 fi
 
 (

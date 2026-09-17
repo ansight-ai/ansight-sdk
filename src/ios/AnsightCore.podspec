@@ -1,16 +1,18 @@
 Pod::Spec.new do |s|
   s.name         = "AnsightCore"
-  s.version      = "1.5.0"
+  s.version      = "1.6.0"
   s.summary      = "Native iOS runtime for Ansight"
   s.homepage     = "https://github.com/ansight-ai/ansight-sdk"
   s.license      = { :type => "Ansight SDK Source-Available License", :file => "LICENSE" }
   s.authors      = { "Ansight" => "dev@ansight.ai" }
   s.source       = { :path => "." }
-  s.platforms    = { :ios => "15.0" }
+  s.platforms    = { :ios => "15.0", :osx => "10.15" }
   s.source_files = "Sources/AnsightCore/**/*.swift", "Sources/CAnsightCrashCapture/**/*.{c,h}", "Generated/CocoaPods/AnsightGeneratedBuildArtifacts.swift"
+  s.exclude_files = "Sources/AnsightCore/AnsightGeneratedBuildArtifacts.swift"
   s.public_header_files = "Sources/CAnsightCrashCapture/include/*.h"
   s.preserve_paths = "Plugins/AnsightBuildTool/**/*.swift"
-  s.frameworks   = "CryptoKit", "Metal", "Network", "QuartzCore", "Security", "UIKit"
+  s.frameworks   = "CryptoKit", "Metal", "Network", "QuartzCore", "Security"
+  s.ios.frameworks = "UIKit"
   s.script_phase = {
     :name => "Generate Ansight Build Artifacts",
     :execution_position => :before_compile,

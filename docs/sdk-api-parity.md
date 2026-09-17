@@ -279,14 +279,24 @@ Future<void> main() async {
   );
   await AnsightFlutterInstrumentation.instance.install();
   await Ansight.instance.enrollFromQrCode(clientName: 'Flutter App');
-  runApp(const App());
+  runApp(
+    AnsightFlutterCaptureBoundary(
+      child: const App(),
+    ),
+  );
 }
 ```
 
-The `ansight_flutter` package bridges the Android and iOS runtimes and adds
+The `ansight_flutter` package bridges the Android and Apple runtimes and adds
 Flutter lifecycle, frame, error, navigation, Dart tool/artifact, and widget
-inspection support. Its `Ansight.instance` methods follow the same concepts in
-the maps below with idiomatic Dart naming.
+inspection support. macOS uses the Swift runtime for non-UIKit capabilities;
+Flutter-rendered screenshots, timestamp-correlated Flutter visual trees, and
+FPS samples derived from Flutter frame timings are supported. Flutter pointer
+input inside `AnsightFlutterCaptureBoundary` is also streamed as retained touch
+evidence. AppKit-native screenshot, visual-tree, and touch capture outside the
+Flutter boundary, QR enrollment, and purchase diagnostics remain unavailable.
+Its `Ansight.instance` methods follow the same concepts in the maps below with
+idiomatic Dart naming.
 
 ## Runtime API Map
 

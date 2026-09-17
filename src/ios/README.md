@@ -77,11 +77,11 @@ complete package matrix, guarded startup locations, and CLI verification.
 
 ## SwiftPM developer mode
 
-When building this package through SwiftPM, the `AnsightBuildToolPlugin` runs
-automatically for the `AnsightCore` target. Set
-`ANSIGHT_ALLOW_REMOTE_TOOLS=true` only for targets that intentionally bundle
-concrete `AnsightTool` implementations. Enrollment has no build-time host probe
-or generated resource.
+The checked-in build metadata keeps consumer builds non-interactive. Release
+validation runs `scripts/validate-ios-bundled-tools.sh` to reject concrete
+`AnsightTool` implementations accidentally added to `AnsightCore`. Set
+`ANSIGHT_ALLOW_REMOTE_TOOLS=true` only for local developer validation that
+intentionally permits bundled tools. Enrollment has no build-time host probe.
 
 ## CocoaPods package model
 
@@ -91,8 +91,9 @@ The aggregate `Ansight` pod depends on `AnsightCore`, `AnsightPairingQR`,
 `AnsightToolsSecureStorage`, and `AnsightToolsVisualTree`. Each component is
 also published as an individual pod for minimal integrations.
 
-The `AnsightCore` pod runs the same remote-tool build enforcement before
-compile and honors `ANSIGHT_ALLOW_REMOTE_TOOLS`.
+The `AnsightCore` pod runs the remote-tool source scan before compile and
+honors `ANSIGHT_ALLOW_REMOTE_TOOLS`. SwiftPM release validation owns the same
+scan while consumer builds use checked-in metadata.
 
 ## Quickstart
 

@@ -18,9 +18,17 @@ const AnsightChannel _harnessMetricChannel = AnsightChannel(
   kind: 'scenario',
 );
 
+final AnsightFlutterCaptureController ansightHarnessCaptureController =
+    AnsightFlutterCaptureController();
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const AnsightHarnessApp());
+  runApp(
+    AnsightFlutterCaptureBoundary(
+      controller: ansightHarnessCaptureController,
+      child: const AnsightHarnessApp(),
+    ),
+  );
 }
 
 class AnsightHarnessApp extends StatelessWidget {
@@ -418,7 +426,9 @@ class _HarnessHomeState extends State<HarnessHome>
   }
 
   Future<AnsightOperationResult> _captureBuiltInFrame() async {
-    final result = await _ansight.captureScreenFrame();
+    final result = await ansightHarnessCaptureController.capture(
+      includeVisualTree: true,
+    );
     _harnessState.lastCapture = jsonEncode(result.data);
     if (_databaseSummary != null) {
       await _writeStateFixture();
@@ -1033,7 +1043,8 @@ class _HarnessHomeState extends State<HarnessHome>
                   maxLines: 5,
                   decoration: const InputDecoration(
                     labelText: 'Enrollment payload',
-                    hintText: 'ans2… or {"schema":"ansight.enrollment-invite.v2",…}',
+                    hintText:
+                        'ans2… or {"schema":"ansight.enrollment-invite.v2",…}',
                     border: OutlineInputBorder(),
                   ),
                 ),

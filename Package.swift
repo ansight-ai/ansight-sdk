@@ -5,7 +5,7 @@ let package = Package(
     name: "AnsightSDK",
     platforms: [
         .iOS(.v15),
-        .macOS(.v11),
+        .macOS(.v10_15),
     ],
     products: [
         .library(
@@ -77,14 +77,19 @@ let package = Package(
         ),
         .target(
             name: "AnsightCore",
+            dependencies: [
+                "CAnsightCrashCapture",
+            ],
             path: "src/ios/Sources/AnsightCore",
             exclude: ["README.md"],
             linkerSettings: [
                 .linkedLibrary("z"),
             ],
-            plugins: [
-                .plugin(name: "AnsightBuildToolPlugin"),
-            ]
+        ),
+        .target(
+            name: "CAnsightCrashCapture",
+            path: "src/ios/Sources/CAnsightCrashCapture",
+            publicHeadersPath: "include"
         ),
         .target(
             name: "AnsightPairingQR",

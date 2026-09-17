@@ -484,6 +484,109 @@ public final class AnsightRuntime: @unchecked Sendable {
         return await captureAndSendScreenFrame(options: captureOptions).operationResult
     }
 
+    public func submitScreenFrame(
+        jpegData: Data,
+        width: Int,
+        height: Int,
+        quality: Int,
+        visualTrees: [JSONValue] = []
+    ) async -> OperationResult {
+        guard !jpegData.isEmpty, width > 0, height > 0 else {
+            return .failure("Submitted screen frame is empty or has invalid dimensions.")
+        }
+        guard lock.withLock({ initialized && active && sessionOpen && connectionState == .connected }),
+              liveTransport.isOpen
+        else {
+            return .failure("A connected live session is required before submitting a screen frame.")
+        }
+
+        let capturedAtUtc = AnsightClock.isoNow()
+        let frame = AnsightCapturedScreenFrame(
+            capturedAtUtc: capturedAtUtc,
+            capturedAtEpochMilliseconds: AnsightClock.epochMilliseconds(fromISO8601: capturedAtUtc),
+            width: width,
+            height: height,
+            quality: max(1, min(quality, 100)),
+            jpegData: jpegData
+        )
+        let now = AnsightTiming.now()
+        let message = "Submitted screen frame \(width)x\(height) (\(jpegData.count) bytes); queued for delivery."
+        lock.withLock {
+            screenFramesCaptured += 1
+            lastScreenCaptureMessage = message
+            lastScreenCaptureRenderMilliseconds = 0
+            lastScreenCaptureEncodeMilliseconds = 0
+            lastScreenCaptureSendMilliseconds = nil
+            lastScreenCaptureTotalMilliseconds = 0
+            sessionMessage = message
+        }
+        return await sendPreparedScreenFrame(
+            PreparedScreenFrame(
+                frame: frame,
+                payload: SessionJpegWireProtocol.encode(frame),
+                captureStarted: now,
+                readyAt: now,
+                renderMilliseconds: 0,
+                encodeMilliseconds: 0,
+                visualTrees: visualTrees
+            )
+        ).operationResult
+    }
+
+    public func submitTouchInput(
+        action: String,
+        pointerId: Int64,
+        x: Double,
+        y: Double,
+        surfaceWidth: Double,
+        surfaceHeight: Double,
+        surfaceScale: Double
+    ) -> OperationResult {
+        guard x.isFinite, y.isFinite,
+              surfaceWidth.isFinite, surfaceWidth > 0,
+              surfaceHeight.isFinite, surfaceHeight > 0,
+              surfaceScale.isFinite, surfaceScale > 0
+        else {
+            return .failure("Submitted touch input has invalid coordinates or surface dimensions.")
+        }
+        let touchAction: AnsightCapturedTouchAction
+        switch action.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "down":
+            touchAction = .down
+        case "move":
+            touchAction = .move
+        case "up":
+            touchAction = .up
+        case "cancel":
+            touchAction = .cancel
+        default:
+            return .failure("Submitted touch input has an unsupported action.")
+        }
+        guard lock.withLock({
+            initialized && active && sessionOpen && connectionState == .connected &&
+                touchCaptureRuntimeEnabled && options.touchCapture != nil &&
+                touchCaptureStreamer?.isStreaming == true
+        }) else {
+            return .failure("A connected live session with touch capture enabled is required.")
+        }
+
+        recordCapturedTouch(
+            AnsightCapturedTouch(
+                action: touchAction,
+                pointerId: pointerId,
+                pointerIndex: 0,
+                pointerCount: 1,
+                x: x,
+                y: y,
+                surfaceWidth: surfaceWidth,
+                surfaceHeight: surfaceHeight,
+                coordinateUnit: "points",
+                surfaceScale: surfaceScale
+            )
+        )
+        return .success("Submitted Flutter touch input for session streaming.")
+    }
+
     private func captureAndSendScreenFrame(options captureOptions: AnsightSessionJpegCaptureOptions) async -> ScreenCaptureSendResult {
         let preparation = await prepareScreenFrame(options: captureOptions)
         guard let preparedFrame = preparation.preparedFrame else {

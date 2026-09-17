@@ -11,7 +11,7 @@ internal enum AnsightFileSystemIO {
             try handle.seek(toOffset: UInt64(offsetBytes))
         }
 
-        return try handle.read(upToCount: maxBytes) ?? Data()
+        return handle.readData(ofLength: maxBytes)
     }
 
     static func readAll(path: String) throws -> Data {

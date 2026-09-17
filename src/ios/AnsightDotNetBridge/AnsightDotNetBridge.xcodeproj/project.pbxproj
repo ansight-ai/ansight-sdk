@@ -64,6 +64,7 @@
 		533ED93AE906B07EE698DAFE /* AnsightPendingBinaryTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EAD03446B27B5EBD0255850 /* AnsightPendingBinaryTransfer.swift */; };
 		55BEC09DDB50E3B3275A4920 /* AnsightSimultaneousGestureDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C05C0E772D0EDACE73017392 /* AnsightSimultaneousGestureDelegate.swift */; };
 		566BB07314626E68ADBB267C /* KeychainPairingConfigStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 207A62E4FE90E42F11C29349 /* KeychainPairingConfigStore.swift */; };
+		56B62B98C4513A4F4E81C38B /* AnsightSessionConfigurationProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = D09DDABE08BCCE9A1A95C24E /* AnsightSessionConfigurationProperties.swift */; };
 		5781772E15EDCB149C1E5C09 /* AnsightTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C617EE65E34324E2C3A432 /* AnsightTool.swift */; };
 		57AD5261665066DEE59AD929 /* AnsightLifecycleCaptureOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A79225D24D3361AB358F0FB7 /* AnsightLifecycleCaptureOptions.swift */; };
 		5B08B696F6247F33E7EAB6BC /* AnsightDeveloperMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CAE11D9CD8948D2B99FEE42 /* AnsightDeveloperMode.swift */; };
@@ -324,6 +325,7 @@
 		CAE82968AE8DE1AE95DE54F4 /* HostConnectionRequestKind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostConnectionRequestKind.swift; sourceTree = "<group>"; };
 		CE13235F2D4516B40B712CD8 /* AnsightScreenCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightScreenCapture.swift; sourceTree = "<group>"; };
 		CFDE0530BA58C06F86CF8801 /* PairingProtocolDefaults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingProtocolDefaults.swift; sourceTree = "<group>"; };
+		D09DDABE08BCCE9A1A95C24E /* AnsightSessionConfigurationProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightSessionConfigurationProperties.swift; sourceTree = "<group>"; };
 		D57CFA30FCC75258D7C1A9AC /* DeviceBatteryProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceBatteryProfile.swift; sourceTree = "<group>"; };
 		D61A09B35916D072565E621F /* AnsightDebugSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightDebugSnapshot.swift; sourceTree = "<group>"; };
 		D847A3761AED00612FD96AD6 /* PurchaseProduct.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseProduct.swift; sourceTree = "<group>"; };
@@ -398,6 +400,7 @@
 				0E646752723E6B98105EB685 /* AnsightScreenSnapshotFormat.swift */,
 				DE0179F29517E75224D2CB76 /* AnsightScreenSnapshotRenderer.swift */,
 				2E4D5FC57940EC4275EC292C /* AnsightSDKInfo.swift */,
+				D09DDABE08BCCE9A1A95C24E /* AnsightSessionConfigurationProperties.swift */,
 				2C789DDCCFD18231BDB603A8 /* AnsightSessionJpegCaptureOptions.swift */,
 				44B670FDDF506E9818670EC0 /* AnsightSessionVisualTreeCaptureRegistry.swift */,
 				C05C0E772D0EDACE73017392 /* AnsightSimultaneousGestureDelegate.swift */,
@@ -690,6 +693,7 @@
 				767C42B6C46893A917F616B9 /* AnsightScreenSnapshot.swift in Sources */,
 				8E644F208F0127A5D87852C3 /* AnsightScreenSnapshotFormat.swift in Sources */,
 				2A488E9AFA1C3DD06129A143 /* AnsightScreenSnapshotRenderer.swift in Sources */,
+				56B62B98C4513A4F4E81C38B /* AnsightSessionConfigurationProperties.swift in Sources */,
 				94772FB546598040833DEA75 /* AnsightSessionJpegCaptureOptions.swift in Sources */,
 				860E395C9B1E4DA715015F20 /* AnsightSessionVisualTreeCaptureRegistry.swift in Sources */,
 				55BEC09DDB50E3B3275A4920 /* AnsightSimultaneousGestureDelegate.swift in Sources */,

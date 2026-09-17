@@ -1,3 +1,17 @@
+## 1.6.0
+
+- Add macOS 10.15+ plugin registration, Apple bridge packaging, and automated
+  desktop build validation.
+- Reuse the native Swift runtime for macOS telemetry, host connectivity,
+  storage tools, clipboard access, and Flutter widget inspection.
+- Add Flutter-rendered macOS screenshot capture with correlated widget-tree
+  snapshots, Flutter pointer/touch streaming, and desktop FPS samples derived
+  from Flutter frame timings.
+- Automatically retain Flutter compositor frames from
+  `AnsightFlutterCaptureBoundary` using the configured desktop capture cadence.
+- Keep AppKit screenshot, native visual-tree, native touch, and QR enrollment
+  unavailable until dedicated desktop implementations are added.
+
 ## 1.5.0
 
 - Add opt-in purchase diagnostics across native, React Native, Capacitor, and

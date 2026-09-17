@@ -102,6 +102,22 @@ Future<void> main() async {
   );
   kotlinOutput.writeAsStringSync(kotlinSource);
 
+  final iosSources = Directory(
+    '$packageRoot/ios/ansight_flutter/Sources/ansight_flutter',
+  );
+  final macosSources = Directory(
+    '$packageRoot/macos/ansight_flutter/Sources/ansight_flutter',
+  )..createSync(recursive: true);
+  for (final fileName in <String>[
+    'AnsightMessages.g.swift',
+    'AnsightPlugin.swift',
+    'PrivacyInfo.xcprivacy',
+  ]) {
+    File('${iosSources.path}/$fileName').copySync(
+      '${macosSources.path}/$fileName',
+    );
+  }
+
   final formatting = await Process.run(
     Platform.resolvedExecutable,
     <String>['format', dartOutput.path],
@@ -114,5 +130,7 @@ Future<void> main() async {
     return;
   }
 
-  stdout.writeln('Generated Flutter, Kotlin, and Swift Pigeon transports.');
+  stdout.writeln(
+    'Generated Flutter, Kotlin, and synchronized Apple Pigeon transports.',
+  );
 }
