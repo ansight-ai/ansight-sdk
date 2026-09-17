@@ -151,6 +151,7 @@ for artifact in \
   ansight-tools-securestorage-android \
   ansight-tools-database-android \
   ansight-tools-reflection-android \
+  ansight-purchases-googleplay-android \
   ansight-android; do
   check_maven_artifact "${artifact}"
 done
