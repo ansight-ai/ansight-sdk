@@ -1,6 +1,6 @@
 {
   "name": "@ansight/react-native",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "React Native bridge for Ansight: runtime evidence from your app for coding agents. Screenshots, UI trees, logs, network, telemetry, and app state.",
   "main": "index.js",
   "types": "index.d.ts",
