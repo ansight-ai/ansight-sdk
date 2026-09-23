@@ -480,6 +480,79 @@ internal static class AndroidSceneCapture
                     OverlayTextureView(canvas, textureView, rootLocation, scaleX, scaleY);
                     break;
             }
+
+            // The window draw includes controls above a SurfaceView, but the GPU
+            // copy replaces their pixels. Restore only siblings drawn above the
+            // GPU view, clipped to the copied surface.
+            DrawViewsAboveGpuView(canvas, specialView, rootView, rootLocation, scaleX, scaleY);
+        }
+    }
+
+    private static void DrawViewsAboveGpuView(
+        Canvas canvas,
+        View gpuView,
+        View rootView,
+        AndroidViewLocation rootLocation,
+        float scaleX,
+        float scaleY)
+    {
+        var gpuLocation = GetViewLocationOnScreen(gpuView);
+        var gpuBounds = new Rect(
+            gpuLocation.X,
+            gpuLocation.Y,
+            gpuLocation.X + gpuView.Width,
+            gpuLocation.Y + gpuView.Height);
+
+        var branch = gpuView;
+        while (!ReferenceEquals(branch, rootView) && branch.Parent is ViewGroup parent)
+        {
+            var drawingOrder = Enumerable.Range(0, parent.ChildCount)
+                .Select(parent.GetChildAt)
+                .OfType<View>()
+                .OrderBy(view => view.Elevation + view.TranslationZ)
+                .ThenBy(view => parent.IndexOfChild(view))
+                .ToList();
+            var branchIndex = drawingOrder.FindIndex(view => ReferenceEquals(view, branch));
+            if (branchIndex < 0)
+            {
+                break;
+            }
+
+            foreach (var sibling in drawingOrder.Skip(branchIndex + 1))
+            {
+                if (!IsVisibleForCapture(sibling))
+                {
+                    continue;
+                }
+
+                var location = GetViewLocationOnScreen(sibling);
+                var overlap = new Rect(gpuBounds);
+                if (!overlap.Intersect(
+                        location.X,
+                        location.Y,
+                        location.X + sibling.Width,
+                        location.Y + sibling.Height))
+                {
+                    continue;
+                }
+
+                var saveCount = canvas.Save();
+                try
+                {
+                    canvas.ClipRect(
+                        (overlap.Left - rootLocation.X) * scaleX,
+                        (overlap.Top - rootLocation.Y) * scaleY,
+                        (overlap.Right - rootLocation.X) * scaleX,
+                        (overlap.Bottom - rootLocation.Y) * scaleY);
+                    DrawView(canvas, sibling, rootLocation, scaleX, scaleY);
+                }
+                finally
+                {
+                    canvas.RestoreToCount(saveCount);
+                }
+            }
+
+            branch = parent;
         }
     }
 

@@ -47,6 +47,7 @@ import java.io.ByteArrayOutputStream
 import java.lang.ref.WeakReference
 import java.util.Locale
 import java.util.UUID
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -87,6 +88,14 @@ object AndroidUiEvidence {
     private var currentActivity = WeakReference<Activity>(null)
     private val callbackWrappers = mutableMapOf<Int, TouchWindowCallback>()
     private var touchHandler: ((CapturedTouch) -> Unit)? = null
+    private val touchObservers = CopyOnWriteArrayList<(CapturedTouch) -> Unit>()
+    private val touchWindowScan = object : Runnable {
+        override fun run() {
+            if (touchHandler == null) return
+            currentActivity.get()?.let { installTouchCallbacks(it) }
+            mainHandler.postDelayed(this, 500)
+        }
+    }
     private val overlays = linkedMapOf<String, OverlaySpec>()
     private var streamBitmap: Bitmap? = null
     private var streamBitmapWidth: Int = 0
@@ -99,8 +108,11 @@ object AndroidUiEvidence {
     }
 
     fun onActivityDestroyed(activity: Activity) {
-        val key = System.identityHashCode(activity.window)
-        callbackWrappers.remove(key)
+        callbackWrappers.entries.removeAll { (_, wrapper) ->
+            if (wrapper.activity.get() !== activity) return@removeAll false
+            wrapper.restore()
+            true
+        }
         if (currentActivity.get() === activity) {
             releaseSessionScreenshotResources()
             currentActivity = WeakReference(null)
@@ -110,8 +122,21 @@ object AndroidUiEvidence {
     fun setTouchCaptureEnabled(enabled: Boolean, handler: ((CapturedTouch) -> Unit)?) {
         touchHandler = if (enabled) handler else null
         runOnMain {
-            currentActivity.get()?.let { activity -> installTouchCallback(activity) }
+            mainHandler.removeCallbacks(touchWindowScan)
+            if (enabled) {
+                currentActivity.get()?.let { activity -> installTouchCallbacks(activity) }
+                mainHandler.postDelayed(touchWindowScan, 500)
+            } else {
+                callbackWrappers.values.forEach { it.restore() }
+                callbackWrappers.clear()
+            }
         }
+    }
+
+    /** Observe SDK-captured touches without replacing the runtime's capture handler. */
+    fun addTouchObserver(observer: (CapturedTouch) -> Unit): AutoCloseable {
+        touchObservers += observer
+        return AutoCloseable { touchObservers -= observer }
     }
 
     fun currentActivity(): Activity? = currentActivity.get()
@@ -174,6 +199,7 @@ object AndroidUiEvidence {
             }
 
             val windows = captureTargets(activity)
+            installTouchCallbacks(activity, windows)
             val activityBounds = windows.firstOrNull { it.isActivityWindow }?.boundsInScreen ?: activityRoot.boundsInScreen()
             val scale = maxWidth?.takeIf { it > 0 && activityBounds.width() > it }?.let { it.toFloat() / activityBounds.width().toFloat() } ?: 1f
             val width = (activityBounds.width() * scale).toInt().coerceAtLeast(1)
@@ -320,6 +346,50 @@ object AndroidUiEvidence {
             )
             canvas.drawBitmap(capture, null, destination, null)
             capture.recycle()
+            drawViewsAboveGpuView(canvas, view, root, activityBounds, scale)
+        }
+    }
+
+    private fun drawViewsAboveGpuView(
+        canvas: Canvas,
+        gpuView: View,
+        root: View,
+        activityBounds: Rect,
+        scale: Float,
+    ) {
+        val gpuBounds = gpuView.boundsInScreen()
+        var branch: View = gpuView
+        while (branch !== root) {
+            val parent = branch.parent as? ViewGroup ?: break
+            val drawingOrder = (0 until parent.childCount)
+                .map { index -> index to parent.getChildAt(index) }
+                .sortedWith(compareBy<Pair<Int, View>> { it.second.z }.thenBy { it.first })
+            val branchPosition = drawingOrder.indexOfFirst { it.second === branch }
+            if (branchPosition < 0) break
+            drawingOrder.drop(branchPosition + 1).forEach { (_, sibling) ->
+                if (!sibling.isRenderable()) return@forEach
+                val siblingBounds = sibling.boundsInScreen()
+                val overlap = Rect(gpuBounds)
+                if (!overlap.intersect(siblingBounds) || !overlap.intersect(activityBounds)) return@forEach
+                canvas.save()
+                try {
+                    canvas.clipRect(
+                        (overlap.left - activityBounds.left) * scale,
+                        (overlap.top - activityBounds.top) * scale,
+                        (overlap.right - activityBounds.left) * scale,
+                        (overlap.bottom - activityBounds.top) * scale,
+                    )
+                    canvas.scale(scale, scale)
+                    canvas.translate(
+                        (siblingBounds.left - activityBounds.left).toFloat(),
+                        (siblingBounds.top - activityBounds.top).toFloat(),
+                    )
+                    sibling.draw(canvas)
+                } finally {
+                    canvas.restore()
+                }
+            }
+            branch = parent
         }
     }
 
@@ -672,12 +742,43 @@ object AndroidUiEvidence {
         return JSONObject().put("removedCount", count)
     }
 
-    private fun installTouchCallback(activity: Activity) {
+    private fun installTouchCallbacks(
+        activity: Activity,
+        targets: List<WindowCaptureTarget> = captureTargets(activity),
+    ) {
         if (touchHandler == null) {
             return
         }
 
-        val window = activity.window ?: return
+        val activeKeys = mutableSetOf<Int>()
+        targets.forEach { target ->
+            val window = if (target.isActivityWindow) activity.window else windowForRoot(target.view)
+            if (window != null) {
+                activeKeys += System.identityHashCode(window)
+                installTouchCallback(activity, window)
+            }
+        }
+        callbackWrappers.entries.removeAll { (key, wrapper) ->
+            if (key in activeKeys) return@removeAll false
+            wrapper.restore()
+            true
+        }
+    }
+
+    private fun windowForRoot(root: View): Window? {
+        var type: Class<*>? = root.javaClass
+        while (type != null && type != Any::class.java) {
+            val field = type.declaredFields.firstOrNull { Window::class.java.isAssignableFrom(it.type) }
+            if (field != null) {
+                val window = runCatching { field.apply { isAccessible = true }.get(root) as? Window }.getOrNull()
+                if (window != null) return window
+            }
+            type = type.superclass
+        }
+        return null
+    }
+
+    private fun installTouchCallback(activity: Activity, window: Window) {
         val key = System.identityHashCode(window)
         val existing = callbackWrappers[key]
         if (existing != null && existing.activity.get() === activity && window.callback === existing) {
@@ -690,16 +791,23 @@ object AndroidUiEvidence {
             return
         }
 
-        val wrapper = TouchWindowCallback(activity, original) { event ->
-            captureTouch(activity, event)
-        }
+        val wrapper = TouchWindowCallback(
+            activity = activity,
+            window = window,
+            delegate = original,
+            touchHandler = { event -> captureTouch(activity, event) },
+            focusHandler = {
+                mainHandler.post { installTouchCallbacks(activity) }
+                mainHandler.postDelayed({ installTouchCallbacks(activity) }, 100)
+            },
+        )
         callbackWrappers[key] = wrapper
         window.callback = wrapper
     }
 
     private fun bindActivity(activity: Activity) {
         currentActivity = WeakReference(activity)
-        installTouchCallback(activity)
+        installTouchCallbacks(activity)
         attachOverlaySurface(activity)
     }
 
@@ -746,23 +854,30 @@ object AndroidUiEvidence {
             else -> "Unknown"
         }
         val root = activity.window.decorView.rootView
+        val rootLocation = IntArray(2)
+        root.getLocationOnScreen(rootLocation)
         if (event.actionMasked == MotionEvent.ACTION_MOVE) {
             for (index in 0 until event.pointerCount) {
-                handler(touchFromEvent(event, index, action, root))
+                notifyTouchCaptured(handler, touchFromEvent(event, index, action, root, rootLocation))
             }
         } else {
-            handler(touchFromEvent(event, actionIndex, action, root))
+            notifyTouchCaptured(handler, touchFromEvent(event, actionIndex, action, root, rootLocation))
         }
     }
 
-    private fun touchFromEvent(event: MotionEvent, index: Int, action: String, root: View): CapturedTouch =
+    private fun notifyTouchCaptured(handler: (CapturedTouch) -> Unit, touch: CapturedTouch) {
+        handler(touch)
+        touchObservers.forEach { observer -> runCatching { observer(touch) } }
+    }
+
+    private fun touchFromEvent(event: MotionEvent, index: Int, action: String, root: View, rootLocation: IntArray): CapturedTouch =
         CapturedTouch(
             action = action,
             pointerId = event.getPointerId(index).toLong(),
             pointerIndex = index,
             pointerCount = event.pointerCount,
-            x = event.getX(index).toDouble(),
-            y = event.getY(index).toDouble(),
+            x = (event.rawX + event.getX(index) - event.getX(0) - rootLocation[0]).toDouble(),
+            y = (event.rawY + event.getY(index) - event.getY(0) - rootLocation[1]).toDouble(),
             surfaceWidth = root.width.takeIf { it > 0 }?.toDouble(),
             surfaceHeight = root.height.takeIf { it > 0 }?.toDouble(),
             surfaceScale = root.resources.displayMetrics.density.toDouble(),
@@ -1059,12 +1174,18 @@ object AndroidUiEvidence {
     }
 
     private class TouchWindowCallback(
-        val activity: WeakReference<Activity>,
+        activity: Activity,
+        window: Window,
         private val delegate: Window.Callback,
         private val touchHandler: (MotionEvent) -> Unit,
+        private val focusHandler: () -> Unit,
     ) : Window.Callback {
-        constructor(activity: Activity, delegate: Window.Callback, touchHandler: (MotionEvent) -> Unit) :
-            this(WeakReference(activity), delegate, touchHandler)
+        val activity = WeakReference(activity)
+        val window = WeakReference(window)
+
+        fun restore() {
+            window.get()?.let { if (it.callback === this) it.callback = delegate }
+        }
 
         override fun dispatchKeyEvent(event: KeyEvent): Boolean = delegate.dispatchKeyEvent(event)
         override fun dispatchKeyShortcutEvent(event: KeyEvent): Boolean = delegate.dispatchKeyShortcutEvent(event)
@@ -1082,7 +1203,10 @@ object AndroidUiEvidence {
         override fun onMenuItemSelected(featureId: Int, item: MenuItem): Boolean = delegate.onMenuItemSelected(featureId, item)
         override fun onWindowAttributesChanged(attrs: WindowManager.LayoutParams) = delegate.onWindowAttributesChanged(attrs)
         override fun onContentChanged() = delegate.onContentChanged()
-        override fun onWindowFocusChanged(hasFocus: Boolean) = delegate.onWindowFocusChanged(hasFocus)
+        override fun onWindowFocusChanged(hasFocus: Boolean) {
+            delegate.onWindowFocusChanged(hasFocus)
+            focusHandler()
+        }
         override fun onAttachedToWindow() = delegate.onAttachedToWindow()
         override fun onDetachedFromWindow() = delegate.onDetachedFromWindow()
         override fun onPanelClosed(featureId: Int, menu: Menu) = delegate.onPanelClosed(featureId, menu)
