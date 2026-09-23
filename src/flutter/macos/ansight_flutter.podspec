@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'ansight_flutter'
-  s.version          = '1.6.0'
+  s.version          = '1.6.1'
   s.summary          = 'Flutter bridge for the Ansight macOS observability SDK.'
   s.description      = <<-DESC
 Cross-platform observability, inspection, and remote tooling for Flutter apps.

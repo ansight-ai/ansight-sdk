@@ -1,3 +1,9 @@
+## 1.6.1
+
+- Capture touches and touch-triggered visual trees from Android modal windows,
+  with coordinates relative to the activity surface.
+- Preserve controls drawn above GPU-backed Android views in screenshots.
+
 ## 1.6.0
 
 - Add macOS 10.15+ plugin registration, Apple bridge packaging, and automated

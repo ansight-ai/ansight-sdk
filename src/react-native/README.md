@@ -88,8 +88,8 @@ bundle; its API requires the native Ansight module.
 
 This package version expects matching native SDK packages:
 
-- CocoaPods: `Ansight`, `AnsightObjC` version `1.6.0`
-- Maven: `ai.ansight:ansight-android:1.6.0`
+- CocoaPods: `Ansight`, `AnsightObjC` version `1.6.1`
+- Maven: `ai.ansight:ansight-android:1.6.1`
 
 ## Quickstart
 

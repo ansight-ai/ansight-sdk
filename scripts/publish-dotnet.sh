@@ -59,6 +59,15 @@ if [[ "${publish}" == "true" && -z "${ANSIGHT_NUGET_API_KEY:-}" ]]; then
 fi
 
 if [[ "${skip_build}" != "true" ]]; then
+  # The Android binding project reads these AARs during evaluation, before its
+  # own Gradle build target can run in a clean checkout.
+  "${repo_root}/src/android/gradlew" -p "${repo_root}/src/android" \
+    :ansight-core:assembleRelease \
+    :ansight-core:copyDotnetRuntimeDependencies \
+    :ansight-tools-jni-reference-diagnostics:assembleRelease \
+    :ansight-tools-jni-reference-diagnostics:copyDotnetRuntimeDependencies \
+    :ansight-dotnet-bridge:assembleRelease
+
   dotnet build \
     "${repo_root}/src/dotnet/Ansight.Sdk.sln" \
     -c "${configuration}" \
