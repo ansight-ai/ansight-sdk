@@ -4,7 +4,11 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source_mode="${ANSIGHT_RN_HARNESS_PACKAGE_SOURCE:-local}"
 version="${ANSIGHT_HARNESS_VERSION:-}"
-harness_path="${ANSIGHT_REACT_NATIVE_HARNESS_PATH:-${repo_root}/../ansight-sdk-test-apps/react-native/ansight-react-native-harness}"
+corpus_root="${ANSIGHT_SDK_TEST_APPS_ROOT:-${repo_root}/../ansight-sdk-test-apps}"
+if [[ -z "${ANSIGHT_SDK_TEST_APPS_ROOT:-}" && ! -d "${corpus_root}" && -d "${repo_root}/../../ansight-sdk-test-apps" ]]; then
+  corpus_root="${repo_root}/../../ansight-sdk-test-apps"
+fi
+harness_path="${ANSIGHT_REACT_NATIVE_HARNESS_PATH:-${corpus_root}/react-native/ansight-react-native-harness}"
 run_install=false
 
 usage() {
@@ -17,7 +21,7 @@ SDK checkout or the published package set.
 Options:
   --source local|published    Package source to use. Defaults to local.
   --version VERSION           Published package version. Defaults to src/react-native/package.json.
-  --harness-path PATH         Harness path. Defaults to ../ansight-sdk-test-apps/react-native/ansight-react-native-harness.
+  --harness-path PATH         Harness path. Defaults to the external SDK test corpus; ANSIGHT_SDK_TEST_APPS_ROOT overrides its root.
   --install                   Run npm install in the harness after updating package.json.
 
 Environment:

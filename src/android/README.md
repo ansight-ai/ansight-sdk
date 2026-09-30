@@ -584,12 +584,6 @@ Run the SDK unit tests and native harness build:
 ./gradlew :harness:assembleDebug
 ```
 
-The broader Android corpus validator lives at:
-
-```bash
-python ../../scripts/validate_android_test_apps.py --help
-```
-
 ## License
 
 The Ansight SDK is source-available software under the

@@ -660,20 +660,21 @@ The package checks its JavaScript and TypeScript surfaces:
 npm run check
 ```
 
-The first-party validation app lives in:
+The first-party validation app lives in the separate `ansight-sdk-test-apps`
+checkout, when available:
 
 ```text
-/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/react-native/ansight-react-native-harness
+react-native/ansight-react-native-harness
 ```
 
 It exercises the native runtime bridge, standard native remote tools,
 JavaScript custom tools, React visual-tree tools, SQLite/file fixtures,
 screenshot capture, and touch/session telemetry.
 
-The current-Expo validation app lives in:
+The current-Expo validation app is in the same checkout:
 
 ```text
-/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/react-native/ansight-expo-harness
+react-native/ansight-expo-harness
 ```
 
 It is pinned to Expo SDK 57 and React Native 0.86 with the New Architecture and

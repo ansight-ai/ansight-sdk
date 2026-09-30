@@ -643,25 +643,17 @@ await Ansight.instance.sendClientLog('Checkout loaded cartId=debug-42');
 Run these checks after changing SDK API docs or examples:
 
 ```bash
-cd /Users/matthewrobbins/Development/git/ansight-sdk/src/android
-./gradlew :ansight-core:test :ansight:test :harness:assembleDebug
+(cd src/android && ./gradlew :ansight-core:test :ansight:test :harness:assembleDebug)
 
-cd /Users/matthewrobbins/Development/git/ansight-sdk/src/ios
-swift test
+(cd src/ios && swift test)
 
-cd /Users/matthewrobbins/Development/git/ansight-sdk/src/react-native
-npm run check
+(cd src/react-native && npm run check)
 
-cd /Users/matthewrobbins/Development/git/ansight-sdk/src/flutter
-flutter analyze
-flutter test
-dart pub publish --dry-run
+(cd src/flutter && flutter analyze && flutter test && dart pub publish --dry-run)
 ```
 
-For broader corpus validation, use:
+For broader Flutter corpus validation, use:
 
 ```bash
-python /Users/matthewrobbins/Development/git/ansight-sdk/scripts/validate_android_test_apps.py --help
-python /Users/matthewrobbins/Development/git/ansight-sdk/scripts/validate_ios_test_apps.py --help
-dart run /Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/tool/flutter_corpus.dart --help
+dart run src/flutter/tool/flutter_corpus.dart --help
 ```

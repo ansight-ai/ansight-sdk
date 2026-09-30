@@ -54,10 +54,6 @@ for gradle_file in "${repo_root}"/src/android/*/build.gradle.kts; do
   fi
 done
 
-add_version \
-  "android:test-app validation default" \
-  "$(extract_first 'DEFAULT_ANDROID_SDK_ARTIFACT = "ai\.ansight:ansight-android:([^"]+)"' "${repo_root}/scripts/validate_android_test_apps.py")"
-
 for podspec in "${repo_root}"/src/ios/*.podspec; do
   add_version \
     "ios:$(basename "${podspec}")" \

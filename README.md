@@ -107,7 +107,6 @@ affecting the app.
 - [iOS SDK Guide](src/ios/README.md)
 - [React Native SDK Guide](src/react-native/README.md)
 - [Capacitor SDK Guide](src/capacitor/README.md)
-- [Capacitor Test Corpus](test-apps/README.md)
 - [Flutter SDK Guide](src/flutter/README.md)
 - [Flutter Test Corpus](src/flutter/validation/flutter-corpus-results.md)
 - [Publishing SDK releases](docs/releasing.md)

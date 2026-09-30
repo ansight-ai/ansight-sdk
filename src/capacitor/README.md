@@ -258,12 +258,10 @@ access. Keep the script and all remote tools limited to development builds.
 
 The complete interactive harness is in
 [`example-app`](./example-app/README.md). It contains 54 feature checks and
-buildable Android and iOS projects. The repository also provides a pinned
-25-application open-source compatibility corpus:
+buildable Android and iOS projects. Run the package checks from the repository root:
 
 ```bash
 npm --prefix src/capacitor run verify
-node scripts/setup-capacitor-test-apps.mjs
 ```
 
 ## Purchase diagnostics

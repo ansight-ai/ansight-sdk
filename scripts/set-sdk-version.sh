@@ -132,9 +132,6 @@ perl -0pi -e 's/(ansight_flutter:\s*\^)[0-9A-Za-z.+-]+/$1$ENV{VERSION}/g' \
 perl -0pi -e 's/(ai\.ansight:[A-Za-z0-9_.-]+:)[0-9][0-9A-Za-z.+-]*/$1$ENV{VERSION}/g' \
   "${repo_root}/src/android/README.md"
 
-perl -0pi -e 's/(DEFAULT_ANDROID_SDK_ARTIFACT = "ai\.ansight:ansight-android:)[^"]+(")/$1$ENV{VERSION}$2/g' \
-  "${repo_root}/scripts/validate_android_test_apps.py"
-
 perl -0pi -e 's/(exactVersion:\s*)[0-9A-Za-z.+-]+/$1$ENV{VERSION}/g' \
   "${repo_root}/src/ios/Examples/NativeHarness/project.published.yml"
 

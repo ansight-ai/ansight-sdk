@@ -43,9 +43,9 @@ The version script updates:
 
 - `src/dotnet/Directory.Build.props`
 - `src/android/gradle.properties`
-- Android Gradle module fallback versions and Android validation defaults
+- Android Gradle module fallback versions
 - native iOS podspec versions
-- iOS runtime SDK metadata reported to Ansight Studio
+- iOS runtime SDK metadata reported to the Ansight host
 - `src/react-native/package.json`
 - the React Native Android dependency and README version references
 
