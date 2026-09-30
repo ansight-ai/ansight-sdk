@@ -3,7 +3,7 @@ Pod::Spec.new do |s|
   s.version      = "1.6.1"
   s.summary      = "iOS SDK for Ansight: runtime evidence from your app for coding agents. Screenshots, view trees, logs, network, telemetry, and app state."
   s.homepage     = "https://github.com/ansight-ai/ansight-sdk"
-  s.license      = { :type => "Ansight SDK Source-Available License", :file => "LICENSE" }
+  s.license      = { :type => "PolyForm Shield 1.0.0", :file => "LICENSE" }
   s.authors      = { "Ansight" => "dev@ansight.ai" }
   s.source       = { :path => "." }
   s.platforms    = { :ios => "15.0", :osx => "10.15" }

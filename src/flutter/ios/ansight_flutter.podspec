@@ -10,7 +10,7 @@ Pod::Spec.new do |s|
 Cross-platform observability, inspection, and remote tooling for Flutter apps.
                        DESC
   s.homepage         = 'https://github.com/ansight-ai/ansight-sdk'
-  s.license          = { :type => 'Ansight SDK Source-Available License', :file => '../LICENSE' }
+  s.license          = { :type => 'PolyForm Shield 1.0.0', :file => '../LICENSE' }
   s.author           = { 'Ansight' => 'dev@ansight.ai' }
   s.source           = { :path => '.' }
   s.source_files = 'ansight_flutter/Sources/ansight_flutter/**/*'

@@ -52,7 +52,7 @@ subprojects {
 
                     licenses {
                         license {
-                            name.convention("Ansight SDK Source-Available License")
+                            name.convention("PolyForm Shield 1.0.0")
                             url.convention("https://github.com/ansight-ai/ansight-sdk/blob/main/LICENSE")
                             distribution.convention("repo")
                         }

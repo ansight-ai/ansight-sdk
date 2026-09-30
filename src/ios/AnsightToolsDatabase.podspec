@@ -3,7 +3,7 @@ Pod::Spec.new do |s|
   s.version      = "1.6.1"
   s.summary      = "Ansight SQLite remote tools for native iOS apps"
   s.homepage     = "https://github.com/ansight-ai/ansight-sdk"
-  s.license      = { :type => "Ansight SDK Source-Available License", :file => "LICENSE" }
+  s.license      = { :type => "PolyForm Shield 1.0.0", :file => "LICENSE" }
   s.authors      = { "Ansight" => "dev@ansight.ai" }
   s.source       = { :path => "." }
   s.platforms    = { :ios => "15.0", :osx => "10.15" }

@@ -331,8 +331,9 @@ That wrapper reapplies the small compatibility transforms required by Flutter
 
 ## License
 
-This SDK is source-available software, not open-source software. See
-`LICENSE` for the permitted uses and restrictions.
+This SDK is source-available software under PolyForm Shield 1.0.0. See
+`LICENSE` for the permitted uses and restrictions. Local development features
+require no Ansight account or subscription.
 
 ## Purchase diagnostics
 

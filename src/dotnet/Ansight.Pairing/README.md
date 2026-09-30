@@ -18,9 +18,10 @@ dotnet add package Ansight.Pairing --prerelease
 ## License
 
 The Ansight SDK is source-available software under the
-[Ansight SDK Source-Available License](https://github.com/ansight-ai/ansight-sdk/blob/main/LICENSE).
-It is not open-source software. Production use is licensed only for use with
-Ansight Services.
+[PolyForm Shield 1.0.0](https://github.com/ansight-ai/ansight-sdk/blob/main/LICENSE).
+It permits use, modification and redistribution for purposes allowed by the
+[licence](https://polyformproject.org/licenses/shield/1.0.0), which excludes providing competing products.
+Local development features require no Ansight account or subscription.
 
 ## Usage
 

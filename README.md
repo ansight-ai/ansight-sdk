@@ -58,7 +58,7 @@ are not yet available.
 - Website: https://www.ansight.ai
 - Getting started: https://www.ansight.ai/docs/getting-started
 - How Ansight compares: https://www.ansight.ai/why-ansight
-- License: Ansight SDK Source-Available License
+- License: PolyForm Shield 1.0.0
 
 Current SDK features include:
 
@@ -116,9 +116,10 @@ affecting the app.
 ## License
 
 The Ansight SDK is source-available software under the
-[Ansight SDK Source-Available License](https://github.com/ansight-ai/ansight-sdk/blob/main/LICENSE).
-It is not open-source software. Production use is licensed only for use with
-Ansight Services.
+[PolyForm Shield 1.0.0](https://github.com/ansight-ai/ansight-sdk/blob/main/LICENSE).
+It permits use, modification and redistribution for purposes allowed by the
+[licence](https://polyformproject.org/licenses/shield/1.0.0), which excludes providing competing products.
+Local development features require no Ansight account or subscription.
 
 Clipboard remote tools: [API, platform behaviour and registration](docs/clipboard-tools.md).
 
