@@ -75,7 +75,7 @@
                         <RoundRectangle CornerRadius="12"/>
                     </Border.StrokeShape>
                     <VerticalStackLayout Spacing="10">
-                        <Label Text="Studio enrollment"
+                        <Label Text="Ansight enrollment"
                                FontAttributes="Bold"
                                FontSize="16"
                                TextColor="#111111"/>
@@ -132,7 +132,7 @@
                                FontAttributes="Bold"
                                FontSize="16"
                                TextColor="#111111"/>
-                        <Label Text="Capture the current screen and visual trees, draw annotations, and submit the feedback to Studio or the offline outbox."
+                        <Label Text="Capture the current screen and visual trees, draw annotations, and submit the feedback to the host or the offline outbox."
                                FontSize="12"
                                TextColor="#666666"/>
                         <Label x:Name="AnnotationStatusLabel"

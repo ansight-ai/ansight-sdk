@@ -98,7 +98,7 @@ const harnessState: HarnessState = {
   shippingSpeed: "Express",
   expeditedBilling: true,
   quantity: 2,
-  scenePalette: "studio",
+  scenePalette: "default",
   sceneSpeed: 42,
   metricButtonTaps: 0,
   eventButtonTaps: 0,
@@ -146,7 +146,7 @@ app.innerHTML = `
         <span class="scene-hint">drag to rotate</span>
       </div>
       <div class="scene-metrics">
-        <div><strong id="scene-palette-value">studio</strong><span>palette</span></div>
+        <div><strong id="scene-palette-value">default</strong><span>palette</span></div>
         <div><strong id="scene-speed-value">42</strong><span>speed</span></div>
         <div><strong id="scene-renderer-value">webgl</strong><span>renderer</span></div>
       </div>
@@ -479,11 +479,11 @@ function closeModal(): void {
 
 function cyclePalette(): void {
   harnessState.scenePalette =
-    harnessState.scenePalette === "studio"
+    harnessState.scenePalette === "default"
       ? "thermal"
       : harnessState.scenePalette === "thermal"
         ? "mono"
-        : "studio";
+        : "default";
   harnessState.lastAction = "scene.palette";
   scene3D.setPalette(harnessState.scenePalette);
   renderHarnessState();

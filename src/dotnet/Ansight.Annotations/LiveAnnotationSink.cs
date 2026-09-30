@@ -12,7 +12,7 @@ internal sealed class LiveAnnotationSink : IAnnotationSink
         this.runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
     }
 
-    public string Id => "studio.live";
+    public string Id => "ansight.live";
 
     public async ValueTask<AnnotationSinkResult> SubmitAsync(
         AnnotationBundle bundle,

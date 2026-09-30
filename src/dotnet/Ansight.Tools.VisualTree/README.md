@@ -49,7 +49,7 @@ Overlay tools render input-transparent highlight rectangles over the active nati
 - `ui.remove_overlay` removes one overlay by id.
 - `ui.clear_overlays` removes all overlays, or only overlays matching a metadata key/value filter.
 
-Overlays default to no fill, a red stroke, and a 5 second lifetime. Pass `durationMs=0` for an overlay that remains until removed. `fillColor=none` or `fillColor=transparent` clears fill. Each overlay can carry a small scalar `metadata` dictionary so MCP clients can record why the overlay exists, for example a target node id, assertion name, or investigation step.
+Overlays default to no fill, a red stroke, and a 5 second lifetime. Pass `durationMs=0` for an overlay that remains until removed. `fillColor=none` or `fillColor=transparent` clears fill. Each overlay can carry a small scalar `metadata` dictionary so clients can record why the overlay exists, for example a target node id, assertion name, or investigation step.
 
 ## Build-time remote tool policy
 

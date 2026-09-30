@@ -50,9 +50,9 @@ Checksum response highlights:
 - `sizeBytes`, `lastModifiedUtc`, `version`
 - `checksums`: array of `{ algorithm, checksum, encoding }`
 
-## MCP-facing file transfer
+## Binary file transfer
 
-`files.begin_binary_download` is the bridge-oriented path when an MCP caller wants the SDK to stream raw bytes over the pairing WebSocket and materialize the file in a caller-chosen local temp directory. The app SDK does not choose or know that temp path; it only returns metadata and then emits binary frames keyed by a `transferId`.
+`files.begin_binary_download` streams raw bytes over the pairing WebSocket so the receiving host can materialize the file in a caller-chosen local temp directory. The app SDK does not choose or know that temp path; it only returns metadata and then emits binary frames keyed by a `transferId`.
 
 Binary download request arguments:
 
@@ -69,7 +69,7 @@ Binary download response highlights:
 - `deliveryMode = websocket_binary`
 - `wireProtocol = ansight.file-transfer.v1`
 
-The consuming MCP bridge is expected to:
+The receiving host is expected to:
 
 - choose the temp directory and local file path
 - call `files.begin_binary_download`
@@ -97,7 +97,7 @@ JSON fallback response highlights:
 
 ## File writes and file management
 
-`files.push_file` writes caller-provided content into a folder under an approved sandbox root. MCP bridges should pass arbitrary files as `contentBase64`; `text` is available for UTF-8 text payloads.
+`files.push_file` writes caller-provided content into a folder under an approved sandbox root. Callers should pass arbitrary files as `contentBase64`; `text` is available for UTF-8 text payloads.
 
 Push request arguments:
 

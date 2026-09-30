@@ -409,7 +409,7 @@ class MainActivity : AppCompatActivity() {
         addButtonRow(
             contentHost,
             "Swap Palette" to {
-                harnessState.scene.paletteName = if (harnessState.scene.paletteName == "studio") "thermal" else "studio"
+                harnessState.scene.paletteName = if (harnessState.scene.paletteName == "default") "thermal" else "default"
                 recordHarnessEvent("scene.palette")
                 renderAll()
             },
@@ -745,7 +745,7 @@ class MainActivity : AppCompatActivity() {
             "tab_tools" -> harnessState.selectedTab = HarnessTab.Tools
             "seed_database" -> database.seed()
             "insert_item" -> harnessState.data.lastInsertedItem = database.insertGeneratedItem()
-            "palette" -> harnessState.scene.paletteName = if (harnessState.scene.paletteName == "studio") "thermal" else "studio"
+            "palette" -> harnessState.scene.paletteName = if (harnessState.scene.paletteName == "default") "thermal" else "default"
             "modal" -> harnessState.modalPresentations += 1
         }
         harnessState.customToolInvocations += 1
@@ -942,7 +942,7 @@ class MainActivity : AppCompatActivity() {
 
     private data class HarnessSceneState(
         @Volatile var rotationSpeed: Float = 46f,
-        @Volatile var paletteName: String = "studio",
+        @Volatile var paletteName: String = "default",
         @Volatile var lastFrameEpochMs: Long = 0,
     ) {
         fun toJson(): JSONObject = JSONObject()

@@ -1,4 +1,4 @@
-export type ScenePalette = "studio" | "thermal" | "mono";
+export type ScenePalette = "default" | "thermal" | "mono";
 
 export interface Scene3DState {
   renderer: "webgl" | "css-fallback";
@@ -17,7 +17,7 @@ export interface Scene3DController {
 }
 
 const paletteColors: Record<ScenePalette, [number[], number[]]> = {
-  studio: [
+  default: [
     [0.145, 0.388, 0.922, 1],
     [0.078, 0.722, 0.651, 1],
   ],
