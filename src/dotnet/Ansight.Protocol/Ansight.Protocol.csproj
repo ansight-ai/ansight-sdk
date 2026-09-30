@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <AssemblyName>Ansight.Protocol</AssemblyName>
+    <RootNamespace>Ansight</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <PackageId>Ansight.Protocol</PackageId>
+    <Description>Portable Ansight app-to-host protocol contracts, device profiles, JSON schemas and tool payload encoding.</Description>
+    <PackageTags>ansight;protocol;telemetry;tools;mobile</PackageTags>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+</Project>

@@ -28,7 +28,7 @@ class PairingConfigDocumentServiceTest {
         assertEquals("invite-1", document.config.configId)
         assertEquals(listOf("192.168.1.24", "fd00::24"), document.discoveryHint?.hostAddresses)
         assertEquals(45_200, document.discoveryHint?.discoveryPort)
-        assertEquals("studio-qr", document.discoveryHint?.source)
+        assertEquals("ansight-qr", document.discoveryHint?.source)
     }
 
     @Test
@@ -75,7 +75,7 @@ class PairingConfigDocumentServiceTest {
             "discovery",
             JSONObject()
                 .put("schema", "ansight.discovery-hint.v1")
-                .put("source", "studio-qr")
+                .put("source", "ansight-qr")
                 .put("hostAddresses", JSONArray(listOf("192.168.1.24", "fd00::24")))
                 .put("discoveryPort", 45_200)
                 .put("hostName", "Host Node")

@@ -121,6 +121,7 @@ echo
 for package_id in \
   Ansight.Native.Android.Binding \
   Ansight.Native.Apple.Binding \
+  Ansight.Protocol \
   Ansight.Core \
   Ansight.Annotations \
   Ansight.OfflineCapture \

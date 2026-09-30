@@ -5,6 +5,13 @@ CocoaPods, React Native, Capacitor, and Flutter. Release all surfaces at the
 same version so framework packages never point at an unpublished native
 dependency.
 
+The .NET package set includes `Ansight.Protocol` alongside `Ansight.Core`.
+Protocol contains portable contracts only; Core declares it as a transitive
+dependency. Pack and publish both at the coordinated SDK version. The CLI pins
+the Protocol version independently: publish that package before releasing a CLI
+version that references it, and update the CLI pin when coordinating releases.
+For unreleased development, use the Protocol source override or a local NuGet feed.
+
 ## Prepare and validate
 
 Start from an up-to-date `main` branch with publishing credentials available

@@ -35,7 +35,7 @@ public sealed class ToolProtocolEnvelope
     /// <summary>
     /// Capability identifier associated with the envelope.
     /// </summary>
-    public string Capability { get; init; } = ToolProtocolBridge.Capability;
+    public string Capability { get; init; } = ToolProtocolMessageTypes.Capability;
 
     /// <summary>
     /// Arbitrary JSON payload carried by the envelope.

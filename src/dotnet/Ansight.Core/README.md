@@ -13,6 +13,12 @@ before choosing this lower-level package.
 dotnet add package Ansight.Core --prerelease
 ```
 
+Core depends on `Ansight.Protocol` for portable app-to-host messages, profiles,
+tool schemas and encoding. Package installation resolves it automatically.
+Moved public types retain their namespaces and Core type forwarders preserve
+existing compiled consumers. The CLI/harness depends only on Protocol and does
+not ship this SDK runtime.
+
 On Android, iOS, and Mac Catalyst, `Ansight.Core` automatically includes a thin
 binding to the platform Ansight runtime. The Kotlin or Swift runtime owns the
 saved registration, auto-connect loop, telemetry buffer, capture hooks, live
@@ -180,7 +186,7 @@ if (PairingConfigCodeGenerator.TryParse(compactCode, out var parsedConfigDocumen
 
 ## Remote tool registration
 
-The core package owns the tool abstractions and registration surface, including per-tool argument/result schemas for bridges such as MCP, but concrete tool groups live in separate packages.
+The core package owns the tool abstractions and registration surface, including per-tool argument/result schemas consumed by the host and CLI, but concrete tool groups live in separate packages.
 
 ```csharp
 using Ansight;

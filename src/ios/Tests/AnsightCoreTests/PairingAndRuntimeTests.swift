@@ -59,7 +59,7 @@ final class PairingAndRuntimeTests: XCTestCase {
         let configDocument = PairingConfigDocument(
             config: config,
             discovery: PairingDiscoveryHint(
-                source: "studio-qr",
+                source: "ansight-qr",
                 hostAddresses: [" 127.0.0.1 ", "127.0.0.1", "127.0.0.2"],
                 discoveryPort: 45123
             )
@@ -483,7 +483,7 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertEqual(document.discoveryHint?.discoveryPort, 45123)
     }
 
-    func testAutoConnectionPrioritizesLocalStudioBeforeStoredProfiles() throws {
+    func testAutoConnectionPrioritizesLocalHostBeforeStoredProfiles() throws {
         let savedStore = MemoryPairingConfigStore()
         let cachedStore = MemoryPairingConfigStore()
         try savedStore.save(TestPairingFactory.configDocumentJSON(configId: "cfg-saved", hostAddress: "127.0.0.1"))
@@ -775,7 +775,7 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertNil(cachedStore.load())
     }
 
-    func testAutoConnectionTriesEveryWellKnownLocalStudioPort() async throws {
+    func testAutoConnectionTriesEveryWellKnownLocalHostPort() async throws {
         try AnsightRuntime.shared.initialize(options: AnsightOptions(hostAutoProbe: .disabledDefault))
         try AnsightRuntime.shared.activate()
         AnsightRuntime.shared.replacePairingStoresForTesting(
@@ -801,7 +801,7 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertEqual(result.source, .autoProbe)
     }
 
-    func testAutoConnectionTriesLocalStudioPortsBeforeStaleSavedRegistration() async throws {
+    func testAutoConnectionTriesLocalHostPortsBeforeStaleSavedRegistration() async throws {
         let savedStore = MemoryPairingConfigStore()
         try savedStore.save(
             TestPairingFactory.configDocumentJSON(
@@ -1504,7 +1504,7 @@ final class PairingAndRuntimeTests: XCTestCase {
         }
     }
 
-    func testTouchInputWireProtocolPacksStudioCompatibleBatch() throws {
+    func testTouchInputWireProtocolPacksHostCompatibleBatch() throws {
         let start = Date(timeIntervalSince1970: 1_000)
         let touches = [
             AnsightCapturedTouch(

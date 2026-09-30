@@ -10,15 +10,15 @@ using System.Text.Json.Nodes;
 /// </summary>
 public sealed class ToolProtocolBridge
 {
-    public const string Capability = "tool.exec";
-    public const string QueryType = "tool.query";
-    public const string CatalogType = "tool.catalog";
-    public const string CallType = "tool.call";
-    public const string BatchType = "tool.batch";
-    public const string ResultType = "tool.result";
-    public const string BatchResultType = "tool.batch.result";
-    public const string ErrorType = "tool.error";
-    public const string CatalogSchema = "ansight.tool-catalog.v3";
+    public const string Capability = ToolProtocolMessageTypes.Capability;
+    public const string QueryType = ToolProtocolMessageTypes.QueryType;
+    public const string CatalogType = ToolProtocolMessageTypes.CatalogType;
+    public const string CallType = ToolProtocolMessageTypes.CallType;
+    public const string BatchType = ToolProtocolMessageTypes.BatchType;
+    public const string ResultType = ToolProtocolMessageTypes.ResultType;
+    public const string BatchResultType = ToolProtocolMessageTypes.BatchResultType;
+    public const string ErrorType = ToolProtocolMessageTypes.ErrorType;
+    public const string CatalogSchema = ToolProtocolMessageTypes.CatalogSchema;
 
     private const int MaximumBatchSize = 32;
     private const int MaximumEvidenceDelayMilliseconds = 2_000;

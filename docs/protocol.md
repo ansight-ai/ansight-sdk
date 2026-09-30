@@ -11,8 +11,8 @@ protocol. Older pairing handshakes and pairing-config formats are not accepted.
 The default developer flow is deliberately small:
 
 1. The app initializes and activates the SDK.
-2. A host-local runtime registers automatically with a running, signed-in
-   host through loopback.
+2. A host-local runtime registers automatically with a running local
+   host through loopback; no Ansight account is required.
 3. host shows one generic, short-lived, one-use enrollment QR.
 4. A physical app scans it and registers itself automatically.
 5. Later launches reconnect automatically while the registration is valid.
@@ -68,7 +68,7 @@ Document schema: `ansight.enrollment-invite-document.v2`
   },
   "discovery": {
     "schema": "ansight.discovery-hint.v1",
-    "source": "studio-qr",
+    "source": "ansight-qr",
     "hostAddresses": ["192.0.2.10"],
     "discoveryPort": 45123,
     "hostName": "Developer Mac",
@@ -103,7 +103,7 @@ a platform permission.
 
 For host-local runtimes, host creates or reuses a local grant keyed by the
 app id, installation id, and token. Local enrollment is accepted only when the
-UDP request originated from loopback and host has an authenticated account.
+UDP request originated from loopback and the running host accepts local enrollment.
 The SDK checks its well-known installed and source-build host ports with
 short loopback-only timeouts before trying older stored registrations. It
 retries while active, so host does not need to be running during the app

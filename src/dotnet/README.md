@@ -25,7 +25,8 @@ Local development features require no Ansight account or subscription.
 
 ## Package Model
 
-- `Ansight.Core`: core runtime, telemetry, host pairing protocol, tool abstractions, and build-time safety targets.
+- `Ansight.Protocol`: portable app-to-host messages, device profiles, JSON conventions, tool schemas and payload encoding; no SDK runtime, native bindings or build tasks.
+- `Ansight.Core`: app-side runtime, telemetry, host connection, tool execution and build-time safety targets. Depends on `Ansight.Protocol` and forwards the moved public types.
 - `Ansight.Annotations`: opt-in, Debug-only in-app feedback, screenshot, visual-tree, hook, artifact, and bundle delivery support.
 - `Ansight.OfflineCapture`: offline telemetry, event, touch, screenshot, and annotation storage with retention, ZIP/AES export, and team upload.
 - `Ansight`: all-in-one package for non-MAUI .NET apps. It depends on `Ansight.Core`, bundles annotations and offline capture without enabling either workflow, includes native pairing where supported, and includes all non-MAUI remote tool packages.
@@ -34,6 +35,11 @@ Local development features require no Ansight account or subscription.
 - `Ansight.Tools.*`: individual tool packages for apps that want explicit package-by-package control.
 
 The runtime namespace remains `Ansight` even when the NuGet package is `Ansight.Core`.
+
+The CLI/harness consumes `Ansight.Protocol` directly. App SDK packages continue
+to consume `Ansight.Core`; installing them resolves Protocol transitively.
+Existing namespaces and wire formats are preserved. Both packages are maintained
+in this repository and use the same source-available licence.
 
 ## Mobile Native Runtime
 
@@ -493,7 +499,7 @@ Use `Allowed` only when the build intentionally includes remote tools and you do
 
 ## Remote Tool Registration
 
-`Ansight.Core` contains `ITool`, `ToolPolicy`, `ToolSchema`, `ToolDefinition`, `ToolRegistry`, `ToolResult`, and the `OptionsBuilder` registration methods. Each tool declares one ordered policy (`Read`, `Write`, or `Critical`), plus explicit argument and result schemas for bridges such as MCP. A maximum policy grant includes all lower policies.
+`Ansight.Core` contains `ITool`, `ToolPolicy`, `ToolDefinition`, `ToolRegistry`, `ToolResult`, and the `OptionsBuilder` registration methods. `ToolSchema` is supplied transitively by `Ansight.Protocol` in its existing namespace. Each tool declares one ordered policy (`Read`, `Write`, or `Critical`), plus explicit argument and result schemas for the host and CLI. A maximum policy grant includes all lower policies.
 
 Concrete tool groups are delivered as separate packages and register through fluent extensions:
 
@@ -555,7 +561,7 @@ Reflection roots are the access boundary for `Ansight.Tools.Reflection`. Registe
 
 When a `PairingSessionClient` WebSocket session is open, inbound `tool.query` and `tool.call` messages are processed automatically and answered on the same socket. Discovery and execution remain subject to the configured `ToolGuard`.
 
-For file inspection, `Ansight.Tools.FileSystem` exposes `files.get_file_checksum` for sandboxed file fingerprints across `md5`, `sha1`, `sha256`, `sha384`, `sha512`, and `crc32`. For MCP-style extraction, `files.begin_binary_download` returns transfer metadata and then streams `ASFT` binary frames over the pairing WebSocket so the bridge can write bytes into a caller-chosen temp directory. `files.download_file` remains available as a JSON/base64 fallback.
+For file inspection, `Ansight.Tools.FileSystem` exposes `files.get_file_checksum` for sandboxed file fingerprints across `md5`, `sha1`, `sha256`, `sha384`, `sha512`, and `crc32`. For binary extraction, `files.begin_binary_download` returns transfer metadata and then streams `ASFT` binary frames over the pairing WebSocket so the host can write bytes into a caller-chosen temp directory. `files.download_file` remains available as a JSON/base64 fallback.
 
 ## Individual Packages
 

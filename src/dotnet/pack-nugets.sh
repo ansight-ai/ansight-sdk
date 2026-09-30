@@ -7,6 +7,7 @@ configuration="${1:-Release}"
 pack_mode="${2:-}"
 products_dir="$(pwd)/products"
 projects=(
+  "Ansight.Protocol/Ansight.Protocol.csproj"
   "Ansight.Native.Android.Binding/Ansight.Native.Android.Binding.csproj"
   "Ansight.Native.Apple.Binding/Ansight.Native.Apple.Binding.csproj"
   "Ansight.Core/Ansight.Core.csproj"

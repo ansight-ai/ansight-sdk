@@ -15,7 +15,7 @@ public sealed class PairingConfigCodeGeneratorTests
                 discoveryPort: 45200,
                 hostName: "Host Node",
                 wifiName: "Office Wifi",
-                source: "studio-qr",
+                source: "ansight-qr",
                 capturedAt: capturedAt));
 
         var compactCode = PairingConfigCodeGenerator.Serialize(document);

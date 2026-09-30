@@ -17,11 +17,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Ansight.Protocol\Ansight.Protocol.csproj" />
     <ProjectReference Include="..\Ansight.Build\Ansight.Build.csproj"
                       ReferenceOutputAssembly="false"
                       PrivateAssets="all"
                       SetTargetFramework="TargetFramework=netstandard2.0"
-                      GlobalPropertiesToRemove="TargetFramework;RuntimeIdentifier;RuntimeIdentifiers" />
+                      GlobalPropertiesToRemove="TargetFramework;TargetFrameworks;RuntimeIdentifier;RuntimeIdentifiers" />
     <None Include="build\Ansight.targets" Pack="true" PackagePath="buildTransitive\Ansight.Core.targets" />
     <None Include="..\Ansight.Build\bin\$(Configuration)\netstandard2.0\Ansight.Build.dll"
           Pack="true"
