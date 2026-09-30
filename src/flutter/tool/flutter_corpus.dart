@@ -2023,19 +2023,21 @@ void _writeReports(
   final jsonFile = File(options.reportJsonPath)
     ..parent.createSync(recursive: true);
   jsonFile.writeAsStringSync(
-    const JsonEncoder.withIndent('  ').convert(<String, Object?>{
-      'schema': 'ai.ansight.flutter.corpus-results.v1',
-      'generatedAt': finishedAt.toIso8601String(),
-      'sdkPath': options.sdkPath,
-      'suiteRoot': options.suiteRoot,
-      'target': _validationTarget,
-      'summary': <String, Object?>{
-        'total': results.length,
-        'passed': passed,
-        'failed': results.length - passed,
-      },
-      'apps': results.map((result) => result.toJson()).toList(),
-    }),
+    const JsonEncoder.withIndent('  ').convert(
+      _portableReportValue(<String, Object?>{
+        'schema': 'ai.ansight.flutter.corpus-results.v1',
+        'generatedAt': finishedAt.toIso8601String(),
+        'sdkPath': options.sdkPath,
+        'suiteRoot': options.suiteRoot,
+        'target': _validationTarget,
+        'summary': <String, Object?>{
+          'total': results.length,
+          'passed': passed,
+          'failed': results.length - passed,
+        },
+        'apps': results.map((result) => result.toJson()).toList(),
+      }, options),
+    ),
   );
 
   final markdown = StringBuffer()
@@ -2056,7 +2058,7 @@ void _writeReports(
         ? result.commands
             .map((command) => '${command.name}: ${command.duration.inSeconds}s')
             .join(', ')
-        : '${failure.name} failed; `${failure.logPath}`';
+        : '${failure.name} failed; `${_portableReportText(failure.logPath, options)}`';
     markdown.writeln(
       '| ${result.app.repo} | ${result.app.flutterLabel} | '
       '${result.passed ? 'PASS' : 'FAIL'} | $evidence |',
@@ -2073,6 +2075,30 @@ void _writeReports(
   final markdownFile = File(options.reportMarkdownPath)
     ..parent.createSync(recursive: true);
   markdownFile.writeAsStringSync(markdown.toString());
+}
+
+Object? _portableReportValue(Object? value, CorpusOptions options) {
+  if (value is String) return _portableReportText(value, options);
+  if (value is List<Object?>) {
+    return value.map((item) => _portableReportValue(item, options)).toList();
+  }
+  if (value is Map<String, Object?>) {
+    return value
+        .map((key, item) => MapEntry(key, _portableReportValue(item, options)));
+  }
+  return value;
+}
+
+String _portableReportText(String value, CorpusOptions options) {
+  var result = value
+      .replaceAll(options.sdkPath, '<ansight-sdk>')
+      .replaceAll(options.suiteRoot, '<validation-suite>');
+  final home =
+      Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
+  if (home != null && home.isNotEmpty) {
+    result = result.replaceAll(home, '~');
+  }
+  return result;
 }
 
 String _relativePath(String fromDirectory, String toDirectory) {

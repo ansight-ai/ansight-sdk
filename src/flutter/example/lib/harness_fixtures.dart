@@ -32,11 +32,11 @@ final class HarnessRoute {
 
 final class HarnessSceneState {
   double rotationSpeed = 46;
-  String paletteName = 'studio';
+  String paletteName = 'default';
   int lastFrameEpochMs = 0;
 
   void togglePalette() {
-    paletteName = paletteName == 'studio' ? 'thermal' : 'studio';
+    paletteName = paletteName == 'default' ? 'thermal' : 'default';
   }
 
   Map<String, Object?> toJson() => <String, Object?>{

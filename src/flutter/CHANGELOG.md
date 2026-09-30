@@ -1,3 +1,14 @@
+## Unreleased
+
+- Capture visible Flutter trees without exhausting depth and node limits on
+  structural framework wrappers; keep controls, keys and presentation owners.
+- Classify actual scroll controls instead of scroll observers, and exclude
+  private framework helpers from control roles.
+- Include logical viewport coordinates and RenderView bounds for replay wireframes.
+- Omit offstage branches and covered routes from compact captures using
+  Flutter's onstage traversal, while retaining visible dialog backgrounds.
+- Expose an explicit raw-tree option through the widget-tree tool schema.
+
 ## 1.6.1
 
 - Capture touches and touch-triggered visual trees from Android modal windows,
@@ -115,7 +126,7 @@
 
 ## 1.3.0-preview.1
 
-- Add screenshot-and-visual-tree session capture with Studio recording
+- Add screenshot-and-visual-tree session capture with host recording
   correlation.
 - Include string widget keys as automation identifiers in Flutter visual-tree
   snapshots.
@@ -135,7 +146,7 @@
 
 ## 1.1.0-preview.1
 
-- Add zero-touch local Studio enrollment for developer builds.
+- Add zero-touch local host enrollment for developer builds.
 - Add generic one-use physical-device enrollment QR support across Android,
   iOS, .NET, React Native, Capacitor, and Flutter.
 - Bind generic enrollment grants to the scanning app and installation while

@@ -1848,7 +1848,7 @@ final class HarnessScenePainter extends CustomPainter {
       ..shader = LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: paletteName == 'studio'
+        colors: paletteName == 'default'
             ? const <Color>[
                 Color(0xff171331),
                 Color(0xff0b2230),
@@ -1883,7 +1883,7 @@ final class HarnessScenePainter extends CustomPainter {
       return center +
           Offset(math.cos(pointAngle), math.sin(pointAngle) * 0.72) * radius;
     });
-    final accentColors = paletteName == 'studio'
+    final accentColors = paletteName == 'default'
         ? const <Color>[Color(0xff7557ff), Color(0xff24c7b1), Color(0xff56a8ff)]
         : const <Color>[
             Color(0xffff6b3d),

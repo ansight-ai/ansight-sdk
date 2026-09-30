@@ -246,10 +246,16 @@ class _AnsightFlutterCaptureBoundaryState
 /// Installs Flutter-specific lifecycle, navigation, frame, error, and widget
 /// inspection support on top of the native Ansight runtime.
 class AnsightFlutterInstrumentation with WidgetsBindingObserver {
-  AnsightFlutterInstrumentation._();
+  AnsightFlutterInstrumentation._(this._ansight);
+
+  @visibleForTesting
+  factory AnsightFlutterInstrumentation.withAnsight(Ansight ansight) =>
+      AnsightFlutterInstrumentation._(ansight);
 
   static final AnsightFlutterInstrumentation instance =
-      AnsightFlutterInstrumentation._();
+      AnsightFlutterInstrumentation._(Ansight.instance);
+
+  final Ansight _ansight;
 
   final List<String> _navigationStack = <String>[];
   final Map<String, Element> _elements = <String, Element>{};
@@ -290,7 +296,7 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
     await _registerFlutterChannels();
     if (registerWidgetTools) {
       await _registerWidgetTools();
-      await Ansight.instance.enableFlutterVisualTreeProvider();
+      await _ansight.enableFlutterVisualTreeProvider();
     }
     await _recordCurrentLifecycle();
   }
@@ -306,7 +312,7 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
       FlutterError.onError = _previousFlutterErrorHandler;
     }
     _restorePlatformErrorHandler();
-    Ansight.instance
+    _ansight
       ..removeLocalToolHandler(_visualTreeHandlerId)
       ..removeLocalToolHandler(_inspectNodeHandlerId)
       ..removeLocalToolHandler(_performActionHandlerId);
@@ -323,7 +329,7 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
     final mapped = state == AppLifecycleState.resumed
         ? AnsightLifecycleState.foreground
         : AnsightLifecycleState.background;
-    _ignore(Ansight.instance.setAppLifecycleState(mapped));
+    _ignore(_ansight.setAppLifecycleState(mapped));
   }
 
   void recordRoutePush(Route<dynamic> route) {
@@ -333,7 +339,7 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
       return;
     }
     _ignore(
-      Ansight.instance.screenViewed(
+      _ansight.screenViewed(
         name,
         details: <String, String>{
           'operation': 'push',
@@ -355,7 +361,7 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
         return;
       }
       _ignore(
-        Ansight.instance.screenViewed(
+        _ansight.screenViewed(
           name,
           details: <String, String>{
             'operation': 'replace',
@@ -377,7 +383,7 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
         return;
       }
       _ignore(
-        Ansight.instance.screenViewed(
+        _ansight.screenViewed(
           name,
           details: <String, String>{
             'operation': 'pop',
@@ -436,12 +442,12 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
       ),
     ];
     for (final channel in channels) {
-      await Ansight.instance.registerMetricChannel(channel);
+      await _ansight.registerMetricChannel(channel);
     }
   }
 
   Future<void> _registerWidgetTools() async {
-    Ansight.instance
+    _ansight
       ..registerLocalToolHandler(_visualTreeHandlerId, _getWidgetTree)
       ..registerLocalToolHandler(_inspectNodeHandlerId, _inspectWidget)
       ..registerLocalToolHandler(
@@ -457,6 +463,28 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
             'Returns the mounted Flutter element and render-object hierarchy.',
         category: 'flutter',
         keywords: <String>['flutter', 'widget', 'element', 'tree', 'layout'],
+        argumentsSchema: <String, Object?>{
+          'type': 'object',
+          'properties': <String, Object?>{
+            'maxDepth': <String, Object?>{
+              'type': 'integer',
+              'minimum': 1,
+              'maximum': 100,
+              'description': 'Maximum depth after structural compaction.',
+            },
+            'maxNodes': <String, Object?>{
+              'type': 'integer',
+              'minimum': 1,
+              'maximum': 10000,
+              'description': 'Maximum retained widget nodes.',
+            },
+            'compactUnaryNodes': <String, Object?>{
+              'type': 'boolean',
+              'description': 'Collapse structural wrappers. Defaults to true.',
+            },
+          },
+          'additionalProperties': true,
+        },
       ),
       _getWidgetTree,
     );
@@ -505,10 +533,10 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
     AnsightToolDefinition definition,
     AnsightToolHandler handler,
   ) async {
-    if (Ansight.instance.registeredToolIds.contains(definition.id)) {
-      await Ansight.instance.unregisterTool(definition.id);
+    if (_ansight.registeredToolIds.contains(definition.id)) {
+      await _ansight.unregisterTool(definition.id);
     }
-    await Ansight.instance.registerTool(definition, handler);
+    await _ansight.registerTool(definition, handler);
   }
 
   void _onFrameTimings(List<FrameTiming> timings) {
@@ -519,13 +547,13 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
       final buildMs = timing.buildDuration.inMicroseconds / 1000;
       final rasterMs = timing.rasterDuration.inMicroseconds / 1000;
       final totalMs = timing.totalSpan.inMicroseconds / 1000;
-      _ignore(Ansight.instance.metric(buildMs, channel: 40));
-      _ignore(Ansight.instance.metric(rasterMs, channel: 41));
-      _ignore(Ansight.instance.metric(totalMs, channel: 42));
-      _ignore(Ansight.instance.metric(1, channel: 43));
+      _ignore(_ansight.metric(buildMs, channel: 40));
+      _ignore(_ansight.metric(rasterMs, channel: 41));
+      _ignore(_ansight.metric(totalMs, channel: 42));
+      _ignore(_ansight.metric(1, channel: 43));
       if (totalMs >= 32) {
         _ignore(
-          Ansight.instance.event(
+          _ansight.event(
             'Flutter slow frame',
             type: AnsightEventType.warning,
             details: 'build=${buildMs.toStringAsFixed(2)}ms, '
@@ -554,7 +582,7 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
         .round();
     _desktopFrameCount = 0;
     _desktopFrameClock.reset();
-    _ignore(Ansight.instance.metric(framesPerSecond, channel: 3));
+    _ignore(_ansight.metric(framesPerSecond, channel: 3));
   }
 
   Future<AnsightJson?> _captureWidgetTreeForSession(
@@ -629,7 +657,7 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
   void _handleFlutterError(FlutterErrorDetails details) {
     if (_captureErrors) {
       _ignore(
-        Ansight.instance.recordCrashCandidate(
+        _ansight.recordCrashCandidate(
           kind: 'flutter_framework_error',
           message: details.exceptionAsString(),
           stack: details.stack?.toString(),
@@ -641,7 +669,7 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
         ),
       );
       _ignore(
-        Ansight.instance.event(
+        _ansight.event(
           details.exceptionAsString(),
           type: AnsightEventType.exception,
           details: details.stack?.toString(),
@@ -659,7 +687,7 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
   bool _handlePlatformError(Object error, StackTrace stack) {
     if (_captureErrors) {
       _ignore(
-        Ansight.instance.recordCrashCandidate(
+        _ansight.recordCrashCandidate(
           kind: 'flutter_platform_error',
           message: error.toString(),
           stack: stack.toString(),
@@ -667,7 +695,7 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
         ),
       );
       _ignore(
-        Ansight.instance.event(
+        _ansight.event(
           error.toString(),
           type: AnsightEventType.exception,
           details: stack.toString(),
@@ -684,8 +712,10 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
     Map<String, String> arguments,
     AnsightToolContext context, {
     Element? rootElement,
-    bool compactUnaryNodes = false,
+    bool compactUnaryNodes = true,
   }) async {
+    compactUnaryNodes = compactUnaryNodes &&
+        arguments['compactUnaryNodes']?.toLowerCase() != 'false';
     final maxDepth =
         int.tryParse(arguments['maxDepth'] ?? '')?.clamp(1, 100).toInt() ?? 40;
     final maxNodes =
@@ -716,7 +746,7 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
           (element.widget as Offstage).offstage) {
         return null;
       }
-      if (depth > maxDepth || visitedNodeCount >= maxNodes) {
+      if (depth > maxDepth || retainedNodeCount >= maxNodes) {
         truncated = true;
         return null;
       }
@@ -724,14 +754,18 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
       visitedNodeCount++;
       final node = _describeElement(element, depth: depth);
       final childElements = <Element>[];
-      element.visitChildren(childElements.add);
-      if (compactUnaryNodes &&
-          childElements.length == 1 &&
-          node['interactable'] != true &&
-          node['key'] == null) {
+      if (compactUnaryNodes) {
+        element.debugVisitOnstageChildren(childElements.add);
+      } else {
+        element.visitChildren(childElements.add);
+      }
+      final structuralUnaryNode =
+          childElements.length == 1 && _isStructuralElement(element, node);
+      if (compactUnaryNodes && structuralUnaryNode && node['key'] == null) {
         return capture(childElements.single, depth);
       }
 
+      retainedNodeCount++;
       final type = node.remove('type')?.toString() ?? 'FlutterWidget';
       node
         ..remove('parentId')
@@ -741,7 +775,9 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
 
       final children = <Object?>[];
       for (final child in childElements) {
-        final capturedChild = capture(child, depth + 1);
+        final childDepth =
+            depth + (compactUnaryNodes && structuralUnaryNode ? 0 : 1);
+        final capturedChild = capture(child, childDepth);
         if (capturedChild != null) {
           children.add(capturedChild);
         }
@@ -749,7 +785,6 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
       node
         ..['children'] = children
         ..['childCount'] = children.length;
-      retainedNodeCount++;
       return node;
     }
 
@@ -780,6 +815,7 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
       // ignore: deprecated_member_use
       captureRoot = WidgetsBinding.instance.renderViewElement;
     }
+    final viewport = captureRoot == null ? null : _viewportBounds(captureRoot);
     if (captureRoot != null) {
       final capturedRoot = capture(captureRoot, 0);
       if (capturedRoot != null) {
@@ -799,6 +835,8 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
         'capturedAtUtc': DateTime.now().toUtc().toIso8601String(),
         'types': types,
         'root': treeRoot,
+        if (viewport != null) 'coordinateSpace': _boundsJson(viewport),
+        'compactUnaryNodes': compactUnaryNodes,
         'nodeCount': retainedNodeCount,
         'visitedNodeCount': visitedNodeCount,
         'maxDepth': maxDepth,
@@ -998,20 +1036,23 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
     final renderObject = element.renderObject;
     final bounds = renderObject is RenderBox && renderObject.hasSize
         ? _globalBounds(renderObject)
-        : null;
+        : renderObject is RenderView
+            ? Offset.zero & renderObject.size
+            : null;
     final widget = element.widget;
     final visual = _describeVisual(element, widget, renderObject);
     final automationId = widget.key is ValueKey<String>
         ? (widget.key! as ValueKey<String>).value.trim()
         : null;
     final type = widget.runtimeType.toString();
-    final role = _semanticRole(type);
-    final supportedActions = _supportedActions(type);
-    final visible = renderObject == null ||
-        (renderObject.attached &&
-            (renderObject is! RenderBox ||
-                !renderObject.hasSize ||
-                !renderObject.size.isEmpty));
+    final role = _semanticRole(widget);
+    final supportedActions = _supportedActions(role);
+    final visible = (widget is! Offstage || !widget.offstage) &&
+        (renderObject == null ||
+            (renderObject.attached &&
+                (renderObject is! RenderBox ||
+                    !renderObject.hasSize ||
+                    !renderObject.size.isEmpty)));
     final enabled = element.owner != null;
     final text = visual['text']?.toString();
     return <String, Object?>{
@@ -1036,19 +1077,73 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
       if (renderObject != null)
         'renderObjectType': renderObject.runtimeType.toString(),
       'visual': visual,
-      if (bounds != null)
-        'bounds': <String, Object?>{
-          'x': bounds.left,
-          'y': bounds.top,
-          'width': bounds.width,
-          'height': bounds.height,
-        },
+      if (bounds != null) 'bounds': _boundsJson(bounds),
       'children': _childIds(element),
     };
   }
 
-  String _semanticRole(String type) {
-    final normalized = type.toLowerCase();
+  // Structural Elements often share a descendant's RenderObject. Keep actual
+  // presentation owners, controls and keys, rather than counting inherited
+  // framework wrappers against the visible hierarchy's depth/node budget.
+  bool _isStructuralElement(Element element, AnsightJson node) {
+    if (node['interactable'] == true || node['role'] != 'view') {
+      return false;
+    }
+    if (element is RenderObjectElement) {
+      final visual = node['visual'] as AnsightJson;
+      if (visual['text'] != null ||
+          visual['value'] != null ||
+          visual['background'] != null ||
+          visual['opacity'] != 1.0) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  Rect? _viewportBounds(Element element) {
+    RenderObject? renderObject = element.renderObject;
+    while (renderObject != null) {
+      if (renderObject is RenderView) {
+        final size = renderObject.size;
+        if (size.width.isFinite &&
+            size.height.isFinite &&
+            size.width > 0 &&
+            size.height > 0) {
+          return Offset.zero & size;
+        }
+        return null;
+      }
+      final parent = renderObject.parent;
+      renderObject = parent is RenderObject ? parent : null;
+    }
+    return null;
+  }
+
+  AnsightJson _boundsJson(Rect bounds) => <String, Object?>{
+        'x': bounds.left,
+        'y': bounds.top,
+        'width': bounds.width,
+        'height': bounds.height,
+      };
+
+  String _semanticRole(Widget widget) {
+    final normalized = widget.runtimeType.toString().toLowerCase();
+    // Actual controls may be private subclasses in application code.
+    if (widget is GestureDetector || widget is RawGestureDetector) {
+      return 'button';
+    }
+    if (widget is EditableText) return 'textbox';
+    if (widget is Text || widget is RichText) return 'text';
+    if (widget is Scrollable ||
+        widget is ScrollView ||
+        widget is SingleChildScrollView ||
+        widget is PageView ||
+        widget is ListWheelScrollView) {
+      return 'scrollview';
+    }
+    // Private framework gesture/scroll helpers are not application controls.
+    if (normalized.startsWith('_')) return 'view';
     if (normalized.contains('button') ||
         normalized.contains('gesture') ||
         normalized.contains('inkwell')) {
@@ -1061,32 +1156,15 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
     if (normalized.contains('checkbox')) return 'checkbox';
     if (normalized.contains('radio')) return 'radio';
     if (normalized.contains('slider')) return 'slider';
-    if (normalized.contains('scroll') ||
-        normalized.contains('listview') ||
-        normalized.contains('gridview')) {
-      return 'scrollview';
-    }
     if (normalized == 'text' || normalized.contains('richtext')) return 'text';
     return 'view';
   }
 
-  List<String> _supportedActions(String type) {
-    final normalized = type.toLowerCase();
-    final actions = <String>[];
-    if (normalized.contains('button') ||
-        normalized.contains('gesture') ||
-        normalized.contains('inkwell')) {
-      actions.add('tap');
-    }
-    if (normalized.contains('editable') || normalized.contains('textfield')) {
-      actions.addAll(const <String>['typeText', 'focus']);
-    }
-    if (normalized.contains('scroll') ||
-        normalized.contains('listview') ||
-        normalized.contains('gridview')) {
-      actions.addAll(const <String>['scroll', 'swipe']);
-    }
-    return actions;
+  List<String> _supportedActions(String role) {
+    if (role == 'button') return <String>['tap'];
+    if (role == 'textbox') return <String>['typeText', 'focus'];
+    if (role == 'scrollview') return <String>['scroll', 'swipe'];
+    return <String>[];
   }
 
   AnsightJson _describeVisual(

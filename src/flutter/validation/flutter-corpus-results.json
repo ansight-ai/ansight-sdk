@@ -1,8 +1,8 @@
 {
   "schema": "ai.ansight.flutter.corpus-results.v1",
   "generatedAt": "2026-07-30T06:24:51.552326Z",
-  "sdkPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter",
-  "suiteRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps",
+  "sdkPath": "<ansight-sdk>/src/flutter",
+  "suiteRoot": "<validation-suite>",
   "target": "lib/ansight_validation_main.dart",
   "summary": {
     "total": 25,
@@ -12,7 +12,7 @@
   "apps": [
     {
       "repo": "Anxcye/anx-reader",
-      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/Anxcye__anx-reader",
+      "appRoot": "<validation-suite>/flutter/Anxcye__anx-reader",
       "flutter": "3.38.8",
       "sdkConstraint": ">=3.5.2 <4.0.0",
       "legacy": false,
@@ -24,18 +24,18 @@
         {
           "name": "pub-get",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.38.8/bin/flutter",
+            "~/fvm/versions/3.38.8/bin/flutter",
             "pub",
             "get"
           ],
           "exitCode": 0,
           "durationMilliseconds": 4298,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/Anxcye__anx-reader/pub-get.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/Anxcye__anx-reader/pub-get.log"
         },
         {
           "name": "analyze-target",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.38.8/bin/flutter",
+            "~/fvm/versions/3.38.8/bin/flutter",
             "analyze",
             "--no-fatal-infos",
             "--no-fatal-warnings",
@@ -43,12 +43,12 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 16814,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/Anxcye__anx-reader/analyze-target.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/Anxcye__anx-reader/analyze-target.log"
         },
         {
           "name": "android-debug-apk",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.38.8/bin/flutter",
+            "~/fvm/versions/3.38.8/bin/flutter",
             "build",
             "apk",
             "--debug",
@@ -57,7 +57,7 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 1051132,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/Anxcye__anx-reader/android-debug-apk.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/Anxcye__anx-reader/android-debug-apk.log"
         },
         {
           "name": "apk-evidence",
@@ -66,13 +66,13 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 0,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/Anxcye__anx-reader/apk-evidence.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/Anxcye__anx-reader/apk-evidence.log"
         }
       ]
     },
     {
       "repo": "gskinnerTeam/flutter-wonderous-app",
-      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/gskinnerTeam__flutter-wonderous-app",
+      "appRoot": "<validation-suite>/flutter/gskinnerTeam__flutter-wonderous-app",
       "flutter": "stable",
       "sdkConstraint": "^3.8.0",
       "legacy": false,
@@ -84,18 +84,18 @@
         {
           "name": "pub-get",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/stable/bin/flutter",
+            "~/fvm/versions/stable/bin/flutter",
             "pub",
             "get"
           ],
           "exitCode": 0,
           "durationMilliseconds": 1298,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/gskinnerTeam__flutter-wonderous-app/pub-get.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/gskinnerTeam__flutter-wonderous-app/pub-get.log"
         },
         {
           "name": "analyze-target",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/stable/bin/flutter",
+            "~/fvm/versions/stable/bin/flutter",
             "analyze",
             "--no-fatal-infos",
             "--no-fatal-warnings",
@@ -103,12 +103,12 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 5672,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/gskinnerTeam__flutter-wonderous-app/analyze-target.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/gskinnerTeam__flutter-wonderous-app/analyze-target.log"
         },
         {
           "name": "android-debug-apk",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/stable/bin/flutter",
+            "~/fvm/versions/stable/bin/flutter",
             "build",
             "apk",
             "--debug",
@@ -117,7 +117,7 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 244759,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/gskinnerTeam__flutter-wonderous-app/android-debug-apk.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/gskinnerTeam__flutter-wonderous-app/android-debug-apk.log"
         },
         {
           "name": "apk-evidence",
@@ -126,13 +126,13 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 0,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/gskinnerTeam__flutter-wonderous-app/apk-evidence.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/gskinnerTeam__flutter-wonderous-app/apk-evidence.log"
         }
       ]
     },
     {
       "repo": "gskinnerTeam/flutter-folio",
-      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/gskinnerTeam__flutter-folio",
+      "appRoot": "<validation-suite>/flutter/gskinnerTeam__flutter-folio",
       "flutter": "3.0.5",
       "sdkConstraint": ">=2.12.0 <3.0.0",
       "legacy": true,
@@ -144,18 +144,18 @@
         {
           "name": "pub-get",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "pub",
             "get"
           ],
           "exitCode": 0,
           "durationMilliseconds": 5453,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/gskinnerTeam__flutter-folio/pub-get.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/gskinnerTeam__flutter-folio/pub-get.log"
         },
         {
           "name": "analyze-target",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "analyze",
             "--no-fatal-infos",
             "--no-fatal-warnings",
@@ -163,12 +163,12 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 4107,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/gskinnerTeam__flutter-folio/analyze-target.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/gskinnerTeam__flutter-folio/analyze-target.log"
         },
         {
           "name": "android-debug-apk",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "build",
             "apk",
             "--debug",
@@ -177,7 +177,7 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 113045,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/gskinnerTeam__flutter-folio/android-debug-apk.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/gskinnerTeam__flutter-folio/android-debug-apk.log"
         },
         {
           "name": "apk-evidence",
@@ -186,13 +186,13 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 0,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/gskinnerTeam__flutter-folio/apk-evidence.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/gskinnerTeam__flutter-folio/apk-evidence.log"
         }
       ]
     },
     {
       "repo": "yubo725/flutter-osc",
-      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/yubo725__flutter-osc",
+      "appRoot": "<validation-suite>/flutter/yubo725__flutter-osc",
       "flutter": "3.0.5",
       "sdkConstraint": ">=2.0.0-dev.68.0 <3.0.0",
       "legacy": true,
@@ -204,18 +204,18 @@
         {
           "name": "pub-get",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "pub",
             "get"
           ],
           "exitCode": 0,
           "durationMilliseconds": 2262,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/yubo725__flutter-osc/pub-get.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/yubo725__flutter-osc/pub-get.log"
         },
         {
           "name": "analyze-target",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "analyze",
             "--no-fatal-infos",
             "--no-fatal-warnings",
@@ -223,12 +223,12 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 2087,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/yubo725__flutter-osc/analyze-target.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/yubo725__flutter-osc/analyze-target.log"
         },
         {
           "name": "android-debug-apk",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "build",
             "apk",
             "--debug",
@@ -237,7 +237,7 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 16348,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/yubo725__flutter-osc/android-debug-apk.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/yubo725__flutter-osc/android-debug-apk.log"
         },
         {
           "name": "apk-evidence",
@@ -246,13 +246,13 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 0,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/yubo725__flutter-osc/apk-evidence.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/yubo725__flutter-osc/apk-evidence.log"
         }
       ]
     },
     {
       "repo": "X-Wei/flutter_catalog",
-      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/X-Wei__flutter_catalog",
+      "appRoot": "<validation-suite>/flutter/X-Wei__flutter_catalog",
       "flutter": "stable",
       "sdkConstraint": ">=3.11.0 <4.0.0",
       "legacy": false,
@@ -264,18 +264,18 @@
         {
           "name": "pub-get",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/stable/bin/flutter",
+            "~/fvm/versions/stable/bin/flutter",
             "pub",
             "get"
           ],
           "exitCode": 0,
           "durationMilliseconds": 3200,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/X-Wei__flutter_catalog/pub-get.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/X-Wei__flutter_catalog/pub-get.log"
         },
         {
           "name": "code-generation",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/stable/bin/flutter",
+            "~/fvm/versions/stable/bin/flutter",
             "pub",
             "run",
             "build_runner",
@@ -284,12 +284,12 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 20165,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/X-Wei__flutter_catalog/code-generation.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/X-Wei__flutter_catalog/code-generation.log"
         },
         {
           "name": "analyze-target",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/stable/bin/flutter",
+            "~/fvm/versions/stable/bin/flutter",
             "analyze",
             "--no-fatal-infos",
             "--no-fatal-warnings",
@@ -297,12 +297,12 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 11381,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/X-Wei__flutter_catalog/analyze-target.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/X-Wei__flutter_catalog/analyze-target.log"
         },
         {
           "name": "android-debug-apk",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/stable/bin/flutter",
+            "~/fvm/versions/stable/bin/flutter",
             "build",
             "apk",
             "--debug",
@@ -311,7 +311,7 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 61029,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/X-Wei__flutter_catalog/android-debug-apk.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/X-Wei__flutter_catalog/android-debug-apk.log"
         },
         {
           "name": "apk-evidence",
@@ -320,13 +320,13 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 0,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/X-Wei__flutter_catalog/apk-evidence.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/X-Wei__flutter_catalog/apk-evidence.log"
         }
       ]
     },
     {
       "repo": "asjqkkkk/flutter-todos",
-      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/asjqkkkk__flutter-todos",
+      "appRoot": "<validation-suite>/flutter/asjqkkkk__flutter-todos",
       "flutter": "3.0.5",
       "sdkConstraint": ">=2.6.0 <3.0.0",
       "legacy": true,
@@ -338,18 +338,18 @@
         {
           "name": "pub-get",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "pub",
             "get"
           ],
           "exitCode": 0,
           "durationMilliseconds": 3194,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/asjqkkkk__flutter-todos/pub-get.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/asjqkkkk__flutter-todos/pub-get.log"
         },
         {
           "name": "analyze-target",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "analyze",
             "--no-fatal-infos",
             "--no-fatal-warnings",
@@ -357,12 +357,12 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 4982,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/asjqkkkk__flutter-todos/analyze-target.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/asjqkkkk__flutter-todos/analyze-target.log"
         },
         {
           "name": "android-debug-apk",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "build",
             "apk",
             "--debug",
@@ -371,7 +371,7 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 125075,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/asjqkkkk__flutter-todos/android-debug-apk.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/asjqkkkk__flutter-todos/android-debug-apk.log"
         },
         {
           "name": "apk-evidence",
@@ -380,13 +380,13 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 0,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/asjqkkkk__flutter-todos/apk-evidence.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/asjqkkkk__flutter-todos/apk-evidence.log"
         }
       ]
     },
     {
       "repo": "mkobuolys/flutter-design-patterns",
-      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/mkobuolys__flutter-design-patterns",
+      "appRoot": "<validation-suite>/flutter/mkobuolys__flutter-design-patterns",
       "flutter": "stable",
       "sdkConstraint": ">=3.11.1 <4.0.0",
       "legacy": false,
@@ -398,18 +398,18 @@
         {
           "name": "pub-get",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/stable/bin/flutter",
+            "~/fvm/versions/stable/bin/flutter",
             "pub",
             "get"
           ],
           "exitCode": 0,
           "durationMilliseconds": 896,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/mkobuolys__flutter-design-patterns/pub-get.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/mkobuolys__flutter-design-patterns/pub-get.log"
         },
         {
           "name": "analyze-target",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/stable/bin/flutter",
+            "~/fvm/versions/stable/bin/flutter",
             "analyze",
             "--no-fatal-infos",
             "--no-fatal-warnings",
@@ -417,12 +417,12 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 2855,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/mkobuolys__flutter-design-patterns/analyze-target.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/mkobuolys__flutter-design-patterns/analyze-target.log"
         },
         {
           "name": "android-debug-apk",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/stable/bin/flutter",
+            "~/fvm/versions/stable/bin/flutter",
             "build",
             "apk",
             "--debug",
@@ -431,7 +431,7 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 23529,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/mkobuolys__flutter-design-patterns/android-debug-apk.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/mkobuolys__flutter-design-patterns/android-debug-apk.log"
         },
         {
           "name": "apk-evidence",
@@ -440,13 +440,13 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 0,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/mkobuolys__flutter-design-patterns/apk-evidence.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/mkobuolys__flutter-design-patterns/apk-evidence.log"
         }
       ]
     },
     {
       "repo": "AimesSoft/NipaPlay-Reload",
-      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/AimesSoft__NipaPlay-Reload",
+      "appRoot": "<validation-suite>/flutter/AimesSoft__NipaPlay-Reload",
       "flutter": "3.41.9",
       "sdkConstraint": "^3.5.3",
       "legacy": false,
@@ -458,18 +458,18 @@
         {
           "name": "pub-get",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.41.9/bin/flutter",
+            "~/fvm/versions/3.41.9/bin/flutter",
             "pub",
             "get"
           ],
           "exitCode": 0,
           "durationMilliseconds": 3807,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/AimesSoft__NipaPlay-Reload/pub-get.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/AimesSoft__NipaPlay-Reload/pub-get.log"
         },
         {
           "name": "analyze-target",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.41.9/bin/flutter",
+            "~/fvm/versions/3.41.9/bin/flutter",
             "analyze",
             "--no-fatal-infos",
             "--no-fatal-warnings",
@@ -477,12 +477,12 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 15828,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/AimesSoft__NipaPlay-Reload/analyze-target.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/AimesSoft__NipaPlay-Reload/analyze-target.log"
         },
         {
           "name": "android-debug-apk",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.41.9/bin/flutter",
+            "~/fvm/versions/3.41.9/bin/flutter",
             "build",
             "apk",
             "--debug",
@@ -491,7 +491,7 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 66962,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/AimesSoft__NipaPlay-Reload/android-debug-apk.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/AimesSoft__NipaPlay-Reload/android-debug-apk.log"
         },
         {
           "name": "apk-evidence",
@@ -500,13 +500,13 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 0,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/AimesSoft__NipaPlay-Reload/apk-evidence.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/AimesSoft__NipaPlay-Reload/apk-evidence.log"
         }
       ]
     },
     {
       "repo": "bizz84/layout-demo-flutter",
-      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/bizz84__layout-demo-flutter",
+      "appRoot": "<validation-suite>/flutter/bizz84__layout-demo-flutter",
       "flutter": "stable",
       "sdkConstraint": ">=3.8.0 <4.0.0",
       "legacy": false,
@@ -518,18 +518,18 @@
         {
           "name": "pub-get",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/stable/bin/flutter",
+            "~/fvm/versions/stable/bin/flutter",
             "pub",
             "get"
           ],
           "exitCode": 0,
           "durationMilliseconds": 4995,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/bizz84__layout-demo-flutter/pub-get.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/bizz84__layout-demo-flutter/pub-get.log"
         },
         {
           "name": "analyze-target",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/stable/bin/flutter",
+            "~/fvm/versions/stable/bin/flutter",
             "analyze",
             "--no-fatal-infos",
             "--no-fatal-warnings",
@@ -537,12 +537,12 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 8337,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/bizz84__layout-demo-flutter/analyze-target.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/bizz84__layout-demo-flutter/analyze-target.log"
         },
         {
           "name": "android-debug-apk",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/stable/bin/flutter",
+            "~/fvm/versions/stable/bin/flutter",
             "build",
             "apk",
             "--debug",
@@ -551,7 +551,7 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 175850,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/bizz84__layout-demo-flutter/android-debug-apk.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/bizz84__layout-demo-flutter/android-debug-apk.log"
         },
         {
           "name": "apk-evidence",
@@ -560,13 +560,13 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 0,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/bizz84__layout-demo-flutter/apk-evidence.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/bizz84__layout-demo-flutter/apk-evidence.log"
         }
       ]
     },
     {
       "repo": "RIP-Comm/sossoldi",
-      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/RIP-Comm__sossoldi",
+      "appRoot": "<validation-suite>/flutter/RIP-Comm__sossoldi",
       "flutter": "3.38.8",
       "sdkConstraint": "^3.10.7",
       "legacy": false,
@@ -578,18 +578,18 @@
         {
           "name": "pub-get",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.38.8/bin/flutter",
+            "~/fvm/versions/3.38.8/bin/flutter",
             "pub",
             "get"
           ],
           "exitCode": 0,
           "durationMilliseconds": 2602,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/RIP-Comm__sossoldi/pub-get.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/RIP-Comm__sossoldi/pub-get.log"
         },
         {
           "name": "analyze-target",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.38.8/bin/flutter",
+            "~/fvm/versions/3.38.8/bin/flutter",
             "analyze",
             "--no-fatal-infos",
             "--no-fatal-warnings",
@@ -597,12 +597,12 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 93203,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/RIP-Comm__sossoldi/analyze-target.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/RIP-Comm__sossoldi/analyze-target.log"
         },
         {
           "name": "android-debug-apk",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.38.8/bin/flutter",
+            "~/fvm/versions/3.38.8/bin/flutter",
             "build",
             "apk",
             "--debug",
@@ -612,7 +612,7 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 705732,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/RIP-Comm__sossoldi/android-debug-apk.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/RIP-Comm__sossoldi/android-debug-apk.log"
         },
         {
           "name": "apk-evidence",
@@ -621,13 +621,13 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 0,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/RIP-Comm__sossoldi/apk-evidence.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/RIP-Comm__sossoldi/apk-evidence.log"
         }
       ]
     },
     {
       "repo": "abuanwar072/Welcome-Login-Signup-Page-Flutter",
-      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/abuanwar072__Welcome-Login-Signup-Page-Flutter",
+      "appRoot": "<validation-suite>/flutter/abuanwar072__Welcome-Login-Signup-Page-Flutter",
       "flutter": "3.19.6",
       "sdkConstraint": ">=3.1.0 <4.0.0",
       "legacy": false,
@@ -639,18 +639,18 @@
         {
           "name": "pub-get",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.19.6/bin/flutter",
+            "~/fvm/versions/3.19.6/bin/flutter",
             "pub",
             "get"
           ],
           "exitCode": 0,
           "durationMilliseconds": 3293,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/abuanwar072__Welcome-Login-Signup-Page-Flutter/pub-get.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/abuanwar072__Welcome-Login-Signup-Page-Flutter/pub-get.log"
         },
         {
           "name": "analyze-target",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.19.6/bin/flutter",
+            "~/fvm/versions/3.19.6/bin/flutter",
             "analyze",
             "--no-fatal-infos",
             "--no-fatal-warnings",
@@ -658,12 +658,12 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 7699,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/abuanwar072__Welcome-Login-Signup-Page-Flutter/analyze-target.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/abuanwar072__Welcome-Login-Signup-Page-Flutter/analyze-target.log"
         },
         {
           "name": "android-debug-apk",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.19.6/bin/flutter",
+            "~/fvm/versions/3.19.6/bin/flutter",
             "build",
             "apk",
             "--debug",
@@ -672,7 +672,7 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 21502,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/abuanwar072__Welcome-Login-Signup-Page-Flutter/android-debug-apk.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/abuanwar072__Welcome-Login-Signup-Page-Flutter/android-debug-apk.log"
         },
         {
           "name": "apk-evidence",
@@ -681,13 +681,13 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 0,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/abuanwar072__Welcome-Login-Signup-Page-Flutter/apk-evidence.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/abuanwar072__Welcome-Login-Signup-Page-Flutter/apk-evidence.log"
         }
       ]
     },
     {
       "repo": "marchellodev/sharik",
-      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/marchellodev__sharik",
+      "appRoot": "<validation-suite>/flutter/marchellodev__sharik",
       "flutter": "3.0.5",
       "sdkConstraint": ">=2.17.0 <3.0.0",
       "legacy": true,
@@ -699,18 +699,18 @@
         {
           "name": "pub-get",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "pub",
             "get"
           ],
           "exitCode": 0,
           "durationMilliseconds": 4128,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/marchellodev__sharik/pub-get.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/marchellodev__sharik/pub-get.log"
         },
         {
           "name": "analyze-target",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "analyze",
             "--no-fatal-infos",
             "--no-fatal-warnings",
@@ -718,12 +718,12 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 2316,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/marchellodev__sharik/analyze-target.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/marchellodev__sharik/analyze-target.log"
         },
         {
           "name": "android-debug-apk",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "build",
             "apk",
             "--debug",
@@ -732,7 +732,7 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 21354,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/marchellodev__sharik/android-debug-apk.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/marchellodev__sharik/android-debug-apk.log"
         },
         {
           "name": "apk-evidence",
@@ -741,13 +741,13 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 0,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/marchellodev__sharik/apk-evidence.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/marchellodev__sharik/apk-evidence.log"
         }
       ]
     },
     {
       "repo": "guozhigq/flutter_v2ex",
-      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/guozhigq__flutter_v2ex",
+      "appRoot": "<validation-suite>/flutter/guozhigq__flutter_v2ex",
       "flutter": "stable",
       "sdkConstraint": ">=3.0.0 <4.0.0",
       "legacy": false,
@@ -759,18 +759,18 @@
         {
           "name": "pub-get",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/stable/bin/flutter",
+            "~/fvm/versions/stable/bin/flutter",
             "pub",
             "get"
           ],
           "exitCode": 0,
           "durationMilliseconds": 1828,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/guozhigq__flutter_v2ex/pub-get.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/guozhigq__flutter_v2ex/pub-get.log"
         },
         {
           "name": "analyze-target",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/stable/bin/flutter",
+            "~/fvm/versions/stable/bin/flutter",
             "analyze",
             "--no-fatal-infos",
             "--no-fatal-warnings",
@@ -778,12 +778,12 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 11575,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/guozhigq__flutter_v2ex/analyze-target.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/guozhigq__flutter_v2ex/analyze-target.log"
         },
         {
           "name": "android-debug-apk",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/stable/bin/flutter",
+            "~/fvm/versions/stable/bin/flutter",
             "build",
             "apk",
             "--debug",
@@ -792,7 +792,7 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 33846,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/guozhigq__flutter_v2ex/android-debug-apk.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/guozhigq__flutter_v2ex/android-debug-apk.log"
         },
         {
           "name": "apk-evidence",
@@ -801,13 +801,13 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 0,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/guozhigq__flutter_v2ex/apk-evidence.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/guozhigq__flutter_v2ex/apk-evidence.log"
         }
       ]
     },
     {
       "repo": "darkmoonight/Rain",
-      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/darkmoonight__Rain",
+      "appRoot": "<validation-suite>/flutter/darkmoonight__Rain",
       "flutter": "stable",
       "sdkConstraint": ">=3.11.5 <4.0.0",
       "legacy": false,
@@ -819,18 +819,18 @@
         {
           "name": "pub-get",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/stable/bin/flutter",
+            "~/fvm/versions/stable/bin/flutter",
             "pub",
             "get"
           ],
           "exitCode": 0,
           "durationMilliseconds": 2494,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/darkmoonight__Rain/pub-get.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/darkmoonight__Rain/pub-get.log"
         },
         {
           "name": "analyze-target",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/stable/bin/flutter",
+            "~/fvm/versions/stable/bin/flutter",
             "analyze",
             "--no-fatal-infos",
             "--no-fatal-warnings",
@@ -838,12 +838,12 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 10295,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/darkmoonight__Rain/analyze-target.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/darkmoonight__Rain/analyze-target.log"
         },
         {
           "name": "android-debug-apk",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/stable/bin/flutter",
+            "~/fvm/versions/stable/bin/flutter",
             "build",
             "apk",
             "--debug",
@@ -852,7 +852,7 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 224832,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/darkmoonight__Rain/android-debug-apk.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/darkmoonight__Rain/android-debug-apk.log"
         },
         {
           "name": "apk-evidence",
@@ -861,13 +861,13 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 0,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/darkmoonight__Rain/apk-evidence.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/darkmoonight__Rain/apk-evidence.log"
         }
       ]
     },
     {
       "repo": "aaronoe/FlutterCinematic",
-      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/aaronoe__FlutterCinematic",
+      "appRoot": "<validation-suite>/flutter/aaronoe__FlutterCinematic",
       "flutter": "3.0.5",
       "sdkConstraint": "",
       "legacy": true,
@@ -879,18 +879,18 @@
         {
           "name": "pub-get",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "pub",
             "get"
           ],
           "exitCode": 0,
           "durationMilliseconds": 8301,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/aaronoe__FlutterCinematic/pub-get.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/aaronoe__FlutterCinematic/pub-get.log"
         },
         {
           "name": "analyze-target",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "analyze",
             "--no-fatal-infos",
             "--no-fatal-warnings",
@@ -898,12 +898,12 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 21526,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/aaronoe__FlutterCinematic/analyze-target.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/aaronoe__FlutterCinematic/analyze-target.log"
         },
         {
           "name": "android-debug-apk",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "build",
             "apk",
             "--debug",
@@ -912,13 +912,13 @@
           ],
           "exitCode": 1,
           "durationMilliseconds": 126199,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/aaronoe__FlutterCinematic/android-debug-apk.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/aaronoe__FlutterCinematic/android-debug-apk.log"
         }
       ]
     },
     {
       "repo": "mhmzdev/the-holy-quran-app",
-      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/mhmzdev__the-holy-quran-app",
+      "appRoot": "<validation-suite>/flutter/mhmzdev__the-holy-quran-app",
       "flutter": "3.38.8",
       "sdkConstraint": "3.8.1",
       "legacy": false,
@@ -930,19 +930,19 @@
         {
           "name": "pub-get",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.38.8/bin/flutter",
+            "~/fvm/versions/3.38.8/bin/flutter",
             "pub",
             "get"
           ],
           "exitCode": 69,
           "durationMilliseconds": 4420,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/mhmzdev__the-holy-quran-app/pub-get.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/mhmzdev__the-holy-quran-app/pub-get.log"
         }
       ]
     },
     {
       "repo": "KarimElghamry/chillify",
-      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/KarimElghamry__chillify",
+      "appRoot": "<validation-suite>/flutter/KarimElghamry__chillify",
       "flutter": "3.0.5",
       "sdkConstraint": ">=2.1.0 <3.0.0",
       "legacy": true,
@@ -954,18 +954,18 @@
         {
           "name": "pub-get",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "pub",
             "get"
           ],
           "exitCode": 0,
           "durationMilliseconds": 4256,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/KarimElghamry__chillify/pub-get.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/KarimElghamry__chillify/pub-get.log"
         },
         {
           "name": "analyze-target",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "analyze",
             "--no-fatal-infos",
             "--no-fatal-warnings",
@@ -973,12 +973,12 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 9296,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/KarimElghamry__chillify/analyze-target.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/KarimElghamry__chillify/analyze-target.log"
         },
         {
           "name": "android-debug-apk",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "build",
             "apk",
             "--debug",
@@ -987,13 +987,13 @@
           ],
           "exitCode": 1,
           "durationMilliseconds": 104875,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/KarimElghamry__chillify/android-debug-apk.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/KarimElghamry__chillify/android-debug-apk.log"
         }
       ]
     },
     {
       "repo": "CoderMikeHe/flutter_wechat",
-      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/CoderMikeHe__flutter_wechat",
+      "appRoot": "<validation-suite>/flutter/CoderMikeHe__flutter_wechat",
       "flutter": "3.0.5",
       "sdkConstraint": ">=2.5.0 <3.0.0",
       "legacy": true,
@@ -1005,18 +1005,18 @@
         {
           "name": "pub-get",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "pub",
             "get"
           ],
           "exitCode": 0,
           "durationMilliseconds": 11101,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/CoderMikeHe__flutter_wechat/pub-get.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/CoderMikeHe__flutter_wechat/pub-get.log"
         },
         {
           "name": "analyze-target",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "analyze",
             "--no-fatal-infos",
             "--no-fatal-warnings",
@@ -1024,12 +1024,12 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 33693,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/CoderMikeHe__flutter_wechat/analyze-target.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/CoderMikeHe__flutter_wechat/analyze-target.log"
         },
         {
           "name": "android-debug-apk",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "build",
             "apk",
             "--debug",
@@ -1038,13 +1038,13 @@
           ],
           "exitCode": 1,
           "durationMilliseconds": 105703,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/CoderMikeHe__flutter_wechat/android-debug-apk.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/CoderMikeHe__flutter_wechat/android-debug-apk.log"
         }
       ]
     },
     {
       "repo": "designDo/flutter-checkio",
-      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/designDo__flutter-checkio",
+      "appRoot": "<validation-suite>/flutter/designDo__flutter-checkio",
       "flutter": "3.0.5",
       "sdkConstraint": ">=2.7.0 <3.0.0",
       "legacy": true,
@@ -1056,18 +1056,18 @@
         {
           "name": "pub-get",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "pub",
             "get"
           ],
           "exitCode": 0,
           "durationMilliseconds": 23995,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/designDo__flutter-checkio/pub-get.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/designDo__flutter-checkio/pub-get.log"
         },
         {
           "name": "analyze-target",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "analyze",
             "--no-fatal-infos",
             "--no-fatal-warnings",
@@ -1075,12 +1075,12 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 42339,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/designDo__flutter-checkio/analyze-target.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/designDo__flutter-checkio/analyze-target.log"
         },
         {
           "name": "android-debug-apk",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "build",
             "apk",
             "--debug",
@@ -1089,7 +1089,7 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 127627,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/designDo__flutter-checkio/android-debug-apk.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/designDo__flutter-checkio/android-debug-apk.log"
         },
         {
           "name": "apk-evidence",
@@ -1098,13 +1098,13 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 0,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/designDo__flutter-checkio/apk-evidence.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/designDo__flutter-checkio/apk-evidence.log"
         }
       ]
     },
     {
       "repo": "bizz84/movie_app_state_management_flutter",
-      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/bizz84__movie_app_state_management_flutter/apps/flutter_bloc",
+      "appRoot": "<validation-suite>/flutter/bizz84__movie_app_state_management_flutter/apps/flutter_bloc",
       "flutter": "3.0.5",
       "sdkConstraint": ">=2.15.0 <3.0.0",
       "legacy": true,
@@ -1116,29 +1116,29 @@
         {
           "name": "pub-get",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "pub",
             "get"
           ],
           "exitCode": 0,
           "durationMilliseconds": 7758,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/bizz84__movie_app_state_management_flutter/pub-get.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/bizz84__movie_app_state_management_flutter/pub-get.log"
         },
         {
           "name": "workspace-pub-get",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "pub",
             "get"
           ],
           "exitCode": 0,
           "durationMilliseconds": 4663,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/bizz84__movie_app_state_management_flutter/workspace-pub-get.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/bizz84__movie_app_state_management_flutter/workspace-pub-get.log"
         },
         {
           "name": "workspace-code-generation",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "pub",
             "run",
             "build_runner",
@@ -1147,12 +1147,12 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 45312,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/bizz84__movie_app_state_management_flutter/workspace-code-generation.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/bizz84__movie_app_state_management_flutter/workspace-code-generation.log"
         },
         {
           "name": "analyze-target",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "analyze",
             "--no-fatal-infos",
             "--no-fatal-warnings",
@@ -1160,12 +1160,12 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 27055,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/bizz84__movie_app_state_management_flutter/analyze-target.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/bizz84__movie_app_state_management_flutter/analyze-target.log"
         },
         {
           "name": "android-debug-apk",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "build",
             "apk",
             "--debug",
@@ -1174,7 +1174,7 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 81788,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/bizz84__movie_app_state_management_flutter/android-debug-apk.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/bizz84__movie_app_state_management_flutter/android-debug-apk.log"
         },
         {
           "name": "apk-evidence",
@@ -1183,13 +1183,13 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 0,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/bizz84__movie_app_state_management_flutter/apk-evidence.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/bizz84__movie_app_state_management_flutter/apk-evidence.log"
         }
       ]
     },
     {
       "repo": "bimsina/notes-app",
-      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/bimsina__notes-app",
+      "appRoot": "<validation-suite>/flutter/bimsina__notes-app",
       "flutter": "3.0.5",
       "sdkConstraint": ">=2.8.0 <3.0.0",
       "legacy": true,
@@ -1201,18 +1201,18 @@
         {
           "name": "pub-get",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "pub",
             "get"
           ],
           "exitCode": 0,
           "durationMilliseconds": 11277,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/bimsina__notes-app/pub-get.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/bimsina__notes-app/pub-get.log"
         },
         {
           "name": "analyze-target",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "analyze",
             "--no-fatal-infos",
             "--no-fatal-warnings",
@@ -1220,12 +1220,12 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 8856,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/bimsina__notes-app/analyze-target.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/bimsina__notes-app/analyze-target.log"
         },
         {
           "name": "android-debug-apk",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "build",
             "apk",
             "--debug",
@@ -1234,7 +1234,7 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 80413,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/bimsina__notes-app/android-debug-apk.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/bimsina__notes-app/android-debug-apk.log"
         },
         {
           "name": "apk-evidence",
@@ -1243,13 +1243,13 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 0,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/bimsina__notes-app/apk-evidence.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/bimsina__notes-app/apk-evidence.log"
         }
       ]
     },
     {
       "repo": "redsolver/noteless",
-      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/redsolver__noteless",
+      "appRoot": "<validation-suite>/flutter/redsolver__noteless",
       "flutter": "3.0.5",
       "sdkConstraint": ">=2.5.0 <3.0.0",
       "legacy": true,
@@ -1261,18 +1261,18 @@
         {
           "name": "pub-get",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "pub",
             "get"
           ],
           "exitCode": 0,
           "durationMilliseconds": 21881,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/redsolver__noteless/pub-get.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/redsolver__noteless/pub-get.log"
         },
         {
           "name": "analyze-target",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "analyze",
             "--no-fatal-infos",
             "--no-fatal-warnings",
@@ -1280,12 +1280,12 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 58492,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/redsolver__noteless/analyze-target.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/redsolver__noteless/analyze-target.log"
         },
         {
           "name": "android-debug-apk",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "build",
             "apk",
             "--debug",
@@ -1294,13 +1294,13 @@
           ],
           "exitCode": 1,
           "durationMilliseconds": 142230,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/redsolver__noteless/android-debug-apk.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/redsolver__noteless/android-debug-apk.log"
         }
       ]
     },
     {
       "repo": "SAGARSURI/MyMovies",
-      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/SAGARSURI__MyMovies",
+      "appRoot": "<validation-suite>/flutter/SAGARSURI__MyMovies",
       "flutter": "3.0.5",
       "sdkConstraint": "",
       "legacy": true,
@@ -1312,18 +1312,18 @@
         {
           "name": "pub-get",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "pub",
             "get"
           ],
           "exitCode": 0,
           "durationMilliseconds": 13753,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/SAGARSURI__MyMovies/pub-get.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/SAGARSURI__MyMovies/pub-get.log"
         },
         {
           "name": "analyze-target",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "analyze",
             "--no-fatal-infos",
             "--no-fatal-warnings",
@@ -1331,12 +1331,12 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 26392,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/SAGARSURI__MyMovies/analyze-target.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/SAGARSURI__MyMovies/analyze-target.log"
         },
         {
           "name": "android-debug-apk",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "build",
             "apk",
             "--debug",
@@ -1345,13 +1345,13 @@
           ],
           "exitCode": 1,
           "durationMilliseconds": 78718,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/SAGARSURI__MyMovies/android-debug-apk.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/SAGARSURI__MyMovies/android-debug-apk.log"
         }
       ]
     },
     {
       "repo": "darkmoonight/Zest",
-      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/darkmoonight__Zest",
+      "appRoot": "<validation-suite>/flutter/darkmoonight__Zest",
       "flutter": "stable",
       "sdkConstraint": ">=3.11.5 <4.0.0",
       "legacy": false,
@@ -1363,18 +1363,18 @@
         {
           "name": "pub-get",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/stable/bin/flutter",
+            "~/fvm/versions/stable/bin/flutter",
             "pub",
             "get"
           ],
           "exitCode": 0,
           "durationMilliseconds": 8324,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/darkmoonight__Zest/pub-get.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/darkmoonight__Zest/pub-get.log"
         },
         {
           "name": "analyze-target",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/stable/bin/flutter",
+            "~/fvm/versions/stable/bin/flutter",
             "analyze",
             "--no-fatal-infos",
             "--no-fatal-warnings",
@@ -1382,12 +1382,12 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 107897,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/darkmoonight__Zest/analyze-target.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/darkmoonight__Zest/analyze-target.log"
         },
         {
           "name": "android-debug-apk",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/stable/bin/flutter",
+            "~/fvm/versions/stable/bin/flutter",
             "build",
             "apk",
             "--debug",
@@ -1396,7 +1396,7 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 62120,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/darkmoonight__Zest/android-debug-apk.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/darkmoonight__Zest/android-debug-apk.log"
         },
         {
           "name": "apk-evidence",
@@ -1405,13 +1405,13 @@
           ],
           "exitCode": 0,
           "durationMilliseconds": 0,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/darkmoonight__Zest/apk-evidence.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/darkmoonight__Zest/apk-evidence.log"
         }
       ]
     },
     {
       "repo": "LonelyCpp/flutter_weather",
-      "appRoot": "/Users/matthewrobbins/Development/git/ansight-sdk-test-apps/flutter/LonelyCpp__flutter_weather",
+      "appRoot": "<validation-suite>/flutter/LonelyCpp__flutter_weather",
       "flutter": "3.0.5",
       "sdkConstraint": ">=2.6.0 <3.0.0",
       "legacy": true,
@@ -1423,13 +1423,13 @@
         {
           "name": "pub-get",
           "command": [
-            "/Users/matthewrobbins/fvm/versions/3.0.5/bin/flutter",
+            "~/fvm/versions/3.0.5/bin/flutter",
             "pub",
             "get"
           ],
           "exitCode": 1,
           "durationMilliseconds": 1006,
-          "logPath": "/Users/matthewrobbins/Development/git/ansight-sdk/src/flutter/validation/logs/LonelyCpp__flutter_weather/pub-get.log"
+          "logPath": "<ansight-sdk>/src/flutter/validation/logs/LonelyCpp__flutter_weather/pub-get.log"
         }
       ]
     }

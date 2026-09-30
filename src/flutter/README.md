@@ -185,7 +185,27 @@ Set the JPEG capture option mode to
 periodic screenshots while the native runtime captures visual trees only on
 touch down and touch up. Move and cancel events do not trigger capture. Rapid
 boundaries are coalesced and rate-limited to protect screenshot cadence. Native
-touch capture and visual-tree providers must remain enabled.
+touch capture and visual-tree providers must remain enabled. This also retains
+Flutter trees when the host supplies simulator/emulator screenshots. The default
+`screenshotOnly` mode does not automatically record trees.
+
+```dart
+final options = createOptionsBuilder(
+  AnsightOptions.developer(clientName: 'My Flutter App'),
+).withSessionJpegCapture(const AnsightSessionJpegCaptureOptions(
+  mode: AnsightSessionJpegCaptureMode.screenshotWithVisualTreeOnTouch,
+)).build();
+```
+
+The Flutter tree tools compact unary structural wrappers by default so depth and
+node limits apply to the visible hierarchy. Controls, keys, text, colours and
+opacity remain in the capture. Keyed structural wrappers remain inspectable
+without consuming the visual depth limit. Compact traversal follows Flutter's
+onstage children, excluding covered routes and inactive IndexedStack pages
+while retaining visible backgrounds beneath dialogs. Every capture includes its logical viewport in
+`coordinateSpace`, independently of the root widget's bounds. Pass
+`compactUnaryNodes: false` to `flutter.get_widget_tree` to inspect the raw element
+hierarchy; raw trees can exhaust the depth limit before reaching app content.
 
 Open-file-handle and JNI reference-count diagnostics are disabled by default.
 Enable them with `withOpenFileHandleTracking()` and
