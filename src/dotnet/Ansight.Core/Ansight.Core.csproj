@@ -42,4 +42,5 @@
     <ProjectReference Include="..\Ansight.Native.Apple.Binding\Ansight.Native.Apple.Binding.csproj" />
   </ItemGroup>
 
+  <ItemGroup><InternalsVisibleTo Include="Ansight.Cloud.OfflineCapture" /></ItemGroup>
 </Project>

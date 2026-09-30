@@ -21,11 +21,6 @@ public sealed class OfflineCaptureExportOptions
     public bool IncludeRootDirectory { get; set; } = true;
 
     /// <summary>
-    /// Retained for source compatibility. Offline capture exports no longer generate expanded host session entries.
-    /// </summary>
-    public bool IncludeStudioSessionArchive { get; set; } = true;
-
-    /// <summary>
     /// Retained for source compatibility. Raw append-only .ansight capture files are always included.
     /// </summary>
     public bool IncludeRawCaptureFiles { get; set; } = true;

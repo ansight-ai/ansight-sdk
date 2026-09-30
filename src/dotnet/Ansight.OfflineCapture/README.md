@@ -28,39 +28,9 @@ await offlineCapture.ExportToFileAsync("capture.zip", new OfflineCaptureExportOp
 await offlineCapture.StopAsync();
 ```
 
-## Team upload
+## Optional cloud integration
 
-Team admins and owners can issue an app-scoped capture API key from the Ansight
-portal. The secret is shown once and can be revoked without changing an app's
-connection profile.
-
-Stop the capture before uploading so the exported archive is immutable:
-
-```csharp
-await offlineCapture.StopAsync();
-
-var result = await offlineCapture.UploadAsync(
-    new OfflineCaptureUploadOptions
-    {
-        ApiKey = Environment.GetEnvironmentVariable("ANSIGHT_CAPTURE_API_KEY")!,
-        Title = "Checkout regression"
-    },
-    new Progress<OfflineCaptureUploadProgress>(update =>
-    {
-        Console.WriteLine(
-            $"{update.Stage}: {update.BytesTransferred}/{update.TotalBytes}");
-    }));
-
-Console.WriteLine(result.SessionUrl);
-```
-
-`OfflineCaptureUploadOptions.Endpoint` defaults to the hosted Ansight ingest
-function and can be overridden for local development or self-hosting. Uploads
-are sent to a one-archive signed storage URL; the app-scoped key is never sent
-to object storage. The capture manifest must contain the same app/package ID
-that was bound to the key at issuance. Transient API and storage failures are
-retried with an idempotency key, and the temporary ZIP is removed after
-completion or failure.
+Capture and ZIP export require no Ansight account. Team upload is supplied by the separate private `Ansight.Cloud.OfflineCapture` integration assembly. Apps that opt into that service explicitly reference it alongside this package; ordinary capture apps have no cloud dependency.
 
 Data is written as compact JSONL in `.ansight/sessions/{sessionId}` with minified property names and append-only segment files. Offline capture uses the runtime retention period and `SessionJpegCapture` settings by default. Use the override properties only when offline capture needs behavior different from the active runtime configuration.
 
@@ -137,7 +107,7 @@ The SDK supports both file and stream export:
 - `OfflineCaptureExportOptions.Password` enables AES-256 entry encryption through SharpZipLib on current `net9.0` targets.
 - Without a password, export uses `System.IO.Compression.ZipArchive`.
 
-ZIP exports stream the raw `.ansight` session files directly. Export does not expand the captured JSONL into host archive JSON; host ingests the minified JSONL capture format directly. `IncludeStudioSessionArchive` and `IncludeRawCaptureFiles` are retained for source compatibility, but export no longer expands JSONL capture files into host-native aggregate JSON.
+ZIP exports stream the raw `.ansight` session files directly. Export does not expand the captured JSONL into host archive JSON; host ingests the minified JSONL capture format directly. `IncludeRawCaptureFiles` is retained for source compatibility, but export no longer expands JSONL capture files into host-native aggregate JSON.
 
 ## Samples
 
