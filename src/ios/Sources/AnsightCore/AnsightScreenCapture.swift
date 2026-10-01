@@ -14,10 +14,11 @@ enum AnsightScreenCapture {
         let renderStarted = AnsightTiming.now()
         let renderedImage = try await AnsightScreenSnapshotRenderer.renderTargetImageForCapture(
             maxWidth: options.maxWidth,
-            // WKWebView content is composited out-of-process. On physical
-            // devices, drawing before the pending screen transaction is
-            // committed produces a valid but entirely black image.
-            afterScreenUpdates: options.captureGpuBackedSurfaces,
+            // Capture the most recently rendered frame. Forcing a new screen
+            // update on every timed capture can repeatedly allocate GPU-backed
+            // surfaces while an otherwise idle screen is visible. WKWebView
+            // content is captured separately after screen updates below.
+            afterScreenUpdates: false,
             // Flutter's CAMetalLayer is omitted by drawHierarchy when the
             // intermediate UIGraphicsImageRenderer is marked opaque.
             opaque: false,
