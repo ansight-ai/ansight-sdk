@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name         = "AnsightToolsVisualTree"
-  s.version      = "1.6.1"
+  s.version      = "1.6.2"
   s.summary      = "Ansight visual-tree and screenshot remote tools for native iOS apps"
   s.homepage     = "https://github.com/ansight-ai/ansight-sdk"
   s.license      = { :type => "PolyForm Shield 1.0.0", :file => "LICENSE" }
