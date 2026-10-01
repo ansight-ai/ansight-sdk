@@ -16,6 +16,10 @@ handled by the Ansight iOS and Android SDKs. The JavaScript layer normalizes
 React Native inputs, forwards runtime calls to the native bridge, and registers
 JavaScript-backed tools for React component-tree inspection.
 
+Native touch capture includes available Apple Pencil and Android stylus/eraser
+pressure, angles, and hover data in the existing session touch records. See
+[the touch wire format](../../docs/protocol.md) for platform-specific fields.
+
 For guarded startup and CLI verification, see the
 [React Native getting-started guide](https://www.ansight.ai/docs/sdk/react-native/setup).
 

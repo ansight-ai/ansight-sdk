@@ -15,6 +15,11 @@ applications. It combines the native Android and Apple runtimes with
 Flutter-aware lifecycle, navigation, error, frame-timing, and widget-tree
 instrumentation.
 
+On iOS and Android, native touch capture carries available Apple Pencil and
+Android stylus/eraser pressure, angles, and hover data through the existing
+session records. macOS Flutter boundary pointer capture remains separate and
+does not provide those pen sensor fields. See [the touch wire format](../../docs/protocol.md).
+
 The package supports Flutter 3.0 or newer, Android API 24 or newer, iOS 15 or
 newer, and macOS 10.15 or newer.
 

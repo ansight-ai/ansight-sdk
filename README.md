@@ -17,7 +17,8 @@ Nothing leaves your machine unless you export or share it.
   capture
 - Visual trees with framework-aware inspection: MAUI pages and bindings,
   Flutter widgets, React components, and WebView DOM, alongside native views
-- Touches: taps, drags, long presses, and cancelled gestures, aligned to frames
+- Touches and pen input: taps, drags, Apple Pencil and Android stylus/eraser
+  contact, pressure, tilt, direction, and supported hover, aligned to frames
 - Logs from the app, plus SDK diagnostics
 - Crashes and unhandled errors, native and framework, with a durable outbox
   that hands the previous session's crash to the next launch
@@ -49,6 +50,12 @@ SDKs in this repository, all in beta:
 The Android, iOS, React Native, Capacitor, and Flutter SDKs mirror the same
 native runtime, host connection, telemetry, screenshot, touch capture, and
 remote-tool protocol used by the .NET SDK.
+
+Pen details travel with the existing touch records. Apple Pencil reports
+available force, altitude, azimuth, roll, coalesced samples, estimated updates,
+and hover; Android styluses report available pressure, tilt, orientation,
+distance, button state, and historical samples. Hardware-dependent values are
+omitted when unavailable. See [the touch wire format](docs/protocol.md).
 
 Flutter macOS uses the Swift runtime plus Flutter-owned compositor, widget-tree,
 frame-timing, and pointer capture. Native AppKit screenshots, AppKit visual-tree

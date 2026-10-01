@@ -32,14 +32,14 @@ first integration:
 ```swift
 .package(
     url: "https://github.com/ansight-ai/ansight-sdk.git",
-    exact: "1.3.0-preview.11"
+    exact: "1.6.3"
 )
 ```
 
 The matching CocoaPod is also published:
 
 ```ruby
-pod 'Ansight', '1.3.0-preview.11'
+pod 'Ansight', '1.6.3'
 ```
 
 Use `AnsightCore` plus selected tool products or pods only when the app needs a
@@ -60,7 +60,7 @@ complete package matrix, guarded startup locations, and CLI verification.
 - automatic UIKit foreground/background, UIKit view-controller screen-view, and SwiftUI `UIHostingController` root-view capture with explicit opt-out controls and app-provided route naming hooks
 - FPS telemetry sampling through `CADisplayLink` on UIKit platforms using the reserved FPS metric channel
 - live JPEG screen-frame capture using host's binary `ASJP` / `CLIENT_JPEG` WebSocket path
-- live UIKit touch capture using a simultaneous window gesture recognizer and host-compatible `CLIENT_TOUCH_INPUT` / `ansight.touches.v1` packed batches
+- live UIKit touch capture using a simultaneous window gesture recognizer and host-compatible `CLIENT_TOUCH_INPUT` / `ansight.touches.v1` packed batches; Apple Pencil records available force, altitude, azimuth, roll, coalesced samples, estimated updates, and supported hover
 - baseline Apple device/app profile collection without direct PII, including runtime stack codes, app icon payloads, Metal GPU/render-backend details, and coarse network transport
 - Keychain-backed app-installation registration and remembered host profiles with explicit clearing
 - queued `ansight.file-transfer.v1` binary artifact transfers for screenshot and file-download tools during live host sessions
