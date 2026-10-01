@@ -61,6 +61,7 @@ Capacitor, or Flutter.
 | GPU-backed surface capture option | Accepted for parity | Accepted for parity | Yes | Native; meaningful on iOS | Native; meaningful on iOS | Native; meaningful on iOS |
 | host-owned simulator/emulator screenshots | Yes | Yes | Yes | Native | Native | Native |
 | Touch capture and runtime enable/disable | Yes | Yes | Yes | Native | Native | Native |
+| Apple Pencil and Android stylus/eraser samples, with available pressure, angles, and hover | Native | Yes | Yes | Native | Native on mobile | Native |
 | Opt-in per-frame on-screen keyboard presence metadata | Yes | Yes | Yes | Native | Native | Native |
 | Touch-capture app guard | Yes | Yes | Yes | Native toggle; JS policy is app-owned | Native toggle; JS policy is app-owned | Native toggle; Dart policy is app-owned |
 | HTTP request capture | `HttpClient` handler plus manual API | Typed manual API | Typed manual API | Opt-in `fetch` / XHR | Opt-in `fetch` / XHR | `AnsightHttpClient` plus manual API |

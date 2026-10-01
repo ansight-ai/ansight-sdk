@@ -433,6 +433,7 @@ object AnsightRuntime {
                 capturedAtUtc = touch.capturedAtUtc,
                 capturedAtEpochMs = touch.capturedAtEpochMs,
                 sequence = ++nextTouchSequence,
+                details = touch.details,
             )
             touches += recorded
             trimTouchesLocked()
@@ -2178,13 +2179,17 @@ object AnsightRuntime {
                 JSONArray(ordered.map { touch ->
                     val delta = (touch.capturedAtEpochMs - first.capturedAtEpochMs).coerceAtLeast(0)
                     JSONArray(
-                        listOf(
+                        buildList {
+                            addAll(listOf(
                             delta,
                             when (touch.action) {
                                 "Down" -> 0
                                 "Move" -> 1
                                 "Up" -> 2
                                 "Cancel" -> 3
+                                "HoverEnter" -> 5
+                                "HoverMove" -> 6
+                                "HoverExit" -> 7
                                 else -> 4
                             },
                             touch.pointerId,
@@ -2192,7 +2197,23 @@ object AnsightRuntime {
                             touch.y,
                             touch.pointerIndex,
                             touch.pointerCount,
-                        ),
+                            ))
+                            touch.details?.let { details ->
+                                val sample = JSONObject()
+                                    .put("tool", details.tool)
+                                    .put("sampleKind", details.sampleKind)
+                                details.pressure?.takeIf(Double::isFinite)?.let { sample.put("pressure", it) }
+                                details.tiltRadians?.takeIf(Double::isFinite)?.let { sample.put("tiltRadians", it) }
+                                details.orientationRadians?.takeIf(Double::isFinite)?.let { sample.put("orientationRadians", it) }
+                                details.distance?.takeIf(Double::isFinite)?.let { sample.put("distance", it) }
+                                details.buttonState?.let { sample.put("buttonState", it) }
+                                details.touchMajor?.takeIf(Double::isFinite)?.let { sample.put("touchMajor", it) }
+                                details.touchMinor?.takeIf(Double::isFinite)?.let { sample.put("touchMinor", it) }
+                                details.toolMajor?.takeIf(Double::isFinite)?.let { sample.put("toolMajor", it) }
+                                details.toolMinor?.takeIf(Double::isFinite)?.let { sample.put("toolMinor", it) }
+                                add(sample)
+                            }
+                        },
                     )
                 }),
             )

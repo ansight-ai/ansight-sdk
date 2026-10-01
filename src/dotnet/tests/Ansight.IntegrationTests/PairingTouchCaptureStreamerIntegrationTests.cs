@@ -32,7 +32,14 @@ public sealed class PairingTouchCaptureStreamerIntegrationTests
             surfaceHeight: 200,
             coordinateUnit: "pixels",
             surfaceScale: 2,
-            DateTimeOffset.UtcNow));
+            DateTimeOffset.UtcNow,
+            new TouchSampleDetails
+            {
+                Tool = "stylus",
+                SampleKind = "coalesced",
+                Force = 1.5,
+                AltitudeRadians = 0.8
+            }));
 
         await server.WaitForTextMessagesAsync(1, TimeSpan.FromSeconds(5));
 
@@ -58,6 +65,9 @@ public sealed class PairingTouchCaptureStreamerIntegrationTests
             Assert.Equal(7, row[2].GetInt64());
             Assert.Equal(25, row[3].GetDouble());
             Assert.Equal(40, row[4].GetDouble());
+            Assert.Equal("stylus", row[7].GetProperty("tool").GetString());
+            Assert.Equal("coalesced", row[7].GetProperty("sampleKind").GetString());
+            Assert.Equal(1.5, row[7].GetProperty("force").GetDouble());
         }
 
         await streamer.StopAsync(progress: null, CancellationToken.None);

@@ -226,6 +226,12 @@ public sealed class OfflineCaptureTests
         Assert.DoesNotContain("rows", touchLine);
         Assert.Contains("\"a\":0", touchLine);
         Assert.Contains("\"p\":1", touchLine);
+        using (var touchDocument = JsonDocument.Parse(touchLine))
+        {
+            var details = touchDocument.RootElement.GetProperty("details");
+            Assert.Equal("stylus", details.GetProperty("tool").GetString());
+            Assert.Equal(1.5, details.GetProperty("force").GetDouble());
+        }
     }
 
     [Fact]
@@ -316,7 +322,12 @@ public sealed class OfflineCaptureTests
             surfaceHeight: 200,
             coordinateUnit: "pixels",
             surfaceScale: 2,
-            capturedAtUtc: DateTimeOffset.UtcNow);
+            capturedAtUtc: DateTimeOffset.UtcNow,
+            details: new TouchSampleDetails
+            {
+                Tool = "stylus",
+                Force = 1.5
+            });
     }
 
     private sealed class TemporaryDirectory : IDisposable

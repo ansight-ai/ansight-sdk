@@ -141,6 +141,11 @@ internal sealed class TouchVisualTreeCaptureCoordinator : IDisposable
 
     private void Observe(CapturedTouch touch)
     {
+        if (touch.Details?.SampleKind == "estimatedUpdate")
+        {
+            return;
+        }
+
         lock (stateLock)
         {
             if (captureCts is null || captureCts.IsCancellationRequested)

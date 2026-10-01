@@ -131,6 +131,14 @@ final class AnsightTouchCaptureSession: @unchecked Sendable {
         installedRecognizers.append(
             AnsightInstalledTouchRecognizer(window: window, recognizer: recognizer, delegate: delegate)
         )
+        if #available(iOS 16.4, macCatalyst 16.4, *) {
+            let hover = AnsightWindowHoverCaptureRecognizer(recordTouch: recordTouch)
+            hover.delegate = delegate
+            window.addGestureRecognizer(hover)
+            installedRecognizers.append(
+                AnsightInstalledTouchRecognizer(window: window, recognizer: hover, delegate: delegate)
+            )
+        }
     }
     #endif
 }

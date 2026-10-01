@@ -15,6 +15,11 @@ APIs. Use `ai.ansight:ansight-android` for the all-in-one developer setup, or
 compose `ansight-core-android`, `ansight-pairing-android`, and individual tool
 packages when you need a smaller runtime surface.
 
+Touch capture also records Android stylus and eraser input. Available pressure,
+tilt, orientation, hover distance, button state, contact dimensions, and
+historical move samples stay with the touch records. Values depend on the pen
+and digitizer; see [the touch wire format](../../docs/protocol.md).
+
 The native harness app lives in `harness/`.
 
 For the guarded setup and verification workflow, see the
@@ -26,7 +31,7 @@ Use the all-in-one package for development builds:
 
 ```kotlin
 dependencies {
-    implementation("ai.ansight:ansight-android:1.6.2")
+    implementation("ai.ansight:ansight-android:1.6.3")
 }
 ```
 
@@ -37,11 +42,11 @@ Minimal integrations can depend on only the packages they need:
 
 ```kotlin
 dependencies {
-    implementation("ai.ansight:ansight-core-android:1.6.2")
-    implementation("ai.ansight:ansight-pairing-android:1.6.2")
-    implementation("ai.ansight:ansight-tools-filedescriptordiagnostics-android:1.6.2")
-    implementation("ai.ansight:ansight-tools-jnireferencediagnostics-android:1.6.2")
-    implementation("ai.ansight:ansight-tools-visualtree-android:1.6.2")
+    implementation("ai.ansight:ansight-core-android:1.6.3")
+    implementation("ai.ansight:ansight-pairing-android:1.6.3")
+    implementation("ai.ansight:ansight-tools-filedescriptordiagnostics-android:1.6.3")
+    implementation("ai.ansight:ansight-tools-jnireferencediagnostics-android:1.6.3")
+    implementation("ai.ansight:ansight-tools-visualtree-android:1.6.3")
 }
 ```
 

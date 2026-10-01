@@ -16,6 +16,10 @@ session properties, logs, guarded remote tools, JavaScript custom tools,
 artifacts, DOM inspection, route tracking, lifecycle tracking, and JavaScript
 error capture through one TypeScript API.
 
+The native touch path also retains available Apple Pencil and Android
+stylus/eraser pressure, angles, and hover data across the WebView. See
+[the touch wire format](../../docs/protocol.md) for platform-specific fields.
+
 For guarded startup and CLI verification, see the
 [Capacitor getting-started guide](https://www.ansight.ai/docs/sdk/cordova/setup).
 

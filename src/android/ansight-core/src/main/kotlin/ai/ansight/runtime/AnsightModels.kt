@@ -549,6 +549,7 @@ data class RecordedTouch(
     val capturedAtUtc: String,
     val capturedAtEpochMs: Long,
     val sequence: Long,
+    val details: TouchSampleDetails? = null,
 )
 
 data class AnsightDebugSnapshot(

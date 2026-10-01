@@ -311,6 +311,23 @@ Telemetry is sent as WebSocket text messages:
 - `CLIENT_NETWORK_REQUEST` carries one `ansight.network-request.v1` HTTP metadata record.
 - `CLIENT_VISUAL_TREE` carries screenshot-aligned or touch-triggered visual-tree snapshots.
 
+Touch rows retain their existing `[deltaMs, action, pointerId, x, y, pointerIndex?, pointerCount?]`
+prefix. When the SDK has input-tool details, it writes both pointer slots and adds an optional
+object at index 7. Older readers can continue to use the row prefix. Actions 5, 6, and 7
+represent stylus hover enter, move, and exit; older readers may treat them as unknown.
+The detail object may
+contain `tool` (`finger`, `stylus`, `eraser`, `mouse`, or `unknown`), `sampleKind` (`current`,
+`coalesced`, `historical`, `hover`, or `estimatedUpdate`), and platform-reported values. Apple Pencil
+values are `force`, `maximumPossibleForce`, `altitudeRadians`, `azimuthRadians`,
+`rollRadians`, hover `distance` (UIKit's normalized `zOffset`), `estimatedProperties`, `estimatedPropertiesExpectingUpdates`, and
+`estimationUpdateIndex`. Android stylus values are `pressure`, `tiltRadians`,
+`orientationRadians`, `distance`, `buttonState`, `touchMajor`, `touchMinor`, `toolMajor`,
+and `toolMinor`. These values retain their platform units and are absent when unavailable.
+`estimatedUpdate` rows correct earlier Pencil estimates with the same
+`estimationUpdateIndex`; they do not start a new gesture. Predicted points are not recorded.
+Pencil hover fields require a device and iPadOS version that reports them. Android hover
+fields depend on the stylus and digitizer.
+
 Network request messages use this shape:
 
 ```json

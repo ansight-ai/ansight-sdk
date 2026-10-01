@@ -446,7 +446,16 @@ internal sealed class AndroidTouchCaptureSession : ITouchCaptureSession
             return inner.DispatchTouchEvent(e);
         }
 
-        public bool DispatchGenericMotionEvent(MotionEvent? e) => inner.DispatchGenericMotionEvent(e);
+        public bool DispatchGenericMotionEvent(MotionEvent? e)
+        {
+            if (e is not null && e.PointerCount > 0 &&
+                e.ActionMasked is (MotionEventActions.HoverEnter or MotionEventActions.HoverMove or MotionEventActions.HoverExit) &&
+                e.GetToolType(e.ActionIndex) is (MotionEventToolType.Stylus or MotionEventToolType.Eraser))
+            {
+                Capture(e);
+            }
+            return inner.DispatchGenericMotionEvent(e);
+        }
 
         public bool DispatchKeyEvent(KeyEvent? e) => inner.DispatchKeyEvent(e);
 
@@ -549,6 +558,15 @@ internal sealed class AndroidTouchCaptureSession : ITouchCaptureSession
                             RecordAllPointers(motionEvent, CapturedTouchAction.Cancel);
                         }
                         break;
+                    case MotionEventActions.HoverEnter:
+                        RecordPointer(motionEvent, CapturedTouchAction.HoverEnter, motionEvent.ActionIndex);
+                        break;
+                    case MotionEventActions.HoverMove:
+                        RecordAllPointers(motionEvent, CapturedTouchAction.HoverMove);
+                        break;
+                    case MotionEventActions.HoverExit:
+                        RecordPointer(motionEvent, CapturedTouchAction.HoverExit, motionEvent.ActionIndex);
+                        break;
                 }
             }
             catch (System.Exception ex)
@@ -561,11 +579,20 @@ internal sealed class AndroidTouchCaptureSession : ITouchCaptureSession
         {
             for (var index = 0; index < motionEvent.PointerCount; index++)
             {
+                var toolType = motionEvent.GetToolType(index);
+                if (action is (CapturedTouchAction.Move or CapturedTouchAction.HoverMove) &&
+                    toolType is (MotionEventToolType.Stylus or MotionEventToolType.Eraser))
+                {
+                    for (var historyIndex = 0; historyIndex < motionEvent.HistorySize; historyIndex++)
+                    {
+                        RecordPointer(motionEvent, action, index, historyIndex);
+                    }
+                }
                 RecordPointer(motionEvent, action, index);
             }
         }
 
-        private void RecordPointer(MotionEvent motionEvent, CapturedTouchAction action, int pointerIndex)
+        private void RecordPointer(MotionEvent motionEvent, CapturedTouchAction action, int pointerIndex, int? historyIndex = null)
         {
             if (pointerIndex < 0 || pointerIndex >= motionEvent.PointerCount)
             {
@@ -576,8 +603,29 @@ internal sealed class AndroidTouchCaptureSession : ITouchCaptureSession
             var surfaceWidth = activityRootView?.Width > 0 ? activityRootView.Width : (int?)null;
             var surfaceHeight = activityRootView?.Height > 0 ? activityRootView.Height : (int?)null;
             var density = activity.Resources?.DisplayMetrics?.Density;
-            var x = (double)motionEvent.GetX(pointerIndex);
-            var y = (double)motionEvent.GetY(pointerIndex);
+            var x = historyIndex is int historyX
+                ? motionEvent.GetHistoricalX(pointerIndex, historyX)
+                : motionEvent.GetX(pointerIndex);
+            var y = historyIndex is int historyY
+                ? motionEvent.GetHistoricalY(pointerIndex, historyY)
+                : motionEvent.GetY(pointerIndex);
+            var toolType = motionEvent.GetToolType(pointerIndex);
+            var tool = toolType switch
+            {
+                MotionEventToolType.Stylus => "stylus",
+                MotionEventToolType.Eraser => "eraser",
+                MotionEventToolType.Finger => "finger",
+                MotionEventToolType.Mouse => "mouse",
+                _ => "unknown"
+            };
+            var isStylus = tool is "stylus" or "eraser";
+            double ReadAxis(Axis axis) => historyIndex is int history
+                ? motionEvent.GetHistoricalAxisValue(axis, pointerIndex, history)
+                : motionEvent.GetAxisValue(axis, pointerIndex);
+            var eventTime = historyIndex is int sampleIndex
+                ? motionEvent.GetHistoricalEventTime(sampleIndex)
+                : motionEvent.EventTime;
+            var capturedAtUtc = DateTimeOffset.UtcNow.AddMilliseconds(eventTime - SystemClock.UptimeMillis());
 
             var eventRootView = eventRootViewProvider();
             if (activityRootView != null &&
@@ -601,14 +649,31 @@ internal sealed class AndroidTouchCaptureSession : ITouchCaptureSession
                 surfaceHeight,
                 "pixels",
                 density,
-                DateTimeOffset.UtcNow);
+                capturedAtUtc,
+                new TouchSampleDetails
+                {
+                    Tool = tool,
+                    SampleKind = historyIndex is not null ? "historical"
+                        : action is CapturedTouchAction.HoverEnter or CapturedTouchAction.HoverMove or CapturedTouchAction.HoverExit
+                            ? "hover" : "current",
+                    Pressure = isStylus ? ReadAxis(Axis.Pressure) : null,
+                    TiltRadians = isStylus ? ReadAxis(Axis.Tilt) : null,
+                    OrientationRadians = isStylus ? ReadAxis(Axis.Orientation) : null,
+                    Distance = isStylus ? ReadAxis(Axis.Distance) : null,
+                    ButtonState = isStylus ? (int)motionEvent.ButtonState : null,
+                    TouchMajor = isStylus ? ReadAxis(Axis.TouchMajor) : null,
+                    TouchMinor = isStylus ? ReadAxis(Axis.TouchMinor) : null,
+                    ToolMajor = isStylus ? ReadAxis(Axis.ToolMajor) : null,
+                    ToolMinor = isStylus ? ReadAxis(Axis.ToolMinor) : null
+                });
 
             RecordCapturedTouch(capturedTouch);
         }
 
         private void RecordCapturedTouch(CapturedTouch capturedTouch)
         {
-            if (!moveThrottle.ShouldRecord(capturedTouch))
+            if (capturedTouch.Details?.Tool is not ("stylus" or "eraser") &&
+                !moveThrottle.ShouldRecord(capturedTouch))
             {
                 return;
             }

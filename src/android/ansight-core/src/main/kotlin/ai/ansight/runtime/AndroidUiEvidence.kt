@@ -15,6 +15,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
+import android.os.SystemClock
 import android.view.ActionMode
 import android.view.KeyEvent
 import android.view.Menu
@@ -65,12 +66,27 @@ data class CapturedTouch(
     val surfaceScale: Double?,
     val capturedAtUtc: String = AnsightClock.isoNow(),
     val capturedAtEpochMs: Long = System.currentTimeMillis(),
+    val details: TouchSampleDetails? = null,
 ) {
     val normalizedX: Double?
         get() = surfaceWidth?.takeIf { it > 0 }?.let { x / it }
     val normalizedY: Double?
         get() = surfaceHeight?.takeIf { it > 0 }?.let { y / it }
 }
+
+data class TouchSampleDetails(
+    val tool: String,
+    val sampleKind: String,
+    val pressure: Double? = null,
+    val tiltRadians: Double? = null,
+    val orientationRadians: Double? = null,
+    val distance: Double? = null,
+    val buttonState: Int? = null,
+    val touchMajor: Double? = null,
+    val touchMinor: Double? = null,
+    val toolMajor: Double? = null,
+    val toolMinor: Double? = null,
+)
 
 data class CapturedScreenshot(
     val bytes: ByteArray,
@@ -851,12 +867,25 @@ object AndroidUiEvidence {
             MotionEvent.ACTION_UP,
             MotionEvent.ACTION_POINTER_UP -> "Up"
             MotionEvent.ACTION_CANCEL -> "Cancel"
+            MotionEvent.ACTION_HOVER_ENTER -> "HoverEnter"
+            MotionEvent.ACTION_HOVER_MOVE -> "HoverMove"
+            MotionEvent.ACTION_HOVER_EXIT -> "HoverExit"
             else -> "Unknown"
         }
         val root = activity.window.decorView.rootView
         val rootLocation = IntArray(2)
         root.getLocationOnScreen(rootLocation)
-        if (event.actionMasked == MotionEvent.ACTION_MOVE) {
+        if (event.actionMasked == MotionEvent.ACTION_MOVE || event.actionMasked == MotionEvent.ACTION_HOVER_MOVE) {
+            for (index in 0 until event.pointerCount) {
+                if (event.getToolType(index) == MotionEvent.TOOL_TYPE_STYLUS ||
+                    event.getToolType(index) == MotionEvent.TOOL_TYPE_ERASER) {
+                    for (historyIndex in 0 until event.historySize) {
+                        notifyTouchCaptured(handler, touchFromEvent(event, index, action, root, rootLocation, historyIndex))
+                    }
+                }
+                notifyTouchCaptured(handler, touchFromEvent(event, index, action, root, rootLocation))
+            }
+        } else if (event.actionMasked == MotionEvent.ACTION_CANCEL) {
             for (index in 0 until event.pointerCount) {
                 notifyTouchCaptured(handler, touchFromEvent(event, index, action, root, rootLocation))
             }
@@ -870,18 +899,56 @@ object AndroidUiEvidence {
         touchObservers.forEach { observer -> runCatching { observer(touch) } }
     }
 
-    private fun touchFromEvent(event: MotionEvent, index: Int, action: String, root: View, rootLocation: IntArray): CapturedTouch =
-        CapturedTouch(
+    private fun touchFromEvent(
+        event: MotionEvent,
+        index: Int,
+        action: String,
+        root: View,
+        rootLocation: IntArray,
+        historyIndex: Int? = null,
+    ): CapturedTouch {
+        val eventTime = historyIndex?.let(event::getHistoricalEventTime) ?: event.eventTime
+        val capturedAtEpochMs = System.currentTimeMillis() - SystemClock.uptimeMillis() + eventTime
+        val tool = when (event.getToolType(index)) {
+            MotionEvent.TOOL_TYPE_STYLUS -> "stylus"
+            MotionEvent.TOOL_TYPE_ERASER -> "eraser"
+            MotionEvent.TOOL_TYPE_FINGER -> "finger"
+            MotionEvent.TOOL_TYPE_MOUSE -> "mouse"
+            else -> "unknown"
+        }
+        val x = historyIndex?.let { event.getHistoricalX(index, it) } ?: event.getX(index)
+        val y = historyIndex?.let { event.getHistoricalY(index, it) } ?: event.getY(index)
+        fun axis(axis: Int): Double = (historyIndex?.let { event.getHistoricalAxisValue(axis, index, it) }
+            ?: event.getAxisValue(axis, index)).toDouble()
+        val stylus = tool == "stylus" || tool == "eraser"
+        return CapturedTouch(
             action = action,
             pointerId = event.getPointerId(index).toLong(),
             pointerIndex = index,
             pointerCount = event.pointerCount,
-            x = (event.rawX + event.getX(index) - event.getX(0) - rootLocation[0]).toDouble(),
-            y = (event.rawY + event.getY(index) - event.getY(0) - rootLocation[1]).toDouble(),
+            x = (event.rawX + x - event.getX(0) - rootLocation[0]).toDouble(),
+            y = (event.rawY + y - event.getY(0) - rootLocation[1]).toDouble(),
             surfaceWidth = root.width.takeIf { it > 0 }?.toDouble(),
             surfaceHeight = root.height.takeIf { it > 0 }?.toDouble(),
             surfaceScale = root.resources.displayMetrics.density.toDouble(),
+            capturedAtUtc = AnsightClock.isoAt(capturedAtEpochMs),
+            capturedAtEpochMs = capturedAtEpochMs,
+            details = TouchSampleDetails(
+                tool = tool,
+                sampleKind = if (historyIndex != null) "historical"
+                    else if (action.startsWith("Hover")) "hover" else "current",
+                pressure = if (stylus) axis(MotionEvent.AXIS_PRESSURE) else null,
+                tiltRadians = if (stylus) axis(MotionEvent.AXIS_TILT) else null,
+                orientationRadians = if (stylus) axis(MotionEvent.AXIS_ORIENTATION) else null,
+                distance = if (stylus) axis(MotionEvent.AXIS_DISTANCE) else null,
+                buttonState = if (stylus) event.buttonState else null,
+                touchMajor = if (stylus) axis(MotionEvent.AXIS_TOUCH_MAJOR) else null,
+                touchMinor = if (stylus) axis(MotionEvent.AXIS_TOUCH_MINOR) else null,
+                toolMajor = if (stylus) axis(MotionEvent.AXIS_TOOL_MAJOR) else null,
+                toolMinor = if (stylus) axis(MotionEvent.AXIS_TOOL_MINOR) else null,
+            ),
         )
+    }
 
     private fun serializeView(
         view: View,
@@ -1194,7 +1261,17 @@ object AndroidUiEvidence {
             return delegate.dispatchTouchEvent(event)
         }
         override fun dispatchTrackballEvent(event: MotionEvent): Boolean = delegate.dispatchTrackballEvent(event)
-        override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean = delegate.dispatchGenericMotionEvent(event)
+        override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
+            if (event.pointerCount > 0 && (event.actionMasked == MotionEvent.ACTION_HOVER_ENTER ||
+                event.actionMasked == MotionEvent.ACTION_HOVER_MOVE ||
+                event.actionMasked == MotionEvent.ACTION_HOVER_EXIT)) {
+                val tool = event.getToolType(event.actionIndex.coerceIn(0, event.pointerCount - 1))
+                if (tool == MotionEvent.TOOL_TYPE_STYLUS || tool == MotionEvent.TOOL_TYPE_ERASER) {
+                    touchHandler(event)
+                }
+            }
+            return delegate.dispatchGenericMotionEvent(event)
+        }
         override fun dispatchPopulateAccessibilityEvent(event: AccessibilityEvent): Boolean = delegate.dispatchPopulateAccessibilityEvent(event)
         override fun onCreatePanelView(featureId: Int): View? = delegate.onCreatePanelView(featureId)
         override fun onCreatePanelMenu(featureId: Int, menu: Menu): Boolean = delegate.onCreatePanelMenu(featureId, menu)

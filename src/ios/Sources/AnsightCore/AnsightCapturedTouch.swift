@@ -1,5 +1,19 @@
 import Foundation
 
+struct AnsightTouchDetails: Sendable, Codable, Equatable {
+    let tool: String
+    let sampleKind: String
+    let force: Double?
+    let maximumPossibleForce: Double?
+    let altitudeRadians: Double?
+    let azimuthRadians: Double?
+    let rollRadians: Double?
+    let distance: Double?
+    let estimatedProperties: Int64?
+    let estimatedPropertiesExpectingUpdates: Int64?
+    let estimationUpdateIndex: Int64?
+}
+
 struct AnsightCapturedTouch: Sendable, Codable, Equatable, Identifiable {
     let id: String
     let action: AnsightCapturedTouchAction
@@ -13,6 +27,7 @@ struct AnsightCapturedTouch: Sendable, Codable, Equatable, Identifiable {
     let coordinateUnit: String
     let surfaceScale: Double?
     let capturedAt: Date
+    let details: AnsightTouchDetails?
 
     init(
         id: String = UUID().uuidString.lowercased(),
@@ -26,7 +41,8 @@ struct AnsightCapturedTouch: Sendable, Codable, Equatable, Identifiable {
         surfaceHeight: Double?,
         coordinateUnit: String,
         surfaceScale: Double?,
-        capturedAt: Date = Date()
+        capturedAt: Date = Date(),
+        details: AnsightTouchDetails? = nil
     ) {
         self.id = id
         self.action = action
@@ -42,6 +58,7 @@ struct AnsightCapturedTouch: Sendable, Codable, Equatable, Identifiable {
             : coordinateUnit.trimmingCharacters(in: .whitespacesAndNewlines)
         self.surfaceScale = surfaceScale
         self.capturedAt = capturedAt
+        self.details = details
     }
 
     var coordinateSpace: String {

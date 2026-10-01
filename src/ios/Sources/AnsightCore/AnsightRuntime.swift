@@ -950,7 +950,9 @@ public final class AnsightRuntime: @unchecked Sendable {
         }
 
         captureTargets.0?.record(touch)
-        captureTargets.1?.observe(touch)
+        if touch.details?.sampleKind != "estimatedUpdate" && touch.details?.sampleKind != "hover" {
+            captureTargets.1?.observe(touch)
+        }
     }
 
     public func connect(_ request: HostConnectionRequest = .auto()) async -> HostConnectionResult {
