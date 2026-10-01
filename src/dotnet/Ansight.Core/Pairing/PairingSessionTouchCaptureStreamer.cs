@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Ansight.Input;
 
 namespace Ansight.Pairing;
@@ -17,6 +18,13 @@ internal sealed class PairingSessionTouchCaptureStreamer : IDisposable
     private const int ActionUp = 2;
     private const int ActionCancel = 3;
     private const int ActionUnknown = 4;
+    private const int ActionHoverEnter = 5;
+    private const int ActionHoverMove = 6;
+    private const int ActionHoverExit = 7;
+    private static readonly JsonSerializerOptions touchDetailsJson = new(PairingJson.Compact)
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
 
     private readonly PairingSessionTransport transport;
     private readonly SemaphoreSlim signal = new(0, 1);
@@ -297,10 +305,15 @@ internal sealed class PairingSessionTouchCaptureStreamer : IDisposable
                 touch.X,
                 touch.Y
             };
-            if (touch.PointerIndex != 0 || touch.PointerCount != 1)
+            if (touch.PointerIndex != 0 || touch.PointerCount != 1 || touch.Details is not null)
             {
                 row.Add(touch.PointerIndex);
                 row.Add(touch.PointerCount);
+            }
+
+            if (touch.Details is not null)
+            {
+                row.Add(JsonSerializer.SerializeToElement(touch.Details, touchDetailsJson));
             }
 
             rows.Add(row.ToArray());
@@ -343,6 +356,9 @@ internal sealed class PairingSessionTouchCaptureStreamer : IDisposable
             CapturedTouchAction.Move => ActionMove,
             CapturedTouchAction.Up => ActionUp,
             CapturedTouchAction.Cancel => ActionCancel,
+            CapturedTouchAction.HoverEnter => ActionHoverEnter,
+            CapturedTouchAction.HoverMove => ActionHoverMove,
+            CapturedTouchAction.HoverExit => ActionHoverExit,
             _ => ActionUnknown
         };
     }

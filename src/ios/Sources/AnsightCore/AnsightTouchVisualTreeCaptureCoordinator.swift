@@ -62,7 +62,7 @@ final class AnsightTouchVisualTreeCaptureCoordinator: @unchecked Sendable {
             case .cancel:
                 activePointerIds.removeAll()
                 gestureId = nil
-            case .unknown:
+            case .hoverEnter, .hoverMove, .hoverExit, .unknown:
                 break
             }
         }
@@ -178,7 +178,7 @@ final class AnsightTouchVisualTreeCaptureCoordinator: @unchecked Sendable {
             return "up"
         case .cancel:
             return "cancel"
-        case .unknown:
+        case .hoverEnter, .hoverMove, .hoverExit, .unknown:
             return "unknown"
         }
     }

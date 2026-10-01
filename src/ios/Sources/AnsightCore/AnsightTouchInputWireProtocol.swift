@@ -65,9 +65,26 @@ enum AnsightTouchInputWireProtocol {
             .number(touch.y),
         ]
 
-        if touch.pointerIndex != 0 || touch.pointerCount != 1 {
+        if touch.pointerIndex != 0 || touch.pointerCount != 1 || touch.details != nil {
             row.append(.integer(Int64(touch.pointerIndex)))
             row.append(.integer(Int64(max(touch.pointerIndex + 1, touch.pointerCount))))
+        }
+
+        if let details = touch.details {
+            var value: [String: JSONValue] = [
+                "tool": .string(details.tool),
+                "sampleKind": .string(details.sampleKind),
+            ]
+            if let force = details.force, force.isFinite { value["force"] = .number(force) }
+            if let maximum = details.maximumPossibleForce, maximum.isFinite { value["maximumPossibleForce"] = .number(maximum) }
+            if let altitude = details.altitudeRadians, altitude.isFinite { value["altitudeRadians"] = .number(altitude) }
+            if let azimuth = details.azimuthRadians, azimuth.isFinite { value["azimuthRadians"] = .number(azimuth) }
+            if let roll = details.rollRadians, roll.isFinite { value["rollRadians"] = .number(roll) }
+            if let distance = details.distance, distance.isFinite { value["distance"] = .number(distance) }
+            if let estimated = details.estimatedProperties { value["estimatedProperties"] = .integer(estimated) }
+            if let expecting = details.estimatedPropertiesExpectingUpdates { value["estimatedPropertiesExpectingUpdates"] = .integer(expecting) }
+            if let index = details.estimationUpdateIndex { value["estimationUpdateIndex"] = .integer(index) }
+            row.append(.object(value))
         }
 
         return row

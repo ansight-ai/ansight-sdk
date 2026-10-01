@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Ansight.Network;
 
@@ -18,6 +19,11 @@ internal static class OfflineCaptureJson
     {
         WriteIndented = false,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+
+    private static readonly JsonSerializerOptions touchDetailsJson = new(Data)
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
     public static string Metric(Metric metric)
@@ -58,7 +64,10 @@ internal static class OfflineCaptureJson
             w = touch.SurfaceWidth,
             h = touch.SurfaceHeight,
             u = touch.CoordinateUnit,
-            s = touch.SurfaceScale
+            s = touch.SurfaceScale,
+            details = touch.Details is null
+                ? (JsonElement?)null
+                : JsonSerializer.SerializeToElement(touch.Details, touchDetailsJson)
         }, Data);
     }
 

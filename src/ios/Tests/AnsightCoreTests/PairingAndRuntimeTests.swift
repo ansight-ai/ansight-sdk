@@ -1555,6 +1555,78 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertEqual(rows[1][1] as? Int, 2)
     }
 
+    func testTouchInputWireProtocolPreservesPencilDetails() throws {
+        let touch = AnsightCapturedTouch(
+            action: .move,
+            pointerId: 7,
+            pointerIndex: 0,
+            pointerCount: 1,
+            x: 12,
+            y: 34,
+            surfaceWidth: 200,
+            surfaceHeight: 400,
+            coordinateUnit: "points",
+            surfaceScale: 2,
+            details: AnsightTouchDetails(
+                tool: "stylus",
+                sampleKind: "coalesced",
+                force: 1.5,
+                maximumPossibleForce: 4,
+                altitudeRadians: 0.8,
+                azimuthRadians: 1.2,
+                rollRadians: 0.3,
+                distance: nil,
+                estimatedProperties: 2,
+                estimatedPropertiesExpectingUpdates: 0,
+                estimationUpdateIndex: 42
+            )
+        )
+
+        let payload = try XCTUnwrap(AnsightTouchInputWireProtocol.payloads(for: [touch]).first)
+        let root = try XCTUnwrap(JSONSerialization.jsonObject(with: payload.jsonData()) as? [String: Any])
+        let rows = try XCTUnwrap(root["rows"] as? [[Any]])
+        let details = try XCTUnwrap(rows[0][7] as? [String: Any])
+        XCTAssertEqual(details["tool"] as? String, "stylus")
+        XCTAssertEqual(details["sampleKind"] as? String, "coalesced")
+        XCTAssertEqual(details["force"] as? Double, 1.5)
+        XCTAssertEqual(details["estimationUpdateIndex"] as? Int, 42)
+    }
+
+    func testTouchInputWireProtocolEncodesPencilHover() throws {
+        let touch = AnsightCapturedTouch(
+            action: .hoverMove,
+            pointerId: 9,
+            pointerIndex: 0,
+            pointerCount: 1,
+            x: 50,
+            y: 60,
+            surfaceWidth: 200,
+            surfaceHeight: 400,
+            coordinateUnit: "points",
+            surfaceScale: 2,
+            details: AnsightTouchDetails(
+                tool: "stylus",
+                sampleKind: "hover",
+                force: nil,
+                maximumPossibleForce: nil,
+                altitudeRadians: 0.5,
+                azimuthRadians: 1.0,
+                rollRadians: nil,
+                distance: 0.25,
+                estimatedProperties: nil,
+                estimatedPropertiesExpectingUpdates: nil,
+                estimationUpdateIndex: nil
+            )
+        )
+
+        let payload = try XCTUnwrap(AnsightTouchInputWireProtocol.payloads(for: [touch]).first)
+        let root = try XCTUnwrap(JSONSerialization.jsonObject(with: payload.jsonData()) as? [String: Any])
+        let rows = try XCTUnwrap(root["rows"] as? [[Any]])
+        XCTAssertEqual(rows[0][1] as? Int, 6)
+        let details = try XCTUnwrap(rows[0][7] as? [String: Any])
+        XCTAssertEqual(details["distance"] as? Double, 0.25)
+    }
+
     func testRuntimeRecordsCapturedTouchInDebugSnapshot() throws {
         try AnsightRuntime.shared.initialize(
             options: AnsightOptions(hostAutoProbe: .disabledDefault)

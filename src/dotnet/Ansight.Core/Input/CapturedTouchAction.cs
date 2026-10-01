@@ -5,5 +5,8 @@ internal enum CapturedTouchAction
     Down,
     Move,
     Up,
-    Cancel
+    Cancel,
+    HoverEnter = 5,
+    HoverMove,
+    HoverExit
 }

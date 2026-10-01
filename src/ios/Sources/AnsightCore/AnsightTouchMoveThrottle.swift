@@ -25,8 +25,10 @@ final class AnsightTouchMoveThrottle: @unchecked Sendable {
         switch touch.action {
         case .down, .move:
             lastRecordedTouchByPointerId[touch.pointerId] = touch
-        case .up, .cancel, .unknown:
+        case .up, .cancel, .hoverExit, .unknown:
             lastRecordedTouchByPointerId.removeValue(forKey: touch.pointerId)
+        case .hoverEnter, .hoverMove:
+            break
         }
     }
 

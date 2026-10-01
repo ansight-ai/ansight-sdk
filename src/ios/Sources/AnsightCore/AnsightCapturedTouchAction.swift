@@ -5,6 +5,9 @@ enum AnsightCapturedTouchAction: Sendable, Codable, Equatable {
     case move
     case up
     case cancel
+    case hoverEnter
+    case hoverMove
+    case hoverExit
     case unknown
 
     var wireCode: Int {
@@ -17,6 +20,12 @@ enum AnsightCapturedTouchAction: Sendable, Codable, Equatable {
             return 2
         case .cancel:
             return 3
+        case .hoverEnter:
+            return 5
+        case .hoverMove:
+            return 6
+        case .hoverExit:
+            return 7
         case .unknown:
             return 4
         }

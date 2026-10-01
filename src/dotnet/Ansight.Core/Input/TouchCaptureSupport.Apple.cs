@@ -1,5 +1,6 @@
 #if IOS || MACCATALYST
 using Foundation;
+using ObjCRuntime;
 using UIKit;
 
 namespace Ansight.Input;
@@ -124,6 +125,85 @@ internal sealed class AppleTouchCaptureSession : ITouchCaptureSession
 
             window.AddGestureRecognizer(recognizer);
             installedRecognizers.Add(new InstalledRecognizer(window, recognizer, recognizerDelegate));
+            if (OperatingSystem.IsIOSVersionAtLeast(16, 4) ||
+                OperatingSystem.IsMacCatalystVersionAtLeast(16, 4))
+            {
+                var hoverDelegate = new SimultaneousGestureDelegate();
+                var hover = new WindowHoverCaptureRecognizer(recordTouch)
+                {
+                    Delegate = hoverDelegate,
+                    CancelsTouchesInView = false
+                };
+                window.AddGestureRecognizer(hover);
+                installedRecognizers.Add(new InstalledRecognizer(window, hover, hoverDelegate));
+            }
+        }
+    }
+
+    private sealed class WindowHoverCaptureRecognizer : UIHoverGestureRecognizer
+    {
+        private readonly Action<CapturedTouch> recordTouch;
+
+        public WindowHoverCaptureRecognizer(Action<CapturedTouch> recordTouch)
+            : base(null!, null!)
+        {
+            this.recordTouch = recordTouch;
+            AllowedTouchTypes = [NSNumber.FromInt32((int)UITouchType.Stylus)];
+            AddTarget(this, new Selector("captureHover:"));
+        }
+
+        [Export("captureHover:")]
+        private void CaptureHover(UIHoverGestureRecognizer recognizer)
+        {
+            if (View is not UIWindow window)
+            {
+                return;
+            }
+
+            var action = State switch
+            {
+                UIGestureRecognizerState.Began => CapturedTouchAction.HoverEnter,
+                UIGestureRecognizerState.Changed => CapturedTouchAction.HoverMove,
+                UIGestureRecognizerState.Ended or UIGestureRecognizerState.Cancelled => CapturedTouchAction.HoverExit,
+                _ => (CapturedTouchAction?)null
+            };
+            if (action is null)
+            {
+                return;
+            }
+
+            try
+            {
+                var point = LocationInView(window);
+                recordTouch(new CapturedTouch(
+                    action.Value,
+                    (long)(nint)Handle,
+                    0,
+                    1,
+                    point.X,
+                    point.Y,
+                    window.Bounds.Width,
+                    window.Bounds.Height,
+                    "points",
+                    window.Screen?.Scale ?? UIScreen.MainScreen.Scale,
+                    DateTimeOffset.UtcNow,
+                    new TouchSampleDetails
+                    {
+                        Tool = "stylus",
+                        SampleKind = "hover",
+                        AltitudeRadians = AltitudeAngle,
+                        AzimuthRadians = GetAzimuthAngle(window),
+                        RollRadians = OperatingSystem.IsIOSVersionAtLeast(17, 5) ||
+                            OperatingSystem.IsMacCatalystVersionAtLeast(17, 5)
+                            ? RollAngle
+                            : null,
+                        Distance = ZOffset
+                    }));
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning($"Apple Pencil hover capture skipped: {ex.Message}");
+            }
         }
     }
 
@@ -143,7 +223,7 @@ internal sealed class AppleTouchCaptureSession : ITouchCaptureSession
 
         public override void TouchesBegan(NSSet touches, UIEvent evt)
         {
-            RecordTouches(touches, CapturedTouchAction.Down);
+            RecordTouches(touches, CapturedTouchAction.Down, evt);
             var beginsGesture = activeTouchHandles.Count == 0;
             AddActiveTouches(touches);
             State = beginsGesture
@@ -155,7 +235,7 @@ internal sealed class AppleTouchCaptureSession : ITouchCaptureSession
         {
             if (options.CaptureMoveEvents)
             {
-                RecordTouches(touches, CapturedTouchAction.Move);
+                RecordTouches(touches, CapturedTouchAction.Move, evt);
             }
 
             State = UIGestureRecognizerState.Changed;
@@ -163,7 +243,7 @@ internal sealed class AppleTouchCaptureSession : ITouchCaptureSession
 
         public override void TouchesEnded(NSSet touches, UIEvent evt)
         {
-            RecordTouches(touches, CapturedTouchAction.Up);
+            RecordTouches(touches, CapturedTouchAction.Up, evt);
             RemoveActiveTouches(touches);
             State = activeTouchHandles.Count == 0
                 ? UIGestureRecognizerState.Ended
@@ -174,11 +254,16 @@ internal sealed class AppleTouchCaptureSession : ITouchCaptureSession
         {
             if (options.CaptureCancelEvents)
             {
-                RecordTouches(touches, CapturedTouchAction.Cancel);
+                RecordTouches(touches, CapturedTouchAction.Cancel, evt);
             }
 
             activeTouchHandles.Clear();
             State = UIGestureRecognizerState.Cancelled;
+        }
+
+        public override void TouchesEstimatedPropertiesUpdated(NSSet touches)
+        {
+            RecordTouches(touches, CapturedTouchAction.Move, null, "estimatedUpdate");
         }
 
         public override void Reset()
@@ -209,7 +294,11 @@ internal sealed class AppleTouchCaptureSession : ITouchCaptureSession
             }
         }
 
-        private void RecordTouches(NSSet touches, CapturedTouchAction action)
+        private void RecordTouches(
+            NSSet touches,
+            CapturedTouchAction action,
+            UIEvent? evt,
+            string? sampleKindOverride = null)
         {
             if (View is not UIWindow window)
             {
@@ -227,21 +316,51 @@ internal sealed class AppleTouchCaptureSession : ITouchCaptureSession
 
                 try
                 {
-                    var point = touch.LocationInView(window);
-                    var capturedTouch = new CapturedTouch(
-                        action,
-                        (long)(nint)touch.Handle,
-                        pointerIndex,
-                        pointerCount,
-                        point.X,
-                        point.Y,
-                        window.Bounds.Width,
-                        window.Bounds.Height,
-                        "points",
-                        window.Screen?.Scale ?? UIScreen.MainScreen.Scale,
-                        DateTimeOffset.UtcNow);
+                    var isPencil = touch.Type == UITouchType.Stylus;
+                    var samples = action == CapturedTouchAction.Move && isPencil && sampleKindOverride is null
+                        ? evt?.GetCoalescedTouches(touch) ?? [touch]
+                        : [touch];
+                    foreach (var sample in samples)
+                    {
+                        var point = sample.LocationInView(window);
+                        var details = new TouchSampleDetails
+                        {
+                            Tool = sample.Type switch
+                            {
+                                UITouchType.Stylus => "stylus",
+                                UITouchType.Direct => "finger",
+                                _ => "unknown"
+                            },
+                            SampleKind = sampleKindOverride ?? (sample.Timestamp == touch.Timestamp ? "current" : "coalesced"),
+                            Force = isPencil ? sample.Force : null,
+                            MaximumPossibleForce = isPencil ? sample.MaximumPossibleForce : null,
+                            AltitudeRadians = isPencil ? sample.AltitudeAngle : null,
+                            AzimuthRadians = isPencil ? sample.GetAzimuthAngle(window) : null,
+                            RollRadians = isPencil &&
+                                (OperatingSystem.IsIOSVersionAtLeast(17, 5) ||
+                                 OperatingSystem.IsMacCatalystVersionAtLeast(17, 5))
+                                ? sample.RollAngle
+                                : null,
+                            EstimatedProperties = isPencil ? (long)sample.EstimatedProperties : null,
+                            EstimatedPropertiesExpectingUpdates = isPencil ? (long)sample.EstimatedPropertiesExpectingUpdates : null,
+                            EstimationUpdateIndex = isPencil ? sample.EstimationUpdateIndex?.LongValue : null
+                        };
+                        var capturedTouch = new CapturedTouch(
+                            action,
+                            (long)(nint)touch.Handle,
+                            pointerIndex,
+                            pointerCount,
+                            point.X,
+                            point.Y,
+                            window.Bounds.Width,
+                            window.Bounds.Height,
+                            "points",
+                            window.Screen?.Scale ?? UIScreen.MainScreen.Scale,
+                            DateTimeOffset.UtcNow.AddSeconds(sample.Timestamp - NSProcessInfo.ProcessInfo.SystemUptime),
+                            details);
 
-                    RecordCapturedTouch(capturedTouch);
+                        RecordCapturedTouch(capturedTouch);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -254,7 +373,7 @@ internal sealed class AppleTouchCaptureSession : ITouchCaptureSession
 
         private void RecordCapturedTouch(CapturedTouch capturedTouch)
         {
-            if (!moveThrottle.ShouldRecord(capturedTouch))
+            if (capturedTouch.Details?.Tool != "stylus" && !moveThrottle.ShouldRecord(capturedTouch))
             {
                 return;
             }
