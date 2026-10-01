@@ -1,5 +1,7 @@
-## Unreleased
+## 1.6.3
 
+- Preserve available Apple Pencil and Android stylus or eraser pressure, angles,
+  hover, and finer move samples in native mobile touch capture.
 - Capture visible Flutter trees without exhausting depth and node limits on
   structural framework wrappers; keep controls, keys and presentation owners.
 - Classify actual scroll controls instead of scroll observers, and exclude
