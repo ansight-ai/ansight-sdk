@@ -1,0 +1,15 @@
+schemaVersion: 1
+id: "motion.ios-shake"
+name: "iOS shake and accelerometer capture"
+appId: "ai.ansight.motion.ios-testapp"
+taskId: "motion.ios-shake"
+prompt: >-
+  Launch the motion test app on an iOS Simulator and run the motion.ios-shake task to inject one
+  Simulator shake gesture and record a known accelerometer sample. Use the app-visible state and
+  session evidence to verify both events.
+validation:
+  prompt: "Verify the app reports Shake detected and Samples: 1, and the task named assertions passed."
+  assertions:
+    - "The app reports Shake waiting before injection."
+    - "The app reports Shake detected after the Simulator shake."
+    - "The app reports Samples: 1 after recording a known accelerometer sample."
