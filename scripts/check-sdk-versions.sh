@@ -65,6 +65,14 @@ add_version \
   "$(extract_first 'public static let version = "([^"]+)"' "${repo_root}/src/ios/Sources/AnsightCore/AnsightSDKInfo.swift")"
 
 add_version \
+  "ios:README SwiftPM" \
+  "$(extract_first 'exact: "([^"]+)"' "${repo_root}/src/ios/README.md")"
+
+add_version \
+  "ios:README CocoaPods" \
+  "$(extract_first 'pod '\''Ansight'\'', '\''([^'\'']+)'\''' "${repo_root}/src/ios/README.md")"
+
+add_version \
   "react-native:package.json" \
   "$(extract_first '"version"\s*:\s*"([^"]+)"' "${repo_root}/src/react-native/package.json")"
 

@@ -42,14 +42,14 @@ first integration:
 ```swift
 .package(
     url: "https://github.com/ansight-ai/ansight-sdk.git",
-    exact: "1.6.3"
+    exact: "1.7.0"
 )
 ```
 
 The matching CocoaPod is also published:
 
 ```ruby
-pod 'Ansight', '1.6.3'
+pod 'Ansight', '1.7.0'
 ```
 
 Use `AnsightCore` plus selected tool products or pods only when the app needs a

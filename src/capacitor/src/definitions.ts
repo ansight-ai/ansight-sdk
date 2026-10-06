@@ -685,7 +685,11 @@ export interface AnsightCapacitorPlugin {
   enableTouchCapture(): Promise<AnsightDebugSnapshot>;
   disableTouchCapture(): Promise<AnsightDebugSnapshot>;
   recordShake(options?: { source?: string }): Promise<{ isSuccess: boolean }>;
-  recordAccelerometer(options: { x: number; y: number; z: number }): Promise<{ isSuccess: boolean }>;
+  recordAccelerometer(options: {
+    x: number;
+    y: number;
+    z: number;
+  }): Promise<{ isSuccess: boolean }>;
   updateSessionProperties(options: {
     properties: Record<string, Record<string, string>>;
   }): Promise<AnsightOperationResult>;

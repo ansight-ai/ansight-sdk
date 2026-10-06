@@ -31,6 +31,8 @@ target 'Runner' do
 
   ansight_apple_path = '../../../../src/ios'
   pod 'AnsightCore', :path => ansight_apple_path
+  pod 'AnsightAnnotations', :path => ansight_apple_path
+  pod 'AnsightMotion', :path => ansight_apple_path
   pod 'AnsightPairingQR', :path => ansight_apple_path
   pod 'AnsightToolsDatabase', :path => ansight_apple_path
   pod 'AnsightToolsFileDescriptorDiagnostics', :path => ansight_apple_path

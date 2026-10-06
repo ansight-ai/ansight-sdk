@@ -34,7 +34,7 @@ import kotlin.coroutines.suspendCoroutine
 
 /** Native annotation capture and delivery for the Android core package. */
 object Annotate {
-    private val mainHandler = Handler(Looper.getMainLooper())
+    private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
     private val gate = Any()
     private var application: Application? = null
     private var options = AnnotationOptions()

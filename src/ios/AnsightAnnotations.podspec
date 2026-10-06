@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name         = "AnsightAnnotations"
-  s.version      = "1.6.3"
+  s.version      = "1.7.0"
   s.summary      = "Native in-app annotation capture for Ansight iOS apps"
   s.homepage     = "https://github.com/ansight-ai/ansight-sdk"
   s.license      = { :type => "PolyForm Shield 1.0.0", :file => "LICENSE" }

@@ -54,6 +54,9 @@ done
 perl -0pi -e 's/(public static let version = ")[^"]+(")/$1$ENV{VERSION}$2/g' \
   "${repo_root}/src/ios/Sources/AnsightCore/AnsightSDKInfo.swift"
 
+perl -0pi -e 's/(exact: ")[0-9A-Za-z.+-]+(")/$1$ENV{VERSION}$2/g; s/(pod '\''Ansight'\'', '\'')[0-9A-Za-z.+-]+('\'')/$1$ENV{VERSION}$2/g' \
+  "${repo_root}/src/ios/README.md"
+
 PACKAGE_JSON="${repo_root}/src/react-native/package.json" node <<'NODE'
 const fs = require("fs");
 

@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name         = "AnsightMotion"
-  s.version      = "1.6.3"
+  s.version      = "1.7.0"
   s.summary      = "App-fed motion capture for Ansight iOS apps"
   s.homepage     = "https://github.com/ansight-ai/ansight-sdk"
   s.license      = { :type => "PolyForm Shield 1.0.0", :file => "LICENSE" }

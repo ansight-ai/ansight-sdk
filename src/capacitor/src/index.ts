@@ -496,7 +496,11 @@ export const disableTouchCapture = (): Promise<AnsightDebugSnapshot> =>
   AnsightNative.disableTouchCapture();
 export const recordShake = (source = "app"): Promise<{ isSuccess: boolean }> =>
   AnsightNative.recordShake({ source });
-export const recordAccelerometer = (x: number, y: number, z: number): Promise<{ isSuccess: boolean }> =>
+export const recordAccelerometer = (
+  x: number,
+  y: number,
+  z: number,
+): Promise<{ isSuccess: boolean }> =>
   AnsightNative.recordAccelerometer({ x, y, z });
 
 export const updateSessionProperties = (

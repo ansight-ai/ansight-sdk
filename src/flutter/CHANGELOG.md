@@ -1,3 +1,9 @@
+## 1.7.0
+
+- Add opt-in app-fed shake and accelerometer capture across mobile SDKs.
+- Add Debug-only native in-app annotation capture and evidence bundles across
+  mobile SDKs, including Flutter runtime controls.
+
 ## 1.6.3
 
 - Preserve available Apple Pencil and Android stylus or eraser pressure, angles,
