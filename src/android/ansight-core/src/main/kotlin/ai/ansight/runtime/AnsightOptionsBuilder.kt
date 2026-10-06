@@ -5,6 +5,18 @@ class AnsightOptionsBuilder @JvmOverloads constructor(
 ) {
     private var options: AnsightOptions = initialOptions
 
+    /** Enables annotation capture in a debuggable app and configures its evidence. */
+    @JvmOverloads
+    fun withAnnotatedFeedback(annotationOptions: AnnotationOptions = AnnotationOptions()): AnsightOptionsBuilder {
+        options = options.copy(annotatedFeedback = annotationOptions.copy(enabled = true))
+        return this
+    }
+
+    fun withoutAnnotatedFeedback(): AnsightOptionsBuilder {
+        options = options.copy(annotatedFeedback = options.annotatedFeedback.copy(enabled = false))
+        return this
+    }
+
     fun withSampleFrequencyMilliseconds(sampleFrequencyMilliseconds: Int): AnsightOptionsBuilder {
         options = options.copy(sampleFrequencyMilliseconds = sampleFrequencyMilliseconds)
         return this
@@ -134,6 +146,17 @@ class AnsightOptionsBuilder @JvmOverloads constructor(
 
     fun withoutTouchCapture(): AnsightOptionsBuilder {
         options = options.copy(touchCapture = null)
+        return this
+    }
+
+    @JvmOverloads
+    fun withMotionCapture(motionCapture: AnsightMotionCaptureOptions = AnsightMotionCaptureOptions()): AnsightOptionsBuilder {
+        options = options.copy(motionCapture = motionCapture)
+        return this
+    }
+
+    fun withoutMotionCapture(): AnsightOptionsBuilder {
+        options = options.copy(motionCapture = null)
         return this
     }
 

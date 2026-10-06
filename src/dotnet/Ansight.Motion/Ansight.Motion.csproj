@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net9.0;net9.0-android;net9.0-ios;net9.0-maccatalyst</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <AssemblyName>Ansight.Motion</AssemblyName>
+    <RootNamespace>Ansight.Motion</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <PackageId>Ansight.Motion</PackageId>
+    <Description>App-fed shake and accelerometer evidence for Ansight.</Description>
+    <PackageTags>ansight;motion;accelerometer;shake;debug</PackageTags>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Ansight.Core\Ansight.Core.csproj" />
+  </ItemGroup>
+</Project>

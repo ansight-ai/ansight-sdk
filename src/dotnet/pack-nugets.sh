@@ -12,6 +12,7 @@ projects=(
   "Ansight.Native.Apple.Binding/Ansight.Native.Apple.Binding.csproj"
   "Ansight.Core/Ansight.Core.csproj"
   "Ansight.Annotations/Ansight.Annotations.csproj"
+  "Ansight.Motion/Ansight.Motion.csproj"
   "Ansight.OfflineCapture/Ansight.OfflineCapture.csproj"
   "Ansight.Pairing/Ansight.Pairing.csproj"
   "Ansight.Profiling.DotNet/Ansight.Profiling.DotNet.csproj"

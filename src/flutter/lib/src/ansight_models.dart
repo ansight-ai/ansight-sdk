@@ -10,7 +10,8 @@ enum AnsightEventType {
   gc('Gc'),
   navigation('Navigation'),
   screenViewed('ScreenViewed'),
-  lifecycle('Lifecycle');
+  lifecycle('Lifecycle'),
+  motion('Motion');
 
   const AnsightEventType(this.wireName);
 

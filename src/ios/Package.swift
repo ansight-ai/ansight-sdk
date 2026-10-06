@@ -17,6 +17,14 @@ let package = Package(
             targets: ["AnsightCore"]
         ),
         .library(
+            name: "AnsightAnnotations",
+            targets: ["AnsightAnnotations"]
+        ),
+        .library(
+            name: "AnsightMotion",
+            targets: ["AnsightMotion"]
+        ),
+        .library(
             name: "AnsightPairingQR",
             targets: ["AnsightPairingQR"]
         ),
@@ -62,6 +70,8 @@ let package = Package(
             name: "Ansight",
             dependencies: [
                 "AnsightCore",
+                "AnsightAnnotations",
+                "AnsightMotion",
                 "AnsightPairingQR",
                 "AnsightToolsDatabase",
                 "AnsightToolsFileDescriptorDiagnostics",
@@ -85,6 +95,16 @@ let package = Package(
             linkerSettings: [
                 .linkedLibrary("z"),
             ],
+        ),
+        .target(
+            name: "AnsightAnnotations",
+            dependencies: ["AnsightCore"],
+            path: "Sources/AnsightAnnotations"
+        ),
+        .target(
+            name: "AnsightMotion",
+            dependencies: ["AnsightCore"],
+            path: "Sources/AnsightMotion"
         ),
         .target(
             name: "CAnsightCrashCapture",

@@ -1,5 +1,6 @@
 namespace Ansight;
 
+using Ansight.Annotations;
 using Ansight.Tools.Database;
 using Ansight.Tools.FileSystem;
 #if ANDROID
@@ -22,6 +23,7 @@ public static class AnsightOptionsBuilderExtensions
     private const ushort DefaultSessionJpegCaptureIntervalMilliseconds = 2000;
     private const int DefaultSessionJpegCaptureQuality = 60;
     private const int DefaultSessionJpegCaptureMaxWidth = 480;
+    private const string AnnotationRuntimeFeatureId = "annotations";
 
     /// <summary>
     /// Applies the default Ansight runtime configuration, registers the non-MAUI remote tools, and enables every tool policy.
@@ -56,6 +58,10 @@ public static class AnsightOptionsBuilderExtensions
         builder = builder
             .WithAnsightDefaults()
             .WithAllToolAccess();
+        if (!builder.ContainsRuntimeFeature(AnnotationRuntimeFeatureId))
+        {
+            builder = builder.WithAnnotatedFeedback();
+        }
         configure(builder);
         return builder.WithAnsightRemoteTools();
     }

@@ -11,6 +11,10 @@ function loadRuntime(calls) {
   const native = new Proxy({}, {
     get: (_target, name) => async (options) => {
       if (name === "initialize" || name === "initializeAndActivate") calls.push(options);
+      if (name === "presentAnnotation") {
+        calls.push("presentAnnotation");
+        return { status: "queued", annotationId: "sample", isSuccess: true };
+      }
       return {};
     },
   });
@@ -34,6 +38,20 @@ function loadRuntime(calls) {
   vm.runInNewContext(fs.readFileSync(entryPath, "utf8"), context, { filename: entryPath });
   return context.module.exports;
 }
+
+test("annotation builder options reach native and PresentAsync returns its result", async () => {
+  const calls = [];
+  const runtime = loadRuntime(calls);
+  const options = runtime.createOptionsBuilder()
+    .withAnnotatedFeedback({ captureVisualTrees: false })
+    .build();
+  await runtime.initialize({ ...options, lifecycle: false, networkCapture: false });
+  assert.equal(calls[0].annotatedFeedback.captureVisualTrees, false);
+  assert.equal(calls[0].annotatedFeedback.enabled, true);
+  const result = await runtime.Annotate.PresentAsync();
+  assert.equal(result.status, "queued");
+  assert.equal(calls[1], "presentAnnotation");
+});
 
 for (const method of ["initialize", "initializeAndActivate"]) {
   test(`${method} forwards explicit host handoff settings to native`, async () => {

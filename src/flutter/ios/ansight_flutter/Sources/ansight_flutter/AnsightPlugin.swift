@@ -446,6 +446,14 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
                     options: screenCaptureOptions(arguments)
                 )
             )
+        case "presentAnnotation":
+            let result = await Annotate.PresentAsync()
+            return [
+                "status": result.status.rawValue,
+                "annotationId": result.annotationId.map { $0.uuidString as Any } ?? NSNull(),
+                "message": result.message.map { $0 as Any } ?? NSNull(),
+                "isSuccess": result.isSuccess
+            ]
         case "submitFlutterScreenFrame":
             guard let pngBase64 = stringValue(arguments, "pngBase64"),
                   let pngData = Data(base64Encoded: pngBase64),
@@ -487,6 +495,16 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
         case "disableTouchCapture":
             AnsightRuntime.shared.disableTouchCapture()
             return operationResultDictionary(.success("Touch capture disabled."))
+        case "recordShake":
+            AnsightRuntime.shared.recordShake(source: stringValue(arguments, "source") ?? "app")
+            return operationResultDictionary(.success("Shake recorded."))
+        case "recordAccelerometer":
+            AnsightRuntime.shared.recordAccelerometerSample(
+                x: doubleValue(arguments, "x", defaultValue: .nan),
+                y: doubleValue(arguments, "y", defaultValue: .nan),
+                z: doubleValue(arguments, "z", defaultValue: .nan)
+            )
+            return operationResultDictionary(.success("Accelerometer sample recorded."))
         case "updateSessionProperties":
             return operationResultDictionary(
                 await AnsightRuntime.shared.updateSessionProperties(
@@ -733,6 +751,19 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
             defaultValue: false
         )
         var options = useDefaults ? AnsightOptions.ansightDeveloperDefaults : AnsightOptions()
+        if let raw = dictionary["annotatedFeedback"] {
+            if let enabled = raw as? NSNumber, !enabled.boolValue {
+                options.annotatedFeedback.enabled = false
+            } else if let annotation = raw as? NSDictionary {
+                options.annotatedFeedback = AnnotationOptions(
+                    enabled: boolValue(annotation, "enabled", defaultValue: true),
+                    captureScreenshot: boolValue(annotation, "captureScreenshot", defaultValue: true),
+                    captureVisualTrees: boolValue(annotation, "captureVisualTrees", defaultValue: true),
+                    screenshotQuality: intValue(annotation, "screenshotQuality", defaultValue: 85),
+                    screenshotMaxWidth: intValue(annotation, "screenshotMaxWidth", defaultValue: 1440)
+                )
+            }
+        }
         if useDefaults && stringValue(dictionary, "toolGuard") == nil {
             options.toolGuard = .readOnly
         }
@@ -835,6 +866,17 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
                         defaultValue: AnsightTouchCaptureOptions
                             .defaultMoveCaptureFramesPerSecond
                     )
+                )
+            }
+        }
+        if let raw = dictionary["motionCapture"] {
+            if let enabled = raw as? Bool, !enabled {
+                options.motionCapture = nil
+            } else if let motion = raw as? NSDictionary {
+                options.motionCapture = AnsightMotionCaptureOptions(
+                    captureShake: boolValue(motion, "captureShake", defaultValue: true),
+                    captureAccelerometer: boolValue(motion, "captureAccelerometer", defaultValue: true),
+                    minimumSampleIntervalMilliseconds: intValue(motion, "minimumSampleIntervalMilliseconds", defaultValue: 20)
                 )
             }
         }
@@ -1479,6 +1521,7 @@ private func eventType(_ value: String?) -> AnsightEventType {
     case "navigation": return .navigation
     case "screenviewed", "screen_viewed": return .screenViewed
     case "lifecycle": return .lifecycle
+    case "motion": return .motion
     default: return .info
     }
 }

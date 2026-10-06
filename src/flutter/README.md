@@ -15,6 +15,10 @@ applications. It combines the native Android and Apple runtimes with
 Flutter-aware lifecycle, navigation, error, frame-timing, and widget-tree
 instrumentation.
 
+Enable app-fed motion capture with `AnsightOptionsBuilder().withMotionCapture()`;
+forward observations with `Ansight.instance.recordShake()` and
+`recordAccelerometer(x, y, z)`. See [motion capture](../../docs/motion.md).
+
 On iOS and Android, native touch capture carries available Apple Pencil and
 Android stylus/eraser pressure, angles, and hover data through the existing
 session records. macOS Flutter boundary pointer capture remains separate and
@@ -42,6 +46,10 @@ visual-tree mode.
 
 For guarded startup and CLI verification, see the
 [Flutter getting-started guide](https://www.ansight.ai/docs/sdk/flutter/setup).
+
+## In-app annotations
+
+In a Debug iOS or Android app, call `await Annotate.PresentAsync()` after initializing the Ansight runtime. Use `createOptionsBuilder().withAnnotatedFeedback()` to configure native capture. The native editor sends its bundle to the connected session or queues it for retry. macOS currently returns `unavailable` because it has no native annotation editor.
 
 ## Install
 
@@ -326,7 +334,7 @@ the same machine through loopback and does not require QR enrollment.
 
 ## Harness and validation
 
-The package includes a feature-complete app in `example/`. It exercises
+The SDK includes a feature-complete app in [`test-apps/core/flutter`](../../test-apps/core/flutter/). It exercises
 runtime state, all telemetry types, pairing and sessions, screenshots, touch
 capture, widget tools, navigation, errors, custom tools, artifacts, binary
 transfer, properties, options, capabilities, and logs.
@@ -339,10 +347,10 @@ Run the package and harness checks with:
 
 ```shell
 flutter test
-(cd example && flutter test)
-flutter test example/integration_test -d <device-id>
-flutter build apk --debug --target example/lib/main.dart
-flutter build ios --simulator --no-codesign --target example/lib/main.dart
+(cd ../../test-apps/core/flutter && flutter test)
+(cd ../../test-apps/core/flutter && flutter test integration_test -d <device-id>)
+(cd ../../test-apps/core/flutter && flutter build apk --debug)
+(cd ../../test-apps/core/flutter && flutter build ios --simulator --no-codesign)
 ../../scripts/validate-flutter-macos.sh
 ```
 

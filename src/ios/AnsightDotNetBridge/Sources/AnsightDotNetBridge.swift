@@ -15,6 +15,22 @@ public final class ANSDotNetRuntime: NSObject {
         }
     }
 
+    @objc(presentAnnotationWithCompletion:)
+    public static func presentAnnotation(completion: @escaping (String) -> Void) {
+        let completionBox = BridgeStringCompletion(completion)
+        Task {
+            let result = await Annotate.PresentAsync()
+            let json: [String: Any] = [
+                "status": result.status.rawValue,
+                "annotationId": result.annotationId.map { $0.uuidString as Any } ?? NSNull(),
+                "message": result.message.map { $0 as Any } ?? NSNull(),
+                "isSuccess": result.isSuccess
+            ]
+            let data = try? JSONSerialization.data(withJSONObject: json)
+            completionBox.call(data.flatMap { String(data: $0, encoding: .utf8) } ?? "{}")
+        }
+    }
+
     @objc public static var bridgeVersion: String { "1" }
 
     @objc public static var isInitialized: Bool {
@@ -392,6 +408,7 @@ public final class ANSDotNetRuntime: NSObject {
             from: Data(optionsJson.utf8)
         )
         var options = AnsightOptions()
+        options.annotatedFeedback = bridgeOptions.annotatedFeedback ?? AnnotationOptions()
 
         options.sampleFrequencyMilliseconds =
             bridgeOptions.sampleFrequencyMilliseconds ?? options.sampleFrequencyMilliseconds
@@ -430,6 +447,7 @@ public final class ANSDotNetRuntime: NSObject {
         } else if bridgeOptions.hasTouchCapture == false {
             options.touchCapture = nil
         }
+        options.motionCapture = bridgeOptions.motionCapture?.validated()
         if let crashCapture = bridgeOptions.crashCapture {
             options.crashCapture = AnsightCrashCaptureOptions(
                 enabled: crashCapture.enabled,
@@ -677,6 +695,7 @@ private struct BridgeHostConnectionResult: Encodable {
 }
 
 private struct BridgeOptions: Decodable {
+    let annotatedFeedback: AnnotationOptions?
     let sampleFrequencyMilliseconds: Int?
     let retentionPeriodSeconds: Int?
     let enableFramesPerSecond: Bool?
@@ -686,6 +705,7 @@ private struct BridgeOptions: Decodable {
     let defaultMemoryChannels: Int?
     let sessionJpegCapture: BridgeSessionJpegCapture?
     let touchCapture: BridgeTouchCapture?
+    let motionCapture: AnsightMotionCaptureOptions?
     let crashCapture: BridgeCrashCapture?
     let networkCapture: BridgeNetworkCapture?
     let toolGuard: String?

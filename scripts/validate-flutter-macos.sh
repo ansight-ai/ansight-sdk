@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-example_root="${repo_root}/src/flutter/example"
+example_root="${repo_root}/test-apps/core/flutter"
 app_id="ai.ansight.flutter.harness"
 started_utc="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 

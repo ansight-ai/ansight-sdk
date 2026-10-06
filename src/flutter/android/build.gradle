@@ -100,7 +100,7 @@ if (usesBuiltInKotlin) {
 dependencies {
     def ansightAndroidVersion =
             findProperty("ansightAndroidVersion") ?: "1.6.3"
-    implementation "ai.ansight:ansight-android:1.6.3"
+    implementation "ai.ansight:ansight-android:${ansightAndroidVersion}"
     testImplementation "org.jetbrains.kotlin:kotlin-test"
     testImplementation "org.mockito:mockito-core:5.0.0"
 }

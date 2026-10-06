@@ -10,7 +10,7 @@
 
     <IsPackable>true</IsPackable>
     <PackageId>Ansight.Annotations</PackageId>
-    <Description>Opt-in, debug-only in-app feedback annotations for the Ansight SDK.</Description>
+    <Description>Debug-only in-app annotations for the Ansight SDK.</Description>
     <PackageTags>ansight;annotations;feedback;visual-tree;debug;android;ios;maccatalyst</PackageTags>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>

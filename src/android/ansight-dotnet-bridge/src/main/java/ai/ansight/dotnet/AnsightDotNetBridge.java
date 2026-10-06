@@ -1,6 +1,7 @@
 package ai.ansight.dotnet;
 
 import android.app.Application;
+import android.app.Activity;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -19,7 +20,9 @@ import ai.ansight.runtime.AnsightHostAutoProbeOptions;
 import ai.ansight.runtime.AnsightHostConnectionOptions;
 import ai.ansight.runtime.AnsightOptions;
 import ai.ansight.runtime.AnsightOptionsBuilder;
+import ai.ansight.runtime.AnsightMotionCaptureOptions;
 import ai.ansight.runtime.AnsightRuntime;
+import ai.ansight.runtime.Annotate;
 import ai.ansight.runtime.AnsightSessionJpegCaptureMode;
 import ai.ansight.runtime.AppLifecycleState;
 import ai.ansight.runtime.DefaultMemoryChannels;
@@ -50,6 +53,55 @@ public final class AnsightDotNetBridge {
 
     public interface TouchCaptureGuard {
         boolean canCapture();
+    }
+
+    public interface AnnotationResultHandler {
+        void complete(String resultJson);
+    }
+
+    public interface SessionVisualTreeCaptureProvider {
+        String captureJson();
+    }
+
+    public static void setSessionVisualTreeCaptureProvider(SessionVisualTreeCaptureProvider provider) {
+        ai.ansight.runtime.SessionVisualTreeCaptureRegistry.INSTANCE.setProvider(context -> {
+            java.util.ArrayList<JSONObject> trees = new java.util.ArrayList<>();
+            if (provider != null) {
+                try {
+                    JSONArray array = new JSONArray(provider.captureJson());
+                    for (int index = 0; index < array.length(); index++) {
+                        JSONObject tree = array.optJSONObject(index);
+                        if (tree != null) trees.add(tree);
+                    }
+                } catch (Exception ignored) {
+                    // The native view tree remains available if a managed provider fails.
+                }
+            }
+            if (trees.isEmpty()) {
+                trees.add(ai.ansight.runtime.AndroidUiEvidence.INSTANCE.visualTree(
+                    context.getOptions().getAnnotatedFeedback().getVisualTreeMaxDepth(),
+                    context.getOptions().getAnnotatedFeedback().getVisualTreeMaxNodes()
+                ));
+            }
+            return trees;
+        });
+    }
+
+    public static void presentAnnotation(Activity activity, AnnotationResultHandler handler) {
+        Annotate.PresentAsync(activity, result -> {
+            JSONObject json = new JSONObject();
+            try {
+                String status = result.getStatus().name().toLowerCase(Locale.US);
+                json.put("status", status);
+                json.put("annotationId", result.getAnnotationId());
+                json.put("message", result.getMessage());
+                json.put("isSuccess", "completed".equals(status) || "queued".equals(status));
+            } catch (JSONException error) {
+                throw new IllegalStateException(error);
+            }
+            handler.complete(json.toString());
+            return kotlin.Unit.INSTANCE;
+        });
     }
 
     private AnsightDotNetBridge() {
@@ -370,6 +422,23 @@ public final class AnsightDotNetBridge {
             .withSampleFrequencyMilliseconds(json.optInt("sampleFrequencyMilliseconds", 500))
             .withRetentionPeriodSeconds(json.optInt("retentionPeriodSeconds", 600));
 
+        JSONObject annotation = json.optJSONObject("annotatedFeedback");
+        if (annotation != null) {
+            if (!annotation.optBoolean("enabled", true)) {
+                builder.withoutAnnotatedFeedback();
+            } else {
+                builder.withAnnotatedFeedback(new ai.ansight.runtime.AnnotationOptions(
+                true,
+                annotation.optBoolean("captureScreenshot", true),
+                annotation.optBoolean("captureVisualTrees", true),
+                annotation.optInt("screenshotQuality", 85),
+                annotation.optInt("screenshotMaxWidth", 1440),
+                annotation.optInt("visualTreeMaxDepth", 30),
+                annotation.optInt("visualTreeMaxNodes", 1500)
+            ));
+            }
+        }
+
         if (json.optBoolean("enableFramesPerSecond", true)) {
             builder.withFramesPerSecond();
         } else {
@@ -442,6 +511,15 @@ public final class AnsightDotNetBridge {
                 touchCapture.optDouble("moveCaptureDistanceThreshold", 4.0),
                 touchCapture.optInt("moveCaptureFramesPerSecond", 15)
             );
+        }
+
+        JSONObject motionCapture = json.optJSONObject("motionCapture");
+        if (motionCapture != null) {
+            builder.withMotionCapture(new AnsightMotionCaptureOptions(
+                motionCapture.optBoolean("captureShake", true),
+                motionCapture.optBoolean("captureAccelerometer", true),
+                motionCapture.optInt("minimumSampleIntervalMilliseconds", 20)
+            ));
         }
 
         JSONObject crashCapture = json.optJSONObject("crashCapture");

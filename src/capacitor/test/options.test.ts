@@ -3,6 +3,19 @@ import { describe, expect, it } from "vitest";
 import { createOptionsBuilder } from "../src/options";
 
 describe("AnsightOptionsBuilder", () => {
+  it("keeps annotation configuration on the native builder", () => {
+    const enabled = createOptionsBuilder()
+      .withAnnotatedFeedback({ captureScreenshot: false })
+      .build();
+    expect(enabled.annotatedFeedback).toEqual({
+      enabled: true,
+      captureScreenshot: false,
+    });
+    expect(
+      createOptionsBuilder(enabled).withoutAnnotatedFeedback().build()
+        .annotatedFeedback,
+    ).toEqual({ enabled: false });
+  });
   it("preserves clipboard registration choices", () => {
     const enabled = createOptionsBuilder().withClipboardTools().build();
     expect(enabled.remoteTools?.clipboard).toBe(true);

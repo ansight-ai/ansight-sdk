@@ -27,7 +27,8 @@ matrix, including framework-specific and .NET-only workflows.
 | Reflection tools | `Ansight.Tools.Reflection` | `ai.ansight:ansight-tools-reflection-android` | `AnsightToolsReflection` | Native bridge | Native bridge |
 | MAUI integration | `Ansight.Maui` | — | — | — | — |
 | MAUI tools | `Ansight.Tools.Maui` | — | — | — | — |
-| Annotated feedback | `Ansight.Annotations` | — | — | — | — |
+| Annotated feedback | `Ansight.Annotations` | `ansight-annotations-android` | `AnsightAnnotations` | Native bridge | Native bridge |
+| Motion capture | `Ansight.Motion` | `ansight-motion-android` | `AnsightMotion` | Native bridge | Native bridge |
 | Offline capture | `Ansight.OfflineCapture` | — | — | — | — |
 | Objective-C facade | — | — | `AnsightObjC` | Used by the iOS bridge | Used by the iOS bridge |
 | React inspection tools | — | — | — | `@ansight/react-native` | — |
@@ -76,6 +77,7 @@ Android, and iOS:
 | JNI reference count tracking | Disabled; opt-in on Android when the integration can supply a tracked count |
 | JPEG capture | Enabled, 2000 ms, quality 60, max width 480; iOS GPU-backed surface capture defaults to enabled |
 | Touch capture | Enabled |
+| Motion capture | Disabled until `WithMotionCapture` or `withMotionCapture` is selected; app forwards existing observations |
 | Crash capture | Enabled; 8 pending reports, 7-day retention, 64 breadcrumbs, 1 MiB trace limit |
 | Host auto-probe | Enabled |
 | Tool guard | Full access in native all-in-one presets |
@@ -511,7 +513,7 @@ the `artifact_*` error codes documented in
 | --- | --- | --- |
 | MAUI initialization plus automatic lifecycle/page views | .NET MAUI | `UseAnsight<App>()` |
 | MAUI inspection and mutation | .NET MAUI | `WithMauiTools()` |
-| Annotated feedback overlay, evidence hooks, bundles, live/offline sinks | .NET Android/iOS/Mac Catalyst Debug app builds | `WithAnnotatedFeedback()` / `Feedback.PresentAsync()` |
+| Native annotation overlay, screenshot/tree evidence, bundles, live delivery, and retry outbox | Android/iOS Debug app builds through native, .NET, React Native, Flutter, and Capacitor packages | `withAnnotatedFeedback(...)` / `Annotate.PresentAsync()` |
 | Offline capture, retention, ZIP/AES export, and team upload | .NET | `OfflineCapture.Configure(...)` |
 | Objective-C runtime facade | iOS | `ANSAnsight` |
 | React component/shadow tree and actions | React Native | `installReactTools(...)` |
@@ -521,9 +523,7 @@ the `artifact_*` error codes documented in
 | Flutter route and screen-view tracking | Flutter | `AnsightNavigatorObserver` |
 | Flutter errors, frame timing, and lifecycle capture | Flutter | `AnsightFlutterInstrumentation.instance.install()` |
 
-`Ansight` and `Ansight.Maui` reference the annotations and offline-capture
-packages, but do not automatically start either workflow. Annotated feedback
-must be explicitly enabled and remains disabled in Release application builds.
+The all-in-one packages include annotations and make `Annotate.PresentAsync()` available after Debug runtime initialization. `withAnnotatedFeedback(...)` customizes capture. Release application builds keep the editor disabled. .NET `Annotate.CaptureAsync(request)` still supports managed hooks and offline sinks; the native presentation path does not yet invoke them.
 
 ## Custom Tools
 

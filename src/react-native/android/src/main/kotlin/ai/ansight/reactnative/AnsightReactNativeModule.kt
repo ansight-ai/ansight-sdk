@@ -14,6 +14,8 @@ import ai.ansight.runtime.AnsightLogLevel
 import ai.ansight.runtime.AnsightLogger
 import ai.ansight.runtime.AnsightNetworkRequest
 import ai.ansight.runtime.AnsightOptions
+import ai.ansight.runtime.Annotate
+import ai.ansight.runtime.AnnotationOptions
 import ai.ansight.runtime.AnsightOptionsBuilder
 import ai.ansight.runtime.AnsightRuntime
 import ai.ansight.runtime.AnsightSecureStorageOptions
@@ -21,6 +23,7 @@ import ai.ansight.runtime.AnsightSessionJpegCaptureOptions
 import ai.ansight.runtime.AnsightSessionJpegCaptureMode
 import ai.ansight.runtime.AnsightToolGuard
 import ai.ansight.runtime.AnsightTouchCaptureOptions
+import ai.ansight.runtime.AnsightMotionCaptureOptions
 import ai.ansight.runtime.AppLifecycleState
 import ai.ansight.runtime.DefaultMemoryChannels
 import ai.ansight.runtime.FunctionAndroidTool
@@ -517,6 +520,18 @@ class AnsightReactNativeModule(
     }
 
     @ReactMethod
+    fun presentAnnotation(promise: Promise) {
+        Annotate.PresentAsync(reactContext.currentActivity) { result ->
+            promise.resolve(Arguments.createMap().apply {
+                putString("status", result.status.name.lowercase(Locale.US))
+                putString("annotationId", result.annotationId)
+                putString("message", result.message)
+                putBoolean("isSuccess", result.isSuccess)
+            })
+        }
+    }
+
+    @ReactMethod
     fun enableTouchCapture(promise: Promise) {
         runCatching { operationResultMap(AnsightRuntime.enableTouchCapture()) }.resolve(promise)
     }
@@ -524,6 +539,23 @@ class AnsightReactNativeModule(
     @ReactMethod
     fun disableTouchCapture(promise: Promise) {
         runCatching { operationResultMap(AnsightRuntime.disableTouchCapture()) }.resolve(promise)
+    }
+
+    @ReactMethod
+    fun recordShake(source: String, promise: Promise) {
+        runCatching { AnsightRuntime.recordShake(source); mapOf("isSuccess" to true).toWritableMap() }.resolve(promise)
+    }
+
+    @ReactMethod
+    fun recordAccelerometer(input: ReadableMap, promise: Promise) {
+        runCatching {
+            AnsightRuntime.recordAccelerometerSample(
+                input.doubleValue("x", Double.NaN),
+                input.doubleValue("y", Double.NaN),
+                input.doubleValue("z", Double.NaN),
+            )
+            mapOf("isSuccess" to true).toWritableMap()
+        }.resolve(promise)
     }
 
     @ReactMethod
@@ -787,6 +819,20 @@ class AnsightReactNativeModule(
         if (useNativeAllInOneDefaults && !map.hasString("toolGuard")) {
             options = options.copy(toolGuard = AnsightToolGuard.ReadOnly)
         }
+        if (map.hasKey("annotatedFeedback")) {
+            val annotation = map.getMapOrNull("annotatedFeedback")
+            options = options.copy(annotatedFeedback = if (map.isFalse("annotatedFeedback")) {
+                AnnotationOptions(enabled = false)
+            } else {
+                AnnotationOptions(
+                    enabled = annotation.booleanValue("enabled", true),
+                    captureScreenshot = annotation.booleanValue("captureScreenshot", true),
+                    captureVisualTrees = annotation.booleanValue("captureVisualTrees", true),
+                    screenshotQuality = annotation.intValue("screenshotQuality", 85),
+                    screenshotMaxWidth = annotation.intValue("screenshotMaxWidth", 1440),
+                )
+            })
+        }
 
         if (map.hasNumber("sampleFrequencyMilliseconds")) {
             options = options.copy(sampleFrequencyMilliseconds = map.intValue("sampleFrequencyMilliseconds", options.sampleFrequencyMilliseconds))
@@ -891,6 +937,18 @@ class AnsightReactNativeModule(
                     AnsightTouchCaptureOptions(
                         moveCaptureDistanceThreshold = touch.doubleValue("moveCaptureDistanceThreshold", 8.0),
                         moveCaptureFramesPerSecond = touch.intValue("moveCaptureFramesPerSecond", 20),
+                    )
+                },
+            )
+        }
+        if (map.hasKey("motionCapture")) {
+            options = options.copy(
+                motionCapture = if (map.isFalse("motionCapture")) null else {
+                    val motion = map.getMapOrNull("motionCapture")
+                    AnsightMotionCaptureOptions(
+                        captureShake = motion.booleanValue("captureShake", true),
+                        captureAccelerometer = motion.booleanValue("captureAccelerometer", true),
+                        minimumSampleIntervalMilliseconds = motion.intValue("minimumSampleIntervalMilliseconds", 20),
                     )
                 },
             )
@@ -1282,6 +1340,13 @@ class AnsightReactNativeModule(
                     "moveCaptureFramesPerSecond" to touch.moveCaptureFramesPerSecond,
                 ).toWritableMap())
             } ?: putNull("touchCapture")
+            options.motionCapture?.let { motion ->
+                putMap("motionCapture", mapOf(
+                    "captureShake" to motion.captureShake,
+                    "captureAccelerometer" to motion.captureAccelerometer,
+                    "minimumSampleIntervalMilliseconds" to motion.minimumSampleIntervalMilliseconds,
+                ).toWritableMap())
+            } ?: putNull("motionCapture")
             putString("toolGuard", toolGuardName(options.toolGuard))
             putMap("customProperties", options.customProperties.toGroupedWritableMap())
             putMap("hostAutoProbe", mapOf(
@@ -1382,6 +1447,7 @@ private fun eventType(raw: String?): ai.ansight.runtime.AnsightEventType =
         "navigation" -> ai.ansight.runtime.AnsightEventType.Navigation
         "screenviewed", "screen_viewed" -> ai.ansight.runtime.AnsightEventType.ScreenViewed
         "lifecycle" -> ai.ansight.runtime.AnsightEventType.Lifecycle
+        "motion" -> ai.ansight.runtime.AnsightEventType.Motion
         else -> ai.ansight.runtime.AnsightEventType.Info
     }
 

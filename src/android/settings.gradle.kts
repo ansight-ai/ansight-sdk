@@ -17,6 +17,8 @@ dependencyResolutionManagement {
 rootProject.name = "ansight-android"
 
 include(":ansight-core")
+include(":ansight-annotations")
+include(":ansight-motion")
 include(":ansight-dotnet-bridge")
 include(":ansight-tools-visualtree")
 include(":ansight-tools-filesystem")
@@ -30,5 +32,9 @@ include(":ansight-tools-reflection")
 include(":ansight-pairing")
 include(":ansight")
 include(":harness")
+project(":harness").projectDir = file("../../test-apps/core/android")
+
+include(":motion-test-app")
+project(":motion-test-app").projectDir = file("../../test-apps/motion/android")
 
 include(":ansight-purchases-googleplay")

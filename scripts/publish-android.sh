@@ -82,7 +82,8 @@ fi
 cd "${repo_root}/src/android"
 
 if [[ "${skip_tests}" != "true" ]]; then
-  ./gradlew :ansight-core:test :ansight:test :harness:assembleDebug "${gradle_args[@]+"${gradle_args[@]}"}"
+  validation_tasks=(:ansight-core:test :ansight:test :harness:assembleDebug :motion-test-app:assembleDebug)
+  ./gradlew "${validation_tasks[@]}" "${gradle_args[@]+"${gradle_args[@]}"}"
 fi
 
 case "${mode}" in

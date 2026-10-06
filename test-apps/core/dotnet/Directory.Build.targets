@@ -1,0 +1,3 @@
+<Project>
+  <Import Project="../../../src/dotnet/Directory.Build.targets" />
+</Project>

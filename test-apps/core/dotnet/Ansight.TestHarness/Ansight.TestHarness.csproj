@@ -1,0 +1,77 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+    <TargetFrameworks>net9.0-android;net9.0-ios;net9.0-maccatalyst</TargetFrameworks>
+
+        <OutputType>Exe</OutputType>
+        <RootNamespace>Ansight.TestHarness</RootNamespace>
+        <UseMaui>true</UseMaui>
+        <SingleProject>true</SingleProject>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+
+        <!-- Display name -->
+        <ApplicationTitle>Ansight.TestHarness</ApplicationTitle>
+
+        <!-- App Identifier -->
+        <ApplicationId>ai.ansight.dotnet.maui-harness</ApplicationId>
+
+        <!-- Versions -->
+        <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+        <ApplicationVersion>1</ApplicationVersion>
+
+        <!-- To develop, package, and publish an app to the Microsoft Store, see: https://aka.ms/MauiTemplateUnpackaged -->
+        <WindowsPackageType>None</WindowsPackageType>
+
+        <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
+        <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
+        <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
+        <AnsightRemoteToolsPolicy>Allowed</AnsightRemoteToolsPolicy>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- App Icon -->
+        <MauiIcon Include="..\..\..\..\branding\icon.png" Link="Resources\AppIcon\appicon.png"/>
+
+        <!-- Splash Screen -->
+        <MauiSplashScreen Include="..\..\..\..\branding\logo.png"
+                          Link="Resources\Splash\splash.png"
+                          Color="#FA431F"
+                          BaseSize="256,103"/>
+
+        <!-- Images -->
+        <MauiImage Include="Resources\Images\*"/>
+        <MauiImage Update="Resources\Images\dotnet_bot.png" Resize="True" BaseSize="300,185"/>
+
+        <!-- Custom Fonts -->
+        <MauiFont Include="Resources\Fonts\*"/>
+
+        <!-- Raw Assets (also remove the "Resources\Raw" prefix) -->
+        <MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="SkiaSharp" Version="3.119.1" />
+        <PackageReference Include="SkiaSharp.Views.Maui.Controls" Version="3.119.1" />
+        <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)"/>
+        <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.0"/>
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\..\..\..\src\dotnet\Ansight.Maui\Ansight.Maui.csproj" />
+      <Compile Include="..\NativeBindingDiagnostics.cs" Link="NativeBindingDiagnostics.cs" />
+    </ItemGroup>
+
+    <!-- Intentionally direct: the harness reads binding state to verify Ansight.Maui selected the native runtime. -->
+    <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+      <ProjectReference Include="..\..\..\..\src\dotnet\Ansight.Native.Android.Binding\Ansight.Native.Android.Binding.csproj" />
+    </ItemGroup>
+
+    <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' Or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
+      <ProjectReference Include="..\..\..\..\src\dotnet\Ansight.Native.Apple.Binding\Ansight.Native.Apple.Binding.csproj" />
+    </ItemGroup>
+
+    <!-- Source project references do not import Ansight.Maui's packaged buildTransitive assets. -->
+    <Import Project="..\..\..\..\src\dotnet\Ansight.Core\build\Ansight.targets" />
+
+</Project>

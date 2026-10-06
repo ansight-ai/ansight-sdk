@@ -1,7 +1,7 @@
 namespace Ansight.Annotations;
 
 /// <summary>
-/// Capture and delivery settings for the opt-in annotation feature.
+/// Capture and delivery settings for annotations.
 /// </summary>
 public sealed class AnnotationOptions
 {

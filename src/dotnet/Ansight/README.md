@@ -50,20 +50,20 @@ The first scan stores this app installation's registration; later launches
 reconnect without a pairing file or another scan. The all-in-one package tracks
 the current Android activity automatically.
 
-In-app annotations are bundled but deliberately not enabled by the all-in-one defaults. Opt in explicitly from a Debug application build:
+In-app annotations are registered by the all-in-one defaults for Debug application builds:
 
 ```csharp
 using Ansight.Annotations;
 
 var options = Options.CreateBuilder()
-    .WithAnsightSdk(ansight => ansight.WithAnnotatedFeedback())
+    .WithAnsightSdk()
     .Build();
 
 Runtime.InitializeAndActivate(options);
-await Feedback.PresentAsync();
+await Annotate.PresentAsync();
 ```
 
-`WithAnnotatedFeedback()` remains disabled in Release builds. It captures the screenshot and all registered visual-tree sources, supports custom data/artifact hooks, submits to a connected host session, and participates in an active offline capture. See the `Ansight.Annotations` package documentation for configuration and native Android activity handling.
+Use `WithAnnotatedFeedback(...)` in the builder callback to customize capture. Release builds remain disabled. Native presentation captures a screenshot and registered visual trees, then submits a bundle to the connected host or queues it for retry. The managed `Annotate.CaptureAsync(request)` path retains custom data/artifact hooks and offline-capture sinks. See the `Ansight.Annotations` package documentation.
 
 Offline capture is also bundled but does not initialize or start automatically.
 Use `OfflineCapture.Configure(...)` for retained local sessions, ZIP/AES export,

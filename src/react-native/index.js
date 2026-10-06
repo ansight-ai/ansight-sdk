@@ -107,6 +107,9 @@ function cloneOptions(options = {}) {
   if (options.touchCapture && typeof options.touchCapture === "object") {
     clone.touchCapture = { ...options.touchCapture };
   }
+  if (options.annotatedFeedback && typeof options.annotatedFeedback === "object") {
+    clone.annotatedFeedback = { ...options.annotatedFeedback };
+  }
   if (options.crashCapture && typeof options.crashCapture === "object") {
     clone.crashCapture = { ...options.crashCapture };
   }
@@ -207,6 +210,16 @@ function cloneRemoteToolsOptions(remoteTools = {}) {
 class AnsightOptionsBuilder {
   constructor(options = {}) {
     this._options = cloneOptions(options);
+  }
+
+  withAnnotatedFeedback(options = {}) {
+    this._options.annotatedFeedback = { ...options, enabled: true };
+    return this;
+  }
+
+  withoutAnnotatedFeedback() {
+    this._options.annotatedFeedback = { enabled: false };
+    return this;
   }
 
   withAnsightDefaults() {
@@ -378,6 +391,16 @@ class AnsightOptionsBuilder {
 
   withoutTouchCapture() {
     this._options.touchCapture = false;
+    return this;
+  }
+
+  withMotionCapture(motionCapture = {}) {
+    this._options.motionCapture = { ...motionCapture };
+    return this;
+  }
+
+  withoutMotionCapture() {
+    this._options.motionCapture = false;
     return this;
   }
 
@@ -2567,6 +2590,7 @@ function createReactNavigationTracker(navigationRef, options = {}) {
 }
 
 const Ansight = {
+  Annotate: { PresentAsync: () => nativeModule.presentAnnotation() },
   initialize,
   initializeAndActivate,
   activate: () => notifyAfterHostConnectionChange(() => nativeModule.activate()),
@@ -2613,6 +2637,8 @@ const Ansight = {
   captureScreenFrame: (options = {}) => nativeModule.captureScreenFrame(options || {}),
   enableTouchCapture: () => nativeModule.enableTouchCapture(),
   disableTouchCapture: () => nativeModule.disableTouchCapture(),
+  recordShake: (source = "app") => nativeModule.recordShake(source),
+  recordAccelerometer: (x, y, z) => nativeModule.recordAccelerometer({ x, y, z }),
   updateSessionProperties: (properties) => nativeModule.updateSessionProperties(
     mergeSessionProperties(automaticSessionProperties(), properties || {})
   ),
@@ -2657,6 +2683,7 @@ const Ansight = {
 };
 
 module.exports = Ansight;
+module.exports.Annotate = Ansight.Annotate;
 module.exports.default = Ansight;
 module.exports.AnsightOptionsBuilder = AnsightOptionsBuilder;
 module.exports.createOptionsBuilder = createOptionsBuilder;

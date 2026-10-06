@@ -59,21 +59,18 @@ No pairing file, build property, host address, or Android activity callback is
 required. Ansight stores this app installation's registration and reconnects
 automatically on later launches.
 
-Enable the in-app feedback overlay explicitly in Debug builds:
+The all-in-one MAUI setup registers annotations in Debug builds:
 
 ```csharp
 using Ansight.Annotations;
 
-builder.UseAnsight<App>(ansight =>
-{
-    ansight.WithAnnotatedFeedback();
-});
+builder.UseAnsight<App>();
 
 // From a button or other in-app action:
-await Feedback.PresentAsync();
+await Annotate.PresentAsync();
 ```
 
-Annotated feedback is not enabled by `UseAnsight` or `WithAnsightMaui`, and `WithAnnotatedFeedback()` remains disabled when the consuming app is built in Release. A capture includes both the native and MAUI visual trees, even when a source is unavailable or disallowed.
+`WithAnnotatedFeedback(...)` in the `UseAnsight` callback customizes capture. Release application builds remain disabled. Registered native and MAUI visual trees are captured before the editor opens.
 
 > **Important:** The MAUI all-in-one defaults include session JPEG capture.
 > Screen capture will result in an FPS drop while frames are captured, encoded,

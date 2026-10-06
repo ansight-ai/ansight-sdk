@@ -5,6 +5,4 @@ android/build/
 .swiftpm/
 coverage/
 dist/
-example-app/ios/App/Build*/
-example-app/node_modules/
 node_modules/

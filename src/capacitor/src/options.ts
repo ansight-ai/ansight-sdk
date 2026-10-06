@@ -1,5 +1,6 @@
 import type {
   AnsightChannel,
+  AnsightAnnotationOptions,
   AnsightCrashCaptureOptions,
   AnsightDomToolsOptions,
   AnsightErrorCaptureOptions,
@@ -9,6 +10,7 @@ import type {
   AnsightRemoteToolsOptions,
   AnsightSessionJpegCaptureOptions,
   AnsightTouchCaptureOptions,
+  AnsightMotionCaptureOptions,
 } from "./definitions";
 
 function cloneOptions(options: AnsightOptions): AnsightOptions {
@@ -20,6 +22,16 @@ export class AnsightOptionsBuilder implements AnsightOptionsBuilderApi {
 
   constructor(options: AnsightOptions = {}) {
     this.options = cloneOptions(options);
+  }
+
+  withAnnotatedFeedback(options: AnsightAnnotationOptions = {}): this {
+    this.options.annotatedFeedback = { ...options, enabled: true };
+    return this;
+  }
+
+  withoutAnnotatedFeedback(): this {
+    this.options.annotatedFeedback = { enabled: false };
+    return this;
   }
 
   withAnsightDefaults(): this {
@@ -205,6 +217,16 @@ export class AnsightOptionsBuilder implements AnsightOptionsBuilderApi {
 
   withoutTouchCapture(): this {
     this.options.touchCapture = false;
+    return this;
+  }
+
+  withMotionCapture(options: AnsightMotionCaptureOptions = {}): this {
+    this.options.motionCapture = { ...options };
+    return this;
+  }
+
+  withoutMotionCapture(): this {
+    this.options.motionCapture = false;
     return this;
   }
 

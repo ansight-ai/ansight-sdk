@@ -14,14 +14,17 @@
 
 # Local Ansight SDK validation output
 .ansight-validation/
-src/dotnet/tests/Ansight.TestHarness/ansight.json
+test-apps/core/dotnet/Ansight.TestHarness/ansight.json
 .build/
 .swiftpm/
 .cxx/
 build/
 tmp/
-src/ios/Examples/NativeHarness/Build/
-src/ios/Examples/NativeHarness/AnsightNativeHarnessPublished.xcodeproj/
+test-apps/core/ios/Build/
+test-apps/core/ios/AnsightNativeHarnessPublished.xcodeproj/
+test-apps/motion/ios/Build/
+test-apps/core/capacitor/ios/App/Build*/
+test-apps/core/capacitor/dist/
 
 # Python validation tooling cache
 __pycache__/

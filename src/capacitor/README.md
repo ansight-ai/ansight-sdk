@@ -16,12 +16,20 @@ session properties, logs, guarded remote tools, JavaScript custom tools,
 artifacts, DOM inspection, route tracking, lifecycle tracking, and JavaScript
 error capture through one TypeScript API.
 
+Enable app-fed motion capture with `createOptionsBuilder().withMotionCapture()`;
+forward observations with `Ansight.recordShake()` and
+`Ansight.recordAccelerometer(x, y, z)`. See [motion capture](../../docs/motion.md).
+
 The native touch path also retains available Apple Pencil and Android
 stylus/eraser pressure, angles, and hover data across the WebView. See
 [the touch wire format](../../docs/protocol.md) for platform-specific fields.
 
 For guarded startup and CLI verification, see the
 [Capacitor getting-started guide](https://www.ansight.ai/docs/sdk/cordova/setup).
+
+## In-app annotations
+
+The all-in-one package exposes `Annotate.PresentAsync()` for initialized Debug iOS and Android apps. `createOptionsBuilder().withAnnotatedFeedback({ captureScreenshot: false })` customizes native capture. The editor sends its bundle to the connected session or queues it for retry. Release builds keep the editor disabled.
 
 ## Install
 
@@ -261,7 +269,7 @@ access. Keep the script and all remote tools limited to development builds.
 ## Validation
 
 The complete interactive harness is in
-[`example-app`](./example-app/README.md). It contains 54 feature checks and
+[`test-apps/core/capacitor`](../../test-apps/core/capacitor/README.md). It contains 54 feature checks and
 buildable Android and iOS projects. Run the package checks from the repository root:
 
 ```bash

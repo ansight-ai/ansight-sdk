@@ -43,8 +43,11 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "enableFramesPerSecond", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "disableFramesPerSecond", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "captureScreenFrame", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "presentAnnotation", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "enableTouchCapture", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "disableTouchCapture", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "recordShake", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "recordAccelerometer", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "updateSessionProperties", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "clearSessionProperties", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "registerCustomProperty", returnType: CAPPluginReturnPromise),
@@ -471,6 +474,18 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
+    @objc func presentAnnotation(_ call: CAPPluginCall) {
+        Task {
+            let result = await Annotate.PresentAsync()
+            call.resolve([
+                "status": result.status.rawValue,
+                "annotationId": result.annotationId.map { $0.uuidString as Any } ?? NSNull(),
+                "message": result.message.map { $0 as Any } ?? NSNull(),
+                "isSuccess": result.isSuccess
+            ])
+        }
+    }
+
     @objc func enableTouchCapture(_ call: CAPPluginCall) {
         AnsightRuntime.shared.enableTouchCapture()
         call.resolve(snapshotDictionary())
@@ -479,6 +494,20 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func disableTouchCapture(_ call: CAPPluginCall) {
         AnsightRuntime.shared.disableTouchCapture()
         call.resolve(snapshotDictionary())
+    }
+
+    @objc func recordShake(_ call: CAPPluginCall) {
+        AnsightRuntime.shared.recordShake(source: call.getString("source") ?? "app")
+        call.resolve(["isSuccess": true])
+    }
+
+    @objc func recordAccelerometer(_ call: CAPPluginCall) {
+        AnsightRuntime.shared.recordAccelerometerSample(
+            x: call.getDouble("x") ?? .nan,
+            y: call.getDouble("y") ?? .nan,
+            z: call.getDouble("z") ?? .nan
+        )
+        call.resolve(["isSuccess": true])
     }
 
     @objc func updateSessionProperties(_ call: CAPPluginCall) {
@@ -647,6 +676,19 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
     private func buildOptions(_ dictionary: NSDictionary?) throws -> AnsightOptions {
         let useDefaults = boolValue(dictionary, "useNativeAllInOneDefaults", defaultValue: false)
         var options = useDefaults ? AnsightOptions.ansightDeveloperDefaults : AnsightOptions()
+        if let raw = dictionary?["annotatedFeedback"] {
+            if let enabled = raw as? NSNumber, !enabled.boolValue {
+                options.annotatedFeedback.enabled = false
+            } else if let annotation = raw as? NSDictionary {
+                options.annotatedFeedback = AnnotationOptions(
+                    enabled: boolValue(annotation, "enabled", defaultValue: true),
+                    captureScreenshot: boolValue(annotation, "captureScreenshot", defaultValue: true),
+                    captureVisualTrees: boolValue(annotation, "captureVisualTrees", defaultValue: true),
+                    screenshotQuality: intValue(annotation, "screenshotQuality", defaultValue: 85),
+                    screenshotMaxWidth: intValue(annotation, "screenshotMaxWidth", defaultValue: 1440)
+                )
+            }
+        }
         if let value = stringValue(dictionary, "clientName") {
             options.hostAutoProbe.clientName = value
         }
@@ -725,6 +767,17 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
                         "moveCaptureFramesPerSecond",
                         defaultValue: AnsightTouchCaptureOptions.defaultMoveCaptureFramesPerSecond
                     )
+                )
+            }
+        }
+        if let raw = dictionary?["motionCapture"] {
+            if (raw as? Bool) == false {
+                options.motionCapture = nil
+            } else if let motion = raw as? NSDictionary {
+                options.motionCapture = AnsightMotionCaptureOptions(
+                    captureShake: boolValue(motion, "captureShake", defaultValue: true),
+                    captureAccelerometer: boolValue(motion, "captureAccelerometer", defaultValue: true),
+                    minimumSampleIntervalMilliseconds: intValue(motion, "minimumSampleIntervalMilliseconds", defaultValue: 20)
                 )
             }
         }
@@ -1177,6 +1230,7 @@ private func eventType(_ value: String?) -> AnsightEventType {
     case "navigation": return .navigation
     case "screenviewed", "screen_viewed": return .screenViewed
     case "lifecycle": return .lifecycle
+    case "motion": return .motion
     default: return .info
     }
 }

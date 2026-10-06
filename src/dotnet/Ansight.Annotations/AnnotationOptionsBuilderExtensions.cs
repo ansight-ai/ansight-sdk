@@ -4,7 +4,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 
 /// <summary>
-/// Registers opt-in annotated feedback capture with the Ansight runtime.
+/// Registers or customizes annotated feedback capture on the core runtime builder.
 /// </summary>
 public static class AnnotatedFeedbackOptionsBuilderExtensions
 {

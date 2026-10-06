@@ -62,7 +62,7 @@ if [[ "${skip_tests}" != "true" ]]; then
     flutter test
   )
   (
-    cd "${package_root}/example"
+    cd "${repo_root}/test-apps/core/flutter"
     flutter test
   )
   "${repo_root}/scripts/validate-flutter-macos.sh"

@@ -27,10 +27,11 @@ Local development features require no Ansight account or subscription.
 
 - `Ansight.Protocol`: portable app-to-host messages, device profiles, JSON conventions, tool schemas and payload encoding; no SDK runtime, native bindings or build tasks.
 - `Ansight.Core`: app-side runtime, telemetry, host connection, tool execution and build-time safety targets. Depends on `Ansight.Protocol` and forwards the moved public types.
-- `Ansight.Annotations`: opt-in, Debug-only in-app feedback, screenshot, visual-tree, hook, artifact, and bundle delivery support.
+- `Ansight.Annotations`: standalone Debug-only annotation API, native editor, screenshot, visual-tree, and bundle delivery support.
+- `Ansight.Motion`: opt-in app-fed shake and accelerometer evidence. Call `WithMotionCapture()` on the options builder and forward existing observations through `MotionCapture.RecordShake()` or `MotionCapture.RecordAccelerometer(...)`. See [motion capture](../../docs/motion.md).
 - `Ansight.OfflineCapture`: offline telemetry, event, touch, screenshot, and annotation storage with retention, ZIP/AES export, and team upload.
-- `Ansight`: all-in-one package for non-MAUI .NET apps. It depends on `Ansight.Core`, bundles annotations and offline capture without enabling either workflow, includes native pairing where supported, and includes all non-MAUI remote tool packages.
-- `Ansight.Maui`: all-in-one package for .NET MAUI apps. It depends on `Ansight`, bundles annotations and offline capture without enabling either workflow, and adds MAUI inspection/mutation tools plus `MauiAppBuilder` setup helpers with automatic lifecycle and page-view telemetry.
+- `Ansight`: all-in-one package for non-MAUI .NET apps. It depends on `Ansight.Core`, registers annotations in Debug builds, includes offline capture, native pairing where supported, and all non-MAUI remote tool packages.
+- `Ansight.Maui`: all-in-one package for .NET MAUI apps. It depends on `Ansight`, registers annotations in Debug builds, includes offline capture, and adds MAUI inspection/mutation tools plus `MauiAppBuilder` setup helpers with automatic lifecycle and page-view telemetry.
 - `Ansight.Profiling.DotNet`: opt-in build configuration and application-ready marker for .NET EventPipe startup profiles captured by Ansight.
 - `Ansight.Tools.*`: individual tool packages for apps that want explicit package-by-package control.
 
@@ -98,17 +99,17 @@ platform QR support for physical devices, including current Android activity
 tracking. No pairing file, MSBuild property, host address, build-time host probe,
 or activity-provider callback is required.
 
-The all-in-one packages include annotations but do not enable them by default. To expose an in-app feedback action, opt in explicitly; the runtime activates it only for a Debug application build:
+The all-in-one packages register annotations automatically for Debug application builds. Present the native editor from an app action:
 
 ```csharp
 using Ansight.Annotations;
 
 var options = Options.CreateBuilder()
-    .WithAnsightSdk(ansight => ansight.WithAnnotatedFeedback())
+    .WithAnsightSdk()
     .Build();
 
 Runtime.InitializeAndActivate(options);
-await Feedback.PresentAsync();
+await Annotate.PresentAsync();
 ```
 
 The all-in-one packages also reference `Ansight.OfflineCapture`, but capture

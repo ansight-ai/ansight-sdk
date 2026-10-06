@@ -14,12 +14,15 @@ import ai.ansight.runtime.AnsightLogLevel
 import ai.ansight.runtime.AnsightLogger
 import ai.ansight.runtime.AnsightNetworkRequest
 import ai.ansight.runtime.AnsightOptions
+import ai.ansight.runtime.Annotate
+import ai.ansight.runtime.AnnotationOptions
 import ai.ansight.runtime.AnsightRuntime
 import ai.ansight.runtime.AnsightSecureStorageOptions
 import ai.ansight.runtime.AnsightSessionJpegCaptureOptions
 import ai.ansight.runtime.AnsightSessionJpegCaptureMode
 import ai.ansight.runtime.AnsightToolGuard
 import ai.ansight.runtime.AnsightTouchCaptureOptions
+import ai.ansight.runtime.AnsightMotionCaptureOptions
 import ai.ansight.runtime.AppLifecycleState
 import ai.ansight.runtime.DefaultMemoryChannels
 import ai.ansight.runtime.FunctionAndroidTool
@@ -434,6 +437,17 @@ class AnsightCapacitorPlugin : Plugin() {
     }
 
     @PluginMethod
+    fun presentAnnotation(call: PluginCall) {
+        Annotate.PresentAsync(activity) { result ->
+            call.resolve(JSObject()
+                .putValue("status", result.status.name.lowercase(Locale.US))
+                .putValue("annotationId", result.annotationId)
+                .putValue("message", result.message)
+                .putValue("isSuccess", result.isSuccess))
+        }
+    }
+
+    @PluginMethod
     fun enableTouchCapture(call: PluginCall) = resolve(call) {
         operationResult(AnsightRuntime.enableTouchCapture())
     }
@@ -441,6 +455,22 @@ class AnsightCapacitorPlugin : Plugin() {
     @PluginMethod
     fun disableTouchCapture(call: PluginCall) = resolve(call) {
         operationResult(AnsightRuntime.disableTouchCapture())
+    }
+
+    @PluginMethod
+    fun recordShake(call: PluginCall) = resolve(call) {
+        AnsightRuntime.recordShake(call.getString("source") ?: "app")
+        JSObject().putValue("isSuccess", true)
+    }
+
+    @PluginMethod
+    fun recordAccelerometer(call: PluginCall) = resolve(call) {
+        AnsightRuntime.recordAccelerometerSample(
+            call.getDouble("x") ?: Double.NaN,
+            call.getDouble("y") ?: Double.NaN,
+            call.getDouble("z") ?: Double.NaN,
+        )
+        JSObject().putValue("isSuccess", true)
     }
 
     @PluginMethod
@@ -669,6 +699,20 @@ class AnsightCapacitorPlugin : Plugin() {
         } else {
             AnsightOptions()
         }
+        if (map.has("annotatedFeedback")) {
+            val annotation = map.optJSONObject("annotatedFeedback")
+            options = options.copy(annotatedFeedback = if (map.opt("annotatedFeedback") == false) {
+                AnnotationOptions(enabled = false)
+            } else {
+                AnnotationOptions(
+                    enabled = annotation?.optBoolean("enabled", true) ?: true,
+                    captureScreenshot = annotation?.optBoolean("captureScreenshot", true) ?: true,
+                    captureVisualTrees = annotation?.optBoolean("captureVisualTrees", true) ?: true,
+                    screenshotQuality = annotation?.optInt("screenshotQuality", 85) ?: 85,
+                    screenshotMaxWidth = annotation?.optInt("screenshotMaxWidth", 1440) ?: 1440,
+                )
+            })
+        }
         if (map.has("sampleFrequencyMilliseconds")) {
             options = options.copy(
                 sampleFrequencyMilliseconds = map.intValue(
@@ -763,6 +807,18 @@ class AnsightCapacitorPlugin : Plugin() {
                             "moveCaptureFramesPerSecond",
                             20,
                         ),
+                    )
+                },
+            )
+        }
+        if (map.has("motionCapture")) {
+            options = options.copy(
+                motionCapture = if (map.opt("motionCapture") == false) null else {
+                    val motion = map.objectValue("motionCapture")
+                    AnsightMotionCaptureOptions(
+                        captureShake = motion.booleanValue("captureShake", true),
+                        captureAccelerometer = motion.booleanValue("captureAccelerometer", true),
+                        minimumSampleIntervalMilliseconds = motion.intValue("minimumSampleIntervalMilliseconds", 20),
                     )
                 },
             )
@@ -1215,6 +1271,7 @@ private fun eventType(raw: String?): ai.ansight.runtime.AnsightEventType =
         "navigation" -> ai.ansight.runtime.AnsightEventType.Navigation
         "screenviewed", "screen_viewed" -> ai.ansight.runtime.AnsightEventType.ScreenViewed
         "lifecycle" -> ai.ansight.runtime.AnsightEventType.Lifecycle
+        "motion" -> ai.ansight.runtime.AnsightEventType.Motion
         else -> ai.ansight.runtime.AnsightEventType.Info
     }
 

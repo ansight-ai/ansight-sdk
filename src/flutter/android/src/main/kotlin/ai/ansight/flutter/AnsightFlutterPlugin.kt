@@ -16,12 +16,15 @@ import ai.ansight.runtime.AnsightNetworkHeader
 import ai.ansight.runtime.AnsightNetworkBody
 import ai.ansight.runtime.AnsightNetworkRequest
 import ai.ansight.runtime.AnsightOptions
+import ai.ansight.runtime.Annotate
+import ai.ansight.runtime.AnnotationOptions
 import ai.ansight.runtime.AnsightRuntime
 import ai.ansight.runtime.AnsightSecureStorageOptions
 import ai.ansight.runtime.AnsightSessionJpegCaptureOptions
 import ai.ansight.runtime.AnsightSessionJpegCaptureMode
 import ai.ansight.runtime.AnsightToolGuard
 import ai.ansight.runtime.AnsightTouchCaptureOptions
+import ai.ansight.runtime.AnsightMotionCaptureOptions
 import ai.ansight.runtime.AppLifecycleState
 import ai.ansight.runtime.DefaultMemoryChannels
 import ai.ansight.runtime.FunctionAndroidTool
@@ -155,6 +158,17 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
         argumentsJson: String?,
         callback: (Result<String>) -> Unit,
     ) {
+        if (method == "presentAnnotation") {
+            Annotate.PresentAsync(activity) { result ->
+                callback(Result.success(JSONObject()
+                    .put("status", result.status.name.lowercase())
+                    .put("annotationId", result.annotationId)
+                    .put("message", result.message)
+                    .put("isSuccess", result.isSuccess)
+                    .toString()))
+            }
+            return
+        }
         executor.execute {
             runCatching {
                 dispatch(method, argumentsJson?.let(::JSONObject) ?: JSONObject()).toString()
@@ -398,6 +412,18 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
         }
         "enableTouchCapture" -> operationResult(AnsightRuntime.enableTouchCapture())
         "disableTouchCapture" -> operationResult(AnsightRuntime.disableTouchCapture())
+        "recordShake" -> {
+            AnsightRuntime.recordShake(map.stringValue("source") ?: "app")
+            operationResult(OperationResult.success("Shake recorded."))
+        }
+        "recordAccelerometer" -> {
+            AnsightRuntime.recordAccelerometerSample(
+                map.doubleValue("x", Double.NaN),
+                map.doubleValue("y", Double.NaN),
+                map.doubleValue("z", Double.NaN),
+            )
+            operationResult(OperationResult.success("Accelerometer sample recorded."))
+        }
         "updateSessionProperties" -> operationResult(
             AnsightRuntime.updateCustomProperties(map.objectValue("properties").toGroupedStringMap()),
         )
@@ -666,6 +692,20 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
         } else {
             AnsightOptions()
         }
+        if (map.has("annotatedFeedback")) {
+            val annotation = map.optJSONObject("annotatedFeedback")
+            result = result.copy(annotatedFeedback = if (map.opt("annotatedFeedback") == false) {
+                AnnotationOptions(enabled = false)
+            } else {
+                AnnotationOptions(
+                    enabled = annotation?.optBoolean("enabled", true) ?: true,
+                    captureScreenshot = annotation?.optBoolean("captureScreenshot", true) ?: true,
+                    captureVisualTrees = annotation?.optBoolean("captureVisualTrees", true) ?: true,
+                    screenshotQuality = annotation?.optInt("screenshotQuality", 85) ?: 85,
+                    screenshotMaxWidth = annotation?.optInt("screenshotMaxWidth", 1440) ?: 1440,
+                )
+            })
+        }
         if (map.hasValue("sampleFrequencyMilliseconds")) {
             result = result.copy(
                 sampleFrequencyMilliseconds =
@@ -750,6 +790,18 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
                             touch.doubleValue("moveCaptureDistanceThreshold", 8.0),
                         moveCaptureFramesPerSecond =
                             touch.intValue("moveCaptureFramesPerSecond", 20),
+                    )
+                },
+            )
+        }
+        if (map.has("motionCapture")) {
+            result = result.copy(
+                motionCapture = if (map.opt("motionCapture") == false) null else {
+                    val motion = map.objectValue("motionCapture")
+                    AnsightMotionCaptureOptions(
+                        captureShake = motion.booleanValue("captureShake", true),
+                        captureAccelerometer = motion.booleanValue("captureAccelerometer", true),
+                        minimumSampleIntervalMilliseconds = motion.intValue("minimumSampleIntervalMilliseconds", 20),
                     )
                 },
             )
@@ -1190,6 +1242,7 @@ private fun eventType(raw: String?): ai.ansight.runtime.AnsightEventType =
         "navigation" -> ai.ansight.runtime.AnsightEventType.Navigation
         "screenviewed", "screen_viewed" -> ai.ansight.runtime.AnsightEventType.ScreenViewed
         "lifecycle" -> ai.ansight.runtime.AnsightEventType.Lifecycle
+        "motion" -> ai.ansight.runtime.AnsightEventType.Motion
         else -> ai.ansight.runtime.AnsightEventType.Info
     }
 

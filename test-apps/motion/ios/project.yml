@@ -1,0 +1,24 @@
+name: AnsightMotionTest
+options:
+  minimumXcodeGenVersion: 2.38.0
+packages:
+  AnsightSDK:
+    path: ../../../src/ios
+targets:
+  AnsightMotionTest:
+    type: application
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - App
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ai.ansight.motion.ios-testapp
+        PRODUCT_NAME: AnsightMotionTest
+        INFOPLIST_FILE: App/Info.plist
+        SWIFT_VERSION: 6.0
+    dependencies:
+      - package: AnsightSDK
+        product: Ansight
+      - package: AnsightSDK
+        product: AnsightMotion

@@ -10,7 +10,17 @@ through the `ansight` CLI. Nothing leaves your machine unless you export or
 share it. See https://www.ansight.ai and the
 [getting started guide](https://www.ansight.ai/docs/getting-started).
 
-The native harness app lives in `Examples/NativeHarness/`.
+The native harness app lives in [`test-apps/core/ios`](../../test-apps/core/ios/README.md).
+
+`AnsightMotion` is a separate SwiftPM product and CocoaPod included by the
+aggregate `Ansight` package. Enable app-fed capture with
+`AnsightOptionsBuilder.withMotionCapture()`, then call
+`AnsightMotion.recordShake()` or `recordAccelerometer(x:y:z:)` from the app's
+existing handlers. See [motion capture](../../docs/motion.md).
+
+## In-app annotations
+
+`AnsightAnnotations` is a standalone SwiftPM product and CocoaPod, and is included by the aggregate `Ansight` product and pod. After runtime initialization in a Debug app, call `await Annotate.PresentAsync()` from an app action. The native editor captures a screenshot and registered visual trees before opening, then submits a bundle to the connected session or queues it for retry. Use `AnsightOptionsBuilder.withAnnotatedFeedback(...)` to customize capture; it is enabled by default in Debug builds and disabled in Release builds.
 
 Import `AnsightCore` plus individual enrollment/tool products for a minimal
 integration, or import the aggregate `Ansight` product for developer defaults,

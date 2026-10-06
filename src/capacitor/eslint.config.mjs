@@ -13,6 +13,6 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ['dist/', 'example-app/', 'node_modules/'],
+    ignores: ['dist/', 'node_modules/'],
   },
 );

@@ -8,7 +8,8 @@ Future<void> main(List<String> arguments) async {
   }
 
   final packageRoot = File.fromUri(Platform.script).parent.parent.path;
-  final exampleRoot = '$packageRoot${Platform.pathSeparator}example';
+  final repositoryRoot = Directory(packageRoot).parent.parent.path;
+  final appRoot = '$repositoryRoot${Platform.pathSeparator}test-apps${Platform.pathSeparator}core${Platform.pathSeparator}flutter';
   final flutterArguments = <String>[
     'run',
     if (options.release) '--release',
@@ -21,7 +22,7 @@ Future<void> main(List<String> arguments) async {
     final process = await Process.start(
       'flutter',
       flutterArguments,
-      workingDirectory: exampleRoot,
+      workingDirectory: appRoot,
       mode: ProcessStartMode.inheritStdio,
     );
     commandExitCode = await process.exitCode;

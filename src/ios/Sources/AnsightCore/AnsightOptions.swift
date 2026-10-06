@@ -11,12 +11,14 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
     public var lifecycleCapture: AnsightLifecycleCaptureOptions
     public var sessionJpegCapture: AnsightSessionJpegCaptureOptions?
     public var touchCapture: AnsightTouchCaptureOptions?
+    public var motionCapture: AnsightMotionCaptureOptions?
     public var toolGuard: AnsightToolGuard
     public var customProperties: [String: [String: String]]
     public var hostAutoProbe: AnsightHostAutoProbeOptions
     public var hostConnection: AnsightHostConnectionOptions
     public var crashCapture: AnsightCrashCaptureOptions
     public var networkCapture: AnsightNetworkCaptureOptions
+    public var annotatedFeedback: AnnotationOptions
 
     public init(
         sampleFrequencyMilliseconds: Int = AnsightSamplingLimits.defaultSampleFrequencyMilliseconds,
@@ -29,12 +31,14 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
         lifecycleCapture: AnsightLifecycleCaptureOptions = .enabledDefault,
         sessionJpegCapture: AnsightSessionJpegCaptureOptions? = nil,
         touchCapture: AnsightTouchCaptureOptions? = AnsightTouchCaptureOptions(),
+        motionCapture: AnsightMotionCaptureOptions? = nil,
         toolGuard: AnsightToolGuard = .disabled,
         customProperties: [String: [String: String]] = [:],
         hostAutoProbe: AnsightHostAutoProbeOptions = .enabledDefault,
         hostConnection: AnsightHostConnectionOptions = AnsightHostConnectionOptions(),
         crashCapture: AnsightCrashCaptureOptions = AnsightCrashCaptureOptions(),
-        networkCapture: AnsightNetworkCaptureOptions = AnsightNetworkCaptureOptions()
+        networkCapture: AnsightNetworkCaptureOptions = AnsightNetworkCaptureOptions(),
+        annotatedFeedback: AnnotationOptions = AnnotationOptions()
     ) {
         self.sampleFrequencyMilliseconds = sampleFrequencyMilliseconds
         self.retentionPeriodSeconds = retentionPeriodSeconds
@@ -46,12 +50,14 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
         self.lifecycleCapture = lifecycleCapture
         self.sessionJpegCapture = sessionJpegCapture
         self.touchCapture = touchCapture
+        self.motionCapture = motionCapture
         self.toolGuard = toolGuard
         self.customProperties = customProperties
         self.hostAutoProbe = hostAutoProbe
         self.hostConnection = hostConnection
         self.crashCapture = crashCapture
         self.networkCapture = networkCapture
+        self.annotatedFeedback = annotatedFeedback
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -65,12 +71,14 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
         case lifecycleCapture
         case sessionJpegCapture
         case touchCapture
+        case motionCapture
         case toolGuard
         case customProperties
         case hostAutoProbe
         case hostConnection
         case crashCapture
         case networkCapture
+        case annotatedFeedback
     }
 
     public init(from decoder: Decoder) throws {
@@ -91,6 +99,7 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
             forKey: .sessionJpegCapture
         )
         touchCapture = try container.decodeIfPresent(AnsightTouchCaptureOptions.self, forKey: .touchCapture)
+        motionCapture = try container.decodeIfPresent(AnsightMotionCaptureOptions.self, forKey: .motionCapture)
         toolGuard = try container.decode(AnsightToolGuard.self, forKey: .toolGuard)
         customProperties = try container.decode([String: [String: String]].self, forKey: .customProperties)
         hostAutoProbe = try container.decode(AnsightHostAutoProbeOptions.self, forKey: .hostAutoProbe)
@@ -103,6 +112,7 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
             AnsightNetworkCaptureOptions.self,
             forKey: .networkCapture
         ) ?? AnsightNetworkCaptureOptions()
+        annotatedFeedback = try container.decodeIfPresent(AnnotationOptions.self, forKey: .annotatedFeedback) ?? AnnotationOptions()
     }
 
     public static func createBuilder() -> AnsightOptionsBuilder {
@@ -144,10 +154,12 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
         copy.lifecycleCapture.validate()
         copy.sessionJpegCapture?.validate()
         copy.touchCapture?.validate()
+        copy.motionCapture = copy.motionCapture?.validated()
         copy.hostAutoProbe.validate()
         try copy.hostConnection.validate()
         copy.crashCapture.validate()
         copy.networkCapture.validate()
+        copy.annotatedFeedback = copy.annotatedFeedback.validated()
         return copy
     }
 }

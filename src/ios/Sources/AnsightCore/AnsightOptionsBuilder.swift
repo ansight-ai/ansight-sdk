@@ -8,6 +8,19 @@ public final class AnsightOptionsBuilder {
     }
 
     @discardableResult
+    public func withAnnotatedFeedback(_ annotationOptions: AnnotationOptions = AnnotationOptions()) -> AnsightOptionsBuilder {
+        options.annotatedFeedback = annotationOptions
+        options.annotatedFeedback.enabled = true
+        return self
+    }
+
+    @discardableResult
+    public func withoutAnnotatedFeedback() -> AnsightOptionsBuilder {
+        options.annotatedFeedback.enabled = false
+        return self
+    }
+
+    @discardableResult
     public func withSampleFrequencyMilliseconds(_ sampleFrequencyMilliseconds: Int) -> AnsightOptionsBuilder {
         options.sampleFrequencyMilliseconds = sampleFrequencyMilliseconds
         return self
@@ -142,6 +155,18 @@ public final class AnsightOptionsBuilder {
     @discardableResult
     public func withoutTouchCapture() -> AnsightOptionsBuilder {
         options.touchCapture = nil
+        return self
+    }
+
+    @discardableResult
+    public func withMotionCapture(_ motionCapture: AnsightMotionCaptureOptions = AnsightMotionCaptureOptions()) -> AnsightOptionsBuilder {
+        options.motionCapture = motionCapture
+        return self
+    }
+
+    @discardableResult
+    public func withoutMotionCapture() -> AnsightOptionsBuilder {
+        options.motionCapture = nil
         return self
     }
 

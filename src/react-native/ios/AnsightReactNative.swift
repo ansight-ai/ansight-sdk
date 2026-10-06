@@ -647,6 +647,19 @@ final class AnsightReactNative: RCTEventEmitter {
         }
     }
 
+    @objc(presentAnnotation:rejecter:)
+    func presentAnnotation(_ resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) {
+        Task {
+            let result = await Annotate.PresentAsync()
+            resolve([
+                "status": result.status.rawValue,
+                "annotationId": result.annotationId.map { $0.uuidString as Any } ?? NSNull(),
+                "message": result.message.map { $0 as Any } ?? NSNull(),
+                "isSuccess": result.isSuccess
+            ])
+        }
+    }
+
     @objc(enableTouchCapture:rejecter:)
     func enableTouchCapture(_ resolve: RCTPromiseResolveBlock, rejecter reject: RCTPromiseRejectBlock) {
         AnsightRuntime.shared.enableTouchCapture()
@@ -657,6 +670,22 @@ final class AnsightReactNative: RCTEventEmitter {
     func disableTouchCapture(_ resolve: RCTPromiseResolveBlock, rejecter reject: RCTPromiseRejectBlock) {
         AnsightRuntime.shared.disableTouchCapture()
         resolve(snapshotDictionary())
+    }
+
+    @objc(recordShake:resolver:rejecter:)
+    func recordShake(_ source: String, resolver resolve: RCTPromiseResolveBlock, rejecter reject: RCTPromiseRejectBlock) {
+        AnsightRuntime.shared.recordShake(source: source)
+        resolve(["isSuccess": true])
+    }
+
+    @objc(recordAccelerometer:resolver:rejecter:)
+    func recordAccelerometer(_ input: NSDictionary, resolver resolve: RCTPromiseResolveBlock, rejecter reject: RCTPromiseRejectBlock) {
+        AnsightRuntime.shared.recordAccelerometerSample(
+            x: (input["x"] as? NSNumber)?.doubleValue ?? .nan,
+            y: (input["y"] as? NSNumber)?.doubleValue ?? .nan,
+            z: (input["z"] as? NSNumber)?.doubleValue ?? .nan
+        )
+        resolve(["isSuccess": true])
     }
 
     @objc(updateSessionProperties:resolver:rejecter:)
@@ -1004,6 +1033,19 @@ final class AnsightReactNative: RCTEventEmitter {
         if useNativeAllInOneDefaults && stringValue(dictionary, "toolGuard") == nil {
             options.toolGuard = .readOnly
         }
+        if let raw = dictionary?["annotatedFeedback"] {
+            if let enabled = raw as? NSNumber, !enabled.boolValue {
+                options.annotatedFeedback.enabled = false
+            } else if let annotation = raw as? NSDictionary {
+                options.annotatedFeedback = AnnotationOptions(
+                    enabled: boolValue(annotation, "enabled", defaultValue: true),
+                    captureScreenshot: boolValue(annotation, "captureScreenshot", defaultValue: true),
+                    captureVisualTrees: boolValue(annotation, "captureVisualTrees", defaultValue: true),
+                    screenshotQuality: intValue(annotation, "screenshotQuality", defaultValue: 85),
+                    screenshotMaxWidth: intValue(annotation, "screenshotMaxWidth", defaultValue: 1440)
+                )
+            }
+        }
         if let value = stringValue(dictionary, "clientName") {
             options.hostAutoProbe.clientName = value
         }
@@ -1093,6 +1135,17 @@ final class AnsightReactNative: RCTEventEmitter {
                     captureCancelEvents: boolValue(touch, "captureCancelEvents", defaultValue: true),
                     moveCaptureDistanceThreshold: doubleValue(touch, "moveCaptureDistanceThreshold", defaultValue: AnsightTouchCaptureOptions.defaultMoveCaptureDistanceThreshold),
                     moveCaptureFramesPerSecond: intValue(touch, "moveCaptureFramesPerSecond", defaultValue: AnsightTouchCaptureOptions.defaultMoveCaptureFramesPerSecond)
+                )
+            }
+        }
+        if let raw = dictionary?["motionCapture"] {
+            if (raw as? Bool) == false {
+                options.motionCapture = nil
+            } else if let motion = raw as? NSDictionary {
+                options.motionCapture = AnsightMotionCaptureOptions(
+                    captureShake: boolValue(motion, "captureShake", defaultValue: true),
+                    captureAccelerometer: boolValue(motion, "captureAccelerometer", defaultValue: true),
+                    minimumSampleIntervalMilliseconds: intValue(motion, "minimumSampleIntervalMilliseconds", defaultValue: 20)
                 )
             }
         }
@@ -1718,6 +1771,8 @@ private func eventType(_ rawValue: String?) -> AnsightEventType {
         return .screenViewed
     case "lifecycle":
         return .lifecycle
+    case "motion":
+        return .motion
     default:
         return .info
     }

@@ -47,6 +47,7 @@ object AnsightRuntime {
     private var nextTouchSequence = 0L
     private var lastStreamedMetricSequence = 0L
     private var lastStreamedEventSequence = 0L
+    private var lastMotionSampleEpochMs = 0L
     private var lastStreamedTouchSequence = 0L
     private val announcedMetricChannelIds = mutableSetOf<Int>()
     private var telemetryStreamLoopActive = false
@@ -90,6 +91,7 @@ object AnsightRuntime {
     fun initialize(application: Application, options: AnsightOptions = AnsightOptions()) {
         AnsightLogger.info("Initializing Ansight runtime.")
         val validated = options.validated()
+        Annotate.initialize(application, validated.annotatedFeedback)
         AnsightCrashCapture.initialize(application, validated.crashCapture)
         synchronized(lock) {
             deactivateLocked(closeTransport = true)
@@ -128,6 +130,7 @@ object AnsightRuntime {
             nextTouchSequence = 0
             lastStreamedMetricSequence = 0
             lastStreamedEventSequence = 0
+            lastMotionSampleEpochMs = 0
             lastStreamedTouchSequence = 0
             announcedMetricChannelIds.clear()
             telemetryStreamLoopActive = false
@@ -141,6 +144,7 @@ object AnsightRuntime {
             unattendedProvisioningInProgress = false
         }
         publishHostConnectionStatusIfChanged(force = true)
+        Annotate.attachToRuntime()
         AnsightLogger.info("Ansight runtime initialized.")
     }
 
@@ -304,6 +308,47 @@ object AnsightRuntime {
         }
         AnsightCrashCapture.recordBreadcrumb("event", trimmedLabel, details)
         streamPendingTelemetry()
+    }
+
+    /** Records a shake observed by the application. */
+    @JvmOverloads
+    fun recordShake(source: String = "app", capturedAtUtc: String = AnsightClock.isoNow()) {
+        recordMotion("motion.shake", JSONObject().put("source", source), capturedAtUtc, shake = true)
+    }
+
+    /** Records a sample already received by the application, in m/s². */
+    @JvmOverloads
+    fun recordAccelerometerSample(x: Double, y: Double, z: Double, capturedAtUtc: String = AnsightClock.isoNow()) {
+        if (!x.isFinite() || !y.isFinite() || !z.isFinite()) return
+        recordMotion("motion.accelerometer", JSONObject()
+            .put("x", x).put("y", y).put("z", z)
+            .put("unit", "m/s2").put("source", "app"), capturedAtUtc, shake = false)
+    }
+
+    private fun recordMotion(label: String, details: JSONObject, capturedAtUtc: String, shake: Boolean) {
+        val nowMs = android.os.SystemClock.elapsedRealtime()
+        val recorded = synchronized(lock) {
+            val capture = options.motionCapture ?: return@synchronized false
+            if (!initialized || !active) return@synchronized false
+            if (shake) {
+                if (!capture.captureShake) return@synchronized false
+            } else {
+                if (!capture.captureAccelerometer || nowMs < lastMotionSampleEpochMs + capture.minimumSampleIntervalMilliseconds) {
+                    return@synchronized false
+                }
+                lastMotionSampleEpochMs = nowMs
+            }
+            recordEventLocked(RecordedEvent(
+                label = label,
+                type = AnsightEventType.Motion,
+                details = details.toString(),
+                channel = AnsightChannels.Unspecified,
+                capturedAtUtc = capturedAtUtc,
+                sequence = ++nextEventSequence,
+            ))
+            true
+        }
+        if (recorded) streamPendingTelemetry()
     }
 
     fun screenViewed(
@@ -846,6 +891,14 @@ object AnsightRuntime {
         val transport = synchronized(lock) { liveTransport }
             ?: return OperationResult.failure("WebSocket session is not open.")
         return transport.sendData(bytes)
+    }
+
+    internal fun captureAnnotationVisualTrees(): List<JSONObject> {
+        val snapshot = synchronized(lock) {
+            val app = application ?: return emptyList()
+            AndroidToolExecutionContext(app, liveTransport, sessionId, null, options)
+        }
+        return SessionVisualTreeCaptureRegistry.captureForAnnotation(snapshot)
     }
 
     fun updateCustomProperties(customProperties: Map<String, Map<String, String>>): OperationResult {

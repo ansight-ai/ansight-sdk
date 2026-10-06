@@ -14,6 +14,7 @@ import {
 } from "./session-properties";
 import type {
   AnsightArtifactDefinition,
+  AnsightAnnotationResult,
   AnsightArtifactPayload,
   AnsightArtifactProvider,
   AnsightArtifactProviderRegistration,
@@ -52,6 +53,9 @@ export { sanitizeNetworkRequest } from "./network";
 export { AnsightOptionsBuilder, createOptionsBuilder };
 
 export const AnsightNative = registerPlugin<AnsightCapacitorPlugin>("Ansight");
+export const Annotate: { PresentAsync(): Promise<AnsightAnnotationResult> } = {
+  PresentAsync: () => AnsightNative.presentAnnotation(),
+};
 export const purchases = createPurchaseDiagnostics(
   async (json) => (await AnsightNative.purchaseCommand({ json })).json,
 );
@@ -490,6 +494,10 @@ export const enableTouchCapture = (): Promise<AnsightDebugSnapshot> =>
   AnsightNative.enableTouchCapture();
 export const disableTouchCapture = (): Promise<AnsightDebugSnapshot> =>
   AnsightNative.disableTouchCapture();
+export const recordShake = (source = "app"): Promise<{ isSuccess: boolean }> =>
+  AnsightNative.recordShake({ source });
+export const recordAccelerometer = (x: number, y: number, z: number): Promise<{ isSuccess: boolean }> =>
+  AnsightNative.recordAccelerometer({ x, y, z });
 
 export const updateSessionProperties = (
   properties: Record<string, Record<string, string>>,
@@ -972,8 +980,11 @@ const Ansight = {
   enableFramesPerSecond,
   disableFramesPerSecond,
   captureScreenFrame,
+  Annotate,
   enableTouchCapture,
   disableTouchCapture,
+  recordShake,
+  recordAccelerometer,
   updateSessionProperties,
   updateCustomProperties,
   clearSessionProperties,

@@ -190,6 +190,7 @@ internal static class NativeRuntimeJson
             "navigation" => AppEventType.Navigation,
             "screenviewed" => AppEventType.ScreenViewed,
             "lifecycle" => AppEventType.Lifecycle,
+            "motion" => AppEventType.Motion,
             _ => AppEventType.Info
         };
 

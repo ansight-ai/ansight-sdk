@@ -81,6 +81,24 @@ class AnsightTouchCaptureOptions {
       };
 }
 
+class AnsightMotionCaptureOptions {
+  const AnsightMotionCaptureOptions({
+    this.captureShake = true,
+    this.captureAccelerometer = true,
+    this.minimumSampleIntervalMilliseconds = 20,
+  });
+
+  final bool captureShake;
+  final bool captureAccelerometer;
+  final int minimumSampleIntervalMilliseconds;
+
+  AnsightJson toJson() => <String, Object?>{
+        'captureShake': captureShake,
+        'captureAccelerometer': captureAccelerometer,
+        'minimumSampleIntervalMilliseconds': minimumSampleIntervalMilliseconds,
+      };
+}
+
 class AnsightCrashCaptureOptions {
   const AnsightCrashCaptureOptions({
     this.enabled = true,
@@ -314,6 +332,30 @@ class AnsightRemoteToolsOptions {
       };
 }
 
+class AnsightAnnotationOptions {
+  const AnsightAnnotationOptions({
+    this.enabled = true,
+    this.captureScreenshot = true,
+    this.captureVisualTrees = true,
+    this.screenshotQuality = 85,
+    this.screenshotMaxWidth = 1440,
+  });
+
+  final bool enabled;
+  final bool captureScreenshot;
+  final bool captureVisualTrees;
+  final int screenshotQuality;
+  final int screenshotMaxWidth;
+
+  AnsightJson toJson() => <String, Object?>{
+        'enabled': enabled,
+        'captureScreenshot': captureScreenshot,
+        'captureVisualTrees': captureVisualTrees,
+        'screenshotQuality': screenshotQuality,
+        'screenshotMaxWidth': screenshotMaxWidth,
+      };
+}
+
 class AnsightOptions {
   const AnsightOptions({
     this.useNativeAllInOneDefaults = false,
@@ -329,6 +371,8 @@ class AnsightOptions {
     this.sessionJpegCaptureEnabled,
     this.touchCapture,
     this.touchCaptureEnabled,
+    this.motionCapture,
+    this.annotatedFeedback,
     this.crashCapture,
     this.crashCaptureEnabled,
     this.lifecycleCapture,
@@ -355,6 +399,8 @@ class AnsightOptions {
         sessionJpegCaptureEnabled = null,
         touchCapture = null,
         touchCaptureEnabled = null,
+        motionCapture = null,
+        annotatedFeedback = null,
         crashCapture = null,
         crashCaptureEnabled = null,
         lifecycleCapture = null,
@@ -401,6 +447,8 @@ class AnsightOptions {
   final bool? sessionJpegCaptureEnabled;
   final AnsightTouchCaptureOptions? touchCapture;
   final bool? touchCaptureEnabled;
+  final AnsightMotionCaptureOptions? motionCapture;
+  final AnsightAnnotationOptions? annotatedFeedback;
   final AnsightCrashCaptureOptions? crashCapture;
   final bool? crashCaptureEnabled;
   final AnsightLifecycleCaptureOptions? lifecycleCapture;
@@ -441,6 +489,9 @@ class AnsightOptions {
         'touchCapture': false
       else if (touchCapture != null)
         'touchCapture': touchCapture!.toJson(),
+      if (motionCapture != null) 'motionCapture': motionCapture!.toJson(),
+      if (annotatedFeedback != null)
+        'annotatedFeedback': annotatedFeedback!.toJson(),
       if (crashCaptureEnabled == false)
         'crashCapture': false
       else if (crashCapture != null)
@@ -465,6 +516,18 @@ class AnsightOptionsBuilder {
       : _json = Map<String, Object?>.from(options.toJson());
 
   AnsightJson _json;
+
+  AnsightOptionsBuilder withAnnotatedFeedback([
+    AnsightAnnotationOptions options = const AnsightAnnotationOptions(),
+  ]) {
+    _json['annotatedFeedback'] = options.toJson();
+    return this;
+  }
+
+  AnsightOptionsBuilder withoutAnnotatedFeedback() {
+    _json['annotatedFeedback'] = const <String, Object?>{'enabled': false};
+    return this;
+  }
 
   AnsightOptionsBuilder withAnsightDefaults() {
     _json = AnsightOptions.developer().toJson();
@@ -535,6 +598,18 @@ class AnsightOptionsBuilder {
 
   AnsightOptionsBuilder withoutTouchCapture() {
     _json['touchCapture'] = false;
+    return this;
+  }
+
+  AnsightOptionsBuilder withMotionCapture([
+    AnsightMotionCaptureOptions options = const AnsightMotionCaptureOptions(),
+  ]) {
+    _json['motionCapture'] = options.toJson();
+    return this;
+  }
+
+  AnsightOptionsBuilder withoutMotionCapture() {
+    _json['motionCapture'] = false;
     return this;
   }
 

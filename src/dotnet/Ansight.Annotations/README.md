@@ -1,10 +1,10 @@
 # Ansight.Annotations
 
-Opt-in, Debug-only in-app feedback capture for Ansight .NET apps.
+Debug-only in-app annotation capture for Ansight .NET apps.
 
-The package presents a native annotation overlay on Android, iOS, and Mac Catalyst. When capture is requested, it immediately timestamps the annotation, freezes the current screenshot, and captures every registered visual-tree source before opening the editor. The built-in editor captures free-draw paths; host infers an approximate rectangle, oval, line, or arrow from each path for CLI and player consumers while preserving the original free draw. Inferred arrows include the perceived focal point at the arrow tip. One contextual text editor shows overall feedback when no path is selected and the selected path's text when one is selected. Existing paths can be selected, moved, resized, deleted, or restored with undo before saving. Host contribution hooks run before the result is sealed as a versioned `.ansightannotation` bundle. Screenshot and visual-tree entries retain their exact evidence-capture times, while the annotation and bundle retain the original request time regardless of how long the editor remains open.
+`Annotate.PresentAsync()` uses the annotation engine in the native Android and Apple core packages. It timestamps the request, captures a screenshot and registered visual trees before opening the editor, and seals a versioned `.ansightannotation` bundle. The native editor supports free draw, undo, clear, and overall feedback text. The bundle is retained in a native outbox until it can be sent over the active host session. The host can infer approximate shapes from free-draw paths.
 
-`Ansight` and `Ansight.Maui` include this package, but neither enables it by default. The host app must call `WithAnnotatedFeedback()`, and the feature will initialize only when the consuming application was built with the `Debug` configuration. A Release build remains disabled even if the registration call is present.
+`Ansight` and `Ansight.Maui` include this standalone package. Their default builders register annotation capture automatically for Debug application builds. `WithAnnotatedFeedback(...)` customizes screenshot and visual-tree capture. A Release application build remains disabled.
 
 ## Setup
 
@@ -13,16 +13,13 @@ using Ansight;
 using Ansight.Annotations;
 
 var options = Options.CreateBuilder()
-    .WithAnsightSdk(ansight =>
-    {
-        ansight.WithAnnotatedFeedback();
-    })
+    .WithAnsightSdk()
     .Build();
 
 Runtime.InitializeAndActivate(options);
 ```
 
-For MAUI, enable the feature in the `UseAnsight` callback:
+For MAUI, `UseAnsight` registers the Debug default. Configure it in the callback when needed:
 
 ```csharp
 using Ansight.Annotations;
@@ -37,19 +34,19 @@ builder.UseAnsight<App>(ansight =>
 Trigger the built-in overlay from app UI:
 
 ```csharp
-var result = await Feedback.PresentAsync();
+var result = await Annotate.PresentAsync();
 ```
 
 Native Android apps can pass the foreground activity explicitly. This is recommended when the app does not use MAUI:
 
 ```csharp
-var result = await Feedback.PresentAsync(this);
+var result = await Annotate.PresentAsync(this);
 ```
 
 A host-owned UI can bypass the built-in overlay and submit its own normalized shapes:
 
 ```csharp
-var result = await Feedback.CaptureAsync(new AnnotationCaptureRequest
+var result = await Annotate.CaptureAsync(new AnnotationCaptureRequest
 {
     Feedback = "The total overlaps the action button.",
     Shapes =
@@ -61,7 +58,7 @@ var result = await Feedback.CaptureAsync(new AnnotationCaptureRequest
 
 ## Hooks and artifacts
 
-Hooks run after screenshot and visual-tree capture and before the bundle is sealed. A failing hook is recorded in the bundle and does not prevent other hooks or delivery from running.
+Hooks run for the managed `Annotate.CaptureAsync(request)` path after evidence capture and before its bundle is sealed. The native `PresentAsync()` path does not currently invoke managed hooks or managed offline sinks.
 
 ```csharp
 using System.Text.Json.Nodes;
@@ -96,4 +93,6 @@ Use `WithEvidencePolicy(...)` to deny individual evidence sources. Screenshot, v
 
 Annotation capture queries `VisualTreeProviderRegistry` at capture time and captures every registered source. The built-in `native` provider is always present. `Ansight.Maui` also registers the `maui` provider independently of whether remote tools are enabled.
 
-When the host is connected, the sealed bundle is submitted through the live session. When offline capture is active, it also stores bundles under `annotations/bundles` and appends `annotations/index.jsonl`. If no destination accepts the bundle, it is retained atomically in the local annotation outbox and the result status is `Queued`.
+When the host is connected, the sealed bundle is submitted through the live session. The native `PresentAsync()` path retains undelivered bundles in a native outbox and retries on reconnection. The managed `CaptureAsync(request)` path also supports offline-capture sinks, which store bundles under `annotations/bundles` and append `annotations/index.jsonl`.
+
+`Feedback` is obsolete and forwards to `Annotate` for existing callers.

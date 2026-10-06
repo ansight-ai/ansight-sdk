@@ -14,5 +14,6 @@ public enum AppEventType
     Gc,
     Navigation,
     ScreenViewed,
-    Lifecycle
+    Lifecycle,
+    Motion
 }

@@ -15,12 +15,25 @@ APIs. Use `ai.ansight:ansight-android` for the all-in-one developer setup, or
 compose `ansight-core-android`, `ansight-pairing-android`, and individual tool
 packages when you need a smaller runtime surface.
 
+The separate `ansight-motion-android` package is also included in `ansight-android`.
+Enable app-fed capture with `AnsightOptionsBuilder.withMotionCapture()`, then
+forward existing sensor samples through `AnsightMotion.recordAccelerometer(...)`
+or detected shakes through `AnsightMotion.recordShake()`. See [motion capture](../../docs/motion.md).
+
 Touch capture also records Android stylus and eraser input. Available pressure,
 tilt, orientation, hover distance, button state, contact dimensions, and
 historical move samples stay with the touch records. Values depend on the pen
 and digitizer; see [the touch wire format](../../docs/protocol.md).
 
-The native harness app lives in `harness/`.
+The native harness app lives in [`test-apps/core/android`](../../test-apps/core/android/).
+
+## In-app annotations
+
+The standalone `ai.ansight:ansight-annotations-android` product and the all-in-one `ansight-android` product expose the core `ai.ansight.runtime.Annotate` API. An initialized debuggable app can present the editor with `Annotate.PresentAsync(activity) { result -> ... }`. The suspending `Annotate.PresentAsync(activity)` overload is also available. The editor captures screenshot and registered visual trees before opening, then sends a bundle to the connected session or queues it for retry. Configure capture through `AnsightOptionsBuilder.withAnnotatedFeedback(AnnotationOptions(...))`; the Debug default is already enabled. Release apps cannot present the editor.
+
+The native harness has an `Annotate` button under Runtime Controls. Its status
+shows the returned result and annotation id; save once while connected and
+once while disconnected to verify live submission and retry after reconnecting.
 
 For the guarded setup and verification workflow, see the
 [Android getting-started guide](https://www.ansight.ai/docs/sdk/android/setup).

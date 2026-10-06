@@ -26,6 +26,7 @@ Nothing leaves your machine unless you export or share it.
 - Screen views, navigation, and app lifecycle events
 - App events, custom metrics, and sampled memory, FPS, frame timing, and
   battery
+- Opt-in app-fed shake and accelerometer events
 - Session properties and device and app profiles
 
 **Available on request, through guarded tools**
@@ -80,8 +81,8 @@ Current SDK features include:
 - guarded native tools for UI, files, file descriptors, preferences, secure
   storage, SQLite, reflection, and framework-specific inspection
 - custom remote tools and requestable app artifact providers on every SDK
-- .NET MAUI automation, Debug-only annotated feedback, and offline capture,
-  export, and team upload workflows
+- .NET MAUI automation, Debug-only native annotations across mobile SDKs,
+  and offline capture, export, and team upload workflows
 - React component/shadow-tree inspection, React Navigation tracking, and
   JavaScript error capture
 - Capacitor WebView DOM inspection and actions, route/lifecycle tracking,
@@ -116,8 +117,10 @@ affecting the app.
 - [Capacitor SDK Guide](src/capacitor/README.md)
 - [Flutter SDK Guide](src/flutter/README.md)
 - [Flutter Test Corpus](src/flutter/validation/flutter-corpus-results.md)
+- [SDK test apps by feature suite](test-apps/README.md)
 - [Publishing SDK releases](docs/releasing.md)
 - [Protocol](docs/protocol.md)
+- [Motion capture](docs/motion.md)
 
 ## License
 

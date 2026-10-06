@@ -4,6 +4,8 @@ using System.Text.Json;
 using AI.Ansight.Dotnet;
 using Ansight.Network;
 using Ansight.Pairing;
+using Ansight.Screenshot;
+using System.Text.Json.Nodes;
 using Ansight.Tools;
 using Android.App;
 
@@ -13,6 +15,7 @@ internal sealed class AndroidNativeRuntimeBridge : INativeRuntimeBridge
 {
     private ToolProtocolHandler? toolProtocolHandler;
     private TouchCaptureGuard? touchCaptureGuard;
+    private SessionVisualTreeCaptureProvider? sessionVisualTreeCaptureProvider;
 
     public bool IsAvailable => true;
 
@@ -35,6 +38,8 @@ internal sealed class AndroidNativeRuntimeBridge : INativeRuntimeBridge
         var application = Application.Context as Application
             ?? throw new InvalidOperationException("The Android application context is unavailable.");
         AnsightDotNetBridge.Initialize(application, NativeRuntimeOptionsJson.Serialize(options));
+        sessionVisualTreeCaptureProvider = new SessionVisualTreeCaptureProvider();
+        AnsightDotNetBridge.SetSessionVisualTreeCaptureProvider(sessionVisualTreeCaptureProvider);
     }
 
     public void Activate() => AnsightDotNetBridge.Activate();
@@ -233,6 +238,24 @@ internal sealed class AndroidNativeRuntimeBridge : INativeRuntimeBridge
         }
 
         public bool CanCapture() => guard();
+    }
+
+    private sealed class SessionVisualTreeCaptureProvider : Java.Lang.Object, AnsightDotNetBridge.ISessionVisualTreeCaptureProvider
+    {
+        public string CaptureJson()
+        {
+            try
+            {
+                var trees = SessionVisualTreeCaptureRegistry.CaptureAsync(CancellationToken.None)
+                    .GetAwaiter().GetResult();
+                return new JsonArray(trees.Select(tree => tree.DeepClone()).ToArray()).ToJsonString();
+            }
+            catch (Exception exception)
+            {
+                Logger.Warning($"Native annotation visual-tree capture skipped: {exception.Message}");
+                return "[]";
+            }
+        }
     }
 }
 #endif

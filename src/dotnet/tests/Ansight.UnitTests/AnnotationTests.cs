@@ -6,6 +6,7 @@ using System.Text.Json.Nodes;
 using Ansight.Annotations;
 using Ansight.Artifacts;
 using Ansight.Maui;
+using Ansight.Native;
 using Ansight.OfflineCapture;
 using Ansight.Tools;
 using Ansight.Tools.VisualTree;
@@ -283,15 +284,32 @@ public sealed class AnnotationTests
     }
 
     [Fact]
-    public void WithAnnotatedFeedback_IsExplicitAndNotPartOfAggregateDefaults()
+    public void WithAnnotatedFeedback_IsIncludedInAggregateDefaultsAndSupportsExplicitConfiguration()
     {
         var defaultOptions = Options.CreateBuilder().WithAnsightSdk().Build();
         var defaultMauiOptions = Options.CreateBuilder().WithAnsightMaui().Build();
         var annotationOptions = Options.CreateBuilder().WithAnsightSdk().WithAnnotatedFeedback().Build();
 
-        Assert.DoesNotContain(defaultOptions.RuntimeFeatures, feature => feature.Id == AnnotationRuntimeFeature.FeatureId);
-        Assert.DoesNotContain(defaultMauiOptions.RuntimeFeatures, feature => feature.Id == AnnotationRuntimeFeature.FeatureId);
+        Assert.Contains(defaultOptions.RuntimeFeatures, feature => feature.Id == AnnotationRuntimeFeature.FeatureId);
+        Assert.Contains(defaultMauiOptions.RuntimeFeatures, feature => feature.Id == AnnotationRuntimeFeature.FeatureId);
         Assert.Contains(annotationOptions.RuntimeFeatures, feature => feature.Id == AnnotationRuntimeFeature.FeatureId);
+        Assert.Single(annotationOptions.RuntimeFeatures, feature => feature.Id == AnnotationRuntimeFeature.FeatureId);
+    }
+
+    [Fact]
+    public void AnnotationBuilderOptions_ArePassedToTheNativeRuntime()
+    {
+        var options = Options.CreateBuilder()
+            .WithAnsightSdk(builder => builder.WithAnnotatedFeedback(annotations =>
+                annotations.WithoutScreenshot().WithScreenshotEncoding(72, 1080)))
+            .Build();
+
+        using var document = JsonDocument.Parse(NativeRuntimeOptionsJson.Serialize(options));
+        var native = document.RootElement.GetProperty("annotatedFeedback");
+        Assert.True(native.GetProperty("enabled").GetBoolean());
+        Assert.False(native.GetProperty("captureScreenshot").GetBoolean());
+        Assert.Equal(72, native.GetProperty("screenshotQuality").GetInt32());
+        Assert.Equal(1080, native.GetProperty("screenshotMaxWidth").GetInt32());
     }
 
     [Theory]

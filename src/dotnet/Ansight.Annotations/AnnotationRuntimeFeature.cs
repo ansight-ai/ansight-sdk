@@ -1,8 +1,10 @@
 namespace Ansight.Annotations;
 
 using System.Reflection;
+using System.Text.Json.Nodes;
+using Ansight.Native;
 
-internal sealed class AnnotationRuntimeFeature : IRuntimeFeature
+internal sealed class AnnotationRuntimeFeature : IRuntimeFeature, INativeRuntimeOptionsContributor
 {
     internal const string FeatureId = "annotations";
 
@@ -17,15 +19,30 @@ internal sealed class AnnotationRuntimeFeature : IRuntimeFeature
 
     public string Id => FeatureId;
 
+    public void ContributeNativeOptions(JsonObject nativeOptions)
+    {
+        nativeOptions["annotatedFeedback"] = new JsonObject
+        {
+            ["enabled"] = true,
+            ["debugBuildOverride"] = AnnotationBuildPolicy.IsDebugBuild(registrationAssembly),
+            ["captureScreenshot"] = options.CaptureScreenshot,
+            ["captureVisualTrees"] = options.CaptureVisualTrees,
+            ["screenshotQuality"] = options.ScreenshotQuality,
+            ["screenshotMaxWidth"] = options.ScreenshotMaxWidth,
+            ["visualTreeMaxDepth"] = options.VisualTreeMaxDepth,
+            ["visualTreeMaxNodes"] = options.VisualTreeMaxNodes
+        };
+    }
+
     public void Initialize(IRuntime runtime)
     {
         ArgumentNullException.ThrowIfNull(runtime);
         if (!AnnotationBuildPolicy.IsDebugBuild(registrationAssembly))
         {
-            Feedback.InitializeDisabled("Annotation capture is available only in Debug application builds.");
+            Annotate.InitializeDisabled("Annotation capture is available only in Debug application builds.");
             return;
         }
 
-        Feedback.Initialize(new AnnotationService(runtime, options));
+        Annotate.Initialize(new AnnotationService(runtime, options));
     }
 }

@@ -38,6 +38,29 @@ export interface AnsightTouchCaptureOptions {
   moveCaptureFramesPerSecond?: number;
 }
 
+export interface AnsightMotionCaptureOptions {
+  captureShake?: boolean;
+  captureAccelerometer?: boolean;
+  minimumSampleIntervalMilliseconds?: number;
+}
+
+export interface AnsightAnnotationOptions {
+  enabled?: boolean;
+  captureScreenshot?: boolean;
+  captureVisualTrees?: boolean;
+  screenshotQuality?: number;
+  screenshotMaxWidth?: number;
+}
+
+export interface AnsightAnnotationResult {
+  status: "completed" | "queued" | "cancelled" | "disabled" | "unavailable" | "failed";
+  annotationId?: string | null;
+  message?: string | null;
+  isSuccess: boolean;
+}
+
+export const Annotate: { PresentAsync(): Promise<AnsightAnnotationResult> };
+
 export interface AnsightNetworkHeader {
   name: string;
   value: string;
@@ -185,6 +208,8 @@ export interface AnsightOptions {
   reactNativeMemory?: false | AnsightReactNativeMemoryOptions;
   sessionJpegCapture?: false | AnsightSessionJpegCaptureOptions;
   touchCapture?: false | AnsightTouchCaptureOptions;
+  motionCapture?: false | AnsightMotionCaptureOptions;
+  annotatedFeedback?: false | AnsightAnnotationOptions;
   crashCapture?: false | AnsightCrashCaptureOptions;
   lifecycleCapture?: {
     enabled?: boolean;
@@ -329,6 +354,8 @@ export type AnsightCurrentOptions = AnsightOptions & Record<string, unknown>;
 
 export class AnsightOptionsBuilder {
   constructor(options?: AnsightOptions);
+  withAnnotatedFeedback(options?: AnsightAnnotationOptions): this;
+  withoutAnnotatedFeedback(): this;
   withNativeAllInOneDefaults(): this;
   withAnsightDefaults(): this;
   withAnsightSdk(configure?: (builder: this) => void): this;
@@ -360,6 +387,8 @@ export class AnsightOptionsBuilder {
   withoutSessionJpegCapture(): this;
   withTouchCapture(touchCapture?: AnsightTouchCaptureOptions): this;
   withoutTouchCapture(): this;
+  withMotionCapture(motionCapture?: AnsightMotionCaptureOptions): this;
+  withoutMotionCapture(): this;
   withCrashCapture(crashCapture?: AnsightCrashCaptureOptions): this;
   withoutCrashCapture(): this;
   withLifecycleCapture(lifecycleCapture?: NonNullable<AnsightOptions["lifecycleCapture"]>): this;
@@ -659,6 +688,8 @@ export function disableFramesPerSecond(): Promise<AnsightDebugSnapshot>;
 export function captureScreenFrame(options?: AnsightSessionJpegCaptureOptions): Promise<AnsightOperationResult>;
 export function enableTouchCapture(): Promise<AnsightDebugSnapshot | AnsightOperationResult>;
 export function disableTouchCapture(): Promise<AnsightDebugSnapshot | AnsightOperationResult>;
+export function recordShake(source?: string): Promise<{ isSuccess: boolean }>;
+export function recordAccelerometer(x: number, y: number, z: number): Promise<{ isSuccess: boolean }>;
 export function updateSessionProperties(properties: Record<string, Record<string, string>>): Promise<AnsightOperationResult>;
 export function clearSessionProperties(): Promise<AnsightOperationResult>;
 export function updateCustomProperties(properties: Record<string, Record<string, string>>): Promise<AnsightOperationResult>;
@@ -682,6 +713,7 @@ export function installErrorHandlers(options?: { chain?: boolean }): () => void;
 export function createReactNavigationTracker(navigationRef: unknown, options?: { recordInitial?: boolean }): ReactNavigationTracker;
 
 declare const Ansight: {
+  Annotate: typeof Annotate;
   purchases: PurchaseDiagnostics;
   initialize: typeof initialize;
   initializeAndActivate: typeof initializeAndActivate;
@@ -727,6 +759,8 @@ declare const Ansight: {
   captureScreenFrame: typeof captureScreenFrame;
   enableTouchCapture: typeof enableTouchCapture;
   disableTouchCapture: typeof disableTouchCapture;
+  recordShake: typeof recordShake;
+  recordAccelerometer: typeof recordAccelerometer;
   updateSessionProperties: typeof updateSessionProperties;
   clearSessionProperties: typeof clearSessionProperties;
   updateCustomProperties: typeof updateCustomProperties;

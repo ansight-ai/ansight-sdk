@@ -32,6 +32,14 @@ internal static class NativeRuntimeOptionsJson
             ["hostConnection"] = SerializeHostConnection(options.HostConnection)
         };
 
+        foreach (var feature in options.RuntimeFeatures)
+        {
+            if (feature is INativeRuntimeOptionsContributor contributor)
+            {
+                contributor.ContributeNativeOptions(root);
+            }
+        }
+
         return root.ToJsonString(new JsonSerializerOptions
         {
             WriteIndented = false

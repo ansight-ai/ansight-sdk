@@ -14,8 +14,50 @@ import 'session_properties.dart';
 import 'ansight_tooling.dart';
 import 'native_transport.dart';
 
+class AnsightAnnotationResult {
+  const AnsightAnnotationResult({
+    required this.status,
+    required this.isSuccess,
+    this.annotationId,
+    this.message,
+  });
+
+  factory AnsightAnnotationResult.fromJson(AnsightJson json) =>
+      AnsightAnnotationResult(
+        status: json['status'] as String? ?? 'failed',
+        isSuccess: json['isSuccess'] as bool? ?? false,
+        annotationId: json['annotationId'] as String?,
+        message: json['message'] as String?,
+      );
+
+  final String status;
+  final bool isSuccess;
+  final String? annotationId;
+  final String? message;
+}
+
+class AnsightAnnotate {
+  const AnsightAnnotate(this._invoke);
+
+  final Future<AnsightJson> Function(String, [AnsightJson?]) _invoke;
+
+  // ignore: non_constant_identifier_names
+  Future<AnsightAnnotationResult> PresentAsync() async =>
+      AnsightAnnotationResult.fromJson(await _invoke('presentAnnotation'));
+}
+
+/// Package-level annotation entry point shared with the native SDKs.
+class Annotate {
+  // ignore: non_constant_identifier_names
+  static Future<AnsightAnnotationResult> PresentAsync() =>
+      Ansight.instance.Annotate.PresentAsync();
+}
+
 class Ansight {
   late final PurchaseDiagnostics purchases = PurchaseDiagnostics(_invoke);
+
+  // ignore: non_constant_identifier_names
+  late final AnsightAnnotate Annotate = AnsightAnnotate(_invoke);
   Ansight._(this._transport) {
     _transport.eventCallback = _handleNativeEvent;
     _transport.toolCallCallback = _handleNativeToolCall;
@@ -411,6 +453,14 @@ class Ansight {
 
   Future<AnsightOperationResult> disableTouchCapture() async =>
       AnsightOperationResult.fromJson(await _invoke('disableTouchCapture'));
+
+  Future<AnsightOperationResult> recordShake({String source = 'app'}) async =>
+      AnsightOperationResult.fromJson(
+          await _invoke('recordShake', <String, Object?>{'source': source}));
+
+  Future<AnsightOperationResult> recordAccelerometer(double x, double y, double z) async =>
+      AnsightOperationResult.fromJson(await _invoke(
+          'recordAccelerometer', <String, Object?>{'x': x, 'y': y, 'z': z}));
 
   Future<AnsightOperationResult> updateSessionProperties(
     Map<String, Map<String, String>> properties,

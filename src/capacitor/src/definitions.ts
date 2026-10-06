@@ -33,6 +33,33 @@ export interface AnsightTouchCaptureOptions {
   moveCaptureFramesPerSecond?: number;
 }
 
+export interface AnsightMotionCaptureOptions {
+  captureShake?: boolean;
+  captureAccelerometer?: boolean;
+  minimumSampleIntervalMilliseconds?: number;
+}
+
+export interface AnsightAnnotationOptions {
+  enabled?: boolean;
+  captureScreenshot?: boolean;
+  captureVisualTrees?: boolean;
+  screenshotQuality?: number;
+  screenshotMaxWidth?: number;
+}
+
+export interface AnsightAnnotationResult {
+  status:
+    | "completed"
+    | "queued"
+    | "cancelled"
+    | "disabled"
+    | "unavailable"
+    | "failed";
+  annotationId?: string | null;
+  message?: string | null;
+  isSuccess: boolean;
+}
+
 export interface AnsightNetworkHeader {
   name: string;
   value: string;
@@ -164,6 +191,8 @@ export interface AnsightOptions {
   };
   sessionJpegCapture?: false | AnsightSessionJpegCaptureOptions;
   touchCapture?: false | AnsightTouchCaptureOptions;
+  motionCapture?: false | AnsightMotionCaptureOptions;
+  annotatedFeedback?: false | AnsightAnnotationOptions;
   crashCapture?: false | AnsightCrashCaptureOptions;
   lifecycleCapture?: {
     enabled?: boolean;
@@ -475,6 +504,8 @@ export interface AnsightRouteTrackerOptions {
 }
 
 export interface AnsightOptionsBuilderApi {
+  withAnnotatedFeedback(options?: AnsightAnnotationOptions): this;
+  withoutAnnotatedFeedback(): this;
   withAnsightDefaults(): this;
   withNativeAllInOneDefaults(): this;
   withAnsightSdk(configure?: (builder: this) => void): this;
@@ -511,6 +542,8 @@ export interface AnsightOptionsBuilderApi {
   withoutSessionJpegCapture(): this;
   withTouchCapture(options?: AnsightTouchCaptureOptions): this;
   withoutTouchCapture(): this;
+  withMotionCapture(options?: AnsightMotionCaptureOptions): this;
+  withoutMotionCapture(): this;
   withCrashCapture(options?: AnsightCrashCaptureOptions): this;
   withoutCrashCapture(): this;
   withLifecycleCapture(
@@ -573,6 +606,7 @@ export interface AnsightOptionsBuilderApi {
 }
 
 export interface AnsightCapacitorPlugin {
+  presentAnnotation(): Promise<AnsightAnnotationResult>;
   purchaseCommand(options: { json: string }): Promise<{ json: string }>;
   initialize(options: AnsightOptions): Promise<AnsightDebugSnapshot>;
   initializeAndActivate(options: AnsightOptions): Promise<AnsightDebugSnapshot>;
@@ -650,6 +684,8 @@ export interface AnsightCapacitorPlugin {
   ): Promise<AnsightOperationResult>;
   enableTouchCapture(): Promise<AnsightDebugSnapshot>;
   disableTouchCapture(): Promise<AnsightDebugSnapshot>;
+  recordShake(options?: { source?: string }): Promise<{ isSuccess: boolean }>;
+  recordAccelerometer(options: { x: number; y: number; z: number }): Promise<{ isSuccess: boolean }>;
   updateSessionProperties(options: {
     properties: Record<string, Record<string, string>>;
   }): Promise<AnsightOperationResult>;

@@ -18,6 +18,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Ansight.Core\Ansight.Core.csproj" />
     <ProjectReference Include="..\Ansight.Annotations\Ansight.Annotations.csproj" />
+    <ProjectReference Include="..\Ansight.Motion\Ansight.Motion.csproj" />
     <ProjectReference Include="..\Ansight.OfflineCapture\Ansight.OfflineCapture.csproj" />
     <ProjectReference Include="..\Ansight.Tools.Database\Ansight.Tools.Database.csproj" />
     <ProjectReference Include="..\Ansight.Tools.FileSystem\Ansight.Tools.FileSystem.csproj" />

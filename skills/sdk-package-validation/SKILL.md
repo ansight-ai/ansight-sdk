@@ -62,7 +62,7 @@ ANSIGHT_HARNESS_VERSION=<version> \
 Validate the local SwiftPM package:
 
 ```bash
-cd src/ios/Examples/NativeHarness
+cd test-apps/core/ios
 xcodegen generate --spec project.yml
 open AnsightNativeHarness.xcodeproj
 ```
@@ -70,7 +70,7 @@ open AnsightNativeHarness.xcodeproj
 Validate the published SwiftPM package:
 
 ```bash
-cd src/ios/Examples/NativeHarness
+cd test-apps/core/ios
 xcodegen generate --spec project.published.yml
 open AnsightNativeHarnessPublished.xcodeproj
 ```

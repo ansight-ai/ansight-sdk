@@ -234,7 +234,7 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
         }
 
         AttachRuntimeFeeds();
-        annotationSinkRegistration = Feedback.RegisterSinkForRuntime(runtime, this);
+        annotationSinkRegistration = Annotate.RegisterSinkForRuntime(runtime, this);
         await ApplyRetentionAsync(cancellationToken);
         return CreateSessionInfo(sessionDirectory, isActive: true);
     }

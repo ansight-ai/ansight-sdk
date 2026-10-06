@@ -138,7 +138,7 @@ add_version \
 
 add_version \
   "ios-native-harness:published SwiftPM" \
-  "$(extract_first 'exactVersion:\s*([0-9A-Za-z.+-]+)' "${repo_root}/src/ios/Examples/NativeHarness/project.published.yml")"
+  "$(extract_first 'exactVersion:\s*([0-9A-Za-z.+-]+)' "${repo_root}/test-apps/core/ios/project.published.yml")"
 
 printf '%-42s %s\n' "Surface" "Version"
 printf '%-42s %s\n' "-------" "-------"

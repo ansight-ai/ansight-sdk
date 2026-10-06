@@ -16,12 +16,20 @@ handled by the Ansight iOS and Android SDKs. The JavaScript layer normalizes
 React Native inputs, forwards runtime calls to the native bridge, and registers
 JavaScript-backed tools for React component-tree inspection.
 
+Enable app-fed motion capture with `createOptionsBuilder().withMotionCapture()`;
+forward observations with `Ansight.recordShake()` and
+`Ansight.recordAccelerometer(x, y, z)`. See [motion capture](../../docs/motion.md).
+
 Native touch capture includes available Apple Pencil and Android stylus/eraser
 pressure, angles, and hover data in the existing session touch records. See
 [the touch wire format](../../docs/protocol.md) for platform-specific fields.
 
 For guarded startup and CLI verification, see the
 [React Native getting-started guide](https://www.ansight.ai/docs/sdk/react-native/setup).
+
+## In-app annotations
+
+The all-in-one package exposes `Annotate.PresentAsync()` after native runtime initialization in Debug builds. For example, `await Ansight.Annotate.PresentAsync()` opens the native editor. `createOptionsBuilder().withAnnotatedFeedback({ captureVisualTrees: false })` customizes capture. The native engine sends the resulting bundle to the connected session or queues it for retry. Release builds keep the editor disabled.
 
 ## Install
 

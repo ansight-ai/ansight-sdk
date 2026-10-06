@@ -69,6 +69,7 @@ public final class AnsightRuntime: @unchecked Sendable {
     private var nextEventSequence: Int64 = 0
     private var lastStreamedMetricSequence: Int64 = 0
     private var lastStreamedEventSequence: Int64 = 0
+    private var lastMotionSampleEpochMs: Int64 = 0
     private var announcedMetricChannelIds: Set<Int> = []
     private var telemetryStreamLoopActive = false
     private var telemetryGeneration = 0
@@ -128,6 +129,7 @@ public final class AnsightRuntime: @unchecked Sendable {
         stopFrameRateSampling()
         stopTouchCapture(message: "Touch capture stopped.")
         let validatedOptions = try options.validated()
+        Annotate.configure(validatedOptions.annotatedFeedback)
         AnsightCrashCapture.shared.initialize(options: validatedOptions.crashCapture)
         AnsightNativeNetworkCapture.configure(validatedOptions.networkCapture)
 
@@ -150,6 +152,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             sessionId = nil
             lastStreamedMetricSequence = 0
             lastStreamedEventSequence = 0
+            lastMotionSampleEpochMs = 0
             announcedMetricChannelIds = []
             telemetryStreamLoopActive = false
             hostSessionJpegCapturePolicy = .app
@@ -182,6 +185,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             sessionMessage = "Runtime initialized."
         }
         publishHostConnectionStatusIfChanged(force: true)
+        Annotate.attachToRuntime()
         AnsightLogger.info("Ansight runtime initialized.")
     }
 
@@ -792,6 +796,48 @@ public final class AnsightRuntime: @unchecked Sendable {
 
         AnsightCrashCapture.shared.recordBreadcrumb(kind: "event", label: trimmedLabel, details: details)
         streamPendingTelemetry()
+    }
+
+    /// Records a shake observed by the app's UIKit responder or its own detector.
+    public func recordShake(source: String = "uikit", capturedAtUtc: String = AnsightClock.isoNow()) {
+        recordMotion(label: "motion.shake", details: ["source": source], capturedAtUtc: capturedAtUtc, shake: true)
+    }
+
+    /// Records one sample already received by the app. Values are in metres per second squared.
+    public func recordAccelerometerSample(
+        x: Double, y: Double, z: Double,
+        capturedAtUtc: String = AnsightClock.isoNow()
+    ) {
+        guard x.isFinite, y.isFinite, z.isFinite else { return }
+        recordMotion(label: "motion.accelerometer", details: [
+            "x": x, "y": y, "z": z, "unit": "m/s2", "source": "app"
+        ], capturedAtUtc: capturedAtUtc, shake: false)
+    }
+
+    private func recordMotion(label: String, details: [String: Any], capturedAtUtc: String, shake: Bool) {
+        let nowMs = AnsightClock.epochMilliseconds(fromISO8601: capturedAtUtc)
+        let data = try? JSONSerialization.data(withJSONObject: details, options: [.sortedKeys])
+        let detailText = data.flatMap { String(data: $0, encoding: .utf8) }
+        let recorded = lock.withLock { () -> Bool in
+            guard initialized, active, let capture = options.motionCapture else { return false }
+            if shake {
+                guard capture.captureShake else { return false }
+            } else {
+                guard capture.captureAccelerometer,
+                      nowMs >= lastMotionSampleEpochMs + Int64(capture.minimumSampleIntervalMilliseconds) else { return false }
+                lastMotionSampleEpochMs = nowMs
+            }
+            nextEventSequence += 1
+            events.append(RecordedEvent(
+                label: label, type: .motion, details: detailText,
+                channel: AnsightChannels.unspecified,
+                capturedAtUtc: capturedAtUtc,
+                sequence: nextEventSequence
+            ))
+            trimEventsLocked()
+            return true
+        }
+        if recorded { streamPendingTelemetry() }
     }
 
     @discardableResult

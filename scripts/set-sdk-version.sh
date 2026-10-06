@@ -84,14 +84,8 @@ NODE
 perl -0pi -e 's/(ANSIGHT_CAPACITOR_SDK_VERSION = ")[^"]+(")/$1$ENV{VERSION}$2/g' \
   "${repo_root}/src/capacitor/src/session-properties.ts"
 
-perl -0pi -e 's/(ai\.ansight:ansight-android:)[^")]+/$1$ENV{VERSION}/g' \
-  "${repo_root}/src/react-native/android/build.gradle"
-
 perl -0pi -e 's/(findProperty\("ansightAndroidVersion"\)\s*\?:\s*")[^"]+(")/$1$ENV{VERSION}$2/g' \
   "${repo_root}/src/react-native/android/build.gradle"
-
-perl -0pi -e 's/(ai\.ansight:ansight-android:)[^"]+/$1$ENV{VERSION}/g' \
-  "${repo_root}/src/capacitor/android/build.gradle"
 
 perl -0pi -e 's/(findProperty\("ansightAndroidVersion"\)\s*\?:\s*")[^"]+(")/$1$ENV{VERSION}$2/g' \
   "${repo_root}/src/capacitor/android/build.gradle"
@@ -108,7 +102,7 @@ perl -0pi -e 's/^version:\s*\S+/version: $ENV{VERSION}/m' \
 perl -0pi -e 's/(ansightFlutterSdkVersion = '\''|ansightFlutterSdkVersion = ")[^'\''"]+(['\''"])/$1$ENV{VERSION}$2/g' \
   "${repo_root}/src/flutter/lib/src/session_properties.dart"
 
-perl -0pi -e 's/^(version\s*=\s*")[^"]+(")/$1$ENV{VERSION}$2/m; s/(ai\.ansight:ansight-android:)[^"]+/$1$ENV{VERSION}/g' \
+perl -0pi -e 's/^(version\s*=\s*")[^"]+(")/$1$ENV{VERSION}$2/m' \
   "${repo_root}/src/flutter/android/build.gradle"
 
 perl -0pi -e 's/(findProperty\("ansightAndroidVersion"\)\s*\?:\s*")[^"]+(")/$1$ENV{VERSION}$2/g' \
@@ -133,7 +127,7 @@ perl -0pi -e 's/(ai\.ansight:[A-Za-z0-9_.-]+:)[0-9][0-9A-Za-z.+-]*/$1$ENV{VERSIO
   "${repo_root}/src/android/README.md"
 
 perl -0pi -e 's/(exactVersion:\s*)[0-9A-Za-z.+-]+/$1$ENV{VERSION}/g' \
-  "${repo_root}/src/ios/Examples/NativeHarness/project.published.yml"
+  "${repo_root}/test-apps/core/ios/project.published.yml"
 
 perl -0pi -e 's/(CocoaPods: `Ansight`, `AnsightObjC` version `)[^`]+(`)/$1$ENV{VERSION}$2/g; s/(ai\.ansight:ansight-android:)[^`]+/$1$ENV{VERSION}/g' \
   "${repo_root}/src/react-native/README.md"

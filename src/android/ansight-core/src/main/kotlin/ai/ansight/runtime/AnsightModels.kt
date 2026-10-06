@@ -197,6 +197,7 @@ data class AnsightOptions(
     val defaultMemoryChannels: DefaultMemoryChannels = DefaultMemoryChannels.PlatformDefaults,
     val sessionJpegCapture: AnsightSessionJpegCaptureOptions? = null,
     val touchCapture: AnsightTouchCaptureOptions? = AnsightTouchCaptureOptions(),
+    val motionCapture: AnsightMotionCaptureOptions? = null,
     val toolGuard: AnsightToolGuard = AnsightToolGuard.Disabled,
     val customProperties: Map<String, Map<String, String>> = emptyMap(),
     val hostAutoProbe: AnsightHostAutoProbeOptions = AnsightHostAutoProbeOptions(),
@@ -205,6 +206,7 @@ data class AnsightOptions(
     val secureStorage: AnsightSecureStorageOptions = AnsightSecureStorageOptions(),
     val initialTools: List<AndroidTool> = emptyList(),
     val artifactProviders: List<AndroidArtifactProvider> = emptyList(),
+    val annotatedFeedback: AnnotationOptions = AnnotationOptions(),
 ) {
     companion object {
         @JvmStatic
@@ -238,11 +240,13 @@ data class AnsightOptions(
             additionalChannels = validatedChannels,
             sessionJpegCapture = sessionJpegCapture?.validated(),
             touchCapture = touchCapture?.validated(),
+            motionCapture = motionCapture?.validated(),
             customProperties = customProperties.normalizedCustomProperties(),
             hostAutoProbe = hostAutoProbe.validated(),
             hostConnection = hostConnection.validated(),
             crashCapture = crashCapture.validated(),
             secureStorage = secureStorage.validated(),
+            annotatedFeedback = annotatedFeedback.validated(),
         )
     }
 }
@@ -258,6 +262,7 @@ enum class AnsightEventType(val wireName: String) {
     Navigation("Navigation"),
     ScreenViewed("ScreenViewed"),
     Lifecycle("Lifecycle"),
+    Motion("Motion"),
 }
 
 enum class AppLifecycleState(val wireName: String) {

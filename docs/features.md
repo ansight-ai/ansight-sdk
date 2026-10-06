@@ -61,6 +61,7 @@ Capacitor, or Flutter.
 | GPU-backed surface capture option | Accepted for parity | Accepted for parity | Yes | Native; meaningful on iOS | Native; meaningful on iOS | Native; meaningful on iOS |
 | host-owned simulator/emulator screenshots | Yes | Yes | Yes | Native | Native | Native |
 | Touch capture and runtime enable/disable | Yes | Yes | Yes | Native | Native | Native |
+| Opt-in app-fed shake and accelerometer events | Yes | Yes | Yes | Native | Native | Native |
 | Apple Pencil and Android stylus/eraser samples, with available pressure, angles, and hover | Native | Yes | Yes | Native | Native on mobile | Native |
 | Opt-in per-frame on-screen keyboard presence metadata | Yes | Yes | Yes | Native | Native | Native |
 | Touch-capture app guard | Yes | Yes | Yes | Native toggle; JS policy is app-owned | Native toggle; JS policy is app-owned | Native toggle; Dart policy is app-owned |
@@ -147,7 +148,7 @@ session.
 | .NET all-in-one developer defaults and native tools | .NET | `Ansight` / `WithAnsightSdk(...)` |
 | MAUI bootstrap, automatic lifecycle, and page-view telemetry | .NET MAUI | `Ansight.Maui` / `UseAnsight<App>()` |
 | MAUI UI inspection, XAML inflation, mutation, resources, bindings, navigation, layout, and handler diagnostics | .NET MAUI | `Ansight.Tools.Maui` |
-| Annotated in-app feedback with screenshots, all visual-tree sources, hooks, artifacts, outbox, and live/offline delivery | .NET Android, iOS, and Mac Catalyst Debug app builds | `Ansight.Annotations` / `WithAnnotatedFeedback()` |
+| Native in-app annotations with screenshots, registered visual trees, a retry outbox, and live delivery | Android and iOS Debug app builds through native, .NET, React Native, Flutter, and Capacitor packages | `Annotate.PresentAsync()` / `WithAnnotatedFeedback(...)` |
 | Offline telemetry, events, touches, screenshots, annotation bundles, retention, ZIP/AES export, and team upload | .NET | `Ansight.OfflineCapture` |
 | Native crash capture, prior-session association, host handoff, and offline capture attachment | All mobile SDKs; offline attachment currently uses `.NET` Offline Capture | Core runtime `crashCapture` options |
 | Objective-C facade | iOS | `AnsightObjC` |
@@ -162,10 +163,7 @@ session.
 | Flutter error, frame-timing, and lifecycle capture | Flutter | `AnsightFlutterInstrumentation.instance.install()` |
 | Dart custom tools and app artifacts | Flutter | `Ansight.instance.registerTool(...)` / `registerArtifactProvider(...)` |
 
-`Ansight` and `Ansight.Maui` reference the annotation and offline-capture
-packages, but neither workflow starts automatically. Annotated feedback must be
-explicitly enabled and is hard-disabled in Release application builds. Offline
-capture starts only after the app configures and initializes an
+All-in-one packages include native annotations; their Debug builds make presentation available after runtime initialization. `WithAnnotatedFeedback(...)` configures capture. Offline capture starts only after the app configures and initializes an
 `OfflineCaptureController`.
 
 ## Build-time safeguards
@@ -175,7 +173,7 @@ capture starts only after the app configures and initializes an
 | Simulator/emulator/desktop enrollment | Install + initialize | Install + initialize | Install + initialize | Install + initialize | Install + initialize |
 | Physical-device enrollment | Install + scan once | Install + scan once | Install + scan once | Install + scan once | Install + scan once |
 | Detect bundled remote-tool implementations | `AnsightRemoteToolsPolicy` | No SDK build scanner | Build tool; requires `ANSIGHT_ALLOW_REMOTE_TOOLS=true` | Native build rules apply | Native build rules apply |
-| Hard-disable annotated feedback in Release builds | Yes | Not available | Not available | Not available | Not available |
+| Hard-disable annotated feedback in Release builds | Yes | Yes | Yes | Native build policy | Native build policy |
 
 Enrollment UI and broad remote-tool access are development features. Do not
 ship unrestricted tool policies in CI, store, TestFlight, Play Store, or other

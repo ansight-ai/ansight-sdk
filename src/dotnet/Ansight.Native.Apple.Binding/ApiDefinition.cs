@@ -15,6 +15,9 @@ delegate string ANSToolProtocolHandler(string requestJson);
 interface ANSDotNetRuntime
 {
     [Static]
+    [Export("presentAnnotationWithCompletion:")]
+    void PresentAnnotation(ANSStringResultHandler completion);
+    [Static]
     [Export("purchaseCommand:completion:")]
     void PurchaseCommand(string json, ANSStringResultHandler completion);
 

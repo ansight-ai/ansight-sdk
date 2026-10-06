@@ -265,7 +265,7 @@ internal sealed class AnnotationService
             sinks.Add(new LiveAnnotationSink(runtime));
         }
 
-        foreach (var sink in Feedback.GetSinks(runtime))
+        foreach (var sink in Annotate.GetSinks(runtime))
         {
             var existingIndex = sinks.FindIndex(existing => string.Equals(existing.Id, sink.Id, StringComparison.OrdinalIgnoreCase));
             if (existingIndex >= 0)
