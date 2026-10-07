@@ -14,11 +14,16 @@ import android.os.Looper
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.TextView
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
@@ -144,7 +149,30 @@ object Annotate {
         completion: (String?, JSONArray) -> Unit,
     ) {
         val dialog = Dialog(activity)
-        val column = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.BLACK) }
+        val column = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            isFocusableInTouchMode = true
+            setBackgroundColor(Color.BLACK)
+        }
+        val density = activity.resources.displayMetrics.density
+        fun dp(value: Int) = (value * density).toInt()
+        val header = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setPadding(dp(16), dp(4), dp(16), dp(4))
+        }
+        header.addView(ImageView(activity).apply {
+            setImageResource(R.drawable.ansight_annotation_icon)
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            contentDescription = "Ansight logo"
+        }, LinearLayout.LayoutParams(dp(36), dp(36)))
+        header.addView(TextView(activity).apply {
+            text = "Ansight Annotation"
+            textSize = 17f
+            setTextColor(Color.WHITE)
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+        }, LinearLayout.LayoutParams(-2, dp(36)))
+        column.addView(header)
         val drawing = AnnotationDrawingView(activity)
         val image = ImageView(activity).apply {
             scaleType = ImageView.ScaleType.FIT_XY
@@ -157,11 +185,40 @@ object Annotate {
             addView(drawing, FrameLayout.LayoutParams(-1, -1))
         }
         column.addView(frame, LinearLayout.LayoutParams(-1, 0, 1f))
-        val feedback = EditText(activity).apply { hint = "Describe the issue"; setTextColor(Color.WHITE); setHintTextColor(Color.LTGRAY) }
-        column.addView(feedback, LinearLayout.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT))
+        val feedback = EditText(activity).apply {
+            hint = "Describe the issue"
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.LTGRAY)
+            minLines = 2
+            maxLines = 4
+            imeOptions = EditorInfo.IME_ACTION_DONE
+        }
+        feedback.setOnFocusChangeListener { _, hasFocus ->
+            header.visibility = if (hasFocus) View.GONE else View.VISIBLE
+        }
+        fun dismissKeyboard() {
+            (activity.getSystemService(Activity.INPUT_METHOD_SERVICE) as? InputMethodManager)
+                ?.hideSoftInputFromWindow(feedback.windowToken, 0)
+            feedback.clearFocus()
+        }
+        feedback.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_DONE) { dismissKeyboard(); true } else false
+        }
+        val inputRow = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL }
+        inputRow.addView(feedback, LinearLayout.LayoutParams(0, -2, 1f))
+        inputRow.addView(Button(activity).apply {
+            text = "Done"
+            contentDescription = "Dismiss keyboard"
+            setOnClickListener { dismissKeyboard() }
+        }, LinearLayout.LayoutParams(dp(72), dp(48)))
+        column.addView(inputRow, LinearLayout.LayoutParams(-1, -2))
         val buttons = LinearLayout(activity)
-        fun button(label: String, action: () -> Unit) {
-            buttons.addView(Button(activity).apply { text = label; setOnClickListener { action() } }, LinearLayout.LayoutParams(0, -2, 1f))
+        fun button(label: String, icon: Int, action: () -> Unit) {
+            buttons.addView(ImageButton(activity).apply {
+                setImageResource(icon)
+                contentDescription = label
+                setOnClickListener { action() }
+            }, LinearLayout.LayoutParams(0, dp(50), 1f))
         }
         var completed = false
         fun completeOnce(text: String?) {
@@ -170,16 +227,18 @@ object Annotate {
             dialog.dismiss()
             completion(text, drawing.shapes())
         }
-        button("Cancel") { completeOnce(null) }
-        button("Undo") { drawing.undo() }
-        button("Clear") { drawing.clear() }
-        button("Save") { completeOnce(feedback.text.toString()) }
+        button("Cancel", android.R.drawable.ic_menu_close_clear_cancel) { completeOnce(null) }
+        button("Undo", android.R.drawable.ic_menu_revert) { drawing.undo() }
+        button("Clear", android.R.drawable.ic_menu_delete) { drawing.clear() }
+        button("Save", android.R.drawable.ic_menu_save) { completeOnce(feedback.text.toString()) }
         column.addView(buttons, LinearLayout.LayoutParams(-1, -2))
         dialog.setContentView(column)
         dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         dialog.setOnCancelListener { completeOnce(null) }
         dialog.show()
         dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE or WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
+        column.requestFocus()
     }
 
     private fun makeBundle(

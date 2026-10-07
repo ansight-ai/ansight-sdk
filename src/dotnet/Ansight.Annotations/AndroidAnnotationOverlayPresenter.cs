@@ -40,15 +40,42 @@ internal static class AndroidAnnotationOverlayPresenter
             return;
         }
 
-        var dialog = new Dialog(activity, Android.Resource.Style.ThemeDeviceDefaultNoActionBarFullscreen);
+        var dialog = new Dialog(activity, Android.Resource.Style.ThemeDeviceDefaultNoActionBar);
         var root = new LinearLayout(activity)
         {
-            Orientation = Orientation.Vertical
+            Orientation = Orientation.Vertical,
+            FocusableInTouchMode = true
         };
         root.SetBackgroundColor(Color.Rgb(24, 24, 24));
 
         var cancelButton = CreateIconButton(activity, "✕", "Cancel");
         var saveButton = CreateIconButton(activity, "✓", "Save");
+        saveButton.SetTextColor(Color.Rgb(250, 67, 31));
+
+        var header = new LinearLayout(activity) { Orientation = Orientation.Horizontal };
+        header.SetGravity(GravityFlags.CenterVertical);
+        header.SetPadding(Dp(activity, 16), Dp(activity, 4), Dp(activity, 16), Dp(activity, 4));
+        var iconBytes = AnnotationBrandIcon.LoadBytes();
+        var brandMark = new ImageView(activity)
+        {
+            ContentDescription = "Ansight logo"
+        };
+        brandMark.SetScaleType(ImageView.ScaleType.FitCenter);
+        if (iconBytes is not null)
+        {
+            brandMark.SetImageBitmap(BitmapFactory.DecodeByteArray(iconBytes, 0, iconBytes.Length));
+        }
+        header.AddView(brandMark, new LinearLayout.LayoutParams(Dp(activity, 36), Dp(activity, 36)));
+        var title = new TextView(activity)
+        {
+            Text = "Ansight Annotation",
+            TextSize = 17,
+            Typeface = Typeface.DefaultBold,
+            Gravity = GravityFlags.CenterVertical
+        };
+        title.SetTextColor(Color.White);
+        header.AddView(title, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WrapContent, Dp(activity, 36)) { LeftMargin = Dp(activity, 8) });
+        root.AddView(header);
 
         var bitmap = screenshot is null
             ? null
@@ -59,60 +86,20 @@ internal static class AndroidAnnotationOverlayPresenter
         canvasContainer.AddView(
             drawingView,
             new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.MatchParent));
-        cancelButton.Background = CreatePanelBackground(activity);
-        saveButton.Background = CreatePanelBackground(activity);
-        var cancelLayout = new FrameLayout.LayoutParams(
-            Dp(activity, 48),
-            Dp(activity, 48),
-            GravityFlags.Top | GravityFlags.Left)
-        {
-            LeftMargin = Dp(activity, 12),
-            TopMargin = Dp(activity, 12)
-        };
-        var saveLayout = new FrameLayout.LayoutParams(
-            Dp(activity, 48),
-            Dp(activity, 48),
-            GravityFlags.Top | GravityFlags.Right)
-        {
-            RightMargin = Dp(activity, 12),
-            TopMargin = Dp(activity, 12)
-        };
-        canvasContainer.AddView(cancelButton, cancelLayout);
-        canvasContainer.AddView(saveButton, saveLayout);
 
         var selectButton = CreateIconButton(activity, "↖", "Select and edit geometry");
         var freeDrawButton = CreateIconButton(activity, "✎", "Free draw");
         var deleteButton = CreateIconButton(activity, "⌫", "Delete selected geometry");
-        var drawingActions = new LinearLayout(activity)
-        {
-            Orientation = Orientation.Vertical
-        };
-        drawingActions.SetPadding(Dp(activity, 4), Dp(activity, 4), Dp(activity, 4), Dp(activity, 4));
-        drawingActions.Background = CreatePanelBackground(activity);
-        drawingActions.AddView(selectButton, IconLayout(activity));
-        drawingActions.AddView(freeDrawButton, IconLayout(activity));
-        drawingActions.AddView(deleteButton, IconLayout(activity));
-        var drawingActionsLayout = new FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.WrapContent,
-            ViewGroup.LayoutParams.WrapContent,
-            GravityFlags.Top | GravityFlags.Left)
-        {
-            LeftMargin = Dp(activity, 12),
-            TopMargin = Dp(activity, 68)
-        };
-        canvasContainer.AddView(drawingActions, drawingActionsLayout);
-
         var undoButton = CreateIconButton(activity, "↶", "Undo");
-        undoButton.Background = CreatePanelBackground(activity);
-        var undoLayout = new FrameLayout.LayoutParams(
-            Dp(activity, 48),
-            Dp(activity, 48),
-            GravityFlags.Top | GravityFlags.Right)
+        var actions = new LinearLayout(activity) { Orientation = Orientation.Horizontal };
+        actions.Background = CreatePanelBackground(activity);
+        var actionsLayout = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, Dp(activity, 48));
+        actionsLayout.SetMargins(Dp(activity, 10), 0, Dp(activity, 10), Dp(activity, 4));
+        foreach (var action in new[] { cancelButton, selectButton, freeDrawButton, deleteButton, undoButton, saveButton })
         {
-            RightMargin = Dp(activity, 12),
-            TopMargin = Dp(activity, 68)
-        };
-        canvasContainer.AddView(undoButton, undoLayout);
+            actions.AddView(action, new LinearLayout.LayoutParams(0, Dp(activity, 48), 1));
+        }
+        root.AddView(actions, actionsLayout);
         root.AddView(canvasContainer, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, 0, 1));
 
         var feedback = new EditText(activity)
@@ -128,9 +115,26 @@ internal static class AndroidAnnotationOverlayPresenter
         feedback.SetHintTextColor(Color.LightGray);
         feedback.SetBackgroundColor(Color.Rgb(48, 48, 48));
         feedback.SetPadding(Dp(activity, 12), Dp(activity, 10), Dp(activity, 12), Dp(activity, 10));
-        var feedbackLayout = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent);
-        feedbackLayout.SetMargins(Dp(activity, 10), Dp(activity, 8), Dp(activity, 10), Dp(activity, 10));
-        root.AddView(feedback, feedbackLayout);
+        feedback.FocusChange += (_, args) => header.Visibility = args.HasFocus ? ViewStates.Gone : ViewStates.Visible;
+        feedback.ImeOptions = ImeAction.Done;
+        feedback.EditorAction += (_, args) =>
+        {
+            if (args.ActionId != ImeAction.Done) return;
+            HideKeyboard(activity, feedback);
+            feedback.ClearFocus();
+            args.Handled = true;
+        };
+        var inputRow = new LinearLayout(activity) { Orientation = Orientation.Horizontal };
+        inputRow.SetGravity(GravityFlags.Bottom);
+        var feedbackLayout = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1);
+        inputRow.AddView(feedback, feedbackLayout);
+        var doneButton = new Button(activity) { Text = "Done", ContentDescription = "Dismiss keyboard" };
+        doneButton.SetAllCaps(false);
+        doneButton.Click += (_, _) => { HideKeyboard(activity, feedback); feedback.ClearFocus(); };
+        inputRow.AddView(doneButton, new LinearLayout.LayoutParams(Dp(activity, 72), Dp(activity, 48)));
+        var inputLayout = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent);
+        inputLayout.SetMargins(Dp(activity, 10), Dp(activity, 8), Dp(activity, 10), Dp(activity, 10));
+        root.AddView(inputRow, inputLayout);
         var overallFeedback = string.Empty;
         var updatingText = false;
 
@@ -216,6 +220,9 @@ internal static class AndroidAnnotationOverlayPresenter
             TaskContinuationOptions.ExecuteSynchronously,
             TaskScheduler.Default);
         dialog.Show();
+        dialog.Window?.SetLayout(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.MatchParent);
+        dialog.Window?.SetSoftInputMode(SoftInput.AdjustResize | SoftInput.StateAlwaysHidden);
+        root.RequestFocus();
     }
 
     private static Button CreateIconButton(Activity activity, string glyph, string contentDescription)
@@ -235,9 +242,6 @@ internal static class AndroidAnnotationOverlayPresenter
         button.SetBackgroundColor(Color.Transparent);
         return button;
     }
-
-    private static LinearLayout.LayoutParams IconLayout(Activity activity)
-        => new(Dp(activity, 44), Dp(activity, 44));
 
     private static GradientDrawable CreatePanelBackground(Activity activity)
     {

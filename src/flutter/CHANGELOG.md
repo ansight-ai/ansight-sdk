@@ -1,3 +1,9 @@
+## 1.7.1
+
+- Improve the in-app annotation editor across iOS and Android with Ansight branding,
+  icon actions, visible feedback and controls while the keyboard is open, and a
+  Done action to dismiss the keyboard.
+
 ## 1.7.0
 
 - Add opt-in app-fed shake and accelerometer capture across mobile SDKs.

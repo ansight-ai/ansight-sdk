@@ -16,6 +16,10 @@ internal final class AnnotationEditorViewController: UIViewController {
     private let screenshot: AnsightScreenSnapshot?
     private let ink = AnnotationInkView()
     private let feedback = UITextView()
+    private let feedbackPlaceholder = UILabel()
+    private var headerHeight: NSLayoutConstraint?
+    private var feedbackHeight: NSLayoutConstraint?
+    private weak var brandHeader: UIView?
     private var continuation: CheckedContinuation<AnnotationDraft?, Never>?
 
     private init(screenshot: AnsightScreenSnapshot?) {
@@ -54,23 +58,73 @@ internal final class AnnotationEditorViewController: UIViewController {
         ink.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(ink)
 
-        feedback.backgroundColor = UIColor.black.withAlphaComponent(0.78)
+        feedback.backgroundColor = UIColor(white: 0.15, alpha: 1)
         feedback.textColor = .white
         feedback.font = .preferredFont(forTextStyle: .body)
         feedback.layer.cornerRadius = 8
         feedback.accessibilityLabel = "Annotation feedback"
         feedback.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(feedback)
+        feedbackPlaceholder.text = "Describe the issue"
+        feedbackPlaceholder.textColor = .lightGray
+        feedbackPlaceholder.font = feedback.font
+        feedbackPlaceholder.isUserInteractionEnabled = false
+        feedbackPlaceholder.translatesAutoresizingMaskIntoConstraints = false
+        feedback.addSubview(feedbackPlaceholder)
+
+        let doneBar = UIToolbar()
+        doneBar.items = [
+            UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil),
+            UIBarButtonItem(title: "Done", style: .done, target: self, action: #selector(dismissKeyboard))
+        ]
+        doneBar.sizeToFit()
+        feedback.inputAccessoryView = doneBar
+
+        #if SWIFT_PACKAGE
+        let brandImage = UIImage(named: "ansight-annotation-icon", in: .module, compatibleWith: nil)
+        #else
+        let brandImage = UIImage(named: "ansight-annotation-icon", in: Bundle(for: Self.self), compatibleWith: nil)
+            ?? UIImage(named: "ansight-annotation-icon")
+        #endif
+        let brandMark = UIImageView(image: brandImage)
+        brandMark.contentMode = .scaleAspectFit
+        brandMark.accessibilityLabel = "Ansight logo"
+        brandMark.isAccessibilityElement = true
+        brandMark.widthAnchor.constraint(equalToConstant: 36).isActive = true
+        brandMark.heightAnchor.constraint(equalToConstant: 36).isActive = true
+
+        let title = UILabel()
+        title.text = "Ansight Annotation"
+        title.textColor = .white
+        title.font = .boldSystemFont(ofSize: 17)
+
+        let header = UIStackView(arrangedSubviews: [brandMark, title])
+        header.axis = .horizontal
+        header.spacing = 8
+        header.alignment = .center
+        header.backgroundColor = UIColor(white: 0.12, alpha: 1)
+        header.layoutMargins = UIEdgeInsets(top: 0, left: 16, bottom: 0, right: 16)
+        header.isLayoutMarginsRelativeArrangement = true
+        header.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(header)
+        brandHeader = header
+        let headerHeight = header.heightAnchor.constraint(equalToConstant: 44)
+        self.headerHeight = headerHeight
+        let feedbackHeight = feedback.heightAnchor.constraint(equalToConstant: 90)
+        self.feedbackHeight = feedbackHeight
+        NotificationCenter.default.addObserver(self, selector: #selector(editingBegan), name: UITextView.textDidBeginEditingNotification, object: feedback)
+        NotificationCenter.default.addObserver(self, selector: #selector(editingEnded), name: UITextView.textDidEndEditingNotification, object: feedback)
+        NotificationCenter.default.addObserver(self, selector: #selector(feedbackChanged), name: UITextView.textDidChangeNotification, object: feedback)
 
         let toolbar = UIStackView(arrangedSubviews: [
-            button("Cancel", action: #selector(cancel)),
-            button("Undo", action: #selector(undo)),
-            button("Clear", action: #selector(clear)),
-            button("Save", action: #selector(save))
+            button("Cancel", symbol: "xmark", action: #selector(cancel)),
+            button("Undo", symbol: "arrow.uturn.backward", action: #selector(undo)),
+            button("Clear", symbol: "trash", action: #selector(clear)),
+            button("Save", symbol: "checkmark", action: #selector(save))
         ])
         toolbar.axis = .horizontal
         toolbar.distribution = .fillEqually
-        toolbar.backgroundColor = UIColor.black.withAlphaComponent(0.85)
+        toolbar.backgroundColor = UIColor(white: 0.12, alpha: 1)
         toolbar.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(toolbar)
 
@@ -83,31 +137,55 @@ internal final class AnnotationEditorViewController: UIViewController {
             ink.leadingAnchor.constraint(equalTo: image.leadingAnchor),
             ink.trailingAnchor.constraint(equalTo: image.trailingAnchor),
             ink.bottomAnchor.constraint(equalTo: image.bottomAnchor),
+            header.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            header.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            header.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            headerHeight,
             feedback.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 12),
             feedback.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -12),
             feedback.bottomAnchor.constraint(equalTo: toolbar.topAnchor, constant: -8),
-            feedback.heightAnchor.constraint(equalToConstant: 90),
+            feedbackHeight,
+            feedbackPlaceholder.topAnchor.constraint(equalTo: feedback.topAnchor, constant: 12),
+            feedbackPlaceholder.leadingAnchor.constraint(equalTo: feedback.leadingAnchor, constant: 12),
             toolbar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             toolbar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            toolbar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+            toolbar.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor),
             toolbar.heightAnchor.constraint(equalToConstant: 50)
         ])
     }
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
+        NotificationCenter.default.removeObserver(self)
         continuation?.resume(returning: nil)
         continuation = nil
     }
 
-    private func button(_ title: String, action: Selector) -> UIButton {
+    private func button(_ title: String, symbol: String, action: Selector) -> UIButton {
         let button = UIButton(type: .system)
-        button.setTitle(title, for: .normal)
+        let configuration = UIImage.SymbolConfiguration(pointSize: 22, weight: .medium)
+        button.setImage(UIImage(systemName: symbol, withConfiguration: configuration), for: .normal)
+        button.tintColor = title == "Save"
+            ? UIColor(red: 250 / 255, green: 67 / 255, blue: 31 / 255, alpha: 1)
+            : .white
+        button.accessibilityLabel = title
         button.addTarget(self, action: action, for: .touchUpInside)
         return button
     }
 
     @objc private func cancel() { complete(nil) }
+    @objc private func dismissKeyboard() { feedback.resignFirstResponder() }
+    @objc private func feedbackChanged() { feedbackPlaceholder.isHidden = !feedback.text.isEmpty }
+    @objc private func editingBegan() {
+        headerHeight?.constant = 0
+        feedbackHeight?.constant = 64
+        brandHeader?.isHidden = true
+    }
+    @objc private func editingEnded() {
+        headerHeight?.constant = 44
+        feedbackHeight?.constant = 90
+        brandHeader?.isHidden = false
+    }
     @objc private func undo() { ink.undo() }
     @objc private func clear() { ink.clear() }
     @objc private func save() {

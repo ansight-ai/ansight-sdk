@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <None Include="buildTransitive\Ansight.Annotations.targets" Pack="true" PackagePath="buildTransitive\Ansight.Annotations.targets" />
+    <EmbeddedResource Include="..\..\..\branding\icon.png" LogicalName="Ansight.Annotations.BrandIcon.png" />
   </ItemGroup>
 
 </Project>

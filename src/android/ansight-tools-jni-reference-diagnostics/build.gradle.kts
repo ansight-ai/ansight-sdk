@@ -5,7 +5,7 @@ plugins {
 }
 
 group = providers.gradleProperty("ansightAndroidGroup").orElse("ai.ansight").get()
-version = providers.gradleProperty("ansightAndroidVersion").orElse("1.7.0").get()
+version = providers.gradleProperty("ansightAndroidVersion").orElse("1.7.1").get()
 
 android {
     namespace = "ai.ansight.tools.jnireferencediagnostics"

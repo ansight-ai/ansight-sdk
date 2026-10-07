@@ -96,6 +96,11 @@ internal static class AppleAnnotationOverlayPresenter
         private UIButton? freeDrawButton;
         private UIButton? deleteButton;
         private UIButton? undoButton;
+        private UIView? brandHeader;
+        private NSLayoutConstraint? brandHeaderHeight;
+        private NSLayoutConstraint? feedbackHeight;
+        private NSObject? editingBeganObserver;
+        private NSObject? editingEndedObserver;
         private string overallFeedback = string.Empty;
         private bool updatingText;
         private bool finished;
@@ -126,8 +131,30 @@ internal static class AppleAnnotationOverlayPresenter
 
             var cancelButton = CreateIconButton("xmark", "Cancel", Cancel);
             var saveButton = CreateIconButton("checkmark", "Save", Submit);
-            SetFloatingActionStyle(cancelButton);
-            SetFloatingActionStyle(saveButton);
+            saveButton.TintColor = UIColor.FromRGB(250, 67, 31);
+
+            var iconBytes = AnnotationBrandIcon.LoadBytes();
+            var brandMark = new UIImageView
+            {
+                Image = iconBytes is null ? null : UIImage.LoadFromData(NSData.FromArray(iconBytes)),
+                ContentMode = UIViewContentMode.ScaleAspectFit,
+                AccessibilityLabel = "Ansight logo",
+                IsAccessibilityElement = true
+            };
+            var title = new UILabel
+            {
+                Text = "Ansight Annotation",
+                TextColor = UIColor.White,
+                Font = UIFont.BoldSystemFontOfSize(17)
+            };
+            var header = CreateStack(UILayoutConstraintAxis.Horizontal, brandMark, title);
+            header.Spacing = 8;
+            brandHeader = header;
+            brandHeaderHeight = header.HeightAnchor.ConstraintEqualTo(36);
+            editingBeganObserver = NSNotificationCenter.DefaultCenter.AddObserver(
+                UITextView.TextDidBeginEditingNotification, _ => SetHeaderVisible(false), feedbackView);
+            editingEndedObserver = NSNotificationCenter.DefaultCenter.AddObserver(
+                UITextView.TextDidEndEditingNotification, _ => SetHeaderVisible(true), feedbackView);
 
             var canvasContainer = new UIView
             {
@@ -135,27 +162,17 @@ internal static class AppleAnnotationOverlayPresenter
             };
             canvasContainer.AddSubview(screenshotView);
             canvasContainer.AddSubview(drawingView);
-            canvasContainer.AddSubview(cancelButton);
-            canvasContainer.AddSubview(saveButton);
 
             selectButton = CreateIconButton("cursorarrow", "Select and edit geometry", () => SelectTool(AnnotationDrawingTool.Select));
             freeDrawButton = CreateIconButton("pencil.tip", "Free draw", () => SelectTool(AnnotationDrawingTool.FreeDraw));
             deleteButton = CreateIconButton("trash", "Delete selected geometry", DeleteSelected);
-            var drawingActions = CreateStack(
-                UILayoutConstraintAxis.Vertical,
-                selectButton,
-                freeDrawButton,
-                deleteButton);
-            drawingActions.BackgroundColor = UIColor.FromWhiteAlpha(0.12f, 0.9f);
-            drawingActions.Layer.CornerRadius = 12;
-            drawingActions.LayoutMarginsRelativeArrangement = true;
-            drawingActions.DirectionalLayoutMargins = new NSDirectionalEdgeInsets(4, 4, 4, 4);
-            canvasContainer.AddSubview(drawingActions);
-
             undoButton = CreateIconButton("arrow.uturn.backward", "Undo", Undo);
-            undoButton.BackgroundColor = UIColor.FromWhiteAlpha(0.12f, 0.9f);
-            undoButton.Layer.CornerRadius = 12;
-            canvasContainer.AddSubview(undoButton);
+            var actions = CreateStack(
+                UILayoutConstraintAxis.Horizontal,
+                cancelButton, selectButton, freeDrawButton, deleteButton, undoButton, saveButton);
+            actions.Distribution = UIStackViewDistribution.EqualSpacing;
+            actions.BackgroundColor = UIColor.FromWhiteAlpha(0.12f, 0.9f);
+            actions.Layer.CornerRadius = 12;
 
             feedbackView.BackgroundColor = UIColor.FromRGB(48, 48, 48);
             feedbackView.TextColor = UIColor.White;
@@ -170,6 +187,8 @@ internal static class AppleAnnotationOverlayPresenter
             feedbackPlaceholder.UserInteractionEnabled = false;
             feedbackView.AddSubview(feedbackPlaceholder);
 
+            AddSubview(header);
+            AddSubview(actions);
             AddSubview(canvasContainer);
             AddSubview(feedbackView);
 
@@ -177,10 +196,16 @@ internal static class AppleAnnotationOverlayPresenter
                      {
                          cancelButton,
                          saveButton,
+                         brandMark,
+                         title,
+                         header,
+                         actions,
                          canvasContainer,
                          screenshotView,
                          drawingView,
-                         drawingActions,
+                         selectButton,
+                         freeDrawButton,
+                         deleteButton,
                          undoButton,
                          feedbackView,
                          feedbackPlaceholder
@@ -190,8 +215,21 @@ internal static class AppleAnnotationOverlayPresenter
             }
 
             var guide = View.SafeAreaLayoutGuide;
+            feedbackHeight = feedbackView.HeightAnchor.ConstraintEqualTo(72);
             NSLayoutConstraint.ActivateConstraints([
-                canvasContainer.TopAnchor.ConstraintEqualTo(View.TopAnchor),
+                header.TopAnchor.ConstraintEqualTo(guide.TopAnchor, 4),
+                header.LeadingAnchor.ConstraintEqualTo(guide.LeadingAnchor, 16),
+                header.TrailingAnchor.ConstraintLessThanOrEqualTo(guide.TrailingAnchor, -16),
+                brandHeaderHeight,
+                brandMark.WidthAnchor.ConstraintEqualTo(36),
+                brandMark.HeightAnchor.ConstraintEqualTo(36),
+
+                actions.TopAnchor.ConstraintEqualTo(header.BottomAnchor, 4),
+                actions.LeadingAnchor.ConstraintEqualTo(guide.LeadingAnchor, 10),
+                actions.TrailingAnchor.ConstraintEqualTo(guide.TrailingAnchor, -10),
+                actions.HeightAnchor.ConstraintEqualTo(48),
+
+                canvasContainer.TopAnchor.ConstraintEqualTo(actions.BottomAnchor, 4),
                 canvasContainer.LeadingAnchor.ConstraintEqualTo(View.LeadingAnchor),
                 canvasContainer.TrailingAnchor.ConstraintEqualTo(View.TrailingAnchor),
                 canvasContainer.BottomAnchor.ConstraintEqualTo(feedbackView.TopAnchor, -8),
@@ -206,26 +244,24 @@ internal static class AppleAnnotationOverlayPresenter
                 drawingView.TrailingAnchor.ConstraintEqualTo(canvasContainer.TrailingAnchor),
                 drawingView.BottomAnchor.ConstraintEqualTo(canvasContainer.BottomAnchor),
 
-                cancelButton.TopAnchor.ConstraintEqualTo(guide.TopAnchor, 8),
-                cancelButton.LeadingAnchor.ConstraintEqualTo(guide.LeadingAnchor, 12),
-                saveButton.TopAnchor.ConstraintEqualTo(guide.TopAnchor, 8),
-                saveButton.TrailingAnchor.ConstraintEqualTo(guide.TrailingAnchor, -12),
-
-                drawingActions.TopAnchor.ConstraintEqualTo(cancelButton.BottomAnchor, 8),
-                drawingActions.LeadingAnchor.ConstraintEqualTo(canvasContainer.LeadingAnchor, 12),
-
-                undoButton.TopAnchor.ConstraintEqualTo(saveButton.BottomAnchor, 8),
-                undoButton.TrailingAnchor.ConstraintEqualTo(canvasContainer.TrailingAnchor, -12),
-
                 feedbackView.LeadingAnchor.ConstraintEqualTo(guide.LeadingAnchor, 10),
                 feedbackView.TrailingAnchor.ConstraintEqualTo(guide.TrailingAnchor, -10),
-                feedbackView.BottomAnchor.ConstraintEqualTo(guide.BottomAnchor, -8),
-                feedbackView.HeightAnchor.ConstraintEqualTo(72),
+                feedbackView.BottomAnchor.ConstraintEqualTo(View.KeyboardLayoutGuide.TopAnchor, -8),
+                feedbackHeight,
 
                 feedbackPlaceholder.TopAnchor.ConstraintEqualTo(feedbackView.TopAnchor, 10),
                 feedbackPlaceholder.LeadingAnchor.ConstraintEqualTo(feedbackView.LeadingAnchor, 14),
                 feedbackPlaceholder.TrailingAnchor.ConstraintLessThanOrEqualTo(feedbackView.TrailingAnchor, -10)
             ]);
+
+            feedbackView.InputAccessoryView = new UIToolbar
+            {
+                Items = [
+                    new UIBarButtonItem(UIBarButtonSystemItem.FlexibleSpace),
+                    new UIBarButtonItem("Done", UIBarButtonItemStyle.Done, (_, _) => feedbackView.ResignFirstResponder())
+                ]
+            };
+            feedbackView.InputAccessoryView.SizeToFit();
 
             drawingView.StateChanged = UpdateActionState;
             UpdateActionState();
@@ -234,11 +270,21 @@ internal static class AppleAnnotationOverlayPresenter
         public override void ViewDidDisappear(bool animated)
         {
             base.ViewDidDisappear(animated);
+            editingBeganObserver?.Dispose();
+            editingEndedObserver?.Dispose();
             if (!finished)
             {
                 finished = true;
                 completion.TrySetResult(AnnotationOverlayResult.Cancelled());
             }
+        }
+
+        private void SetHeaderVisible(bool visible)
+        {
+            if (brandHeaderHeight is null) return;
+            brandHeaderHeight.Constant = visible ? 36 : 0;
+            if (feedbackHeight is not null) feedbackHeight.Constant = visible ? 72 : 56;
+            if (brandHeader is not null) brandHeader.Hidden = !visible;
         }
 
         private void SelectTool(AnnotationDrawingTool tool)
@@ -357,12 +403,6 @@ internal static class AppleAnnotationOverlayPresenter
             button.WidthAnchor.ConstraintEqualTo(44).Active = true;
             button.HeightAnchor.ConstraintEqualTo(44).Active = true;
             return button;
-        }
-
-        private static void SetFloatingActionStyle(UIButton button)
-        {
-            button.BackgroundColor = UIColor.FromWhiteAlpha(0.12f, 0.9f);
-            button.Layer.CornerRadius = 12;
         }
 
         private static UIStackView CreateStack(UILayoutConstraintAxis axis, params UIView[] views)

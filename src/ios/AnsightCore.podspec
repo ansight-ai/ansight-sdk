@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name         = "AnsightCore"
-  s.version      = "1.7.0"
+  s.version      = "1.7.1"
   s.summary      = "Native iOS runtime for Ansight"
   s.homepage     = "https://github.com/ansight-ai/ansight-sdk"
   s.license      = { :type => "PolyForm Shield 1.0.0", :file => "LICENSE" }
@@ -8,6 +8,7 @@ Pod::Spec.new do |s|
   s.source       = { :path => "." }
   s.platforms    = { :ios => "15.0", :osx => "10.15" }
   s.source_files = "Sources/AnsightCore/**/*.swift", "Sources/CAnsightCrashCapture/**/*.{c,h}", "Generated/CocoaPods/AnsightGeneratedBuildArtifacts.swift"
+  s.resources = "Sources/AnsightCore/Resources/ansight-annotation-icon.png"
   s.exclude_files = "Sources/AnsightCore/AnsightGeneratedBuildArtifacts.swift"
   s.public_header_files = "Sources/CAnsightCrashCapture/include/*.h"
   s.preserve_paths = "Plugins/AnsightBuildTool/**/*.swift"

@@ -92,6 +92,7 @@ let package = Package(
             ],
             path: "Sources/AnsightCore",
             exclude: ["README.md"],
+            resources: [.process("Resources")],
             linkerSettings: [
                 .linkedLibrary("z"),
             ],

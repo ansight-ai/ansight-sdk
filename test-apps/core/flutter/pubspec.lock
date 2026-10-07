@@ -7,7 +7,7 @@ packages:
       path: "../../../src/flutter"
       relative: true
     source: path
-    version: "1.7.0"
+    version: "1.7.1"
   args:
     dependency: transitive
     description:
