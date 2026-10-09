@@ -17,6 +17,7 @@
 test-apps/core/dotnet/Ansight.TestHarness/ansight.json
 .build/
 .swiftpm/
+.gradle/
 .cxx/
 build/
 tmp/
