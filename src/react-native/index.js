@@ -212,6 +212,11 @@ class AnsightOptionsBuilder {
     this._options = cloneOptions(options);
   }
 
+  withOfflineCapture(options = {}) {
+    this._options.offlineCapture = { enabled: true, maximumSessions: 10, transferMode: "automatic", ...options };
+    return this;
+  }
+
   withAnnotatedFeedback(options = {}) {
     this._options.annotatedFeedback = { ...options, enabled: true };
     return this;
@@ -2535,7 +2540,7 @@ function ensureNetworkConnectionEventSubscription() {
 
 function applyNetworkConnectionStatus(status) {
   const registration = networkCaptureRegistration;
-  if (!registration || !status || status.isConnected !== true) {
+  if (!registration || !status || (status.isConnected !== true && status.isOfflineCaptureRecording !== true)) {
     detachNetworkCapture();
     return;
   }

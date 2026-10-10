@@ -67,7 +67,10 @@ internal fun PairingLiveSessionTransport.sendSessionVisualTree(
     capturedAtUtc: String,
     screenshotCapturedAtUtc: String? = capturedAtUtc,
     trigger: TouchVisualTreeCaptureTrigger? = null,
-): OperationResult {
+): OperationResult = sendText(sessionVisualTreePayload(visualTree, capturedAtUtc, screenshotCapturedAtUtc, trigger).toString())
+
+internal fun sessionVisualTreePayload(visualTree: JSONObject, capturedAtUtc: String,
+    screenshotCapturedAtUtc: String? = capturedAtUtc, trigger: TouchVisualTreeCaptureTrigger? = null): JSONObject {
     visualTree.put("capturedAtUtc", capturedAtUtc)
     if (trigger != null) {
         visualTree.put(
@@ -106,5 +109,5 @@ internal fun PairingLiveSessionTransport.sendSessionVisualTree(
             .put("touchAction", trigger.touchAction)
             .put("touchCapturedAtUtc", trigger.touchCapturedAtUtc)
     }
-    return sendText(payload.toString())
+    return payload
 }

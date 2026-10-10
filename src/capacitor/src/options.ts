@@ -1,6 +1,7 @@
 import type {
   AnsightChannel,
   AnsightAnnotationOptions,
+  AnsightOfflineCaptureOptions,
   AnsightCrashCaptureOptions,
   AnsightDomToolsOptions,
   AnsightErrorCaptureOptions,
@@ -22,6 +23,16 @@ export class AnsightOptionsBuilder implements AnsightOptionsBuilderApi {
 
   constructor(options: AnsightOptions = {}) {
     this.options = cloneOptions(options);
+  }
+
+  withOfflineCapture(options: AnsightOfflineCaptureOptions = {}): this {
+    this.options.offlineCapture = {
+      enabled: true,
+      maximumSessions: 10,
+      transferMode: "automatic",
+      ...options,
+    };
+    return this;
   }
 
   withAnnotatedFeedback(options: AnsightAnnotationOptions = {}): this {

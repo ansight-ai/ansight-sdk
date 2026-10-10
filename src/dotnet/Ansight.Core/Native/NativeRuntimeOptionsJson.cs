@@ -14,6 +14,17 @@ internal static class NativeRuntimeOptionsJson
         var networkCaptureOptions = options.ResolveNetworkCaptureOptions();
         var root = new JsonObject
         {
+            ["offlineCapture"] = options.OfflineCapture is { } offline ? new JsonObject
+            {
+                ["enabled"] = offline.Enabled,
+                ["recordingEnabled"] = offline.RecordingEnabled,
+                ["rootDirectory"] = offline.RootDirectory,
+                ["maximumSessions"] = offline.MaximumSessions,
+                ["maximumSessionBytes"] = offline.MaximumSessionBytes,
+                ["maximumRetainedBytes"] = offline.MaximumRetainedBytes,
+                ["maximumQueuedBytes"] = offline.MaximumQueuedBytes,
+                ["transferMode"] = offline.TransferMode == OfflineCaptureTransferMode.Manual ? "manual" : "automatic"
+            } : null,
             ["sampleFrequencyMilliseconds"] = options.SampleFrequencyMilliseconds,
             ["retentionPeriodSeconds"] = options.RetentionPeriodSeconds,
             ["enableFramesPerSecond"] = options.EnableFramesPerSecond,

@@ -676,6 +676,10 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
     private func buildOptions(_ dictionary: NSDictionary?) throws -> AnsightOptions {
         let useDefaults = boolValue(dictionary, "useNativeAllInOneDefaults", defaultValue: false)
         var options = useDefaults ? AnsightOptions.ansightDeveloperDefaults : AnsightOptions()
+        if let offline = dictionary?["offlineCapture"] as? NSDictionary {
+            options.offlineCapture = try JSONDecoder().decode(OfflineCaptureOptions.self,
+                from: JSONSerialization.data(withJSONObject: offline))
+        }
         if let raw = dictionary?["annotatedFeedback"] {
             if let enabled = raw as? NSNumber, !enabled.boolValue {
                 options.annotatedFeedback.enabled = false
@@ -952,6 +956,7 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
     private func hostConnectionStatusDictionary(_ status: HostConnectionStatus) -> [String: Any] {
         [
             "isRuntimeActive": status.isRuntimeActive,
+            "isOfflineCaptureRecording": status.isOfflineCaptureRecording ?? false,
             "isConnected": status.isConnected,
             "connectionState": status.connectionState.rawValue,
             "hasCachedSession": status.hasCachedSession,

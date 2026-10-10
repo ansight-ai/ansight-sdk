@@ -458,7 +458,8 @@ class Ansight {
       AnsightOperationResult.fromJson(
           await _invoke('recordShake', <String, Object?>{'source': source}));
 
-  Future<AnsightOperationResult> recordAccelerometer(double x, double y, double z) async =>
+  Future<AnsightOperationResult> recordAccelerometer(
+          double x, double y, double z) async =>
       AnsightOperationResult.fromJson(await _invoke(
           'recordAccelerometer', <String, Object?>{'x': x, 'y': y, 'z': z}));
 
@@ -679,6 +680,7 @@ class Ansight {
     final key = <Object?>[
       status.isRuntimeActive,
       status.isConnected,
+      status.isOfflineCaptureRecording,
       status.connectionState,
       status.hasCachedSession,
       status.hasSavedConfig,

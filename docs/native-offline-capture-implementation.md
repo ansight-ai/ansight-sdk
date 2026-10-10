@@ -1,157 +1,136 @@
-# Native offline capture implementation
+# Native offline capture
 
-Status: native storage and ZIP export foundation implemented; the complete app-to-host
-workflow is not yet implemented or enabled in Redpoint. See the
-[native migration audit](offline-capture-native-audit.md) for the existing runtime gaps.
+Swift and Kotlin own disconnected recording, retention, recovery, ZIP export and
+host delivery. No .NET process, timer, recorder or uploader is needed by this mobile
+pipeline. .NET/MAUI, Flutter, React Native and Capacitor forward configuration and
+framework evidence to the same native engines. The old managed offline API remains
+available for compatibility; applications using native capture must stop creating
+its parallel recorder.
 
-## Product contract
+## Policy and lifecycle
 
-- Redpoint enables recording for users entitled to Ansight while its trusted host is
-  disconnected. Loss of entitlement stops recording.
-- The session cache limit is configurable. The default is **10 sessions**, including
-  an active recording. This is a count limit, separate from byte limits.
-- Transfer policy is configurable: `automatic` by default, or `manual`.
-- On an authenticated host connection, seal the disconnected recording. Automatic
-  mode transfers pending recordings; manual mode makes them available for a host
-  action. Disconnecting starts a new recording with the same process-session ID.
-- Delete a transferred recording only after a durable host import acknowledgement
-  identifies the exact recording and archive hash. Retention eviction is a separate
-  operation and may evict older, unacknowledged recordings to respect the cache budget.
-- A lost connection or lost acknowledgement retains the source for retry. The host
-  must recognize repeat imports instead of creating duplicate sessions.
+Native capture is opt-in. `withOfflineCapture()` (`WithOfflineCapture()` in .NET)
+enables it with these defaults:
 
-## Native ownership
-
-Swift owns Apple recording; Kotlin owns Android recording. Neither engine requires
-.NET. Framework SDKs supply options and their own telemetry through small bridges.
-Native code owns queues, disk writes, recovery, cache eviction, export, and transfer.
-
-Keep CLR/Dart/JavaScript instrumentation in its originating framework and forward
-its records to native ingestion. Screenshot scheduling, native touches, and network
-ingestion must work before the first host connection. Mobile .NET must stop running
-its parallel managed recorder after migration. Desktop managed fallback is a
-separate compatibility concern.
-
-## Implemented foundation
-
-Apple sources are in `src/ios/Sources/AnsightCore/OfflineCapture`. Android sources
-are in `src/android/ansight-core/src/main/kotlin/ai/ansight/runtime/offline`.
-
-Both expose `OfflineCaptureOptions`:
-
-| Setting | Default | Meaning |
+| Setting | Default | Behavior |
 | --- | --- | --- |
-| `enabled` | `false` | The app must opt in according to its user-access policy. |
-| `maximumSessions` | `10` | Maximum retained session count, including the active session. |
-| `maximumSessionBytes` | 128 MiB | Session payload budget; rotate when the next record exceeds it. |
-| `maximumRetainedBytes` | 512 MiB | Payload budget across retained sessions. |
-| `maximumQueuedBytes` | 8 MiB | Maximum queued record and attachment bytes. |
-| `transferMode` | `automatic` | Policy value for the future connection coordinator. |
+| `maximumSessions` | **10** | Positive, configurable count including the active recording. |
+| `transferMode` | `automatic` | Transfer on authenticated reconnect; `manual` waits for an explicit request. |
+| `recordingEnabled` | `true` | Initial entitlement gate, independent of configuring the feature. |
+| `maximumSessionBytes` | 128 MiB | Rotate when the next record would exceed the payload budget. |
+| `maximumRetainedBytes` | 512 MiB | Evict oldest whole sessions to bound retained payload bytes. |
+| `maximumQueuedBytes` | 8 MiB | Bound pending records and attachments before admitting producer work. |
+| `rootDirectory` | App-private storage | Override to adopt an existing capture directory. |
 
-`maximumSessions` is not hard-coded in eviction. Applications can choose another
-positive value. Invalid budgets fail validation. These are construction-time
-options; runtime mutation and persistence of policy are not implemented yet.
+Constructing raw native `OfflineCaptureOptions` leaves `enabled = false`; native
+builders opt in. Set `enabled: true` when constructing a JSON policy directly.
+Options are validated at initialization. Count/byte budgets and transfer mode take
+effect at the next initialization. The entitlement gate can change while running.
 
-The native stores provide ordered recording transitions, bounded record admission,
-flush barriers that cannot be dropped, oldest-session eviction, sealed-session
-leases, interrupted-session recovery, and acknowledgement-gated deletion. Payload
-sizes are recalculated from disk for recovered sessions. Corrupt manifests fail
-visibly and preserve the evidence instead of silently bypassing retention.
+An active, eligible runtime records while disconnected, including before its first
+pairing. A host connection seals the current recording. Disconnecting creates a new
+recording with the same process-session identity. Deactivation or entitlement
+revocation seals recording and stops automatic transfers. Screenshots pause in the
+background. Retention evicts oldest unleased sessions, including untransferred ones;
+transfer leases protect in-flight sessions. A temporary lease conflict resumes once
+the lease is released. Byte budgets cover payload files, not manifests, filesystem
+overhead or the temporary ZIP used during delivery.
 
-The byte budgets cover recorded payload, not directory/manifest overhead or export
-temporary files. An admitted record can still fail during disk IO. `lastError` and
-`flush()` expose failures; admission success is not a durability acknowledgement.
-`droppedRecords` currently records cumulative drops for the store instance.
+Each session contains its device profile, initial channel definitions, current custom
+properties, metrics, events, client logs, touches, sanitized network records and,
+when configured, screenshots and visual trees. Framework HTTP wrappers keep capture
+active when native status reports `isOfflineCaptureRecording`. Native crash capture
+tracks the offline session identity and retains its existing independent host handoff.
+Visual trees are sampled with offline screenshots for either tree-enabled mode.
 
-Export uses a streaming, uncompressed ZIP and SHA-256. The caller holds the session
-lease until transfer finishes, releases it after failure, and cleans up the export
-file. Identical sealed-session contents produce identical archives on the same
-platform. Cross-platform binary identity is not required. Password-protected ZIP,
-legacy .NET session migration, and hosted upload compatibility remain pending.
+The native stores adopt the previous managed `sessions/<id>` JSONL layout, including
+GUIDs without hyphens, and preserve additional manifest fields. Recovery seals
+interrupted sessions and recounts payload bytes. Corrupt manifests fail visibly and
+preserve evidence. This migration reads local session directories; it does not read
+password-protected ZIPs or continue the previous hosted-cloud upload workflow.
 
-These stores are not attached to the native runtime yet. The transfer-mode value
-does not itself start a network transfer. The deletion API is a low-level primitive:
-only the trusted transfer coordinator may supply validated host receipts.
+## Configuration and manual transfer
 
-## Remaining implementation sequence
+.NET/MAUI:
 
-### 1. Native runtime ingestion and lifecycle
-
-Add the options to native runtime builders and their JSON contracts. A coordinator
-must serialize eligibility changes, activation, disconnect, reconnect, and shutdown.
-Connect native metrics/events before live-buffer trimming, native touch ingestion,
-sanitized network ingestion before its live-transport check, screenshots, and crash
-recovery. Persist device profiles, channels, and custom properties with each session.
-
-Separate screenshot demand from host transport. Reuse native capture providers so
-Flutter and other framework surfaces remain available offline. Pause unavailable
-UI producers in the background. Retain original capture timestamps and stable IDs.
-Store screenshot/index pairs and annotation bundles coherently.
-
-Prove this first in the native Apple and Android harnesses without ever pairing to a
-host. Storage unit tests alone do not prove that native app evidence is captured.
-
-### 2. Host transfer and durable receipts
-
-Use the existing authenticated connection and ASFT binary transfer protocol. Add a
-versioned offline-transfer descriptor containing origin/session ID, transfer ID,
-archive length, and SHA-256. Validate limits and identifiers before creating a
-receiver. Keep automatic transfers sequential and cancellable.
-
-The host validates length and digest, imports through its offline archive reader,
-durably saves all evidence and source identity, then acknowledges. Persist import
-identity with the imported session so a host restart or lost acknowledgement does
-not cause duplicate imports. A socket send or completed binary transfer is not an
-import acknowledgement. Manual and automatic transfer use the same implementation.
-
-A host without this capability leaves captures on the device. Cleanup removes
-partial transfer files and expired leases without purging the recording. Verify
-native archives with the actual host importer, including screenshots, touches,
-network records, annotations, and crash evidence.
-
-### 3. Framework facades and migration
-
-Expose matching configuration, status, retained-session listing, transfer, and
-export APIs through .NET/MAUI, Flutter, React Native, and Capacitor. Network hooks
-must run when a configured offline consumer exists, independently of host state.
-Keep 64-bit values intact across JavaScript bridges.
-
-Migrate existing .NET storage and activation settings before switching writers;
-do not let the native foundation interpret old manifests as its new internal store
-format. Preserve old recordings, export/upload behavior, and annotation routing.
-Update Android bindings, the Apple .NET framework project, package exports, and
-API documentation together.
-
-### 4. Redpoint integration
-
-Map the existing Ansight access policy to native capture enablement. Configure
-`maximumSessions = 10` and `transferMode = automatic` through the public SDK API,
-with both values configurable. Replace the next-session-only Diagnostics control
-with the current policy and status. Remove app-owned session scanning and cloud
-upload receipts from the local-host transfer flow once the SDK owns that lifecycle.
-Keep Redpoint's live 120-second telemetry window independent from offline retention.
-
-## Validation
-
-The foundation has matching Swift and Kotlin tests for default options, configurable
-session limits, oldest-session eviction, byte retention, oversize admission, flush
-barriers, interrupted recording recovery, transfer leases, mismatched receipts,
-corrupt manifests, and deterministic ZIP export. Standard ZIP readers verify export.
-
-Commands:
-
-```sh
-cd src/ios
-swift test --filter OfflineCaptureStoreTests
+```csharp
+var options = Options.CreateBuilder()
+    .WithOfflineCapture(new Ansight.Native.NativeOfflineCaptureOptions
+    {
+        MaximumSessions = 10, // Set any positive session count.
+        TransferMode = Ansight.Native.OfflineCaptureTransferMode.Automatic,
+        RecordingEnabled = false
+    })
+    .Build();
+Runtime.Initialize(options);
+await Runtime.SetOfflineCaptureEnabledAsync(userHasAnsightAccess);
+Runtime.Activate();
+// In manual mode, or to retry an earlier failure:
+await Runtime.TransferOfflineCapturesAsync();
 ```
 
+Swift: `AnsightOptionsBuilder.withOfflineCapture(OfflineCaptureOptions(enabled:
+true, maximumSessions: 10))`. Kotlin:
+`AnsightOptionsBuilder().withOfflineCapture(OfflineCaptureOptions(enabled = true,
+maximumSessions = 10))`. Both runtimes expose `transferOfflineCaptures()`.
+
+React Native and Capacitor: `.withOfflineCapture({ maximumSessions: 10,
+transferMode: 'automatic' })`. Flutter: `.withOfflineCapture(const
+AnsightOfflineCaptureOptions(maximumSessions: 10, transferMode: 'automatic'))`.
+
+The native tool `offline_capture.transfer` is registered when capture is enabled.
+Hosts can discover and call it through the existing app-tools API in manual mode.
+The .NET tool facade routes that same operation through its native bridge. A
+successful tool result means transfer started; completion is the imported session
+on the host. `offlineCaptureLastError` on the native runtimes exposes failures.
+Low-level `offline_capture.set_enabled` is intercepted locally by the native
+control bridge and updates the entitlement gate without contacting a host.
+
+## Delivery and deletion
+
+The existing authenticated app WebSocket carries sequential transfers:
+
+1. Flush/seal and lease the source session. Write a streaming deterministic ZIP and
+   calculate its SHA-256; no full archive is buffered in memory on the app.
+2. Send `offline_capture.begin` with schema `ansight.offline-transfer.v1`, source
+   `sessionId`, 32-character `transferId`, `byteCount`, and lowercase `sha256`.
+3. Send ASFT chunks (64 KiB), exact sequence/offset, then the completion frame.
+4. Send `offline_capture.commit` with the same descriptor.
+5. The host verifies length, digest, archive paths and app identity, imports and
+   flushes evidence to disk, then returns a durable receipt with the source ID/hash.
+6. Only a successful receipt with `durable: true` and the exact source ID/hash allows
+   local deletion. Connection failure, older hosts and mismatched receipts retain
+   the source for a later reconnect or manual retry.
+
+The host persists source identity/hash on `offline-<source-session-id>`. A retry,
+including after host restart or lost acknowledgement, returns the original import.
+Import errors never authorize purge. Local-host delivery does not require a cloud
+account or upload API key. The receiver caps archives at 1 GiB, uncompressed content
+at 2 GiB and chunks at 1 MiB. Native default budgets fit those limits.
+
+## Validation and rollout
+
+Focused tests cover configurable counts, oldest/byte eviction, queue pressure,
+metadata updates, screenshot indexes, legacy recovery, corrupt manifests, leases,
+deterministic export, access gating, and automatic/manual/mismatched-receipt delivery.
+Swift uses an injected transport; Android exercises real loopback WebSockets. Host
+tests verify logs, events, metrics, touches, network, images and trees after persisted
+import/restart, retry identity, invalid hashes, source/app mismatch and unsafe paths.
+
 ```sh
-cd src/android
-./gradlew :ansight-core:testDebugUnitTest --tests ai.ansight.runtime.OfflineCaptureStoreTest
+# Apple native recorder and sender
+cd src/ios && swift test --filter OfflineCapture
+# Android native recorder and sender
+cd src/android && ./gradlew :ansight-core:testDebugUnitTest --tests 'ai.ansight.runtime.OfflineCapture*Test'
 ```
 
-Before release, also test offline launch and real interactions, connection flapping,
-manual/automatic modes, runtime cache-limit changes, revoked access, interrupted
-transfers, duplicate retries, disk full, process termination, SDK migration, and
-host restart on physical Apple and Android devices. Verify Redpoint produces no
-duplicate managed/native recordings.
+Also validated: .NET option serialization; Flutter offline HTTP/configuration;
+React Native network/configuration; Capacitor options and TypeScript; native iOS
+simulator/Android .NET bridges; Redpoint iOS simulator source integration.
+
+Release the SDK and matching host together, then update app package references.
+Physical-device launch, reconnect/flapping, process termination, disk-full behavior,
+and all framework application builds still require release smoke coverage. Native
+capture currently does not provide an offline annotated-feedback bundle sink or
+attach crash-report files into these ZIPs; crash reports retain their native outbox
+handoff. No device end-to-end run or package publication is claimed by these tests.

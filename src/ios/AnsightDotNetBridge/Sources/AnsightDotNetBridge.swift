@@ -409,6 +409,7 @@ public final class ANSDotNetRuntime: NSObject {
         )
         var options = AnsightOptions()
         options.annotatedFeedback = bridgeOptions.annotatedFeedback ?? AnnotationOptions()
+        options.offlineCapture = bridgeOptions.offlineCapture
 
         options.sampleFrequencyMilliseconds =
             bridgeOptions.sampleFrequencyMilliseconds ?? options.sampleFrequencyMilliseconds
@@ -696,6 +697,7 @@ private struct BridgeHostConnectionResult: Encodable {
 
 private struct BridgeOptions: Decodable {
     let annotatedFeedback: AnnotationOptions?
+    let offlineCapture: OfflineCaptureOptions?
     let sampleFrequencyMilliseconds: Int?
     let retentionPeriodSeconds: Int?
     let enableFramesPerSecond: Bool?

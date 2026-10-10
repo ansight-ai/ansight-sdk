@@ -86,6 +86,19 @@ class PairingLiveSessionTransport {
         return OperationResult.success("WebSocket session opened.")
     }
 
+    /** File producers wait for the socket queue to drain before reading another chunk. */
+    internal fun sendFileTransferFrame(data: ByteArray): OperationResult {
+        val socket = synchronized(lock) { webSocket } ?: return OperationResult.failure("WebSocket session is not open.")
+        val sent = sendData(data)
+        if (!sent.success) return sent
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+        while (socket.hasBufferedData()) {
+            if (!socket.isOpen || System.nanoTime() >= deadline) return OperationResult.failure("Offline transfer delivery stalled.")
+            Thread.sleep(5)
+        }
+        return sent
+    }
+
     fun sendControlRequest(
         action: String,
         payload: JSONObject?,

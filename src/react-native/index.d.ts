@@ -44,6 +44,17 @@ export interface AnsightMotionCaptureOptions {
   minimumSampleIntervalMilliseconds?: number;
 }
 
+export interface AnsightOfflineCaptureOptions {
+  enabled?: boolean;
+  recordingEnabled?: boolean;
+  rootDirectory?: string;
+  maximumSessions?: number;
+  transferMode?: 'automatic' | 'manual';
+  maximumSessionBytes?: number;
+  maximumRetainedBytes?: number;
+  maximumQueuedBytes?: number;
+}
+
 export interface AnsightAnnotationOptions {
   enabled?: boolean;
   captureScreenshot?: boolean;
@@ -209,6 +220,7 @@ export interface AnsightOptions {
   sessionJpegCapture?: false | AnsightSessionJpegCaptureOptions;
   touchCapture?: false | AnsightTouchCaptureOptions;
   motionCapture?: false | AnsightMotionCaptureOptions;
+  offlineCapture?: AnsightOfflineCaptureOptions;
   annotatedFeedback?: false | AnsightAnnotationOptions;
   crashCapture?: false | AnsightCrashCaptureOptions;
   lifecycleCapture?: {
@@ -272,6 +284,7 @@ export interface AnsightOperationResult {
 
 export interface AnsightHostConnectionStatus {
   isRuntimeActive: boolean;
+  isOfflineCaptureRecording?: boolean;
   isConnected: boolean;
   connectionState: string;
   hasCachedSession: boolean;
@@ -354,6 +367,7 @@ export type AnsightCurrentOptions = AnsightOptions & Record<string, unknown>;
 
 export class AnsightOptionsBuilder {
   constructor(options?: AnsightOptions);
+  withOfflineCapture(options?: AnsightOfflineCaptureOptions): this;
   withAnnotatedFeedback(options?: AnsightAnnotationOptions): this;
   withoutAnnotatedFeedback(): this;
   withNativeAllInOneDefaults(): this;

@@ -16,6 +16,7 @@ class NativeCall {
 class FakeNativeTransport implements AnsightNativeTransport {
   final List<NativeCall> calls = <NativeCall>[];
   bool connected = false;
+  bool offlineRecording = false;
 
   @override
   AnsightNativeEventCallback? eventCallback;
@@ -41,6 +42,7 @@ class FakeNativeTransport implements AnsightNativeTransport {
       return <String, Object?>{
         ..._connection,
         'isConnected': connected,
+        'isOfflineCaptureRecording': offlineRecording,
         'connectionState': connected ? 'connected' : 'disconnected',
       };
     }
@@ -123,9 +125,27 @@ class StreamingClient extends http.BaseClient {
 }
 
 void main() {
+  test('offline capture session count and transfer mode are configurable', () {
+    expect(
+        const AnsightOfflineCaptureOptions().toJson()['maximumSessions'], 10);
+    expect(const AnsightOfflineCaptureOptions().toJson()['transferMode'],
+        'automatic');
+    final policy = createOptionsBuilder()
+        .withOfflineCapture(const AnsightOfflineCaptureOptions(
+            maximumSessions: 3, transferMode: 'manual'))
+        .build()
+        .toJson()['offlineCapture'];
+    expect(policy, containsPair('maximumSessions', 3));
+    expect(policy, containsPair('transferMode', 'manual'));
+  });
+
   test('clipboard tool registration choice is preserved', () {
-    expect(const AnsightRemoteToolsOptions(clipboard: false).toJson()['clipboard'], false);
-    expect(const AnsightRemoteToolsOptions(clipboard: true).toJson()['clipboard'], true);
+    expect(
+        const AnsightRemoteToolsOptions(clipboard: false).toJson()['clipboard'],
+        false);
+    expect(
+        const AnsightRemoteToolsOptions(clipboard: true).toJson()['clipboard'],
+        true);
   });
 
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -359,6 +379,53 @@ void main() {
     client.close();
   });
 
+  test(
+      'AnsightHttpClient captures bodies while native offline capture is recording',
+      () async {
+    final transport = FakeNativeTransport();
+    transport.offlineRecording = true;
+    final ansight = Ansight.withTransport(transport);
+    final inner = MockClient((http.Request request) async => http.Response(
+          'response body',
+          201,
+          reasonPhrase: 'Created',
+          headers: <String, String>{
+            'content-length': '13',
+            'set-cookie': 'session=secret',
+          },
+          request: request,
+        ));
+    final client = AnsightHttpClient(inner: inner, ansight: ansight);
+    await Future<void>.delayed(Duration.zero);
+
+    final response = await client.post(
+      Uri.parse('https://example.test/items?token=secret'),
+      headers: <String, String>{'Authorization': 'Bearer secret'},
+      body: 'request body',
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(response.statusCode, 201);
+    final networkCall = transport.calls.singleWhere(
+      (NativeCall call) => call.method == 'recordNetworkRequest',
+    );
+    final captured = networkCall.arguments!['request'] as AnsightNetworkRequest;
+    expect(captured.source, 'flutter.http');
+    expect(captured.method, 'POST');
+    expect(captured.statusCode, 201);
+    expect(captured.requestBody?.data, 'request body');
+    expect(captured.responseBody?.data, 'response body');
+    expect(captured.url, contains('token=%3Credacted%3E'));
+    expect(
+      captured.requestHeaders
+          .singleWhere((AnsightNetworkHeader value) =>
+              value.name.toLowerCase() == 'authorization')
+          .value,
+      ansightRedactedNetworkValue,
+    );
+    client.close();
+  });
+
   test('AnsightHttpClient stops an in-flight capture after disconnect',
       () async {
     final transport = FakeNativeTransport()..connected = true;
@@ -461,7 +528,8 @@ void main() {
   test('host handoff serializes explicit delivery settings', () {
     for (final enabled in [false, true]) {
       final options = createOptionsBuilder()
-          .withCrashCapture(AnsightCrashCaptureOptions(hostHandoffEnabled: enabled))
+          .withCrashCapture(
+              AnsightCrashCaptureOptions(hostHandoffEnabled: enabled))
           .build()
           .toJson();
       expect((options['crashCapture'] as Map)['hostHandoffEnabled'], enabled);

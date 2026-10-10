@@ -15,30 +15,32 @@ class AnsightHttpClient extends http.BaseClient {
   })  : _inner = inner ?? http.Client(),
         _ansight = ansight ?? Ansight.instance {
     _connectionSubscription = _ansight.connectionStatusChanges.listen(
-      (status) => _hostConnected = status.isConnected,
+      (status) => _captureAvailable =
+          (status.isConnected || status.isOfflineCaptureRecording),
     );
     unawaited(_ansight.hostConnectionStatus().then(
-          (status) => _hostConnected = status.isConnected,
-          onError: (_) => _hostConnected = false,
+          (status) => _captureAvailable =
+              (status.isConnected || status.isOfflineCaptureRecording),
+          onError: (_) => _captureAvailable = false,
         ));
   }
 
   final http.Client _inner;
   final Ansight _ansight;
   late final StreamSubscription _connectionSubscription;
-  bool _hostConnected = false;
+  bool _captureAvailable = false;
   final AnsightNetworkSanitizationOptions sanitizationOptions;
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
-    if (!_hostConnected) return _inner.send(request);
+    if (!_captureAvailable) return _inner.send(request);
 
     final startedAtUtc = DateTime.now().toUtc();
     final stopwatch = Stopwatch()..start();
     final requestBody = _requestBody(request);
     try {
       final response = await _inner.send(request);
-      if (!_hostConnected) return response;
+      if (!_captureAvailable) return response;
       if (!sanitizationOptions.captureResponseBody) {
         stopwatch.stop();
         _capture(_record(
@@ -56,13 +58,13 @@ class AnsightHttpClient extends http.BaseClient {
       );
       final captured = _BodyCaptureAccumulator(maximum);
       var observedBytes = 0;
-      var captureActive = _hostConnected;
+      var captureActive = _captureAvailable;
       Object? responseError;
       Stream<List<int>> captureStream() async* {
         try {
           await for (final chunk in response.stream) {
             observedBytes += chunk.length;
-            if (captureActive && _hostConnected) {
+            if (captureActive && _captureAvailable) {
               await captured.add(chunk);
             } else if (captureActive) {
               captureActive = false;
@@ -75,7 +77,7 @@ class AnsightHttpClient extends http.BaseClient {
           rethrow;
         } finally {
           stopwatch.stop();
-          if (!captureActive || !_hostConnected) {
+          if (!captureActive || !_captureAvailable) {
             await captured.discard();
           } else {
             final capturedBytes = await captured.complete();
@@ -178,7 +180,7 @@ class AnsightHttpClient extends http.BaseClient {
   }
 
   void _capture(AnsightNetworkRequest request) {
-    if (!_hostConnected) return;
+    if (!_captureAvailable) return;
     _ansight
         .recordNetworkRequest(request, sanitizationOptions)
         .then<void>((_) {}, onError: (_) {});

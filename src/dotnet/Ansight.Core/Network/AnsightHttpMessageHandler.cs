@@ -83,7 +83,7 @@ public sealed class AnsightHttpMessageHandler : DelegatingHandler
             return await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
         }
         request.Options.Set(ExplicitCaptureMarker, true);
-        if (!Runtime.HostConnection.IsConnected)
+        if (!Runtime.HasNetworkCaptureDestination)
         {
             return await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
         }
@@ -103,7 +103,7 @@ public sealed class AnsightHttpMessageHandler : DelegatingHandler
                     cancellationToken)
                 .ConfigureAwait(false);
             response = await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
-            if (Runtime.HostConnection.IsConnected)
+            if (Runtime.HasNetworkCaptureDestination)
             {
                 responseBody = await CaptureBodyAsync(
                         response.Content,
@@ -120,7 +120,7 @@ public sealed class AnsightHttpMessageHandler : DelegatingHandler
         }
         finally
         {
-            if (Runtime.HostConnection.IsConnected)
+            if (Runtime.HasNetworkCaptureDestination)
             {
                 var completedAtUtc = DateTimeOffset.UtcNow;
                 var record = NetworkRequestSanitizer.Sanitize(new NetworkRequestRecord

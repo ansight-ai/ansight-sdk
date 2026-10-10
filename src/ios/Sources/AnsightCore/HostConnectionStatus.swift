@@ -11,4 +11,5 @@ public struct HostConnectionStatus: Sendable, Codable, Equatable {
     public let summaryMessage: String
     public let hostId: String?
     public let hostName: String?
+    public var isOfflineCaptureRecording: Bool? = nil
 }

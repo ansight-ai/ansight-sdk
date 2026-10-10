@@ -103,6 +103,70 @@ final class OfflineCaptureStoreTests: XCTestCase {
         XCTAssertEqual(sessions.first?.bytes, 8)
     }
 
+    func testNativeRuntimeRecordsWithoutHostAndHonorsAccessPolicy() async throws {
+        let directory = try root()
+        let runtime = AnsightRuntime.shared
+        var options = AnsightOptions()
+        options.additionalChannels = [AnsightChannel(id: 200, name: "Test", color: nil)]
+        options.crashCapture.enabled = false
+        options.hostAutoProbe.enabled = false
+        options.offlineCapture = OfflineCaptureOptions(enabled: true, recordingEnabled: false,
+            rootDirectory: directory.path, maximumSessions: 2)
+        try runtime.initializeAndActivate(options: options)
+        defer { runtime.deactivate() }
+        try runtime.metric(1, channel: 200)
+        let before = try await runtime.offlineCaptureSessions()
+        XCTAssertTrue(before.isEmpty)
+        _ = await runtime.sendControlRequest(action: "offline_capture.set_enabled", payload: .object(["enabled": .bool(true)]))
+        try runtime.metric(1234, channel: 200)
+        let logResult = await runtime.sendClientLog("offline-runtime-log")
+        XCTAssertTrue(logResult.success)
+        let sessions = try await runtime.offlineCaptureSessions()
+        let session = try XCTUnwrap(sessions.last)
+        let records = try String(contentsOf: directory.appendingPathComponent("sessions/\(session.sessionId)/records.jsonl"), encoding: .utf8)
+        XCTAssertTrue(records.contains("1234"))
+        XCTAssertTrue(records.contains("offline-runtime-log"))
+        XCTAssertFalse(runtime.hostConnectionStatus().isConnected)
+        _ = await runtime.sendControlRequest(action: "offline_capture.set_enabled", payload: .object(["enabled": .bool(false)]))
+        try runtime.metric(9876, channel: 200)
+        _ = try await runtime.offlineCaptureSessions()
+        let after = try String(contentsOf: directory.appendingPathComponent("sessions/\(session.sessionId)/records.jsonl"), encoding: .utf8)
+        XCTAssertFalse(after.contains("9876"))
+    }
+
+    func testManagedArchiveIsAdoptedWithoutLosingManifestMetadata() async throws {
+        let directory = try root()
+        let id = UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
+        let session = directory.appendingPathComponent("sessions/\(id)")
+        try FileManager.default.createDirectory(at: session, withIntermediateDirectories: true)
+        try JSONSerialization.data(withJSONObject: ["sessionId": id, "appId": "test", "startedAtUtc": "2026-10-11T01:00:00.1234567+00:00", "crashReportIds": ["existing-report"]])
+            .write(to: session.appendingPathComponent("manifest.json"))
+        try Data("{\"metrics\":[{\"value\":1,\"channel\":1}]}\n".utf8).write(to: session.appendingPathComponent("old.jsonl"))
+        let store = try OfflineCaptureStore(root: directory, options: .init(enabled: true), appId: "test", processSessionId: "process")
+        let sessions = try await store.sessions()
+        XCTAssertEqual(sessions.first?.sessionId, id)
+        XCTAssertEqual(sessions.first?.terminationKind, "interrupted")
+        let metadata = try JSONSerialization.jsonObject(with: Data(contentsOf: session.appendingPathComponent("manifest.json"))) as! [String: Any]
+        XCTAssertEqual(metadata["crashReportIds"] as? [String], ["existing-report"])
+        let lease = try await store.acquire(id)
+        try await store.release(lease)
+    }
+
+    func testScreenshotIndexAndCustomPropertiesAreExported() async throws {
+        let directory = try root()
+        let store = try OfflineCaptureStore(root: directory, options: .init(enabled: true), appId: "test", processSessionId: "process",
+            sessionHeader: Data("{\"channels\":[]}".utf8), customProperties: Data("{\"user\":{\"role\":\"tester\"}}".utf8))
+        store.setRecording(true)
+        XCTAssertTrue(store.appendScreenshot(jpeg: Data([255, 216, 255, 217]), capturedAtUtc: "2026-10-11T01:00:00Z", width: 1, height: 1, quality: 70))
+        store.setRecording(false)
+        try await store.flush()
+        let sessions = try await store.sessions()
+        let folder = directory.appendingPathComponent("sessions/\(try XCTUnwrap(sessions.last).sessionId)")
+        let index = try JSONSerialization.jsonObject(with: Data(contentsOf: folder.appendingPathComponent("screenshots/index/frames.jsonl"))) as! [String: Any]
+        XCTAssertTrue(FileManager.default.fileExists(atPath: folder.appendingPathComponent(index["path"] as! String).path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: folder.appendingPathComponent("metadata/custom-properties.json").path))
+    }
+
     func testArchiveIsReadableAndStableAcrossRetries() async throws {
         let root = try root()
         let store = try OfflineCaptureStore(root: root, options: .init(enabled: true), appId: "test", processSessionId: "process")
@@ -137,8 +201,11 @@ final class OfflineCaptureStoreTests: XCTestCase {
         do { try await store.flush(); XCTFail("Blocked retention was reported as success") }
         catch OfflineCaptureError.persistenceFailed {}
         XCTAssertTrue(FileManager.default.fileExists(atPath: lease.directory.path))
-        store.setRecording(false)
         try await store.release(lease)
+        XCTAssertTrue(store.append(json: Data("{}".utf8)))
+        store.setRecording(false)
+        try await store.flush()
+        XCTAssertNil(store.lastError)
     }
 
     func testCorruptManifestFailsVisiblyAndPreservesEvidence() async throws {
@@ -174,4 +241,26 @@ final class OfflineCaptureStoreTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: directory.appendingPathComponent(path)), Data([1, 2, 3]))
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.appendingPathComponent("attachments").path).count, 1)
     }
+    func testUpdatedMetadataIsAccountedForAcrossRotation() async throws {
+        let directory = try root()
+        let store = try OfflineCaptureStore(root: directory, options: .init(enabled: true, maximumSessionBytes: 512),
+            appId: "test", processSessionId: "process", sessionHeader: Data("{\"channels\":[]}".utf8), customProperties: Data("{}".utf8))
+        store.setRecording(true)
+        XCTAssertTrue(store.appendScreenshot(jpeg: Data([255, 216, 255, 217]), capturedAtUtc: "2026-10-11T01:00:00Z", width: 1, height: 1, quality: 70))
+        let updated = Data("{\"user\":{\"role\":\"updated\"}}".utf8)
+        store.updateCustomProperties(json: updated)
+        try await store.flush()
+        let initialSessions = try await store.sessions()
+        let folder = directory.appendingPathComponent("sessions/\(try XCTUnwrap(initialSessions.first).sessionId)")
+        XCTAssertEqual(try Data(contentsOf: folder.appendingPathComponent("metadata/custom-properties.json")), updated)
+        XCTAssertTrue(store.append(json: Data(repeating: 32, count: 400)))
+        store.setRecording(false)
+        try await store.flush()
+        let sessions = try await store.sessions()
+        XCTAssertEqual(sessions.count, 2)
+        XCTAssertTrue(sessions.allSatisfy { $0.bytes <= 512 })
+        let newest = directory.appendingPathComponent("sessions/\(try XCTUnwrap(sessions.last).sessionId)/metadata/custom-properties.json")
+        XCTAssertEqual(try Data(contentsOf: newest), updated)
+    }
+
 }

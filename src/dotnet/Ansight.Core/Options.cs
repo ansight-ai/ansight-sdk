@@ -95,8 +95,11 @@ public class Options
     public ArtifactRegistry ArtifactProviders { get; private set; } = ArtifactRegistry.Empty;
 
     /// <summary>
-    /// Optional package-owned features initialized with the runtime.
+    /// Native disconnected recording policy on Apple and Android.
     /// </summary>
+    public Native.NativeOfflineCaptureOptions? OfflineCapture { get; private set; }
+
+    /// <summary>Optional package-owned features initialized with the runtime.</summary>
     public IReadOnlyList<IRuntimeFeature> RuntimeFeatures { get; private set; } = Array.Empty<IRuntimeFeature>();
 
     /// <summary>
@@ -206,6 +209,7 @@ public class Options
         CustomProperties ??= new SessionCustomProperties();
         CrashCapture ??= new CrashCaptureOptions();
         CrashCapture.Validate();
+        OfflineCapture?.Validate();
         HostAutoProbe ??= HostAutoProbeOptions.EnabledDefault.Clone();
         HostConnection ??= HostConnectionOptions.Default.Clone();
 
@@ -311,6 +315,7 @@ public class Options
                 EnableJniReferenceCountTracking = initialOptions.EnableJniReferenceCountTracking,
                 Tools = initialOptions.Tools ?? ToolRegistry.Empty,
                 ArtifactProviders = initialOptions.ArtifactProviders ?? ArtifactRegistry.Empty,
+                OfflineCapture = initialOptions.OfflineCapture is null ? null : initialOptions.OfflineCapture with { },
                 RuntimeFeatures = initialOptions.RuntimeFeatures?.ToArray() ?? Array.Empty<IRuntimeFeature>(),
                 SessionJpegCapture = initialOptions.SessionJpegCapture is null
                     ? null
@@ -1015,10 +1020,20 @@ public class Options
         }
 
         /// <summary>
-        /// Validates and returns the configured options.
+        /// Configures native recording while disconnected, with bounded session retention.
         /// </summary>
+        public OptionsBuilder WithOfflineCapture(Native.NativeOfflineCaptureOptions? policy = null)
+        {
+            options.OfflineCapture = policy ?? new Native.NativeOfflineCaptureOptions();
+            options.OfflineCapture.Validate();
+            return this;
+        }
+
+        /// <summary>Validates and returns the configured options.</summary>
         public Options Build()
         {
+            if (options.OfflineCapture?.Enabled == true && !options.Tools.Any(tool => tool.Id == "offline_capture.transfer"))
+                AddTool(new Native.TransferOfflineCapturesTool());
             EnsureArtifactTools();
             options.Validate();
             return options;

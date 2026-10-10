@@ -20,6 +20,10 @@ class OfflineCaptureStore(
     captureOptions: OfflineCaptureOptions,
     private val appId: String,
     private val processSessionId: String,
+    private val sessionHeader: ByteArray? = null,
+    private var customProperties: ByteArray? = null,
+    private val onSessionStarted: ((String, String) -> Unit)? = null,
+    private val onSessionCompleted: ((String) -> Unit)? = null,
 ) : AutoCloseable {
     private val root = root.canonicalFile
     private val options = captureOptions.validated()
@@ -29,8 +33,13 @@ class OfflineCaptureStore(
     }
     private var accepting = false
     private var queuedBytes = 0
+    private var admissionMetadataBytes = (sessionHeader?.size?.toLong()?.plus(1) ?: 0) + (customProperties?.size ?: 0)
+    internal val exportIdentifier: String get() = java.security.MessageDigest.getInstance("SHA-256")
+        .digest(root.path.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
     private var droppedRecords = 0L
     private var failure: String? = null
+    private var blockedByLease = false
+    private class RetentionBlocked : IOException("Offline retention is blocked by active transfers or the current session.")
     private var closed = false
     // Accessed only by the IO worker.
     private var current: OfflineCaptureSession? = null
@@ -38,6 +47,40 @@ class OfflineCaptureStore(
     private val leases = mutableMapOf<String, String>()
     private var lastOrdinal = 0L
     private var recovered = false
+    private var cachedSessions: MutableMap<String, OfflineCaptureSession>? = null
+
+    init {
+        require((sessionHeader?.size?.toLong()?.plus(1) ?: 0) + (customProperties?.size ?: 0) < options.maximumSessionBytes) { "Offline metadata exceeds the session budget." }
+    }
+
+    fun updateCustomProperties(json: ByteArray) = synchronized(ingressLock) {
+        val metadataBytes = json.size + (sessionHeader?.size?.toLong()?.plus(1) ?: 0)
+        if (closed || json.size > options.maximumQueuedBytes - queuedBytes || metadataBytes >= options.maximumSessionBytes) { droppedRecords++; return@synchronized }
+        admissionMetadataBytes = metadataBytes
+        val copy = json.copyOf()
+        queuedBytes += copy.size
+        queue.execute {
+            try {
+                runWrite {
+                    require(copy.size + (sessionHeader?.size?.toLong()?.plus(1) ?: 0) < options.maximumSessionBytes)
+                    val delta = copy.size.toLong() - (customProperties?.size ?: 0)
+                    customProperties = copy
+                    val session = current
+                    if (session != null) {
+                        if (session.bytes + delta > options.maximumSessionBytes) { seal("sizeLimit"); start() }
+                        else {
+                            enforceRetention(0, maxOf(0, delta))
+                            val path = File(directory(session.sessionId), "metadata/custom-properties.json")
+                            ensureDirectory(path.parentFile!!)
+                            atomicWrite(path, copy)
+                            current = session.copy(bytes = session.bytes + delta)
+                            persistCurrent()
+                        }
+                    }
+                }
+            } finally { synchronized(ingressLock) { queuedBytes -= copy.size } }
+        }
+    }
 
     val isRecording: Boolean get() = synchronized(ingressLock) { accepting }
     val lastError: String? get() = synchronized(ingressLock) { failure }
@@ -60,6 +103,13 @@ class OfflineCaptureStore(
         return enqueue(index(path), Attachment(path, data))
     }
 
+    fun appendScreenshot(jpeg: ByteArray, capturedAtUtc: String, width: Int, height: Int, quality: Int): Boolean {
+        val path = "screenshots/${UUID.randomUUID()}.jpg"
+        val index = JSONObject().put("path", path).put("capturedAtUtc", capturedAtUtc)
+            .put("width", width).put("height", height).put("quality", quality).toString().toByteArray(Charsets.UTF_8)
+        return enqueue(index, Attachment(path, jpeg), "screenshots/index/frames.jsonl")
+    }
+
     fun flush(): Future<Unit> = perform {
         lastError?.let { throw IOException(it) }
         writer?.fd?.sync()
@@ -67,6 +117,7 @@ class OfflineCaptureStore(
     }
 
     fun sessions(): Future<List<OfflineCaptureSession>> = perform {
+        recover()
         persistCurrent()
         readSessions()
     }
@@ -84,6 +135,7 @@ class OfflineCaptureStore(
         validate(lease)
         leases.remove(lease.sessionId)
         enforceRetention(0, 0)
+        resumeAfterLeaseChange()
     }
 
     /** Call only after validating the authenticated host's durable import receipt. */
@@ -95,7 +147,15 @@ class OfflineCaptureStore(
         }
         deleteSession(directory(lease.sessionId))
         leases.remove(lease.sessionId)
+        resumeAfterLeaseChange()
         Unit
+    }
+
+    private fun resumeAfterLeaseChange() {
+        val resume = synchronized(ingressLock) {
+            if (blockedByLease) { failure = null; blockedByLease = false; accepting } else false
+        }
+        if (resume) start()
     }
 
     override fun close() {
@@ -110,10 +170,10 @@ class OfflineCaptureStore(
 
     private data class Attachment(val path: String, val data: ByteArray)
 
-    private fun enqueue(json: ByteArray, attachment: Attachment?): Boolean = synchronized(ingressLock) {
+    private fun enqueue(json: ByteArray, attachment: Attachment?, indexPath: String? = null): Boolean = synchronized(ingressLock) {
         if (!accepting || closed) return false
         val byteCount = json.size.toLong() + 1L + (attachment?.data?.size ?: 0)
-        if (byteCount > options.maximumQueuedBytes - queuedBytes || byteCount > options.maximumSessionBytes) {
+        if (byteCount > options.maximumQueuedBytes - queuedBytes || byteCount + admissionMetadataBytes > options.maximumSessionBytes) {
             droppedRecords++
             return false
         }
@@ -135,8 +195,11 @@ class OfflineCaptureStore(
                         ensureDirectory(destination.parentFile!!)
                         atomicWrite(destination, file.data)
                     }
-                    writer!!.write(record)
-                    writer!!.write(10)
+                    if (indexPath != null) {
+                        val indexFile = File(directory(current!!.sessionId), indexPath)
+                        ensureDirectory(indexFile.parentFile!!)
+                        FileOutputStream(indexFile, true).use { it.write(record); it.write(10) }
+                    } else { writer!!.write(record); writer!!.write(10) }
                     current = current!!.copy(bytes = current!!.bytes + byteCount, records = current!!.records + 1)
                 }
             } finally { synchronized(ingressLock) { queuedBytes -= byteCount.toInt() } }
@@ -156,6 +219,22 @@ class OfflineCaptureStore(
         writer = FileOutputStream(File(folder, "records.jsonl"))
         current = session
         persistCurrent()
+        sessionHeader?.let { header ->
+            require(header.size + 1L <= options.maximumSessionBytes) { "Offline session metadata exceeds the session budget." }
+            enforceRetention(0, header.size + 1L)
+            writer!!.write(header)
+            writer!!.write(10)
+            current = session.copy(bytes = header.size + 1L)
+        }
+        customProperties?.let { properties ->
+            val path = File(folder, "metadata/custom-properties.json")
+            ensureDirectory(path.parentFile!!)
+            enforceRetention(0, properties.size.toLong())
+            atomicWrite(path, properties)
+            current = current!!.copy(bytes = current!!.bytes + properties.size)
+        }
+        persistCurrent()
+        onSessionStarted?.invoke(session.sessionId, folder.path)
     }
 
     private fun seal(reason: String) {
@@ -165,6 +244,7 @@ class OfflineCaptureStore(
         writer = null
         current = session.copy(stoppedAtUtc = now(), terminationKind = reason)
         persistCurrent()
+        onSessionCompleted?.invoke(session.sessionId)
         current = null
     }
 
@@ -183,7 +263,9 @@ class OfflineCaptureStore(
             }
         }
         lastOrdinal = maxOf(lastOrdinal, readSessions().maxOfOrNull { it.ordinal } ?: 0)
+        cachedSessions = readSessions().associateBy { it.sessionId }.toMutableMap()
         recovered = true
+        enforceRetention(0, 0)
     }
 
     private fun enforceRetention(reservingSessions: Int, reservingBytes: Long) {
@@ -197,36 +279,50 @@ class OfflineCaptureStore(
             count--
             bytes -= session.bytes
         }
-        check(count <= options.maximumSessions && bytes <= options.maximumRetainedBytes) {
-            "Offline retention is blocked by active transfers or the current session."
-        }
+        if (count > options.maximumSessions || bytes > options.maximumRetainedBytes) throw RetentionBlocked()
     }
 
     private fun readSessions(): List<OfflineCaptureSession> {
+        cachedSessions?.let { cached ->
+            val sessions = cached.toMutableMap()
+            current?.let { sessions[it.sessionId] = it }
+            return sessions.values.sortedWith(compareBy<OfflineCaptureSession> { it.ordinal }.thenBy { it.sessionId })
+        }
         val sessionsRoot = File(root, "sessions")
         if (!sessionsRoot.exists()) return emptyList()
         val folders = sessionsRoot.listFiles() ?: throw IOException("Could not read offline capture sessions.")
         return folders.mapNotNull { folder ->
             if (!folder.isDirectory || folder.canonicalFile != folder.absoluteFile) return@mapNotNull null
-            if (!folder.name.matches(Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"))) return@mapNotNull null
+            if (!folder.name.matches(Regex("([0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"))) return@mapNotNull null
             val json = JSONObject(File(folder, "manifest.json").readText())
             val id = json.getString("sessionId")
             require(id == folder.name) { "Offline session identity does not match its directory." }
             if (current?.sessionId == id) return@mapNotNull current
-            OfflineCaptureSession(id, json.getString("startedAtUtc"), json.getLong("ordinal"),
+            OfflineCaptureSession(id, json.getString("startedAtUtc"), json.optLong("ordinal", parseLegacyOrdinal(json.getString("startedAtUtc"))),
                 json.nullableString("stoppedAtUtc"), json.nullableString("terminationKind"),
-                json.getString("appId"), json.getString("processSessionId"),
-                payloadBytes(folder), json.getLong("records"), json.getLong("droppedRecords"))
-        }.sortedBy { it.ordinal }
+                json.getString("appId"), json.optString("processSessionId", "legacy"),
+                payloadBytes(folder), json.optLong("records", 0), json.optLong("droppedRecords", json.optLong("droppedRecordCount", 0)))
+        }.sortedWith(compareBy<OfflineCaptureSession> { it.ordinal }.thenBy { it.sessionId })
+    }
+
+    private fun parseLegacyOrdinal(value: String): Long {
+        val match = Regex("^(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})(?:\\.(\\d+))?(Z|[+-]\\d{2}:\\d{2})$").matchEntire(value)
+            ?: throw IOException("Invalid offline session timestamp.")
+        val zone = match.groupValues[3].let { if (it == "Z") "+0000" else it.replace(":", "") }
+        val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ", Locale.US).apply { isLenient = false }
+        val seconds = format.parse(match.groupValues[1] + zone)!!.time * 1000
+        return seconds + match.groupValues[2].padEnd(6, '0').take(6).toLong()
     }
 
     private fun writeManifest(session: OfflineCaptureSession) {
-        val json = JSONObject().put("sessionId", session.sessionId).put("startedAtUtc", session.startedAtUtc)
+        val path = File(directory(session.sessionId), "manifest.json")
+        val json = (if (path.exists()) JSONObject(path.readText()) else JSONObject()).put("sessionId", session.sessionId).put("startedAtUtc", session.startedAtUtc)
             .put("ordinal", session.ordinal).put("stoppedAtUtc", session.stoppedAtUtc)
             .put("terminationKind", session.terminationKind).put("appId", session.appId)
             .put("processSessionId", session.processSessionId).put("bytes", session.bytes)
             .put("records", session.records).put("droppedRecords", session.droppedRecords)
         atomicWrite(File(directory(session.sessionId), "manifest.json"), json.toString().toByteArray(Charsets.UTF_8))
+        cachedSessions?.put(session.sessionId, session)
     }
 
     private fun validate(lease: OfflineCaptureLease) {
@@ -240,10 +336,15 @@ class OfflineCaptureStore(
         .sumOf { it.length() }
     private fun deleteSession(directory: File) {
         if (!directory.deleteRecursively()) throw IOException("Could not delete offline capture session.")
+        cachedSessions?.remove(directory.name)
     }
     private fun runWrite(work: () -> Unit) {
         try { work() } catch (exception: Exception) {
-            synchronized(ingressLock) { failure = exception.message; droppedRecords++ }
+            synchronized(ingressLock) {
+                failure = exception.message
+                blockedByLease = exception is RetentionBlocked
+                droppedRecords++
+            }
         }
     }
     private fun <T> perform(work: () -> T): Future<T> = synchronized(ingressLock) {

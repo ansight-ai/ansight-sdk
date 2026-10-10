@@ -180,6 +180,8 @@ class AnsightHostConnectionStatus {
     this.data = const <String, Object?>{},
   });
 
+  bool get isOfflineCaptureRecording =>
+      data['isOfflineCaptureRecording'] == true;
   final bool isRuntimeActive;
   final bool isConnected;
   final String connectionState;

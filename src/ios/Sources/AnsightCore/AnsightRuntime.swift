@@ -42,6 +42,9 @@ public final class AnsightRuntime: @unchecked Sendable {
     private var cachedPairingProfileStore: any PairingConfigStore = KeychainPairingConfigStore(account: "ai.ansight.ios.saved-pairing.cached-profile")
     private var hostConnectionConfigReader: (any HostConnectionConfigReading)?
     private var options = AnsightOptions()
+    private var offlineCapture: NativeOfflineCapture?
+    private var offlineCaptureRuntimeEnabled = true
+    private var offlineScreenCaptureTask: Task<Void, Never>?
     private var initialized = false
     private var active = false
     private var sessionOpen = false
@@ -128,13 +131,34 @@ public final class AnsightRuntime: @unchecked Sendable {
         stopTouchVisualTreeCapture()
         stopFrameRateSampling()
         stopTouchCapture(message: "Touch capture stopped.")
+        offlineScreenCaptureTask?.cancel()
+        offlineScreenCaptureTask = nil
+        offlineCapture?.update(active: false, connected: false)
         let validatedOptions = try options.validated()
+        var nativeOfflineCapture: NativeOfflineCapture?
+        if let policy = validatedOptions.offlineCapture, policy.enabled {
+            let root = policy.rootDirectory.map { URL(fileURLWithPath: $0) }
+                ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+                    .appendingPathComponent("Ansight/OfflineCapture")
+            let header = JSONValue.array([
+                try JSONValue.fromEncodable(AnsightDeviceAppProfileCollector.collect(reasonCode: 1, profileSeq: 0)),
+                .object(["channels": try JSONValue.fromEncodable(Array(Self.makeChannelDictionary(options: validatedOptions).values))]),
+            ])
+            let store = try OfflineCaptureStore(root: root, options: policy,
+                appId: Bundle.main.bundleIdentifier ?? "Ansight App", processSessionId: ProcessSessionIdentity.current,
+                sessionHeader: try header.jsonData(), customProperties: try JSONValue.object(fromGrouped: validatedOptions.customProperties).jsonData(),
+                onSessionStarted: { id, path in AnsightCrashCapture.shared.associateOfflineSession(sessionId: id, directory: path) },
+                onSessionCompleted: { id in AnsightCrashCapture.shared.markOfflineSessionCompleted(sessionId: id) })
+            nativeOfflineCapture = NativeOfflineCapture(store: store, options: policy, transport: liveTransport)
+        }
         Annotate.configure(validatedOptions.annotatedFeedback)
         AnsightCrashCapture.shared.initialize(options: validatedOptions.crashCapture)
         AnsightNativeNetworkCapture.configure(validatedOptions.networkCapture)
 
         lock.withLock {
             self.options = validatedOptions
+            self.offlineCapture = nativeOfflineCapture
+            self.offlineCaptureRuntimeEnabled = validatedOptions.offlineCapture?.recordingEnabled ?? false
             networkCaptureRedactionEnabled = validatedOptions.networkCapture.redactSensitiveData
             self.savedPairingStore = KeychainPairingConfigStore(account: validatedOptions.hostConnection.savedConfigKey)
             self.cachedPairingProfileStore = KeychainPairingConfigStore(
@@ -185,6 +209,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             sessionMessage = "Runtime initialized."
         }
         publishHostConnectionStatusIfChanged(force: true)
+        if nativeOfflineCapture != nil { try registerTool(OfflineCaptureTransferTool(runtime: self), replaceExisting: true) }
         Annotate.attachToRuntime()
         AnsightLogger.info("Ansight runtime initialized.")
     }
@@ -207,6 +232,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             }
 
             active = true
+            offlineCapture?.update(active: offlineCaptureRuntimeEnabled, connected: sessionOpen && liveTransport.isOpen)
             sessionMessage = "Runtime activated."
             return RuntimeActivationWork(
                 shouldStartAutoProbe: options.hostAutoProbe.enabled
@@ -990,6 +1016,7 @@ public final class AnsightRuntime: @unchecked Sendable {
                 return (nil, nil)
             }
 
+            for payload in AnsightTouchInputWireProtocol.payloads(for: [touch]) { offlineCapture?.append(payload) }
             touchesCaptured += 1
             lastTouchCaptureMessage = "Captured touch input."
             return (touchCaptureStreamer, touchVisualTreeCaptureCoordinator)
@@ -1564,8 +1591,12 @@ public final class AnsightRuntime: @unchecked Sendable {
             return .failure("Enter log text before sending.")
         }
 
+        let retained = lock.withLock { offlineCapture?.append(.object([
+            "type": .string("CLIENT_LOG"), "data": .string(trimmedLogLine),
+            "capturedAtUtc": .string(AnsightClock.isoNow()),
+        ])) == true }
         guard liveTransport.isOpen else {
-            return .failure("WebSocket session is not open.")
+            return retained ? .success("Log retained offline.") : .failure("WebSocket session is not open.")
         }
 
         let result = await liveTransport.sendControlRequest(
@@ -1581,9 +1612,6 @@ public final class AnsightRuntime: @unchecked Sendable {
 
     /// Sanitizes and sends one typed V1 network request record to the active host session.
     public func recordNetworkRequest(_ request: AnsightNetworkRequest) async -> OperationResult {
-        guard liveTransport.isOpen else {
-            return .failure("WebSocket session is not open.")
-        }
         let shouldRedact = lock.withLock { networkCaptureRedactionEnabled }
         let normalizedRequest = shouldRedact
             ? AnsightNetworkRequestSanitizer.sanitize(request)
@@ -1596,6 +1624,10 @@ public final class AnsightRuntime: @unchecked Sendable {
                 "sentAtUtc": .string(AnsightClock.isoNow()),
                 "request": try JSONValue.fromEncodable(capturedRequest),
             ])
+            let retained = lock.withLock { offlineCapture?.append(envelope) == true }
+            guard liveTransport.isOpen else {
+                return retained ? .success("Network request retained offline.") : .failure("No active capture destination.")
+            }
             return await liveTransport.sendText(try envelope.jsonString())
         } catch {
             return .failure("Failed to encode network request: \(error.localizedDescription)")
@@ -1623,6 +1655,12 @@ public final class AnsightRuntime: @unchecked Sendable {
     }
 
     public func sendControlRequest(action: String, payload: JSONValue?) async -> OperationResult {
+        if action == "offline_capture.transfer" { return transferOfflineCaptures() }
+        if action == "offline_capture.set_enabled", case .object(let values) = payload, case .bool(let enabled) = values["enabled"] {
+            lock.withLock { offlineCaptureRuntimeEnabled = enabled }
+            publishHostConnectionStatusIfChanged()
+            return .success("Offline capture policy updated.")
+        }
         let normalizedAction = action.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalizedAction.isEmpty else {
             return .failure("A control request action is required.")
@@ -1649,6 +1687,9 @@ public final class AnsightRuntime: @unchecked Sendable {
         let normalized = Self.normalizedCustomProperties(customProperties)
         let effectiveProperties = lock.withLock {
             options.customProperties = normalized
+            if let json = try? JSONValue.object(fromGrouped: normalized).jsonData() {
+                offlineCapture?.store.updateCustomProperties(json: json)
+            }
             sessionMessage = "Session properties updated locally."
             return AnsightSessionConfigurationProperties.create(
                 options: options,
@@ -2286,6 +2327,7 @@ public final class AnsightRuntime: @unchecked Sendable {
                 sequence: nextMetricSequence
             )
         )
+        if let metric = metrics.last { offlineCapture?.append(Self.makeMetricsPayload([metric])) }
         trimMetricsLocked()
     }
 
@@ -3493,6 +3535,7 @@ public final class AnsightRuntime: @unchecked Sendable {
     }
 
     private func trimEventsLocked() {
+        if let event = events.last { offlineCapture?.append(Self.makeEventsPayload([event])) }
         let maxCount = options.maximumBufferSize
         if events.count > maxCount {
             events.removeFirst(events.count - maxCount)
@@ -3507,7 +3550,51 @@ public final class AnsightRuntime: @unchecked Sendable {
         events.removeAll { $0.capturedAtUtc < cutoffIso }
     }
 
+    public func offlineCaptureSessions() async throws -> [OfflineCaptureSession] {
+        guard let capture = lock.withLock({ offlineCapture }) else { return [] }
+        return try await capture.store.sessions()
+    }
+
+    public func transferOfflineCaptures() -> OperationResult {
+        lock.withLock { offlineCapture?.transfer() ?? .failure("Native offline capture is not enabled.") }
+    }
+
+    public var offlineCaptureLastError: String? { lock.withLock { offlineCapture?.lastError } }
+
+    private func updateOfflineCaptureState() {
+        lock.withLock {
+            offlineCapture?.update(active: initialized && active && offlineCaptureRuntimeEnabled, connected: sessionOpen && liveTransport.isOpen)
+            guard let capture = offlineCapture, capture.store.isRecording, let screenshotOptions = options.sessionJpegCapture else {
+                offlineScreenCaptureTask?.cancel()
+                offlineScreenCaptureTask = nil
+                return
+            }
+            guard offlineScreenCaptureTask == nil else { return }
+            offlineScreenCaptureTask = Task { [weak self, capture] in
+                while !Task.isCancelled, capture.store.isRecording {
+                    if self?.lock.withLock({ self?.active == true && self?.currentLifecycleState != .background }) == true,
+                       let result = try? await AnsightScreenCapture.capture(options: screenshotOptions) {
+                        let frame = result.frame
+                        if !Task.isCancelled {
+                            capture.store.appendScreenshot(jpeg: frame.jpegData, capturedAtUtc: frame.capturedAtUtc,
+                                width: frame.width, height: frame.height, quality: frame.quality)
+                            if screenshotOptions.mode != .screenshotOnly {
+                                for tree in AnsightSessionVisualTreeCaptureRegistry.capture() {
+                                    capture.append(Self.sessionVisualTreeEvent(payload: tree, capturedAtUtc: frame.capturedAtUtc,
+                                        screenshotCapturedAtUtc: frame.capturedAtUtc, trigger: nil))
+                                }
+                            }
+                        }
+                    }
+                    do { try await Task.sleep(nanoseconds: UInt64(screenshotOptions.intervalMilliseconds) * 1_000_000) }
+                    catch { break }
+                }
+            }
+        }
+    }
+
     private func publishHostConnectionStatusIfChanged(force: Bool = false) {
+        updateOfflineCaptureState()
         let notification = lock.withLock { () -> HostConnectionStatusNotification? in
             let snapshot = hostConnectionSnapshotLocked()
             if !force,
@@ -3595,7 +3682,8 @@ public final class AnsightRuntime: @unchecked Sendable {
             summaryKind: summary,
             summaryMessage: message,
             hostId: hostId,
-            hostName: hostName
+            hostName: hostName,
+            isOfflineCaptureRecording: offlineCapture?.store.isRecording == true
         )
     }
 

@@ -80,3 +80,16 @@ test("clipboard tools option survives builder snapshots and native initializatio
   await runtime.initialize({ ...disabled, lifecycle: false, networkCapture: false });
   assert.equal(calls[0].remoteTools.clipboard, false);
 });
+
+
+test("native offline settings preserve the configurable session cap and transfer mode", async () => {
+  const calls = [];
+  const runtime = loadRuntime(calls);
+  const defaults = runtime.createOptionsBuilder().withOfflineCapture().build();
+  assert.equal(defaults.offlineCapture.maximumSessions, 10);
+  assert.equal(defaults.offlineCapture.transferMode, "automatic");
+  const options = runtime.createOptionsBuilder().withOfflineCapture({ maximumSessions: 3, transferMode: "manual" }).build();
+  await runtime.initialize({ ...options, lifecycle: false, networkCapture: false });
+  assert.equal(calls[0].offlineCapture.maximumSessions, 3);
+  assert.equal(calls[0].offlineCapture.transferMode, "manual");
+});

@@ -692,6 +692,7 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
         } else {
             AnsightOptions()
         }
+        result = result.copy(offlineCapture = ai.ansight.runtime.OfflineCaptureOptions.fromJson(map.optJSONObject("offlineCapture")))
         if (map.has("annotatedFeedback")) {
             val annotation = map.optJSONObject("annotatedFeedback")
             result = result.copy(annotatedFeedback = if (map.opt("annotatedFeedback") == false) {
@@ -1009,6 +1010,7 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
 
     private fun hostConnectionStatus(value: HostConnectionStatus): JSONObject = JSONObject()
         .putValue("isRuntimeActive", value.isRuntimeActive)
+        .putValue("isOfflineCaptureRecording", value.isOfflineCaptureRecording)
         .putValue("isConnected", value.isConnected)
         .putValue("connectionState", value.connectionState.name)
         .putValue("hasCachedSession", value.hasCachedSession)

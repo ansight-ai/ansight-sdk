@@ -332,6 +332,36 @@ class AnsightRemoteToolsOptions {
       };
 }
 
+class AnsightOfflineCaptureOptions {
+  const AnsightOfflineCaptureOptions(
+      {this.enabled = true,
+      this.recordingEnabled = true,
+      this.rootDirectory,
+      this.maximumSessions = 10,
+      this.transferMode = 'automatic',
+      this.maximumSessionBytes = 128 * 1024 * 1024,
+      this.maximumRetainedBytes = 512 * 1024 * 1024,
+      this.maximumQueuedBytes = 8 * 1024 * 1024});
+  final bool enabled;
+  final bool recordingEnabled;
+  final String? rootDirectory;
+  final int maximumSessions;
+  final String transferMode;
+  final int maximumSessionBytes;
+  final int maximumRetainedBytes;
+  final int maximumQueuedBytes;
+  AnsightJson toJson() => <String, Object?>{
+        'enabled': enabled,
+        'recordingEnabled': recordingEnabled,
+        if (rootDirectory != null) 'rootDirectory': rootDirectory,
+        'maximumSessions': maximumSessions,
+        'transferMode': transferMode,
+        'maximumSessionBytes': maximumSessionBytes,
+        'maximumRetainedBytes': maximumRetainedBytes,
+        'maximumQueuedBytes': maximumQueuedBytes
+      };
+}
+
 class AnsightAnnotationOptions {
   const AnsightAnnotationOptions({
     this.enabled = true,
@@ -373,6 +403,7 @@ class AnsightOptions {
     this.touchCaptureEnabled,
     this.motionCapture,
     this.annotatedFeedback,
+    this.offlineCapture,
     this.crashCapture,
     this.crashCaptureEnabled,
     this.lifecycleCapture,
@@ -401,6 +432,7 @@ class AnsightOptions {
         touchCaptureEnabled = null,
         motionCapture = null,
         annotatedFeedback = null,
+        offlineCapture = null,
         crashCapture = null,
         crashCaptureEnabled = null,
         lifecycleCapture = null,
@@ -449,6 +481,7 @@ class AnsightOptions {
   final bool? touchCaptureEnabled;
   final AnsightMotionCaptureOptions? motionCapture;
   final AnsightAnnotationOptions? annotatedFeedback;
+  final AnsightOfflineCaptureOptions? offlineCapture;
   final AnsightCrashCaptureOptions? crashCapture;
   final bool? crashCaptureEnabled;
   final AnsightLifecycleCaptureOptions? lifecycleCapture;
@@ -490,6 +523,7 @@ class AnsightOptions {
       else if (touchCapture != null)
         'touchCapture': touchCapture!.toJson(),
       if (motionCapture != null) 'motionCapture': motionCapture!.toJson(),
+      if (offlineCapture != null) 'offlineCapture': offlineCapture!.toJson(),
       if (annotatedFeedback != null)
         'annotatedFeedback': annotatedFeedback!.toJson(),
       if (crashCaptureEnabled == false)
@@ -516,6 +550,13 @@ class AnsightOptionsBuilder {
       : _json = Map<String, Object?>.from(options.toJson());
 
   AnsightJson _json;
+
+  AnsightOptionsBuilder withOfflineCapture(
+      [AnsightOfflineCaptureOptions options =
+          const AnsightOfflineCaptureOptions()]) {
+    _json['offlineCapture'] = options.toJson();
+    return this;
+  }
 
   AnsightOptionsBuilder withAnnotatedFeedback([
     AnsightAnnotationOptions options = const AnsightAnnotationOptions(),

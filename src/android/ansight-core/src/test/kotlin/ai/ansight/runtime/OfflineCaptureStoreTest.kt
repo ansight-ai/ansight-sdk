@@ -138,8 +138,11 @@ class OfflineCaptureStoreTest {
             try { store.flush().get(); fail("Blocked retention was reported as success") }
             catch (expected: java.util.concurrent.ExecutionException) { assertTrue(expected.cause is java.io.IOException) }
             assertTrue(lease.directory.exists())
-            store.setRecording(false)
             store.release(lease).get()
+            assertTrue(store.append("{}".toByteArray()))
+            store.setRecording(false)
+            store.flush().get()
+            assertNull(store.lastError)
         }
     }
 
@@ -173,4 +176,53 @@ class OfflineCaptureStoreTest {
             assertEquals(1, File(directory, "attachments").listFiles()!!.size)
         }
     }
+    @Test fun configurationAndManagedMigrationPreserveCaptureIdentity() {
+        val options = OfflineCaptureOptions.fromJson(JSONObject("""{"enabled":true,"maximumSessions":3,"transferMode":"manual"}"""))!!
+        assertEquals(3, options.maximumSessions)
+        assertEquals(OfflineCaptureTransferMode.Manual, options.transferMode)
+        val root = temporary.newFolder()
+        val id = java.util.UUID.randomUUID().toString().replace("-", "")
+        val folder = File(root, "sessions/$id").apply { mkdirs() }
+        File(folder, "manifest.json").writeText(JSONObject().put("sessionId", id).put("appId", "test")
+            .put("startedAtUtc", "2026-10-11T11:00:00.1234567+10:00")
+            .put("crashReportIds", org.json.JSONArray().put("existing-report")).toString())
+        File(folder, "old.jsonl").writeText("{}\n")
+        OfflineCaptureStore(root, options, "test", "process").use { store ->
+            val recovered = store.sessions().get().single()
+            assertEquals(id, recovered.sessionId)
+            assertEquals("interrupted", recovered.terminationKind)
+            assertEquals(1791680400123456L, recovered.ordinal)
+            assertEquals("existing-report", JSONObject(File(folder, "manifest.json").readText()).getJSONArray("crashReportIds").getString(0))
+            repeat(4) { recordSession(store) }
+            assertEquals(3, store.sessions().get().size)
+            assertFalse(folder.exists())
+        }
+    }
+
+    @Test fun screenshotsAndUpdatedMetadataSurviveRotation() {
+        val root = temporary.newFolder()
+        val header = "{\"channels\":[]}".toByteArray()
+        val properties = "{\"user\":{\"role\":\"tester\"}}".toByteArray()
+        OfflineCaptureStore(root, OfflineCaptureOptions(enabled = true, maximumSessionBytes = 512), "test", "process", header, properties).use { store ->
+            store.setRecording(true)
+            assertTrue(store.appendScreenshot(byteArrayOf(-1, -40, -1, -39), "2026-10-11T01:00:00Z", 1, 1, 70))
+            val updated = JSONObject().put("user", JSONObject().put("role", "updated")).toString().toByteArray()
+            store.updateCustomProperties(updated)
+            store.flush().get()
+            val session = store.sessions().get().single()
+            val folder = File(root, "sessions/${session.sessionId}")
+            val index = JSONObject(File(folder, "screenshots/index/frames.jsonl").readText())
+            assertTrue(File(folder, index.getString("path")).exists())
+            assertArrayEquals(updated, File(folder, "metadata/custom-properties.json").readBytes())
+            assertEquals(folder.walkTopDown().filter { it.isFile && it.name != "manifest.json" }.sumOf { it.length() }, session.bytes)
+            assertTrue(store.append(ByteArray(400) { 32 }))
+            store.setRecording(false)
+            store.flush().get()
+            val sessions = store.sessions().get()
+            assertEquals(2, sessions.size)
+            assertTrue(sessions.all { it.bytes <= 512 })
+            assertArrayEquals(updated, File(root, "sessions/${sessions.last().sessionId}/metadata/custom-properties.json").readBytes())
+        }
+    }
+
 }

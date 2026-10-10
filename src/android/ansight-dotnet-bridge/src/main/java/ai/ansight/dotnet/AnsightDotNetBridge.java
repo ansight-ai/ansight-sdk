@@ -422,6 +422,8 @@ public final class AnsightDotNetBridge {
             .withSampleFrequencyMilliseconds(json.optInt("sampleFrequencyMilliseconds", 500))
             .withRetentionPeriodSeconds(json.optInt("retentionPeriodSeconds", 600));
 
+        ai.ansight.runtime.OfflineCaptureOptions offline = ai.ansight.runtime.OfflineCaptureOptions.fromJson(json.optJSONObject("offlineCapture"));
+        if (offline != null) builder.withOfflineCapture(offline);
         JSONObject annotation = json.optJSONObject("annotatedFeedback");
         if (annotation != null) {
             if (!annotation.optBoolean("enabled", true)) {
@@ -609,6 +611,7 @@ public final class AnsightDotNetBridge {
     private static JSONObject hostConnectionStatusJson(HostConnectionStatus status) throws JSONException {
         return new JSONObject()
             .put("isRuntimeActive", status.isRuntimeActive())
+            .put("isOfflineCaptureRecording", status.isOfflineCaptureRecording())
             .put("isConnected", status.isConnected())
             .put("connectionState", status.getConnectionState().name())
             .put("hasCachedSession", status.getHasCachedSession())

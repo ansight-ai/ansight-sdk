@@ -44,6 +44,16 @@ internal class RuntimeImpl : IRuntime
     internal AppLifecycleState CurrentAppLifecycleState => mutableDataSink.CurrentAppLifecycleState;
     internal DateTimeOffset? CurrentAppLifecycleStateChangedUtc => mutableDataSink.CurrentAppLifecycleStateChangedUtc;
     internal string ProcessSessionId => nativeRuntime.ProcessSessionId;
+    private bool nativeOfflineCaptureEnabled;
+    internal async Task<OperationResult> SetOfflineCaptureEnabledAsync(bool enabled, CancellationToken cancellationToken)
+    {
+        var result = await nativeRuntime.SendControlRequestAsync("offline_capture.set_enabled", enabled ? "{\"enabled\":true}" : "{\"enabled\":false}", cancellationToken).ConfigureAwait(false);
+        if (result.Success) nativeOfflineCaptureEnabled = enabled;
+        return result;
+    }
+    internal Task<OperationResult> TransferOfflineCapturesAsync(CancellationToken cancellationToken)
+        => nativeRuntime.SendControlRequestAsync("offline_capture.transfer", "{}", cancellationToken);
+    internal bool HasNetworkCaptureDestination => IsActive && (hostConnection.IsConnected || usesNativeRuntime && options.OfflineCapture?.Enabled == true && nativeOfflineCaptureEnabled);
     internal bool IsAutomaticNetworkCaptureInstalled => automaticNetworkCapture is not null;
 
     internal void RecordNetworkRequest(NetworkRequestRecord request)
@@ -66,6 +76,7 @@ internal class RuntimeImpl : IRuntime
     public RuntimeImpl(Options options)
     {
         this.options = options ?? throw new ArgumentNullException(nameof(options));
+        nativeOfflineCaptureEnabled = options.OfflineCapture?.RecordingEnabled == true;
         mutableDataSink = new MutableDataSink(options);
         dataSink = new RuntimeDataSink(mutableDataSink, this);
         frameRateMonitor = FrameRateMonitorFactory.Create();
@@ -100,7 +111,7 @@ internal class RuntimeImpl : IRuntime
 #else
         automaticNetworkCapture = options.ResolveNetworkCaptureOptions() is { } networkCaptureOptions
             ? new AutomaticHttpClientNetworkCapture(
-                () => hostConnection.IsConnected,
+                () => HasNetworkCaptureDestination,
                 RecordNetworkRequest,
                 networkCaptureOptions)
             : null;
