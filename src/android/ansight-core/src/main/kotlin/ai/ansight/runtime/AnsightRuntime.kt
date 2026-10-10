@@ -1245,7 +1245,7 @@ object AnsightRuntime {
         }
 
         val transport = attempt.transport
-        transport.textMessageHandler = { text -> handleTransportText(text) }
+        transport.textMessageHandler = { text -> handleTransportText(text, transport) }
         val openPayload = JSONObject()
             .put("clientName", clientName)
             .put("configId", document.config.configId)
@@ -1533,7 +1533,7 @@ object AnsightRuntime {
         )
     }
 
-    private fun handleTransportText(text: String) {
+    private fun handleTransportText(text: String, sourceTransport: PairingLiveSessionTransport) {
         val json = try {
             JSONObject(text)
         } catch (_: Exception) {
@@ -1544,7 +1544,7 @@ object AnsightRuntime {
                 val externalHandler = synchronized(lock) { externalToolProtocolHandler }
                 if (externalHandler == null) {
                     when (json.optionalString("type")) {
-                        ToolProtocol.QueryType -> sendToolCatalog(json)
+                        ToolProtocol.QueryType -> sendToolCatalog(json, sourceTransport)
                         ToolProtocol.BatchType -> executeToolBatch(json)
                         else -> executeToolCall(json)
                     }
@@ -1584,9 +1584,9 @@ object AnsightRuntime {
         }
     }
 
-    private fun sendToolCatalog(request: JSONObject) {
+    private fun sendToolCatalog(request: JSONObject, sourceTransport: PairingLiveSessionTransport) {
         val catalogState = synchronized(lock) {
-            Triple(application, liveTransport, options)
+            Triple(application, sourceTransport, options)
         }
         val app = catalogState.first
         val transport = catalogState.second
@@ -1671,7 +1671,10 @@ object AnsightRuntime {
                 )
             }
         }
-        synchronized(lock) { liveTransport }?.sendText(
+        // The host can query immediately after session.open, before liveTransport
+        // is installed by the device-profile handshake. Reply on the transport
+        // that delivered this query so discovery cannot lose its first response.
+        sourceTransport.sendText(
             ToolProtocolPayloadEncoding.encodeEnvelopeIfBeneficial(response).toString(),
         )
     }

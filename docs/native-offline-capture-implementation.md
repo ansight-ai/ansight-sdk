@@ -80,6 +80,8 @@ AnsightOfflineCaptureOptions(maximumSessions: 10, transferMode: 'automatic'))`.
 
 The native tool `offline_capture.transfer` is registered when capture is enabled.
 Hosts can discover and call it through the existing app-tools API in manual mode.
+The tool requires a `write` grant; a standard read-only enrollment cannot invoke it.
+The app can always request transfer through its public native runtime API.
 The .NET tool facade routes that same operation through its native bridge. A
 successful tool result means transfer started; completion is the imported session
 on the host. `offlineCaptureLastError` on the native runtimes exposes failures.
@@ -128,9 +130,24 @@ Also validated: .NET option serialization; Flutter offline HTTP/configuration;
 React Native network/configuration; Capacitor options and TypeScript; native iOS
 simulator/Android .NET bridges; Redpoint iOS simulator source integration.
 
+The `offline-capture` suite in `ansight-test-apps` now exercises native Swift/UIKit
+and Kotlin/Android apps on an iOS simulator and Android emulator against a real
+host. Its Ansight workspace tasks and disconnected-phase companion runner cover
+default 10/custom 3 retention, oldest eviction, process termination/recovery, real
+input, automatic/manual transfer, acknowledged purge, and a second reconnect.
+Exported evidence is compared with source captures, including JPEG hashes. A
+separate verifier checks retained imports after restarting the dedicated host.
+Network records in this suite are deterministic native-API fixtures, not actual HTTP.
+
+The Android runs exposed two startup catalog races: a request arriving before
+handler installation, and a response sent before `liveTransport` assignment. A
+bounded startup queue and replies through the originating transport fix both.
+Loopback regression tests cover early-message ordering, close cleanup, bounded
+buffering, and large messages with an installed handler.
+
 Release the SDK and matching host together, then update app package references.
-Physical-device launch, reconnect/flapping, process termination, disk-full behavior,
-and all framework application builds still require release smoke coverage. Native
+Physical-device launch, rapid connection flapping, disk-full behavior, and all
+framework application builds still require release smoke coverage. Native
 capture currently does not provide an offline annotated-feedback bundle sink or
 attach crash-report files into these ZIPs; crash reports retain their native outbox
-handoff. No device end-to-end run or package publication is claimed by these tests.
+handoff. No physical-device run or package publication is claimed.
