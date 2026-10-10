@@ -1,0 +1,272 @@
+package ai.ansight.runtime
+
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
+import java.util.UUID
+import java.util.concurrent.Future
+import java.util.concurrent.FutureTask
+import java.util.concurrent.Executors
+import org.json.JSONObject
+
+/** Serial native disk ownership. Producer admission is byte-bounded and lifecycle
+ * barriers never share its drop policy. Blocking file work runs on the IO worker. */
+class OfflineCaptureStore(
+    root: File,
+    captureOptions: OfflineCaptureOptions,
+    private val appId: String,
+    private val processSessionId: String,
+) : AutoCloseable {
+    private val root = root.canonicalFile
+    private val options = captureOptions.validated()
+    private val ingressLock = Any()
+    private val queue = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "Ansight Offline Capture").apply { isDaemon = true }
+    }
+    private var accepting = false
+    private var queuedBytes = 0
+    private var droppedRecords = 0L
+    private var failure: String? = null
+    private var closed = false
+    // Accessed only by the IO worker.
+    private var current: OfflineCaptureSession? = null
+    private var writer: FileOutputStream? = null
+    private val leases = mutableMapOf<String, String>()
+    private var lastOrdinal = 0L
+    private var recovered = false
+
+    val isRecording: Boolean get() = synchronized(ingressLock) { accepting }
+    val lastError: String? get() = synchronized(ingressLock) { failure }
+
+    fun setRecording(enabled: Boolean) = synchronized(ingressLock) {
+        check(!closed) { "Offline capture store is closed." }
+        val requested = enabled && options.enabled
+        if (accepting != requested) {
+            accepting = requested
+            queue.execute { runWrite { if (requested) start() else seal("normal") } }
+        }
+    }
+
+    /** Accepts a complete host-compatible JSONL record without its trailing newline. */
+    fun append(json: ByteArray): Boolean = enqueue(json, null)
+
+    fun appendAttachment(data: ByteArray, extension: String, index: (String) -> ByteArray): Boolean {
+        if (!extension.matches(Regex("[a-z0-9]+"))) return false
+        val path = "attachments/${UUID.randomUUID()}.$extension"
+        return enqueue(index(path), Attachment(path, data))
+    }
+
+    fun flush(): Future<Unit> = perform {
+        lastError?.let { throw IOException(it) }
+        writer?.fd?.sync()
+        persistCurrent()
+    }
+
+    fun sessions(): Future<List<OfflineCaptureSession>> = perform {
+        persistCurrent()
+        readSessions()
+    }
+
+    fun acquire(sessionId: String): Future<OfflineCaptureLease> = perform {
+        recover()
+        check(current?.sessionId != sessionId && sessionId !in leases) { "Offline session is busy." }
+        require(readSessions().any { it.sessionId == sessionId && it.stoppedAtUtc != null }) { "Unknown offline session." }
+        val token = UUID.randomUUID().toString()
+        leases[sessionId] = token
+        OfflineCaptureLease(sessionId, token, directory(sessionId))
+    }
+
+    fun release(lease: OfflineCaptureLease): Future<Unit> = perform {
+        validate(lease)
+        leases.remove(lease.sessionId)
+        enforceRetention(0, 0)
+    }
+
+    /** Call only after validating the authenticated host's durable import receipt. */
+    fun acknowledge(lease: OfflineCaptureLease, archiveSha256: String,
+                    acknowledgedSha256: String): Future<Unit> = perform {
+        validate(lease)
+        require(archiveSha256.matches(Regex("[0-9a-f]{64}")) && archiveSha256 == acknowledgedSha256) {
+            "Offline capture receipt does not match the exported archive."
+        }
+        deleteSession(directory(lease.sessionId))
+        leases.remove(lease.sessionId)
+        Unit
+    }
+
+    override fun close() {
+        synchronized(ingressLock) {
+            if (closed) return
+            accepting = false
+            closed = true
+            queue.execute { runWrite { seal("normal") } }
+            queue.shutdown()
+        }
+    }
+
+    private data class Attachment(val path: String, val data: ByteArray)
+
+    private fun enqueue(json: ByteArray, attachment: Attachment?): Boolean = synchronized(ingressLock) {
+        if (!accepting || closed) return false
+        val byteCount = json.size.toLong() + 1L + (attachment?.data?.size ?: 0)
+        if (byteCount > options.maximumQueuedBytes - queuedBytes || byteCount > options.maximumSessionBytes) {
+            droppedRecords++
+            return false
+        }
+        // The producer retains its buffers; snapshot before admitting asynchronous work.
+        val record = json.copyOf()
+        val file = attachment?.copy(data = attachment.data.copyOf())
+        queuedBytes += byteCount.toInt()
+        queue.execute {
+            try {
+                runWrite {
+                    if (current == null) start()
+                    if (current!!.bytes + byteCount > options.maximumSessionBytes) {
+                        seal("sizeLimit")
+                        start()
+                    }
+                    enforceRetention(0, byteCount)
+                    if (file != null) {
+                        val destination = File(directory(current!!.sessionId), file.path)
+                        ensureDirectory(destination.parentFile!!)
+                        atomicWrite(destination, file.data)
+                    }
+                    writer!!.write(record)
+                    writer!!.write(10)
+                    current = current!!.copy(bytes = current!!.bytes + byteCount, records = current!!.records + 1)
+                }
+            } finally { synchronized(ingressLock) { queuedBytes -= byteCount.toInt() } }
+        }
+        true
+    }
+
+    private fun start() {
+        if (current != null) return
+        recover()
+        enforceRetention(1, 0)
+        lastOrdinal = maxOf(lastOrdinal + 1, System.currentTimeMillis() * 1000)
+        val session = OfflineCaptureSession(UUID.randomUUID().toString(), now(), lastOrdinal,
+            null, null, appId, processSessionId, 0, 0, 0)
+        val folder = directory(session.sessionId)
+        ensureDirectory(folder)
+        writer = FileOutputStream(File(folder, "records.jsonl"))
+        current = session
+        persistCurrent()
+    }
+
+    private fun seal(reason: String) {
+        val session = current ?: return
+        writer?.fd?.sync()
+        writer?.close()
+        writer = null
+        current = session.copy(stoppedAtUtc = now(), terminationKind = reason)
+        persistCurrent()
+        current = null
+    }
+
+    private fun persistCurrent() {
+        val session = current ?: return
+        current = session.copy(droppedRecords = synchronized(ingressLock) { droppedRecords })
+        writeManifest(current!!)
+    }
+
+    private fun recover() {
+        if (recovered) return
+        ensureDirectory(File(root, "sessions"))
+        for (session in readSessions()) {
+            if (session.stoppedAtUtc == null && session.sessionId != current?.sessionId) {
+                writeManifest(session.copy(stoppedAtUtc = now(), terminationKind = "interrupted"))
+            }
+        }
+        lastOrdinal = maxOf(lastOrdinal, readSessions().maxOfOrNull { it.ordinal } ?: 0)
+        recovered = true
+    }
+
+    private fun enforceRetention(reservingSessions: Int, reservingBytes: Long) {
+        val sessions = readSessions()
+        var count = sessions.size + reservingSessions
+        var bytes = sessions.sumOf { it.bytes } + reservingBytes
+        for (session in sessions) {
+            if (count <= options.maximumSessions && bytes <= options.maximumRetainedBytes) return
+            if (session.sessionId == current?.sessionId || session.sessionId in leases) continue
+            deleteSession(directory(session.sessionId))
+            count--
+            bytes -= session.bytes
+        }
+        check(count <= options.maximumSessions && bytes <= options.maximumRetainedBytes) {
+            "Offline retention is blocked by active transfers or the current session."
+        }
+    }
+
+    private fun readSessions(): List<OfflineCaptureSession> {
+        val sessionsRoot = File(root, "sessions")
+        if (!sessionsRoot.exists()) return emptyList()
+        val folders = sessionsRoot.listFiles() ?: throw IOException("Could not read offline capture sessions.")
+        return folders.mapNotNull { folder ->
+            if (!folder.isDirectory || folder.canonicalFile != folder.absoluteFile) return@mapNotNull null
+            if (!folder.name.matches(Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"))) return@mapNotNull null
+            val json = JSONObject(File(folder, "manifest.json").readText())
+            val id = json.getString("sessionId")
+            require(id == folder.name) { "Offline session identity does not match its directory." }
+            if (current?.sessionId == id) return@mapNotNull current
+            OfflineCaptureSession(id, json.getString("startedAtUtc"), json.getLong("ordinal"),
+                json.nullableString("stoppedAtUtc"), json.nullableString("terminationKind"),
+                json.getString("appId"), json.getString("processSessionId"),
+                payloadBytes(folder), json.getLong("records"), json.getLong("droppedRecords"))
+        }.sortedBy { it.ordinal }
+    }
+
+    private fun writeManifest(session: OfflineCaptureSession) {
+        val json = JSONObject().put("sessionId", session.sessionId).put("startedAtUtc", session.startedAtUtc)
+            .put("ordinal", session.ordinal).put("stoppedAtUtc", session.stoppedAtUtc)
+            .put("terminationKind", session.terminationKind).put("appId", session.appId)
+            .put("processSessionId", session.processSessionId).put("bytes", session.bytes)
+            .put("records", session.records).put("droppedRecords", session.droppedRecords)
+        atomicWrite(File(directory(session.sessionId), "manifest.json"), json.toString().toByteArray(Charsets.UTF_8))
+    }
+
+    private fun validate(lease: OfflineCaptureLease) {
+        require(leases[lease.sessionId] == lease.token && lease.directory == directory(lease.sessionId) &&
+            current?.sessionId != lease.sessionId) { "Invalid offline capture lease." }
+    }
+    private fun directory(id: String) = File(File(root, "sessions"), id)
+    private fun payloadBytes(directory: File): Long = directory.walkTopDown()
+        .onEnter { it.canonicalFile == it.absoluteFile }
+        .filter { it.isFile && it.name != "manifest.json" && it.canonicalFile == it.absoluteFile }
+        .sumOf { it.length() }
+    private fun deleteSession(directory: File) {
+        if (!directory.deleteRecursively()) throw IOException("Could not delete offline capture session.")
+    }
+    private fun runWrite(work: () -> Unit) {
+        try { work() } catch (exception: Exception) {
+            synchronized(ingressLock) { failure = exception.message; droppedRecords++ }
+        }
+    }
+    private fun <T> perform(work: () -> T): Future<T> = synchronized(ingressLock) {
+        check(!closed) { "Offline capture store is closed." }
+        val future = FutureTask<T> { work() }
+        queue.execute(future)
+        future
+    }
+
+    private fun JSONObject.nullableString(key: String): String? = if (isNull(key)) null else getString(key)
+
+    companion object {
+        private fun now(): String = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
+            .apply { timeZone = TimeZone.getTimeZone("UTC") }.format(Date())
+        private fun ensureDirectory(directory: File) {
+            if (!directory.isDirectory && !directory.mkdirs()) throw IOException("Could not create offline capture directory.")
+        }
+        private fun atomicWrite(file: File, data: ByteArray) {
+            val temporary = File(file.parentFile, "${file.name}.tmp")
+            try {
+                FileOutputStream(temporary).use { it.write(data); it.fd.sync() }
+                if (!temporary.renameTo(file)) throw IOException("Could not commit offline capture metadata.")
+            } finally { temporary.delete() }
+        }
+    }
+}

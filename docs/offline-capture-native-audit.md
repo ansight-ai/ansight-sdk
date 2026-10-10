@@ -1,5 +1,8 @@
 # Native offline capture audit
 
+Implementation follow-up: [native storage foundation and remaining migration work](native-offline-capture-implementation.md).
+The source audit below describes the pre-migration runtime and its outstanding integration requirements.
+
 Audited 11 September 2026 against SDK commit `4389e5b`. This is a source audit, not an implementation or device validation. Scope: Android, Apple, Flutter, React Native, Capacitor, and migration of .NET mobile. The host/importer and hosted ingest service were not audited.
 
 **Recommendation:** make Swift and Kotlin the owners of capture scheduling, record routing, disk persistence, retention, crash attachment, export, and upload. Keep .NET, Dart, and JavaScript as control facades and framework-specific data producers. Share an archive specification and compatibility fixtures between the two native implementations. A new C/C++ storage core would add another interoperability and build boundary; nothing in the current architecture requires it.
