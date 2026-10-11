@@ -1,3 +1,10 @@
+## 1.8.0
+
+- Add opt-in connectivity capture with native Apple and Android collectors,
+  exposed through the Flutter options builder and runtime controls.
+- Capture network availability, active transports, and available path details
+  alongside existing session evidence.
+
 ## 1.7.1
 
 - Improve the in-app annotation editor across iOS and Android with Ansight branding,

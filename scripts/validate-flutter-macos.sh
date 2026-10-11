@@ -26,6 +26,8 @@ fi
   export ANSIGHT_USE_LOCAL_SDK=1
   export ANSIGHT_LOCAL_SDK_PATH="${repo_root}/src/ios"
   flutter pub get
+  # Refresh local pod source lists when the native SDK adds Swift files.
+  (cd macos && pod install)
   flutter build macos --debug
   flutter test integration_test/plugin_integration_test.dart -d macos
 )

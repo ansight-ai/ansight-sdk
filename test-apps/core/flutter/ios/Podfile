@@ -30,6 +30,9 @@ flutter_ios_podfile_setup
 target 'Runner' do
   ansight_ios_path = '../../../../src/ios'
   pod 'AnsightCore', :path => ansight_ios_path
+  pod 'AnsightAnnotations', :path => ansight_ios_path
+  pod 'AnsightMotion', :path => ansight_ios_path
+  pod 'AnsightConnectivity', :path => ansight_ios_path
   pod 'AnsightPairingQR', :path => ansight_ios_path
   pod 'AnsightToolsDatabase', :path => ansight_ios_path
   pod 'AnsightToolsFileDescriptorDiagnostics', :path => ansight_ios_path

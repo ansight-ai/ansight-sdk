@@ -221,7 +221,9 @@ export class AnsightOptionsBuilder implements AnsightOptionsBuilderApi {
     return this;
   }
 
-  withConnectivityCapture(options: AnsightConnectivityCaptureOptions = {}): this {
+  withConnectivityCapture(
+    options: AnsightConnectivityCaptureOptions = {},
+  ): this {
     this.options.connectivityCapture = { ...options };
     return this;
   }
