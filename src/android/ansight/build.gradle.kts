@@ -36,6 +36,7 @@ dependencies {
     api(project(":ansight-core"))
     api(project(":ansight-annotations"))
     api(project(":ansight-motion"))
+    api(project(":ansight-connectivity"))
     api(project(":ansight-pairing"))
     api(project(":ansight-tools-visualtree"))
     api(project(":ansight-tools-filesystem"))

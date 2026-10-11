@@ -159,6 +159,18 @@ public final class AnsightOptionsBuilder {
     }
 
     @discardableResult
+    public func withConnectivityCapture(_ connectivityCapture: AnsightConnectivityCaptureOptions = .init()) -> Self {
+        options.connectivityCapture = connectivityCapture.validated()
+        return self
+    }
+
+    @discardableResult
+    public func withoutConnectivityCapture() -> Self {
+        options.connectivityCapture = nil
+        return self
+    }
+
+    @discardableResult
     public func withMotionCapture(_ motionCapture: AnsightMotionCaptureOptions = AnsightMotionCaptureOptions()) -> AnsightOptionsBuilder {
         options.motionCapture = motionCapture
         return self

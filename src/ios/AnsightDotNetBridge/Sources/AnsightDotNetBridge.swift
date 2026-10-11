@@ -447,6 +447,7 @@ public final class ANSDotNetRuntime: NSObject {
         } else if bridgeOptions.hasTouchCapture == false {
             options.touchCapture = nil
         }
+        options.connectivityCapture = bridgeOptions.connectivityCapture?.validated()
         options.motionCapture = bridgeOptions.motionCapture?.validated()
         if let crashCapture = bridgeOptions.crashCapture {
             options.crashCapture = AnsightCrashCaptureOptions(
@@ -705,6 +706,7 @@ private struct BridgeOptions: Decodable {
     let defaultMemoryChannels: Int?
     let sessionJpegCapture: BridgeSessionJpegCapture?
     let touchCapture: BridgeTouchCapture?
+    let connectivityCapture: AnsightConnectivityCaptureOptions?
     let motionCapture: AnsightMotionCaptureOptions?
     let crashCapture: BridgeCrashCapture?
     let networkCapture: BridgeNetworkCapture?

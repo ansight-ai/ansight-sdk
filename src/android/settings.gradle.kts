@@ -19,6 +19,7 @@ rootProject.name = "ansight-android"
 include(":ansight-core")
 include(":ansight-annotations")
 include(":ansight-motion")
+include(":ansight-connectivity")
 include(":ansight-dotnet-bridge")
 include(":ansight-tools-visualtree")
 include(":ansight-tools-filesystem")

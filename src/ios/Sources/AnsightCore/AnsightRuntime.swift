@@ -69,6 +69,7 @@ public final class AnsightRuntime: @unchecked Sendable {
     private var nextEventSequence: Int64 = 0
     private var lastStreamedMetricSequence: Int64 = 0
     private var lastStreamedEventSequence: Int64 = 0
+    private var connectivityMonitor: AnsightConnectivityMonitor?
     private var lastMotionSampleEpochMs: Int64 = 0
     private var announcedMetricChannelIds: Set<Int> = []
     private var telemetryStreamLoopActive = false
@@ -108,6 +109,8 @@ public final class AnsightRuntime: @unchecked Sendable {
     private init() {}
 
     public func initialize(options: AnsightOptions = .init()) throws {
+        connectivityMonitor?.suspend(reason: "runtime-reinitialized")
+        connectivityMonitor = nil
         AnsightLogger.info("Initializing Ansight runtime.")
         lock.withLock {
             telemetryGeneration += 1
@@ -184,6 +187,11 @@ public final class AnsightRuntime: @unchecked Sendable {
             lastDisconnectedAtUtc = nil
             sessionMessage = "Runtime initialized."
         }
+        connectivityMonitor = validatedOptions.connectivityCapture.map { capture in
+            AnsightConnectivityMonitor(options: capture) { [weak self] label, details, id in
+                try? self?.event(label, details: details, id: id)
+            }
+        }
         publishHostConnectionStatusIfChanged(force: true)
         Annotate.attachToRuntime()
         AnsightLogger.info("Ansight runtime initialized.")
@@ -213,6 +221,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             )
         }
 
+        connectivityMonitor?.resume()
         startTelemetrySamplingIfNeeded()
         startLifecycleCaptureIfNeeded()
         startFrameRateSamplingIfNeeded()
@@ -225,6 +234,7 @@ public final class AnsightRuntime: @unchecked Sendable {
     }
 
     public func deactivate() {
+        connectivityMonitor?.suspend(reason: "capture-stopped")
         stopLifecycleCapture()
         stopScreenCapture(message: "Screen capture stopped.")
         stopTouchVisualTreeCapture()
@@ -952,8 +962,10 @@ public final class AnsightRuntime: @unchecked Sendable {
 
         switch state {
         case .foreground:
+            if lock.withLock({ active }) { connectivityMonitor?.resume() }
             recoverLiveSessionAfterForeground()
         case .background:
+            connectivityMonitor?.suspend(reason: "app-backgrounded")
             pauseLiveSessionPipelinesForBackground()
         case .unknown:
             break

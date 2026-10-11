@@ -11,6 +11,7 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
     public var lifecycleCapture: AnsightLifecycleCaptureOptions
     public var sessionJpegCapture: AnsightSessionJpegCaptureOptions?
     public var touchCapture: AnsightTouchCaptureOptions?
+    public var connectivityCapture: AnsightConnectivityCaptureOptions?
     public var motionCapture: AnsightMotionCaptureOptions?
     public var toolGuard: AnsightToolGuard
     public var customProperties: [String: [String: String]]
@@ -31,6 +32,7 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
         lifecycleCapture: AnsightLifecycleCaptureOptions = .enabledDefault,
         sessionJpegCapture: AnsightSessionJpegCaptureOptions? = nil,
         touchCapture: AnsightTouchCaptureOptions? = AnsightTouchCaptureOptions(),
+        connectivityCapture: AnsightConnectivityCaptureOptions? = nil,
         motionCapture: AnsightMotionCaptureOptions? = nil,
         toolGuard: AnsightToolGuard = .disabled,
         customProperties: [String: [String: String]] = [:],
@@ -50,6 +52,7 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
         self.lifecycleCapture = lifecycleCapture
         self.sessionJpegCapture = sessionJpegCapture
         self.touchCapture = touchCapture
+        self.connectivityCapture = connectivityCapture
         self.motionCapture = motionCapture
         self.toolGuard = toolGuard
         self.customProperties = customProperties
@@ -71,6 +74,7 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
         case lifecycleCapture
         case sessionJpegCapture
         case touchCapture
+        case connectivityCapture
         case motionCapture
         case toolGuard
         case customProperties
@@ -99,6 +103,7 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
             forKey: .sessionJpegCapture
         )
         touchCapture = try container.decodeIfPresent(AnsightTouchCaptureOptions.self, forKey: .touchCapture)
+        connectivityCapture = try container.decodeIfPresent(AnsightConnectivityCaptureOptions.self, forKey: .connectivityCapture)
         motionCapture = try container.decodeIfPresent(AnsightMotionCaptureOptions.self, forKey: .motionCapture)
         toolGuard = try container.decode(AnsightToolGuard.self, forKey: .toolGuard)
         customProperties = try container.decode([String: [String: String]].self, forKey: .customProperties)
@@ -154,6 +159,7 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
         copy.lifecycleCapture.validate()
         copy.sessionJpegCapture?.validate()
         copy.touchCapture?.validate()
+        copy.connectivityCapture = copy.connectivityCapture?.validated()
         copy.motionCapture = copy.motionCapture?.validated()
         copy.hostAutoProbe.validate()
         try copy.hostConnection.validate()

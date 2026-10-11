@@ -1,4 +1,5 @@
 @_exported @_spi(AnsightValidation) import AnsightCore
+@_exported import AnsightConnectivity
 @_exported import AnsightPairingQR
 @_exported import AnsightToolsDatabase
 @_exported import AnsightToolsFileDescriptorDiagnostics

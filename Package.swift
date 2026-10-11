@@ -8,6 +8,7 @@ let package = Package(
         .macOS(.v10_15),
     ],
     products: [
+        .library(name: "AnsightConnectivity", targets: ["AnsightConnectivity"]),
         .library(
             name: "Ansight",
             targets: ["Ansight"]
@@ -58,10 +59,12 @@ let package = Package(
         ),
     ],
     targets: [
+        .target(name: "AnsightConnectivity", dependencies: ["AnsightCore"], path: "src/ios/Sources/AnsightConnectivity"),
         .target(
             name: "Ansight",
             dependencies: [
                 "AnsightCore",
+                "AnsightConnectivity",
                 "AnsightPairingQR",
                 "AnsightToolsDatabase",
                 "AnsightToolsFileDescriptorDiagnostics",

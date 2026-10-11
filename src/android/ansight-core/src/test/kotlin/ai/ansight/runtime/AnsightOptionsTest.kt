@@ -9,6 +9,14 @@ import org.junit.Test
 
 class AnsightOptionsTest {
     @Test
+    fun connectivityIsOptInAndClampsQualityRate() {
+        assertEquals(null, AnsightOptions().connectivityCapture)
+        assertEquals(1000, AnsightConnectivityCaptureOptions(1).validated().minimumSampleIntervalMilliseconds)
+        assertEquals(300000, AnsightConnectivityCaptureOptions(Int.MAX_VALUE).validated().minimumSampleIntervalMilliseconds)
+        assertEquals(5000, AnsightOptions(connectivityCapture = AnsightConnectivityCaptureOptions()).validated().connectivityCapture?.minimumSampleIntervalMilliseconds)
+    }
+
+    @Test
     fun validatedClampsSamplingAndRetentionBounds() {
         val validated = AnsightOptions(
             sampleFrequencyMilliseconds = 10,

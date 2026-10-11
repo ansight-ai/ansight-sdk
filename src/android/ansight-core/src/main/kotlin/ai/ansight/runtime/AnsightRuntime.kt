@@ -47,6 +47,7 @@ object AnsightRuntime {
     private var nextTouchSequence = 0L
     private var lastStreamedMetricSequence = 0L
     private var lastStreamedEventSequence = 0L
+    private var connectivityMonitor: AnsightConnectivityMonitor? = null
     private var lastMotionSampleEpochMs = 0L
     private var lastStreamedTouchSequence = 0L
     private val announcedMetricChannelIds = mutableSetOf<Int>()
@@ -89,6 +90,8 @@ object AnsightRuntime {
 
     @JvmOverloads
     fun initialize(application: Application, options: AnsightOptions = AnsightOptions()) {
+        connectivityMonitor?.close()
+        connectivityMonitor = null
         AnsightLogger.info("Initializing Ansight runtime.")
         val validated = options.validated()
         Annotate.initialize(application, validated.annotatedFeedback)
@@ -143,6 +146,11 @@ object AnsightRuntime {
             sessionMessage = "Runtime initialized."
             unattendedProvisioningInProgress = false
         }
+        connectivityMonitor = validated.connectivityCapture?.let { capture ->
+            AnsightConnectivityMonitor(application, capture) { label, details, id ->
+                event(label, details = details, id = id)
+            }
+        }
         publishHostConnectionStatusIfChanged(force = true)
         Annotate.attachToRuntime()
         AnsightLogger.info("Ansight runtime initialized.")
@@ -167,6 +175,7 @@ object AnsightRuntime {
         }
         AnsightLogger.info("Ansight runtime activated.")
 
+        connectivityMonitor?.resume()
         startLifecycleCapture(app)
         bindCurrentActivity(app)
         startTelemetrySampling()
@@ -209,6 +218,7 @@ object AnsightRuntime {
     }
 
     fun deactivate() {
+        connectivityMonitor?.suspend("capture-stopped")
         synchronized(lock) {
             deactivateLocked(closeTransport = true)
             sessionMessage = "Runtime deactivated."
@@ -439,8 +449,14 @@ object AnsightRuntime {
         AnsightCrashCapture.recordBreadcrumb("lifecycle", state.wireName)
 
         when (state) {
-            AppLifecycleState.Foreground -> startTouchVisualTreeCaptureIfNeeded()
-            AppLifecycleState.Background -> synchronized(lock) { stopTouchVisualTreeCaptureLocked() }
+            AppLifecycleState.Foreground -> {
+                if (synchronized(lock) { active }) connectivityMonitor?.resume()
+                startTouchVisualTreeCaptureIfNeeded()
+            }
+            AppLifecycleState.Background -> {
+                connectivityMonitor?.suspend("app-backgrounded")
+                synchronized(lock) { stopTouchVisualTreeCaptureLocked() }
+            }
             AppLifecycleState.Unknown -> Unit
         }
 

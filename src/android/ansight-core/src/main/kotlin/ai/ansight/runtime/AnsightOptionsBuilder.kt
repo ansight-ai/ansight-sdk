@@ -150,6 +150,16 @@ class AnsightOptionsBuilder @JvmOverloads constructor(
     }
 
     @JvmOverloads
+    fun withConnectivityCapture(connectivityCapture: AnsightConnectivityCaptureOptions = AnsightConnectivityCaptureOptions()): AnsightOptionsBuilder {
+        options = options.copy(connectivityCapture = connectivityCapture.validated())
+        return this
+    }
+
+    fun withoutConnectivityCapture(): AnsightOptionsBuilder {
+        options = options.copy(connectivityCapture = null)
+        return this
+    }
+
     fun withMotionCapture(motionCapture: AnsightMotionCaptureOptions = AnsightMotionCaptureOptions()): AnsightOptionsBuilder {
         options = options.copy(motionCapture = motionCapture)
         return this

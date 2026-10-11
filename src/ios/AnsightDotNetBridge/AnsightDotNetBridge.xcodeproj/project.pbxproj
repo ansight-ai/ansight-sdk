@@ -126,6 +126,7 @@
 		A6BC365AB586B3DC5CBD035B /* Array+AnsightPairing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 026E435E4787579806672F58 /* Array+AnsightPairing.swift */; };
 		A741F00958F848CD194C648E /* AnsightOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69F0EEF4831802AD684A7A07 /* AnsightOptions.swift */; };
 		F0F0A123B456C789D0123456 /* AnsightMotionCaptureOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0A123B456C789D0123457 /* AnsightMotionCaptureOptions.swift */; };
+		E1E1A123B456C789D0123456 /* AnsightConnectivityCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1E1A123B456C789D0123457 /* AnsightConnectivityCapture.swift */; };
 		AA8C1E8F8D0FC472BDE83C14 /* PairingConfigStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA5477FD51593FC28131618A /* PairingConfigStore.swift */; };
 		AB770D133C4FE08B61EC4186 /* DeviceThermalProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = B849C676193ABC001191E242 /* DeviceThermalProfile.swift */; };
 		ABE4BDFF754BBF1432FE4B3F /* HostConnectionResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABBD65A8AA0232A5D278EB93 /* HostConnectionResult.swift */; };
@@ -255,6 +256,7 @@
 		6982D8F9F33553F0753E3809 /* PairingControlEnvelope.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingControlEnvelope.swift; sourceTree = "<group>"; };
 		69F0EEF4831802AD684A7A07 /* AnsightOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightOptions.swift; sourceTree = "<group>"; };
 		F0F0A123B456C789D0123457 /* AnsightMotionCaptureOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightMotionCaptureOptions.swift; sourceTree = "<group>"; };
+		E1E1A123B456C789D0123457 /* AnsightConnectivityCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightConnectivityCapture.swift; sourceTree = "<group>"; };
 		6B0BA4A7EAE52B883207E1E0 /* module.modulemap */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.module-map"; path = module.modulemap; sourceTree = "<group>"; };
 		6EAD03446B27B5EBD0255850 /* AnsightPendingBinaryTransfer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightPendingBinaryTransfer.swift; sourceTree = "<group>"; };
 		6FDEF39D281D3FD8F4A86EE1 /* AnsightSamplingLimits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightSamplingLimits.swift; sourceTree = "<group>"; };
@@ -399,6 +401,7 @@
 				16F5B84D627FBB69D578AFD3 /* AnsightNetworkURLProtocol.swift */,
 				69F0EEF4831802AD684A7A07 /* AnsightOptions.swift */,
 				F0F0A123B456C789D0123457 /* AnsightMotionCaptureOptions.swift */,
+				E1E1A123B456C789D0123457 /* AnsightConnectivityCapture.swift */,
 				38F42118E519023D7800D510 /* AnsightOptionsBuilder.swift */,
 				6EAD03446B27B5EBD0255850 /* AnsightPendingBinaryTransfer.swift */,
 				448A79C0955E16D7B7B26C2F /* AnsightRuntime.swift */,
@@ -697,6 +700,7 @@
 				07B2BFA0074A273AFE7B56EE /* AnsightNetworkURLProtocol.swift in Sources */,
 				A741F00958F848CD194C648E /* AnsightOptions.swift in Sources */,
 				F0F0A123B456C789D0123456 /* AnsightMotionCaptureOptions.swift in Sources */,
+				E1E1A123B456C789D0123456 /* AnsightConnectivityCapture.swift in Sources */,
 				3C651540BBFEF37C2D7ED915 /* AnsightOptionsBuilder.swift in Sources */,
 				533ED93AE906B07EE698DAFE /* AnsightPendingBinaryTransfer.swift in Sources */,
 				825415143D89782CB0344ECE /* AnsightRuntime+ValidationTouchInput.swift in Sources */,

@@ -20,6 +20,7 @@ let package = Package(
             name: "AnsightAnnotations",
             targets: ["AnsightAnnotations"]
         ),
+        .library(name: "AnsightConnectivity", targets: ["AnsightConnectivity"]),
         .library(
             name: "AnsightMotion",
             targets: ["AnsightMotion"]
@@ -71,6 +72,7 @@ let package = Package(
             dependencies: [
                 "AnsightCore",
                 "AnsightAnnotations",
+                "AnsightConnectivity",
                 "AnsightMotion",
                 "AnsightPairingQR",
                 "AnsightToolsDatabase",
@@ -102,6 +104,7 @@ let package = Package(
             dependencies: ["AnsightCore"],
             path: "Sources/AnsightAnnotations"
         ),
+        .target(name: "AnsightConnectivity", dependencies: ["AnsightCore"], path: "Sources/AnsightConnectivity"),
         .target(
             name: "AnsightMotion",
             dependencies: ["AnsightCore"],

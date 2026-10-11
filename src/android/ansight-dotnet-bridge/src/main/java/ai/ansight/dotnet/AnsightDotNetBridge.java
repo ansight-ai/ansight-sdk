@@ -513,6 +513,11 @@ public final class AnsightDotNetBridge {
             );
         }
 
+        JSONObject connectivityCapture = json.optJSONObject("connectivityCapture");
+        if (connectivityCapture != null) {
+            builder.withConnectivityCapture(new ai.ansight.runtime.AnsightConnectivityCaptureOptions(
+                connectivityCapture.optInt("minimumSampleIntervalMilliseconds", 5000)));
+        }
         JSONObject motionCapture = json.optJSONObject("motionCapture");
         if (motionCapture != null) {
             builder.withMotionCapture(new AnsightMotionCaptureOptions(
