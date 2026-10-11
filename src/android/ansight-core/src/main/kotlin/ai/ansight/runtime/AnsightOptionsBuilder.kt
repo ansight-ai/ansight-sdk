@@ -7,6 +7,10 @@ class AnsightOptionsBuilder @JvmOverloads constructor(
 
     /** Enables annotation capture in a debuggable app and configures its evidence. */
     @JvmOverloads
+    fun withOfflineCapture(policy: OfflineCaptureOptions = OfflineCaptureOptions(enabled = true)): AnsightOptionsBuilder = apply {
+        options = options.copy(offlineCapture = policy)
+    }
+
     fun withAnnotatedFeedback(annotationOptions: AnnotationOptions = AnnotationOptions()): AnsightOptionsBuilder {
         options = options.copy(annotatedFeedback = annotationOptions.copy(enabled = true))
         return this

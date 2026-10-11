@@ -19,6 +19,7 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
     public var hostConnection: AnsightHostConnectionOptions
     public var crashCapture: AnsightCrashCaptureOptions
     public var networkCapture: AnsightNetworkCaptureOptions
+    public var offlineCapture: OfflineCaptureOptions?
     public var annotatedFeedback: AnnotationOptions
 
     public init(
@@ -40,6 +41,7 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
         hostConnection: AnsightHostConnectionOptions = AnsightHostConnectionOptions(),
         crashCapture: AnsightCrashCaptureOptions = AnsightCrashCaptureOptions(),
         networkCapture: AnsightNetworkCaptureOptions = AnsightNetworkCaptureOptions(),
+        offlineCapture: OfflineCaptureOptions? = nil,
         annotatedFeedback: AnnotationOptions = AnnotationOptions()
     ) {
         self.sampleFrequencyMilliseconds = sampleFrequencyMilliseconds
@@ -60,6 +62,7 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
         self.hostConnection = hostConnection
         self.crashCapture = crashCapture
         self.networkCapture = networkCapture
+        self.offlineCapture = offlineCapture
         self.annotatedFeedback = annotatedFeedback
     }
 
@@ -82,6 +85,7 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
         case hostConnection
         case crashCapture
         case networkCapture
+        case offlineCapture
         case annotatedFeedback
     }
 
@@ -117,6 +121,7 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
             AnsightNetworkCaptureOptions.self,
             forKey: .networkCapture
         ) ?? AnsightNetworkCaptureOptions()
+        offlineCapture = try container.decodeIfPresent(OfflineCaptureOptions.self, forKey: .offlineCapture)
         annotatedFeedback = try container.decodeIfPresent(AnnotationOptions.self, forKey: .annotatedFeedback) ?? AnnotationOptions()
     }
 
@@ -165,6 +170,7 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
         try copy.hostConnection.validate()
         copy.crashCapture.validate()
         copy.networkCapture.validate()
+        copy.offlineCapture = try copy.offlineCapture?.validated()
         copy.annotatedFeedback = copy.annotatedFeedback.validated()
         return copy
     }

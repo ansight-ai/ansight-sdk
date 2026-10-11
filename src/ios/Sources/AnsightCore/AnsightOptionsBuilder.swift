@@ -8,6 +8,12 @@ public final class AnsightOptionsBuilder {
     }
 
     @discardableResult
+    public func withOfflineCapture(_ policy: OfflineCaptureOptions = OfflineCaptureOptions(enabled: true)) -> AnsightOptionsBuilder {
+        options.offlineCapture = policy
+        return self
+    }
+
+    @discardableResult
     public func withAnnotatedFeedback(_ annotationOptions: AnnotationOptions = AnnotationOptions()) -> AnsightOptionsBuilder {
         options.annotatedFeedback = annotationOptions
         options.annotatedFeedback.enabled = true

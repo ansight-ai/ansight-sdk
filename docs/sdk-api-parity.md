@@ -29,7 +29,7 @@ matrix, including framework-specific and .NET-only workflows.
 | MAUI tools | `Ansight.Tools.Maui` | — | — | — | — |
 | Annotated feedback | `Ansight.Annotations` | `ansight-annotations-android` | `AnsightAnnotations` | Native bridge | Native bridge |
 | Motion capture | `Ansight.Motion` | `ansight-motion-android` | `AnsightMotion` | Native bridge | Native bridge |
-| Offline capture | `Ansight.OfflineCapture` | — | — | — | — |
+| Native offline capture (after 1.8.0) | `WithOfflineCapture(...)` on Apple/Android; `Ansight.OfflineCapture` remains available for managed recording | `withOfflineCapture(...)` | `withOfflineCapture(...)` | `withOfflineCapture(...)` | `withOfflineCapture(...)` |
 | Objective-C facade | — | — | `AnsightObjC` | Used by the iOS bridge | Used by the iOS bridge |
 | React inspection tools | — | — | — | `@ansight/react-native` | — |
 
@@ -514,7 +514,8 @@ the `artifact_*` error codes documented in
 | MAUI initialization plus automatic lifecycle/page views | .NET MAUI | `UseAnsight<App>()` |
 | MAUI inspection and mutation | .NET MAUI | `WithMauiTools()` |
 | Native annotation overlay, screenshot/tree evidence, bundles, live delivery, and retry outbox | Android/iOS Debug app builds through native, .NET, React Native, Flutter, and Capacitor packages | `withAnnotatedFeedback(...)` / `Annotate.PresentAsync()` |
-| Offline capture, retention, ZIP/AES export, and team upload | .NET | `OfflineCapture.Configure(...)` |
+| Native offline recording, retention, recovery, and automatic/manual host transfer (after 1.8.0) | Native Apple/Android and .NET/MAUI, Flutter, React Native, Capacitor bridges | `WithOfflineCapture(...)` / `withOfflineCapture(...)`; see [native offline capture](native-offline-capture-implementation.md) |
+| Managed offline capture, retention, ZIP/AES export, and optional cloud integration | .NET | `OfflineCapture.Configure(...)` |
 | Objective-C runtime facade | iOS | `ANSAnsight` |
 | React component/shadow tree and actions | React Native | `installReactTools(...)` |
 | React Navigation screen tracking | React Native | `createReactNavigationTracker(...)` |

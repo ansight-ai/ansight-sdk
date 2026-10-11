@@ -181,6 +181,16 @@
 		FA506EAD2D295C84DDBA9E1E /* AnsightLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 973398D7C1792968A828E593 /* AnsightLogger.swift */; };
 		FACB2F3D66C72EBAFDC0D2B3 /* AnsightScreenDescriptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38FCD978CECDEE93BEA9331C /* AnsightScreenDescriptor.swift */; };
 		FF4A11D2EBDB1EFE5F212650 /* DeviceRuntimeStackEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 618BCFAEDB0AE5385398B332 /* DeviceRuntimeStackEntry.swift */; };
+		7AA57B2048F1F7C39E1F9DA3 /* NativeOfflineCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1055B99C6BAEB77FE198802C /* NativeOfflineCapture.swift */; };
+		4566173512EBE326D9CD7B47 /* OfflineCaptureArchive.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDEE9942AF3AB3DADD1C3436 /* OfflineCaptureArchive.swift */; };
+		5BFE0F2CD297466AECB71A64 /* OfflineCaptureError.swift in Sources */ = {isa = PBXBuildFile; fileRef = A74F6C9B1BDBFD6024E252A7 /* OfflineCaptureError.swift */; };
+		00BB45399B347980681CA519 /* OfflineCaptureFileIO.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6017758E831142E14422FABB /* OfflineCaptureFileIO.swift */; };
+		B190B03FA8D5A0B3AD5F4B9F /* OfflineCaptureLease.swift in Sources */ = {isa = PBXBuildFile; fileRef = A41D9E6CC60229A6283A5732 /* OfflineCaptureLease.swift */; };
+		663F9234D5AA896BC3C9415A /* OfflineCaptureOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 060E4429AC7970322D415729 /* OfflineCaptureOptions.swift */; };
+		94641B5DB9340CE1A25DBEC9 /* OfflineCaptureSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DBBC8A59658E9E694A85A7C /* OfflineCaptureSession.swift */; };
+		84F6007DE88B31506528074B /* OfflineCaptureStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 161175A67B4AB4183F337291 /* OfflineCaptureStore.swift */; };
+		0D40D4BF7559EB6D7C411EBF /* OfflineCaptureTransferMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B1A9D3C9430EFE274D87197 /* OfflineCaptureTransferMode.swift */; };
+		CBAB2AEF734CA3E87ACF9B52 /* OfflineCaptureTransferTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2389FCE14E05D29A7D86014 /* OfflineCaptureTransferTool.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -360,12 +370,32 @@
 		F03DF4F14A7A339918E33C25 /* ContinuationGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContinuationGate.swift; sourceTree = "<group>"; };
 		F70A03147093AA2383F0A7E5 /* NSLock+AnsightConcurrency.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSLock+AnsightConcurrency.swift"; sourceTree = "<group>"; };
 		FC796C87B3704779E39DE486 /* DeviceGraphicsProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceGraphicsProfile.swift; sourceTree = "<group>"; };
+		1055B99C6BAEB77FE198802C /* NativeOfflineCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineCapture/NativeOfflineCapture.swift; sourceTree = "<group>"; };
+		FDEE9942AF3AB3DADD1C3436 /* OfflineCaptureArchive.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineCapture/OfflineCaptureArchive.swift; sourceTree = "<group>"; };
+		A74F6C9B1BDBFD6024E252A7 /* OfflineCaptureError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineCapture/OfflineCaptureError.swift; sourceTree = "<group>"; };
+		6017758E831142E14422FABB /* OfflineCaptureFileIO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineCapture/OfflineCaptureFileIO.swift; sourceTree = "<group>"; };
+		A41D9E6CC60229A6283A5732 /* OfflineCaptureLease.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineCapture/OfflineCaptureLease.swift; sourceTree = "<group>"; };
+		060E4429AC7970322D415729 /* OfflineCaptureOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineCapture/OfflineCaptureOptions.swift; sourceTree = "<group>"; };
+		4DBBC8A59658E9E694A85A7C /* OfflineCaptureSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineCapture/OfflineCaptureSession.swift; sourceTree = "<group>"; };
+		161175A67B4AB4183F337291 /* OfflineCaptureStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineCapture/OfflineCaptureStore.swift; sourceTree = "<group>"; };
+		3B1A9D3C9430EFE274D87197 /* OfflineCaptureTransferMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineCapture/OfflineCaptureTransferMode.swift; sourceTree = "<group>"; };
+		B2389FCE14E05D29A7D86014 /* OfflineCaptureTransferTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineCapture/OfflineCaptureTransferTool.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
 		1F9C46205FD3EDFD914595A6 /* AnsightCore */ = {
 			isa = PBXGroup;
 			children = (
+				1055B99C6BAEB77FE198802C /* NativeOfflineCapture.swift */,
+				FDEE9942AF3AB3DADD1C3436 /* OfflineCaptureArchive.swift */,
+				A74F6C9B1BDBFD6024E252A7 /* OfflineCaptureError.swift */,
+				6017758E831142E14422FABB /* OfflineCaptureFileIO.swift */,
+				A41D9E6CC60229A6283A5732 /* OfflineCaptureLease.swift */,
+				060E4429AC7970322D415729 /* OfflineCaptureOptions.swift */,
+				4DBBC8A59658E9E694A85A7C /* OfflineCaptureSession.swift */,
+				161175A67B4AB4183F337291 /* OfflineCaptureStore.swift */,
+				3B1A9D3C9430EFE274D87197 /* OfflineCaptureTransferMode.swift */,
+				B2389FCE14E05D29A7D86014 /* OfflineCaptureTransferTool.swift */,
 				839F6825D4A8F56AE3A942F7 /* Annotate.swift */,
 				02A193A9236FD3A5BEAF0361 /* AnnotationEditorViewController.swift */,
 				41A913CAEF6201EBAFEC023D /* AnnotationOptions.swift */,
@@ -662,6 +692,16 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7AA57B2048F1F7C39E1F9DA3 /* NativeOfflineCapture.swift in Sources */,
+				4566173512EBE326D9CD7B47 /* OfflineCaptureArchive.swift in Sources */,
+				5BFE0F2CD297466AECB71A64 /* OfflineCaptureError.swift in Sources */,
+				00BB45399B347980681CA519 /* OfflineCaptureFileIO.swift in Sources */,
+				B190B03FA8D5A0B3AD5F4B9F /* OfflineCaptureLease.swift in Sources */,
+				663F9234D5AA896BC3C9415A /* OfflineCaptureOptions.swift in Sources */,
+				94641B5DB9340CE1A25DBEC9 /* OfflineCaptureSession.swift in Sources */,
+				84F6007DE88B31506528074B /* OfflineCaptureStore.swift in Sources */,
+				0D40D4BF7559EB6D7C411EBF /* OfflineCaptureTransferMode.swift in Sources */,
+				CBAB2AEF734CA3E87ACF9B52 /* OfflineCaptureTransferTool.swift in Sources */,
 				0F4855AD258CBCD6D7C5F00D /* Annotate.swift in Sources */,
 				2F42505957DD0D736BACDC9A /* AnnotationEditorViewController.swift in Sources */,
 				7DE4A6097E131D6C546E2138 /* AnnotationOptions.swift in Sources */,

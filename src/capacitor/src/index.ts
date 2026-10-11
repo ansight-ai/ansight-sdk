@@ -333,7 +333,10 @@ function applyNetworkConnectionStatus(
   status: AnsightHostConnectionStatus,
 ): void {
   const registration = networkCaptureRegistration;
-  if (!registration || status.isConnected !== true) {
+  if (
+    !registration ||
+    (status.isConnected !== true && status.isOfflineCaptureRecording !== true)
+  ) {
     detachNetworkCapture();
     return;
   }

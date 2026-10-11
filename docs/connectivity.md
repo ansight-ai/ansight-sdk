@@ -29,7 +29,7 @@ let options = try AnsightOptionsBuilder().withConnectivityCapture().build()
 val options = AnsightOptionsBuilder().withConnectivityCapture().build()
 ```
 
-React Native and Capacitor expose `createOptionsBuilder().withConnectivityCapture().build()`. Flutter exposes `AnsightOptionsBuilder().withConnectivityCapture().build()`. Their option is `connectivityCapture: { minimumSampleIntervalMilliseconds: 5000 }`; `withoutConnectivityCapture()` disables it. This adds connectivity evidence to each framework's existing capture/transport path; it does not add a new standalone native offline archive engine.
+React Native and Capacitor expose `createOptionsBuilder().withConnectivityCapture().build()`. Flutter exposes `AnsightOptionsBuilder().withConnectivityCapture().build()`. Their option is `connectivityCapture: { minimumSampleIntervalMilliseconds: 5000 }`; `withoutConnectivityCapture()` disables it. Enable [native offline capture](native-offline-capture-implementation.md) separately to retain those events while disconnected and transfer recordings to the host on reconnect. Native offline capture is implemented on `main` after 1.8.0 and requires the matching host receiver; it is not included in the 1.8.0 packages.
 
 The quality-only interval is clamped to 1–300 seconds. State transitions are emitted immediately. Unsupported fields remain absent, not false or zero.
 

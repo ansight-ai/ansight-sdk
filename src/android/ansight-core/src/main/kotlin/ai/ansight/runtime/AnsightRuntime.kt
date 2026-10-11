@@ -28,6 +28,9 @@ object AnsightRuntime {
         applicationProvider = { application },
     )
     private var options: AnsightOptions = AnsightOptions()
+    private var offlineCapture: NativeOfflineCapture? = null
+    private var offlineCaptureRuntimeEnabled = true
+    private var offlineScreenshotExecutor: ScheduledExecutorService? = null
     private var initialized = false
     private var active = false
     private var sessionOpen = false
@@ -100,6 +103,21 @@ object AnsightRuntime {
             deactivateLocked(closeTransport = true)
             this.application = application
             this.options = validated
+            offlineScreenshotExecutor?.shutdownNow()
+            offlineScreenshotExecutor = null
+            offlineCapture?.close()
+            offlineCaptureRuntimeEnabled = validated.offlineCapture?.recordingEnabled ?: false
+            offlineCapture = validated.offlineCapture?.takeIf { it.enabled }?.let { policy ->
+                val root = policy.rootDirectory?.let { File(it) } ?: File(application.filesDir, "Ansight/OfflineCapture")
+                val channelJson = JSONArray(makeChannelDictionary(validated).values.map { channel ->
+                    JSONObject().put("id", channel.id).put("name", channel.name).put("unit", channel.unit).put("type", channel.type)
+                })
+                val header = JSONArray().put(DeviceAppProfileCollector.collect(application, profileSeq = 0).toJson())
+                    .put(JSONObject().put("channels", channelJson)).toString().toByteArray(Charsets.UTF_8)
+                NativeOfflineCapture(OfflineCaptureStore(root, policy, application.packageName, processSessionId(), header, JSONObject(validated.customProperties).toString().toByteArray(Charsets.UTF_8),
+                    onSessionStarted = { id, path -> AnsightCrashCapture.associateOfflineSession(id, path) },
+                    onSessionCompleted = { id -> AnsightCrashCapture.markOfflineSessionCompleted(id) }), policy, application.cacheDir)
+            }
             channels.clear()
             channels.putAll(makeChannelDictionary(validated))
             metricStreams.clear()
@@ -114,6 +132,7 @@ object AnsightRuntime {
             externalToolIds = emptyList()
             externalToolCategories = emptyList()
             validated.initialTools.forEach { tool -> registerToolLocked(tool) }
+            if (offlineCapture != null) registerToolLocked(OfflineCaptureTransferTool())
             if (validated.artifactProviders.isNotEmpty()) {
                 AndroidArtifactTools.create { this.options.artifactProviders }
                     .filterNot { toolRegistry.contains(it.definition.id) }
@@ -170,6 +189,7 @@ object AnsightRuntime {
             }
 
             active = true
+            offlineCapture?.update(offlineCaptureRuntimeEnabled, liveTransport?.takeIf { sessionOpen && it.isOpen })
             sessionMessage = "Runtime activated."
             application ?: error("AnsightRuntime has no application context.")
         }
@@ -496,6 +516,7 @@ object AnsightRuntime {
                 sequence = ++nextTouchSequence,
                 details = touch.details,
             )
+            offlineCapture?.append(makeTouchPayload(listOf(recorded)))
             touches += recorded
             trimTouchesLocked()
             touchVisualTreeCaptureCoordinator
@@ -856,8 +877,10 @@ object AnsightRuntime {
         if (trimmed.isEmpty()) {
             return OperationResult.failure("Enter log text before sending.")
         }
-        val transport = synchronized(lock) { liveTransport }
-            ?: return OperationResult.failure("WebSocket session is not open.")
+        val retained = synchronized(lock) { offlineCapture?.append(JSONObject().put("type", "CLIENT_LOG")
+            .put("data", trimmed).put("capturedAtUtc", AnsightClock.isoNow())) == true }
+        val transport = synchronized(lock) { liveTransport?.takeIf { it.isOpen } }
+            ?: return if (retained) OperationResult.success("Log retained offline.") else OperationResult.failure("WebSocket session is not open.")
         return transport.sendControlRequest(
             PairingControlActions.ClientLog,
             JSONObject().put("data", trimmed),
@@ -866,16 +889,13 @@ object AnsightRuntime {
 
     /** Sanitizes and sends one typed V1 network request record to the active host session. */
     fun recordNetworkRequest(request: AnsightNetworkRequest): OperationResult {
-        val transport = synchronized(lock) { liveTransport }
-            ?: return OperationResult.failure("WebSocket session is not open.")
         val sanitized = AnsightNetworkRequestSanitizer.sanitize(request)
-        return transport.sendText(
-            JSONObject()
-                .put("type", "CLIENT_NETWORK_REQUEST")
-                .put("sentAtUtc", AnsightClock.isoNow())
-                .put("request", sanitized.toJson())
-                .toString(),
-        )
+        val envelope = JSONObject().put("type", "CLIENT_NETWORK_REQUEST")
+            .put("sentAtUtc", AnsightClock.isoNow()).put("request", sanitized.toJson())
+        val retained = synchronized(lock) { offlineCapture?.append(envelope) == true }
+        val transport = synchronized(lock) { liveTransport }
+        return transport?.sendText(envelope.toString()) ?: if (retained) OperationResult.success("Network request retained offline.")
+            else OperationResult.failure("No active capture destination.")
     }
 
     /** Backwards-compatible JSON bridge used by managed native bindings. */
@@ -893,6 +913,12 @@ object AnsightRuntime {
     }
 
     fun sendControlRequest(action: String, payload: JSONObject?): OperationResult {
+        if (action == "offline_capture.transfer") return transferOfflineCaptures()
+        if (action == "offline_capture.set_enabled") {
+            synchronized(lock) { offlineCaptureRuntimeEnabled = payload?.getBoolean("enabled") ?: false }
+            publishHostConnectionStatusIfChanged()
+            return OperationResult.success("Offline capture policy updated.")
+        }
         val normalizedAction = action.trim()
         if (normalizedAction.isEmpty()) {
             return OperationResult.failure("A control request action is required.")
@@ -1235,7 +1261,7 @@ object AnsightRuntime {
         }
 
         val transport = attempt.transport
-        transport.textMessageHandler = { text -> handleTransportText(text) }
+        transport.textMessageHandler = { text -> handleTransportText(text, transport) }
         val openPayload = JSONObject()
             .put("clientName", clientName)
             .put("configId", document.config.configId)
@@ -1482,6 +1508,9 @@ object AnsightRuntime {
     }
 
     private fun sendSessionPropertiesIfNeeded(shouldSend: Boolean): OperationResult {
+        synchronized(lock) {
+            offlineCapture?.store?.updateCustomProperties(JSONObject(options.customProperties).toString().toByteArray(Charsets.UTF_8))
+        }
         if (!shouldSend) {
             return OperationResult.success("Session properties updated locally.")
         }
@@ -1520,7 +1549,7 @@ object AnsightRuntime {
         )
     }
 
-    private fun handleTransportText(text: String) {
+    private fun handleTransportText(text: String, sourceTransport: PairingLiveSessionTransport) {
         val json = try {
             JSONObject(text)
         } catch (_: Exception) {
@@ -1531,7 +1560,7 @@ object AnsightRuntime {
                 val externalHandler = synchronized(lock) { externalToolProtocolHandler }
                 if (externalHandler == null) {
                     when (json.optionalString("type")) {
-                        ToolProtocol.QueryType -> sendToolCatalog(json)
+                        ToolProtocol.QueryType -> sendToolCatalog(json, sourceTransport)
                         ToolProtocol.BatchType -> executeToolBatch(json)
                         else -> executeToolCall(json)
                     }
@@ -1571,9 +1600,9 @@ object AnsightRuntime {
         }
     }
 
-    private fun sendToolCatalog(request: JSONObject) {
+    private fun sendToolCatalog(request: JSONObject, sourceTransport: PairingLiveSessionTransport) {
         val catalogState = synchronized(lock) {
-            Triple(application, liveTransport, options)
+            Triple(application, sourceTransport, options)
         }
         val app = catalogState.first
         val transport = catalogState.second
@@ -1658,7 +1687,10 @@ object AnsightRuntime {
                 )
             }
         }
-        synchronized(lock) { liveTransport }?.sendText(
+        // The host can query immediately after session.open, before liveTransport
+        // is installed by the device-profile handshake. Reply on the transport
+        // that delivered this query so discovery cannot lose its first response.
+        sourceTransport.sendText(
             ToolProtocolPayloadEncoding.encodeEnvelopeIfBeneficial(response).toString(),
         )
     }
@@ -2406,12 +2438,14 @@ object AnsightRuntime {
             channel = channel,
             sequence = ++nextMetricSequence,
         )
+        offlineCapture?.append(makeMetricsPayload(listOf(metrics.last())))
         trimMetricsLocked()
     }
 
     private fun recordEventLocked(event: RecordedEvent) {
         ensureChannelLocked(event.channel)
         events += event
+        offlineCapture?.append(makeEventsPayload(listOf(event)))
         trimEventsLocked()
     }
 
@@ -2561,7 +2595,42 @@ object AnsightRuntime {
         }
     }
 
+    fun transferOfflineCaptures(): OperationResult = synchronized(lock) {
+        offlineCapture?.transfer() ?: OperationResult.failure("Native offline capture is not enabled.")
+    }
+
+    fun offlineCaptureLastError(): String? = synchronized(lock) { offlineCapture?.lastError }
+
+    private fun updateOfflineCaptureState() = synchronized(lock) {
+        offlineCapture?.update(initialized && active && offlineCaptureRuntimeEnabled, liveTransport?.takeIf { sessionOpen && it.isOpen })
+        val capture = offlineCapture
+        val screenshotOptions = options.sessionJpegCapture
+        if (capture == null || !capture.store.isRecording || screenshotOptions == null) {
+            offlineScreenshotExecutor?.shutdownNow()
+            offlineScreenshotExecutor = null
+            return@synchronized
+        }
+        if (offlineScreenshotExecutor != null) return@synchronized
+        offlineScreenshotExecutor = Executors.newSingleThreadScheduledExecutor { Thread(it, "Ansight Offline Screenshots").apply { isDaemon = true } }
+        val executor = offlineScreenshotExecutor!!
+        executor.scheduleWithFixedDelay({
+            if (synchronized(lock) { active && currentLifecycleState != AppLifecycleState.Background } && capture.store.isRecording) {
+                runCatching {
+                    val screenshot = AndroidUiEvidence.captureSessionScreenshot("jpeg", screenshotOptions.quality,
+                        screenshotOptions.maxWidth, screenshotOptions.captureKeyboardPresence)
+                    if (executor.isShutdown || !capture.store.isRecording) return@runCatching
+                    val capturedAt = AnsightClock.isoNow()
+                    capture.store.appendScreenshot(screenshot.bytes, capturedAt, screenshot.width, screenshot.height, screenshotOptions.quality)
+                    if (screenshotOptions.mode != AnsightSessionJpegCaptureMode.ScreenshotOnly) {
+                        captureAnnotationVisualTrees().forEach { tree -> capture.append(sessionVisualTreePayload(tree, capturedAt)) }
+                    }
+                }
+            }
+        }, 0, screenshotOptions.intervalMilliseconds.toLong(), TimeUnit.MILLISECONDS)
+    }
+
     private fun publishHostConnectionStatusIfChanged(force: Boolean = false) {
+        updateOfflineCaptureState()
         val notification = synchronized(lock) {
             val snapshot = hostConnectionSnapshotLocked()
             if (!force &&
@@ -2603,6 +2672,7 @@ object AnsightRuntime {
         val hasBundled = options.hostConnection.bundledConfigJson != null
         return HostConnectionStatus(
             isRuntimeActive = active,
+            isOfflineCaptureRecording = offlineCapture?.store?.isRecording == true,
             isConnected = connected,
             connectionState = connectionState,
             hasCachedSession = hasCached,

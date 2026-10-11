@@ -26,6 +26,14 @@ public static class Runtime
     /// </summary>
     public static IRuntime Instance => MutableInstance;
 
+    public static Task<OperationResult> SetOfflineCaptureEnabledAsync(bool enabled, CancellationToken cancellationToken = default)
+        => MutableInstance.SetOfflineCaptureEnabledAsync(enabled, cancellationToken);
+
+    public static Task<OperationResult> TransferOfflineCapturesAsync(CancellationToken cancellationToken = default)
+        => MutableInstance.TransferOfflineCapturesAsync(cancellationToken);
+
+    internal static bool HasNetworkCaptureDestination => IsInitialized && MutableInstance.HasNetworkCaptureDestination;
+
     /// <summary>
     /// Controls the unified runtime-owned host connection surface.
     /// Returns a no-op controller until the runtime is initialized.

@@ -149,8 +149,9 @@ session.
 | MAUI bootstrap, automatic lifecycle, and page-view telemetry | .NET MAUI | `Ansight.Maui` / `UseAnsight<App>()` |
 | MAUI UI inspection, XAML inflation, mutation, resources, bindings, navigation, layout, and handler diagnostics | .NET MAUI | `Ansight.Tools.Maui` |
 | Native in-app annotations with screenshots, registered visual trees, a retry outbox, and live delivery | Android and iOS Debug app builds through native, .NET, React Native, Flutter, and Capacitor packages | `Annotate.PresentAsync()` / `WithAnnotatedFeedback(...)` |
+| Native offline recording, configurable session retention, recovery, and automatic/manual host transfer (after 1.8.0) | Native Apple/Android plus .NET/MAUI, Flutter, React Native, and Capacitor | [Native offline capture](native-offline-capture-implementation.md) |
 | Offline telemetry, events, touches, screenshots, annotation bundles, retention, ZIP/AES export, and team upload | .NET | `Ansight.OfflineCapture` |
-| Native crash capture, prior-session association, host handoff, and offline capture attachment | All mobile SDKs; offline attachment currently uses `.NET` Offline Capture | Core runtime `crashCapture` options |
+| Native crash capture, prior-session association, host handoff, and offline capture attachment | All mobile SDKs; crash-file attachment uses managed `.NET` Offline Capture, while native offline recording retains the native crash outbox handoff | Core runtime `crashCapture` options |
 | Objective-C facade | iOS | `AnsightObjC` |
 | React component and shadow-tree inspection | React Native | `installReactTools(...)` |
 | React Navigation route tracking | React Native | `createReactNavigationTracker(...)` |
@@ -163,8 +164,7 @@ session.
 | Flutter error, frame-timing, and lifecycle capture | Flutter | `AnsightFlutterInstrumentation.instance.install()` |
 | Dart custom tools and app artifacts | Flutter | `Ansight.instance.registerTool(...)` / `registerArtifactProvider(...)` |
 
-All-in-one packages include native annotations; their Debug builds make presentation available after runtime initialization. `WithAnnotatedFeedback(...)` configures capture. Offline capture starts only after the app configures and initializes an
-`OfflineCaptureController`.
+All-in-one packages include native annotations; their Debug builds make presentation available after runtime initialization. `WithAnnotatedFeedback(...)` configures capture. The managed offline workflow uses an `OfflineCaptureController`; native capture opts in through `WithOfflineCapture(...)` / `withOfflineCapture(...)` and requires the matching host receiver. Do not run both recorders in parallel.
 
 ## Build-time safeguards
 

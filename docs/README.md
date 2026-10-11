@@ -15,6 +15,8 @@ Platform guides:
 - [Flutter SDK Guide](../src/flutter/README.md)
 - [Publishing SDK releases](releasing.md)
 
+- [Native offline capture](native-offline-capture-implementation.md): disconnected recording and host transfer across native and framework SDKs (requires a release newer than 1.8.0).
+
 .NET workflow guides:
 
 - [Annotated Feedback](../src/dotnet/Ansight.Annotations/README.md)

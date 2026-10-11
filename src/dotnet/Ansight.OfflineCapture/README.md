@@ -48,6 +48,14 @@ Data is written as compact JSONL in `.ansight/sessions/{sessionId}` with minifie
 
 The controller supports runtime mutation through `UpdateOptionsAsync(Action<OfflineCaptureOptions>)`. `ActivationMode`, retention limits, segment duration, and session JPEG overrides are mutable while capture is active. `RootDirectory` and `MaximumQueuedRecords` affect active writer ownership and queue construction, so changing either requires stopping capture first.
 
+## Connectivity evidence
+
+Add `WithConnectivityCapture()` from `Ansight.Connectivity` to the app's existing runtime options before starting offline capture. The all-in-one `Ansight` and `Ansight.Maui` packages include this optional collector; core-only apps reference `Ansight.Connectivity` explicitly. Collection remains opt-in.
+
+The offline recorder retains connection snapshots, changes, supported quality estimates, and observation gaps without a host connection. Starting a capture includes the last known observation with its original timestamp. Segments and retention preserve preceding state, while queue overflow records a gap and increments the manifest's dropped-record count. No connectivity index is written when no observations were captured.
+
+See [Connectivity capture](../../../docs/connectivity.md) for setup and platform measurements. For native Apple/Android recording and automatic reconnect transfer through every mobile SDK, use [native offline capture](../../../docs/native-offline-capture-implementation.md), implemented after SDK 1.8.0. This managed controller remains available for compatibility and portable .NET; do not run it alongside the native recorder.
+
 ## Storage Layout
 
 ```text
@@ -71,6 +79,10 @@ The controller supports runtime mutation through `UpdateOptionsAsync(Action<Offl
       network/
         requests/
           {utc}-{requestId}.json
+      connectivity/
+        index.json
+        segments/
+          000001.jsonl
       screenshots/
         {utc}.jpg
         index/
@@ -85,7 +97,7 @@ The controller supports runtime mutation through `UpdateOptionsAsync(Action<Offl
           {crashReportId}.trace
 ```
 
-`settings.json`, `manifest.json`, and `metadata/*.json` are compact metadata files. High-volume data files are append-only JSONL segments. Metric, event, touch, and screenshot index records use minified JSON with short property names and no formatted whitespace. Network requests are individual `ansight.network-request.v1` JSON documents so CLI and playback consumers can inspect them without reading a combined blob. Bodies are omitted and credentials are redacted before persistence.
+`settings.json`, `manifest.json`, and `metadata/*.json` are compact metadata files. High-volume data files are append-only JSONL segments. Metric, event, touch, and screenshot index records use minified JSON with short property names and no formatted whitespace. Network requests are individual `ansight.network-request.v1` JSON documents so CLI and playback consumers can inspect them without reading a combined blob. They retain the runtime's sanitized records, including bodies when the configured network-capture policy allows them. Configure body capture and redaction before recording.
 
 If the process terminates while capture is active, the native runtime recovers
 the crash on the next launch, finds this session by `ProcessSessionId`, stores
@@ -108,6 +120,19 @@ The SDK supports both file and stream export:
 - Without a password, export uses `System.IO.Compression.ZipArchive`.
 
 ZIP exports stream the raw `.ansight` session files directly. Export does not expand the captured JSONL into host archive JSON; host ingests the minified JSONL capture format directly. `IncludeRawCaptureFiles` is retained for source compatibility, but export no longer expands JSONL capture files into host-native aggregate JSON.
+
+## Import and review
+
+Copy the exported ZIP to the developer machine. Start the host with `ansight host run --open`, then import it from another terminal:
+
+```sh
+ansight session import capture.zip --json
+ansight serve --open --session <session-id>
+ansight session connectivity <session-id> summary --json
+ansight session connectivity <session-id> at --offset 01:15 --json
+```
+
+Use the session ID returned by import. For encrypted exports, set `ANSIGHT_CAPTURE_PASSWORD` in the environment and add `--password-env ANSIGHT_CAPTURE_PASSWORD` to the import command. The host reads the raw offline ZIP directly, including retained connectivity and annotations. Open the player's Connectivity tab to correlate changes with screenshots, logs, and requests. Capture, export, import, and local review require no account.
 
 ## Samples
 

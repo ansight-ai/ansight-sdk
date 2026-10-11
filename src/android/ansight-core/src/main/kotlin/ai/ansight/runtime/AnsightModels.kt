@@ -207,6 +207,7 @@ data class AnsightOptions(
     val secureStorage: AnsightSecureStorageOptions = AnsightSecureStorageOptions(),
     val initialTools: List<AndroidTool> = emptyList(),
     val artifactProviders: List<AndroidArtifactProvider> = emptyList(),
+    val offlineCapture: OfflineCaptureOptions? = null,
     val annotatedFeedback: AnnotationOptions = AnnotationOptions(),
 ) {
     companion object {
@@ -248,6 +249,7 @@ data class AnsightOptions(
             hostConnection = hostConnection.validated(),
             crashCapture = crashCapture.validated(),
             secureStorage = secureStorage.validated(),
+            offlineCapture = offlineCapture?.validated(),
             annotatedFeedback = annotatedFeedback.validated(),
         )
     }
@@ -420,6 +422,7 @@ data class HostConnectionStatus(
     val hasBundledConfig: Boolean,
     val summaryKind: HostConnectionSummaryKind,
     val summaryMessage: String,
+    val isOfflineCaptureRecording: Boolean = false,
 )
 
 data class HostConnectionCapabilities(

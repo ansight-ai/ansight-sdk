@@ -820,6 +820,8 @@ class AnsightReactNativeModule(
         if (useNativeAllInOneDefaults && !map.hasString("toolGuard")) {
             options = options.copy(toolGuard = AnsightToolGuard.ReadOnly)
         }
+        val offlineMap = map.getMapOrNull("offlineCapture")
+        options = options.copy(offlineCapture = ai.ansight.runtime.OfflineCaptureOptions.fromJson(offlineMap?.let { JSONObject(it.toHashMap()) }))
         if (map.hasKey("annotatedFeedback")) {
             val annotation = map.getMapOrNull("annotatedFeedback")
             options = options.copy(annotatedFeedback = if (map.isFalse("annotatedFeedback")) {
@@ -1249,6 +1251,7 @@ class AnsightReactNativeModule(
     private fun hostConnectionStatusMap(status: HostConnectionStatus): WritableMap =
         Arguments.createMap().apply {
             putBoolean("isRuntimeActive", status.isRuntimeActive)
+            putBoolean("isOfflineCaptureRecording", status.isOfflineCaptureRecording)
             putBoolean("isConnected", status.isConnected)
             putString("connectionState", status.connectionState.name)
             putBoolean("hasCachedSession", status.hasCachedSession)

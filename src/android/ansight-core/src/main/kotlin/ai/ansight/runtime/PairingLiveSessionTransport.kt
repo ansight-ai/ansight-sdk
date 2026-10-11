@@ -21,7 +21,20 @@ class PairingLiveSessionTransport {
     private val lock = Any()
     private var webSocket: WebSocketClient? = null
     private var lastCloseReason: String? = null
-    @Volatile var textMessageHandler: ((String) -> Unit)? = null
+    private val textDispatchLock = Any()
+    private val pendingTextMessages = java.util.ArrayDeque<String>()
+    private var pendingTextCharacters = 0
+    private var dispatchingText = false
+    private var installedTextHandler: ((String) -> Unit)? = null
+
+    // A host can send tool.query as soon as WebSocket opens, before the runtime
+    // receives this transport from the connector and attaches its handler.
+    var textMessageHandler: ((String) -> Unit)?
+        get() = synchronized(textDispatchLock) { installedTextHandler }
+        set(value) {
+            synchronized(textDispatchLock) { installedTextHandler = value }
+            drainTextMessages()
+        }
     @Volatile var binaryMessageHandler: ((ByteArray) -> Unit)? = null
 
     val isOpen: Boolean
@@ -43,10 +56,12 @@ class PairingLiveSessionTransport {
             }
 
             override fun onMessage(message: String) {
+                if (synchronized(lock) { webSocket !== this }) return
                 handleIncomingText(message)
             }
 
             override fun onMessage(bytes: ByteBuffer) {
+                if (synchronized(lock) { webSocket !== this }) return
                 val copy = ByteArray(bytes.remaining())
                 bytes.slice().get(copy)
                 binaryMessageHandler?.invoke(copy)
@@ -84,6 +99,19 @@ class PairingLiveSessionTransport {
         }
 
         return OperationResult.success("WebSocket session opened.")
+    }
+
+    /** File producers wait for the socket queue to drain before reading another chunk. */
+    internal fun sendFileTransferFrame(data: ByteArray): OperationResult {
+        val socket = synchronized(lock) { webSocket } ?: return OperationResult.failure("WebSocket session is not open.")
+        val sent = sendData(data)
+        if (!sent.success) return sent
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+        while (socket.hasBufferedData()) {
+            if (!socket.isOpen || System.nanoTime() >= deadline) return OperationResult.failure("Offline transfer delivery stalled.")
+            Thread.sleep(5)
+        }
+        return sent
     }
 
     fun sendControlRequest(
@@ -176,6 +204,7 @@ class PairingLiveSessionTransport {
             current
         }
 
+        clearPendingTextMessages()
         pendingResponses.values.forEach { pending ->
             pending.error = reason
             pending.latch.countDown()
@@ -199,6 +228,7 @@ class PairingLiveSessionTransport {
             return
         }
 
+        clearPendingTextMessages()
         pendingResponses.values.forEach { pending ->
             pending.error = reason
             pending.latch.countDown()
@@ -231,8 +261,58 @@ class PairingLiveSessionTransport {
             return
         }
 
-        textMessageHandler?.invoke(text)
+        val overflow = synchronized(textDispatchLock) {
+            val needsBuffer = installedTextHandler == null || dispatchingText
+            if (needsBuffer && (pendingTextMessages.size >= 32 || pendingTextCharacters + text.length > 1_048_576)) {
+                true
+            } else {
+                pendingTextMessages.addLast(text)
+                pendingTextCharacters += text.length
+                false
+            }
+        }
+        if (overflow) {
+            close(reason = "Incoming text queue exceeded its startup limit.", notify = true)
+        } else {
+            drainTextMessages()
+        }
     }
+
+    private fun drainTextMessages() {
+        synchronized(textDispatchLock) {
+            if (dispatchingText || installedTextHandler == null) return
+            dispatchingText = true
+        }
+        while (true) {
+            val delivery = synchronized(textDispatchLock) {
+                val handler = installedTextHandler
+                if (handler == null || pendingTextMessages.isEmpty()) {
+                    dispatchingText = false
+                    null
+                } else {
+                    val text = pendingTextMessages.removeFirst()
+                    pendingTextCharacters -= text.length
+                    PendingTextDelivery(handler, text)
+                }
+            } ?: return
+            // No transport/runtime locks are held while user code executes.
+            try {
+                delivery.handler(delivery.text)
+            } catch (exception: Exception) {
+                synchronized(textDispatchLock) { dispatchingText = false }
+                throw exception
+            }
+        }
+    }
+
+    private fun clearPendingTextMessages() {
+        synchronized(textDispatchLock) {
+            pendingTextMessages.clear()
+            pendingTextCharacters = 0
+        }
+    }
+
+    private data class PendingTextDelivery(val handler: (String) -> Unit, val text: String)
 
     private class PendingControlResponse {
         val latch = CountDownLatch(1)

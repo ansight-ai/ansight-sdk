@@ -3,6 +3,20 @@ import { describe, expect, it } from "vitest";
 import { createOptionsBuilder } from "../src/options";
 
 describe("AnsightOptionsBuilder", () => {
+  it("configures native retention and automatic or manual transfer", () => {
+    expect(
+      createOptionsBuilder().withOfflineCapture().build().offlineCapture,
+    ).toEqual({
+      enabled: true,
+      maximumSessions: 10,
+      transferMode: "automatic",
+    });
+    expect(
+      createOptionsBuilder()
+        .withOfflineCapture({ maximumSessions: 3, transferMode: "manual" })
+        .build().offlineCapture?.maximumSessions,
+    ).toBe(3);
+  });
   it("keeps annotation configuration on the native builder", () => {
     const enabled = createOptionsBuilder()
       .withAnnotatedFeedback({ captureScreenshot: false })

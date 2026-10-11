@@ -700,6 +700,7 @@ class AnsightCapacitorPlugin : Plugin() {
         } else {
             AnsightOptions()
         }
+        options = options.copy(offlineCapture = ai.ansight.runtime.OfflineCaptureOptions.fromJson(map.optJSONObject("offlineCapture")))
         if (map.has("annotatedFeedback")) {
             val annotation = map.optJSONObject("annotatedFeedback")
             options = options.copy(annotatedFeedback = if (map.opt("annotatedFeedback") == false) {
@@ -1038,6 +1039,7 @@ class AnsightCapacitorPlugin : Plugin() {
     private fun hostConnectionStatus(value: HostConnectionStatus): JSObject =
         JSObject()
             .putValue("isRuntimeActive", value.isRuntimeActive)
+        .putValue("isOfflineCaptureRecording", value.isOfflineCaptureRecording)
             .putValue("isConnected", value.isConnected)
             .putValue("connectionState", value.connectionState.name)
             .putValue("hasCachedSession", value.hasCachedSession)

@@ -9,6 +9,25 @@ namespace Ansight.UnitTests;
 
 public sealed class NativeRuntimeOptionsJsonTests
 {
+    [Fact]
+    public void OfflineCaptureSettingsSurviveCloneAndReachBothNativeBridges()
+    {
+        var defaults = Options.CreateBuilder().WithOfflineCapture().Build();
+        Assert.Equal(10, defaults.OfflineCapture!.MaximumSessions);
+        Assert.Equal(OfflineCaptureTransferMode.Automatic, defaults.OfflineCapture.TransferMode);
+        var configured = Options.CreateBuilder().WithOfflineCapture(new NativeOfflineCaptureOptions
+        {
+            MaximumSessions = 3, RecordingEnabled = false, TransferMode = OfflineCaptureTransferMode.Manual
+        }).Build();
+        var copied = Options.CreateBuilder(configured).Build();
+        var json = JsonNode.Parse(NativeRuntimeOptionsJson.Serialize(copied))!["offlineCapture"]!;
+        Assert.Equal(3, json["maximumSessions"]!.GetValue<int>());
+        Assert.False(json["recordingEnabled"]!.GetValue<bool>());
+        Assert.Equal("manual", json["transferMode"]!.GetValue<string>());
+        Assert.Contains(copied.Tools, tool => tool.Id == "offline_capture.transfer");
+        Assert.Throws<ArgumentOutOfRangeException>(() => Options.CreateBuilder().WithOfflineCapture(new NativeOfflineCaptureOptions { MaximumSessions = 0 }));
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

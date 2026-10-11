@@ -1033,6 +1033,10 @@ final class AnsightReactNative: RCTEventEmitter {
         if useNativeAllInOneDefaults && stringValue(dictionary, "toolGuard") == nil {
             options.toolGuard = .readOnly
         }
+        if let offline = dictionary?["offlineCapture"] as? NSDictionary {
+            options.offlineCapture = try JSONDecoder().decode(OfflineCaptureOptions.self,
+                from: JSONSerialization.data(withJSONObject: offline))
+        }
         if let raw = dictionary?["annotatedFeedback"] {
             if let enabled = raw as? NSNumber, !enabled.boolValue {
                 options.annotatedFeedback.enabled = false
@@ -1371,6 +1375,7 @@ final class AnsightReactNative: RCTEventEmitter {
     private func hostConnectionStatusDictionary(_ status: HostConnectionStatus) -> NSDictionary {
         [
             "isRuntimeActive": status.isRuntimeActive,
+            "isOfflineCaptureRecording": status.isOfflineCaptureRecording ?? false,
             "isConnected": status.isConnected,
             "connectionState": status.connectionState.rawValue,
             "hasCachedSession": status.hasCachedSession,
