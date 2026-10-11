@@ -5,4 +5,5 @@ internal sealed record OfflineCaptureWriteRecord(
     DateTimeOffset CapturedAtUtc,
     string JsonLine,
     TaskCompletionSource? FlushCompletion = null,
-    string? FileName = null);
+    string? FileName = null,
+    Ansight.Connectivity.ConnectivityRecord? Connectivity = null);

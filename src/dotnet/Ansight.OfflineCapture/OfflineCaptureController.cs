@@ -3,6 +3,7 @@ namespace Ansight.OfflineCapture;
 using System.Threading.Channels;
 using Ansight.Annotations;
 using Ansight.Network;
+using Ansight.Connectivity;
 using TelemetryChannel = Ansight.Telemetry.Channels.Channel;
 
 /// <summary>
@@ -21,6 +22,8 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
     private CancellationTokenSource? screenshotCts;
     private Task? writerTask;
     private Task? screenshotTask;
+    private ConnectivityArchiveWriter? connectivityWriter;
+    private ConnectivityRecord? droppedConnectivity;
     private SegmentedJsonLineWriter? metricWriter;
     private SegmentedJsonLineWriter? eventWriter;
     private SegmentedJsonLineWriter? touchWriter;
@@ -179,6 +182,7 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
         }
 
         Interlocked.Exchange(ref droppedRecordCount, 0);
+        Interlocked.Exchange(ref droppedConnectivity, null);
         var channel = System.Threading.Channels.Channel.CreateBounded<OfflineCaptureWriteRecord>(
             new BoundedChannelOptions(effectiveOptions.MaximumQueuedRecords)
             {
@@ -186,10 +190,17 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
                 SingleReader = true,
                 SingleWriter = false
             },
-            _ => Interlocked.Increment(ref droppedRecordCount));
+            dropped =>
+            {
+                Interlocked.Increment(ref droppedRecordCount);
+                if (dropped.Connectivity is { } connectivity)
+                    Interlocked.CompareExchange(ref droppedConnectivity, connectivity, null);
+                dropped.FlushCompletion?.TrySetException(new IOException("Capture queue overflowed while flushing. Retry export after reducing capture load."));
+            });
 
         var writerCancellation = new CancellationTokenSource();
         var screenshotCancellation = new CancellationTokenSource();
+        var connectivitySegmentWriter = new ConnectivityArchiveWriter(Path.Combine(sessionDirectory, "connectivity"), effectiveOptions.SegmentDuration);
         var metricSegmentWriter = new SegmentedJsonLineWriter(
             OfflineCapturePaths.MetricsDirectory(sessionDirectory),
             "m",
@@ -216,6 +227,7 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
             recordChannel = channel;
             writerCts = writerCancellation;
             screenshotCts = screenshotCancellation;
+            connectivityWriter = connectivitySegmentWriter;
             metricWriter = metricSegmentWriter;
             eventWriter = eventSegmentWriter;
             touchWriter = touchSegmentWriter;
@@ -227,6 +239,7 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
                     eventSegmentWriter,
                     touchSegmentWriter,
                     screenshotIndexSegmentWriter,
+                    connectivitySegmentWriter,
                     OfflineCapturePaths.NetworkRequestsDirectory(sessionDirectory),
                     writerCancellation.Token),
                 CancellationToken.None);
@@ -234,6 +247,15 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
         }
 
         AttachRuntimeFeeds();
+        // Seed the last retained observation if monitoring began before offline capture.
+        var baseline = runtime.DataSink.Events.LastOrDefault(appEvent =>
+            appEvent.Label.StartsWith("connectivity.", StringComparison.Ordinal) && ConnectivityJson.Parse(appEvent.Details) is not null);
+        if (baseline is not null)
+        {
+            TryQueue(new OfflineCaptureWriteRecord(OfflineCaptureWriteKind.Event,
+                new DateTimeOffset(DateTime.SpecifyKind(baseline.CapturedAtUtc, DateTimeKind.Utc)),
+                OfflineCaptureJson.Event(baseline), Connectivity: ConnectivityJson.Parse(baseline.Details)));
+        }
         annotationSinkRegistration = Annotate.RegisterSinkForRuntime(runtime, this);
         await ApplyRetentionAsync(cancellationToken);
         return CreateSessionInfo(sessionDirectory, isActive: true);
@@ -313,6 +335,7 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
 
             options = updatedOptions;
             effectiveOptions = ResolveEffectiveOptions(updatedOptions);
+            connectivityWriter?.UpdateSegmentDuration(effectiveOptions.SegmentDuration);
             metricWriter?.UpdateSegmentDuration(effectiveOptions.SegmentDuration);
             eventWriter?.UpdateSegmentDuration(effectiveOptions.SegmentDuration);
             touchWriter?.UpdateSegmentDuration(effectiveOptions.SegmentDuration);
@@ -327,6 +350,7 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
 
         if (sessionDirectory is not null && manifest is not null)
         {
+            await DrainAndFlushWritersAsync(cancellationToken);
             await WriteManifestAsync(sessionDirectory, manifest, cancellationToken);
             await ApplyRetentionAsync(cancellationToken);
         }
@@ -517,6 +541,7 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
         CancellationTokenSource? currentScreenshotCts;
         Task? currentWriterTask;
         Task? currentScreenshotTask;
+        ConnectivityArchiveWriter? currentConnectivityWriter;
         SegmentedJsonLineWriter? currentMetricWriter;
         SegmentedJsonLineWriter? currentEventWriter;
         SegmentedJsonLineWriter? currentTouchWriter;
@@ -538,6 +563,7 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
             currentScreenshotCts = screenshotCts;
             currentWriterTask = writerTask;
             currentScreenshotTask = screenshotTask;
+            currentConnectivityWriter = connectivityWriter;
             currentMetricWriter = metricWriter;
             currentEventWriter = eventWriter;
             currentTouchWriter = touchWriter;
@@ -551,6 +577,7 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
             screenshotCts = null;
             writerTask = null;
             screenshotTask = null;
+            connectivityWriter = null;
             metricWriter = null;
             eventWriter = null;
             touchWriter = null;
@@ -577,6 +604,8 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
 
         currentWriterCts?.Dispose();
         currentScreenshotCts?.Dispose();
+
+        if (currentConnectivityWriter is not null) await currentConnectivityWriter.DisposeAsync();
 
         if (currentMetricWriter is not null)
         {
@@ -645,7 +674,8 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
                 TryQueue(new OfflineCaptureWriteRecord(
                     OfflineCaptureWriteKind.Event,
                     new DateTimeOffset(DateTime.SpecifyKind(appEvent.CapturedAtUtc, DateTimeKind.Utc)),
-                    OfflineCaptureJson.Event(appEvent)));
+                    OfflineCaptureJson.Event(appEvent), Connectivity: appEvent.Label.StartsWith("connectivity.", StringComparison.Ordinal)
+                        ? ConnectivityJson.Parse(appEvent.Details) : null));
             }
         };
 
@@ -745,6 +775,7 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
         SegmentedJsonLineWriter eventSegmentWriter,
         SegmentedJsonLineWriter touchSegmentWriter,
         SegmentedJsonLineWriter screenshotIndexSegmentWriter,
+        ConnectivityArchiveWriter connectivitySegmentWriter,
         string networkRequestsDirectory,
         CancellationToken cancellationToken)
     {
@@ -753,6 +784,14 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
             var wroteAny = false;
             while (channel.Reader.TryRead(out var record))
             {
+                if (Interlocked.Exchange(ref droppedConnectivity, null) is { } dropped)
+                {
+                    await connectivitySegmentWriter.WriteAsync(dropped with
+                    {
+                        Id = Guid.NewGuid().ToString(), Kind = "gap", Snapshot = new(), PreviousSnapshot = null,
+                        Quality = null, Reason = "capture-queue-overflow"
+                    }, cancellationToken);
+                }
                 if (record.Kind == OfflineCaptureWriteKind.Flush)
                 {
                     await FlushWritersAsync(
@@ -760,6 +799,7 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
                         eventSegmentWriter,
                         touchSegmentWriter,
                         screenshotIndexSegmentWriter,
+                        connectivitySegmentWriter,
                         cancellationToken);
                     record.FlushCompletion?.TrySetResult();
                     continue;
@@ -771,6 +811,7 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
                     eventSegmentWriter,
                     touchSegmentWriter,
                     screenshotIndexSegmentWriter,
+                    connectivitySegmentWriter,
                     networkRequestsDirectory,
                     cancellationToken);
                 wroteAny = true;
@@ -783,6 +824,7 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
                     eventSegmentWriter,
                     touchSegmentWriter,
                     screenshotIndexSegmentWriter,
+                    connectivitySegmentWriter,
                     cancellationToken);
             }
 
@@ -799,9 +841,12 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
         SegmentedJsonLineWriter eventSegmentWriter,
         SegmentedJsonLineWriter touchSegmentWriter,
         SegmentedJsonLineWriter screenshotIndexSegmentWriter,
+        ConnectivityArchiveWriter connectivitySegmentWriter,
         string networkRequestsDirectory,
         CancellationToken cancellationToken)
     {
+        if (record.Connectivity is not null) await connectivitySegmentWriter.WriteAsync(record.Connectivity, cancellationToken);
+
         if (record.Kind == OfflineCaptureWriteKind.NetworkRequest)
         {
             Directory.CreateDirectory(networkRequestsDirectory);
@@ -837,8 +882,10 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
         SegmentedJsonLineWriter eventSegmentWriter,
         SegmentedJsonLineWriter touchSegmentWriter,
         SegmentedJsonLineWriter screenshotIndexSegmentWriter,
+        ConnectivityArchiveWriter connectivitySegmentWriter,
         CancellationToken cancellationToken)
     {
+        await connectivitySegmentWriter.FlushAsync(cancellationToken);
         await metricSegmentWriter.FlushAsync(cancellationToken);
         await eventSegmentWriter.FlushAsync(cancellationToken);
         await touchSegmentWriter.FlushAsync(cancellationToken);
@@ -920,6 +967,7 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
 
     private async Task FlushWritersAsync(CancellationToken cancellationToken)
     {
+        if (connectivityWriter is not null) await connectivityWriter.FlushAsync(cancellationToken);
         if (metricWriter is not null)
         {
             await metricWriter.FlushAsync(cancellationToken);
@@ -1186,6 +1234,8 @@ public sealed class OfflineCaptureController : IAsyncDisposable, IAnnotationSink
             sessionDirectory = activeSessionDirectory;
             activeFiles =
             [
+                connectivityWriter?.CurrentPath,
+                connectivityWriter?.IndexPath,
                 metricWriter?.CurrentPath,
                 eventWriter?.CurrentPath,
                 touchWriter?.CurrentPath,

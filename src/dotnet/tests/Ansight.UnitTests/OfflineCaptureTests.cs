@@ -11,6 +11,32 @@ namespace Ansight.UnitTests;
 public sealed class OfflineCaptureTests
 {
     [Fact]
+    public async Task Connectivity_WritesTypedSegmentsAndKeepsPreCaptureBaseline()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        var runtime = CreateRuntime();
+        var record = new Ansight.Connectivity.ConnectivityRecord
+        {
+            Id = "connectivity-baseline", ObservationId = "test", CapturedAtUtc = DateTimeOffset.UtcNow.AddSeconds(-2),
+            Kind = "snapshot", Source = "test", Snapshot = new() { Availability = "available", Transports = ["wifi"] }
+        };
+        runtime.Event("connectivity.snapshot", AppEventType.Info, Constants.ReservedChannels.ChannelNotSpecified_Id, Ansight.Connectivity.ConnectivityJson.Serialize(record));
+        await using var controller = CreateController(runtime, tempDirectory.Path);
+        var session = await controller.StartAsync();
+        runtime.Event("connectivity.change", AppEventType.Info, Constants.ReservedChannels.ChannelNotSpecified_Id,
+            Ansight.Connectivity.ConnectivityJson.Serialize(record with { Id = "offline", Sequence = 1, Kind = "change", CapturedAtUtc = DateTimeOffset.UtcNow,
+                PreviousSnapshot = record.Snapshot, Snapshot = new() { Availability = "unavailable" } }));
+        await controller.StopAsync();
+        var lines = Directory.GetFiles(Path.Combine(session.DirectoryPath, "connectivity", "segments"), "*.jsonl").Order().SelectMany(File.ReadAllLines);
+        var records = lines.Select(Ansight.Connectivity.ConnectivityJson.Parse).DistinctBy(value => value!.Id).ToArray();
+        Assert.Equal(2, records.Length);
+        Assert.Equal("connectivity-baseline", records[0]!.Id);
+        Assert.Equal(record.CapturedAtUtc, records[0]!.CapturedAtUtc);
+        Assert.Equal("unavailable", records[1]!.Snapshot.Availability);
+        Assert.True(File.Exists(Path.Combine(session.DirectoryPath, "connectivity", "index.json")));
+    }
+
+    [Fact]
     public async Task NetworkRequest_WritesOneRedactedDocumentPerRequest()
     {
         using var tempDirectory = new TemporaryDirectory();
