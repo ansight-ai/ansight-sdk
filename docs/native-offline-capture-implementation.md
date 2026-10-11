@@ -1,6 +1,6 @@
 # Native offline capture
 
-Availability: implemented on `main` after SDK 1.8.0. Use matching SDK and host source builds until a release containing both native recording and the host receiver is published. The 1.8.0 packages include the managed .NET recorder, not this native pipeline.
+Availability: SDK 1.8.1 and later. Use a host with the native offline-transfer receiver; older hosts retain captures on the device for a later retry. The 1.8.0 packages include the managed .NET recorder, not this native pipeline.
 
 Swift and Kotlin own disconnected recording, retention, recovery, ZIP export and
 host delivery. No .NET process, timer, recorder or uploader is needed by this mobile
@@ -152,4 +152,4 @@ Physical-device launch, rapid connection flapping, disk-full behavior, and all
 framework application builds still require release smoke coverage. Native
 capture currently does not provide an offline annotated-feedback bundle sink or
 attach crash-report files into these ZIPs; crash reports retain their native outbox
-handoff. No physical-device run or package publication is claimed.
+handoff. The validation described here does not include a physical-device run.

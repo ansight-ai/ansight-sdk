@@ -4,11 +4,29 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
 using Ansight.Native;
+using Ansight.Connectivity;
 
 namespace Ansight.UnitTests;
 
 public sealed class NativeRuntimeOptionsJsonTests
 {
+    [Fact]
+    public void ConnectivityAndNetworkMeasurementsRemainEnabledWithoutBodyCapture()
+    {
+        var configured = Options.CreateBuilder()
+            .WithConnectivityCapture()
+            .WithNetworkCapture(network => network.WithoutRequestBodies().WithoutResponseBodies())
+            .Build();
+        var copied = Options.CreateBuilder(configured).Build();
+        var json = JsonNode.Parse(NativeRuntimeOptionsJson.Serialize(copied))!;
+
+        Assert.Equal(5_000, json["connectivityCapture"]!["minimumSampleIntervalMilliseconds"]!.GetValue<int>());
+        Assert.True(json["networkCapture"]!["enabled"]!.GetValue<bool>());
+        Assert.True(json["networkCapture"]!["includeBodySizes"]!.GetValue<bool>());
+        Assert.False(json["networkCapture"]!["captureRequestBody"]!.GetValue<bool>());
+        Assert.False(json["networkCapture"]!["captureResponseBody"]!.GetValue<bool>());
+    }
+
     [Fact]
     public void OfflineCaptureSettingsSurviveCloneAndReachBothNativeBridges()
     {

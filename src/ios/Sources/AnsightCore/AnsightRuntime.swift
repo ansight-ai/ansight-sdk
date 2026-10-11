@@ -217,7 +217,14 @@ public final class AnsightRuntime: @unchecked Sendable {
             }
         }
         publishHostConnectionStatusIfChanged(force: true)
-        if nativeOfflineCapture != nil { try registerTool(OfflineCaptureTransferTool(runtime: self), replaceExisting: true) }
+        if nativeOfflineCapture != nil {
+            try registerExecutableTool(OfflineCaptureTransferToolSupport.descriptor, replaceExisting: true) { [weak self] _ in
+                guard let self else {
+                    return .failure("AnsightRuntime is no longer available.", errorCode: "offline_capture_unavailable")
+                }
+                return OfflineCaptureTransferToolSupport.execute(runtime: self)
+            }
+        }
         Annotate.attachToRuntime()
         AnsightLogger.info("Ansight runtime initialized.")
     }

@@ -752,7 +752,8 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
         )
         var options = useDefaults ? AnsightOptions.ansightDeveloperDefaults : AnsightOptions()
         if let offline = dictionary["offlineCapture"] as? NSDictionary {
-            options.offlineCapture = try JSONDecoder().decode(OfflineCaptureOptions.self, from: JSONSerialization.data(withJSONObject: offline))
+            options.offlineCapture = try JSONDecoder().decode(OfflineCaptureOptions.self,
+                from: JSONSerialization.data(withJSONObject: offline))
         }
         if let raw = dictionary["annotatedFeedback"] {
             if let enabled = raw as? NSNumber, !enabled.boolValue {

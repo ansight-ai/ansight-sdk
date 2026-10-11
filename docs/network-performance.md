@@ -6,6 +6,25 @@ to HTTP(S) requests observed by the native interceptor, including framework apps
 that use the Apple URL Loading System. It requires a rebuilt SDK/native bridge
 and a new capture; older records and other collectors may omit the object.
 
+## Integration
+
+The measurements are included from SDK 1.8.1 when native Apple network capture
+is enabled. For .NET MAUI, update `Ansight.Maui` and its transitive
+`Ansight.Native.Apple.Binding` package together, then rebuild and reinstall the
+app. Keep `.WithNetworkCapture(...)` enabled; there is no separate performance
+switch. `.WithConnectivityCapture()` records the complementary OS connectivity
+observations. Request and response body content can remain disabled while byte
+counts and timings are retained.
+
+The native collector sends the same request envelope to live host sessions and
+offline capture storage. Framework collectors using Dart, JavaScript, or .NET
+`SocketsHttpHandler` do not acquire Apple transaction measurements merely by
+upgrading the package. Use an Apple URL Loading System-backed request for an
+integration check and verify `source: "apple.nsurlprotocol"` plus `performance`
+in the new session's network records.
+
+## Measurements
+
 | Field | Measurement |
 | --- | --- |
 | `timeToFirstByteMilliseconds` | Request start to first response byte; includes upload and server processing, excludes DNS/connection setup. |

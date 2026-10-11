@@ -114,6 +114,8 @@ final class OfflineCaptureStoreTests: XCTestCase {
             rootDirectory: directory.path, maximumSessions: 2)
         try runtime.initializeAndActivate(options: options)
         defer { runtime.deactivate() }
+        XCTAssertTrue(runtime.isToolRegistered("offline_capture.transfer"))
+        XCTAssertEqual(OfflineCaptureTransferToolSupport.descriptor.policy, .write)
         try runtime.metric(1, channel: 200)
         let before = try await runtime.offlineCaptureSessions()
         XCTAssertTrue(before.isEmpty)
@@ -121,11 +123,37 @@ final class OfflineCaptureStoreTests: XCTestCase {
         try runtime.metric(1234, channel: 200)
         let logResult = await runtime.sendClientLog("offline-runtime-log")
         XCTAssertTrue(logResult.success)
+        var performance = AnsightNetworkPerformance()
+        performance.timeToFirstByteMilliseconds = 125
+        performance.downloadDurationMilliseconds = 250
+        performance.downloadedBytes = 8_192
+        let request = AnsightNetworkRequest(
+            id: "offline-performance", source: "apple.nsurlprotocol",
+            startedAtUtc: "2026-10-11T01:00:00Z", completedAtUtc: "2026-10-11T01:00:01Z",
+            durationMilliseconds: 1_000, performance: performance,
+            method: "GET", url: "https://example.test/download", statusCode: 200
+        )
+        let requestJson = try XCTUnwrap(String(data: JSONEncoder().encode(request), encoding: .utf8))
+        let networkResult = await runtime.recordNetworkRequest(json: requestJson)
+        XCTAssertTrue(networkResult.success)
         let sessions = try await runtime.offlineCaptureSessions()
         let session = try XCTUnwrap(sessions.last)
         let records = try String(contentsOf: directory.appendingPathComponent("sessions/\(session.sessionId)/records.jsonl"), encoding: .utf8)
         XCTAssertTrue(records.contains("1234"))
         XCTAssertTrue(records.contains("offline-runtime-log"))
+        let envelopes = try records.split(separator: "\n").map {
+            try JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any]
+        }
+        let networkEnvelope = try XCTUnwrap(envelopes.compactMap { $0 }.first {
+            $0["type"] as? String == "CLIENT_NETWORK_REQUEST"
+        })
+        let retainedRequest = try XCTUnwrap(networkEnvelope["request"] as? [String: Any])
+        let retainedPerformance = try XCTUnwrap(retainedRequest["performance"] as? [String: Any])
+        XCTAssertEqual(retainedPerformance["timeToFirstByteMilliseconds"] as? Double, 125)
+        XCTAssertEqual(retainedPerformance["downloadDurationMilliseconds"] as? Double, 250)
+        XCTAssertEqual(retainedPerformance["downloadedBytes"] as? Int, 8_192)
+        XCTAssertNil(retainedRequest["requestBody"])
+        XCTAssertNil(retainedRequest["responseBody"])
         XCTAssertFalse(runtime.hostConnectionStatus().isConnected)
         _ = await runtime.sendControlRequest(action: "offline_capture.set_enabled", payload: .object(["enabled": .bool(false)]))
         try runtime.metric(9876, channel: 200)

@@ -1,3 +1,12 @@
+## 1.8.1
+
+- Retain passive HTTP timings and transferred byte counts for requests captured
+  by the Apple native URL loading interceptor. Dart HTTP collectors continue to
+  omit measurements that their transport does not provide.
+- Record, recover, and transfer offline captures through the native Apple and
+  Android runtimes, preserving network and connectivity evidence.
+- Fix Android tool discovery during native host reconnection.
+
 ## 1.8.0
 
 - Add opt-in connectivity capture with native Apple and Android collectors,
