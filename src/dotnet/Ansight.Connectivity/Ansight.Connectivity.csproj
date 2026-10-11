@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net9.0;net9.0-android;net9.0-ios;net9.0-maccatalyst</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsPackable>true</IsPackable>
+    <PackageId>Ansight.Connectivity</PackageId>
+    <Description>Opt-in passive connection state, changes and link quality capture for Ansight.</Description>
+    <PackageTags>ansight;connectivity;network;offline;diagnostics</PackageTags>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup><ProjectReference Include="../Ansight.Core/Ansight.Core.csproj" /></ItemGroup>
+</Project>

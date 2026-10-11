@@ -869,6 +869,15 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
                 )
             }
         }
+        if let raw = dictionary["connectivityCapture"] {
+            if let enabled = raw as? Bool, !enabled {
+                options.connectivityCapture = nil
+            } else if let connectivity = raw as? NSDictionary {
+                options.connectivityCapture = AnsightConnectivityCaptureOptions(
+                    minimumSampleIntervalMilliseconds: intValue(connectivity, "minimumSampleIntervalMilliseconds", defaultValue: 5_000)
+                )
+            }
+        }
         if let raw = dictionary["motionCapture"] {
             if let enabled = raw as? Bool, !enabled {
                 options.motionCapture = nil

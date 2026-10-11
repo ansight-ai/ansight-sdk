@@ -54,6 +54,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ansight.Protocol.Tests", "t
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ansight.Motion", "Ansight.Motion\Ansight.Motion.csproj", "{E22E9BB3-68AB-4FEE-98C0-C63622C11C96}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ansight.Connectivity", "Ansight.Connectivity\Ansight.Connectivity.csproj", "{DAB00915-045F-453D-B621-71AFAF9F88CE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -352,6 +354,18 @@ Global
 		{E22E9BB3-68AB-4FEE-98C0-C63622C11C96}.Release|x64.Build.0 = Release|Any CPU
 		{E22E9BB3-68AB-4FEE-98C0-C63622C11C96}.Release|x86.ActiveCfg = Release|Any CPU
 		{E22E9BB3-68AB-4FEE-98C0-C63622C11C96}.Release|x86.Build.0 = Release|Any CPU
+		{DAB00915-045F-453D-B621-71AFAF9F88CE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DAB00915-045F-453D-B621-71AFAF9F88CE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DAB00915-045F-453D-B621-71AFAF9F88CE}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{DAB00915-045F-453D-B621-71AFAF9F88CE}.Debug|x64.Build.0 = Debug|Any CPU
+		{DAB00915-045F-453D-B621-71AFAF9F88CE}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{DAB00915-045F-453D-B621-71AFAF9F88CE}.Debug|x86.Build.0 = Debug|Any CPU
+		{DAB00915-045F-453D-B621-71AFAF9F88CE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DAB00915-045F-453D-B621-71AFAF9F88CE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DAB00915-045F-453D-B621-71AFAF9F88CE}.Release|x64.ActiveCfg = Release|Any CPU
+		{DAB00915-045F-453D-B621-71AFAF9F88CE}.Release|x64.Build.0 = Release|Any CPU
+		{DAB00915-045F-453D-B621-71AFAF9F88CE}.Release|x86.ActiveCfg = Release|Any CPU
+		{DAB00915-045F-453D-B621-71AFAF9F88CE}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

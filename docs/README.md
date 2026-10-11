@@ -20,3 +20,5 @@ Platform guides:
 - [Annotated Feedback](../src/dotnet/Ansight.Annotations/README.md)
 - [Offline Capture](../src/dotnet/Ansight.OfflineCapture/README.md)
 - [MAUI Tools](../src/dotnet/Ansight.Tools.Maui/README.md)
+
+- [Connectivity capture](connectivity.md): setup, platform support, capture format, shared playback, and CLI inspection.

@@ -394,6 +394,16 @@ class AnsightOptionsBuilder {
     return this;
   }
 
+  withConnectivityCapture(options = {}) {
+    this._options.connectivityCapture = { ...options };
+    return this;
+  }
+
+  withoutConnectivityCapture() {
+    this._options.connectivityCapture = false;
+    return this;
+  }
+
   withMotionCapture(motionCapture = {}) {
     this._options.motionCapture = { ...motionCapture };
     return this;

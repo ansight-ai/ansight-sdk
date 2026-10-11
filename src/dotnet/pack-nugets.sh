@@ -13,6 +13,7 @@ projects=(
   "Ansight.Core/Ansight.Core.csproj"
   "Ansight.Annotations/Ansight.Annotations.csproj"
   "Ansight.Motion/Ansight.Motion.csproj"
+  "Ansight.Connectivity/Ansight.Connectivity.csproj"
   "Ansight.OfflineCapture/Ansight.OfflineCapture.csproj"
   "Ansight.Pairing/Ansight.Pairing.csproj"
   "Ansight.Profiling.DotNet/Ansight.Profiling.DotNet.csproj"

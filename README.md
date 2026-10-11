@@ -120,6 +120,7 @@ affecting the app.
 - [SDK test apps by feature suite](test-apps/README.md)
 - [Publishing SDK releases](docs/releasing.md)
 - [Protocol](docs/protocol.md)
+- [Connectivity capture](docs/connectivity.md)
 - [Motion capture](docs/motion.md)
 
 ## License

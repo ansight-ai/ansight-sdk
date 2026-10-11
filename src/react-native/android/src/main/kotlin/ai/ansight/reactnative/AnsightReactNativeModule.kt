@@ -23,6 +23,7 @@ import ai.ansight.runtime.AnsightSessionJpegCaptureOptions
 import ai.ansight.runtime.AnsightSessionJpegCaptureMode
 import ai.ansight.runtime.AnsightToolGuard
 import ai.ansight.runtime.AnsightTouchCaptureOptions
+import ai.ansight.runtime.AnsightConnectivityCaptureOptions
 import ai.ansight.runtime.AnsightMotionCaptureOptions
 import ai.ansight.runtime.AppLifecycleState
 import ai.ansight.runtime.DefaultMemoryChannels
@@ -941,6 +942,12 @@ class AnsightReactNativeModule(
                 },
             )
         }
+        if (map.hasKey("connectivityCapture")) {
+            options = options.copy(connectivityCapture = if (map.isFalse("connectivityCapture")) null else {
+                val connectivity = map.getMapOrNull("connectivityCapture")
+                AnsightConnectivityCaptureOptions(connectivity.intValue("minimumSampleIntervalMilliseconds", 5_000))
+            })
+        }
         if (map.hasKey("motionCapture")) {
             options = options.copy(
                 motionCapture = if (map.isFalse("motionCapture")) null else {
@@ -1340,6 +1347,9 @@ class AnsightReactNativeModule(
                     "moveCaptureFramesPerSecond" to touch.moveCaptureFramesPerSecond,
                 ).toWritableMap())
             } ?: putNull("touchCapture")
+            options.connectivityCapture?.let { connectivity ->
+                putMap("connectivityCapture", mapOf("minimumSampleIntervalMilliseconds" to connectivity.minimumSampleIntervalMilliseconds))
+            } ?: putNull("connectivityCapture")
             options.motionCapture?.let { motion ->
                 putMap("motionCapture", mapOf(
                     "captureShake" to motion.captureShake,

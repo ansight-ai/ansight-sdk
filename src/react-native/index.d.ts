@@ -38,6 +38,10 @@ export interface AnsightTouchCaptureOptions {
   moveCaptureFramesPerSecond?: number;
 }
 
+export interface AnsightConnectivityCaptureOptions {
+  minimumSampleIntervalMilliseconds?: number;
+}
+
 export interface AnsightMotionCaptureOptions {
   captureShake?: boolean;
   captureAccelerometer?: boolean;
@@ -208,6 +212,7 @@ export interface AnsightOptions {
   reactNativeMemory?: false | AnsightReactNativeMemoryOptions;
   sessionJpegCapture?: false | AnsightSessionJpegCaptureOptions;
   touchCapture?: false | AnsightTouchCaptureOptions;
+  connectivityCapture?: false | AnsightConnectivityCaptureOptions;
   motionCapture?: false | AnsightMotionCaptureOptions;
   annotatedFeedback?: false | AnsightAnnotationOptions;
   crashCapture?: false | AnsightCrashCaptureOptions;
@@ -387,6 +392,8 @@ export class AnsightOptionsBuilder {
   withoutSessionJpegCapture(): this;
   withTouchCapture(touchCapture?: AnsightTouchCaptureOptions): this;
   withoutTouchCapture(): this;
+  withConnectivityCapture(options?: AnsightConnectivityCaptureOptions): this;
+  withoutConnectivityCapture(): this;
   withMotionCapture(motionCapture?: AnsightMotionCaptureOptions): this;
   withoutMotionCapture(): this;
   withCrashCapture(crashCapture?: AnsightCrashCaptureOptions): this;

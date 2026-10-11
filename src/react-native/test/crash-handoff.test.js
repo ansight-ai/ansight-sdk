@@ -80,3 +80,13 @@ test("clipboard tools option survives builder snapshots and native initializatio
   await runtime.initialize({ ...disabled, lifecycle: false, networkCapture: false });
   assert.equal(calls[0].remoteTools.clipboard, false);
 });
+
+test("connectivity is opt-in and builder settings reach native", async () => {
+  const calls = [];
+  const runtime = loadRuntime(calls);
+  const options = runtime.createOptionsBuilder().withConnectivityCapture({ minimumSampleIntervalMilliseconds: 1200 }).build();
+  await runtime.initialize({ ...options, lifecycle: false, networkCapture: false });
+  assert.equal(calls[0].connectivityCapture.minimumSampleIntervalMilliseconds, 1200);
+  assert.equal(runtime.createOptionsBuilder().withoutConnectivityCapture().build().connectivityCapture, false);
+  assert.equal(runtime.createOptionsBuilder().build().connectivityCapture, undefined);
+});

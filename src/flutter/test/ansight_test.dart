@@ -123,6 +123,15 @@ class StreamingClient extends http.BaseClient {
 }
 
 void main() {
+  test('connectivity is opt-in and encodes sample interval', () {
+    expect(const AnsightOptions().toJson()['connectivityCapture'], isNull);
+    final options = AnsightOptionsBuilder().withConnectivityCapture(
+      const AnsightConnectivityCaptureOptions(minimumSampleIntervalMilliseconds: 1200),
+    ).build();
+    expect(options.toJson()['connectivityCapture'], {'minimumSampleIntervalMilliseconds': 1200});
+    expect(AnsightOptionsBuilder().withoutConnectivityCapture().build().toJson()['connectivityCapture'], false);
+  });
+
   test('clipboard tool registration choice is preserved', () {
     expect(const AnsightRemoteToolsOptions(clipboard: false).toJson()['clipboard'], false);
     expect(const AnsightRemoteToolsOptions(clipboard: true).toJson()['clipboard'], true);

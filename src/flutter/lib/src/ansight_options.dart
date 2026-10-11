@@ -81,6 +81,14 @@ class AnsightTouchCaptureOptions {
       };
 }
 
+class AnsightConnectivityCaptureOptions {
+  const AnsightConnectivityCaptureOptions({this.minimumSampleIntervalMilliseconds = 5000});
+  final int minimumSampleIntervalMilliseconds;
+  AnsightJson toJson() => <String, Object?>{
+    'minimumSampleIntervalMilliseconds': minimumSampleIntervalMilliseconds,
+  };
+}
+
 class AnsightMotionCaptureOptions {
   const AnsightMotionCaptureOptions({
     this.captureShake = true,
@@ -371,6 +379,7 @@ class AnsightOptions {
     this.sessionJpegCaptureEnabled,
     this.touchCapture,
     this.touchCaptureEnabled,
+    this.connectivityCapture,
     this.motionCapture,
     this.annotatedFeedback,
     this.crashCapture,
@@ -399,6 +408,7 @@ class AnsightOptions {
         sessionJpegCaptureEnabled = null,
         touchCapture = null,
         touchCaptureEnabled = null,
+        connectivityCapture = null,
         motionCapture = null,
         annotatedFeedback = null,
         crashCapture = null,
@@ -447,6 +457,7 @@ class AnsightOptions {
   final bool? sessionJpegCaptureEnabled;
   final AnsightTouchCaptureOptions? touchCapture;
   final bool? touchCaptureEnabled;
+  final AnsightConnectivityCaptureOptions? connectivityCapture;
   final AnsightMotionCaptureOptions? motionCapture;
   final AnsightAnnotationOptions? annotatedFeedback;
   final AnsightCrashCaptureOptions? crashCapture;
@@ -489,6 +500,7 @@ class AnsightOptions {
         'touchCapture': false
       else if (touchCapture != null)
         'touchCapture': touchCapture!.toJson(),
+      if (connectivityCapture != null) 'connectivityCapture': connectivityCapture!.toJson(),
       if (motionCapture != null) 'motionCapture': motionCapture!.toJson(),
       if (annotatedFeedback != null)
         'annotatedFeedback': annotatedFeedback!.toJson(),
@@ -598,6 +610,18 @@ class AnsightOptionsBuilder {
 
   AnsightOptionsBuilder withoutTouchCapture() {
     _json['touchCapture'] = false;
+    return this;
+  }
+
+  AnsightOptionsBuilder withConnectivityCapture([
+    AnsightConnectivityCaptureOptions options = const AnsightConnectivityCaptureOptions(),
+  ]) {
+    _json['connectivityCapture'] = options.toJson();
+    return this;
+  }
+
+  AnsightOptionsBuilder withoutConnectivityCapture() {
+    _json['connectivityCapture'] = false;
     return this;
   }
 

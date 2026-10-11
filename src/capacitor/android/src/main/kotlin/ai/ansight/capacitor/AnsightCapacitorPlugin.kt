@@ -22,6 +22,7 @@ import ai.ansight.runtime.AnsightSessionJpegCaptureOptions
 import ai.ansight.runtime.AnsightSessionJpegCaptureMode
 import ai.ansight.runtime.AnsightToolGuard
 import ai.ansight.runtime.AnsightTouchCaptureOptions
+import ai.ansight.runtime.AnsightConnectivityCaptureOptions
 import ai.ansight.runtime.AnsightMotionCaptureOptions
 import ai.ansight.runtime.AppLifecycleState
 import ai.ansight.runtime.DefaultMemoryChannels
@@ -810,6 +811,12 @@ class AnsightCapacitorPlugin : Plugin() {
                     )
                 },
             )
+        }
+        if (map.has("connectivityCapture")) {
+            options = options.copy(connectivityCapture = if (map.opt("connectivityCapture") == false) null else {
+                val connectivity = map.objectValue("connectivityCapture")
+                AnsightConnectivityCaptureOptions(connectivity.intValue("minimumSampleIntervalMilliseconds", 5_000))
+            })
         }
         if (map.has("motionCapture")) {
             options = options.copy(

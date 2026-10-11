@@ -125,6 +125,7 @@ for package_id in \
   Ansight.Core \
   Ansight.Annotations \
   Ansight.Motion \
+  Ansight.Connectivity \
   Ansight.OfflineCapture \
   Ansight.Pairing \
   Ansight.Profiling.DotNet \
@@ -146,6 +147,7 @@ for artifact in \
   ansight-pairing-android \
   ansight-annotations-android \
   ansight-motion-android \
+  ansight-connectivity-android \
   ansight-tools-visualtree-android \
   ansight-tools-filedescriptordiagnostics-android \
   ansight-tools-jnireferencediagnostics-android \
@@ -172,6 +174,7 @@ if [[ "${skip_cocoapods}" != "true" ]]; then
       AnsightCore \
       AnsightAnnotations \
       AnsightMotion \
+      AnsightConnectivity \
       AnsightPairingQR \
       AnsightToolsPreferences \
       AnsightToolsClipboard \

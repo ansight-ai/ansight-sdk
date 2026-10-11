@@ -770,6 +770,15 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
                 )
             }
         }
+        if let raw = dictionary?["connectivityCapture"] {
+            if let enabled = raw as? Bool, !enabled {
+                options.connectivityCapture = nil
+            } else if let connectivity = raw as? NSDictionary {
+                options.connectivityCapture = AnsightConnectivityCaptureOptions(
+                    minimumSampleIntervalMilliseconds: intValue(connectivity, "minimumSampleIntervalMilliseconds", defaultValue: 5_000)
+                )
+            }
+        }
         if let raw = dictionary?["motionCapture"] {
             if (raw as? Bool) == false {
                 options.motionCapture = nil

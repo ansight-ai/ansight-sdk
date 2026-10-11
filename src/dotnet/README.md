@@ -28,6 +28,7 @@ Local development features require no Ansight account or subscription.
 - `Ansight.Protocol`: portable app-to-host messages, device profiles, JSON conventions, tool schemas and payload encoding; no SDK runtime, native bindings or build tasks.
 - `Ansight.Core`: app-side runtime, telemetry, host connection, tool execution and build-time safety targets. Depends on `Ansight.Protocol` and forwards the moved public types.
 - `Ansight.Annotations`: standalone Debug-only annotation API, native editor, screenshot, visual-tree, and bundle delivery support.
+- `Ansight.Connectivity`: opt-in passive connection state, changes, and OS quality observations. Enable `WithConnectivityCapture()`; see [connectivity capture](../../docs/connectivity.md).
 - `Ansight.Motion`: opt-in app-fed shake and accelerometer evidence. Call `WithMotionCapture()` on the options builder and forward existing observations through `MotionCapture.RecordShake()` or `MotionCapture.RecordAccelerometer(...)`. See [motion capture](../../docs/motion.md).
 - `Ansight.OfflineCapture`: offline telemetry, event, touch, screenshot, and annotation storage with retention, ZIP/AES export, and team upload.
 - `Ansight`: all-in-one package for non-MAUI .NET apps. It depends on `Ansight.Core`, registers annotations in Debug builds, includes offline capture, native pairing where supported, and all non-MAUI remote tool packages.

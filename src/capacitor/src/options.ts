@@ -10,6 +10,7 @@ import type {
   AnsightRemoteToolsOptions,
   AnsightSessionJpegCaptureOptions,
   AnsightTouchCaptureOptions,
+  AnsightConnectivityCaptureOptions,
   AnsightMotionCaptureOptions,
 } from "./definitions";
 
@@ -217,6 +218,16 @@ export class AnsightOptionsBuilder implements AnsightOptionsBuilderApi {
 
   withoutTouchCapture(): this {
     this.options.touchCapture = false;
+    return this;
+  }
+
+  withConnectivityCapture(options: AnsightConnectivityCaptureOptions = {}): this {
+    this.options.connectivityCapture = { ...options };
+    return this;
+  }
+
+  withoutConnectivityCapture(): this {
+    this.options.connectivityCapture = false;
     return this;
   }
 
