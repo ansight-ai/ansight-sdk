@@ -22,6 +22,8 @@ public partial class MainPage : ContentPage
     {
         InitializeComponent();
         UpdateRuntimeStatus();
+        NetworkEndpointEntry.Text = DeviceInfo.Platform == DevicePlatform.Android
+            ? "http://10.0.2.2:8765/bytes?count=262144" : "http://127.0.0.1:8765/bytes?count=262144";
         AnnotationStatusLabel.Text = Feedback.IsEnabled
             ? "Enabled for this Debug build."
             : "Disabled. This is expected outside Debug builds.";

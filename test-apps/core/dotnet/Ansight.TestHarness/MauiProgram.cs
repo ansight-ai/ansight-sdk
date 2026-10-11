@@ -1,4 +1,5 @@
-﻿using Ansight.Annotations;
+﻿using Ansight.Connectivity;
+using Ansight.Annotations;
 using Ansight.Maui;
 using Ansight.Tools.Preferences;
 using Ansight.Tools.SecureStorage;
@@ -20,6 +21,7 @@ public static class MauiProgram
             .UseSkiaSharp()
             .UseAnsight<App>(ansight =>
             {
+                ansight.WithConnectivityCapture();
                 ansight.WithAdditionalLogger(new CustomAnsightLogCallback());
                 ansight.WithAdditionalChannels(CustomAnsightConfiguration.AdditionalChannels);
                 ansight.WithHostAutoProbe(new HostAutoProbeOptions

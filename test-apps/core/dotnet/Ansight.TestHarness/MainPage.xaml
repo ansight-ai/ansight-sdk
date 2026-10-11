@@ -67,6 +67,20 @@
                     FontSize="14"
                     TextColor="#444444" />
 
+                <Border Stroke="#dcdcdc" BackgroundColor="White" Padding="14,12">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="Network conditioning" FontAttributes="Bold" TextColor="#111111"/>
+                        <Entry x:Name="NetworkEndpointEntry" AutomationId="network.endpoint"
+                               Placeholder="Test endpoint URL" Keyboard="Url"/>
+                        <Button Text="Run network probe" AutomationId="network.probe"
+                                Clicked="OnNetworkProbeClicked"/>
+                        <Button Text="Cancel network probe" AutomationId="network.cancel"
+                                Clicked="OnCancelNetworkProbeClicked"/>
+                        <Label x:Name="NetworkProbeStatus" AutomationId="network.status" Text="Ready" TextColor="#111111"/>
+                        <Label x:Name="NetworkProbeDetails" AutomationId="network.details" TextColor="#555555"/>
+                    </VerticalStackLayout>
+                </Border>
+
                 <Border Stroke="#dcdcdc"
                         StrokeThickness="1"
                         BackgroundColor="#ffffff"
