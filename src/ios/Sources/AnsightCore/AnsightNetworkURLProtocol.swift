@@ -50,6 +50,7 @@ final class AnsightNetworkURLProtocol: URLProtocol, URLSessionDataDelegate, @unc
     private var startedAt = Date()
     private var startedAtUtc = AnsightClock.isoNow()
     private var networkProtocolName: String?
+    private var performance: AnsightNetworkPerformance?
     private var captureOptions = AnsightNetworkCaptureOptions()
     private var shouldRecord = true
 
@@ -144,6 +145,9 @@ final class AnsightNetworkURLProtocol: URLProtocol, URLSessionDataDelegate, @unc
         didFinishCollecting metrics: URLSessionTaskMetrics
     ) {
         networkProtocolName = metrics.transactionMetrics.last?.networkProtocolName
+        performance = metrics.transactionMetrics.last.flatMap {
+            AnsightNetworkPerformance.capture($0, includeBodySizes: captureOptions.includeBodySizes)
+        }
     }
 
     func urlSession(
@@ -185,6 +189,7 @@ final class AnsightNetworkURLProtocol: URLProtocol, URLSessionDataDelegate, @unc
             startedAtUtc: startedAtUtc,
             completedAtUtc: AnsightClock.isoNow(),
             durationMilliseconds: max(0, completedAt.timeIntervalSince(startedAt) * 1_000),
+            performance: performance,
             method: request.httpMethod ?? "GET",
             url: captureUrl(request.url),
             protocol: networkProtocolName,
@@ -326,5 +331,32 @@ final class AnsightNetworkURLProtocol: URLProtocol, URLSessionDataDelegate, @unc
             length -= 1
         }
         return Data()
+    }
+}
+
+extension AnsightNetworkPerformance {
+    static func capture(
+        _ transaction: URLSessionTaskTransactionMetrics,
+        includeBodySizes: Bool
+    ) -> AnsightNetworkPerformance? {
+        // Cache hits and local URL protocols do not measure a network transfer.
+        guard transaction.resourceFetchType == .networkLoad else { return nil }
+        func elapsed(_ start: Date?, _ end: Date?) -> Double? {
+            guard let start, let end, end >= start else { return nil }
+            return end.timeIntervalSince(start) * 1_000
+        }
+        var result = AnsightNetworkPerformance()
+        result.timeToFirstByteMilliseconds = elapsed(transaction.requestStartDate, transaction.responseStartDate)
+        result.dnsMilliseconds = elapsed(transaction.domainLookupStartDate, transaction.domainLookupEndDate)
+        result.connectMilliseconds = elapsed(transaction.connectStartDate, transaction.connectEndDate)
+        result.tlsMilliseconds = elapsed(transaction.secureConnectionStartDate, transaction.secureConnectionEndDate)
+        result.uploadDurationMilliseconds = elapsed(transaction.requestStartDate, transaction.requestEndDate)
+        result.downloadDurationMilliseconds = elapsed(transaction.responseStartDate, transaction.responseEndDate)
+        result.reusedConnection = transaction.isReusedConnection
+        if includeBodySizes {
+            result.uploadedBytes = transaction.countOfRequestBodyBytesSent
+            result.downloadedBytes = transaction.countOfResponseBodyBytesReceived
+        }
+        return result.normalized()
     }
 }

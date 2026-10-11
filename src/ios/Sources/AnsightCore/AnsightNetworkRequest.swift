@@ -1,5 +1,38 @@
 import Foundation
 
+/// Passive measurements for the final HTTP transaction (after redirects/retries).
+/// Byte counts describe transferred bodies, before response decompression, not retained content.
+/// Missing phases remain nil, including DNS/TLS on reused connections.
+public struct AnsightNetworkPerformance: Codable, Equatable, Sendable {
+    public var timeToFirstByteMilliseconds: Double?
+    public var dnsMilliseconds: Double?
+    public var connectMilliseconds: Double?
+    public var tlsMilliseconds: Double?
+    public var uploadDurationMilliseconds: Double?
+    public var downloadDurationMilliseconds: Double?
+    public var uploadedBytes: Int64?
+    public var downloadedBytes: Int64?
+    public var reusedConnection: Bool?
+
+    public init() {}
+
+    func normalized() -> AnsightNetworkPerformance {
+        func duration(_ value: Double?) -> Double? {
+            value.flatMap { $0.isFinite && $0 >= 0 ? $0 : nil }
+        }
+        var result = self
+        result.timeToFirstByteMilliseconds = duration(timeToFirstByteMilliseconds)
+        result.dnsMilliseconds = duration(dnsMilliseconds)
+        result.connectMilliseconds = duration(connectMilliseconds)
+        result.tlsMilliseconds = duration(tlsMilliseconds)
+        result.uploadDurationMilliseconds = duration(uploadDurationMilliseconds)
+        result.downloadDurationMilliseconds = duration(downloadDurationMilliseconds)
+        result.uploadedBytes = uploadedBytes.flatMap { $0 >= 0 ? $0 : nil }
+        result.downloadedBytes = downloadedBytes.flatMap { $0 >= 0 ? $0 : nil }
+        return result
+    }
+}
+
 /// One captured HTTP header after sensitive-value redaction.
 public struct AnsightNetworkHeader: Codable, Equatable, Sendable {
     public let name: String
@@ -47,6 +80,7 @@ public struct AnsightNetworkRequest: Codable, Equatable, Sendable {
     public let startedAtUtc: String
     public let completedAtUtc: String
     public let durationMilliseconds: Double
+    public let performance: AnsightNetworkPerformance?
     public let method: String
     public let url: String
     public let redactSensitiveData: Bool
@@ -69,6 +103,7 @@ public struct AnsightNetworkRequest: Codable, Equatable, Sendable {
         startedAtUtc: String,
         completedAtUtc: String,
         durationMilliseconds: Double,
+        performance: AnsightNetworkPerformance? = nil,
         method: String,
         url: String,
         redactSensitiveData: Bool = true,
@@ -90,6 +125,7 @@ public struct AnsightNetworkRequest: Codable, Equatable, Sendable {
         self.startedAtUtc = startedAtUtc
         self.completedAtUtc = completedAtUtc
         self.durationMilliseconds = durationMilliseconds
+        self.performance = performance?.normalized()
         self.method = method
         self.url = url
         self.redactSensitiveData = redactSensitiveData
@@ -114,6 +150,7 @@ public struct AnsightNetworkRequest: Codable, Equatable, Sendable {
             startedAtUtc: startedAtUtc,
             completedAtUtc: completedAtUtc,
             durationMilliseconds: durationMilliseconds,
+            performance: performance,
             method: method,
             url: url,
             redactSensitiveData: enabled,
@@ -218,6 +255,7 @@ public enum AnsightNetworkRequestSanitizer {
             durationMilliseconds: request.durationMilliseconds.isFinite
                 ? max(0, request.durationMilliseconds)
                 : 0,
+            performance: request.performance,
             method: normalizeRequired(request.method, fallback: "GET", maximumLength: 32).uppercased(),
             url: sanitizeUrl(request.url),
             redactSensitiveData: true,
