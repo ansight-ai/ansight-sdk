@@ -150,10 +150,12 @@ data class DeviceApplicationProfile(
     val firstInstallTimeMs: Long?,
     val lastUpdateTimeMs: Long?,
     val debuggable: Boolean?,
+    val icon: DeviceApplicationIconProfile? = null,
 ) {
     fun toJson(): JSONObject = JSONObject()
         .putIfNotNull("appId", appId)
         .putIfNotNull("appName", appName)
+        .putIfNotNull("icon", icon?.toJson())
         .putIfNotNull("processId", processId)
         .putIfNotNull("versionName", versionName)
         .putIfNotNull("versionCode", versionCode)
@@ -248,6 +250,7 @@ object DeviceAppProfileCollector {
     private const val androidRuntimeCode = 1
     private const val kotlinRuntimeCode = 250
     private const val javaRuntimeCode = 251
+    private val applicationIcons = DeviceApplicationIconCollector()
 
     fun collect(application: Application, profileSeq: Int, reasonCode: Int = 1): DeviceAppProfile {
         val packageInfo = packageInfo(application)
@@ -318,6 +321,7 @@ object DeviceAppProfileCollector {
                 firstInstallTimeMs = packageInfo?.firstInstallTime,
                 lastUpdateTimeMs = packageInfo?.lastUpdateTime,
                 debuggable = application.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0,
+                icon = applicationIcons.collect(application),
             ),
             runtime = DeviceRuntimeProfile(
                 primary = androidRuntimeCode,
