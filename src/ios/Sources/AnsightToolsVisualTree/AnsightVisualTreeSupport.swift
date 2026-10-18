@@ -201,6 +201,27 @@ internal enum AnsightVisualTreeSupport {
         #endif
     }
 
+    static func submitKeyboard() -> AnsightToolExecutionResult {
+        #if canImport(UIKit)
+        return runOnMainActor {
+            func focused(_ view: UIView) -> UIView? {
+                if view.isFirstResponder { return view }
+                return view.subviews.lazy.compactMap { focused($0) }.first
+            }
+            guard let window = activeWindow(), let field = focused(window) as? UITextField else {
+                return .failure("The focused view does not expose a submit action. Use keyboard.press for a literal Enter.",
+                    errorCode: "keyboard_submit_unavailable")
+            }
+            // A delegate may handle submission and return false to suppress UIKit's default behavior.
+            let allowDefault = field.delegate?.textFieldShouldReturn?(field) ?? true
+            if allowDefault { field.sendActions(for: .editingDidEndOnExit) }
+            return .success(.object(["performed": .bool(true)]))
+        }
+        #else
+        return .failure("Keyboard submit requires UIKit.", errorCode: "keyboard_platform_unsupported")
+        #endif
+    }
+
     static func captureScreenshot(arguments: [String: String]) -> Result<AnsightVisualTreeScreenshot, AnsightVisualTreeToolError> {
         do {
             let rawFormat = (AnsightVisualTreeArgumentReader.string(arguments, key: "format") ?? "png").lowercased()
@@ -764,13 +785,11 @@ internal enum AnsightVisualTreeSupport {
 
         switch view {
         case let textField as UITextField where !textField.isSecureTextEntry:
-            if let value = normalizedVisualText(textField.text) {
-                visual["value"] = .string(value)
-            }
+            let value = textField.text ?? ""
+            visual["value"] = .string(value.count <= 240 ? value : String(value.prefix(240)) + "...")
         case let textView as UITextView:
-            if let value = normalizedVisualText(textView.text) {
-                visual["value"] = .string(value)
-            }
+            let value = textView.text ?? ""
+            visual["value"] = .string(value.count <= 240 ? value : String(value.prefix(240)) + "...")
         case let toggle as UISwitch:
             visual["value"] = .string(toggle.isOn ? "true" : "false")
         case let slider as UISlider:

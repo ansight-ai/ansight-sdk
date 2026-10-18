@@ -289,7 +289,7 @@ function displayedText(element: Element): string | undefined {
   return normalized ? normalized.slice(0, 240) : undefined;
 }
 
-function displayedValue(element: Element): string | undefined {
+export function displayedValue(element: Element): string | undefined {
   let value: string | undefined;
   if (element instanceof HTMLInputElement) {
     if (element.type === "password") return undefined;
@@ -304,8 +304,8 @@ function displayedValue(element: Element): string | undefined {
     value = element.value;
   }
 
-  const normalized = value?.replace(/\s+/g, " ").trim();
-  return normalized ? normalized.slice(0, 240) : undefined;
+  // Empty input is evidence; never substitute the placeholder or normalize newlines.
+  return value === undefined ? undefined : value.slice(0, 240);
 }
 
 function captureNode(
@@ -533,6 +533,39 @@ export function installDomTools(
   ];
 
   if (options.allowActions) {
+    registrations.push(
+      registerTool(
+        {
+          id: "ui.submit_keyboard",
+          name: "Submit Keyboard",
+          category: "UI",
+          policy: "write",
+          description:
+            "Requests submission of the focused input's form, including browser validation.",
+        },
+        () => {
+          const element = document.activeElement;
+          if (
+            !(element instanceof HTMLInputElement) ||
+            !element.form ||
+            element.disabled ||
+            element.readOnly
+          ) {
+            return {
+              success: false,
+              errorCode: "keyboard_submit_unavailable",
+              message:
+                "The focused input has no form submit action. Use keyboard.press for a literal Enter.",
+            };
+          }
+          element.form.requestSubmit();
+          return successful(
+            { performed: true },
+            "Requested form submission. Verify the resulting app state.",
+          );
+        },
+      ),
+    );
     registrations.push(
       registerTool(
         {

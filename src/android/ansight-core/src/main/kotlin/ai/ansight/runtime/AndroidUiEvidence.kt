@@ -157,6 +157,25 @@ object AndroidUiEvidence {
 
     fun currentActivity(): Activity? = currentActivity.get()
 
+    /** Dispatches the editor's advertised IME action, never a synthetic newline. */
+    fun submitKeyboard(): AndroidToolResult = runOnMain {
+        val activity = currentActivity.get()
+        val view = activity?.currentFocus
+        if (activity?.hasWindowFocus() != true || view == null)
+            return@runOnMain AndroidToolResult.failure("No focused editor is available.", "keyboard_no_focused_editor")
+        val info = android.view.inputmethod.EditorInfo()
+        val connection = view.onCreateInputConnection(info)
+        val action = if (info.actionLabel != null) info.actionId
+            else info.imeOptions and android.view.inputmethod.EditorInfo.IME_MASK_ACTION
+        if (connection == null || (info.actionLabel == null && (action == 0 || action == 1)))
+            return@runOnMain AndroidToolResult.failure(
+                "The focused editor has no submit action. Use keyboard.press for a literal Enter.", "keyboard_submit_unavailable")
+        if (!connection.performEditorAction(action))
+            return@runOnMain AndroidToolResult.failure("The focused editor rejected the action.", "keyboard_submit_unavailable")
+        AndroidToolResult.success(JSONObject().put("performed", true))
+    }
+
+
     fun bindCurrentActivity(application: Application? = null): Activity? {
         return runOnMain {
             val activity = currentActivity.get()?.takeIf { it.isUsableFor(application) }
@@ -1023,7 +1042,7 @@ object AndroidUiEvidence {
 
         when (view) {
             is EditText -> if (view.transformationMethod !is PasswordTransformationMethod) {
-                visual.putVisualString("value", view.text?.toString())
+                visual.put("value", (view.text?.toString() ?: "").let { if (it.length <= 240) it else it.take(240) + "..." })
             }
             is CompoundButton -> visual.put("value", view.isChecked.toString())
             is SeekBar -> visual.put("value", view.progress.toString())

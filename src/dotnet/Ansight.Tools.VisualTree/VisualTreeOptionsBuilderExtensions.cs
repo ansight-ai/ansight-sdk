@@ -41,6 +41,7 @@ public static class VisualTreeOptionsBuilderExtensions
             new GetVisualTreeTool(),
             new GetScreenshotTool(),
             new DismissKeyboardTool(),
+            new SubmitKeyboardTool(),
             new InspectNodeTool(),
             new QueryNodesTool(),
             new PerformActionTool(),

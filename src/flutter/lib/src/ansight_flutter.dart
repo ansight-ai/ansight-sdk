@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter/services.dart' show TextInputAction;
 
 import 'ansight_models.dart';
 import 'ansight_options.dart';
@@ -447,6 +448,37 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
   }
 
   Future<void> _registerWidgetTools() async {
+    await _registerOrReplaceTool(
+      const AnsightToolDefinition(
+        id: 'ui.submit_keyboard',
+        name: 'Submit Keyboard',
+        category: 'ui',
+        policy: AnsightToolPolicy.write,
+        description:
+            'Invokes the focused Flutter editor action without inserting a newline.',
+      ),
+      (_, __) async {
+        final state = FocusManager.instance.primaryFocus?.context
+            ?.findAncestorStateOfType<EditableTextState>();
+        final action = state?.widget.textInputAction ?? TextInputAction.done;
+        if (state == null ||
+            !state.widget.focusNode.hasFocus ||
+            action == TextInputAction.newline ||
+            action == TextInputAction.none ||
+            action == TextInputAction.unspecified ||
+            (state.widget.textInputAction == null &&
+                state.widget.maxLines != 1)) {
+          return const AnsightToolResult.failure(
+            message:
+                'The focused editor has no submit action. Use keyboard.press for a literal Enter.',
+            errorCode: 'keyboard_submit_unavailable',
+          );
+        }
+        state.performAction(action);
+        return const AnsightToolResult.success(
+            result: <String, Object?>{'performed': true});
+      },
+    );
     _ansight
       ..registerLocalToolHandler(_visualTreeHandlerId, _getWidgetTree)
       ..registerLocalToolHandler(_inspectNodeHandlerId, _inspectWidget)
@@ -1214,7 +1246,7 @@ class AnsightFlutterInstrumentation with WidgetsBindingObserver {
 
     final normalizedText = _normalizeVisualText(text);
     final normalizedValue =
-        value is String ? _normalizeVisualText(value) : null;
+        value is String ? (value.length <= 240 ? value : '${value.substring(0, 240)}...') : null;
     return <String, Object?>{
       if (foreground != null) 'foreground': _colorToArgbHex(foreground),
       if (background != null) 'background': _colorToArgbHex(background),

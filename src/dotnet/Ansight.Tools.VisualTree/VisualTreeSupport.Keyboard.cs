@@ -4,6 +4,41 @@ namespace Ansight.Tools.VisualTree;
 
 internal static partial class VisualTreeSupport
 {
+    internal static Task<ToolResult> SubmitKeyboardAsync()
+    {
+#if ANDROID
+        return RunOnUiThreadAsync(() =>
+        {
+            var activity = AndroidActivityTracker.GetCurrentActivity();
+            var view = activity?.CurrentFocus;
+            if (activity?.HasWindowFocus != true || view is null)
+                return ToolResult.Failure("No focused editor is available.", errorCode: "keyboard_no_focused_editor");
+            using var info = new Android.Views.InputMethods.EditorInfo();
+            using var connection = view.OnCreateInputConnection(info);
+            var action = info.ActionLabel is not null ? (int)info.ActionId : (int)info.ImeOptions & 0xff;
+            if (connection is null || info.ActionLabel is null && action is 0 or 1)
+                return ToolResult.Failure("The focused editor has no submit action. Use keyboard.press for a literal Enter.", errorCode: "keyboard_submit_unavailable");
+            var performed = connection.PerformEditorAction((Android.Views.InputMethods.ImeAction)action);
+            return performed ? ToolResult.Success(new JsonObject { ["performed"] = true })
+                : ToolResult.Failure("The focused editor rejected the action.", errorCode: "keyboard_submit_unavailable");
+        });
+#elif IOS || MACCATALYST
+        return RunOnUiThreadAsync(() =>
+        {
+            static UIKit.UIView? FindFocused(UIKit.UIView view)
+                => view.IsFirstResponder ? view : view.Subviews.Select(FindFocused).FirstOrDefault(child => child is not null);
+            var window = GetActiveWindow();
+            if (window is null || FindFocused(window) is not UIKit.UITextField field)
+                return ToolResult.Failure("The focused view does not expose a submit action. Use keyboard.press for a literal Enter.", errorCode: "keyboard_submit_unavailable");
+            var allowDefault = field.Delegate?.ShouldReturn(field) ?? true;
+            if (allowDefault) field.SendActionForControlEvents(UIKit.UIControlEvent.EditingDidEndOnExit);
+            return ToolResult.Success(new JsonObject { ["performed"] = true });
+        });
+#else
+        return Task.FromResult(ToolResult.Failure("Keyboard submit is not supported on this platform.", errorCode: "keyboard_platform_unsupported"));
+#endif
+    }
+
     internal static Task<ToolResult> DismissKeyboardAsync()
     {
 #if ANDROID

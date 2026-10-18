@@ -16,6 +16,7 @@ public enum AnsightVisualTreeTools {
 
         return [
             GetVisualTreeTool(),
+            SubmitKeyboardTool(),
             GetScreenshotTool(runtime: runtime),
             InspectNodeTool(),
             QueryNodesTool(),

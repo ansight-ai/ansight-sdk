@@ -747,7 +747,7 @@ internal static partial class MauiToolHelpers
         AddVisualString(visual, "foreground", node.ForegroundColor?.ToArgbHex());
         AddVisualString(visual, "background", node.BackgroundColor?.ToArgbHex());
         AddVisualString(visual, "text", CreateSafeLabel(node.Text));
-        AddVisualString(visual, "value", CreateSafeLabel(node.Value));
+        AddVisualString(visual, "value", node.Value is null ? null : CreateVisualStringValue(node.Value));
 
         return visual;
     }
@@ -1582,7 +1582,7 @@ internal static partial class MauiToolHelpers
     }
 
     private static string? CreateVisualStringValue(string? value)
-        => CreateSafeLabel(value);
+        => value is null ? string.Empty : LooksSensitiveText(value) ? RedactedLabel : Truncate(value);
 
     private static string? CreateDatePickerValue(DatePicker datePicker)
     {
@@ -1612,7 +1612,7 @@ internal static partial class MauiToolHelpers
 
     private static void AddVisualString(JsonObject visual, string propertyName, string? value)
     {
-        if (!string.IsNullOrWhiteSpace(value))
+        if (value is not null && (propertyName == "value" || !string.IsNullOrWhiteSpace(value)))
         {
             visual[propertyName] = value;
         }

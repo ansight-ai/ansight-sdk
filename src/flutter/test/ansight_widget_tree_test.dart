@@ -98,6 +98,47 @@ void main() {
 
   tearDown(() => instrumentation.uninstall());
 
+  testWidgets('keyboard submit invokes the configured editor action once',
+      (tester) async {
+    var submits = 0;
+    final controller = TextEditingController(text: 'query');
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: TextField(
+      controller: controller,
+      textInputAction: TextInputAction.search,
+      onSubmitted: (_) => submits++,
+    ))));
+    await tester.tap(find.byType(TextField));
+    await tester.pump();
+    final result = await transport.call('ui.submit_keyboard');
+    expect(result['success'], isTrue);
+    expect(submits, 1);
+    expect(controller.text, 'query');
+    await tester.pumpWidget(const SizedBox());
+    controller.dispose();
+  });
+
+  testWidgets('keyboard submit refuses a multiline newline action',
+      (tester) async {
+    final controller = TextEditingController(text: 'unchanged');
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: TextField(
+      controller: controller,
+      maxLines: 3,
+      textInputAction: TextInputAction.newline,
+    ))));
+    await tester.tap(find.byType(TextField));
+    await tester.pump();
+    final result = await transport.call('ui.submit_keyboard');
+    expect(result['success'], isFalse);
+    expect(result['errorCode'], 'keyboard_submit_unavailable');
+    expect(controller.text, 'unchanged');
+    await tester.pumpWidget(const SizedBox());
+    controller.dispose();
+  });
+
   Future<AnsightJson> capture(String toolId, [AnsightJson? arguments]) async {
     final response = await transport.call(toolId, arguments);
     expect(response['success'], isTrue,
@@ -208,6 +249,24 @@ void main() {
         nodes.any(
             (node) => (node['visual'] as Map)['background'] == '#FF123456'),
         isTrue);
+  });
+
+  testWidgets('input values preserve empty text and Enter without copying hints', (tester) async {
+    final controller = TextEditingController();
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: TextField(
+      controller: controller, maxLines: 3,
+      decoration: const InputDecoration(hintText: 'Search products…'),
+    ))));
+    for (final value in ['', '  query\n', 'Search products…']) {
+      controller.text = value;
+      await tester.pump();
+      final nodes = treeNodes(await capture('__ansight_flutter.visual_tree'));
+      final values = nodes.map((node) => node['visual'] as Map).where((visual) => visual.containsKey('value'));
+      expect(values.any((visual) => visual['value'] == value), isTrue);
+      if (value.isEmpty) expect(values.any((visual) => visual['value'] == 'Search products…'), isFalse);
+    }
+    await tester.pumpWidget(const SizedBox.shrink());
+    controller.dispose();
   });
 
   testWidgets('covered routes are omitted while dialog backgrounds remain',

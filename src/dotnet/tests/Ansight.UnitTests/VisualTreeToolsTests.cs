@@ -7,6 +7,16 @@ namespace Ansight.UnitTests;
 public sealed class VisualTreeToolsTests
 {
     [Fact]
+    public async Task SubmitKeyboardRequiresWriteAndFailsExplicitlyOnUnsupportedPlatforms()
+    {
+        var tool = new SubmitKeyboardTool();
+        Assert.Equal(ToolPolicy.Write, tool.Policy);
+        var result = await tool.Execute(new Dictionary<string, string>());
+        Assert.False(result.IsSuccess);
+        Assert.Equal("keyboard_platform_unsupported", result.ErrorCode);
+    }
+
+    [Fact]
     public void WithVisualTreeTools_RegistersExpectedTools()
     {
         var options = Options.CreateBuilder()
@@ -18,6 +28,7 @@ public sealed class VisualTreeToolsTests
                 VisualTreeToolIds.GetVisualTree,
                 VisualTreeToolIds.GetScreenshot,
                 VisualTreeToolIds.DismissKeyboard,
+                VisualTreeToolIds.SubmitKeyboard,
                 VisualTreeToolIds.InspectNode,
                 VisualTreeToolIds.QueryNodes,
                 VisualTreeToolIds.PerformAction,

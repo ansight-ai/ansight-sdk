@@ -13,6 +13,9 @@ import ai.ansight.runtime.queueBinaryTransfer
 
 object AndroidVisualTreeTools {
     fun create(): List<AndroidTool> = listOf(
+        androidUiTool("ui.submit_keyboard", "Submit Keyboard",
+            "Invokes the focused editor action without injecting a newline.", ToolPolicy.Write,
+        ) { _, _ -> AndroidUiEvidence.submitKeyboard() },
         androidUiTool(
             VisualTreeToolIds.GetVisualTree,
             "Get Visual Tree",

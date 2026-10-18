@@ -56,3 +56,11 @@ Overlays default to no fill, a red stroke, and a 5 second lifetime. Pass `durati
 ## Build-time remote tool policy
 
 Projects that reference this package are covered by `AnsightRemoteToolsPolicy`. The default `AllowedWithWarnings` policy logs detected tool type and assembly details and emits a build warning when remote tools are included. Because this package contains remote tools, `Disallowed` only succeeds when the package is omitted from that build, for example with Debug-only package references. Use `Allowed` to bypass remote tool scanning and warnings. Set `AnsightLogRemoteTools=false` to suppress the detected-tool list.
+
+
+`ui.submit_keyboard` requires write access and a focused editor. Android dispatches the
+configured IME action; UIKit dispatches the text field's Return callback and its default
+editing action when permitted. Unsupported or newline-only editors fail explicitly.
+Use `ansight.keyboard.submit()` in tasks or `ansight keyboard submit --session <id>`.
+For a literal Enter key, use `ansight.keyboard.press({ key: "Enter" })` or
+`ansight keyboard press --key Enter --session <id>`. Assert the resulting app state.

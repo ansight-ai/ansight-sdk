@@ -362,11 +362,13 @@ internal static partial class VisualTreeSupport
 
     private static void AddVisualString(JsonObject visual, string propertyName, string? value)
     {
-        if (string.IsNullOrWhiteSpace(value))
+        if (propertyName == "value")
         {
+            var inputValue = value ?? string.Empty;
+            visual[propertyName] = inputValue.Length <= 240 ? inputValue : inputValue[..240] + "...";
             return;
         }
-
+        if (string.IsNullOrWhiteSpace(value)) return;
         var normalized = value.Trim();
         visual[propertyName] = normalized.Length <= 240 ? normalized : normalized[..240] + "...";
     }
