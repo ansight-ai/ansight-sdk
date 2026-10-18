@@ -25,3 +25,7 @@ Platform guides:
 - [MAUI Tools](../src/dotnet/Ansight.Tools.Maui/README.md)
 
 - [Connectivity capture](connectivity.md): setup, platform support, capture format, shared playback, and CLI inspection.
+
+Design and implementation notes:
+
+- [Screenshot safe areas and system-UI regions](drafts/screenshot-capture-geometry.md)
