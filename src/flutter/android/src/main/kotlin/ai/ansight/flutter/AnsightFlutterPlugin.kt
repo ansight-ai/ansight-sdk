@@ -294,9 +294,11 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
             AnsightRuntime.registerMetricChannel(channel(map))
             snapshot()
         }
+        "publishArtifact" -> operationResult(AnsightRuntime.publishArtifact(
+            map.optString("metadataJson"), map.optString("base64Data")))
         "recordMetric" -> {
             AnsightRuntime.metric(
-                map.doubleValue("value", 0.0).toLong(),
+                map.doubleValue("value", 0.0),
                 map.intValue("channel", AnsightChannels.Unspecified),
             )
             snapshot()

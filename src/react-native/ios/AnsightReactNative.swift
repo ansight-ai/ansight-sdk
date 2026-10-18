@@ -848,6 +848,15 @@ final class AnsightReactNative: RCTEventEmitter {
         resolve(["requestId": id, "accepted": true])
     }
 
+    @objc(publishArtifact:base64Data:resolver:rejecter:)
+    func publishArtifact(_ metadataJson: String, base64Data: String,
+        resolver resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) {
+        Task {
+            let result = await AnsightRuntime.shared.publishArtifact(metadataJson: metadataJson, base64Data: base64Data)
+            resolve(["success": result.success, "message": result.message])
+        }
+    }
+
     @objc(queueBinaryTransfer:base64Data:chunkBytes:resolver:rejecter:)
     func queueBinaryTransfer(
         _ requestId: NSString,

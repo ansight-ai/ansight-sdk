@@ -576,6 +576,29 @@ class Ansight {
     );
   }
 
+  /// Publishes an app-selected artifact and waits for the host to retain it.
+  /// Does not require provider registration or an active tool call.
+  Future<AnsightOperationResult> publishArtifact({
+    required String providerId,
+    required String artifactId,
+    required AnsightArtifactPayload payload,
+  }) async =>
+      AnsightOperationResult.fromJson(
+          await _invoke('publishArtifact', <String, Object?>{
+        'metadataJson': jsonEncode(<String, Object?>{
+          'providerId': providerId,
+          'artifactId': artifactId,
+          'name': payload.name ?? artifactId,
+          'kind': payload.kind,
+          'mimeType': payload.mimeType,
+          'fileName': payload.fileName,
+          'sizeBytes': payload.bytes.length,
+          'metadata': payload.metadata,
+          'createdAtUtc': DateTime.now().toUtc().toIso8601String(),
+        }),
+        'base64Data': base64Encode(payload.bytes),
+      }));
+
   Future<void> unregisterArtifactProvider(String providerId) async {
     _artifactProviders.remove(providerId);
   }

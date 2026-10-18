@@ -719,6 +719,8 @@ export function removeCustomProperty(group: string, key: string): Promise<Ansigh
 export function clearCustomProperties(): Promise<AnsightOperationResult>;
 export function registerTool(definition: AnsightToolDefinition, handler: AnsightToolHandler): AnsightToolRegistration;
 export function unregisterTool(id: string): Promise<AnsightOperationResult>;
+/** Publishes an app-selected artifact and resolves after the host retains it. Requires a live session. */
+export function publishArtifact(artifact: AnsightArtifactResult): Promise<AnsightOperationResult>;
 export function registerArtifactProvider(provider: AnsightArtifactProvider): AnsightArtifactProviderRegistration;
 export function registerArtifactProviders(providers: AnsightArtifactProvider[]): AnsightArtifactProviderRegistration[];
 export function unregisterArtifactProvider(providerId: string): Promise<AnsightOperationResult>;
@@ -790,6 +792,7 @@ declare const Ansight: {
   clearCustomProperties: typeof clearCustomProperties;
   registerTool: typeof registerTool;
   unregisterTool: typeof unregisterTool;
+  publishArtifact: typeof publishArtifact;
   registerArtifactProvider: typeof registerArtifactProvider;
   registerArtifactProviders: typeof registerArtifactProviders;
   unregisterArtifactProvider: typeof unregisterArtifactProvider;

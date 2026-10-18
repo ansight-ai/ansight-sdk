@@ -735,6 +735,10 @@ export interface AnsightCapacitorPlugin {
     requestId: string;
     result: AnsightToolResult;
   }): Promise<AnsightOperationResult>;
+  publishArtifact(options: {
+    metadataJson: string;
+    base64Data: string;
+  }): Promise<AnsightOperationResult>;
   queueBinaryTransfer(options: {
     requestId: string;
     base64Data: string;

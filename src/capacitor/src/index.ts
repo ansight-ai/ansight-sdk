@@ -14,6 +14,7 @@ import {
 } from "./session-properties";
 import type {
   AnsightArtifactDefinition,
+  AnsightArtifactResult,
   AnsightAnnotationResult,
   AnsightArtifactPayload,
   AnsightArtifactProvider,
@@ -748,6 +749,33 @@ function installArtifactTools(): AnsightToolRegistration[] {
   return artifactToolRegistrations;
 }
 
+/** Publishes an app-selected artifact and resolves after the host retains it. */
+export async function publishArtifact(
+  artifact: AnsightArtifactResult,
+): Promise<AnsightOperationResult> {
+  const payload = artifact.payload;
+  const bytes =
+    typeof payload === "string"
+      ? new TextEncoder().encode(payload)
+      : typeof payload === "object" &&
+          payload &&
+          "text" in payload &&
+          typeof payload.text === "string"
+        ? new TextEncoder().encode(payload.text)
+        : typeof payload === "object" &&
+            payload &&
+            "base64" in payload &&
+            typeof payload.base64 === "string"
+          ? Uint8Array.from(atob(payload.base64), (char) => char.charCodeAt(0))
+          : payloadBytes(payload);
+  if (!bytes)
+    throw new TypeError("Artifact payload must contain text or bytes.");
+  return AnsightNative.publishArtifact({
+    metadataJson: JSON.stringify(artifact.metadata),
+    base64Data: bytesToBase64(bytes),
+  });
+}
+
 export function registerArtifactProvider(
   provider: AnsightArtifactProvider,
 ): AnsightArtifactProviderRegistration {
@@ -1002,6 +1030,7 @@ const Ansight = {
   unregisterTool,
   listRegisteredTools,
   clearRegisteredTools,
+  publishArtifact,
   registerArtifactProvider,
   registerArtifactProviders,
   unregisterArtifactProvider,

@@ -143,6 +143,11 @@ internal sealed class HostSessionManager : IHostSessionConnection, IHostAutoProb
         return sessionClient.SendClientLogAsync(logLine, progress, cancellationToken);
     }
 
+    internal Task<OperationResult> PublishArtifactAsync(Ansight.Artifacts.ArtifactResult artifact, CancellationToken cancellationToken)
+        => sessionClient is IHostConnectionBinaryExtensionClient client
+            ? client.PublishArtifactAsync(artifact, cancellationToken)
+            : Task.FromResult(OperationResult.FromFailure("The active connection does not support artifact publication."));
+
     internal Task<OperationResult> SendBinaryExtensionAsync(
         string action,
         JsonObject payload,

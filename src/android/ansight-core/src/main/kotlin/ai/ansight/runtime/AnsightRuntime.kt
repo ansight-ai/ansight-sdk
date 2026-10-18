@@ -929,6 +929,24 @@ object AnsightRuntime {
         return transport.sendControlRequest(normalizedAction, payload)
     }
 
+    /** Publishes into the connected session and waits for host persistence. Call off the UI thread. */
+    fun publishArtifact(artifact: AndroidArtifactResult): OperationResult {
+        val transport = synchronized(lock) { liveTransport }
+            ?: return OperationResult.failure("A live Ansight host session is not connected.")
+        return AndroidArtifactPublication.send(artifact.metadata.toJson(), artifact.bytes,
+            { action, payload -> transport.sendControlRequest(action, payload) }, transport::sendData)
+    }
+
+    /** Bridge entry point for JavaScript and Dart clients. */
+    fun publishArtifact(metadataJson: String, base64Data: String): OperationResult {
+        val transport = synchronized(lock) { liveTransport }
+            ?: return OperationResult.failure("A live Ansight host session is not connected.")
+        return try {
+            AndroidArtifactPublication.send(JSONObject(metadataJson), android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT),
+                { action, payload -> transport.sendControlRequest(action, payload) }, transport::sendData)
+        } catch (error: Exception) { OperationResult.failure("Invalid artifact: ${error.message}") }
+    }
+
     fun sendBinaryData(bytes: ByteArray): OperationResult {
         val transport = synchronized(lock) { liveTransport }
             ?: return OperationResult.failure("WebSocket session is not open.")

@@ -1694,6 +1694,27 @@ public final class AnsightRuntime: @unchecked Sendable {
         )
     }
 
+    /// Publishes an app-selected artifact and waits for the host to retain it in this session.
+    public func publishArtifact(_ artifact: AnsightArtifactResult) async -> OperationResult {
+        guard liveTransport.isOpen else { return .failure("A live Ansight host session is not connected.") }
+        do {
+            return await AnsightArtifactPublication.send(metadata: artifact.metadata.jsonValue,
+                data: try artifact.payload.readData(),
+                control: { [self] action, payload in await liveTransport.sendControlRequest(action: action, payload: payload) },
+                binary: { [self] data in await liveTransport.sendData(data) })
+        } catch { return .failure("Could not read artifact: \(error.localizedDescription)") }
+    }
+
+    /// Bridge entry point for JavaScript and Dart clients.
+    public func publishArtifact(metadataJson: String, base64Data: String) async -> OperationResult {
+        guard liveTransport.isOpen else { return .failure("A live Ansight host session is not connected.") }
+        guard let data = Data(base64Encoded: base64Data), let json = metadataJson.data(using: .utf8),
+              let metadata = try? JSONDecoder().decode(JSONValue.self, from: json) else { return .failure("Invalid artifact payload.") }
+        return await AnsightArtifactPublication.send(metadata: metadata, data: data,
+            control: { [self] action, payload in await liveTransport.sendControlRequest(action: action, payload: payload) },
+            binary: { [self] data in await liveTransport.sendData(data) })
+    }
+
     public func sendBinaryData(_ data: Data) async -> OperationResult {
         guard liveTransport.isOpen else {
             return .failure("WebSocket session is not open.")

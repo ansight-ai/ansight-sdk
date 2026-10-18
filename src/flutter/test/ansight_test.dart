@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:ansight_flutter/ansight.dart';
@@ -125,13 +126,39 @@ class StreamingClient extends http.BaseClient {
 }
 
 void main() {
+  test('publishes artifact without registration or a tool request', () async {
+    final transport = FakeNativeTransport();
+    final ansight = Ansight.withTransport(transport);
+    final result = await ansight.publishArtifact(
+        providerId: 'scene',
+        artifactId: 'model',
+        payload: AnsightArtifactPayload.text('glTF',
+            fileName: 'model.glb', mimeType: 'model/gltf-binary'));
+    expect(result.success, isTrue);
+    final call = transport.calls.single;
+    expect(call.method, 'publishArtifact');
+    expect(call.arguments!['base64Data'], 'Z2xURg==');
+    expect(
+        (jsonDecode(call.arguments!['metadataJson']! as String)
+            as Map)['providerId'],
+        'scene');
+  });
   test('connectivity is opt-in and encodes sample interval', () {
     expect(const AnsightOptions().toJson()['connectivityCapture'], isNull);
-    final options = AnsightOptionsBuilder().withConnectivityCapture(
-      const AnsightConnectivityCaptureOptions(minimumSampleIntervalMilliseconds: 1200),
-    ).build();
-    expect(options.toJson()['connectivityCapture'], {'minimumSampleIntervalMilliseconds': 1200});
-    expect(AnsightOptionsBuilder().withoutConnectivityCapture().build().toJson()['connectivityCapture'], false);
+    final options = AnsightOptionsBuilder()
+        .withConnectivityCapture(
+          const AnsightConnectivityCaptureOptions(
+              minimumSampleIntervalMilliseconds: 1200),
+        )
+        .build();
+    expect(options.toJson()['connectivityCapture'],
+        {'minimumSampleIntervalMilliseconds': 1200});
+    expect(
+        AnsightOptionsBuilder()
+            .withoutConnectivityCapture()
+            .build()
+            .toJson()['connectivityCapture'],
+        false);
   });
 
   test('offline capture session count and transfer mode are configurable', () {

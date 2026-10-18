@@ -183,6 +183,11 @@ RCT_EXTERN_METHOD(resolveToolCall:(NSString *)requestId
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 
+RCT_EXTERN_METHOD(publishArtifact:(NSString *)metadataJson
+                  base64Data:(NSString *)base64Data
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+
 RCT_EXTERN_METHOD(queueBinaryTransfer:(NSString *)requestId
                   base64Data:(NSString *)base64Data
                   chunkBytes:(nonnull NSNumber *)chunkBytes

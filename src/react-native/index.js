@@ -1281,6 +1281,17 @@ function ensureArtifactToolsRegistered() {
   return artifactToolRegistrations;
 }
 
+async function publishArtifact(artifact) {
+  if (typeof nativeModule.publishArtifact !== "function") {
+    return { success: false, message: "Rebuild the native app with an SDK that supports artifact publishing." };
+  }
+  const payload = normalizeArtifactPayload(artifact);
+  const metadata = artifactMetadataPayload(artifact.metadata, {
+    providerId: trimString(artifact.metadata?.providerId), artifactId: trimString(artifact.metadata?.artifactId)
+  }, payload.sizeBytes);
+  return nativeModule.publishArtifact(JSON.stringify(metadata), payload.base64);
+}
+
 function registerArtifactProvider(provider) {
   if (!provider || typeof provider !== "object") {
     throw new TypeError("registerArtifactProvider requires a provider object.");
@@ -2671,6 +2682,7 @@ const Ansight = {
   clearCustomProperties: () => nativeModule.updateSessionProperties(automaticSessionProperties()),
   registerTool,
   unregisterTool,
+  publishArtifact,
   registerArtifactProvider,
   registerArtifactProviders,
   unregisterArtifactProvider,
@@ -2707,6 +2719,7 @@ module.exports.enrollFromQrCode = Ansight.enrollFromQrCode;
 module.exports.scanPairingQrCode = Ansight.scanPairingQrCode;
 module.exports.addHostConnectionStatusListener = addHostConnectionStatusListener;
 module.exports.addLogListener = addLogListener;
+module.exports.publishArtifact = publishArtifact;
 module.exports.registerArtifactProvider = registerArtifactProvider;
 module.exports.registerArtifactProviders = registerArtifactProviders;
 module.exports.unregisterArtifactProvider = unregisterArtifactProvider;

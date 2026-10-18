@@ -56,6 +56,7 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "unregisterCustomTool", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "clearRegisteredCustomTools", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "resolveToolCall", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "publishArtifact", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "queueBinaryTransfer", returnType: CAPPluginReturnPromise),
     ]
 
@@ -606,6 +607,15 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
             )
         pending.semaphore.signal()
         call.resolve(["success": true, "message": "Tool result accepted.", "accepted": true])
+    }
+
+    @objc func publishArtifact(_ call: CAPPluginCall) {
+        let metadata = call.getString("metadataJson") ?? ""
+        let data = call.getString("base64Data") ?? ""
+        Task {
+            let result = await AnsightRuntime.shared.publishArtifact(metadataJson: metadata, base64Data: data)
+            call.resolve(["success": result.success, "message": result.message])
+        }
     }
 
     @objc func queueBinaryTransfer(_ call: CAPPluginCall) {

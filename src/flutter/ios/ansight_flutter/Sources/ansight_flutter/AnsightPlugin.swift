@@ -292,9 +292,13 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
         case "registerMetricChannel":
             try AnsightRuntime.shared.registerMetricChannel(channel(arguments))
             return snapshotDictionary()
+        case "publishArtifact":
+            return operationResultDictionary(await AnsightRuntime.shared.publishArtifact(
+                metadataJson: arguments["metadataJson"] as? String ?? "",
+                base64Data: arguments["base64Data"] as? String ?? ""))
         case "recordMetric":
             try AnsightRuntime.shared.metric(
-                Int64(doubleValue(arguments, "value", defaultValue: 0)),
+                doubleValue(arguments, "value", defaultValue: 0),
                 channel: intValue(arguments, "channel", defaultValue: AnsightChannels.unspecified)
             )
             return snapshotDictionary()

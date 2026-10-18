@@ -632,6 +632,13 @@ class AnsightReactNativeModule(
     }
 
     @ReactMethod
+    fun publishArtifact(metadataJson: String, base64Data: String, promise: Promise) {
+        backgroundExecutor.execute {
+            runCatching { operationResultMap(AnsightRuntime.publishArtifact(metadataJson, base64Data)) }.resolve(promise)
+        }
+    }
+
+    @ReactMethod
     fun queueBinaryTransfer(requestId: String, base64Data: String, chunkBytes: Int, promise: Promise) {
         runCatching {
             val pending = pendingToolCalls[requestId.trim()]

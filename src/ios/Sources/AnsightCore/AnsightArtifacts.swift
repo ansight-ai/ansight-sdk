@@ -320,7 +320,7 @@ public struct AnsightArtifactMetadata: Sendable, Equatable {
         )
     }
 
-    fileprivate var jsonValue: JSONValue {
+    internal var jsonValue: JSONValue {
         .object([
             "artifactId": .string(artifactId),
             "providerId": .string(providerId),

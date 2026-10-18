@@ -569,6 +569,11 @@ class AnsightCapacitorPlugin : Plugin() {
     }
 
     @PluginMethod
+    fun publishArtifact(call: PluginCall) = background(call) {
+        operationResult(AnsightRuntime.publishArtifact(call.getString("metadataJson").orEmpty(), call.getString("base64Data").orEmpty()))
+    }
+
+    @PluginMethod
     fun queueBinaryTransfer(call: PluginCall) = resolve(call) {
         val requestId = call.getString("requestId").orEmpty().trim()
         val pending = pendingToolCalls[requestId]

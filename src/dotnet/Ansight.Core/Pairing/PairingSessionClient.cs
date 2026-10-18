@@ -404,6 +404,13 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
             HostConnectionProgressKind.Transport);
     }
 
+    Task<OperationResult> IHostConnectionBinaryExtensionClient.PublishArtifactAsync(
+        Ansight.Artifacts.ArtifactResult artifact, CancellationToken cancellationToken)
+        => Ansight.Artifacts.ArtifactPublication.SendAsync(artifact, () => transport.IsOpen,
+            (action, payload, token) => transport.SendControlRequestAsync(action, payload, null,
+                "Artifact control request accepted.", "Artifact publication rejected", null, TimeSpan.FromSeconds(15), token),
+            (bytes, token) => transport.SendBinaryAsync(bytes, WebSocketMessageType.Binary, token), cancellationToken);
+
     internal async Task<OperationResult> SendBinaryExtensionAsync(
         string action,
         JsonObject payload,

@@ -152,6 +152,13 @@ internal class RuntimeImpl : IRuntime
 
     internal event EventHandler? CustomPropertiesChanged;
 
+    internal Task<OperationResult> PublishArtifactAsync(Ansight.Artifacts.ArtifactResult artifact, CancellationToken cancellationToken)
+        => managedHostConnection is not null
+            ? managedHostConnection.PublishArtifactAsync(artifact, cancellationToken)
+            : Ansight.Artifacts.ArtifactPublication.SendAsync(artifact, () => hostConnection.IsConnected,
+                (action, payload, token) => nativeRuntime.SendControlRequestAsync(action, payload.ToJsonString(PairingJson.Compact), token),
+                nativeRuntime.SendBinaryAsync, cancellationToken);
+
     internal async Task<OperationResult> SendBinaryExtensionAsync(
         string action,
         JsonObject payload,
