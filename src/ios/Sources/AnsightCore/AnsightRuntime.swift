@@ -769,7 +769,7 @@ public final class AnsightRuntime: @unchecked Sendable {
 
     public func registerMetricStream(_ stream: AnsightMetricStream) throws {
         let validated = try Self.validatedMetricChannel(stream.channel, allowReservedIds: false, allowUnspecified: false)
-        let validatedStream = AnsightMetricStream(channel: validated) {
+        let validatedStream = AnsightMetricStream.floating(channel: validated) {
             stream.sample()
         }
 
@@ -781,7 +781,12 @@ public final class AnsightRuntime: @unchecked Sendable {
         }
     }
 
-    public func metric(_ value: Int64, channel: Int = AnsightChannels.unspecified) throws {
+    public func metric<T: BinaryInteger>(_ value: T, channel: Int = AnsightChannels.unspecified) throws {
+        try metric(Double(value), channel: channel)
+    }
+
+    public func metric(_ value: Double, channel: Int = AnsightChannels.unspecified) throws {
+        guard value.isFinite else { throw RuntimeError.invalidInput("Metric values must be finite.") }
         try lock.withLock {
             guard initialized else {
                 throw RuntimeError.notInitialized("AnsightRuntime must be initialized before recording metrics.")
@@ -2357,7 +2362,8 @@ public final class AnsightRuntime: @unchecked Sendable {
         return channel
     }
 
-    private func recordMetricLocked(value: Int64, channel: Int, capturedAtUtc: String = AnsightClock.isoNow()) {
+    private func recordMetricLocked(value: Double, channel: Int, capturedAtUtc: String = AnsightClock.isoNow()) {
+        guard value.isFinite else { return }
         nextMetricSequence += 1
         metrics.append(
             RecordedMetric(
@@ -4161,7 +4167,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             "metrics": .array(metrics.map { metric in
                 .object([
                     "channel": .integer(Int64(metric.channel)),
-                    "value": .integer(metric.value),
+                    "value": .number(metric.value),
                     "capturedAtUtc": .string(metric.capturedAtUtc),
                 ])
             }),

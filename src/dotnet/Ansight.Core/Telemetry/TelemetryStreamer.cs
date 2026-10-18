@@ -499,7 +499,12 @@ internal sealed class TelemetryStreamer : IDisposable
             {
                 id = channel.Id,
                 name = channel.Name,
-                color = ToColorHex(channel.Color)
+                color = ToColorHex(channel.Color),
+                unit = channel.Unit,
+                type = channel.Type,
+                source = channel.Source,
+                group = channel.Group,
+                kind = channel.Kind
             }).ToArray()
         }, PairingJson.Compact);
 

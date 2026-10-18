@@ -93,7 +93,7 @@ public interface IRuntime
     /// <summary>
     /// Captures a new metric using the given <paramref name="value"/> against the <paramref name="channel"/>.
     /// </summary>
-    void Metric(long value, byte channel);
+    void Metric(double value, byte channel);
 
     /// <summary>
     /// Captures a new event using the given <paramref name="label"/> against the unspecified channel.

@@ -139,6 +139,7 @@
 		B397F5A48233444B8DA24BBE /* HostSessionJpegCapturePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = C73A7DA40274A2AD13E3B955 /* HostSessionJpegCapturePolicy.swift */; };
 		B50918A8D4758FA701B68813 /* DeviceBatteryProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = D57CFA30FCC75258D7C1A9AC /* DeviceBatteryProfile.swift */; };
 		B68CBAA074938A866DAEAF1A /* PairingSessionConnecting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA0188836D2CE4551912B4C /* PairingSessionConnecting.swift */; };
+		B7835D7FDD46FBEFE5E53B51 /* AnsightSpan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E9301CA606FAFC198B7AEAD /* AnsightSpan.swift */; };
 		B78E696033D667E053208A0B /* AnsightTouchCaptureOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20A1287C7BBDA74635D7D21 /* AnsightTouchCaptureOptions.swift */; };
 		B7CE6595CA4BFE3394291C87 /* PurchaseObjC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FE16F57242254A427F1996A /* PurchaseObjC.swift */; };
 		BE52C4C8E0620FE667403907 /* AnsightToolExecutionResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = C493D8FA56DEE59F4D388B91 /* AnsightToolExecutionResult.swift */; };
@@ -293,6 +294,7 @@
 		8C4222CB367B9F6A93A24F04 /* AnsightScreenRouteResolution.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightScreenRouteResolution.swift; sourceTree = "<group>"; };
 		8CA27E5CCA77153F68E34370 /* MemoryPairingConfigStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryPairingConfigStore.swift; sourceTree = "<group>"; };
 		8DC202F6FBFAEBCC7E99E30C /* AnnotationZip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationZip.swift; sourceTree = "<group>"; };
+		8E9301CA606FAFC198B7AEAD /* AnsightSpan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightSpan.swift; sourceTree = "<group>"; };
 		8E9C10CDBE0457295FAE0090 /* AnsightToolSchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightToolSchema.swift; sourceTree = "<group>"; };
 		9257098F600B0F519F6B5910 /* AnsightNetworkRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightNetworkRequest.swift; sourceTree = "<group>"; };
 		9729C3A8233B2057DEE02DEE /* AnsightScreenRouteResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightScreenRouteResolver.swift; sourceTree = "<group>"; };
@@ -458,6 +460,7 @@
 				2C789DDCCFD18231BDB603A8 /* AnsightSessionJpegCaptureOptions.swift */,
 				44B670FDDF506E9818670EC0 /* AnsightSessionVisualTreeCaptureRegistry.swift */,
 				C05C0E772D0EDACE73017392 /* AnsightSimultaneousGestureDelegate.swift */,
+				8E9301CA606FAFC198B7AEAD /* AnsightSpan.swift */,
 				9B84B046FBA165EC19A6021D /* AnsightTiming.swift */,
 				A0C617EE65E34324E2C3A432 /* AnsightTool.swift */,
 				C48925215D02E010CF03F4AC /* AnsightToolAvailability.swift */,
@@ -769,6 +772,7 @@
 				94772FB546598040833DEA75 /* AnsightSessionJpegCaptureOptions.swift in Sources */,
 				860E395C9B1E4DA715015F20 /* AnsightSessionVisualTreeCaptureRegistry.swift in Sources */,
 				55BEC09DDB50E3B3275A4920 /* AnsightSimultaneousGestureDelegate.swift in Sources */,
+				B7835D7FDD46FBEFE5E53B51 /* AnsightSpan.swift in Sources */,
 				61D114647B935C82A9B49518 /* AnsightTiming.swift in Sources */,
 				5781772E15EDCB149C1E5C09 /* AnsightTool.swift in Sources */,
 				6E5FF8CCB68DF8B3F6B93B8F /* AnsightToolAvailability.swift in Sources */,

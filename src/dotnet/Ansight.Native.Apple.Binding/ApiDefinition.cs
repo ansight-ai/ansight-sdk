@@ -97,6 +97,11 @@ interface ANSDotNetRuntime
 
     [Static]
     [return: NullAllowed]
+    [Export("recordNumericMetric:channel:")]
+    string RecordNumericMetric(double value, nint channel);
+
+    [Static]
+    [return: NullAllowed]
     [Export("recordEventWithLabel:type:details:channel:")]
     string RecordEvent(
         string label,

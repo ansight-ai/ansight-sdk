@@ -472,8 +472,9 @@ internal class RuntimeImpl : IRuntime
 
     private bool ShouldTrackBatteryLevel() => batteryLevelTrackingEnabled;
 
-    public void Metric(long value, byte channel)
+    public void Metric(double value, byte channel)
     {
+        if (!double.IsFinite(value)) throw new ArgumentOutOfRangeException(nameof(value), "Metric values must be finite.");
         if (usesNativeRuntime)
         {
             nativeRuntime.Metric(value, channel);

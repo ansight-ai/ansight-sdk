@@ -15,5 +15,6 @@ public enum AppEventType
     Navigation,
     ScreenViewed,
     Lifecycle,
-    Motion
+    Motion,
+    Span
 }

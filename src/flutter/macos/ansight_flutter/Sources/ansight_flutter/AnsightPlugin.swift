@@ -1539,6 +1539,7 @@ private func eventType(_ value: String?) -> AnsightEventType {
     case "navigation": return .navigation
     case "screenviewed", "screen_viewed": return .screenViewed
     case "lifecycle": return .lifecycle
+    case "span": return .span
     case "motion": return .motion
     default: return .info
     }

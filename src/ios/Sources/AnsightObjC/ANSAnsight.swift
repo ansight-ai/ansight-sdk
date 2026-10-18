@@ -82,6 +82,11 @@ public final class ANSAnsight: NSObject {
         )
     }
 
+    @objc(recordNumericMetric:channel:error:)
+    public static func recordNumericMetric(_ value: Double, channel: Int) throws {
+        try AnsightRuntime.shared.metric(value, channel: channel)
+    }
+
     @objc(recordMetric:channel:error:)
     public static func recordMetric(_ value: Int64, channel: Int) throws {
         try AnsightRuntime.shared.metric(value, channel: channel)

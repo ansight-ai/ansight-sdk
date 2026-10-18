@@ -799,7 +799,7 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
             )
         }
         if (map.has("connectivityCapture")) {
-            options = options.copy(connectivityCapture = if (map.opt("connectivityCapture") == false) null else {
+            result = result.copy(connectivityCapture = if (map.opt("connectivityCapture") == false) null else {
                 val connectivity = map.objectValue("connectivityCapture")
                 AnsightConnectivityCaptureOptions(connectivity.intValue("minimumSampleIntervalMilliseconds", 5_000))
             })
@@ -1253,6 +1253,7 @@ private fun eventType(raw: String?): ai.ansight.runtime.AnsightEventType =
         "navigation" -> ai.ansight.runtime.AnsightEventType.Navigation
         "screenviewed", "screen_viewed" -> ai.ansight.runtime.AnsightEventType.ScreenViewed
         "lifecycle" -> ai.ansight.runtime.AnsightEventType.Lifecycle
+        "span" -> ai.ansight.runtime.AnsightEventType.Span
         "motion" -> ai.ansight.runtime.AnsightEventType.Motion
         else -> ai.ansight.runtime.AnsightEventType.Info
     }

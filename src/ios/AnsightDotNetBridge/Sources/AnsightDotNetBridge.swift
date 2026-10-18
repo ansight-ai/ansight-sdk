@@ -122,6 +122,11 @@ public final class ANSDotNetRuntime: NSObject {
         AnsightRuntime.shared.markCrashReportPersistedToOfflineCapture(reportId)
     }
 
+    @objc(recordNumericMetric:channel:)
+    public static func recordNumericMetric(_ value: Double, channel: Int) -> String? {
+        perform { try AnsightRuntime.shared.metric(value, channel: channel) }
+    }
+
     @objc(recordMetric:channel:)
     public static func recordMetric(_ value: Int64, channel: Int) -> String? {
         perform {

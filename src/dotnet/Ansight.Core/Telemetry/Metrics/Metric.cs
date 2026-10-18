@@ -5,7 +5,7 @@ namespace Ansight.Telemetry.Metrics;
 /// </summary>
 public class Metric : IComparable<Metric>
 {
-    public required long Value { get; init; }
+    public required double Value { get; init; }
     
     public required DateTime CapturedAtUtc { get; init;}
     

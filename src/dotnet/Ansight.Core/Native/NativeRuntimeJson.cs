@@ -93,7 +93,7 @@ internal static class NativeRuntimeJson
                 }
 
                 metrics.Add(new NativeRecordedMetric(
-                    GetInt64(metric, "value"),
+                    metric.GetProperty("value").GetDouble(),
                     channel,
                     GetCapturedAtUtc(metric),
                     GetInt64(metric, "sequence")));

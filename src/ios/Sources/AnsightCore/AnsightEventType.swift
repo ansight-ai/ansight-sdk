@@ -12,6 +12,7 @@ public enum AnsightEventType: String, Sendable, Codable, CaseIterable {
     case screenViewed
     case lifecycle
     case motion
+    case span
 
     var wireName: String {
         switch self {
@@ -37,6 +38,8 @@ public enum AnsightEventType: String, Sendable, Codable, CaseIterable {
             return "Lifecycle"
         case .motion:
             return "Motion"
+        case .span:
+            return "Span"
         }
     }
 }

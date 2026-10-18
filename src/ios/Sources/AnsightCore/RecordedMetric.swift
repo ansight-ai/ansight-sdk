@@ -1,14 +1,14 @@
 import Foundation
 
 public struct RecordedMetric: Sendable, Codable, Equatable {
-    public let value: Int64
+    public let value: Double
     public let capturedAtUtc: String
     public let capturedAtEpochMs: Int64
     public let channel: Int
     public let sequence: Int64
 
     public init(
-        value: Int64,
+        value: Double,
         channel: Int,
         capturedAtUtc: String = AnsightClock.isoNow(),
         sequence: Int64 = 0

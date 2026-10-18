@@ -371,3 +371,7 @@ require no Ansight account or subscription.
 ## Purchase diagnostics
 
 See [purchase observations, adapters, and remote validation](../../docs/purchases.md) for the base SDK purchase suite.
+
+## Fractional metrics and timed spans
+
+See [Telemetry: values, channels, and spans](../../docs/telemetry.md) for the shared recording contract, reserved IDs, units, and examples.

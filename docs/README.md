@@ -4,6 +4,7 @@
 - [Getting started](getting-started.md)
 - [Cross-SDK API Parity](sdk-api-parity.md)
 - [Protocol](protocol.md)
+- [Telemetry: values, channels, and spans](telemetry.md)
 
 Platform guides:
 

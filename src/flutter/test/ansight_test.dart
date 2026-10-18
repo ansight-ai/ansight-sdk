@@ -282,7 +282,7 @@ void main() {
     );
     expect(transport.calls[2].method, 'recordMetric');
     expect(transport.calls[2].arguments, <String, Object?>{
-      'value': 13,
+      'value': 12.6,
       'channel': 40,
     });
   });

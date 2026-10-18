@@ -77,7 +77,7 @@ internal sealed class AndroidNativeRuntimeBridge : INativeRuntimeBridge
     public bool MarkCrashReportPersistedToOfflineCapture(string reportId)
         => AnsightDotNetBridge.MarkCrashReportPersistedToOfflineCapture(reportId);
 
-    public void Metric(long value, byte channel) => AnsightDotNetBridge.RecordMetric(value, channel);
+    public void Metric(double value, byte channel) => AnsightDotNetBridge.RecordNumericMetric(value, channel);
 
     public void Event(string label, AppEventType type, string? details, byte channel)
     {

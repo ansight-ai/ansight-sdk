@@ -2480,6 +2480,13 @@ function openSession(pairingPayload, options = {}) {
   return notifyAfterHostConnectionChange(() => nativeModule.openSession(normalizePairingPayload(pairingPayload), options));
 }
 
+const { beginSpan, measure } = require("./telemetry").createTelemetry(recordEvent);
+
+function recordNumericMetric(value, channel = 255) {
+  if (!Number.isFinite(value)) throw new RangeError("Metric values must be finite.");
+  return nativeModule.recordMetric(value, channel);
+}
+
 function recordEvent(input) {
   if (typeof input === "string") {
     return nativeModule.recordEvent({ label: input });
@@ -2623,8 +2630,12 @@ const Ansight = {
   deactivate,
   clear: () => notifyAfterHostConnectionChange(() => nativeModule.clear()),
   registerMetricChannel: (channel) => nativeModule.registerMetricChannel(channel),
-  metric: (value, channel = 255) => nativeModule.recordMetric(value, channel),
-  recordMetric: (value, channel = 255) => nativeModule.recordMetric(value, channel),
+  metric: recordNumericMetric,
+  recordMetric: recordNumericMetric,
+  firstCustomChannel: 64,
+  lastCustomChannel: 254,
+  beginSpan,
+  measure,
   event: recordEvent,
   recordEvent,
   recordCrashCandidate,

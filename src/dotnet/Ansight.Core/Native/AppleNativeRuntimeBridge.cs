@@ -77,9 +77,9 @@ internal sealed class AppleNativeRuntimeBridge : INativeRuntimeBridge
     public bool MarkCrashReportPersistedToOfflineCapture(string reportId)
         => ANSDotNetRuntime.MarkCrashReportPersistedToOfflineCapture(reportId);
 
-    public void Metric(long value, byte channel)
+    public void Metric(double value, byte channel)
     {
-        ThrowIfNativeError(ANSDotNetRuntime.RecordMetric(value, channel));
+        ThrowIfNativeError(ANSDotNetRuntime.RecordNumericMetric(value, channel));
     }
 
     public void Event(string label, AppEventType type, string? details, byte channel)

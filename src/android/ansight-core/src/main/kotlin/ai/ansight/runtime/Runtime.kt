@@ -100,9 +100,27 @@ object Runtime {
 
     @JvmStatic
     @JvmOverloads
+    fun metric(value: Double, channel: Int = AnsightChannels.Unspecified) {
+        require(value.isFinite()) { "Metric values must be finite." }
+        if (isInitialized()) AnsightRuntime.metric(value, channel)
+    }
+
+    @JvmStatic
+    @JvmOverloads
+    fun Metric(value: Double, channel: Int = AnsightChannels.Unspecified) = metric(value, channel)
+
+    @JvmStatic
+    @JvmOverloads
     fun Metric(value: Long, channel: Int = AnsightChannels.Unspecified) {
         metric(value, channel)
     }
+
+    @JvmStatic
+    @JvmOverloads
+    fun beginSpan(name: String, channel: Int = AnsightChannels.Unspecified, parentSpanId: String? = null): AnsightSpan =
+        AnsightSpan(name.trim(), channel, parentSpanId) { label, type, details, id ->
+            if (isInitialized()) AnsightRuntime.event(label, type, details, id)
+        }
 
     @JvmStatic
     fun event(label: String) {

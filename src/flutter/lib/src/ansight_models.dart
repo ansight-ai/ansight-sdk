@@ -1,3 +1,7 @@
+/// Recommended portable application channel range.
+const int firstCustomChannel = 64;
+const int lastCustomChannel = 254;
+
 typedef AnsightJson = Map<String, Object?>;
 
 enum AnsightEventType {
@@ -11,7 +15,8 @@ enum AnsightEventType {
   navigation('Navigation'),
   screenViewed('ScreenViewed'),
   lifecycle('Lifecycle'),
-  motion('Motion');
+  motion('Motion'),
+  span('Span');
 
   const AnsightEventType(this.wireName);
 
@@ -245,7 +250,7 @@ class AnsightRecordedMetric {
     this.data = const <String, Object?>{},
   });
 
-  final int value;
+  final num value;
   final int channel;
   final DateTime? recordedAtUtc;
   final int? sequence;
@@ -253,7 +258,7 @@ class AnsightRecordedMetric {
 
   factory AnsightRecordedMetric.fromJson(AnsightJson json) =>
       AnsightRecordedMetric(
-        value: _int(json['value']),
+        value: json['value'] as num,
         channel: _int(json['channel']),
         recordedAtUtc: _dateTime(json['recordedAtUtc'] ?? json['timestampUtc']),
         sequence: _nullableInt(json['sequence']),

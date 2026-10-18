@@ -13,12 +13,12 @@ public struct ChannelSpan
     /// <summary>
     /// The minimum value of the metrics for the <see cref="ChannelId"/> within this span.
     /// </summary>
-    public required long MinValue { get; init; }
+    public required double MinValue { get; init; }
     
     /// <summary>
     /// The maximum value of the metrics for the <see cref="ChannelId"/> within this span.
     /// </summary>
-    public required long MaxValue { get; init; }
+    public required double MaxValue { get; init; }
     
     /// <summary>
     /// The date time, in UTC, that this channel span starts at.

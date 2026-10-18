@@ -1,3 +1,7 @@
+export const firstCustomChannel = 64;
+export const lastCustomChannel = 254;
+import { createTelemetry } from "./telemetry";
+export type { AnsightSpan, AnsightSpanOptions, AnsightSpanStatus } from "./telemetry";
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { createPurchaseDiagnostics } from "./purchases";
 
@@ -247,8 +251,10 @@ export const registerMetricChannel = (
 export const metric = (
   value: number,
   channel = 255,
-): Promise<AnsightDebugSnapshot> =>
-  AnsightNative.recordMetric({ value, channel });
+): Promise<AnsightDebugSnapshot> => {
+  if (!Number.isFinite(value)) throw new RangeError("Metric values must be finite.");
+  return AnsightNative.recordMetric({ value, channel });
+};
 
 export const recordMetric = metric;
 
@@ -263,6 +269,7 @@ export function event(
 }
 
 export const recordEvent = event;
+export const { beginSpan, measure } = createTelemetry(event);
 
 export async function recordNetworkRequest(
   input: AnsightNetworkRequestInput,
@@ -981,6 +988,10 @@ const Ansight = {
   recordMetric,
   event,
   recordEvent,
+  firstCustomChannel,
+  lastCustomChannel,
+  beginSpan,
+  measure,
   recordNetworkRequest,
   installNetworkCapture,
   uninstallNetworkCapture,

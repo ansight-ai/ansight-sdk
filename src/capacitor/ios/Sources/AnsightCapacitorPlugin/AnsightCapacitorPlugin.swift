@@ -224,7 +224,7 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func recordMetric(_ call: CAPPluginCall) {
         do {
             try AnsightRuntime.shared.metric(
-                Int64(call.getDouble("value") ?? 0),
+                call.getDouble("value") ?? 0,
                 channel: call.getInt("channel") ?? AnsightChannels.unspecified
             )
             call.resolve(snapshotDictionary())
@@ -1254,6 +1254,7 @@ private func eventType(_ value: String?) -> AnsightEventType {
     case "navigation": return .navigation
     case "screenviewed", "screen_viewed": return .screenViewed
     case "lifecycle": return .lifecycle
+    case "span": return .span
     case "motion": return .motion
     default: return .info
     }
@@ -1271,6 +1272,7 @@ private func eventTypeName(_ value: AnsightEventType) -> String {
     case .navigation: return "Navigation"
     case .screenViewed: return "ScreenViewed"
     case .lifecycle: return "Lifecycle"
+    case .motion: return "Motion"
     }
 }
 

@@ -280,8 +280,8 @@ internal class MutableDataSink : IDataSink, IAppLifecycleStateSource
             }
 
             var count = 0;
-            var minValue = long.MaxValue;
-            var maxValue = long.MinValue;
+            var minValue = double.MaxValue;
+            var maxValue = double.MinValue;
 
             foreach (var metric in channelData)
             {
@@ -606,7 +606,7 @@ internal class MutableDataSink : IDataSink, IAppLifecycleStateSource
         });
     }
     
-    public void Metric(long value, byte channel)
+    public void Metric(double value, byte channel)
     {
         MutateMetrics(metrics =>
         {
@@ -630,7 +630,7 @@ internal class MutableDataSink : IDataSink, IAppLifecycleStateSource
         });
     }
 
-    internal void ImportNativeMetric(long value, byte channel, DateTime capturedAtUtc)
+    internal void ImportNativeMetric(double value, byte channel, DateTime capturedAtUtc)
     {
         MutateMetrics(metrics =>
         {

@@ -184,7 +184,7 @@ class AnsightCapacitorPlugin : Plugin() {
     @PluginMethod
     fun recordMetric(call: PluginCall) = resolve(call) {
         AnsightRuntime.metric(
-            call.data.doubleValue("value", 0.0).toLong(),
+            call.data.doubleValue("value", 0.0),
             call.data.intValue("channel", AnsightChannels.Unspecified),
         )
         snapshot()
@@ -1285,6 +1285,7 @@ private fun eventType(raw: String?): ai.ansight.runtime.AnsightEventType =
         "navigation" -> ai.ansight.runtime.AnsightEventType.Navigation
         "screenviewed", "screen_viewed" -> ai.ansight.runtime.AnsightEventType.ScreenViewed
         "lifecycle" -> ai.ansight.runtime.AnsightEventType.Lifecycle
+        "span" -> ai.ansight.runtime.AnsightEventType.Span
         "motion" -> ai.ansight.runtime.AnsightEventType.Motion
         else -> ai.ansight.runtime.AnsightEventType.Info
     }

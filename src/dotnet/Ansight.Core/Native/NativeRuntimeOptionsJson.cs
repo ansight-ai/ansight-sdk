@@ -69,7 +69,11 @@ internal static class NativeRuntimeOptionsJson
                 ["color"] = channel.Color.IsEmpty
                     ? null
                     : $"#{channel.Color.R:X2}{channel.Color.G:X2}{channel.Color.B:X2}",
-                ["type"] = "custom"
+                ["unit"] = channel.Unit,
+                ["type"] = channel.Type,
+                ["source"] = channel.Source,
+                ["group"] = channel.Group,
+                ["kind"] = channel.Kind
             });
         }
 

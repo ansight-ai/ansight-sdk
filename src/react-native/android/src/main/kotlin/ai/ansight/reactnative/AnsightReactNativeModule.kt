@@ -229,7 +229,7 @@ class AnsightReactNativeModule(
     fun recordMetric(value: Double, channel: Double, promise: Promise) {
         runCatching {
             val channelId = if (channel.isNaN()) AnsightChannels.Unspecified else channel.toInt()
-            AnsightRuntime.metric(value.toLong(), channelId)
+            AnsightRuntime.metric(value, channelId)
             snapshotMap()
         }.resolve(promise)
     }
@@ -1358,7 +1358,7 @@ class AnsightReactNativeModule(
                 ).toWritableMap())
             } ?: putNull("touchCapture")
             options.connectivityCapture?.let { connectivity ->
-                putMap("connectivityCapture", mapOf("minimumSampleIntervalMilliseconds" to connectivity.minimumSampleIntervalMilliseconds))
+                putMap("connectivityCapture", mapOf("minimumSampleIntervalMilliseconds" to connectivity.minimumSampleIntervalMilliseconds).toWritableMap())
             } ?: putNull("connectivityCapture")
             options.motionCapture?.let { motion ->
                 putMap("motionCapture", mapOf(
@@ -1467,6 +1467,7 @@ private fun eventType(raw: String?): ai.ansight.runtime.AnsightEventType =
         "navigation" -> ai.ansight.runtime.AnsightEventType.Navigation
         "screenviewed", "screen_viewed" -> ai.ansight.runtime.AnsightEventType.ScreenViewed
         "lifecycle" -> ai.ansight.runtime.AnsightEventType.Lifecycle
+        "span" -> ai.ansight.runtime.AnsightEventType.Span
         "motion" -> ai.ansight.runtime.AnsightEventType.Motion
         else -> ai.ansight.runtime.AnsightEventType.Info
     }

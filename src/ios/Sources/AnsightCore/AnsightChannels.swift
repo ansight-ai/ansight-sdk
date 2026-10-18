@@ -9,10 +9,13 @@ public enum AnsightChannels {
     public static let jniReferenceCount = 6
     public static let openFileHandles = 7
     public static let unspecified = 255
+    public static let firstCustomChannel = 64
+    public static let lastCustomChannel = 254
 
     public static let reservedIds: Set<Int> = [
         managedHeap,
         physicalFootprint,
+        2, // Android RSS is reserved across platforms.
         framesPerSecond,
         lifecycle,
         batteryLevel,

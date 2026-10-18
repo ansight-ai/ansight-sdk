@@ -22,6 +22,8 @@ object AnsightChannels {
     const val JniReferenceCount = 6
     const val OpenFileHandles = 7
     const val Unspecified = 255
+    const val FirstCustomChannel = 64
+    const val LastCustomChannel = 254
 
     val reservedIds: Set<Int> = setOf(
         JavaHeap,
@@ -267,6 +269,7 @@ enum class AnsightEventType(val wireName: String) {
     ScreenViewed("ScreenViewed"),
     Lifecycle("Lifecycle"),
     Motion("Motion"),
+    Span("Span"),
 }
 
 enum class AppLifecycleState(val wireName: String) {
@@ -517,7 +520,7 @@ data class AnsightToolDescriptor(
 )
 
 data class RecordedMetric(
-    val value: Long,
+    val value: Double,
     val channel: Int,
     val capturedAtUtc: String = AnsightClock.isoNow(),
     val capturedAtEpochMs: Long = System.currentTimeMillis(),

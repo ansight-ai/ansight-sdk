@@ -69,22 +69,14 @@ public static class Constants
 #endif
     }
 
+    /// <summary>Recommended portable application channel range; framework collectors use lower IDs.</summary>
+    public const byte FirstCustomChannelId = 64;
+    public const byte LastCustomChannelId = 254;
+
     public static bool IsPredefinedChannel(Channel channel)
     {
         if (channel == null) throw new ArgumentNullException(nameof(channel));
 
-        return channel.Id == Constants.ReservedChannels.ClrMemoryUsage_Id
-            || channel.Id == Constants.ReservedChannels.FramesPerSecond_Id
-            || channel.Id == Constants.ReservedChannels.Lifecycle_Id
-            || channel.Id == Constants.ReservedChannels.BatteryLevel_Id
-            || channel.Id == Constants.ReservedChannels.JniReferenceCount_Id
-            || channel.Id == Constants.ReservedChannels.OpenFileHandles_Id
-#if IOS || MACCATALYST
-            || channel.Id == Constants.ReservedChannels.PlatformMemoryUsage_Id
-#elif ANDROID
-            || channel.Id == Constants.ReservedChannels.NativeHeapAllocated_Id
-            || channel.Id == Constants.ReservedChannels.Rss_Id
-#endif
-            || channel.Id == Constants.ReservedChannels.ChannelNotSpecified_Id;
+        return channel.Id <= 7 || channel.Id == byte.MaxValue;
     }
 }

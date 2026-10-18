@@ -468,8 +468,26 @@ public static class Runtime
     /// <summary>
     /// Captures a new metric using the given <paramref name="value"/> against the <paramref name="channel"/>.
     /// </summary>
-    public static void Metric(long value, byte channel)
+    public static void Metric(long value, byte channel) => Metric((double)value, channel);
+
+    /// <summary>Begins a timed operation. Dispose or End completes it; pass a parent ID for nesting.</summary>
+    public static TelemetrySpan BeginSpan(string name, byte channel = 255, string? parentSpanId = null)
+        => new(name, channel, parentSpanId, Event);
+
+    /// <summary>Measures an asynchronous operation and records its success, cancellation, or failure.</summary>
+    public static async Task<T> MeasureAsync<T>(string name, Func<Task<T>> operation, byte channel = 255, string? parentSpanId = null)
     {
+        ArgumentNullException.ThrowIfNull(operation);
+        using var span = BeginSpan(name, channel, parentSpanId);
+        try { return await operation().ConfigureAwait(false); }
+        catch (OperationCanceledException) { span.End("cancelled"); throw; }
+        catch { span.Fail(); throw; }
+    }
+
+    /// <summary>Records a finite numeric sample without rounding fractional values.</summary>
+    public static void Metric(double value, byte channel)
+    {
+        if (!double.IsFinite(value)) throw new ArgumentOutOfRangeException(nameof(value), "Metric values must be finite.");
         if (!IsInitialized)
         {
             return;

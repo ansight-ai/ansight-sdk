@@ -193,6 +193,10 @@ public final class AnsightDotNetBridge {
         return AnsightRuntime.INSTANCE.markCrashReportPersistedToOfflineCapture(reportId);
     }
 
+    public static void recordNumericMetric(double value, int channel) {
+        AnsightRuntime.INSTANCE.metric(value, channel);
+    }
+
     public static void recordMetric(long value, int channel) {
         AnsightRuntime.INSTANCE.metric(value, channel);
     }

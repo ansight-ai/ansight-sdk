@@ -327,7 +327,7 @@ final class AnsightReactNative: RCTEventEmitter {
         rejecter reject: RCTPromiseRejectBlock
     ) {
         do {
-            try AnsightRuntime.shared.metric(Int64(value), channel: Int(channel))
+            try AnsightRuntime.shared.metric(value, channel: Int(channel))
             resolve(snapshotDictionary())
         } catch {
             reject("ansight_error", error.localizedDescription, error)
@@ -1660,6 +1660,8 @@ final class AnsightReactNative: RCTEventEmitter {
             return "ScreenViewed"
         case .lifecycle:
             return "Lifecycle"
+        case .motion:
+            return "Motion"
         }
     }
 
@@ -1794,6 +1796,7 @@ private func eventType(_ rawValue: String?) -> AnsightEventType {
         return .screenViewed
     case "lifecycle":
         return .lifecycle
+    case "span": return .span
     case "motion":
         return .motion
     default:

@@ -302,7 +302,30 @@ object AnsightRuntime {
         }
     }
 
-    fun metric(value: Long, channel: Int = AnsightChannels.Unspecified) {
+    @JvmOverloads
+    fun beginSpan(name: String, channel: Int = AnsightChannels.Unspecified, parentSpanId: String? = null): AnsightSpan =
+        AnsightSpan(name.trim(), channel, parentSpanId) { label, type, details, id -> event(label, type, details, id) }
+
+    fun <T> measure(name: String, channel: Int = AnsightChannels.Unspecified, parentSpanId: String? = null, operation: (AnsightSpan) -> T): T {
+        val span = beginSpan(name, channel, parentSpanId)
+        try { return operation(span) }
+        catch (error: java.util.concurrent.CancellationException) { span.end("cancelled"); throw error }
+        catch (error: Throwable) { span.fail(); throw error }
+        finally { span.close() }
+    }
+
+    suspend fun <T> measureAsync(name: String, channel: Int = AnsightChannels.Unspecified, parentSpanId: String? = null, operation: suspend (AnsightSpan) -> T): T {
+        val span = beginSpan(name, channel, parentSpanId)
+        try { return operation(span) }
+        catch (error: java.util.concurrent.CancellationException) { span.end("cancelled"); throw error }
+        catch (error: Throwable) { span.fail(); throw error }
+        finally { span.close() }
+    }
+
+    fun metric(value: Long, channel: Int = AnsightChannels.Unspecified) = metric(value.toDouble(), channel)
+
+    fun metric(value: Double, channel: Int = AnsightChannels.Unspecified) {
+        require(value.isFinite()) { "Metric values must be finite." }
         synchronized(lock) {
             require(initialized) { "AnsightRuntime must be initialized before recording metrics." }
             recordMetricLocked(value, validateChannel(channel))
@@ -2431,7 +2454,7 @@ object AnsightRuntime {
 
         val streamMetrics = streams.mapNotNull { stream ->
             val value = stream.sample() ?: return@mapNotNull null
-            RecordedMetric(value = value, channel = stream.channel.id)
+            RecordedMetric(value = value.toDouble(), channel = stream.channel.id)
         }
 
         if (streamMetrics.isNotEmpty()) {
@@ -2449,10 +2472,11 @@ object AnsightRuntime {
         streamPendingTelemetry()
     }
 
-    private fun recordMetricLocked(value: Long, channel: Int) {
+    private fun recordMetricLocked(value: Number, channel: Int) {
+        if (!value.toDouble().isFinite()) return
         ensureChannelLocked(channel)
         metrics += RecordedMetric(
-            value = value,
+            value = value.toDouble(),
             channel = channel,
             sequence = ++nextMetricSequence,
         )

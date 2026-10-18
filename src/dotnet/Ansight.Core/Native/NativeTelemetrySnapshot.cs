@@ -5,7 +5,7 @@ internal sealed record NativeTelemetrySnapshot(
     IReadOnlyList<NativeRecordedEvent> Events);
 
 internal sealed record NativeRecordedMetric(
-    long Value,
+    double Value,
     byte Channel,
     DateTime CapturedAtUtc,
     long Sequence);

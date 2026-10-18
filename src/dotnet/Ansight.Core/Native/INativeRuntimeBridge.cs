@@ -48,7 +48,7 @@ internal interface INativeRuntimeBridge
 
     bool MarkCrashReportPersistedToOfflineCapture(string reportId);
 
-    void Metric(long value, byte channel);
+    void Metric(double value, byte channel);
 
     void Event(string label, AppEventType type, string? details, byte channel);
 

@@ -1,3 +1,8 @@
+export const firstCustomChannel: 64;
+export const lastCustomChannel: 254;
+export type AnsightSpanStatus = "ok" | "error" | "cancelled";
+export interface AnsightSpanOptions { channel?: number; parentSpanId?: string; }
+export interface AnsightSpan { readonly id: string; end(status?: AnsightSpanStatus): Promise<void>; }
 import type { PurchaseDiagnostics } from "./purchases";
 export * from "./purchases";
 export const purchases: PurchaseDiagnostics;
@@ -652,6 +657,8 @@ export function activate(): Promise<AnsightDebugSnapshot>;
 export function deactivate(): Promise<AnsightDebugSnapshot>;
 export function clear(): Promise<AnsightDebugSnapshot>;
 export function registerMetricChannel(channel: AnsightChannel): Promise<AnsightDebugSnapshot>;
+export function beginSpan(name: string, options?: AnsightSpanOptions): Promise<AnsightSpan>;
+export function measure<T>(name: string, operation: (span: AnsightSpan) => T | Promise<T>, options?: AnsightSpanOptions): Promise<T>;
 export function metric(value: number, channel?: number): Promise<AnsightDebugSnapshot>;
 export function recordMetric(value: number, channel?: number): Promise<AnsightDebugSnapshot>;
 export function event(input: string | { label: string; type?: string; details?: string; channel?: number }): Promise<AnsightDebugSnapshot>;
@@ -744,6 +751,10 @@ declare const Ansight: {
   deactivate: typeof deactivate;
   clear: typeof clear;
   registerMetricChannel: typeof registerMetricChannel;
+  firstCustomChannel: 64;
+  lastCustomChannel: 254;
+  beginSpan: typeof beginSpan;
+  measure: typeof measure;
   metric: typeof metric;
   recordMetric: typeof recordMetric;
   event: typeof event;

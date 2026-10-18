@@ -79,7 +79,7 @@ internal sealed class NullNativeRuntimeBridge : INativeRuntimeBridge
 
     public bool MarkCrashReportPersistedToOfflineCapture(string reportId) => false;
 
-    public void Metric(long value, byte channel)
+    public void Metric(double value, byte channel)
     {
     }
 

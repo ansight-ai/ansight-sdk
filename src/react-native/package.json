@@ -35,6 +35,7 @@
     "tsconfig.json",
     "AnsightReactNative.podspec",
     "react-native.config.js",
+    "telemetry.js",
     "purchases.js",
     "purchases.d.ts"
   ],

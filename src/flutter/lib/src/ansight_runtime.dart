@@ -7,6 +7,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 
 import 'ansight_models.dart';
+import 'ansight_span.dart';
 import 'ansight_purchases.dart';
 import 'ansight_network_models.dart';
 import 'ansight_options.dart';
@@ -146,13 +147,34 @@ class Ansight {
         await _invoke('registerMetricChannel', channel.toJson()),
       );
 
-  Future<AnsightDebugSnapshot> metric(num value, {int channel = 255}) async =>
-      AnsightDebugSnapshot.fromJson(
+  Future<AnsightDebugSnapshot> metric(num value, {int channel = 255}) async {
+    if (!value.isFinite) throw ArgumentError.value(value, "value", "Metric values must be finite.");
+    return AnsightDebugSnapshot.fromJson(
         await _invoke('recordMetric', <String, Object?>{
-          'value': value.round(),
+          'value': value,
           'channel': channel,
         }),
       );
+
+  }
+
+  Future<AnsightSpan> beginSpan(String name, {int channel = 255, String? parentSpanId}) =>
+      AnsightSpan.begin(name, channel, parentSpanId, (label, details, id) async {
+        await event(label, type: AnsightEventType.span, details: details, channel: id);
+      });
+
+  Future<T> measure<T>(String name, FutureOr<T> Function(AnsightSpan) operation,
+      {int channel = 255, String? parentSpanId}) async {
+    final span = await beginSpan(name, channel: channel, parentSpanId: parentSpanId);
+    try {
+      final result = await operation(span);
+      await span.end();
+      return result;
+    } catch (_) {
+      await span.end(status: 'error');
+      rethrow;
+    }
+  }
 
   Future<AnsightDebugSnapshot> recordMetric(num value, {int channel = 255}) =>
       metric(value, channel: channel);
