@@ -118,3 +118,9 @@ builder
 `WithAnsightMaui(...)` configures runtime defaults and MAUI tools only. `UseAnsight(...)` is the API that registers automatic foreground/background and `Application.PageAppearing` telemetry.
 
 Remote tool scanning is controlled by `AnsightRemoteToolsPolicy`. The default `AllowedWithWarnings` policy logs detected tool type and assembly details and emits a build warning when tool packages are included. Because this all-in-one package intentionally includes remote tools, `Disallowed` will fail builds that reference it. Use `Ansight.Core` plus fine-grained `Ansight.Tools.*` references when you need protected Release or CI builds that exercise `Disallowed`. Set `AnsightLogRemoteTools=false` to suppress the detected-tool list.
+
+## Unsupported MAUI Targets
+
+`builder.UseAnsight<App>()`, `builder.UseAnsight(configure)`, and `builder.UseAnsight(options)` are no-ops on unsupported targets such as Windows. The neutral .NET assembly supplies the same extension signatures, so a shared `MauiProgram` no longer needs a `#if !WINDOWS` guard around registration. Android, iOS, and Mac Catalyst keep their normal behavior.
+
+On an unsupported target the builder is returned unchanged: no runtime activation, service registration, lifecycle hooks, or configuration callback invocation occurs. This enables compilation; it does not add Windows capture support. Platform-specific code inside the callback still has to compile for that target.
