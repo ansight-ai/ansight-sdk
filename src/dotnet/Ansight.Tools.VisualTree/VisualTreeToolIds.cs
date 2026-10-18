@@ -4,6 +4,7 @@ public static class VisualTreeToolIds
 {
     public const string GetVisualTree = "ui.get_visual_tree";
     public const string GetScreenshot = "ui.get_screenshot";
+    public const string DismissKeyboard = "ui.dismiss_keyboard";
     public const string InspectNode = "ui.inspect_node";
     public const string QueryNodes = "ui.query_nodes";
     public const string PerformAction = "ui.perform_action";

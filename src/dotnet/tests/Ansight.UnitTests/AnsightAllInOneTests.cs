@@ -144,6 +144,7 @@ public sealed class AnsightAllInOneTests
     [
         VisualTreeToolIds.GetVisualTree,
         VisualTreeToolIds.GetScreenshot,
+        VisualTreeToolIds.DismissKeyboard,
         VisualTreeToolIds.InspectNode,
         VisualTreeToolIds.QueryNodes,
         VisualTreeToolIds.PerformAction,

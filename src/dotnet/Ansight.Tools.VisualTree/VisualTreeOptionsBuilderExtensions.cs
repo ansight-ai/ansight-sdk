@@ -40,6 +40,7 @@ public static class VisualTreeOptionsBuilderExtensions
         {
             new GetVisualTreeTool(),
             new GetScreenshotTool(),
+            new DismissKeyboardTool(),
             new InspectNodeTool(),
             new QueryNodesTool(),
             new PerformActionTool(),

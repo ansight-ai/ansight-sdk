@@ -17,6 +17,7 @@ public sealed class VisualTreeToolsTests
             [
                 VisualTreeToolIds.GetVisualTree,
                 VisualTreeToolIds.GetScreenshot,
+                VisualTreeToolIds.DismissKeyboard,
                 VisualTreeToolIds.InspectNode,
                 VisualTreeToolIds.QueryNodes,
                 VisualTreeToolIds.PerformAction,
@@ -38,6 +39,16 @@ public sealed class VisualTreeToolsTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal("visual_tree_platform_unsupported", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task DismissKeyboardTool_RequiresWriteAccessAndFailsSafelyOnUnsupportedPlatforms()
+    {
+        var tool = new DismissKeyboardTool();
+        Assert.Equal(ToolPolicy.Write, tool.Policy);
+        var result = await tool.Execute(new Dictionary<string, string>());
+        Assert.False(result.IsSuccess);
+        Assert.Equal("keyboard_platform_unsupported", result.ErrorCode);
     }
 
     [Fact]

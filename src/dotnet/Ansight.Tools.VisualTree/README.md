@@ -42,6 +42,8 @@ var options = Options.CreateBuilder()
 
 Overlay tools render input-transparent highlight rectangles over the active native window. They never participate in hit testing, so they should not intercept taps, clicks, focus, or gestures.
 
+`ui.dismiss_keyboard` requires write access and dismisses the foreground app's keyboard through Android's input-method service or UIKit's editing API. It never injects a Back key. Its `requested` result describes the platform request; the host verifies keyboard visibility using fresh evidence afterward. Hosts refuse unsafe Back-key fallback when this tool is unavailable, so update the app SDK to use safe keyboard dismissal.
+
 - `ui.show_overlay` creates one or more highlight rectangles from explicit window coordinates, visual-tree coordinates, or a `nodeId`.
 - `ui.update_overlay` edits an existing overlay by id. Omitted fields keep their current values; supplied geometry replaces the current rectangles.
 - `ui.get_overlay` returns a single overlay by id.
