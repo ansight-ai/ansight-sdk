@@ -1502,6 +1502,7 @@ internal static partial class MauiToolHelpers
             properties["scroll"] = CreateScrollViewSnapshot(scrollView);
         }
 
+        AddAppearanceProperties(element, properties);
         return properties;
     }
 
