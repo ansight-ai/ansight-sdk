@@ -18,6 +18,7 @@ public static class Runtime
     private static DateTimeOffset? currentAppLifecycleStateChangedUtc;
     private static long appLifecycleStateVersion;
     private static int unhandledExceptionHandlerInstalled;
+    private static readonly UnhandledExceptionCapture unhandledExceptionCapture = new(PersistUnhandledException);
 
     internal static event EventHandler<AppLifecycleStateChangedEventArgs>? AppLifecycleStateChanged;
 
@@ -248,29 +249,29 @@ public static class Runtime
         }
 
         AppDomain.CurrentDomain.UnhandledException += (_, eventArgs) =>
-        {
-            try
+            unhandledExceptionCapture.Record(eventArgs.ExceptionObject, eventArgs.IsTerminating);
+#if ANDROID
+        // Android UI/JNI callbacks can bypass AppDomain.UnhandledException entirely.
+        global::Android.Runtime.AndroidEnvironment.UnhandledExceptionRaiser += (_, eventArgs) =>
+            unhandledExceptionCapture.RecordAndroidException(eventArgs.Exception, eventArgs.Handled);
+#endif
+    }
+
+    private static void PersistUnhandledException(object exceptionObject, bool fatal)
+    {
+        var exception = exceptionObject as Exception;
+        // Do not acquire runtimeLock on a terminating thread. The native crash outbox
+        // writes synchronously and is delivered to the original session on next launch.
+        Volatile.Read(ref runtime)?.RecordCrashCandidate(
+            "dotnet",
+            "unhandled_exception",
+            exception?.Message ?? Convert.ToString(exceptionObject),
+            exception?.ToString(),
+            fatal,
+            exception is null ? null : JsonSerializer.Serialize(new Dictionary<string, string>
             {
-                var exception = eventArgs.ExceptionObject as Exception;
-                if (exception is not null)
-                {
-                    RecordCrashCandidate(exception, eventArgs.IsTerminating);
-                }
-                else
-                {
-                    Volatile.Read(ref runtime)?.RecordCrashCandidate(
-                        "dotnet",
-                        "unhandled_exception",
-                        Convert.ToString(eventArgs.ExceptionObject),
-                        stack: null,
-                        fatal: eventArgs.IsTerminating);
-                }
-            }
-            catch
-            {
-                // A crash hook must never replace the app's original termination path.
-            }
-        };
+                ["exceptionType"] = exception.GetType().FullName ?? exception.GetType().Name
+            }));
     }
 
     /// <summary>
