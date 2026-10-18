@@ -151,6 +151,7 @@ describe("AnsightOptionsBuilder", () => {
       maxWidth: null,
       captureGpuBackedSurfaces: false,
       captureKeyboardPresence: true,
+      includeSystemUiMetadata: true,
       mode: "screenshotWithVisualTreeOnTouch",
     });
     expect(options.hostConnection).toEqual({
@@ -201,4 +202,13 @@ describe("AnsightOptionsBuilder", () => {
       maximumBodyBytes: 8 * 1024 * 1024,
     });
   });
+});
+
+
+it("preserves screenshot metadata opt-out through the options builder", () => {
+  expect(createOptionsBuilder().withSessionJpegCapture().build().sessionJpegCapture).toMatchObject({ includeSystemUiMetadata: true });
+  for (const enabled of [false, true]) {
+    expect(createOptionsBuilder().withSessionJpegCapture({ includeSystemUiMetadata: enabled }).build().sessionJpegCapture)
+      .toMatchObject({ includeSystemUiMetadata: enabled });
+  }
 });

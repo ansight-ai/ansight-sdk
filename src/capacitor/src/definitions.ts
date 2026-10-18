@@ -20,6 +20,8 @@ export interface AnsightSessionJpegCaptureOptions {
   maxWidth?: number | null;
   captureGpuBackedSurfaces?: boolean;
   captureKeyboardPresence?: boolean;
+  /** Include capture-time safe-area and system-UI metadata. Defaults to true. */
+  includeSystemUiMetadata?: boolean;
   mode?:
     | "screenshotOnly"
     | "screenshotAndVisualTree"
@@ -60,6 +62,7 @@ export interface AnsightAnnotationOptions {
   captureVisualTrees?: boolean;
   screenshotQuality?: number;
   screenshotMaxWidth?: number;
+  includeSystemUiMetadata?: boolean;
 }
 
 export interface AnsightAnnotationResult {
@@ -557,6 +560,7 @@ export interface AnsightOptionsBuilderApi {
       | "screenshotAndVisualTree"
       | "screenshotWithVisualTreeOnTouch",
     captureKeyboardPresence?: boolean,
+    includeSystemUiMetadata?: boolean,
   ): this;
   withoutSessionJpegCapture(): this;
   withTouchCapture(options?: AnsightTouchCaptureOptions): this;

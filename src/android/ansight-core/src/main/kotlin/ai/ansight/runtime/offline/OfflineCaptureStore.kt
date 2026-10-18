@@ -103,11 +103,12 @@ class OfflineCaptureStore(
         return enqueue(index(path), Attachment(path, data))
     }
 
-    fun appendScreenshot(jpeg: ByteArray, capturedAtUtc: String, width: Int, height: Int, quality: Int): Boolean {
+    fun appendScreenshot(jpeg: ByteArray, capturedAtUtc: String, width: Int, height: Int, quality: Int, geometry: JSONObject? = null): Boolean {
         val path = "screenshots/${UUID.randomUUID()}.jpg"
         val index = JSONObject().put("path", path).put("capturedAtUtc", capturedAtUtc)
-            .put("width", width).put("height", height).put("quality", quality).toString().toByteArray(Charsets.UTF_8)
-        return enqueue(index, Attachment(path, jpeg), "screenshots/index/frames.jsonl")
+            .put("width", width).put("height", height).put("quality", quality)
+        geometry?.let { index.put("geometry", it) }
+        return enqueue(index.toString().toByteArray(Charsets.UTF_8), Attachment(path, jpeg), "screenshots/index/frames.jsonl")
     }
 
     fun flush(): Future<Unit> = perform {

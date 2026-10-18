@@ -440,7 +440,8 @@ public final class AnsightDotNetBridge {
                 annotation.optInt("screenshotQuality", 85),
                 annotation.optInt("screenshotMaxWidth", 1440),
                 annotation.optInt("visualTreeMaxDepth", 30),
-                annotation.optInt("visualTreeMaxNodes", 1500)
+                annotation.optInt("visualTreeMaxNodes", 1500),
+                annotation.optBoolean("includeSystemUiMetadata", true)
             ));
             }
         }
@@ -505,7 +506,8 @@ public final class AnsightDotNetBridge {
                     : null,
                 sessionJpegCapture.optBoolean("captureGpuBackedSurfaces", true),
                 sessionJpegCaptureMode(sessionJpegCapture.optString("mode")),
-                sessionJpegCapture.optBoolean("captureKeyboardPresence", false)
+                sessionJpegCapture.optBoolean("captureKeyboardPresence", false),
+                sessionJpegCapture.optBoolean("includeSystemUiMetadata", true)
             );
         }
 

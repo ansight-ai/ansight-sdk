@@ -1,4 +1,5 @@
 import Foundation
+import AnsightCore
 
 internal struct AnsightVisualTreeScreenshot: Sendable {
     let format: String
@@ -6,4 +7,5 @@ internal struct AnsightVisualTreeScreenshot: Sendable {
     let height: Int
     let data: Data
     let annotationApplied: Bool
+    var geometry: ScreenshotCaptureGeometry? = nil
 }

@@ -94,6 +94,7 @@ internal static class NativeRuntimeOptionsJson
             ["maxWidth"] = options.MaxWidth,
             ["captureGpuBackedSurfaces"] = options.CaptureGpuBackedSurfaces,
             ["captureKeyboardPresence"] = options.CaptureKeyboardPresence,
+            ["includeSystemUiMetadata"] = options.IncludeSystemUiMetadata,
             ["mode"] = options.Mode switch
             {
                 SessionJpegCaptureMode.ScreenshotAndVisualTree => "screenshotAndVisualTree",

@@ -39,6 +39,7 @@ internal static class AnnotationBundleWriter
                     MimeType = evidence.Screenshot.MimeType,
                     Width = evidence.Screenshot.Width,
                     Height = evidence.Screenshot.Height,
+                    Geometry = evidence.Screenshot.Geometry?.ToJson(),
                     CapturedAtUtc = evidence.Screenshot.CapturedAtUtc
                 };
             }
@@ -234,6 +235,8 @@ internal static class AnnotationBundleWriter
 
     private sealed class AnnotationScreenshotManifest
     {
+        public System.Text.Json.Nodes.JsonObject? Geometry { get; set; }
+
         public string Path { get; set; } = string.Empty;
         public string MimeType { get; set; } = string.Empty;
         public int Width { get; set; }

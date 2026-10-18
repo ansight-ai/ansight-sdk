@@ -23,6 +23,8 @@ public sealed class AnnotationOptions
 
     public int ScreenshotMaxWidth { get; internal set; } = 1440;
 
+    public bool IncludeSystemUiMetadata { get; internal set; } = true;
+
     public long MaximumArtifactBytes { get; internal set; } = 10 * 1024 * 1024;
 
     public string? OutboxDirectory { get; internal set; }
@@ -44,6 +46,7 @@ public sealed class AnnotationOptions
             VisualTreeProviderTimeout = VisualTreeProviderTimeout,
             ScreenshotQuality = ScreenshotQuality,
             ScreenshotMaxWidth = ScreenshotMaxWidth,
+            IncludeSystemUiMetadata = IncludeSystemUiMetadata,
             MaximumArtifactBytes = MaximumArtifactBytes,
             OutboxDirectory = OutboxDirectory,
             EvidencePolicy = EvidencePolicy,

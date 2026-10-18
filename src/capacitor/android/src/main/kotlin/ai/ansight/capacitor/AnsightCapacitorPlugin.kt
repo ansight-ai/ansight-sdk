@@ -717,6 +717,7 @@ class AnsightCapacitorPlugin : Plugin() {
                     captureVisualTrees = annotation?.optBoolean("captureVisualTrees", true) ?: true,
                     screenshotQuality = annotation?.optInt("screenshotQuality", 85) ?: 85,
                     screenshotMaxWidth = annotation?.optInt("screenshotMaxWidth", 1440) ?: 1440,
+                    includeSystemUiMetadata = annotation?.optBoolean("includeSystemUiMetadata", true) ?: true,
                 )
             })
         }
@@ -1179,6 +1180,7 @@ class AnsightCapacitorPlugin : Plugin() {
                 "captureKeyboardPresence",
                 AnsightSessionJpegCaptureOptions.DefaultCaptureKeyboardPresence,
             ),
+            includeSystemUiMetadata = map.booleanValue("includeSystemUiMetadata", true),
         )
 
     private fun application(): Application =

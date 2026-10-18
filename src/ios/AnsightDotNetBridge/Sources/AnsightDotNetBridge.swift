@@ -438,7 +438,8 @@ public final class ANSDotNetRuntime: NSObject {
                 maxWidth: sessionJpegCapture.maxWidth,
                 captureGpuBackedSurfaces: sessionJpegCapture.captureGpuBackedSurfaces,
                 mode: sessionJpegCapture.mode ?? .screenshotOnly,
-                captureKeyboardPresence: sessionJpegCapture.captureKeyboardPresence ?? false
+                captureKeyboardPresence: sessionJpegCapture.captureKeyboardPresence ?? false,
+                includeSystemUiMetadata: sessionJpegCapture.includeSystemUiMetadata ?? true
             )
         } else if bridgeOptions.hasSessionJpegCapture == false {
             options.sessionJpegCapture = nil
@@ -776,6 +777,7 @@ private struct BridgeSessionJpegCapture: Decodable {
     let maxWidth: Int?
     let captureGpuBackedSurfaces: Bool
     let captureKeyboardPresence: Bool?
+    let includeSystemUiMetadata: Bool?
     let mode: AnsightSessionJpegCaptureMode?
 }
 

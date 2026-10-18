@@ -93,6 +93,7 @@ internal static partial class SessionJpegCaptureSupport
             return false;
         }
 
+        var geometry = options.IncludeSystemUiMetadata ? ScreenshotCaptureGeometry.Capture(window) : null;
         var targetSize = new CGSize(targetWidth, targetHeight);
         var renderer = GetRenderer(targetWidth, targetHeight, window.Opaque);
         var image = renderer.CreateImage(renderContext =>
@@ -108,7 +109,8 @@ internal static partial class SessionJpegCaptureSupport
             DateTimeOffset.UtcNow,
             targetWidth,
             targetHeight,
-            options.CaptureKeyboardPresence ? IsKeyboardPresent(window) : null);
+            options.CaptureKeyboardPresence ? IsKeyboardPresent(window) : null,
+            window.Bounds == originalBounds && (geometry is null || geometry.SafeAreaInsets == ScreenshotCaptureGeometry.Capture(window).SafeAreaInsets) ? geometry : null);
         return true;
     }
 
@@ -118,6 +120,13 @@ internal static partial class SessionJpegCaptureSupport
         PairingSessionTransport transport,
         CancellationToken cancellationToken)
     {
+        if (surface.Geometry is not null && transport.SupportsScreenshotGeometry)
+        {
+            using var frame = EncodeSurface(surface, options);
+            return frame is null ? OperationResult.FromSuccess("Session JPEG frame skipped.")
+                : await frame.SendAsync(transport, cancellationToken);
+        }
+
         using var imageData = surface.Image.AsJPEG((nfloat)(options.Quality / 100d));
         if (imageData is null)
         {
@@ -198,7 +207,7 @@ internal static partial class SessionJpegCaptureSupport
             surface.Width,
             surface.Height,
             options.Quality,
-            jpegByteCount);
+            jpegByteCount, surface.Geometry);
     }
 
     private static async Task WriteEncodedJpegPayloadAsync(
@@ -285,13 +294,15 @@ internal static partial class SessionJpegCaptureSupport
             DateTimeOffset capturedAtUtc,
             int width,
             int height,
-            bool? keyboardPresent)
+            bool? keyboardPresent,
+            ScreenshotCaptureGeometry? geometry)
         {
             this.image = image;
             CapturedAtUtc = capturedAtUtc;
             Width = width;
             Height = height;
             KeyboardPresent = keyboardPresent;
+            Geometry = geometry;
         }
 
         public UIImage Image => image ?? throw new ObjectDisposedException(nameof(SessionJpegCaptureSurface));
@@ -303,6 +314,8 @@ internal static partial class SessionJpegCaptureSupport
         public int Height { get; }
 
         public bool? KeyboardPresent { get; }
+
+        public ScreenshotCaptureGeometry? Geometry { get; }
 
         public void Dispose()
         {

@@ -161,6 +161,7 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
             MaxWidth = configured.MaxWidth,
             CaptureGpuBackedSurfaces = configured.CaptureGpuBackedSurfaces,
             CaptureKeyboardPresence = configured.CaptureKeyboardPresence,
+            IncludeSystemUiMetadata = configured.IncludeSystemUiMetadata,
             Mode = configured.Mode
         };
     }
@@ -343,10 +344,7 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
             using (pendingCapture)
             {
                 var frame = pendingCapture.Frame;
-                var sendResult = await transport.SendBinaryAsync(
-                    frame.Payload,
-                    WebSocketMessageType.Binary,
-                    cancellationToken);
+                var sendResult = await frame.SendAsync(transport, cancellationToken);
                 if (!sendResult.Success)
                 {
                     HostPairingProgressReporter.Report(

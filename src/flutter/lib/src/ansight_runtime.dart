@@ -437,6 +437,7 @@ class Ansight {
     required int height,
     int quality = 60,
     List<AnsightJson> visualTrees = const <AnsightJson>[],
+    AnsightJson? geometry,
   }) async =>
       AnsightOperationResult.fromJson(
         await _invoke('submitFlutterScreenFrame', <String, Object?>{
@@ -445,6 +446,7 @@ class Ansight {
           'height': height,
           'quality': quality.clamp(1, 100),
           'visualTrees': visualTrees,
+          if (geometry != null) 'geometry': geometry,
         }),
       );
 

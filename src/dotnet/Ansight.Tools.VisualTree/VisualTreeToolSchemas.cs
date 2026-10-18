@@ -288,6 +288,7 @@ internal static class VisualTreeToolSchemas
             ["format"] = ToolSchema.String("Image format.", enumValues: new[] { "png", "jpeg" }),
             ["quality"] = ToolSchema.Integer("Compression quality for JPEG output."),
             ["maxWidth"] = ToolSchema.Integer("Optional maximum output width.", nullable: true),
+            ["includeSystemUiMetadata"] = ToolSchema.Boolean("Include capture-time safe-area and system-UI metadata. Defaults to true.", nullable: true),
             ["annotateNodeIds"] = ToolSchema.Boolean("Whether node ids should be drawn over the screenshot."),
             ["afterScreenUpdates"] = ToolSchema.Boolean("Whether Apple platforms should wait for pending screen updates before rendering.")
         });
@@ -296,6 +297,7 @@ internal static class VisualTreeToolSchemas
         description: "Screenshot payload.",
         properties: new Dictionary<string, ToolSchema>
         {
+            ["geometry"] = ToolSchema.Object("Capture-time normalized safe-area and system-UI metadata.", additionalProperties: true, nullable: true),
             ["platform"] = ToolSchema.String("Current runtime platform."),
             ["capturedAtUtc"] = ToolSchema.String("UTC timestamp for capture.", format: "date-time"),
             ["format"] = ToolSchema.String("Encoded image format.", enumValues: new[] { "png", "jpeg" }),

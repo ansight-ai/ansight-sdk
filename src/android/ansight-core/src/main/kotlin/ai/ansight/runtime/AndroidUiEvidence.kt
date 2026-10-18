@@ -95,6 +95,7 @@ data class CapturedScreenshot(
     val mimeType: String,
     val fileName: String,
     val keyboardPresent: Boolean? = null,
+    val geometry: ScreenshotCaptureGeometry? = null,
 )
 
 object AndroidUiEvidence {
@@ -191,8 +192,9 @@ object AndroidUiEvidence {
         format: String = "jpeg",
         quality: Int = AnsightSessionJpegCaptureOptions.DefaultQuality,
         maxWidth: Int? = AnsightSessionJpegCaptureOptions.DefaultMaxWidth,
+        includeSystemUiMetadata: Boolean = true,
     ): CapturedScreenshot {
-        return captureScreenshot(format, quality, maxWidth, reuseStreamBitmap = false)
+        return captureScreenshot(format, quality, maxWidth, reuseStreamBitmap = false, includeSystemUiMetadata = includeSystemUiMetadata)
     }
 
     fun captureSessionScreenshot(
@@ -200,6 +202,7 @@ object AndroidUiEvidence {
         quality: Int = AnsightSessionJpegCaptureOptions.DefaultQuality,
         maxWidth: Int? = AnsightSessionJpegCaptureOptions.DefaultMaxWidth,
         captureKeyboardPresence: Boolean = AnsightSessionJpegCaptureOptions.DefaultCaptureKeyboardPresence,
+        includeSystemUiMetadata: Boolean = true,
     ): CapturedScreenshot {
         return captureScreenshot(
             format,
@@ -207,6 +210,7 @@ object AndroidUiEvidence {
             maxWidth,
             reuseStreamBitmap = true,
             captureKeyboardPresence = captureKeyboardPresence,
+            includeSystemUiMetadata = includeSystemUiMetadata,
         )
     }
 
@@ -225,6 +229,7 @@ object AndroidUiEvidence {
         maxWidth: Int?,
         reuseStreamBitmap: Boolean,
         captureKeyboardPresence: Boolean = false,
+        includeSystemUiMetadata: Boolean = true,
     ): CapturedScreenshot {
         return runOnMain {
             val activity = currentActivity.get() ?: bindCurrentActivity() ?: error("No resumed Android activity is available for screenshot capture.")
@@ -233,6 +238,7 @@ object AndroidUiEvidence {
                 error("Android root view has no renderable size.")
             }
 
+            val geometry = if (includeSystemUiMetadata) ScreenshotCaptureGeometry.appWindow(activityRoot) else null
             val windows = captureTargets(activity)
             installTouchCallbacks(activity, windows)
             val activityBounds = windows.firstOrNull { it.isActivityWindow }?.boundsInScreen ?: activityRoot.boundsInScreen()
@@ -281,6 +287,7 @@ object AndroidUiEvidence {
                     mimeType = mimeType,
                     fileName = "ansight-android-${System.currentTimeMillis()}.$extension",
                     keyboardPresent = if (captureKeyboardPresence) keyboardPresent(activityRoot) else null,
+                    geometry = geometry?.takeIf { activityRoot.boundsInScreen() == activityBounds },
                 )
             } finally {
                 if (!reuseStreamBitmap) {

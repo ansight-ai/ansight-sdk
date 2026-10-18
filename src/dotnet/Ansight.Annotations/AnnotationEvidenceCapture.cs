@@ -78,7 +78,8 @@ internal sealed class AnnotationEvidenceCapture
             {
                 IntervalMilliseconds = 1000,
                 Quality = options.ScreenshotQuality,
-                MaxWidth = options.ScreenshotMaxWidth
+                MaxWidth = options.ScreenshotMaxWidth,
+                IncludeSystemUiMetadata = options.IncludeSystemUiMetadata
             };
             using var frame = await SessionJpegCaptureSupport.CaptureJpegFrameAsync(captureOptions, cancellationToken);
             if (frame is null || frame.JpegPayload.IsEmpty)
@@ -98,7 +99,7 @@ internal sealed class AnnotationEvidenceCapture
                 "image/jpeg",
                 frame.Width,
                 frame.Height,
-                frame.CapturedAtUtc);
+                frame.CapturedAtUtc, frame.Geometry);
             return new AnnotationScreenshotCapture(
                 snapshot,
                 new AnnotationEvidenceResult(
@@ -273,7 +274,8 @@ internal sealed record AnnotationScreenshotSnapshot(
     string MimeType,
     int Width,
     int Height,
-    DateTimeOffset CapturedAtUtc);
+    DateTimeOffset CapturedAtUtc,
+    ScreenshotCaptureGeometry? Geometry = null);
 
 internal sealed record AnnotationVisualTreeSnapshot(
     string Source,

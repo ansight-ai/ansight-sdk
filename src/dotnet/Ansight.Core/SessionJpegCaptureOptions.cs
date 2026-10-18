@@ -43,6 +43,9 @@ public sealed class SessionJpegCaptureOptions
     /// </summary>
     public bool CaptureKeyboardPresence { get; set; } = false;
 
+    /// <summary>Includes capture-time safe-area and system-UI metadata with screenshots.</summary>
+    public bool IncludeSystemUiMetadata { get; set; } = true;
+
     /// <summary>
     /// Selects whether visual-tree snapshots are omitted, captured with each screenshot, or captured around touch gestures.
     /// </summary>

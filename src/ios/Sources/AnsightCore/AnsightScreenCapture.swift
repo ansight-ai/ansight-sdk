@@ -23,7 +23,8 @@ enum AnsightScreenCapture {
             // intermediate UIGraphicsImageRenderer is marked opaque.
             opaque: false,
             renderMode: options.captureGpuBackedSurfaces ? .hierarchy : .layer,
-            captureGpuBackedSurfaces: options.captureGpuBackedSurfaces
+            captureGpuBackedSurfaces: options.captureGpuBackedSurfaces,
+            includeSystemUiMetadata: options.includeSystemUiMetadata
         )
         let renderMilliseconds = AnsightTiming.elapsedMilliseconds(since: renderStarted)
 
@@ -42,7 +43,8 @@ enum AnsightScreenCapture {
             height: renderedImage.height,
             quality: options.quality,
             keyboardPresent: keyboardPresent,
-            jpegData: jpegData
+            jpegData: jpegData,
+            geometry: renderedImage.geometry
         )
 
         return AnsightScreenCaptureResult(

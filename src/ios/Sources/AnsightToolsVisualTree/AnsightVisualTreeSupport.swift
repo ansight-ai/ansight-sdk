@@ -241,7 +241,8 @@ internal enum AnsightVisualTreeSupport {
             ) ?? AnsightSessionJpegCaptureOptions.defaultMaxWidth
             _ = try AnsightVisualTreeArgumentReader.bool(arguments, key: "annotateNodeIds", defaultValue: false)
             let afterScreenUpdates = try AnsightVisualTreeArgumentReader.bool(arguments, key: "afterScreenUpdates", defaultValue: true)
-            return .success(try captureScreenshot(format: format, quality: quality, maxWidth: maxWidth, afterScreenUpdates: afterScreenUpdates))
+            let includeSystemUiMetadata = try AnsightVisualTreeArgumentReader.bool(arguments, key: "includeSystemUiMetadata", defaultValue: true)
+            return .success(try captureScreenshot(format: format, quality: quality, maxWidth: maxWidth, afterScreenUpdates: afterScreenUpdates, includeSystemUiMetadata: includeSystemUiMetadata))
         } catch let error as AnsightVisualTreeToolError {
             return .failure(error)
         } catch {
@@ -314,7 +315,8 @@ internal enum AnsightVisualTreeSupport {
         format: String,
         quality: Int,
         maxWidth: Int?,
-        afterScreenUpdates: Bool
+        afterScreenUpdates: Bool,
+        includeSystemUiMetadata: Bool
     ) throws -> AnsightVisualTreeScreenshot {
         #if canImport(UIKit)
         do {
@@ -326,7 +328,8 @@ internal enum AnsightVisualTreeSupport {
                         format: snapshotFormat,
                         quality: quality,
                         maxWidth: maxWidth,
-                        afterScreenUpdates: true
+                        afterScreenUpdates: true,
+                        includeSystemUiMetadata: includeSystemUiMetadata
                     )
                 }
             } else {
@@ -335,7 +338,8 @@ internal enum AnsightVisualTreeSupport {
                         format: snapshotFormat,
                         quality: quality,
                         maxWidth: maxWidth,
-                        afterScreenUpdates: false
+                        afterScreenUpdates: false,
+                        includeSystemUiMetadata: includeSystemUiMetadata
                     )
                 }
             }
@@ -345,7 +349,8 @@ internal enum AnsightVisualTreeSupport {
                 width: snapshot.width,
                 height: snapshot.height,
                 data: snapshot.data,
-                annotationApplied: false
+                annotationApplied: false,
+                geometry: snapshot.geometry
             )
         } catch {
             throw AnsightVisualTreeToolError.unavailable(error.localizedDescription)

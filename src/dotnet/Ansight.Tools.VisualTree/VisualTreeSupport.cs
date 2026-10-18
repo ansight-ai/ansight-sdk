@@ -256,11 +256,12 @@ internal static partial class VisualTreeSupport
         var maxWidth = GetOptionalInt(arguments, "maxWidth", minimum: 1, maximum: 8192);
         var annotateNodeIds = GetBoolean(arguments, "annotateNodeIds", defaultValue: false);
         var afterScreenUpdates = GetBoolean(arguments, "afterScreenUpdates", defaultValue: true);
+        var includeSystemUiMetadata = GetBoolean(arguments, "includeSystemUiMetadata", defaultValue: true);
 
 #if ANDROID
         return RunOnUiThreadAsync(async () =>
         {
-            var screenshotResult = await CaptureScreenshotAsync(format, quality, maxWidth, annotateNodeIds);
+            var screenshotResult = await CaptureScreenshotAsync(format, quality, maxWidth, annotateNodeIds, includeSystemUiMetadata);
             if (screenshotResult.Screenshot == null)
             {
                 return ToolResult.Failure(screenshotResult.Error ?? "Unable to capture a screenshot.", errorCode: "visual_screenshot_failed");
@@ -271,7 +272,7 @@ internal static partial class VisualTreeSupport
 #else
         return RunOnUiThreadAsync(() =>
         {
-            if (!TryCaptureScreenshot(format, quality, maxWidth, annotateNodeIds, afterScreenUpdates, out var screenshot, out var error))
+            if (!TryCaptureScreenshot(format, quality, maxWidth, annotateNodeIds, afterScreenUpdates, includeSystemUiMetadata, out var screenshot, out var error))
             {
                 return ToolResult.Failure(error ?? "Unable to capture a screenshot.", errorCode: "visual_screenshot_failed");
             }
@@ -650,7 +651,7 @@ internal static partial class VisualTreeSupport
 
     private static JsonObject CreateScreenshotMetadataPayload(ScreenshotCapture screenshot, DateTime capturedAtUtc)
     {
-        return new JsonObject
+        var payload = new JsonObject
         {
             ["platform"] = CurrentPlatform,
             ["capturedAtUtc"] = capturedAtUtc.ToString("O"),
@@ -659,6 +660,8 @@ internal static partial class VisualTreeSupport
             ["height"] = screenshot.Height,
             ["annotationApplied"] = screenshot.AnnotationApplied
         };
+        if (screenshot.Geometry is not null) payload["geometry"] = screenshot.Geometry.ToJson();
+        return payload;
     }
 
     private static async Task StreamScreenshotBytesAsync(
@@ -749,7 +752,7 @@ internal static partial class VisualTreeSupport
             ? "image/jpeg"
             : "image/png";
 
-    private sealed record ScreenshotCapture(string Format, int Width, int Height, byte[] Bytes, bool AnnotationApplied);
+    private sealed record ScreenshotCapture(string Format, int Width, int Height, byte[] Bytes, bool AnnotationApplied, ScreenshotCaptureGeometry? Geometry = null);
 
 #if ANDROID
     private static View? FindAndroidView(Activity activity, string nodeId)
@@ -1189,7 +1192,7 @@ internal static partial class VisualTreeSupport
     private static string ToArgbHex(Android.Graphics.Color color)
         => $"#{unchecked((uint)color.ToArgb()):X8}";
 
-    private static async Task<AndroidScreenshotCaptureResult> CaptureScreenshotAsync(string format, int quality, int? maxWidth, bool annotateNodeIds)
+    private static async Task<AndroidScreenshotCaptureResult> CaptureScreenshotAsync(string format, int quality, int? maxWidth, bool annotateNodeIds, bool includeSystemUiMetadata)
     {
         var activity = AndroidActivityTracker.GetCurrentActivity();
         var rootView = activity?.Window?.DecorView?.RootView;
@@ -1198,6 +1201,7 @@ internal static partial class VisualTreeSupport
             return new AndroidScreenshotCaptureResult(null, "No Android root view is available for screenshot capture.");
         }
 
+        var geometry = includeSystemUiMetadata ? ScreenshotCaptureGeometry.Capture(rootView) : null;
         using var bitmap = Bitmap.CreateBitmap(rootView.Width, rootView.Height, Bitmap.Config.Argb8888!);
         using var windowBitmap = Bitmap.CreateBitmap(rootView.Width, rootView.Height, Bitmap.Config.Argb8888!);
         using (var canvas = new Canvas(bitmap))
@@ -1243,7 +1247,9 @@ internal static partial class VisualTreeSupport
                 Width: workingBitmap.Width,
                 Height: workingBitmap.Height,
                 Bytes: stream.ToArray(),
-                AnnotationApplied: false && annotateNodeIds),
+                AnnotationApplied: false && annotateNodeIds,
+                Geometry: bitmap.Width == rootView.Width && bitmap.Height == rootView.Height
+                    && (!includeSystemUiMetadata || ScreenshotCaptureGeometry.Capture(rootView).ToJson().ToJsonString() == geometry?.ToJson().ToJsonString()) ? geometry : null),
                 null);
         }
         finally
@@ -1775,6 +1781,7 @@ internal static partial class VisualTreeSupport
         int? maxWidth,
         bool annotateNodeIds,
         bool afterScreenUpdates,
+        bool includeSystemUiMetadata,
         out ScreenshotCapture? screenshot,
         out string? error)
     {
@@ -1809,6 +1816,7 @@ internal static partial class VisualTreeSupport
 
         var targetSize = new CGSize(targetPixelWidth, targetPixelHeight);
 
+        var geometry = includeSystemUiMetadata ? ScreenshotCaptureGeometry.Capture(window) : null;
         var rendererFormat = UIGraphicsImageRendererFormat.DefaultFormat;
         rendererFormat.Opaque = false;
         rendererFormat.Scale = 1;
@@ -1839,7 +1847,8 @@ internal static partial class VisualTreeSupport
             Width: targetPixelWidth,
             Height: targetPixelHeight,
             Bytes: imageData.ToArray(),
-            AnnotationApplied: false && annotateNodeIds);
+            AnnotationApplied: false && annotateNodeIds,
+            Geometry: window.Bounds == originalBounds && (geometry is null || geometry.SafeAreaInsets == ScreenshotCaptureGeometry.Capture(window).SafeAreaInsets) ? geometry : null);
         error = null;
         return true;
     }
@@ -1920,6 +1929,7 @@ internal static partial class VisualTreeSupport
         int? maxWidth,
         bool annotateNodeIds,
         bool afterScreenUpdates,
+        bool includeSystemUiMetadata,
         out ScreenshotCapture? screenshot,
         out string? error)
     {

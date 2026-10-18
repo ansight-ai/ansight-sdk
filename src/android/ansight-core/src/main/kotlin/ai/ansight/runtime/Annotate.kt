@@ -98,7 +98,7 @@ object Annotate {
                 }
                 val screenshot = if (captureOptions.captureScreenshot) {
                     runCatching {
-                        AndroidUiEvidence.captureScreenshot("jpeg", captureOptions.screenshotQuality, captureOptions.screenshotMaxWidth)
+                        AndroidUiEvidence.captureScreenshot("jpeg", captureOptions.screenshotQuality, captureOptions.screenshotMaxWidth, captureOptions.includeSystemUiMetadata)
                     }.getOrNull()
                 } else null
                 val screenshotAtUtc = AnsightClock.isoNow()
@@ -278,7 +278,8 @@ object Annotate {
                 manifest.put("screenshot", JSONObject()
                     .put("path", path).put("mimeType", screenshot.mimeType)
                     .put("width", screenshot.width).put("height", screenshot.height)
-                    .put("capturedAtUtc", screenshotAtUtc))
+                    .put("capturedAtUtc", screenshotAtUtc)
+                    .apply { screenshot.geometry?.let { put("geometry", it.toJson()) } })
             }
             evidence.put(JSONObject()
                 .put("id", "screenshot")

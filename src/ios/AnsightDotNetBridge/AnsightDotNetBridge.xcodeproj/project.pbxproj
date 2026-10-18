@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		79B8F520D1104838B35B0B41 /* ScreenshotCaptureGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79B8F520D1104838B35B0B42 /* ScreenshotCaptureGeometry.swift */; };
 		0131D3723158B41EB3215455 /* AppLifecycleState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE8603BC7DCD5966BD0047B2 /* AppLifecycleState.swift */; };
 		04C7F5093EC511727CFB58D7 /* AnsightToolPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55FAB5CA7F9B1B2546A71556 /* AnsightToolPolicy.swift */; };
 		07B2BFA0074A273AFE7B56EE /* AnsightNetworkURLProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16F5B84D627FBB69D578AFD3 /* AnsightNetworkURLProtocol.swift */; };
@@ -198,6 +199,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		79B8F520D1104838B35B0B42 /* ScreenshotCaptureGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotCaptureGeometry.swift; sourceTree = "<group>"; };
 		012703ACE3E2C8A383580921 /* URLSessionPairingWebSocket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = URLSessionPairingWebSocket.swift; sourceTree = "<group>"; };
 		026E435E4787579806672F58 /* Array+AnsightPairing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Array+AnsightPairing.swift"; sourceTree = "<group>"; };
 		02A193A9236FD3A5BEAF0361 /* AnnotationEditorViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationEditorViewController.swift; sourceTree = "<group>"; };
@@ -445,6 +447,7 @@
 				8C4222CB367B9F6A93A24F04 /* AnsightScreenRouteResolution.swift */,
 				9729C3A8233B2057DEE02DEE /* AnsightScreenRouteResolver.swift */,
 				B8D01BD3B37CE039A8B07E9A /* AnsightScreenSnapshot.swift */,
+				79B8F520D1104838B35B0B42 /* ScreenshotCaptureGeometry.swift */,
 				0E646752723E6B98105EB685 /* AnsightScreenSnapshotFormat.swift */,
 				DE0179F29517E75224D2CB76 /* AnsightScreenSnapshotRenderer.swift */,
 				2E4D5FC57940EC4275EC292C /* AnsightSDKInfo.swift */,
@@ -787,6 +790,7 @@
 				F6F5F76769E412AF5EDA3F55 /* AnsightScreenRouteResolution.swift in Sources */,
 				4BF5A2F8980DB01CDE5C4A87 /* AnsightScreenRouteResolver.swift in Sources */,
 				767C42B6C46893A917F616B9 /* AnsightScreenSnapshot.swift in Sources */,
+				79B8F520D1104838B35B0B41 /* ScreenshotCaptureGeometry.swift in Sources */,
 				8E644F208F0127A5D87852C3 /* AnsightScreenSnapshotFormat.swift in Sources */,
 				2A488E9AFA1C3DD06129A143 /* AnsightScreenSnapshotRenderer.swift in Sources */,
 				56B62B98C4513A4F4E81C38B /* AnsightSessionConfigurationProperties.swift in Sources */,

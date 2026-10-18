@@ -2,6 +2,16 @@ import XCTest
 @testable import AnsightCore
 
 final class AnsightOptionsBuilderTests: XCTestCase {
+    func testScreenshotMetadataDefaultsOnAndRoundTripsOptOut() throws {
+        XCTAssertTrue(AnsightSessionJpegCaptureOptions().includeSystemUiMetadata)
+        XCTAssertTrue(try JSONDecoder().decode(AnsightSessionJpegCaptureOptions.self, from: Data("{}".utf8)).includeSystemUiMetadata)
+        for enabled in [false, true] {
+            let options = try AnsightOptions.createBuilder().withSessionJpegCapture(includeSystemUiMetadata: enabled).build()
+            let decoded = try JSONDecoder().decode(AnsightSessionJpegCaptureOptions.self, from: JSONEncoder().encode(options.sessionJpegCapture!))
+            XCTAssertEqual(decoded.includeSystemUiMetadata, enabled)
+        }
+    }
+
     func testCrashHandoffSettingSurvivesEncodingAndBuilderCopy() throws {
         for enabled in [false, true] {
             let configured = AnsightCrashCaptureOptions(hostHandoffEnabled: enabled)

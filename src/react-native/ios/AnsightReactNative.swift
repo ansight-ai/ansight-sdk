@@ -1055,7 +1055,8 @@ final class AnsightReactNative: RCTEventEmitter {
                     captureScreenshot: boolValue(annotation, "captureScreenshot", defaultValue: true),
                     captureVisualTrees: boolValue(annotation, "captureVisualTrees", defaultValue: true),
                     screenshotQuality: intValue(annotation, "screenshotQuality", defaultValue: 85),
-                    screenshotMaxWidth: intValue(annotation, "screenshotMaxWidth", defaultValue: 1440)
+                    screenshotMaxWidth: intValue(annotation, "screenshotMaxWidth", defaultValue: 1440),
+                    includeSystemUiMetadata: boolValue(annotation, "includeSystemUiMetadata", defaultValue: true)
                 )
             }
         }
@@ -1135,7 +1136,8 @@ final class AnsightReactNative: RCTEventEmitter {
                         jpeg,
                         "captureKeyboardPresence",
                         defaultValue: AnsightSessionJpegCaptureOptions.defaultCaptureKeyboardPresence
-                    )
+                    ),
+                    includeSystemUiMetadata: boolValue(jpeg, "includeSystemUiMetadata", defaultValue: true)
                 )
             }
         }
@@ -1506,7 +1508,8 @@ final class AnsightReactNative: RCTEventEmitter {
                 dictionary,
                 "captureKeyboardPresence",
                 defaultValue: AnsightSessionJpegCaptureOptions.defaultCaptureKeyboardPresence
-            )
+            ),
+            includeSystemUiMetadata: boolValue(dictionary, "includeSystemUiMetadata", defaultValue: true)
         )
     }
 
@@ -1558,6 +1561,7 @@ final class AnsightReactNative: RCTEventEmitter {
                 "maxWidth": capture.maxWidth as Any,
                 "captureGpuBackedSurfaces": capture.captureGpuBackedSurfaces,
                 "captureKeyboardPresence": capture.captureKeyboardPresence,
+                "includeSystemUiMetadata": capture.includeSystemUiMetadata,
                 "mode": capture.mode.rawValue,
             ]
         } else {

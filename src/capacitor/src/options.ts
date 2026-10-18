@@ -183,6 +183,7 @@ export class AnsightOptionsBuilder implements AnsightOptionsBuilderApi {
       | "screenshotAndVisualTree"
       | "screenshotWithVisualTreeOnTouch",
     captureKeyboardPresence?: boolean,
+    includeSystemUiMetadata?: boolean,
   ): this;
   withSessionJpegCapture(
     optionsOrIntervalMilliseconds:
@@ -195,6 +196,7 @@ export class AnsightOptionsBuilder implements AnsightOptionsBuilderApi {
       | "screenshotAndVisualTree"
       | "screenshotWithVisualTreeOnTouch" = "screenshotOnly",
     captureKeyboardPresence = false,
+    includeSystemUiMetadata = true,
   ): this {
     this.options.sessionJpegCapture =
       typeof optionsOrIntervalMilliseconds === "number"
@@ -205,12 +207,14 @@ export class AnsightOptionsBuilder implements AnsightOptionsBuilderApi {
             captureGpuBackedSurfaces,
             mode,
             captureKeyboardPresence,
+            includeSystemUiMetadata,
           }
         : {
             intervalMilliseconds: 2000,
             quality: 60,
             maxWidth: 480,
             captureKeyboardPresence: false,
+            includeSystemUiMetadata: true,
             mode: "screenshotOnly",
             ...optionsOrIntervalMilliseconds,
           };

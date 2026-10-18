@@ -93,6 +93,7 @@ public sealed class OfflineCaptureOptions
                     MaxWidth = SessionJpegCaptureOverride.MaxWidth,
                     CaptureGpuBackedSurfaces = SessionJpegCaptureOverride.CaptureGpuBackedSurfaces,
                     CaptureKeyboardPresence = SessionJpegCaptureOverride.CaptureKeyboardPresence,
+                    IncludeSystemUiMetadata = SessionJpegCaptureOverride.IncludeSystemUiMetadata,
                     Mode = SessionJpegCaptureOverride.Mode
                 },
             MaximumQueuedRecords = MaximumQueuedRecords

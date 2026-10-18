@@ -138,7 +138,8 @@ internal sealed class SessionJpegFrame : IDisposable
         int width,
         int height,
         int quality,
-        int jpegByteCount)
+        int jpegByteCount,
+        ScreenshotCaptureGeometry? geometry = null)
     {
         this.buffer = buffer ?? throw new ArgumentNullException(nameof(buffer));
         Length = length;
@@ -147,6 +148,7 @@ internal sealed class SessionJpegFrame : IDisposable
         Height = height;
         Quality = quality;
         JpegByteCount = jpegByteCount;
+        Geometry = geometry;
     }
 
     public int Length { get; }
@@ -161,6 +163,8 @@ internal sealed class SessionJpegFrame : IDisposable
 
     public int JpegByteCount { get; }
 
+    public ScreenshotCaptureGeometry? Geometry { get; }
+
     public ReadOnlyMemory<byte> Payload => buffer is null
         ? ReadOnlyMemory<byte>.Empty
         : buffer.AsMemory(0, Length);
@@ -168,6 +172,24 @@ internal sealed class SessionJpegFrame : IDisposable
     public ReadOnlyMemory<byte> JpegPayload => Payload.Length <= SessionJpegWireProtocol.HeaderSize
         ? ReadOnlyMemory<byte>.Empty
         : Payload[SessionJpegWireProtocol.HeaderSize..];
+
+    internal async Task<OperationResult> SendAsync(PairingSessionTransport transport, CancellationToken cancellationToken)
+    {
+        if (transport.SupportsScreenshotGeometry && Geometry is not null)
+        {
+            var metadata = new System.Text.Json.Nodes.JsonObject
+            {
+                ["type"] = "CLIENT_SCREENSHOT_GEOMETRY",
+                ["capturedAtEpochMs"] = CapturedAtUtc.ToUnixTimeMilliseconds(),
+                ["width"] = Width, ["height"] = Height,
+                ["sha256"] = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(JpegPayload.Span)).ToLowerInvariant(),
+                ["geometry"] = Geometry.ToJson()
+            };
+            var sent = await transport.SendTextAsync(metadata.ToJsonString(), cancellationToken);
+            if (!sent.Success) return sent;
+        }
+        return await transport.SendBinaryAsync(Payload, System.Net.WebSockets.WebSocketMessageType.Binary, cancellationToken);
+    }
 
     public void Dispose()
     {
@@ -227,7 +249,8 @@ internal sealed class PooledBufferStream : Stream
         int width,
         int height,
         int quality,
-        int jpegByteCount)
+        int jpegByteCount,
+        ScreenshotCaptureGeometry? geometry = null)
     {
         var detachedBuffer = buffer;
         var detachedLength = length;
@@ -241,7 +264,7 @@ internal sealed class PooledBufferStream : Stream
             width,
             height,
             quality,
-            jpegByteCount);
+            jpegByteCount, geometry);
     }
 
     public override void Flush()

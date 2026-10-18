@@ -98,6 +98,9 @@ internal static partial class SessionJpegCaptureSupport
             return null;
         }
 
+        var geometry = options.IncludeSystemUiMetadata ? ScreenshotCaptureGeometry.Capture(rootView) : null;
+        var sourceWidth = rootView.Width;
+        var sourceHeight = rootView.Height;
         var captureState = AcquireCaptureState(targetWidth, targetHeight);
         try
         {
@@ -119,7 +122,9 @@ internal static partial class SessionJpegCaptureSupport
                 DateTimeOffset.UtcNow,
                 targetWidth,
                 targetHeight,
-                options.CaptureKeyboardPresence ? IsKeyboardPresent(rootView) : null);
+                options.CaptureKeyboardPresence ? IsKeyboardPresent(rootView) : null,
+                rootView.Width == sourceWidth && rootView.Height == sourceHeight
+                    && (!options.IncludeSystemUiMetadata || ScreenshotCaptureGeometry.Capture(rootView).ToJson().ToJsonString() == geometry?.ToJson().ToJsonString()) ? geometry : null);
         }
         catch
         {
@@ -140,7 +145,7 @@ internal static partial class SessionJpegCaptureSupport
             return OperationResult.FromSuccess("Session JPEG frame skipped.");
         }
 
-        return await transport.SendBinaryAsync(frame.Payload, WebSocketMessageType.Binary, cancellationToken);
+        return await frame.SendAsync(transport, cancellationToken);
     }
 
     private static SessionJpegFrame? EncodeSurface(SessionJpegCaptureSurface surface, SessionJpegCaptureOptions options)
@@ -169,7 +174,7 @@ internal static partial class SessionJpegCaptureSupport
             surface.Width,
             surface.Height,
             options.Quality,
-            jpegLength);
+            jpegLength, surface.Geometry);
     }
 
     private static CaptureBitmapState AcquireCaptureState(int width, int height)
@@ -215,13 +220,15 @@ internal static partial class SessionJpegCaptureSupport
             DateTimeOffset capturedAtUtc,
             int width,
             int height,
-            bool? keyboardPresent)
+            bool? keyboardPresent,
+            ScreenshotCaptureGeometry? geometry)
         {
             this.captureState = captureState;
             CapturedAtUtc = capturedAtUtc;
             Width = width;
             Height = height;
             KeyboardPresent = keyboardPresent;
+            Geometry = geometry;
         }
 
         public Android.Graphics.Bitmap Bitmap => captureState.Bitmap;
@@ -233,6 +240,8 @@ internal static partial class SessionJpegCaptureSupport
         public int Height { get; }
 
         public bool? KeyboardPresent { get; }
+
+        public ScreenshotCaptureGeometry? Geometry { get; }
 
         public void Dispose()
         {

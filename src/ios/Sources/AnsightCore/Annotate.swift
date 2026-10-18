@@ -64,7 +64,8 @@ public enum Annotate {
         let screenshot = captureOptions.captureScreenshot
             ? try? await AnsightScreenSnapshotRenderer.captureIncludingGpuBackedSurfaces(
                 quality: captureOptions.screenshotQuality,
-                maxWidth: captureOptions.screenshotMaxWidth
+                maxWidth: captureOptions.screenshotMaxWidth,
+                includeSystemUiMetadata: captureOptions.includeSystemUiMetadata
             )
             : nil
         let screenshotAtUtc = AnsightClock.isoNow()
@@ -143,11 +144,13 @@ public enum Annotate {
         if let screenshot {
             let path = "evidence/screenshot.jpg"
             entries.append((path, screenshot.data))
-            manifest["screenshot"] = [
+            var screenshotManifest: [String: Any] = [
                 "path": path, "mimeType": "image/jpeg",
                 "width": screenshot.width, "height": screenshot.height,
                 "capturedAtUtc": screenshotAtUtc
             ]
+            if let geometry = screenshot.geometry { screenshotManifest["geometry"] = geometry.json.anyValue }
+            manifest["screenshot"] = screenshotManifest
         }
         var evidence: [[String: Any]] = [[
             "id": "screenshot", "kind": "screenshot",

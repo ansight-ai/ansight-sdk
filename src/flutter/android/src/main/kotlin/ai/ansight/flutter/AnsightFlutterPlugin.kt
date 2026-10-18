@@ -707,6 +707,7 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
                     captureVisualTrees = annotation?.optBoolean("captureVisualTrees", true) ?: true,
                     screenshotQuality = annotation?.optInt("screenshotQuality", 85) ?: 85,
                     screenshotMaxWidth = annotation?.optInt("screenshotMaxWidth", 1440) ?: 1440,
+                    includeSystemUiMetadata = annotation?.optBoolean("includeSystemUiMetadata", true) ?: true,
                 )
             })
         }
@@ -1140,6 +1141,7 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
                 "captureKeyboardPresence",
                 AnsightSessionJpegCaptureOptions.DefaultCaptureKeyboardPresence,
             ),
+            includeSystemUiMetadata = map.booleanValue("includeSystemUiMetadata", true),
         )
 
     private fun resultPayload(map: JSONObject): JSONObject? {

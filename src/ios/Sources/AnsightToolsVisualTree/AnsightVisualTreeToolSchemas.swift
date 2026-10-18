@@ -137,6 +137,7 @@ internal enum AnsightVisualTreeToolSchemas {
             "format": string("Image format.", enumValues: ["png", "jpeg"]),
             "quality": integer("Compression quality for JPEG output."),
             "maxWidth": integer("Optional maximum output width.", nullable: true),
+            "includeSystemUiMetadata": boolean("Include capture-time safe-area and system-UI metadata. Defaults to true."),
             "annotateNodeIds": boolean("Whether node ids should be drawn over the screenshot."),
             "afterScreenUpdates": boolean("Whether Apple platforms should wait for pending screen updates before rendering."),
         ]
@@ -145,6 +146,7 @@ internal enum AnsightVisualTreeToolSchemas {
     static let screenshotResult = object(
         description: "Screenshot payload.",
         properties: [
+            "geometry": objectJSON(description: "Capture-time normalized safe-area and system-UI metadata.", additionalProperties: true, nullable: true),
             "platform": string("Current runtime platform."),
             "capturedAtUtc": string("UTC timestamp for capture.", format: "date-time"),
             "format": string("Encoded image format.", enumValues: ["png", "jpeg"]),

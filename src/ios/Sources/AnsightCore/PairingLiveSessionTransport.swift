@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import Network
 
 struct PairingControlRequestResult: Sendable {
@@ -17,6 +18,11 @@ final class PairingLiveSessionTransport: @unchecked Sendable {
     private var pendingResponses: [String: CheckedContinuation<PairingControlEnvelope, Error>] = [:]
     private var toolMessageHandler: (@Sendable (String) async -> String?)?
     private var toolResponseSentHandler: (@Sendable (String, String) async -> Void)?
+    private var screenshotGeometrySupported = false
+    var supportsScreenshotGeometry: Bool {
+        get { lock.withLock { screenshotGeometrySupported } }
+        set { lock.withLock { screenshotGeometrySupported = newValue } }
+    }
     private var closeHandler: (@Sendable (String) async -> Void)?
 
     init(
@@ -133,6 +139,23 @@ final class PairingLiveSessionTransport: @unchecked Sendable {
         }
     }
 
+    func sendScreenFrame(_ frame: AnsightCapturedScreenFrame, payload: Data) async -> OperationResult {
+        if supportsScreenshotGeometry, let geometry = frame.geometry {
+            let hash = SHA256.hash(data: frame.jpegData).map { String(format: "%02x", $0) }.joined()
+            let metadata: JSONValue = .object([
+                "type": .string("CLIENT_SCREENSHOT_GEOMETRY"),
+                "capturedAtEpochMs": .integer(frame.capturedAtEpochMilliseconds),
+                "width": .integer(Int64(frame.width)), "height": .integer(Int64(frame.height)),
+                "sha256": .string(hash), "geometry": geometry.json
+            ])
+            do {
+                let result = await sendText(try metadata.jsonString())
+                if !result.success { return result }
+            } catch { return .failure("Could not encode screenshot metadata: \(error)") }
+        }
+        return await sendData(payload)
+    }
+
     func sendData(_ data: Data) async -> OperationResult {
         guard let socket = lock.withLock({ webSocket }) else {
             return .failure("WebSocket session is not open.")
@@ -155,6 +178,7 @@ final class PairingLiveSessionTransport: @unchecked Sendable {
         ) in
             let state = (webSocket, receiveTask)
             webSocket = nil
+            screenshotGeometrySupported = false
             receiveTask = nil
             toolMessageHandler = nil
             toolResponseSentHandler = nil
@@ -279,6 +303,7 @@ final class PairingLiveSessionTransport: @unchecked Sendable {
 
             let receiveTask = receiveTask
             webSocket = nil
+            screenshotGeometrySupported = false
             self.receiveTask = nil
             toolMessageHandler = nil
             toolResponseSentHandler = nil

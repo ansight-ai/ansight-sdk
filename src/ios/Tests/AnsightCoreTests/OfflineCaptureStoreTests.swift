@@ -185,12 +185,15 @@ final class OfflineCaptureStoreTests: XCTestCase {
         let store = try OfflineCaptureStore(root: directory, options: .init(enabled: true), appId: "test", processSessionId: "process",
             sessionHeader: Data("{\"channels\":[]}".utf8), customProperties: Data("{\"user\":{\"role\":\"tester\"}}".utf8))
         store.setRecording(true)
-        XCTAssertTrue(store.appendScreenshot(jpeg: Data([255, 216, 255, 217]), capturedAtUtc: "2026-10-11T01:00:00Z", width: 1, height: 1, quality: 70))
+        let geometry = ScreenshotCaptureGeometry(captureTarget: "appWindow", safeAreaInsets: ScreenshotInsets(top: 0.1, right: 0, bottom: 0, left: 0),
+            systemUi: ["statusBar": .absent("Not captured"), "navigationBar": .absent("Not captured"), "displayCutout": .unknown("No exact bounds")])
+        XCTAssertTrue(store.appendScreenshot(jpeg: Data([255, 216, 255, 217]), capturedAtUtc: "2026-10-11T01:00:00Z", width: 1, height: 1, quality: 70, geometry: geometry))
         store.setRecording(false)
         try await store.flush()
         let sessions = try await store.sessions()
         let folder = directory.appendingPathComponent("sessions/\(try XCTUnwrap(sessions.last).sessionId)")
         let index = try JSONSerialization.jsonObject(with: Data(contentsOf: folder.appendingPathComponent("screenshots/index/frames.jsonl"))) as! [String: Any]
+        XCTAssertEqual((index["geometry"] as? [String: Any])?["captureTarget"] as? String, "appWindow")
         XCTAssertTrue(FileManager.default.fileExists(atPath: folder.appendingPathComponent(index["path"] as! String).path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: folder.appendingPathComponent("metadata/custom-properties.json").path))
     }

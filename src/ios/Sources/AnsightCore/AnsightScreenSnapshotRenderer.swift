@@ -14,7 +14,8 @@ public enum AnsightScreenSnapshotRenderer {
         format: AnsightScreenSnapshotFormat = .jpeg,
         quality: Int = AnsightSessionJpegCaptureOptions.defaultQuality,
         maxWidth: Int? = AnsightSessionJpegCaptureOptions.defaultMaxWidth,
-        afterScreenUpdates: Bool = false
+        afterScreenUpdates: Bool = false,
+        includeSystemUiMetadata: Bool = true
     ) throws -> AnsightScreenSnapshot {
         #if canImport(UIKit)
         let renderedImage = try renderTargetImage(
@@ -25,10 +26,11 @@ public enum AnsightScreenSnapshotRenderer {
             // omit CAMetalLayer content such as Flutter/Impeller.
             // ImageIO removes the alpha channel when the bitmap is encoded.
             opaque: false,
-            renderMode: .hierarchy
+            renderMode: .hierarchy,
+            includeSystemUiMetadata: includeSystemUiMetadata
         )
         let data = try encode(renderedImage, format: format, quality: quality)
-        return AnsightScreenSnapshot(width: renderedImage.width, height: renderedImage.height, data: data)
+        return AnsightScreenSnapshot(width: renderedImage.width, height: renderedImage.height, data: data, geometry: renderedImage.geometry)
         #else
         throw AnsightScreenCaptureError.unavailable
         #endif
@@ -39,7 +41,8 @@ public enum AnsightScreenSnapshotRenderer {
         format: AnsightScreenSnapshotFormat = .jpeg,
         quality: Int = AnsightSessionJpegCaptureOptions.defaultQuality,
         maxWidth: Int? = AnsightSessionJpegCaptureOptions.defaultMaxWidth,
-        afterScreenUpdates: Bool = true
+        afterScreenUpdates: Bool = true,
+        includeSystemUiMetadata: Bool = true
     ) async throws -> AnsightScreenSnapshot {
         #if canImport(UIKit)
         let renderedImage = try await renderTargetImageForCapture(
@@ -48,10 +51,11 @@ public enum AnsightScreenSnapshotRenderer {
             // See capture(format:quality:maxWidth:afterScreenUpdates:).
             opaque: false,
             renderMode: .hierarchy,
-            captureGpuBackedSurfaces: true
+            captureGpuBackedSurfaces: true,
+            includeSystemUiMetadata: includeSystemUiMetadata
         )
         let data = try encode(renderedImage, format: format, quality: quality)
-        return AnsightScreenSnapshot(width: renderedImage.width, height: renderedImage.height, data: data)
+        return AnsightScreenSnapshot(width: renderedImage.width, height: renderedImage.height, data: data, geometry: renderedImage.geometry)
         #else
         throw AnsightScreenCaptureError.unavailable
         #endif
@@ -63,20 +67,21 @@ public enum AnsightScreenSnapshotRenderer {
         maxWidth: Int?,
         afterScreenUpdates: Bool,
         opaque: Bool,
-        renderMode: AnsightScreenSnapshotRenderMode = .hierarchy
+        renderMode: AnsightScreenSnapshotRenderMode = .hierarchy,
+        includeSystemUiMetadata: Bool = true
     ) throws -> AnsightRenderedScreenImage {
         guard let image = renderVisibleWindows(
             maxWidth: maxWidth,
             afterScreenUpdates: afterScreenUpdates,
             opaque: opaque,
-            renderMode: renderMode
-        ),
-              let cgImage = image.cgImage
+            renderMode: renderMode,
+            includeSystemUiMetadata: includeSystemUiMetadata
+        )
         else {
             throw AnsightScreenCaptureError.noWindow
         }
 
-        return AnsightRenderedScreenImage(cgImage: cgImage, width: cgImage.width, height: cgImage.height)
+        return image
     }
 
     @MainActor
@@ -85,13 +90,15 @@ public enum AnsightScreenSnapshotRenderer {
         afterScreenUpdates: Bool,
         opaque: Bool,
         renderMode: AnsightScreenSnapshotRenderMode = .hierarchy,
-        captureGpuBackedSurfaces: Bool
+        captureGpuBackedSurfaces: Bool,
+        includeSystemUiMetadata: Bool = true
     ) async throws -> AnsightRenderedScreenImage {
         let renderedImage = try renderTargetImage(
             maxWidth: maxWidth,
             afterScreenUpdates: afterScreenUpdates,
             opaque: opaque,
-            renderMode: renderMode
+            renderMode: renderMode,
+            includeSystemUiMetadata: includeSystemUiMetadata
         )
 
         guard captureGpuBackedSurfaces else {
@@ -133,8 +140,9 @@ public enum AnsightScreenSnapshotRenderer {
         maxWidth: Int?,
         afterScreenUpdates: Bool,
         opaque: Bool,
-        renderMode: AnsightScreenSnapshotRenderMode
-    ) -> UIImage? {
+        renderMode: AnsightScreenSnapshotRenderMode,
+        includeSystemUiMetadata: Bool
+    ) -> AnsightRenderedScreenImage? {
         let windows = foregroundWindows()
         guard let referenceWindow = referenceWindow(from: windows) else {
             return nil
@@ -145,6 +153,8 @@ public enum AnsightScreenSnapshotRenderer {
             return nil
         }
 
+        let initialStamp = includeSystemUiMetadata ? layoutStamp(referenceWindow) : nil
+        let captureGeometry = includeSystemUiMetadata ? ScreenshotCaptureGeometry.appWindow(referenceWindow) : nil
         let geometry = renderGeometry(for: referenceWindow, maxWidth: maxWidth)
         let outputBounds = CGRect(origin: .zero, size: geometry.targetSize)
         let windowSnapshot = bitmapImage(size: geometry.targetSize, opaque: opaque) { context in
@@ -161,16 +171,24 @@ public enum AnsightScreenSnapshotRenderer {
             }
         }
 
-        if let windowSnapshot, windowSnapshot.cgImage != nil {
-            return windowSnapshot
+        if let cgImage = windowSnapshot?.cgImage {
+            return AnsightRenderedScreenImage(cgImage: cgImage, width: cgImage.width, height: cgImage.height,
+                geometry: includeSystemUiMetadata && initialStamp == layoutStamp(referenceWindow) ? captureGeometry : nil,
+                layoutStamp: initialStamp)
         }
 
-        return renderScreenSnapshot(
+        guard let fallback = renderScreenSnapshot(
             screen: referenceWindow.screen,
             bounds: bounds,
             targetSize: geometry.targetSize,
             opaque: opaque
-        )
+        )?.cgImage else { return nil }
+        return AnsightRenderedScreenImage(cgImage: fallback, width: fallback.width, height: fallback.height)
+    }
+
+    @MainActor
+    private static func layoutStamp(_ window: UIWindow) -> String {
+        "\(ObjectIdentifier(window))|\(window.bounds)|\(window.safeAreaInsets)|\(window.windowScene?.interfaceOrientation.rawValue ?? 0)"
     }
 
     #if canImport(WebKit)
@@ -204,7 +222,9 @@ public enum AnsightScreenSnapshotRenderer {
         }
 
         guard !snapshots.isEmpty else {
-            return renderedImage
+            var result = renderedImage
+            if let stamp = result.layoutStamp, stamp != layoutStamp(referenceWindow) { result.geometry = nil }
+            return result
         }
 
         let outputBounds = CGRect(origin: .zero, size: geometry.targetSize)
@@ -223,10 +243,14 @@ public enum AnsightScreenSnapshotRenderer {
         }
 
         guard let cgImage = image?.cgImage else {
-            return renderedImage
+            var result = renderedImage
+            if let stamp = result.layoutStamp, stamp != layoutStamp(referenceWindow) { result.geometry = nil }
+            return result
         }
 
-        return AnsightRenderedScreenImage(cgImage: cgImage, width: cgImage.width, height: cgImage.height)
+        return AnsightRenderedScreenImage(cgImage: cgImage, width: cgImage.width, height: cgImage.height,
+            geometry: renderedImage.geometry != nil && renderedImage.layoutStamp == layoutStamp(referenceWindow) ? renderedImage.geometry : nil,
+            layoutStamp: renderedImage.layoutStamp)
     }
 
     @MainActor
@@ -512,6 +536,8 @@ struct AnsightRenderedScreenImage: @unchecked Sendable {
     let cgImage: CGImage
     let width: Int
     let height: Int
+    var geometry: ScreenshotCaptureGeometry? = nil
+    var layoutStamp: String? = nil
 }
 
 enum AnsightScreenSnapshotRenderMode: Sendable {

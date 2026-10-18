@@ -37,6 +37,7 @@ internal static class AnsightSessionConfigurationProperties
                 .Register(CaptureGroup, "maxWidth", captureOptions.MaxWidth is { } maxWidth ? FormatNumber(maxWidth) : "full")
                 .Register(CaptureGroup, "captureGpuBackedSurfaces", FormatBoolean(captureOptions.CaptureGpuBackedSurfaces))
                 .Register(CaptureGroup, "captureKeyboardPresence", FormatBoolean(captureOptions.CaptureKeyboardPresence))
+                .Register(CaptureGroup, "includeSystemUiMetadata", FormatBoolean(captureOptions.IncludeSystemUiMetadata))
                 .Register(CaptureGroup, "mode", FormatCaptureMode(captureOptions.Mode));
         }
 

@@ -59,7 +59,7 @@ public final class GetScreenshotTool: AnsightTool {
         let capturedAtUtc = AnsightClock.isoNow()
         let fileExtension = screenshot.format == "jpeg" ? "jpg" : "png"
         let mimeType = screenshot.format == "jpeg" ? "image/jpeg" : "image/png"
-        return .success(.object([
+        var payload: [String: JSONValue] = [
             "platform": .string(AnsightVisualTreeSupport.currentPlatform),
             "capturedAtUtc": .string(capturedAtUtc),
             "format": .string(screenshot.format),
@@ -77,7 +77,9 @@ public final class GetScreenshotTool: AnsightTool {
             "status": .string("queued"),
             "receivedBytes": .null,
             "annotationApplied": .bool(screenshot.annotationApplied),
-        ]))
+        ]
+        if let geometry = screenshot.geometry { payload["geometry"] = geometry.json }
+        return .success(.object(payload))
     }
 
     private static func fileTimestamp() -> String {

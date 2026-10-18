@@ -50,6 +50,15 @@ fun PairingLiveSessionTransport.sendSessionJpegFrame(
     quality: Int,
     capturedAtEpochMs: Long = System.currentTimeMillis(),
 ): OperationResult {
+    if (supportsScreenshotGeometry && screenshot.geometry != null) {
+        val hash = java.security.MessageDigest.getInstance("SHA-256").digest(screenshot.bytes)
+            .joinToString("") { "%02x".format(it) }
+        val metadata = JSONObject().put("type", "CLIENT_SCREENSHOT_GEOMETRY")
+            .put("capturedAtEpochMs", capturedAtEpochMs).put("width", screenshot.width).put("height", screenshot.height)
+            .put("sha256", hash).put("geometry", screenshot.geometry.toJson())
+        val result = sendText(metadata.toString())
+        if (!result.success) return result
+    }
     return sendData(
         SessionJpegWireProtocol.createFrame(
             capturedAtEpochMs = capturedAtEpochMs,

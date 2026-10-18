@@ -326,6 +326,7 @@ public class Options
                         MaxWidth = initialOptions.SessionJpegCapture.MaxWidth,
                         CaptureGpuBackedSurfaces = initialOptions.SessionJpegCapture.CaptureGpuBackedSurfaces,
                         CaptureKeyboardPresence = initialOptions.SessionJpegCapture.CaptureKeyboardPresence,
+                        IncludeSystemUiMetadata = initialOptions.SessionJpegCapture.IncludeSystemUiMetadata,
                         Mode = initialOptions.SessionJpegCapture.Mode
                     },
                 TouchCapture = initialOptions.TouchCapture?.Clone(),
@@ -677,7 +678,8 @@ public class Options
             ushort intervalMilliseconds = 2000,
             int quality = 70,
             int? maxWidth = 720,
-            SessionJpegCaptureMode mode = SessionJpegCaptureMode.ScreenshotOnly)
+            SessionJpegCaptureMode mode = SessionJpegCaptureMode.ScreenshotOnly,
+            bool includeSystemUiMetadata = true)
         {
             options.SessionJpegCapture = new SessionJpegCaptureOptions
             {
@@ -686,6 +688,7 @@ public class Options
                 MaxWidth = maxWidth,
                 CaptureGpuBackedSurfaces = true,
                 CaptureKeyboardPresence = false,
+                IncludeSystemUiMetadata = includeSystemUiMetadata,
                 Mode = mode
             };
             return this;
@@ -705,13 +708,15 @@ public class Options
         /// <param name="captureKeyboardPresence">
         /// Whether replay frames should include opt-in on-screen keyboard presence metadata.
         /// </param>
+        /// <param name="includeSystemUiMetadata">Includes capture-time safe-area and system-UI metadata.</param>
         public OptionsBuilder WithSessionJpegCapture(
             ushort intervalMilliseconds,
             int quality,
             int? maxWidth,
             bool captureGpuBackedSurfaces,
             SessionJpegCaptureMode mode = SessionJpegCaptureMode.ScreenshotOnly,
-            bool captureKeyboardPresence = false)
+            bool captureKeyboardPresence = false,
+            bool includeSystemUiMetadata = true)
         {
             options.SessionJpegCapture = new SessionJpegCaptureOptions
             {
@@ -720,6 +725,7 @@ public class Options
                 MaxWidth = maxWidth,
                 CaptureGpuBackedSurfaces = captureGpuBackedSurfaces,
                 CaptureKeyboardPresence = captureKeyboardPresence,
+                IncludeSystemUiMetadata = includeSystemUiMetadata,
                 Mode = mode
             };
             return this;
@@ -740,6 +746,7 @@ public class Options
                 MaxWidth = sessionJpegCapture.MaxWidth,
                 CaptureGpuBackedSurfaces = sessionJpegCapture.CaptureGpuBackedSurfaces,
                 CaptureKeyboardPresence = sessionJpegCapture.CaptureKeyboardPresence,
+                IncludeSystemUiMetadata = sessionJpegCapture.IncludeSystemUiMetadata,
                 Mode = sessionJpegCapture.Mode
             };
             return this;

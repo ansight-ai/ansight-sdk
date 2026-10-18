@@ -7,6 +7,7 @@ public struct AnsightCapturedScreenFrame: Sendable, Equatable {
     public let height: Int
     public let quality: Int
     public let keyboardPresent: Bool?
+    public let geometry: ScreenshotCaptureGeometry?
     public let jpegData: Data
 
     public init(
@@ -16,7 +17,8 @@ public struct AnsightCapturedScreenFrame: Sendable, Equatable {
         height: Int,
         quality: Int,
         keyboardPresent: Bool? = nil,
-        jpegData: Data
+        jpegData: Data,
+        geometry: ScreenshotCaptureGeometry? = nil
     ) {
         self.capturedAtUtc = capturedAtUtc
         self.capturedAtEpochMilliseconds = capturedAtEpochMilliseconds
@@ -25,5 +27,6 @@ public struct AnsightCapturedScreenFrame: Sendable, Equatable {
         self.quality = quality
         self.keyboardPresent = keyboardPresent
         self.jpegData = jpegData
+        self.geometry = geometry
     }
 }

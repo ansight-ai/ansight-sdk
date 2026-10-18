@@ -22,12 +22,14 @@ class AnsightFlutterCaptureController {
     int quality = 60,
     int maxWidth = 960,
     bool includeVisualTree = true,
+    bool includeSystemUiMetadata = true,
   }) async {
     if (defaultTargetPlatform != TargetPlatform.macOS) {
       return Ansight.instance.captureScreenFrame(
         options: AnsightSessionJpegCaptureOptions(
           quality: quality,
           maxWidth: maxWidth,
+          includeSystemUiMetadata: includeSystemUiMetadata,
           mode: includeVisualTree
               ? AnsightSessionJpegCaptureMode.screenshotAndVisualTree
               : AnsightSessionJpegCaptureMode.screenshotOnly,
@@ -69,6 +71,14 @@ class AnsightFlutterCaptureController {
     final boundedPixelRatio = maxWidth > 0
         ? (maxWidth / logicalWidth).clamp(0.1, devicePixelRatio).toDouble()
         : devicePixelRatio;
+    final geometry = includeSystemUiMetadata
+        ? _captureGeometry(boundary, View.of(_boundaryKey.currentContext!))
+        : null;
+    final captureView = View.of(_boundaryKey.currentContext!);
+    final capturePadding = captureView.viewPadding;
+    final captureViewSize = captureView.physicalSize;
+    final captureSize = boundary.size;
+    final captureOrigin = boundary.localToGlobal(Offset.zero);
     final image = await boundary.toImage(pixelRatio: boundedPixelRatio);
     try {
       final bytes = await image.toByteData(format: ImageByteFormat.png);
@@ -100,10 +110,41 @@ class AnsightFlutterCaptureController {
         height: image.height,
         quality: quality,
         visualTrees: visualTrees,
+        geometry: boundary.size == captureSize && boundary.localToGlobal(Offset.zero) == captureOrigin
+            && captureView.viewPadding == capturePadding && captureView.physicalSize == captureViewSize
+            ? geometry : null,
       );
     } finally {
       image.dispose();
     }
+  }
+
+  // A Flutter raster contains app content, not OS-composited bars. Map the view's
+  // safe rectangle into this particular repaint boundary before normalization.
+  AnsightJson _captureGeometry(RenderRepaintBoundary boundary, FlutterView view) {
+    final ratio = view.devicePixelRatio;
+    final origin = boundary.localToGlobal(Offset.zero);
+    final size = boundary.size;
+    final isTranslation = boundary.localToGlobal(Offset(size.width, size.height)) == origin + Offset(size.width, size.height);
+    final padding = view.viewPadding;
+    final safeLeft = padding.left / ratio;
+    final safeTop = padding.top / ratio;
+    final safeRight = (view.physicalSize.width - padding.right) / ratio;
+    final safeBottom = (view.physicalSize.height - padding.bottom) / ratio;
+    final left = ((safeLeft - origin.dx) / size.width).clamp(0.0, 1.0);
+    final top = ((safeTop - origin.dy) / size.height).clamp(0.0, 1.0);
+    final right = ((origin.dx + size.width - safeRight) / size.width).clamp(0.0, 1.0);
+    final bottom = ((origin.dy + size.height - safeBottom) / size.height).clamp(0.0, 1.0);
+    return <String, Object?>{
+      'coordinateSpace': 'image-normalized', 'captureTarget': 'appContent',
+      'safeAreaInsets': isTranslation && left + right < 1 && top + bottom < 1
+          ? <String, Object?>{'top': top, 'right': right, 'bottom': bottom, 'left': left} : null,
+      'systemUi': <String, Object?>{
+        'statusBar': <String, Object?>{'state': 'absent', 'regions': <Object>[], 'reason': 'Flutter content raster excludes OS bars.'},
+        'navigationBar': <String, Object?>{'state': 'absent', 'regions': <Object>[], 'reason': 'Flutter content raster excludes OS bars.'},
+        'displayCutout': <String, Object?>{'state': 'unknown', 'regions': <Object>[], 'reason': 'Exact cutout bounds are unavailable for this raster.'},
+      },
+    };
   }
 
   Future<void> _submitPointer(PointerEvent event, String action) async {
@@ -203,6 +244,7 @@ class _AnsightFlutterCaptureBoundaryState
       await widget.controller.capture(
         quality: options.quality,
         maxWidth: options.maxWidth ?? 0,
+        includeSystemUiMetadata: options.includeSystemUiMetadata,
         includeVisualTree: options.mode ==
             AnsightSessionJpegCaptureMode.screenshotAndVisualTree,
       );

@@ -29,6 +29,7 @@ internal sealed class AnnotationRuntimeFeature : IRuntimeFeature, INativeRuntime
             ["captureVisualTrees"] = options.CaptureVisualTrees,
             ["screenshotQuality"] = options.ScreenshotQuality,
             ["screenshotMaxWidth"] = options.ScreenshotMaxWidth,
+            ["includeSystemUiMetadata"] = options.IncludeSystemUiMetadata,
             ["visualTreeMaxDepth"] = options.VisualTreeMaxDepth,
             ["visualTreeMaxNodes"] = options.VisualTreeMaxNodes
         };

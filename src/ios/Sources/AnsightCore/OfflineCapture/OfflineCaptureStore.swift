@@ -118,10 +118,12 @@ public final class OfflineCaptureStore: @unchecked Sendable {
     }
 
     @discardableResult
-    public func appendScreenshot(jpeg: Data, capturedAtUtc: String, width: Int, height: Int, quality: Int) -> Bool {
+    public func appendScreenshot(jpeg: Data, capturedAtUtc: String, width: Int, height: Int, quality: Int, geometry: ScreenshotCaptureGeometry? = nil) -> Bool {
         let path = "screenshots/\(UUID().uuidString.lowercased()).jpg"
-        guard let index = try? JSONSerialization.data(withJSONObject: ["path": path, "capturedAtUtc": capturedAtUtc,
-            "width": width, "height": height, "quality": quality]) else { return false }
+        var entry: [String: Any] = ["path": path, "capturedAtUtc": capturedAtUtc,
+            "width": width, "height": height, "quality": quality]
+        if let geometry { entry["geometry"] = geometry.json.anyValue }
+        guard let index = try? JSONSerialization.data(withJSONObject: entry) else { return false }
         return enqueue(json: index, attachment: Attachment(path: path, data: jpeg), indexPath: "screenshots/index/frames.jsonl")
     }
 

@@ -790,6 +790,7 @@ object AnsightRuntime {
                 state.first.quality,
                 state.first.maxWidth,
                 state.first.captureKeyboardPresence,
+                state.first.includeSystemUiMetadata,
             )
         } catch (ex: Exception) {
             val message = ex.message ?: "Android screen frame capture failed."
@@ -1335,8 +1336,12 @@ object AnsightRuntime {
             profile.toJson().put(
                 HostSessionJpegCapturePolicy.ControlVersionPropertyName,
                 HostSessionJpegCapturePolicy.ControlVersion,
-            ),
+            ).apply { synchronized(lock) { options.sessionJpegCapture }?.let { capture ->
+                put("sessionJpegCapture", JSONObject().put("maxWidth", capture.maxWidth ?: JSONObject.NULL)
+                    .put("includeSystemUiMetadata", capture.includeSystemUiMetadata))
+            } },
         )
+        transport.supportsScreenshotGeometry = profileRequestResult.response?.optJSONObject("payload")?.optBoolean("screenshotGeometry", false) == true
         val profileResult = profileRequestResult.operationResult
         synchronized(lock) {
             hostSessionJpegCapturePolicy = HostSessionJpegCapturePolicy.fromPayload(
@@ -2659,10 +2664,10 @@ object AnsightRuntime {
             if (synchronized(lock) { active && currentLifecycleState != AppLifecycleState.Background } && capture.store.isRecording) {
                 runCatching {
                     val screenshot = AndroidUiEvidence.captureSessionScreenshot("jpeg", screenshotOptions.quality,
-                        screenshotOptions.maxWidth, screenshotOptions.captureKeyboardPresence)
+                        screenshotOptions.maxWidth, screenshotOptions.captureKeyboardPresence, screenshotOptions.includeSystemUiMetadata)
                     if (executor.isShutdown || !capture.store.isRecording) return@runCatching
                     val capturedAt = AnsightClock.isoNow()
-                    capture.store.appendScreenshot(screenshot.bytes, capturedAt, screenshot.width, screenshot.height, screenshotOptions.quality)
+                    capture.store.appendScreenshot(screenshot.bytes, capturedAt, screenshot.width, screenshot.height, screenshotOptions.quality, screenshot.geometry?.toJson())
                     if (screenshotOptions.mode != AnsightSessionJpegCaptureMode.ScreenshotOnly) {
                         captureAnnotationVisualTrees().forEach { tree -> capture.append(sessionVisualTreePayload(tree, capturedAt)) }
                     }
@@ -2912,6 +2917,7 @@ object AnsightRuntime {
                 state.first.quality,
                 state.first.maxWidth,
                 state.first.captureKeyboardPresence,
+                state.first.includeSystemUiMetadata,
             )
         } catch (_: Exception) {
             return

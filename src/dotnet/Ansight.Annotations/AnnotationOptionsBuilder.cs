@@ -40,10 +40,11 @@ public sealed class AnnotationOptionsBuilder
         return this;
     }
 
-    public AnnotationOptionsBuilder WithScreenshotEncoding(int quality, int maxWidth)
+    public AnnotationOptionsBuilder WithScreenshotEncoding(int quality, int maxWidth, bool includeSystemUiMetadata = true)
     {
         options.ScreenshotQuality = quality;
         options.ScreenshotMaxWidth = maxWidth;
+        options.IncludeSystemUiMetadata = includeSystemUiMetadata;
         return this;
     }
 

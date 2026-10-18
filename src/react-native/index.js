@@ -370,6 +370,7 @@ class AnsightOptionsBuilder {
         captureGpuBackedSurfaces: arguments.length > 3 ? arguments[3] : true,
         mode: arguments.length > 4 ? arguments[4] : "screenshotOnly",
         captureKeyboardPresence: arguments.length > 5 ? arguments[5] : false,
+        includeSystemUiMetadata: arguments.length > 6 ? arguments[6] : true,
       };
       return this;
     }
@@ -378,6 +379,7 @@ class AnsightOptionsBuilder {
       quality: 60,
       maxWidth: 480,
       captureKeyboardPresence: false,
+      includeSystemUiMetadata: true,
       mode: "screenshotOnly",
       ...(optionsOrIntervalMilliseconds || {}),
     };

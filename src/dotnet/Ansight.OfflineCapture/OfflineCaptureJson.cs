@@ -80,7 +80,8 @@ internal static class OfflineCaptureJson
             w = frame.Width,
             h = frame.Height,
             q = frame.Quality,
-            b = frame.JpegByteCount
+            b = frame.JpegByteCount,
+            geometry = frame.Geometry?.ToJson()
         }, Data);
     }
 

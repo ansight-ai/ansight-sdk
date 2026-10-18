@@ -31,6 +31,8 @@ internal sealed class PairingSessionTransport : IPairingBinaryTransport, IDispos
 
     internal event EventHandler? Closed;
 
+    internal bool SupportsScreenshotGeometry { get; set; }
+
     public void Attach(ClientWebSocket webSocket)
     {
         ArgumentNullException.ThrowIfNull(webSocket);
@@ -254,6 +256,7 @@ internal sealed class PairingSessionTransport : IPairingBinaryTransport, IDispos
         var hadSession = webSocket is not null || receivePumpTask is not null || receivePumpCts is not null;
 
         this.webSocket = null;
+        SupportsScreenshotGeometry = false;
         this.receivePumpCts = null;
         this.receivePumpTask = null;
 
@@ -357,6 +360,7 @@ internal sealed class PairingSessionTransport : IPairingBinaryTransport, IDispos
         requestLock.Dispose();
         FailPendingResponses("WebSocket session disposed.");
         webSocket = null;
+        SupportsScreenshotGeometry = false;
         receivePumpTask = null;
         receivePumpCts = null;
     }

@@ -10,6 +10,19 @@ namespace Ansight.UnitTests;
 
 public sealed class NativeRuntimeOptionsJsonTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ScreenshotMetadataSurvivesBuilderCopyAndNativeSerialization(bool enabled)
+    {
+        Assert.True(new SessionJpegCaptureOptions().IncludeSystemUiMetadata);
+        var options = Options.CreateBuilder().WithSessionJpegCapture(includeSystemUiMetadata: enabled).Build();
+        var copy = Options.CreateBuilder(options).Build();
+        Assert.Equal(enabled, copy.SessionJpegCapture!.IncludeSystemUiMetadata);
+        var json = JsonNode.Parse(NativeRuntimeOptionsJson.Serialize(copy))!;
+        Assert.Equal(enabled, json["sessionJpegCapture"]!["includeSystemUiMetadata"]!.GetValue<bool>());
+    }
+
     [Fact]
     public void ConnectivityAndNetworkMeasurementsRemainEnabledWithoutBodyCapture()
     {

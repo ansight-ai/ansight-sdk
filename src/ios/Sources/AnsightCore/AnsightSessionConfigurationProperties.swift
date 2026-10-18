@@ -40,6 +40,7 @@ enum AnsightSessionConfigurationProperties {
             properties["maxWidth"] = options.maxWidth.map(String.init) ?? "full"
             properties["captureGpuBackedSurfaces"] = String(options.captureGpuBackedSurfaces)
             properties["captureKeyboardPresence"] = String(options.captureKeyboardPresence)
+            properties["includeSystemUiMetadata"] = String(options.includeSystemUiMetadata)
             properties["mode"] = options.mode.rawValue
         }
         if let source = capturePolicy.source {

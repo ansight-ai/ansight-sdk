@@ -17,6 +17,7 @@ internal data class PairingControlRequestResult(
 )
 
 class PairingLiveSessionTransport {
+    @Volatile internal var supportsScreenshotGeometry = false
     private val pendingResponses = ConcurrentHashMap<String, PendingControlResponse>()
     private val lock = Any()
     private var webSocket: WebSocketClient? = null
@@ -42,6 +43,7 @@ class PairingLiveSessionTransport {
 
     fun open(url: String, timeoutMilliseconds: Long = 5_000): OperationResult {
         close(notify = false)
+        supportsScreenshotGeometry = false
 
         val opened = CountDownLatch(1)
         val failed = AtomicReference<String?>(null)

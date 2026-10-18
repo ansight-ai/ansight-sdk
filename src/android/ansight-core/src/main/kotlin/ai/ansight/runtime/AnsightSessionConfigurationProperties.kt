@@ -42,6 +42,7 @@ internal object AnsightSessionConfigurationProperties {
             properties["maxWidth"] = options.maxWidth?.toString() ?: "full"
             properties["captureGpuBackedSurfaces"] = options.captureGpuBackedSurfaces.toString()
             properties["captureKeyboardPresence"] = options.captureKeyboardPresence.toString()
+            properties["includeSystemUiMetadata"] = options.includeSystemUiMetadata.toString()
             properties["mode"] = options.mode.wireName()
         }
         capturePolicy.source?.let { properties["ownerSource"] = it }

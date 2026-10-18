@@ -30,6 +30,7 @@ object AndroidVisualTreeTools {
         ) { args, context ->
             val screenshot = AndroidUiEvidence.captureScreenshot(
                 format = args["format"] ?: "jpeg",
+                includeSystemUiMetadata = args["includeSystemUiMetadata"]?.toBooleanStrictOrNull() ?: true,
                 quality = args.intArg(
                     "quality",
                     context.options.sessionJpegCapture?.quality ?: AnsightSessionJpegCaptureOptions.DefaultQuality,
@@ -52,6 +53,7 @@ object AndroidVisualTreeTools {
             ).toJson()
                 .put("width", screenshot.width)
                 .put("height", screenshot.height)
+                .apply { screenshot.geometry?.let { put("geometry", it.toJson()) } }
 
             context.transport?.takeIf { it.isOpen }?.let {
                 context.queueBinaryTransfer(transferId, screenshot.bytes, chunkBytes)

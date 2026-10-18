@@ -23,7 +23,8 @@ internal sealed record HostSessionJpegCapturePolicy(bool UseHostCapture, string?
 
         payload["sessionJpegCapture"] = new JsonObject
         {
-            ["maxWidth"] = captureOptions.MaxWidth
+            ["maxWidth"] = captureOptions.MaxWidth,
+            ["includeSystemUiMetadata"] = captureOptions.IncludeSystemUiMetadata
         };
     }
 

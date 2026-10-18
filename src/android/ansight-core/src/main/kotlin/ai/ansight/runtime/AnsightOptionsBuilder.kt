@@ -105,6 +105,7 @@ class AnsightOptionsBuilder @JvmOverloads constructor(
         captureGpuBackedSurfaces: Boolean = AnsightSessionJpegCaptureOptions.DefaultCaptureGpuBackedSurfaces,
         mode: AnsightSessionJpegCaptureMode = AnsightSessionJpegCaptureOptions.DefaultMode,
         captureKeyboardPresence: Boolean = AnsightSessionJpegCaptureOptions.DefaultCaptureKeyboardPresence,
+        includeSystemUiMetadata: Boolean = true,
     ): AnsightOptionsBuilder {
         options = options.copy(
             sessionJpegCapture = AnsightSessionJpegCaptureOptions(
@@ -113,6 +114,7 @@ class AnsightOptionsBuilder @JvmOverloads constructor(
                 maxWidth = maxWidth,
                 captureGpuBackedSurfaces = captureGpuBackedSurfaces,
                 captureKeyboardPresence = captureKeyboardPresence,
+                includeSystemUiMetadata = includeSystemUiMetadata,
                 mode = mode,
             ),
         )

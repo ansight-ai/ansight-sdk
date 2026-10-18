@@ -9,6 +9,16 @@ import org.junit.Test
 
 class AnsightOptionsTest {
     @Test
+    fun screenshotMetadataDefaultsOnAndPreservesOptOut() {
+        assertTrue(AnsightSessionJpegCaptureOptions().includeSystemUiMetadata)
+        for (enabled in listOf(false, true)) {
+            val options = AnsightOptions.createBuilder().withSessionJpegCapture(includeSystemUiMetadata = enabled).build()
+            assertEquals(enabled, options.sessionJpegCapture?.includeSystemUiMetadata)
+            assertEquals(enabled, options.validated().sessionJpegCapture?.includeSystemUiMetadata)
+        }
+    }
+
+    @Test
     fun connectivityIsOptInAndClampsQualityRate() {
         assertEquals(null, AnsightOptions().connectivityCapture)
         assertEquals(1000, AnsightConnectivityCaptureOptions(1).validated().minimumSampleIntervalMilliseconds)

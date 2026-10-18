@@ -102,3 +102,14 @@ test("native offline settings preserve the configurable session cap and transfer
   assert.equal(calls[0].offlineCapture.maximumSessions, 3);
   assert.equal(calls[0].offlineCapture.transferMode, "manual");
 });
+
+
+test("screenshot metadata defaults on and explicit opt-out reaches native", async () => {
+  const calls = [], runtime = loadRuntime(calls);
+  assert.equal(runtime.createOptionsBuilder().withSessionJpegCapture().build().sessionJpegCapture.includeSystemUiMetadata, true);
+  for (const enabled of [false, true]) {
+    const options = runtime.createOptionsBuilder().withSessionJpegCapture({ includeSystemUiMetadata: enabled }).build();
+    await runtime.initialize({ ...options, lifecycle: false, networkCapture: false });
+    assert.equal(calls.at(-1).sessionJpegCapture.includeSystemUiMetadata, enabled);
+  }
+});

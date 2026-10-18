@@ -87,6 +87,7 @@ data class AnsightSessionJpegCaptureOptions(
     val captureGpuBackedSurfaces: Boolean = DefaultCaptureGpuBackedSurfaces,
     val mode: AnsightSessionJpegCaptureMode = DefaultMode,
     val captureKeyboardPresence: Boolean = DefaultCaptureKeyboardPresence,
+    val includeSystemUiMetadata: Boolean = true,
 ) {
     companion object {
         const val DefaultIntervalMilliseconds = 2_000

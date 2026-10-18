@@ -8,6 +8,7 @@ data class AnnotationOptions(
     val screenshotMaxWidth: Int = 1440,
     val visualTreeMaxDepth: Int = 30,
     val visualTreeMaxNodes: Int = 1500,
+    val includeSystemUiMetadata: Boolean = true,
 ) {
     fun validated(): AnnotationOptions = copy(
         screenshotQuality = screenshotQuality.coerceIn(1, 100),

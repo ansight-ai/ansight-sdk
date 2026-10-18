@@ -54,6 +54,10 @@ final class TestPairingWebSocket: PairingWebSocket, @unchecked Sendable {
         lock.withLock { sentMessages.count }
     }
 
+    func messages() -> [URLSessionWebSocketTask.Message] {
+        lock.withLock { sentMessages }
+    }
+
     func didResume() -> Bool {
         lock.withLock { resumeCount > 0 }
     }

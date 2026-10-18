@@ -41,6 +41,7 @@ class AnsightSessionJpegCaptureOptions {
     this.captureGpuBackedSurfaces = true,
     this.mode = AnsightSessionJpegCaptureMode.screenshotOnly,
     this.captureKeyboardPresence = false,
+    this.includeSystemUiMetadata = true,
   });
 
   final int intervalMilliseconds;
@@ -49,6 +50,7 @@ class AnsightSessionJpegCaptureOptions {
   final bool captureGpuBackedSurfaces;
   final AnsightSessionJpegCaptureMode mode;
   final bool captureKeyboardPresence;
+  final bool includeSystemUiMetadata;
 
   AnsightJson toJson() => <String, Object?>{
         'intervalMilliseconds': intervalMilliseconds,
@@ -57,6 +59,7 @@ class AnsightSessionJpegCaptureOptions {
         'captureGpuBackedSurfaces': captureGpuBackedSurfaces,
         'mode': mode.name,
         'captureKeyboardPresence': captureKeyboardPresence,
+        'includeSystemUiMetadata': includeSystemUiMetadata,
       };
 }
 
@@ -377,6 +380,7 @@ class AnsightAnnotationOptions {
     this.captureVisualTrees = true,
     this.screenshotQuality = 85,
     this.screenshotMaxWidth = 1440,
+    this.includeSystemUiMetadata = true,
   });
 
   final bool enabled;
@@ -384,6 +388,7 @@ class AnsightAnnotationOptions {
   final bool captureVisualTrees;
   final int screenshotQuality;
   final int screenshotMaxWidth;
+  final bool includeSystemUiMetadata;
 
   AnsightJson toJson() => <String, Object?>{
         'enabled': enabled,
@@ -391,6 +396,7 @@ class AnsightAnnotationOptions {
         'captureVisualTrees': captureVisualTrees,
         'screenshotQuality': screenshotQuality,
         'screenshotMaxWidth': screenshotMaxWidth,
+        'includeSystemUiMetadata': includeSystemUiMetadata,
       };
 }
 

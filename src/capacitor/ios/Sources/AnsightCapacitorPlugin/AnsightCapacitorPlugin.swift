@@ -699,7 +699,8 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
                     captureScreenshot: boolValue(annotation, "captureScreenshot", defaultValue: true),
                     captureVisualTrees: boolValue(annotation, "captureVisualTrees", defaultValue: true),
                     screenshotQuality: intValue(annotation, "screenshotQuality", defaultValue: 85),
-                    screenshotMaxWidth: intValue(annotation, "screenshotMaxWidth", defaultValue: 1440)
+                    screenshotMaxWidth: intValue(annotation, "screenshotMaxWidth", defaultValue: 1440),
+                    includeSystemUiMetadata: boolValue(annotation, "includeSystemUiMetadata", defaultValue: true)
                 )
             }
         }
@@ -1093,7 +1094,8 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
                 dictionary,
                 "captureKeyboardPresence",
                 defaultValue: AnsightSessionJpegCaptureOptions.defaultCaptureKeyboardPresence
-            )
+            ),
+            includeSystemUiMetadata: boolValue(dictionary, "includeSystemUiMetadata", defaultValue: true)
         )
     }
 

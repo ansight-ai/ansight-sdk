@@ -6,6 +6,7 @@ public struct AnnotationOptions: Sendable, Codable, Equatable {
     public var captureVisualTrees: Bool
     public var screenshotQuality: Int
     public var screenshotMaxWidth: Int
+    public var includeSystemUiMetadata: Bool
     /// Set by a prebuilt bridge when its own compilation mode differs from the app's.
     public var debugBuildOverride: Bool?
 
@@ -15,7 +16,8 @@ public struct AnnotationOptions: Sendable, Codable, Equatable {
         captureVisualTrees: Bool = true,
         screenshotQuality: Int = 85,
         screenshotMaxWidth: Int = 1440,
-        debugBuildOverride: Bool? = nil
+        debugBuildOverride: Bool? = nil,
+        includeSystemUiMetadata: Bool = true
     ) {
         self.enabled = enabled
         self.captureScreenshot = captureScreenshot
@@ -23,6 +25,22 @@ public struct AnnotationOptions: Sendable, Codable, Equatable {
         self.screenshotQuality = screenshotQuality
         self.screenshotMaxWidth = screenshotMaxWidth
         self.debugBuildOverride = debugBuildOverride
+        self.includeSystemUiMetadata = includeSystemUiMetadata
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case enabled, captureScreenshot, captureVisualTrees, screenshotQuality, screenshotMaxWidth, debugBuildOverride, includeSystemUiMetadata
+    }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(enabled: try values.decodeIfPresent(Bool.self, forKey: .enabled) ?? true,
+            captureScreenshot: try values.decodeIfPresent(Bool.self, forKey: .captureScreenshot) ?? true,
+            captureVisualTrees: try values.decodeIfPresent(Bool.self, forKey: .captureVisualTrees) ?? true,
+            screenshotQuality: try values.decodeIfPresent(Int.self, forKey: .screenshotQuality) ?? 85,
+            screenshotMaxWidth: try values.decodeIfPresent(Int.self, forKey: .screenshotMaxWidth) ?? 1440,
+            debugBuildOverride: try values.decodeIfPresent(Bool.self, forKey: .debugBuildOverride),
+            includeSystemUiMetadata: try values.decodeIfPresent(Bool.self, forKey: .includeSystemUiMetadata) ?? true)
     }
 
     public func validated() -> AnnotationOptions {

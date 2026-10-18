@@ -126,6 +126,14 @@ class StreamingClient extends http.BaseClient {
 }
 
 void main() {
+  test('screenshot metadata defaults on and preserves explicit opt-out', () {
+    expect(const AnsightSessionJpegCaptureOptions().includeSystemUiMetadata, isTrue);
+    for (final enabled in [false, true]) {
+      final options = AnsightSessionJpegCaptureOptions(includeSystemUiMetadata: enabled);
+      expect(options.toJson()['includeSystemUiMetadata'], enabled);
+    }
+  });
+
   test('publishes artifact without registration or a tool request', () async {
     final transport = FakeNativeTransport();
     final ansight = Ansight.withTransport(transport);

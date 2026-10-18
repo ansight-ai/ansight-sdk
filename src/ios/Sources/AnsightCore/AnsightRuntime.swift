@@ -536,7 +536,8 @@ public final class AnsightRuntime: @unchecked Sendable {
         width: Int,
         height: Int,
         quality: Int,
-        visualTrees: [JSONValue] = []
+        visualTrees: [JSONValue] = [],
+        geometry: ScreenshotCaptureGeometry? = nil
     ) async -> OperationResult {
         guard !jpegData.isEmpty, width > 0, height > 0 else {
             return .failure("Submitted screen frame is empty or has invalid dimensions.")
@@ -554,7 +555,8 @@ public final class AnsightRuntime: @unchecked Sendable {
             width: width,
             height: height,
             quality: max(1, min(quality, 100)),
-            jpegData: jpegData
+            jpegData: jpegData,
+            geometry: geometry
         )
         let now = AnsightTiming.now()
         let message = "Submitted screen frame \(width)x\(height) (\(jpegData.count) bytes); queued for delivery."
@@ -711,7 +713,7 @@ public final class AnsightRuntime: @unchecked Sendable {
     private func sendPreparedScreenFrame(_ preparedFrame: PreparedScreenFrame) async -> ScreenCaptureSendResult {
         let queueMilliseconds = AnsightTiming.elapsedMilliseconds(since: preparedFrame.readyAt)
         let sendStarted = AnsightTiming.now()
-        var result = await liveTransport.sendData(preparedFrame.payload)
+        var result = await liveTransport.sendScreenFrame(preparedFrame.frame, payload: preparedFrame.payload)
         if result.success {
             for visualTree in preparedFrame.visualTrees {
                 do {
@@ -3144,10 +3146,19 @@ public final class AnsightRuntime: @unchecked Sendable {
             }
             payload[HostSessionJpegCapturePolicy.controlVersionPropertyName] =
                 .integer(HostSessionJpegCapturePolicy.controlVersion)
+            if let capture = lock.withLock({ options.sessionJpegCapture }) {
+                payload["sessionJpegCapture"] = .object([
+                    "maxWidth": capture.maxWidth.map { .integer(Int64($0)) } ?? .null,
+                    "includeSystemUiMetadata": .bool(capture.includeSystemUiMetadata)
+                ])
+            }
             let result = await liveTransport.sendControlRequestWithResponse(
                 action: PairingControlActions.deviceProfile,
                 payload: .object(payload)
             )
+            if case .object(let response) = result.response?.payload {
+                liveTransport.supportsScreenshotGeometry = response["screenshotGeometry"] == .bool(true)
+            }
             lock.withLock {
                 hostSessionJpegCapturePolicy = HostSessionJpegCapturePolicy(
                     payload: result.response?.payload
@@ -3623,7 +3634,7 @@ public final class AnsightRuntime: @unchecked Sendable {
                         let frame = result.frame
                         if !Task.isCancelled {
                             capture.store.appendScreenshot(jpeg: frame.jpegData, capturedAtUtc: frame.capturedAtUtc,
-                                width: frame.width, height: frame.height, quality: frame.quality)
+                                width: frame.width, height: frame.height, quality: frame.quality, geometry: frame.geometry)
                             if screenshotOptions.mode != .screenshotOnly {
                                 for tree in AnsightSessionVisualTreeCaptureRegistry.capture() {
                                     capture.append(Self.sessionVisualTreeEvent(payload: tree, capturedAtUtc: frame.capturedAtUtc,
