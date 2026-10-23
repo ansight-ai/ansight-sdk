@@ -78,16 +78,22 @@ if [[ "${skip_tests}" != "true" ]]; then
 fi
 
 for package_root in "${repo_root}/src/flutter" "${repo_root}/src/flutter-pencil"; do
+validation_args=()
+if [[ "${package_root}" == "${repo_root}/src/flutter-pencil" ]]; then
+  # The Dart package must match its exact CocoaPods/SwiftPM SDK dependencies.
+  # Pub warns about that intentional pin; package validation errors remain fatal.
+  validation_args+=(--ignore-warnings)
+fi
 
 (
   cd "${package_root}"
-  dart pub publish --dry-run
+  dart pub publish --dry-run "${validation_args[@]+"${validation_args[@]}"}"
 )
 
 if [[ "${publish}" == "true" ]]; then
   (
     cd "${package_root}"
-    dart pub publish --force
+    dart pub publish --force "${validation_args[@]+"${validation_args[@]}"}"
   )
 else
   echo "Flutter package validated. Re-run with --publish to upload it."
