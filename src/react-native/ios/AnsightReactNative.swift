@@ -1666,23 +1666,18 @@ final class AnsightReactNative: RCTEventEmitter {
             return "Lifecycle"
         case .motion:
             return "Motion"
+        case .span:
+            return "Span"
         }
     }
 
     private func toolGuardName(_ guardPolicy: AnsightToolGuard) -> String {
-        if guardPolicy == .disabled {
-            return "disabled"
+        guard guardPolicy.discoveryEnabled, guardPolicy.executionEnabled else { return "disabled" }
+        switch guardPolicy.maxPolicy {
+        case .read: return "readOnly"
+        case .write: return "readWrite"
+        case .critical: return "fullAccess"
         }
-        if guardPolicy == .readOnly {
-            return "readOnly"
-        }
-        if guardPolicy == .readWrite {
-            return "readWrite"
-        }
-        if guardPolicy == .fullAccess {
-            return "fullAccess"
-        }
-        return "custom"
     }
 }
 

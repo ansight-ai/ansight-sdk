@@ -344,6 +344,14 @@ public final class AnsightOptionsBuilder {
         }
     }
 
+    /// Adds optional setup without executing it. Replaces an earlier plugin with the same ID.
+    @discardableResult
+    public func withPlugin(_ plugin: AnsightPlugin) -> AnsightOptionsBuilder {
+        options.plugins.removeAll { $0.id == plugin.id }
+        options.plugins.append(plugin)
+        return self
+    }
+
     public func build() throws -> AnsightOptions {
         try options.validated()
     }

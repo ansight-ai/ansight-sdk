@@ -107,8 +107,13 @@ class Ansight {
       'initialize',
       withAutomaticSessionProperties(options.toJson()),
     );
+    for (final plugin in options.plugins) {
+      await plugin.initialize();
+    }
     await _publishConnectionStatus();
-    return AnsightDebugSnapshot.fromJson(result);
+    return AnsightDebugSnapshot.fromJson(
+      options.plugins.isEmpty ? result : await _invoke('snapshot'),
+    );
   }
 
   Future<AnsightDebugSnapshot> initializeAndActivate([
@@ -118,8 +123,13 @@ class Ansight {
       'initializeAndActivate',
       withAutomaticSessionProperties(options.toJson()),
     );
+    for (final plugin in options.plugins) {
+      await plugin.initialize();
+    }
     await _publishConnectionStatus();
-    return AnsightDebugSnapshot.fromJson(result);
+    return AnsightDebugSnapshot.fromJson(
+      options.plugins.isEmpty ? result : await _invoke('snapshot'),
+    );
   }
 
   Future<AnsightDebugSnapshot> activate() async {

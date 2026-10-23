@@ -400,8 +400,15 @@ class AnsightAnnotationOptions {
       };
 }
 
+/// Optional package setup, awaited by SDK initialization. Never sent over the native bridge.
+abstract class AnsightPlugin {
+  String get id;
+  Future<void> initialize();
+}
+
 class AnsightOptions {
   const AnsightOptions({
+    this.plugins = const <AnsightPlugin>[],
     this.useNativeAllInOneDefaults = false,
     this.clientName,
     this.sampleFrequencyMilliseconds,
@@ -430,8 +437,9 @@ class AnsightOptions {
     this.additionalChannels = const <AnsightChannel>[],
   }) : _rawJson = null;
 
-  AnsightOptions._fromBuilder(AnsightJson json)
-      : _rawJson = Map<String, Object?>.unmodifiable(json),
+  AnsightOptions._fromBuilder(AnsightJson json, List<AnsightPlugin> plugins)
+      : plugins = List<AnsightPlugin>.unmodifiable(plugins),
+        _rawJson = Map<String, Object?>.unmodifiable(json),
         useNativeAllInOneDefaults = false,
         clientName = null,
         sampleFrequencyMilliseconds = null,
@@ -482,6 +490,8 @@ class AnsightOptions {
         remoteTools: const AnsightRemoteToolsOptions(visualTree: true),
       );
 
+  /// In-process optional setup. Excluded from toJson().
+  final List<AnsightPlugin> plugins;
   final bool useNativeAllInOneDefaults;
   final String? clientName;
   final int? sampleFrequencyMilliseconds;
@@ -565,9 +575,18 @@ class AnsightOptions {
 
 class AnsightOptionsBuilder {
   AnsightOptionsBuilder([AnsightOptions options = const AnsightOptions()])
-      : _json = Map<String, Object?>.from(options.toJson());
+      : _json = Map<String, Object?>.from(options.toJson()),
+        _plugins = List<AnsightPlugin>.from(options.plugins);
 
   AnsightJson _json;
+  final List<AnsightPlugin> _plugins;
+
+  /// Configures a plugin without running it; the last plugin with an ID wins.
+  AnsightOptionsBuilder withPlugin(AnsightPlugin plugin) {
+    _plugins.removeWhere((existing) => existing.id == plugin.id);
+    _plugins.add(plugin);
+    return this;
+  }
 
   AnsightOptionsBuilder withOfflineCapture(
       [AnsightOfflineCaptureOptions options =
@@ -755,7 +774,7 @@ class AnsightOptionsBuilder {
     return this;
   }
 
-  AnsightOptions build() => AnsightOptions._fromBuilder(_json);
+  AnsightOptions build() => AnsightOptions._fromBuilder(_json, _plugins);
 }
 
 AnsightOptionsBuilder createOptionsBuilder([

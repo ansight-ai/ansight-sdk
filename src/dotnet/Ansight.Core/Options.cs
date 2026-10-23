@@ -26,7 +26,7 @@ public class Options
         Tools = ToolRegistry.Empty,
         ArtifactProviders = ArtifactRegistry.Empty,
         RuntimeFeatures = Array.Empty<IRuntimeFeature>(),
-        ToolGuard = ToolGuard.Disabled,
+        ToolGuard = ToolGuard.Unconfigured,
         CustomProperties = new SessionCustomProperties(),
         CrashCapture = new CrashCaptureOptions(),
         AutomaticNetworkCapture = null,
@@ -117,7 +117,9 @@ public class Options
     /// <summary>
     /// Guard policy controlling whether registered tools may be discovered and executed.
     /// </summary>
-    public ToolGuard ToolGuard { get; private set; } = ToolGuard.Disabled;
+    public ToolGuard ToolGuard { get; private set; } = ToolGuard.Unconfigured;
+
+    private Dictionary<string, ToolPolicy> toolGrants = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Initial custom grouped properties sent when a live pairing session opens.
@@ -331,6 +333,7 @@ public class Options
                     },
                 TouchCapture = initialOptions.TouchCapture?.Clone(),
                 ToolGuard = initialOptions.ToolGuard ?? ToolGuard.Disabled,
+                toolGrants = new Dictionary<string, ToolPolicy>(initialOptions.toolGrants, StringComparer.OrdinalIgnoreCase),
                 CustomProperties = initialOptions.CustomProperties?.Clone() ?? new SessionCustomProperties(),
                 CrashCapture = initialOptions.CrashCapture?.Clone() ?? new CrashCaptureOptions(),
                 AutomaticNetworkCapture = initialOptions.AutomaticNetworkCapture is null
@@ -821,10 +824,18 @@ public class Options
         }
 
         /// <summary>
-        /// Replaces the tool guard policy.
+        /// Grants an exact tool up to the specified policy without enabling unrelated tools.
+        /// Global disable takes precedence, regardless of builder order.
         /// </summary>
-        /// <param name="toolGuard">Guard policy that controls tool discovery and execution.</param>
-        /// <returns>The current builder.</returns>
+        public OptionsBuilder WithToolGrant(string toolId, ToolPolicy policy)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(toolId);
+            if (!Enum.IsDefined(policy)) throw new ArgumentOutOfRangeException(nameof(policy));
+            options.toolGrants[toolId.Trim()] = policy;
+            return this;
+        }
+
+        /// <summary>Replaces the global policy; exact package grants remain subject to its disabled switches.</summary>
         public OptionsBuilder WithToolGuard(ToolGuard toolGuard)
         {
             options.ToolGuard = toolGuard ?? throw new ArgumentNullException(nameof(toolGuard));
@@ -1042,6 +1053,8 @@ public class Options
             if (options.OfflineCapture?.Enabled == true && !options.Tools.Any(tool => tool.Id == "offline_capture.transfer"))
                 AddTool(new Native.TransferOfflineCapturesTool());
             EnsureArtifactTools();
+            foreach (var grant in options.toolGrants)
+                options.ToolGuard = options.ToolGuard.Granting(grant.Key, grant.Value);
             options.Validate();
             return options;
         }

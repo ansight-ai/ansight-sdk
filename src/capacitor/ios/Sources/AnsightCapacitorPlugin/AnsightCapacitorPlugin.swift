@@ -1275,6 +1275,7 @@ private func eventTypeName(_ value: AnsightEventType) -> String {
     case .screenViewed: return "ScreenViewed"
     case .lifecycle: return "Lifecycle"
     case .motion: return "Motion"
+    case .span: return "Span"
     }
 }
 
@@ -1296,11 +1297,12 @@ private func toolGuard(_ value: String) -> AnsightToolGuard {
 }
 
 private func toolGuardName(_ value: AnsightToolGuard) -> String {
-    if value == .disabled { return "disabled" }
-    if value == .readOnly { return "readOnly" }
-    if value == .readWrite { return "readWrite" }
-    if value == .fullAccess { return "fullAccess" }
-    return "custom"
+    guard value.discoveryEnabled, value.executionEnabled else { return "disabled" }
+    switch value.maxPolicy {
+    case .read: return "readOnly"
+    case .write: return "readWrite"
+    case .critical: return "fullAccess"
+    }
 }
 
 private func toolPolicy(_ value: String?) -> AnsightToolPolicy {

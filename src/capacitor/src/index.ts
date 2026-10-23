@@ -1,7 +1,11 @@
 export const firstCustomChannel = 64;
 export const lastCustomChannel = 254;
 import { createTelemetry } from "./telemetry";
-export type { AnsightSpan, AnsightSpanOptions, AnsightSpanStatus } from "./telemetry";
+export type {
+  AnsightSpan,
+  AnsightSpanOptions,
+  AnsightSpanStatus,
+} from "./telemetry";
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { createPurchaseDiagnostics } from "./purchases";
 
@@ -93,7 +97,9 @@ function normalizePairingPayload(
 }
 
 function normalizeOptions(input: AnsightOptions): AnsightOptions {
-  const options = JSON.parse(JSON.stringify(input)) as AnsightOptions;
+  const nativeOptions = { ...input };
+  delete nativeOptions.plugins;
+  const options = JSON.parse(JSON.stringify(nativeOptions)) as AnsightOptions;
   options.customProperties = mergeSessionProperties(
     automaticSessionProperties(),
     options.customProperties,
@@ -194,6 +200,7 @@ export async function initialize(
   options: AnsightOptions = {},
 ): Promise<AnsightDebugSnapshot> {
   const result = await AnsightNative.initialize(normalizeOptions(options));
+  for (const plugin of options.plugins ?? []) await plugin.initialize();
   await configureNetworkCapture(options.networkCapture);
   if (options.lifecycle !== false) startLifecycleTracking();
   if (options.errorCapture) {
@@ -207,7 +214,7 @@ export async function initialize(
     );
   }
   await emitHostConnectionStatus();
-  return result;
+  return options.plugins?.length ? AnsightNative.snapshot() : result;
 }
 
 export async function initializeAndActivate(
@@ -216,6 +223,7 @@ export async function initializeAndActivate(
   const result = await AnsightNative.initializeAndActivate(
     normalizeOptions(options),
   );
+  for (const plugin of options.plugins ?? []) await plugin.initialize();
   await configureNetworkCapture(options.networkCapture);
   if (options.lifecycle !== false) startLifecycleTracking();
   if (options.errorCapture) {
@@ -229,7 +237,7 @@ export async function initializeAndActivate(
     );
   }
   await emitHostConnectionStatus();
-  return result;
+  return options.plugins?.length ? AnsightNative.snapshot() : result;
 }
 
 export const activate = (): Promise<AnsightDebugSnapshot> =>
@@ -252,7 +260,8 @@ export const metric = (
   value: number,
   channel = 255,
 ): Promise<AnsightDebugSnapshot> => {
-  if (!Number.isFinite(value)) throw new RangeError("Metric values must be finite.");
+  if (!Number.isFinite(value))
+    throw new RangeError("Metric values must be finite.");
   return AnsightNative.recordMetric({ value, channel });
 };
 

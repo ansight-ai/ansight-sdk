@@ -478,7 +478,8 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
                     width: intValue(arguments, "width", defaultValue: 0),
                     height: intValue(arguments, "height", defaultValue: 0),
                     quality: intValue(arguments, "quality", defaultValue: 60),
-                    visualTrees: visualTrees
+                    visualTrees: visualTrees,
+                    geometry: jsonValue(arguments["geometry"]).flatMap { try? JSONDecoder().decode(ScreenshotCaptureGeometry.self, from: $0.jsonData()) }
                 )
             )
         case "submitFlutterPointerEvent":
@@ -768,7 +769,8 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
                     captureScreenshot: boolValue(annotation, "captureScreenshot", defaultValue: true),
                     captureVisualTrees: boolValue(annotation, "captureVisualTrees", defaultValue: true),
                     screenshotQuality: intValue(annotation, "screenshotQuality", defaultValue: 85),
-                    screenshotMaxWidth: intValue(annotation, "screenshotMaxWidth", defaultValue: 1440)
+                    screenshotMaxWidth: intValue(annotation, "screenshotMaxWidth", defaultValue: 1440),
+                    includeSystemUiMetadata: boolValue(annotation, "includeSystemUiMetadata", defaultValue: true)
                 )
             }
         }
@@ -1325,7 +1327,8 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
                 value,
                 "captureKeyboardPresence",
                 defaultValue: AnsightSessionJpegCaptureOptions.defaultCaptureKeyboardPresence
-            )
+            ),
+            includeSystemUiMetadata: boolValue(value, "includeSystemUiMetadata", defaultValue: true)
         )
     }
 
@@ -1558,6 +1561,7 @@ private func eventTypeName(_ value: AnsightEventType) -> String {
     case .screenViewed: return "ScreenViewed"
     case .lifecycle: return "Lifecycle"
     case .motion: return "Motion"
+    case .span: return "Span"
     }
 }
 
@@ -1579,10 +1583,12 @@ private func toolGuard(_ value: String) -> AnsightToolGuard {
 }
 
 private func toolGuardName(_ value: AnsightToolGuard) -> String {
-    if value == .readOnly { return "readOnly" }
-    if value == .readWrite { return "readWrite" }
-    if value == .fullAccess { return "fullAccess" }
-    return "disabled"
+    guard value.discoveryEnabled, value.executionEnabled else { return "disabled" }
+    switch value.maxPolicy {
+    case .read: return "readOnly"
+    case .write: return "readWrite"
+    case .critical: return "fullAccess"
+    }
 }
 
 private func toolPolicy(_ value: String?) -> AnsightToolPolicy {

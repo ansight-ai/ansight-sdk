@@ -190,7 +190,14 @@ export interface AnsightRemoteToolsOptions {
   };
 }
 
+/** Optional package setup, awaited by initialization and excluded from the native payload. */
+export interface AnsightPlugin {
+  readonly id: string;
+  initialize(): Promise<void>;
+}
+
 export interface AnsightOptions {
+  plugins?: readonly AnsightPlugin[];
   useNativeAllInOneDefaults?: boolean;
   clientName?: string;
   sampleFrequencyMilliseconds?: number;
@@ -525,6 +532,7 @@ export interface AnsightRouteTrackerOptions {
 }
 
 export interface AnsightOptionsBuilderApi {
+  withPlugin(plugin: AnsightPlugin): this;
   withOfflineCapture(options?: AnsightOfflineCaptureOptions): this;
   withAnnotatedFeedback(options?: AnsightAnnotationOptions): this;
   withoutAnnotatedFeedback(): this;

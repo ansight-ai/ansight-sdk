@@ -203,7 +203,14 @@ export interface AnsightRemoteToolsOptions {
   secureStorage?: AnsightSecureStorageToolsOptions;
 }
 
+/** Optional package setup, awaited by initialization and excluded from the native payload. */
+export interface AnsightPlugin {
+  readonly id: string;
+  initialize(): Promise<void>;
+}
+
 export interface AnsightOptions {
+  plugins?: readonly AnsightPlugin[];
   /**
    * Applies the native iOS/Android all-in-one defaults when true.
    *
@@ -380,6 +387,7 @@ export type AnsightCurrentOptions = AnsightOptions & Record<string, unknown>;
 
 export class AnsightOptionsBuilder {
   constructor(options?: AnsightOptions);
+  withPlugin(plugin: AnsightPlugin): this;
   withOfflineCapture(options?: AnsightOfflineCaptureOptions): this;
   withAnnotatedFeedback(options?: AnsightAnnotationOptions): this;
   withoutAnnotatedFeedback(): this;

@@ -226,6 +226,9 @@ public final class AnsightRuntime: @unchecked Sendable {
             }
         }
         Annotate.attachToRuntime()
+        for plugin in validatedOptions.plugins {
+            try plugin.initialize(runtime: self)
+        }
         AnsightLogger.info("Ansight runtime initialized.")
     }
 
@@ -589,7 +592,8 @@ public final class AnsightRuntime: @unchecked Sendable {
         y: Double,
         surfaceWidth: Double,
         surfaceHeight: Double,
-        surfaceScale: Double
+        surfaceScale: Double,
+        detailsJson: String? = nil
     ) -> OperationResult {
         guard x.isFinite, y.isFinite,
               surfaceWidth.isFinite, surfaceWidth > 0,
@@ -608,6 +612,12 @@ public final class AnsightRuntime: @unchecked Sendable {
             touchAction = .up
         case "cancel":
             touchAction = .cancel
+        case "hoverenter":
+            touchAction = .hoverEnter
+        case "hovermove":
+            touchAction = .hoverMove
+        case "hoverexit":
+            touchAction = .hoverExit
         default:
             return .failure("Submitted touch input has an unsupported action.")
         }
@@ -619,6 +629,14 @@ public final class AnsightRuntime: @unchecked Sendable {
             return .failure("A connected live session with touch capture enabled is required.")
         }
 
+        let details: AnsightTouchDetails?
+        do {
+            details = try detailsJson.map { try JSONDecoder().decode(AnsightTouchDetails.self, from: Data($0.utf8)) }
+        } catch { return .failure("Submitted touch details are invalid.") }
+        if let details, [details.force, details.maximumPossibleForce, details.altitudeRadians,
+                         details.azimuthRadians, details.rollRadians, details.distance].compactMap({ $0 }).contains(where: { !$0.isFinite }) {
+            return .failure("Submitted touch details must be finite.")
+        }
         recordCapturedTouch(
             AnsightCapturedTouch(
                 action: touchAction,
@@ -630,10 +648,11 @@ public final class AnsightRuntime: @unchecked Sendable {
                 surfaceWidth: surfaceWidth,
                 surfaceHeight: surfaceHeight,
                 coordinateUnit: "points",
-                surfaceScale: surfaceScale
+                surfaceScale: surfaceScale,
+                details: details
             )
         )
-        return .success("Submitted Flutter touch input for session streaming.")
+        return .success("Submitted touch input for session streaming.")
     }
 
     private func captureAndSendScreenFrame(options captureOptions: AnsightSessionJpegCaptureOptions) async -> ScreenCaptureSendResult {
@@ -1852,6 +1871,13 @@ public final class AnsightRuntime: @unchecked Sendable {
     ) {
         lock.withLock {
             externalToolProtocolResponseSentHandler = handler
+        }
+    }
+
+    /// In-process opt-in for one tool. A globally disabled guard remains disabled.
+    public func grantToolAccess(_ toolId: String, through policy: AnsightToolPolicy) {
+        lock.withLock {
+            options.toolGuard = options.toolGuard.granting(toolId, through: policy)
         }
     }
 

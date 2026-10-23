@@ -6,6 +6,7 @@ import type {
   AnsightDomToolsOptions,
   AnsightErrorCaptureOptions,
   AnsightOptions,
+  AnsightPlugin,
   AnsightNetworkCaptureOptions,
   AnsightOptionsBuilderApi,
   AnsightRemoteToolsOptions,
@@ -16,7 +17,10 @@ import type {
 } from "./definitions";
 
 function cloneOptions(options: AnsightOptions): AnsightOptions {
-  return JSON.parse(JSON.stringify(options)) as AnsightOptions;
+  const { plugins, ...nativeOptions } = options;
+  const clone = JSON.parse(JSON.stringify(nativeOptions)) as AnsightOptions;
+  if (plugins) clone.plugins = [...plugins];
+  return clone;
 }
 
 export class AnsightOptionsBuilder implements AnsightOptionsBuilderApi {
@@ -24,6 +28,16 @@ export class AnsightOptionsBuilder implements AnsightOptionsBuilderApi {
 
   constructor(options: AnsightOptions = {}) {
     this.options = cloneOptions(options);
+  }
+
+  withPlugin(plugin: AnsightPlugin): this {
+    this.options.plugins = [
+      ...(this.options.plugins ?? []).filter(
+        (existing) => existing.id !== plugin.id,
+      ),
+      plugin,
+    ];
+    return this;
   }
 
   withOfflineCapture(options: AnsightOfflineCaptureOptions = {}): this {

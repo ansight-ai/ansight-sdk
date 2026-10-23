@@ -7,6 +7,13 @@ using System.Text.Json.Nodes;
 /// </summary>
 public sealed class ToolGuard
 {
+    /// <summary>No access by default; package opt-ins may grant exact tools.</summary>
+    internal static ToolGuard Unconfigured { get; } = new(false, false, ToolPolicy.Read)
+    {
+        permitsDefaultPolicy = false,
+        permitsScopedActivation = true
+    };
+
     /// <summary>
     /// Guard preset that disables both tool discovery and execution.
     /// </summary>
@@ -70,6 +77,25 @@ public sealed class ToolGuard
     /// </summary>
     public ToolPolicy MaxPolicy { get; }
 
+    private bool permitsDefaultPolicy = true;
+    private bool permitsScopedActivation;
+    private readonly Dictionary<string, ToolPolicy> toolGrants = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Authorizes one exact tool up to a policy; global disable still wins.</summary>
+    public ToolGuard Granting(string toolId, ToolPolicy policy)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(toolId);
+        if (!Enum.IsDefined(policy)) throw new ArgumentOutOfRangeException(nameof(policy));
+        var copy = new ToolGuard(DiscoveryEnabled || permitsScopedActivation, ExecutionEnabled || permitsScopedActivation, MaxPolicy)
+        {
+            permitsDefaultPolicy = permitsDefaultPolicy,
+            permitsScopedActivation = permitsScopedActivation
+        };
+        foreach (var grant in toolGrants) copy.toolGrants.Add(grant.Key, grant.Value);
+        copy.toolGrants[toolId.Trim()] = policy;
+        return copy;
+    }
+
     /// <summary>
     /// Determines whether a tool should appear in discovery results under this guard.
     /// </summary>
@@ -97,9 +123,9 @@ public sealed class ToolGuard
             return false;
         }
 
-        if (tool.Policy > MaxPolicy)
+        if (!IsToolAllowed(tool))
         {
-            reason = $"Tool policy '{tool.Policy}' exceeds the current '{MaxPolicy}' grant.";
+            reason = $"Tool '{tool.Id}' is not authorized at policy '{tool.Policy}' by the current guard.";
             return false;
         }
 
@@ -117,7 +143,9 @@ public sealed class ToolGuard
         {
             ["discoveryEnabled"] = DiscoveryEnabled,
             ["executionEnabled"] = ExecutionEnabled,
-            ["maxPolicy"] = MaxPolicy.ToString().ToLowerInvariant()
+            ["maxPolicy"] = MaxPolicy.ToString().ToLowerInvariant(),
+            ["toolGrants"] = new JsonObject(toolGrants.OrderBy(grant => grant.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(grant => new KeyValuePair<string, JsonNode?>(grant.Key, JsonValue.Create(grant.Value.ToString().ToLowerInvariant()))))
         };
     }
 
@@ -134,6 +162,7 @@ public sealed class ToolGuard
 
     private bool IsToolAllowed(ITool tool)
     {
-        return tool.Policy <= MaxPolicy;
+        return (permitsDefaultPolicy && tool.Policy <= MaxPolicy)
+            || (toolGrants.TryGetValue(tool.Id.Trim(), out var grant) && tool.Policy <= grant);
     }
 }

@@ -1,6 +1,8 @@
 import Foundation
 
 public struct AnsightOptions: Sendable, Codable, Equatable {
+    /// In-process plugins. Configured through the builder; excluded from encoded options.
+    public var plugins: [AnsightPlugin] = []
     public var sampleFrequencyMilliseconds: Int
     public var retentionPeriodSeconds: Int
     public var additionalChannels: [AnsightChannel]
@@ -35,7 +37,7 @@ public struct AnsightOptions: Sendable, Codable, Equatable {
         touchCapture: AnsightTouchCaptureOptions? = AnsightTouchCaptureOptions(),
         connectivityCapture: AnsightConnectivityCaptureOptions? = nil,
         motionCapture: AnsightMotionCaptureOptions? = nil,
-        toolGuard: AnsightToolGuard = .disabled,
+        toolGuard: AnsightToolGuard = .unconfigured,
         customProperties: [String: [String: String]] = [:],
         hostAutoProbe: AnsightHostAutoProbeOptions = .enabledDefault,
         hostConnection: AnsightHostConnectionOptions = AnsightHostConnectionOptions(),

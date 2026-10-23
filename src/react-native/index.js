@@ -77,6 +77,7 @@ function normalizeOptions(options = {}) {
     ),
   };
   delete normalized.networkCapture;
+  delete normalized.plugins;
   return normalized;
 }
 
@@ -95,6 +96,7 @@ function automaticSessionPropertyValue(group, key) {
 
 function cloneOptions(options = {}) {
   const clone = { ...options };
+  if (options.plugins) clone.plugins = [...options.plugins];
   if (options.defaultMemoryChannels) {
     clone.defaultMemoryChannels = { ...options.defaultMemoryChannels };
   }
@@ -210,6 +212,14 @@ function cloneRemoteToolsOptions(remoteTools = {}) {
 class AnsightOptionsBuilder {
   constructor(options = {}) {
     this._options = cloneOptions(options);
+  }
+
+  withPlugin(plugin) {
+    this._options.plugins = [
+      ...(this._options.plugins || []).filter(existing => existing.id !== plugin.id),
+      plugin,
+    ];
+    return this;
   }
 
   withOfflineCapture(options = {}) {
@@ -2414,22 +2424,24 @@ function installErrorHandlers(options = {}) {
 
 async function initialize(options = {}) {
   const result = await nativeModule.initialize(normalizeOptions(options));
+  for (const plugin of options.plugins || []) await plugin.initialize();
   await configureNetworkCapture(options.networkCapture);
   if (options.lifecycle !== false) {
     startAppStateTracking();
   }
   await emitHostConnectionStatusChangedIfNeeded();
-  return result;
+  return options.plugins?.length ? nativeModule.snapshot() : result;
 }
 
 async function initializeAndActivate(options = {}) {
   const result = await nativeModule.initializeAndActivate(normalizeOptions(options));
+  for (const plugin of options.plugins || []) await plugin.initialize();
   await configureNetworkCapture(options.networkCapture);
   if (options.lifecycle !== false) {
     startAppStateTracking();
   }
   await emitHostConnectionStatusChangedIfNeeded();
-  return result;
+  return options.plugins?.length ? nativeModule.snapshot() : result;
 }
 
 async function deactivate() {

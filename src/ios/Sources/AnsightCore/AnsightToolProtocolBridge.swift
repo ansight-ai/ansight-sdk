@@ -843,6 +843,7 @@ internal struct AnsightToolProtocolBridge {
             "discoveryEnabled": .bool(guardPolicy.discoveryEnabled),
             "executionEnabled": .bool(guardPolicy.executionEnabled),
             "maxPolicy": .string(guardPolicy.maxPolicy.rawValue),
+            "toolGrants": .object(guardPolicy.toolGrants.mapValues { .string($0.rawValue) }),
         ])
     }
 }
