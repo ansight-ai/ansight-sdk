@@ -135,4 +135,47 @@ perl -0pi -e 's/(exactVersion:\s*)[0-9A-Za-z.+-]+/$1$ENV{VERSION}/g' \
 perl -0pi -e 's/(CocoaPods: `Ansight`, `AnsightObjC` version `)[^`]+(`)/$1$ENV{VERSION}$2/g; s/(ai\.ansight:ansight-android:)[^`]+/$1$ENV{VERSION}/g' \
   "${repo_root}/src/react-native/README.md"
 
+REPO_ROOT="${repo_root}" node <<'NODE'
+const fs = require("fs");
+const root = process.env.REPO_ROOT;
+const version = process.env.VERSION;
+for (const name of ["react-native", "capacitor"]) {
+  const file = `${root}/src/${name}-pencil/package.json`;
+  const pkg = JSON.parse(fs.readFileSync(file, "utf8"));
+  pkg.version = version;
+  pkg.peerDependencies[`@ansight/${name}`] = version;
+  pkg.dependencies["@ansight/pencil-runtime"] = version;
+  fs.writeFileSync(file, JSON.stringify(pkg, null, 2) + "\n");
+  const lockFile = file.replace("package.json", "package-lock.json");
+  if (fs.existsSync(lockFile)) {
+    const lock = JSON.parse(fs.readFileSync(lockFile, "utf8"));
+    lock.version = version;
+    lock.packages[""].version = version;
+    lock.packages[""].peerDependencies[`@ansight/${name}`] = version;
+    lock.packages[""].dependencies = { ...lock.packages[""].dependencies, "@ansight/pencil-runtime": version };
+    if (lock.packages["../pencil-runtime"]) lock.packages["../pencil-runtime"].version = version;
+    if (lock.packages["../capacitor"]) lock.packages["../capacitor"].version = version;
+    fs.writeFileSync(lockFile, JSON.stringify(lock, null, 2) + "\n");
+  }
+}
+const runtimeFile = `${root}/src/pencil-runtime/package.json`;
+const runtimePackage = JSON.parse(fs.readFileSync(runtimeFile, "utf8"));
+runtimePackage.version = version;
+fs.writeFileSync(runtimeFile, JSON.stringify(runtimePackage, null, 2) + "\n");
+for (const relative of [
+  "src/flutter-pencil/pubspec.yaml",
+  "src/flutter-pencil/ios/ansight_pencil.podspec",
+  "src/flutter-pencil/ios/ansight_pencil/Package.swift",
+  "src/capacitor-pencil/AnsightCapacitorPencil.podspec",
+  "src/capacitor-pencil/Package.swift",
+]) {
+  const file = `${root}/${relative}`;
+  const text = fs.readFileSync(file, "utf8")
+    .replace(/^(version: |  ansight_flutter: )\S+/gm, `$1${version}`)
+    .replace(/(s\.version\s*=\s*')[^']+(')/g, `$1${version}$2`)
+    .replace(/(exact: ")[^"]+("\s*\))/g, `$1${version}$2`);
+  fs.writeFileSync(file, text);
+}
+NODE
+
 "${repo_root}/scripts/check-sdk-versions.sh"

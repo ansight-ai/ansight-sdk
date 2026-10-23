@@ -168,6 +168,16 @@ if [[ "${skip_ios_cocoapods}" != "true" ]]; then
   "${repo_root}/scripts/publish-ios-cocoapods.sh" "${cocoapods_args[@]+"${cocoapods_args[@]}"}"
 fi
 
+# Both JavaScript Pencil adapters depend on the shared runtime at this release's
+# exact version. Publish it before either wrapper can become installable.
+if [[ "${skip_react_native}" != "true" || "${skip_capacitor}" != "true" ]]; then
+  pencil_runtime_args=()
+  if [[ "${publish}" == "true" ]]; then
+    pencil_runtime_args+=(--publish)
+  fi
+  "${repo_root}/scripts/publish-pencil-runtime.sh" "${pencil_runtime_args[@]+"${pencil_runtime_args[@]}"}"
+fi
+
 if [[ "${skip_react_native}" != "true" ]]; then
   rn_args=()
   if [[ "${publish}" == "true" ]]; then

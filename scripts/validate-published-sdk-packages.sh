@@ -123,6 +123,8 @@ for package_id in \
   Ansight.Native.Apple.Binding \
   Ansight.Protocol \
   Ansight.Core \
+  Ansight.Pencil.Native.Apple.Binding \
+  Ansight.Pencil \
   Ansight.Annotations \
   Ansight.Motion \
   Ansight.Connectivity \
@@ -164,6 +166,10 @@ done
 
 check "npm @ansight/react-native" check_npm_package "@ansight/react-native"
 check "npm @ansight/capacitor" check_npm_package "@ansight/capacitor"
+check "npm @ansight/react-native-pencil" check_npm_package "@ansight/react-native-pencil"
+check "npm @ansight/capacitor-pencil" check_npm_package "@ansight/capacitor-pencil"
+check "npm @ansight/pencil-runtime" check_npm_package "@ansight/pencil-runtime"
+check "pub.dev ansight_pencil" check_url "https://pub.dev/api/packages/ansight_pencil/versions/${version}"
 check \
   "pub.dev ansight_flutter" \
   check_url "https://pub.dev/api/packages/ansight_flutter/versions/${version}"
@@ -172,6 +178,8 @@ if [[ "${skip_cocoapods}" != "true" ]]; then
   if command -v pod >/dev/null 2>&1; then
     for pod_name in \
       AnsightCore \
+      AnsightPencilRuntime \
+      AnsightPencil \
       AnsightAnnotations \
       AnsightMotion \
       AnsightConnectivity \

@@ -148,6 +148,22 @@ add_version \
   "ios-native-harness:published SwiftPM" \
   "$(extract_first 'exactVersion:\s*([0-9A-Za-z.+-]+)' "${repo_root}/test-apps/core/ios/project.published.yml")"
 
+for framework in react-native capacitor; do
+  add_version "${framework}-pencil:package" "$(extract_first '"version"\s*:\s*"([^"]+)"' "${repo_root}/src/${framework}-pencil/package.json")"
+  add_version "${framework}-pencil:SDK peer" "$(extract_first '"@ansight/[^"]+"\s*:\s*"([^"]+)"' "${repo_root}/src/${framework}-pencil/package.json")"
+  add_version "${framework}-pencil:runtime" "$(extract_first '"@ansight/pencil-runtime"\s*:\s*"([^"]+)"' "${repo_root}/src/${framework}-pencil/package.json")"
+done
+add_version "pencil-runtime:package" "$(extract_first '"version"\s*:\s*"([^"]+)"' "${repo_root}/src/pencil-runtime/package.json")"
+add_version "capacitor-pencil:package-lock" "$(extract_first '"version"\s*:\s*"([^"]+)"' "${repo_root}/src/capacitor-pencil/package-lock.json")"
+add_version "flutter-pencil:pubspec" "$(extract_first '\nversion:\s*([^\s]+)' "${repo_root}/src/flutter-pencil/pubspec.yaml")"
+add_version "flutter-pencil:SDK dependency" "$(extract_first 'ansight_flutter:\s*([^\s]+)' "${repo_root}/src/flutter-pencil/pubspec.yaml")"
+for podspec in "${repo_root}/src/flutter-pencil/ios/ansight_pencil.podspec" "${repo_root}/src/capacitor-pencil/AnsightCapacitorPencil.podspec"; do
+  add_version "$(basename "${podspec}")" "$(extract_first "s\\.version\\s*=\\s*'([^']+)'" "${podspec}")"
+done
+for manifest in "${repo_root}/src/flutter-pencil/ios/ansight_pencil/Package.swift" "${repo_root}/src/capacitor-pencil/Package.swift"; do
+  add_version "$(basename "$(dirname "${manifest}")"):SwiftPM" "$(extract_first 'ansight-sdk\.git",\s*exact:\s*"([^"]+)"' "${manifest}")"
+done
+
 printf '%-42s %s\n' "Surface" "Version"
 printf '%-42s %s\n' "-------" "-------"
 

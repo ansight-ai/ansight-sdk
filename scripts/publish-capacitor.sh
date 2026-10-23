@@ -64,24 +64,28 @@ if [[ -n "${NPM_TOKEN:-}" ]]; then
   trap 'rm -f "${npm_config_userconfig}"' EXIT
 fi
 
-cd "${repo_root}/src/capacitor"
+# Validate and pack the base SDK and its separately installed Pencil extension.
+for package_name in capacitor capacitor-pencil; do
+  cd "${repo_root}/src/${package_name}"
 
-if [[ "${skip_install}" != "true" && ! -d node_modules ]]; then
-  npm ci
-fi
-
-if [[ "${skip_check}" != "true" ]]; then
-  npm run verify
-fi
-
-npm pack --dry-run
-
-if [[ "${publish}" == "true" ]]; then
-  package_version="$(node -p 'require("./package.json").version')"
-  npm_tag="${NPM_TAG:-latest}"
-  if [[ "${package_version}" == *-* && -z "${NPM_TAG:-}" ]]; then
-    npm_tag="preview"
+  if [[ "${skip_install}" != "true" && ! -d node_modules ]]; then
+    npm ci --legacy-peer-deps
   fi
 
-  npm publish --access public --tag "${npm_tag}"
-fi
+  if [[ "${skip_check}" != "true" ]]; then
+    npm run verify
+  fi
+
+  npm pack --dry-run
+
+  if [[ "${publish}" == "true" ]]; then
+    package_version="$(node -p 'require("./package.json").version')"
+    npm_tag="${NPM_TAG:-latest}"
+    if [[ "${package_version}" == *-* && -z "${NPM_TAG:-}" ]]; then
+      npm_tag="preview"
+    fi
+
+    npm publish --access public --tag "${npm_tag}"
+  fi
+
+done

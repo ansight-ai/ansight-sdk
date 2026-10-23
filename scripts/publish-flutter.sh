@@ -10,11 +10,11 @@ usage() {
   cat <<'EOF'
 Usage: scripts/publish-flutter.sh [options]
 
-Validates the Flutter package and prepares a pub.dev archive. Publishing is
+Validates the Flutter SDK and optional Pencil package and prepares pub.dev archives. Publishing is
 disabled unless --publish is supplied.
 
 Options:
-  --publish       Publish ansight_flutter to pub.dev.
+  --publish       Publish ansight_flutter and ansight_pencil to pub.dev.
   --skip-tests    Skip analyze and test commands.
 EOF
 }
@@ -68,6 +68,17 @@ if [[ "${skip_tests}" != "true" ]]; then
   "${repo_root}/scripts/validate-flutter-macos.sh"
 fi
 
+if [[ "${skip_tests}" != "true" ]]; then
+  (
+    cd "${repo_root}/src/flutter-pencil"
+    flutter pub get
+    flutter analyze
+    flutter test
+  )
+fi
+
+for package_root in "${repo_root}/src/flutter" "${repo_root}/src/flutter-pencil"; do
+
 (
   cd "${package_root}"
   dart pub publish --dry-run
@@ -81,3 +92,5 @@ if [[ "${publish}" == "true" ]]; then
 else
   echo "Flutter package validated. Re-run with --publish to upload it."
 fi
+
+done

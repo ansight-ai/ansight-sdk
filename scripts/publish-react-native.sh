@@ -64,24 +64,32 @@ if [[ -n "${NPM_TOKEN:-}" ]]; then
   trap 'rm -f "${npm_config_userconfig}"' EXIT
 fi
 
-cd "${repo_root}/src/react-native"
+# Validate and pack the base SDK and its separately installed Pencil extension.
+for package_name in react-native react-native-pencil; do
+  cd "${repo_root}/src/${package_name}"
 
-if [[ "${skip_install}" != "true" && ! -d node_modules ]]; then
-  npm install --no-package-lock
-fi
-
-if [[ "${skip_check}" != "true" ]]; then
-  npm run check
-fi
-
-npm pack --dry-run
-
-if [[ "${publish}" == "true" ]]; then
-  package_version="$(node -p 'require("./package.json").version')"
-  npm_tag="${NPM_TAG:-latest}"
-  if [[ "${package_version}" == *-* && -z "${NPM_TAG:-}" ]]; then
-    npm_tag="preview"
+  if [[ "${skip_install}" != "true" && ! -d node_modules ]]; then
+    if [[ "${package_name}" == "react-native-pencil" ]]; then
+      npm install --no-package-lock --legacy-peer-deps --no-save ../pencil-runtime
+    else
+      npm install --no-package-lock --legacy-peer-deps
+    fi
   fi
 
-  npm publish --access public --tag "${npm_tag}"
-fi
+  if [[ "${skip_check}" != "true" ]]; then
+    npm run check
+  fi
+
+  npm pack --dry-run
+
+  if [[ "${publish}" == "true" ]]; then
+    package_version="$(node -p 'require("./package.json").version')"
+    npm_tag="${NPM_TAG:-latest}"
+    if [[ "${package_version}" == *-* && -z "${NPM_TAG:-}" ]]; then
+      npm_tag="preview"
+    fi
+
+    npm publish --access public --tag "${npm_tag}"
+  fi
+
+done
