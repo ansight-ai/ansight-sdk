@@ -204,11 +204,15 @@ describe("AnsightOptionsBuilder", () => {
   });
 });
 
-
 it("preserves screenshot metadata opt-out through the options builder", () => {
-  expect(createOptionsBuilder().withSessionJpegCapture().build().sessionJpegCapture).toMatchObject({ includeSystemUiMetadata: true });
+  expect(
+    createOptionsBuilder().withSessionJpegCapture().build().sessionJpegCapture,
+  ).toMatchObject({ includeSystemUiMetadata: true });
   for (const enabled of [false, true]) {
-    expect(createOptionsBuilder().withSessionJpegCapture({ includeSystemUiMetadata: enabled }).build().sessionJpegCapture)
-      .toMatchObject({ includeSystemUiMetadata: enabled });
+    expect(
+      createOptionsBuilder()
+        .withSessionJpegCapture({ includeSystemUiMetadata: enabled })
+        .build().sessionJpegCapture,
+    ).toMatchObject({ includeSystemUiMetadata: enabled });
   }
 });

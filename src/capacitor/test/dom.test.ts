@@ -117,18 +117,23 @@ describe("DOM action names", () => {
   });
 });
 
-
 describe("input values and placeholders", () => {
   afterEach(() => vi.unstubAllGlobals());
   it("preserves an empty value, literal whitespace and text matching the hint", () => {
-    class Input { type = "text"; value = ""; placeholder = "Search products…"; }
+    class Input {
+      type = "text";
+      value = "";
+      placeholder = "Search products…";
+    }
     vi.stubGlobal("HTMLInputElement", Input);
     const input = new Input();
     expect(displayedValue(input as unknown as Element)).toBe("");
     input.value = "  query\n";
     expect(displayedValue(input as unknown as Element)).toBe("  query\n");
     input.value = input.placeholder;
-    expect(displayedValue(input as unknown as Element)).toBe("Search products…");
+    expect(displayedValue(input as unknown as Element)).toBe(
+      "Search products…",
+    );
     input.type = "password";
     expect(displayedValue(input as unknown as Element)).toBeUndefined();
   });
