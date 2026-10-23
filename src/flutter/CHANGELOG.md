@@ -1,3 +1,12 @@
+## 1.9.0
+
+- Add builder plugins with scoped tool permissions and the optional `ansight_pencil`
+  package for iOS Simulator playback through existing Flutter pointer handlers.
+- Capture fractional metrics, timed spans, screenshot geometry and app artifacts
+  through the shared native runtimes.
+- Preserve explicit global tool disablement when a plugin requests permissions.
+- Keep iOS and macOS bridge event and permission handling aligned.
+
 ## 1.8.1
 
 - Retain passive HTTP timings and transferred byte counts for requests captured

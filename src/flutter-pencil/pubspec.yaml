@@ -1,6 +1,6 @@
 name: ansight_pencil
 description: Optional scoped Apple Pencil playback for Ansight on iOS Simulator, configured in the SDK builder.
-version: 1.8.1
+version: 1.9.0
 homepage: https://github.com/ansight-ai/ansight-sdk
 repository: https://github.com/ansight-ai/ansight-sdk/tree/main/src/flutter-pencil
 environment:
@@ -9,7 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  ansight_flutter: 1.8.1
+  ansight_flutter: 1.9.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

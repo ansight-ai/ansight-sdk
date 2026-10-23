@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name = 'AnsightCapacitor'
-  s.version = '1.8.1'
+  s.version = '1.9.0'
   s.summary = 'Capacitor bridge for the Ansight mobile observability SDK.'
   s.license = { :type => 'PolyForm Shield 1.0.0', :file => 'LICENSE' }
   s.homepage = 'https://github.com/ansight-ai/ansight-sdk'

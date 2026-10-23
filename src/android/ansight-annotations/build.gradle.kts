@@ -5,7 +5,7 @@ plugins {
 }
 
 group = providers.gradleProperty("ansightAndroidGroup").orElse("ai.ansight").get()
-version = providers.gradleProperty("ansightAndroidVersion").orElse("1.8.1").get()
+version = providers.gradleProperty("ansightAndroidVersion").orElse("1.9.0").get()
 
 android {
     namespace = "ai.ansight.annotations"

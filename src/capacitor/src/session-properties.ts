@@ -1,4 +1,4 @@
-export const ANSIGHT_CAPACITOR_SDK_VERSION = "1.8.1";
+export const ANSIGHT_CAPACITOR_SDK_VERSION = "1.9.0";
 export const COMPILED_CAPACITOR_CORE_VERSION = "8.4.2";
 
 export const CAPACITOR_GROUP = "capacitor";

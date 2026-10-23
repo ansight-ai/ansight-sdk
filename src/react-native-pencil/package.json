@@ -1,6 +1,6 @@
 {
   "name": "@ansight/react-native-pencil",
-  "version": "1.8.1",
+  "version": "1.9.0",
   "description": "Optional Ansight Pencil simulation for React Native on iOS Simulator.",
   "main": "index.js",
   "types": "index.d.ts",
@@ -25,11 +25,11 @@
   ],
   "peerDependencies": {
     "react": ">=18",
-    "@ansight/react-native": "1.8.1",
+    "@ansight/react-native": "1.9.0",
     "react-native": ">=0.72"
   },
   "dependencies": {
-    "@ansight/pencil-runtime": "1.8.1"
+    "@ansight/pencil-runtime": "1.9.0"
   },
   "scripts": {
     "check": "node --check index.js && npm test",

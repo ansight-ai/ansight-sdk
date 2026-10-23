@@ -1,6 +1,6 @@
 {
   "name": "@ansight/capacitor-pencil",
-  "version": "1.8.1",
+  "version": "1.9.0",
   "description": "Optional Ansight Pencil simulation for Capacitor on iOS Simulator.",
   "main": "dist/cjs/index.js",
   "types": "dist/esm/index.d.ts",
@@ -22,11 +22,11 @@
     "LICENSE"
   ],
   "peerDependencies": {
-    "@ansight/capacitor": "1.8.1",
+    "@ansight/capacitor": "1.9.0",
     "@capacitor/core": ">=8.0.0 <9.0.0"
   },
   "dependencies": {
-    "@ansight/pencil-runtime": "1.8.1"
+    "@ansight/pencil-runtime": "1.9.0"
   },
   "devDependencies": {
     "typescript": "~5.9.2",
