@@ -93,7 +93,9 @@ fi
 if [[ "${publish}" == "true" ]]; then
   (
     cd "${package_root}"
-    dart pub publish --force "${validation_args[@]+"${validation_args[@]}"}"
+    # --ignore-warnings is only supported by dry-run; --force accepts warnings
+    # while still running validation and rejecting errors.
+    dart pub publish --force
   )
 else
   echo "Flutter package validated. Re-run with --publish to upload it."
