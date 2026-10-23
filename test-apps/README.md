@@ -11,3 +11,5 @@ source.
 
 Independent host and device test apps live in the separate
 [`ansight-test-apps`](../../../ansight-test-apps/README.md) checkout.
+
+Apple Pencil playback harnesses live in the separate [Apple Pencil feature suite](../../../ansight-test-apps/apple-pencil/README.md), with one app per technology.

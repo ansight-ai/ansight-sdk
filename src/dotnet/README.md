@@ -35,6 +35,7 @@ Local development features require no Ansight account or subscription.
 - `Ansight.Maui`: all-in-one package for .NET MAUI apps. It depends on `Ansight`, registers annotations in Debug builds, includes offline capture, and adds MAUI inspection/mutation tools plus `MauiAppBuilder` setup helpers with automatic lifecycle and page-view telemetry.
 - `Ansight.Profiling.DotNet`: opt-in build configuration and application-ready marker for .NET EventPipe startup profiles captured by Ansight.
 - `Ansight.Tools.*`: individual tool packages for apps that want explicit package-by-package control.
+- `Ansight.Pencil`: separately installed Simulator pen simulation, excluded from both aggregate packages. Import `Ansight.Pencil` and explicitly call `WithSimulatorPenInput()`. See [Pencil simulation](https://www.ansight.ai/docs/sdk/pencil).
 
 The runtime namespace remains `Ansight` even when the NuGet package is `Ansight.Core`.
 

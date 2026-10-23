@@ -94,6 +94,10 @@ validation runs `scripts/validate-ios-bundled-tools.sh` to reject concrete
 `ANSIGHT_ALLOW_REMOTE_TOOLS=true` only for local developer validation that
 intentionally permits bundled tools. Enrollment has no build-time host probe.
 
+## Optional Pencil simulation
+
+Select the separate `AnsightPencil` product or CocoaPod and opt in with `.withSimulatorPenInput()` in the options builder. The aggregate `Ansight` product does not include it. Core continues recording ordinary pen input without the simulation implementation. See [Pencil simulation](https://www.ansight.ai/docs/sdk/pencil) for package boundaries and compatibility limits.
+
 ## CocoaPods package model
 
 The aggregate `Ansight` pod depends on `AnsightCore`, `AnsightPairingQR`,

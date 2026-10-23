@@ -122,6 +122,7 @@ affecting the app.
 - [Protocol](docs/protocol.md)
 - [Connectivity capture](docs/connectivity.md)
 - [Motion capture](docs/motion.md)
+- [Pencil simulation: end-to-end guides by technology](https://www.ansight.ai/docs/sdk/pencil)
 
 ## License
 

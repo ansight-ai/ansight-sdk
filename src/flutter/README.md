@@ -375,3 +375,7 @@ See [purchase observations, adapters, and remote validation](../../docs/purchase
 ## Fractional metrics and timed spans
 
 See [Telemetry: values, channels, and spans](../../docs/telemetry.md) for the shared recording contract, reserved IDs, units, and examples.
+
+## Optional Pencil simulation
+
+Simulator playback is a separate opt-in package. See the [Pencil package](../flutter-pencil/README.md) for installation and initialization. The standard SDK does not include simulation hooks.

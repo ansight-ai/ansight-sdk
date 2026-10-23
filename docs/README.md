@@ -26,6 +26,15 @@ Platform guides:
 
 - [Connectivity capture](connectivity.md): setup, platform support, capture format, shared playback, and CLI inspection.
 
+Pencil simulation (optional, iOS Simulator only):
+
+- [Integration overview](https://www.ansight.ai/docs/sdk/pencil): consumer changes, permissions, delivery, package updates and compatibility.
+- [Swift and SwiftUI](https://www.ansight.ai/docs/sdk/ios/pencil)
+- [MAUI and .NET iOS](https://www.ansight.ai/docs/sdk/dotnet/pencil)
+- [Flutter](https://www.ansight.ai/docs/sdk/flutter/pencil)
+- [React Native](https://www.ansight.ai/docs/sdk/react-native/pencil)
+- [Capacitor](https://www.ansight.ai/docs/sdk/cordova/pencil)
+
 Design and implementation notes:
 
 - [Screenshot safe areas and system-UI regions](drafts/screenshot-capture-geometry.md)
