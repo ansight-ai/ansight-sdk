@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net9.0;net9.0-android35.0;net9.0-ios18.0;net9.0-maccatalyst18.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>true</IsPackable>
+    <PackageId>Ansight.Pencil</PackageId>
+    <Description>Optional, explicitly enabled Pencil input simulation for Ansight on iOS Simulator.</Description>
+    <PackageTags>ansight;pencil;stylus;simulator;testing</PackageTags>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Ansight.Core/Ansight.Core.csproj" />
+    <InternalsVisibleTo Include="Ansight.Pencil.Tests" />
+  </ItemGroup>
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' Or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
+    <ProjectReference Include="../Ansight.Pencil.Native.Apple.Binding/Ansight.Pencil.Native.Apple.Binding.csproj" />
+  </ItemGroup>
+</Project>

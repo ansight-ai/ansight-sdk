@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net9.0-ios18.0;net9.0-maccatalyst18.0</TargetFrameworks>
+    <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsBindingProject>true</IsBindingProject>
+    <IsTrimmable>true</IsTrimmable>
+
+    <IsPackable>true</IsPackable>
+    <PackageId>Ansight.Pencil.Native.Apple.Binding</PackageId>
+    <AssemblyName>Ansight.Pencil.Native.Apple.Binding</AssemblyName>
+    <RootNamespace>Ansight.Pencil.Native.Apple</RootNamespace>
+    <Description>Native implementation used only by the optional Ansight.Pencil package.</Description>
+    <PackageTags>ansight;ios;maccatalyst;binding;native</PackageTags>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ObjcBindingApiDefinition Include="ApiDefinition.cs" />
+    <XcodeProject Include="..\..\ios\AnsightPencilBridge\AnsightPencilBridge.xcodeproj">
+      <SchemeName>AnsightPencilBridge</SchemeName>
+    </XcodeProject>
+  </ItemGroup>
+
+  <!-- The Xcode project compiles shared sources outside its own directory. Track those
+       inputs explicitly, and refresh the packaged resource bundle when native code changes.
+       A framework directory timestamp alone does not detect changes to its binary. -->
+  <ItemGroup>
+    <AnsightNativeSource Include="../../ios/Sources/AnsightPencilRuntime/**/*.swift" />
+  </ItemGroup>
+  <Target Name="TrackAnsightNativeSources" AfterTargets="_GetBuildXcodeProjectsInputs">
+    <ItemGroup>
+      <_XcbInputs Include="@(AnsightNativeSource)" />
+    </ItemGroup>
+  </Target>
+  <Target Name="InvalidateAnsightNativeResourceBundle"
+          BeforeTargets="_CreateBindingResourcePackage"
+          Inputs="@(AnsightNativeSource);$(_BuildXcodeProjectsStamp)"
+          Outputs="$(BindingResourcePath).stamp">
+    <Delete Files="$(BindingResourcePath).stamp" />
+  </Target>
+
+</Project>

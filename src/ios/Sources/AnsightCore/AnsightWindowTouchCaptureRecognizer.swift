@@ -82,7 +82,7 @@ final class AnsightWindowTouchCaptureRecognizer: UIGestureRecognizer {
             for sample in samples {
                 let point = sample.location(in: window)
                 let isPencil = sample.type == .pencil
-                let details = AnsightTouchDetails(
+                var details = AnsightTouchDetails(
                     tool: toolName(for: sample),
                     sampleKind: sampleKindOverride ?? (sample.timestamp == touch.timestamp ? "current" : "coalesced"),
                     force: isPencil ? Double(sample.force) : nil,
@@ -95,6 +95,7 @@ final class AnsightWindowTouchCaptureRecognizer: UIGestureRecognizer {
                     estimatedPropertiesExpectingUpdates: isPencil ? Int64(sample.estimatedPropertiesExpectingUpdates.rawValue) : nil,
                     estimationUpdateIndex: isPencil ? sample.estimationUpdateIndex?.int64Value : nil
                 )
+                details.inputSource = AnsightInputSource.source(for: sample)
                 let capturedTouch = AnsightCapturedTouch(
                     action: action,
                     pointerId: pointerId(for: touch),
@@ -153,29 +154,32 @@ final class AnsightWindowHoverCaptureRecognizer: UIHoverGestureRecognizer {
         cancelsTouchesInView = false
     }
 
-    @objc private func captureHover() {
-        guard let window = view as? UIWindow else {
+    @objc private func captureHover() { ansightCaptureHover(from: self) }
+
+    @objc(ansightCaptureHoverFromRecognizer:)
+    func ansightCaptureHover(from source: UIHoverGestureRecognizer) {
+        guard let window = view as? UIWindow, source.view?.window === window || source.view === window else {
             return
         }
 
         let action: AnsightCapturedTouchAction
-        switch state {
+        switch source.state {
         case .began: action = .hoverEnter
         case .changed: action = .hoverMove
         case .ended, .cancelled: action = .hoverExit
         default: return
         }
 
-        let point = location(in: window)
+        let point = source.location(in: window)
         let roll: Double?
         if #available(iOS 17.5, macCatalyst 17.5, *) {
-            roll = Double(rollAngle)
+            roll = Double(source.rollAngle)
         } else {
             roll = nil
         }
-        recordTouch(AnsightCapturedTouch(
+        var captured = AnsightCapturedTouch(
             action: action,
-            pointerId: Int64(Int(bitPattern: Unmanaged.passUnretained(self).toOpaque())),
+            pointerId: Int64(Int(bitPattern: Unmanaged.passUnretained(source).toOpaque())),
             pointerIndex: 0,
             pointerCount: 1,
             x: point.x,
@@ -189,15 +193,17 @@ final class AnsightWindowHoverCaptureRecognizer: UIHoverGestureRecognizer {
                 sampleKind: "hover",
                 force: nil,
                 maximumPossibleForce: nil,
-                altitudeRadians: Double(altitudeAngle),
-                azimuthRadians: Double(azimuthAngle(in: window)),
+                altitudeRadians: Double(source.altitudeAngle),
+                azimuthRadians: Double(source.azimuthAngle(in: window)),
                 rollRadians: roll,
-                distance: Double(zOffset),
+                distance: Double(source.zOffset),
                 estimatedProperties: nil,
                 estimatedPropertiesExpectingUpdates: nil,
                 estimationUpdateIndex: nil
             )
-        ))
+        )
+        captured = captured.withInputSource(AnsightInputSource.source(for: source))
+        recordTouch(captured)
     }
 }
 #endif

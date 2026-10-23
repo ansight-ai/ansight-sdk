@@ -75,6 +75,7 @@ enum AnsightTouchInputWireProtocol {
                 "tool": .string(details.tool),
                 "sampleKind": .string(details.sampleKind),
             ]
+            if let source = details.inputSource { value["inputSource"] = .string(source) }
             if let force = details.force, force.isFinite { value["force"] = .number(force) }
             if let maximum = details.maximumPossibleForce, maximum.isFinite { value["maximumPossibleForce"] = .number(maximum) }
             if let altitude = details.altitudeRadians, altitude.isFinite { value["altitudeRadians"] = .number(altitude) }

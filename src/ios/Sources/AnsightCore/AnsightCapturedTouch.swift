@@ -12,6 +12,7 @@ struct AnsightTouchDetails: Sendable, Codable, Equatable {
     let estimatedProperties: Int64?
     let estimatedPropertiesExpectingUpdates: Int64?
     let estimationUpdateIndex: Int64?
+    var inputSource: String? = nil
 }
 
 struct AnsightCapturedTouch: Sendable, Codable, Equatable, Identifiable {
@@ -27,7 +28,7 @@ struct AnsightCapturedTouch: Sendable, Codable, Equatable, Identifiable {
     let coordinateUnit: String
     let surfaceScale: Double?
     let capturedAt: Date
-    let details: AnsightTouchDetails?
+    var details: AnsightTouchDetails?
 
     init(
         id: String = UUID().uuidString.lowercased(),
@@ -81,5 +82,13 @@ struct AnsightCapturedTouch: Sendable, Codable, Equatable, Identifiable {
             return nil
         }
         return y / surfaceHeight
+    }
+}
+
+extension AnsightCapturedTouch {
+    func withInputSource(_ source: String?) -> AnsightCapturedTouch {
+        var copy = self
+        copy.details?.inputSource = source
+        return copy
     }
 }

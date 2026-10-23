@@ -8,6 +8,7 @@ let package = Package(
         .macOS(.v10_15),
     ],
     products: [
+        .library(name: "AnsightPencil", targets: ["AnsightPencil"]),
         .library(
             name: "Ansight",
             targets: ["Ansight"]
@@ -67,6 +68,9 @@ let package = Package(
         ),
     ],
     targets: [
+        .target(name: "AnsightPencilRuntime", path: "Sources/AnsightPencilRuntime"),
+        .target(name: "AnsightPencil", dependencies: ["AnsightCore", "AnsightPencilRuntime"], path: "Sources/AnsightPencil"),
+        .testTarget(name: "AnsightPencilTests", dependencies: ["AnsightPencil", "AnsightPencilRuntime", "AnsightCore"], path: "Tests/AnsightPencilTests"),
         .target(
             name: "Ansight",
             dependencies: [
