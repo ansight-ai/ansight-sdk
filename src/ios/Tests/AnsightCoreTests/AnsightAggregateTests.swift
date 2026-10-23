@@ -75,6 +75,7 @@ final class AnsightAggregateTests: XCTestCase {
                 AnsightVisualTreeToolIds.queryOverlays,
                 AnsightVisualTreeToolIds.removeOverlay,
                 AnsightVisualTreeToolIds.showOverlay,
+                "ui.submit_keyboard",
                 AnsightVisualTreeToolIds.updateOverlay,
                 AnsightVisualTreeToolIds.wait,
             ].sorted()
