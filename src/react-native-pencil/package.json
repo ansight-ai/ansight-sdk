@@ -1,0 +1,38 @@
+{
+  "name": "@ansight/react-native-pencil",
+  "version": "1.8.1",
+  "description": "Optional Ansight Pencil simulation for React Native on iOS Simulator.",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ansight-ai/ansight-sdk.git",
+    "directory": "src/react-native-pencil"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "surface.js",
+    "index.js",
+    "index.d.ts",
+    "ios",
+    "AnsightReactNativePencil.podspec",
+    "react-native.config.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "peerDependencies": {
+    "react": ">=18",
+    "@ansight/react-native": "1.8.1",
+    "react-native": ">=0.72"
+  },
+  "dependencies": {
+    "@ansight/pencil-runtime": "1.8.1"
+  },
+  "scripts": {
+    "check": "node --check index.js && npm test",
+    "test": "node --test test/*.test.js"
+  }
+}

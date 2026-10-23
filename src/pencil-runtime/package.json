@@ -1,0 +1,31 @@
+{
+  "name": "@ansight/pencil-runtime",
+  "version": "1.8.1",
+  "description": "Scoped playback lifecycle for optional Ansight Pencil framework adapters.",
+  "main": "index.js",
+  "module": "index.mjs",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.mjs",
+      "require": "./index.js"
+    }
+  },
+  "types": "index.d.ts",
+  "files": [
+    "index.js",
+    "index.mjs",
+    "index.d.ts",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "SEE LICENSE IN LICENSE",
+  "scripts": {
+    "build": "node build.mjs",
+    "prepack": "npm run build",
+    "test": "npm run build && node --test test/*.test.js",
+    "check": "npm test"
+  }
+}

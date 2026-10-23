@@ -1,0 +1,49 @@
+{
+  "name": "@ansight/capacitor-pencil",
+  "version": "1.8.1",
+  "description": "Optional Ansight Pencil simulation for Capacitor on iOS Simulator.",
+  "main": "dist/cjs/index.js",
+  "types": "dist/esm/index.d.ts",
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ansight-ai/ansight-sdk.git",
+    "directory": "src/capacitor-pencil"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "ios/Sources",
+    "Package.swift",
+    "AnsightCapacitorPencil.podspec",
+    "README.md",
+    "LICENSE"
+  ],
+  "peerDependencies": {
+    "@ansight/capacitor": "1.8.1",
+    "@capacitor/core": ">=8.0.0 <9.0.0"
+  },
+  "dependencies": {
+    "@ansight/pencil-runtime": "1.8.1"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.2",
+    "@capacitor/core": "^8.4.2",
+    "@ansight/capacitor": "file:../capacitor"
+  },
+  "scripts": {
+    "build": "npm run clean && tsc && tsc --module commonjs --outDir dist/cjs",
+    "test": "npm run build && node --test test/*.test.js",
+    "verify": "npm test",
+    "prepack": "npm run build",
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\""
+  },
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    }
+  },
+  "module": "dist/esm/index.js"
+}

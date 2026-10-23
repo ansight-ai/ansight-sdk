@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.dart_tool/
+build/
+pubspec.lock
+.flutter-plugins-dependencies
+.swiftpm/
+.build/
+Package.resolved
