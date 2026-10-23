@@ -24,4 +24,22 @@
     </XcodeProject>
   </ItemGroup>
 
+  <!-- The Xcode project compiles shared sources outside its own directory. Track those
+       inputs explicitly, and refresh the packaged resource bundle when native code changes.
+       A framework directory timestamp alone does not detect changes to its binary. -->
+  <ItemGroup>
+    <AnsightNativeSource Include="../../ios/Sources/AnsightCore/**/*.swift;../../ios/Sources/CAnsightCrashCapture/**/*.c;../../ios/Sources/CAnsightCrashCapture/**/*.h;../../ios/AnsightDotNetBridge/Sources/**/*.swift" />
+  </ItemGroup>
+  <Target Name="TrackAnsightNativeSources" AfterTargets="_GetBuildXcodeProjectsInputs">
+    <ItemGroup>
+      <_XcbInputs Include="@(AnsightNativeSource)" />
+    </ItemGroup>
+  </Target>
+  <Target Name="InvalidateAnsightNativeResourceBundle"
+          BeforeTargets="_CreateBindingResourcePackage"
+          Inputs="@(AnsightNativeSource);$(_BuildXcodeProjectsStamp)"
+          Outputs="$(BindingResourcePath).stamp">
+    <Delete Files="$(BindingResourcePath).stamp" />
+  </Target>
+
 </Project>
