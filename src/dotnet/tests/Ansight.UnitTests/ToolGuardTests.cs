@@ -28,7 +28,8 @@ public sealed class ToolGuardTests
         Assert.Null(writeReason);
 
         Assert.False(guard.CanExecute(new TestTool("test.critical", ToolPolicy.Critical), out var criticalReason));
-        Assert.Contains("exceeds", criticalReason, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("test.critical", criticalReason, StringComparison.Ordinal);
+        Assert.Contains("not authorized", criticalReason, StringComparison.OrdinalIgnoreCase);
     }
 
     private sealed class TestTool : ITool
