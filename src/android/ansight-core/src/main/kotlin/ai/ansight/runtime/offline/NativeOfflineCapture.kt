@@ -43,7 +43,7 @@ internal class NativeOfflineCapture(val store: OfflineCaptureStore, private val 
                     if (!exportDirectory.isDirectory && !exportDirectory.mkdirs()) throw IOException("Could not create offline export scratch directory.")
                     exportDirectory.listFiles()?.filter { it.extension == "zip" || it.extension == "part" }?.forEach { it.delete() }
                     store.flush().get()
-                    for (session in store.sessions().get().filter { it.stoppedAtUtc != null }) {
+                    for (session in store.sessions().get().filter { it.stoppedAtUtc != null && it.captureId == null }) {
                         requireConnection(token, connection)
                         transfer(session.sessionId, token, connection)
                     }

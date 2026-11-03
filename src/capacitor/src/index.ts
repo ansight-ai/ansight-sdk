@@ -495,6 +495,9 @@ export async function recordedEvents(
   return (await AnsightNative.recordedEvents({ limit })).items;
 }
 
+export const uploadOfflineCaptures = (endpoint: string, apiKey: string) =>
+  AnsightNative.uploadOfflineCaptures({ endpoint, apiKey });
+
 export const sendClientLog = (line: string): Promise<AnsightOperationResult> =>
   AnsightNative.sendClientLog({ line });
 export const captureBuiltInTelemetrySample =
@@ -1028,6 +1031,7 @@ const Ansight = {
   currentOptions,
   recordedMetrics,
   recordedEvents,
+  uploadOfflineCaptures,
   sendClientLog,
   addLogListener,
   captureBuiltInTelemetrySample,

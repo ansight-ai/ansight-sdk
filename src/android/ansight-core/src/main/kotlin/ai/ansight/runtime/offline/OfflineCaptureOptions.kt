@@ -10,6 +10,8 @@ data class OfflineCaptureOptions @JvmOverloads constructor(
     val maximumSessionBytes: Long = 128L * 1024 * 1024,
     val maximumRetainedBytes: Long = 512L * 1024 * 1024,
     val maximumQueuedBytes: Int = 8 * 1024 * 1024,
+    val chunkDurationSeconds: Int? = null,
+    val maximumChunkRecords: Int = 10_000,
 ) {
     companion object {
         @JvmStatic fun fromJson(json: org.json.JSONObject?): OfflineCaptureOptions? = json?.let {
@@ -24,11 +26,19 @@ data class OfflineCaptureOptions @JvmOverloads constructor(
                 maximumSessionBytes = it.optLong("maximumSessionBytes", 128L * 1024 * 1024),
                 maximumRetainedBytes = it.optLong("maximumRetainedBytes", 512L * 1024 * 1024),
                 maximumQueuedBytes = it.optInt("maximumQueuedBytes", 8 * 1024 * 1024),
+                chunkDurationSeconds = if (!it.isNull("chunkDurationSeconds")) it.getInt("chunkDurationSeconds") else null,
+                maximumChunkRecords = it.optInt("maximumChunkRecords", 10_000),
             ).validated()
         }
     }
 
     fun validated(): OfflineCaptureOptions {
+        chunkDurationSeconds?.let { duration ->
+            val validChunkLimits = duration in 1..300
+                && maximumSessionBytes <= 4L * 1024 * 1024
+                && maximumChunkRecords in 1..10_000
+            require(validChunkLimits) { "Cloud chunks require a 1–300 second duration and at most 4 MiB / 10000 records." }
+        }
         require(maximumSessions > 0 && maximumSessionBytes > 0 &&
             maximumRetainedBytes >= maximumSessionBytes && maximumQueuedBytes > 0) {
             "Offline capture requires positive limits and a retained-byte budget at least as large as one session."

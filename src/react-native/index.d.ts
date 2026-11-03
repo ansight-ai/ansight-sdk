@@ -64,6 +64,8 @@ export interface AnsightOfflineCaptureOptions {
   maximumSessionBytes?: number;
   maximumRetainedBytes?: number;
   maximumQueuedBytes?: number;
+  chunkDurationSeconds?: number;
+  maximumChunkRecords?: number;
 }
 
 export interface AnsightAnnotationOptions {
@@ -719,6 +721,12 @@ export function addHostConnectionStatusListener(
 export function currentOptions(): Promise<AnsightCurrentOptions>;
 export function recordedMetrics(limit?: number): Promise<AnsightRecordedMetric[]>;
 export function recordedEvents(limit?: number): Promise<AnsightRecordedEvent[]>;
+export interface AnsightOfflineCaptureUploadResult {
+  sessionIds: string[];
+  acknowledgedChunks: number;
+  pendingChunks: number;
+}
+export function uploadOfflineCaptures(endpoint: string, apiKey: string): Promise<AnsightOfflineCaptureUploadResult>;
 export function sendClientLog(line: string): Promise<AnsightOperationResult>;
 export function addLogListener(listener: (entry: AnsightLogEntry) => void): AnsightSubscription;
 export function captureBuiltInTelemetrySample(): Promise<AnsightDebugSnapshot>;
@@ -796,6 +804,7 @@ declare const Ansight: {
   currentOptions: typeof currentOptions;
   recordedMetrics: typeof recordedMetrics;
   recordedEvents: typeof recordedEvents;
+  uploadOfflineCaptures: typeof uploadOfflineCaptures;
   sendClientLog: typeof sendClientLog;
   addLogListener: typeof addLogListener;
   captureBuiltInTelemetrySample: typeof captureBuiltInTelemetrySample;

@@ -15,6 +15,10 @@ delegate string ANSToolProtocolHandler(string requestJson);
 interface ANSDotNetRuntime
 {
     [Static]
+    [Export("uploadOfflineCaptures:apiKey:completion:")]
+    void UploadOfflineCaptures(string endpoint, string apiKey, ANSStringResultHandler completion);
+
+    [Static]
     [Export("presentAnnotationWithCompletion:")]
     void PresentAnnotation(ANSStringResultHandler completion);
     [Static]

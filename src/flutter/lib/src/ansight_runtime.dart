@@ -55,6 +55,10 @@ class Annotate {
 }
 
 class Ansight {
+  /// Upload one pass of sealed v2 chunks; retry while pendingChunks is nonzero.
+  Future<AnsightJson> uploadOfflineCaptures({required Uri endpoint, required String apiKey}) =>
+      _invoke('uploadOfflineCaptures', <String, Object?>{'endpoint': endpoint.toString(), 'apiKey': apiKey});
+
   late final PurchaseDiagnostics purchases = PurchaseDiagnostics(_invoke);
 
   // ignore: non_constant_identifier_names

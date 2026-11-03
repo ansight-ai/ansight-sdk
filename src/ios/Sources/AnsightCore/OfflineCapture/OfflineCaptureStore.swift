@@ -30,6 +30,10 @@ public final class OfflineCaptureStore: @unchecked Sendable {
     private var lastOrdinal: Int64 = 0
     private var recovered = false
     private var cachedSessions: [String: OfflineCaptureSession]?
+    private var captureId: String?
+    private var captureStartedAtUtc: String?
+    private var chunkSequence = 0
+    private var chunkAttachmentCount = 0
 
     public init(root: URL, options: OfflineCaptureOptions, appId: String, processSessionId: String, sessionHeader: Data? = nil, customProperties: Data? = nil,
                 onSessionStarted: (@Sendable (String, String) -> Void)? = nil,
@@ -119,12 +123,18 @@ public final class OfflineCaptureStore: @unchecked Sendable {
 
     @discardableResult
     public func appendScreenshot(jpeg: Data, capturedAtUtc: String, width: Int, height: Int, quality: Int, geometry: ScreenshotCaptureGeometry? = nil) -> Bool {
-        let path = "screenshots/\(UUID().uuidString.lowercased()).jpg"
+        appendScreenshot(data: jpeg, format: .jpeg, capturedAtUtc: capturedAtUtc, width: width, height: height, quality: quality, geometry: geometry)
+    }
+
+    @discardableResult
+    public func appendScreenshot(data: Data, format: AnsightScreenSnapshotFormat, capturedAtUtc: String, width: Int, height: Int, quality: Int, geometry: ScreenshotCaptureGeometry? = nil) -> Bool {
+        let fileExtension = format == .jpeg ? "jpg" : format.rawValue
+        let path = "screenshots/\(UUID().uuidString.lowercased()).\(fileExtension)"
         var entry: [String: Any] = ["path": path, "capturedAtUtc": capturedAtUtc,
-            "width": width, "height": height, "quality": quality]
+            "width": width, "height": height, "quality": quality, "format": format.rawValue]
         if let geometry { entry["geometry"] = geometry.json.anyValue }
         guard let index = try? JSONSerialization.data(withJSONObject: entry) else { return false }
-        return enqueue(json: index, attachment: Attachment(path: path, data: jpeg), indexPath: "screenshots/index/frames.jsonl")
+        return enqueue(json: index, attachment: Attachment(path: path, data: data), indexPath: "screenshots/index/frames.jsonl")
     }
 
     /// A barrier behind accepted writes and lifecycle transitions; never competes
@@ -213,7 +223,15 @@ public final class OfflineCaptureStore: @unchecked Sendable {
                 defer { self.ingressLock.withLock { self.queuedBytes -= byteCount } }
                 self.run {
                     if self.current == nil { try self.start() }
-                    if self.current!.bytes + Int64(byteCount) > self.options.maximumSessionBytes {
+                    let reachedRecordLimit = self.options.chunkDurationSeconds != nil
+                        && self.current!.records >= Int64(self.options.maximumChunkRecords)
+                    let reachedAttachmentLimit = self.options.chunkDurationSeconds != nil
+                        && attachment != nil
+                        && self.chunkAttachmentCount >= 128
+                    let shouldRotate = self.current!.bytes + Int64(byteCount) > self.options.maximumSessionBytes
+                        || reachedRecordLimit
+                        || reachedAttachmentLimit
+                    if shouldRotate {
                         try self.seal(reason: "sizeLimit")
                         try self.start()
                     }
@@ -222,6 +240,7 @@ public final class OfflineCaptureStore: @unchecked Sendable {
                         let url = self.directory(self.current!.sessionId).appendingPathComponent(attachment.path)
                         try self.fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
                         try attachment.data.write(to: url, options: .atomic)
+                        self.chunkAttachmentCount += 1
                     }
                     var line = json
                     line.append(10)
@@ -248,16 +267,25 @@ public final class OfflineCaptureStore: @unchecked Sendable {
         try recover()
         try enforceRetention(reservingSessions: 1, reservingBytes: 0)
         lastOrdinal = max(lastOrdinal + 1, Int64(Date().timeIntervalSince1970 * 1_000_000))
+        if options.chunkDurationSeconds != nil && captureId == nil {
+            captureId = UUID().uuidString.lowercased()
+            captureStartedAtUtc = Self.now()
+            chunkSequence = 0
+        }
+        guard chunkSequence <= 4095 else { throw OfflineCaptureError.retentionBlocked }
         let session = OfflineCaptureSession(
             sessionId: UUID().uuidString.lowercased(), startedAtUtc: Self.now(),
             ordinal: lastOrdinal,
-            appId: appId, processSessionId: processSessionId, bytes: 0, records: 0, droppedRecords: 0)
+            appId: appId, processSessionId: processSessionId, bytes: 0, records: 0, droppedRecords: 0,
+            captureId: captureId, captureStartedAtUtc: captureStartedAtUtc,
+            sequence: captureId == nil ? nil : chunkSequence)
         let directory = directory(session.sessionId)
         try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
         let file = directory.appendingPathComponent("records.jsonl")
         guard fileManager.createFile(atPath: file.path, contents: nil) else {
             throw CocoaError(.fileWriteUnknown)
         }
+        chunkAttachmentCount = 0
         writer = try FileHandle(forWritingTo: file)
         current = session
         try persistCurrent()
@@ -277,10 +305,27 @@ public final class OfflineCaptureStore: @unchecked Sendable {
         }
         try persistCurrent()
         onSessionStarted?(session.sessionId, directory.path)
+        if let duration = options.chunkDurationSeconds {
+            queue.asyncAfter(deadline: .now() + .seconds(duration)) { [weak self] in
+                guard let self else { return }
+                guard self.current?.sessionId == session.sessionId && self.isRecording else { return }
+                self.run {
+                    try self.seal(reason: "chunkLimit")
+                    try self.start()
+                }
+            }
+        }
     }
 
     private func seal(reason: String) throws {
-        guard current != nil else { return }
+        guard current != nil else {
+            if reason == "normal" {
+                captureId = nil
+                captureStartedAtUtc = nil
+                chunkSequence = 0
+            }
+            return
+        }
         try writer?.synchronize()
         try writer?.close()
         writer = nil
@@ -289,6 +334,13 @@ public final class OfflineCaptureStore: @unchecked Sendable {
         try persistCurrent()
         onSessionCompleted?(current!.sessionId)
         current = nil
+        if reason == "sizeLimit" || reason == "chunkLimit" {
+            chunkSequence += 1
+        } else {
+            captureId = nil
+            captureStartedAtUtc = nil
+            chunkSequence = 0
+        }
     }
 
     private func persistCurrent() throws {
@@ -318,6 +370,9 @@ public final class OfflineCaptureStore: @unchecked Sendable {
         var bytes = sessions.reduce(Int64(0)) { $0 + $1.bytes } + reservingBytes
         for session in sessions {
             if count <= options.maximumSessions && bytes <= options.maximumRetainedBytes { return }
+            // Cloud chunks stay on disk until their hash receives a durable
+            // server receipt. Stop admitting evidence when retention is full.
+            if session.captureId != nil { continue }
             guard session.sessionId != current?.sessionId, leases[session.sessionId] == nil else { continue }
             try fileManager.removeItem(at: directory(session.sessionId))
             cachedSessions?.removeValue(forKey: session.sessionId)
@@ -402,6 +457,7 @@ public final class OfflineCaptureStore: @unchecked Sendable {
             ? (try JSONSerialization.jsonObject(with: Data(contentsOf: path)) as? [String: Any] ?? [:]) : [:]
         let values = try JSONSerialization.jsonObject(with: JSONEncoder().encode(session)) as! [String: Any]
         manifest.merge(values) { _, new in new }
+        if session.captureId != nil { manifest["schema"] = "ansight.offline-capture.chunk.v2" }
         try JSONSerialization.data(withJSONObject: manifest, options: .sortedKeys).write(to: path, options: .atomic)
         cachedSessions?[session.sessionId] = session
     }

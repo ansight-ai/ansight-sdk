@@ -352,7 +352,9 @@ class AnsightOfflineCaptureOptions {
       this.transferMode = 'automatic',
       this.maximumSessionBytes = 128 * 1024 * 1024,
       this.maximumRetainedBytes = 512 * 1024 * 1024,
-      this.maximumQueuedBytes = 8 * 1024 * 1024});
+      this.maximumQueuedBytes = 8 * 1024 * 1024,
+      this.chunkDurationSeconds,
+      this.maximumChunkRecords = 10000});
   final bool enabled;
   final bool recordingEnabled;
   final String? rootDirectory;
@@ -361,6 +363,8 @@ class AnsightOfflineCaptureOptions {
   final int maximumSessionBytes;
   final int maximumRetainedBytes;
   final int maximumQueuedBytes;
+  final int? chunkDurationSeconds;
+  final int maximumChunkRecords;
   AnsightJson toJson() => <String, Object?>{
         'enabled': enabled,
         'recordingEnabled': recordingEnabled,
@@ -369,7 +373,9 @@ class AnsightOfflineCaptureOptions {
         'transferMode': transferMode,
         'maximumSessionBytes': maximumSessionBytes,
         'maximumRetainedBytes': maximumRetainedBytes,
-        'maximumQueuedBytes': maximumQueuedBytes
+        'maximumQueuedBytes': maximumQueuedBytes,
+        if (chunkDurationSeconds != null) 'chunkDurationSeconds': chunkDurationSeconds,
+        'maximumChunkRecords': maximumChunkRecords
       };
 }
 

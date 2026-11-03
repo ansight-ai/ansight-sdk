@@ -7,6 +7,7 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "AnsightCapacitorPlugin"
     public let jsName = "Ansight"
     public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "uploadOfflineCaptures", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "purchaseCommand", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "initialize", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "initializeAndActivate", returnType: CAPPluginReturnPromise),
@@ -59,6 +60,19 @@ public final class AnsightCapacitorPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "publishArtifact", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "queueBinaryTransfer", returnType: CAPPluginReturnPromise),
     ]
+
+    @objc func uploadOfflineCaptures(_ call: CAPPluginCall) {
+        Task {
+            do {
+                guard let endpoint = call.getString("endpoint"), let url = URL(string: endpoint),
+                      let key = call.getString("apiKey") else { throw OfflineCaptureError.invalidOptions }
+                let configuration = try OfflineCaptureUploadConfiguration(endpoint: url, apiKey: key)
+                let uploader = try AnsightRuntime.shared.makeOfflineCaptureUploader(configuration: configuration)
+                let result = try await uploader.uploadPending()
+                call.resolve(["sessionIds": result.sessionIds, "acknowledgedChunks": result.acknowledgedChunks, "pendingChunks": result.pendingChunks])
+            } catch { call.reject(error.localizedDescription) }
+        }
+    }
 
     private final class PendingToolCall {
         let semaphore = DispatchSemaphore(value: 0)

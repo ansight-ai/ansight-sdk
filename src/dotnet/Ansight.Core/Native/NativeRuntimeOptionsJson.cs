@@ -23,6 +23,8 @@ internal static class NativeRuntimeOptionsJson
                 ["maximumSessionBytes"] = offline.MaximumSessionBytes,
                 ["maximumRetainedBytes"] = offline.MaximumRetainedBytes,
                 ["maximumQueuedBytes"] = offline.MaximumQueuedBytes,
+                ["chunkDurationSeconds"] = offline.ChunkDurationSeconds,
+                ["maximumChunkRecords"] = offline.MaximumChunkRecords,
                 ["transferMode"] = offline.TransferMode == OfflineCaptureTransferMode.Manual ? "manual" : "automatic"
             } : null,
             ["sampleFrequencyMilliseconds"] = options.SampleFrequencyMilliseconds,

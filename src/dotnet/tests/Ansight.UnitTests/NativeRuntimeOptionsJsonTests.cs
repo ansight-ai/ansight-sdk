@@ -10,6 +10,38 @@ namespace Ansight.UnitTests;
 
 public sealed class NativeRuntimeOptionsJsonTests
 {
+    [Fact]
+    public void CloudCaptureOptionsSurviveCloningAndNativeSerialization()
+    {
+        var configured = Options.CreateBuilder()
+            .WithOfflineCapture(NativeOfflineCaptureOptions.ForCloudUploads(15))
+            .Build();
+        var copied = Options.CreateBuilder(configured).Build();
+        var json = JsonNode.Parse(NativeRuntimeOptionsJson.Serialize(copied))!["offlineCapture"]!;
+
+        Assert.Equal(15, json["chunkDurationSeconds"]!.GetValue<int>());
+        Assert.Equal(10_000, json["maximumChunkRecords"]!.GetValue<int>());
+        Assert.Equal(4L * 1024 * 1024, json["maximumSessionBytes"]!.GetValue<long>());
+        Assert.Equal(512, json["maximumSessions"]!.GetValue<int>());
+        Assert.Equal("manual", json["transferMode"]!.GetValue<string>());
+        Assert.Throws<ArgumentOutOfRangeException>(() => Options.CreateBuilder()
+            .WithOfflineCapture(NativeOfflineCaptureOptions.ForCloudUploads(301)));
+    }
+
+    [Fact]
+    public void NativeUploadResultPreservesReceiptsAndSurfacesNativeErrors()
+    {
+        var result = NativeOfflineCaptureUploadResult.Parse(
+            "{\"sessionIds\":[\"capture\"],\"acknowledgedChunks\":2,\"pendingChunks\":1}");
+
+        Assert.Equal(["capture"], result.SessionIds);
+        Assert.Equal(2, result.AcknowledgedChunks);
+        Assert.Equal(1, result.PendingChunks);
+        var error = Assert.Throws<InvalidOperationException>(() => NativeOfflineCaptureUploadResult.Parse(
+            "{\"error\":\"Capture key expired.\"}"));
+        Assert.Equal("Capture key expired.", error.Message);
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]

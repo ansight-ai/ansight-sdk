@@ -2,6 +2,78 @@ import XCTest
 @testable import AnsightCore
 
 final class OfflineCaptureStoreTests: XCTestCase {
+    func testStoppingAfterRetentionBlocksStartsANewCapture() async throws {
+        let options = OfflineCaptureOptions(enabled: true, maximumSessions: 1,
+            maximumSessionBytes: 4096, maximumRetainedBytes: 4096,
+            chunkDurationSeconds: 300, maximumChunkRecords: 1)
+        let store = try OfflineCaptureStore(root: root(), options: options, appId: "test", processSessionId: "process")
+        store.setRecording(true)
+        _ = store.append(json: Data("{}".utf8))
+        _ = store.append(json: Data("{}".utf8))
+        store.setRecording(false)
+        let chunks = try await store.sessions()
+        let previous = try XCTUnwrap(chunks.first)
+        XCTAssertEqual(previous.terminationKind, "sizeLimit")
+        let lease = try await store.acquire(previous.sessionId)
+        let hash = String(repeating: "a", count: 64)
+        try await store.acknowledge(lease, archiveSha256: hash, acknowledgedSha256: hash)
+
+        try await recordSession(store)
+        let restarted = try await store.sessions()
+        XCTAssertEqual(restarted.first?.sequence, 0)
+        XCTAssertNotEqual(restarted.first?.captureId, previous.captureId)
+        XCTAssertEqual(restarted.first?.terminationKind, "normal")
+    }
+
+    func testCloudChunksBoundAttachmentUploads() async throws {
+        let options = OfflineCaptureOptions(enabled: true, maximumSessionBytes: 1024 * 1024, chunkDurationSeconds: 300)
+        let store = try OfflineCaptureStore(root: root(), options: options, appId: "test", processSessionId: "process")
+        store.setRecording(true)
+        for _ in 0..<129 {
+            XCTAssertTrue(store.appendAttachment(data: Data([1]), extension: "bin") { _ in Data("{}".utf8) })
+        }
+        store.setRecording(false)
+        let chunks = try await store.sessions().sorted { ($0.sequence ?? 0) < ($1.sequence ?? 0) }
+        XCTAssertEqual(chunks.map(\.records), [128, 1])
+    }
+
+    func testCloudChunksShareIdentityAndRetainUnacknowledgedEvidence() async throws {
+        let options = OfflineCaptureOptions(enabled: true, maximumSessions: 2,
+            maximumSessionBytes: 4096, maximumRetainedBytes: 8192,
+            chunkDurationSeconds: 300, maximumChunkRecords: 1)
+        let store = try OfflineCaptureStore(root: root(), options: options, appId: "test", processSessionId: "process")
+        store.setRecording(true)
+        for _ in 0..<3 { _ = store.append(json: Data("{}".utf8)) }
+        let chunks = try await store.sessions().sorted { ($0.sequence ?? 0) < ($1.sequence ?? 0) }
+        XCTAssertEqual(chunks.count, 2)
+        XCTAssertEqual(chunks.map(\.sequence), [0, 1])
+        XCTAssertNotNil(chunks.first?.captureId)
+        XCTAssertEqual(chunks.first?.captureId, chunks.last?.captureId)
+        XCTAssertEqual(chunks.first?.captureStartedAtUtc, chunks.last?.captureStartedAtUtc)
+        XCTAssertNotNil(store.lastError)
+        let lease = try await store.acquire(chunks[0].sessionId)
+        let hash = String(repeating: "a", count: 64)
+        try await store.acknowledge(lease, archiveSha256: hash, acknowledgedSha256: hash)
+        XCTAssertTrue(store.append(json: Data("{}".utf8)))
+        store.setRecording(false)
+        let remaining = try await store.sessions()
+        XCTAssertTrue(remaining.contains { $0.sequence == 1 })
+        XCTAssertTrue(remaining.contains { $0.sequence == 2 && $0.terminationKind == "normal" })
+    }
+
+    func testCloudTimerSealsAnIdleChunk() async throws {
+        let options = OfflineCaptureOptions(enabled: true, maximumSessionBytes: 4096, chunkDurationSeconds: 1)
+        let store = try OfflineCaptureStore(root: root(), options: options, appId: "test", processSessionId: "process")
+        store.setRecording(true)
+        try await Task.sleep(nanoseconds: 1_200_000_000)
+        store.setRecording(false)
+        let chunks = try await store.sessions().sorted { ($0.sequence ?? 0) < ($1.sequence ?? 0) }
+        XCTAssertEqual(chunks.count, 2)
+        XCTAssertEqual(chunks.first?.terminationKind, "chunkLimit")
+        XCTAssertEqual(chunks.last?.terminationKind, "normal")
+        XCTAssertEqual(chunks.first?.captureId, chunks.last?.captureId)
+    }
+
     private func root() throws -> URL {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)

@@ -27,6 +27,16 @@ internal sealed class AndroidNativeRuntimeBridge : INativeRuntimeBridge
 
     public string ProcessSessionId => AnsightDotNetBridge.ProcessSessionId();
 
+    public Task<string> UploadOfflineCapturesAsync(string endpoint, string apiKey, CancellationToken cancellationToken)
+    {
+        return Task.Run(() =>
+        {
+            var application = Application.Context as Application
+                ?? throw new InvalidOperationException("The Android application context is unavailable.");
+            return AnsightDotNetBridge.UploadOfflineCaptures(application, endpoint, apiKey);
+        }, cancellationToken);
+    }
+
     public HostConnectionStatus HostConnectionStatus
         => NativeRuntimeJson.ParseHostConnectionStatus(AnsightDotNetBridge.HostConnectionStatusJson());
 

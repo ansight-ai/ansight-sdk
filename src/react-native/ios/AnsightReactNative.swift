@@ -4,6 +4,19 @@ import React
 
 @objc(AnsightReactNative)
 final class AnsightReactNative: RCTEventEmitter {
+    @objc(uploadOfflineCaptures:apiKey:resolver:rejecter:)
+    func uploadOfflineCaptures(_ endpoint: String, apiKey: String, resolver resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) {
+        Task {
+            do {
+                guard let url = URL(string: endpoint) else { throw OfflineCaptureError.invalidOptions }
+                let configuration = try OfflineCaptureUploadConfiguration(endpoint: url, apiKey: apiKey)
+                let uploader = try AnsightRuntime.shared.makeOfflineCaptureUploader(configuration: configuration)
+                let result = try await uploader.uploadPending()
+                resolve(["sessionIds": result.sessionIds, "acknowledgedChunks": result.acknowledgedChunks, "pendingChunks": result.pendingChunks])
+            } catch { reject("offline_upload_failed", error.localizedDescription, error) }
+        }
+    }
+
     @objc(purchaseCommand:resolver:rejecter:)
     func purchaseCommand(_ json: String, resolver resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) {
         Task {

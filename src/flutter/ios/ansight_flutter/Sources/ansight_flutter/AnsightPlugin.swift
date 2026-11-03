@@ -263,6 +263,13 @@ public final class AnsightFlutterPlugin: NSObject, FlutterPlugin, AnsightNativeH
 
     private func dispatch(method: String, arguments: NSDictionary) async throws -> Any {
         switch method {
+        case "uploadOfflineCaptures":
+            guard let endpoint = arguments["endpoint"] as? String, let url = URL(string: endpoint),
+                  let key = arguments["apiKey"] as? String else { throw OfflineCaptureError.invalidOptions }
+            let configuration = try OfflineCaptureUploadConfiguration(endpoint: url, apiKey: key)
+            let uploader = try AnsightRuntime.shared.makeOfflineCaptureUploader(configuration: configuration)
+            let result = try await uploader.uploadPending()
+            return ["sessionIds": result.sessionIds, "acknowledgedChunks": result.acknowledgedChunks, "pendingChunks": result.pendingChunks]
         case "purchaseCommand":
             guard let json = arguments["json"] as? String else { throw PurchaseDiagnosticsError.invalidArguments }
             return ["json": try await PurchaseDiagnostics.shared.commandAsync(json)]

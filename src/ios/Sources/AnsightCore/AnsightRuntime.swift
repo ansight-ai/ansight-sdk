@@ -3680,6 +3680,11 @@ public final class AnsightRuntime: @unchecked Sendable {
 
     public var offlineCaptureLastError: String? { lock.withLock { offlineCapture?.lastError } }
 
+    public func makeOfflineCaptureUploader(configuration: OfflineCaptureUploadConfiguration) throws -> OfflineCaptureCloudUploader {
+        guard let store = lock.withLock({ offlineCapture?.store }) else { throw OfflineCaptureError.invalidOptions }
+        return OfflineCaptureCloudUploader(store: store, configuration: configuration)
+    }
+
     private func updateOfflineCaptureState() {
         lock.withLock {
             offlineCapture?.update(active: initialized && active && offlineCaptureRuntimeEnabled, connected: sessionOpen && liveTransport.isOpen)
@@ -3689,18 +3694,19 @@ public final class AnsightRuntime: @unchecked Sendable {
                 return
             }
             guard offlineScreenCaptureTask == nil else { return }
+            let offlineFormat: AnsightScreenSnapshotFormat = options.offlineCapture?.chunkDurationSeconds == nil ? .jpeg : .webp
             offlineScreenCaptureTask = Task { [weak self, capture] in
                 while !Task.isCancelled, capture.store.isRecording {
                     if self?.lock.withLock({ self?.active == true && self?.currentLifecycleState != .background }) == true,
-                       let result = try? await AnsightScreenCapture.capture(options: screenshotOptions) {
-                        let frame = result.frame
+                       let frame = try? await AnsightScreenCapture.captureOffline(options: screenshotOptions, format: offlineFormat) {
+                        let capturedAtUtc = AnsightClock.isoNow()
                         if !Task.isCancelled {
-                            capture.store.appendScreenshot(jpeg: frame.jpegData, capturedAtUtc: frame.capturedAtUtc,
-                                width: frame.width, height: frame.height, quality: frame.quality, geometry: frame.geometry)
+                            capture.store.appendScreenshot(data: frame.data, format: offlineFormat, capturedAtUtc: capturedAtUtc,
+                                width: frame.width, height: frame.height, quality: screenshotOptions.quality, geometry: frame.geometry)
                             if screenshotOptions.mode != .screenshotOnly {
                                 for tree in AnsightSessionVisualTreeCaptureRegistry.capture() {
-                                    capture.append(Self.sessionVisualTreeEvent(payload: tree, capturedAtUtc: frame.capturedAtUtc,
-                                        screenshotCapturedAtUtc: frame.capturedAtUtc, trigger: nil))
+                                    capture.append(Self.sessionVisualTreeEvent(payload: tree, capturedAtUtc: capturedAtUtc,
+                                        screenshotCapturedAtUtc: capturedAtUtc, trigger: nil))
                                 }
                             }
                         }

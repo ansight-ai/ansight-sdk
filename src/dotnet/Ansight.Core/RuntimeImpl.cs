@@ -45,6 +45,15 @@ internal class RuntimeImpl : IRuntime
     internal DateTimeOffset? CurrentAppLifecycleStateChangedUtc => mutableDataSink.CurrentAppLifecycleStateChangedUtc;
     internal string ProcessSessionId => nativeRuntime.ProcessSessionId;
     private bool nativeOfflineCaptureEnabled;
+
+    internal async Task<NativeOfflineCaptureUploadResult> UploadOfflineCapturesAsync(
+        Uri endpoint, string apiKey, CancellationToken cancellationToken)
+    {
+        var result = await nativeRuntime.UploadOfflineCapturesAsync(
+            endpoint.AbsoluteUri, apiKey, cancellationToken).ConfigureAwait(false);
+        return NativeOfflineCaptureUploadResult.Parse(result);
+    }
+
     internal async Task<OperationResult> SetOfflineCaptureEnabledAsync(bool enabled, CancellationToken cancellationToken)
     {
         var result = await nativeRuntime.SendControlRequestAsync("offline_capture.set_enabled", enabled ? "{\"enabled\":true}" : "{\"enabled\":false}", cancellationToken).ConfigureAwait(false);

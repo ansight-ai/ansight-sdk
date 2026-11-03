@@ -2,6 +2,25 @@ import Foundation
 
 @objc(ANSDotNetRuntime)
 public final class ANSDotNetRuntime: NSObject {
+    @objc(uploadOfflineCaptures:apiKey:completion:)
+    public static func uploadOfflineCaptures(_ endpoint: String, apiKey: String, completion: @escaping (String) -> Void) {
+        let completionBox = BridgeStringCompletion(completion)
+        Task {
+            do {
+                guard let url = URL(string: endpoint) else { throw OfflineCaptureError.invalidOptions }
+                let configuration = try OfflineCaptureUploadConfiguration(endpoint: url, apiKey: apiKey)
+                let uploader = try AnsightRuntime.shared.makeOfflineCaptureUploader(configuration: configuration)
+                let result = try await uploader.uploadPending()
+                let data = try JSONSerialization.data(withJSONObject: ["sessionIds": result.sessionIds,
+                    "acknowledgedChunks": result.acknowledgedChunks, "pendingChunks": result.pendingChunks])
+                completionBox.call(String(decoding: data, as: UTF8.self))
+            } catch {
+                let data = try? JSONSerialization.data(withJSONObject: ["error": error.localizedDescription])
+                completionBox.call(data.map { String(decoding: $0, as: UTF8.self) } ?? "{}")
+            }
+        }
+    }
+
     private static let customPropertiesLock = NSLock()
     private nonisolated(unsafe) static var customProperties: [String: [String: String]] = [:]
 

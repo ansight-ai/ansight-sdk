@@ -11,4 +11,7 @@ public struct OfflineCaptureSession: Sendable, Codable, Equatable {
     public var bytes: Int64
     public var records: Int64
     public var droppedRecords: Int64
+    public var captureId: String?
+    public var captureStartedAtUtc: String?
+    public var sequence: Int?
 }

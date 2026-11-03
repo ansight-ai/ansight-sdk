@@ -28,6 +28,11 @@ internal interface INativeRuntimeBridge
 
     void Clear();
 
+    Task<string> UploadOfflineCapturesAsync(string endpoint, string apiKey, CancellationToken cancellationToken)
+    {
+        return Task.FromException<string>(new PlatformNotSupportedException("Native capture upload requires Android or Apple."));
+    }
+
     void RecordNetworkRequest(NetworkRequestRecord request);
 
     void SetNetworkCaptureRedactionEnabled(bool enabled);

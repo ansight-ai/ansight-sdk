@@ -28,7 +28,7 @@ class OfflineCaptureStore(
     private val root = root.canonicalFile
     private val options = captureOptions.validated()
     private val ingressLock = Any()
-    private val queue = Executors.newSingleThreadExecutor { runnable ->
+    private val queue = Executors.newSingleThreadScheduledExecutor { runnable ->
         Thread(runnable, "Ansight Offline Capture").apply { isDaemon = true }
     }
     private var accepting = false
@@ -48,6 +48,10 @@ class OfflineCaptureStore(
     private var lastOrdinal = 0L
     private var recovered = false
     private var cachedSessions: MutableMap<String, OfflineCaptureSession>? = null
+    private var captureId: String? = null
+    private var captureStartedAtUtc: String? = null
+    private var chunkSequence = 0
+    private var chunkAttachmentCount = 0
 
     init {
         require((sessionHeader?.size?.toLong()?.plus(1) ?: 0) + (customProperties?.size ?: 0) < options.maximumSessionBytes) { "Offline metadata exceeds the session budget." }
@@ -104,11 +108,17 @@ class OfflineCaptureStore(
     }
 
     fun appendScreenshot(jpeg: ByteArray, capturedAtUtc: String, width: Int, height: Int, quality: Int, geometry: JSONObject? = null): Boolean {
-        val path = "screenshots/${UUID.randomUUID()}.jpg"
+        return appendScreenshot(jpeg, "jpeg", capturedAtUtc, width, height, quality, geometry)
+    }
+
+    fun appendScreenshot(data: ByteArray, format: String, capturedAtUtc: String, width: Int, height: Int, quality: Int, geometry: JSONObject? = null): Boolean {
+        require(format in listOf("jpeg", "png", "webp")) { "Unsupported screenshot encoding." }
+        val extension = if (format == "jpeg") "jpg" else format
+        val path = "screenshots/${UUID.randomUUID()}.$extension"
         val index = JSONObject().put("path", path).put("capturedAtUtc", capturedAtUtc)
-            .put("width", width).put("height", height).put("quality", quality)
+            .put("width", width).put("height", height).put("quality", quality).put("format", format)
         geometry?.let { index.put("geometry", it) }
-        return enqueue(index.toString().toByteArray(Charsets.UTF_8), Attachment(path, jpeg), "screenshots/index/frames.jsonl")
+        return enqueue(index.toString().toByteArray(Charsets.UTF_8), Attachment(path, data), "screenshots/index/frames.jsonl")
     }
 
     fun flush(): Future<Unit> = perform {
@@ -186,7 +196,14 @@ class OfflineCaptureStore(
             try {
                 runWrite {
                     if (current == null) start()
-                    if (current!!.bytes + byteCount > options.maximumSessionBytes) {
+                    val reachedRecordLimit = options.chunkDurationSeconds != null && current!!.records >= options.maximumChunkRecords
+                    val reachedAttachmentLimit = options.chunkDurationSeconds != null
+                        && attachment != null
+                        && chunkAttachmentCount >= 128
+                    val shouldRotate = current!!.bytes + byteCount > options.maximumSessionBytes
+                        || reachedRecordLimit
+                        || reachedAttachmentLimit
+                    if (shouldRotate) {
                         seal("sizeLimit")
                         start()
                     }
@@ -195,6 +212,7 @@ class OfflineCaptureStore(
                         val destination = File(directory(current!!.sessionId), file.path)
                         ensureDirectory(destination.parentFile!!)
                         atomicWrite(destination, file.data)
+                        chunkAttachmentCount++
                     }
                     if (indexPath != null) {
                         val indexFile = File(directory(current!!.sessionId), indexPath)
@@ -213,10 +231,18 @@ class OfflineCaptureStore(
         recover()
         enforceRetention(1, 0)
         lastOrdinal = maxOf(lastOrdinal + 1, System.currentTimeMillis() * 1000)
+        if (options.chunkDurationSeconds != null && captureId == null) {
+            captureId = UUID.randomUUID().toString()
+            captureStartedAtUtc = now()
+            chunkSequence = 0
+        }
+        if (chunkSequence > 4095) throw RetentionBlocked()
         val session = OfflineCaptureSession(UUID.randomUUID().toString(), now(), lastOrdinal,
-            null, null, appId, processSessionId, 0, 0, 0)
+            null, null, appId, processSessionId, 0, 0, 0,
+            captureId, captureStartedAtUtc, if (captureId == null) null else chunkSequence)
         val folder = directory(session.sessionId)
         ensureDirectory(folder)
+        chunkAttachmentCount = 0
         writer = FileOutputStream(File(folder, "records.jsonl"))
         current = session
         persistCurrent()
@@ -236,10 +262,28 @@ class OfflineCaptureStore(
         }
         persistCurrent()
         onSessionStarted?.invoke(session.sessionId, folder.path)
+        options.chunkDurationSeconds?.let { duration ->
+            queue.schedule({
+                if (current?.sessionId == session.sessionId && isRecording) {
+                    runWrite {
+                        seal("chunkLimit")
+                        start()
+                    }
+                }
+            }, duration.toLong(), java.util.concurrent.TimeUnit.SECONDS)
+        }
     }
 
     private fun seal(reason: String) {
-        val session = current ?: return
+        val session = current
+        if (session == null) {
+            if (reason == "normal") {
+                captureId = null
+                captureStartedAtUtc = null
+                chunkSequence = 0
+            }
+            return
+        }
         writer?.fd?.sync()
         writer?.close()
         writer = null
@@ -247,6 +291,13 @@ class OfflineCaptureStore(
         persistCurrent()
         onSessionCompleted?.invoke(session.sessionId)
         current = null
+        if (reason == "sizeLimit" || reason == "chunkLimit") {
+            chunkSequence++
+        } else {
+            captureId = null
+            captureStartedAtUtc = null
+            chunkSequence = 0
+        }
     }
 
     private fun persistCurrent() {
@@ -275,6 +326,7 @@ class OfflineCaptureStore(
         var bytes = sessions.sumOf { it.bytes } + reservingBytes
         for (session in sessions) {
             if (count <= options.maximumSessions && bytes <= options.maximumRetainedBytes) return
+            if (session.captureId != null) continue
             if (session.sessionId == current?.sessionId || session.sessionId in leases) continue
             deleteSession(directory(session.sessionId))
             count--
@@ -302,7 +354,9 @@ class OfflineCaptureStore(
             OfflineCaptureSession(id, json.getString("startedAtUtc"), json.optLong("ordinal", parseLegacyOrdinal(json.getString("startedAtUtc"))),
                 json.nullableString("stoppedAtUtc"), json.nullableString("terminationKind"),
                 json.getString("appId"), json.optString("processSessionId", "legacy"),
-                payloadBytes(folder), json.optLong("records", 0), json.optLong("droppedRecords", json.optLong("droppedRecordCount", 0)))
+                payloadBytes(folder), json.optLong("records", 0), json.optLong("droppedRecords", json.optLong("droppedRecordCount", 0)),
+                json.nullableString("captureId"), json.nullableString("captureStartedAtUtc"),
+                if (json.has("sequence")) json.getInt("sequence") else null)
         }.sortedWith(compareBy<OfflineCaptureSession> { it.ordinal }.thenBy { it.sessionId })
     }
 
@@ -322,6 +376,8 @@ class OfflineCaptureStore(
             .put("terminationKind", session.terminationKind).put("appId", session.appId)
             .put("processSessionId", session.processSessionId).put("bytes", session.bytes)
             .put("records", session.records).put("droppedRecords", session.droppedRecords)
+            .put("captureId", session.captureId).put("captureStartedAtUtc", session.captureStartedAtUtc).put("sequence", session.sequence)
+        if (session.captureId != null) json.put("schema", "ansight.offline-capture.chunk.v2")
         atomicWrite(File(directory(session.sessionId), "manifest.json"), json.toString().toByteArray(Charsets.UTF_8))
         cachedSessions?.put(session.sessionId, session)
     }

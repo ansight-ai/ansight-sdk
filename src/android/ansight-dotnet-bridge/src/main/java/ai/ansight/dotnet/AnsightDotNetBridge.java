@@ -44,6 +44,18 @@ import ai.ansight.tools.jnireferencediagnostics.AndroidJniReferenceDiagnostics;
  * models do not create broad .NET binding API churn.
  */
 public final class AnsightDotNetBridge {
+    public static String uploadOfflineCaptures(Application application, String endpoint, String apiKey) throws Exception {
+        ai.ansight.runtime.OfflineCaptureUploadConfiguration configuration =
+            new ai.ansight.runtime.OfflineCaptureUploadConfiguration(new java.net.URL(endpoint), apiKey);
+        try (ai.ansight.runtime.OfflineCaptureCloudUploader uploader =
+                AnsightRuntime.INSTANCE.makeOfflineCaptureUploader(configuration, application.getCacheDir())) {
+            ai.ansight.runtime.OfflineCaptureUploadResult result = uploader.uploadPending().get();
+            return new JSONObject().put("sessionIds", new JSONArray(result.getSessionIds()))
+                .put("acknowledgedChunks", result.getAcknowledgedChunks())
+                .put("pendingChunks", result.getPendingChunks()).toString();
+        }
+    }
+
     public static final String BRIDGE_VERSION = "1";
 
     public interface ToolProtocolHandler {

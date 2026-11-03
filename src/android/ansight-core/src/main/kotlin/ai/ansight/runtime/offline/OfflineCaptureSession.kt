@@ -11,4 +11,7 @@ data class OfflineCaptureSession(
     val bytes: Long,
     val records: Long,
     val droppedRecords: Long,
+    val captureId: String? = null,
+    val captureStartedAtUtc: String? = null,
+    val sequence: Int? = null,
 )

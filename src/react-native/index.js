@@ -2679,6 +2679,7 @@ const Ansight = {
   currentOptions: () => nativeModule.currentOptions(),
   recordedMetrics: (limit = 0) => nativeModule.recordedMetrics(limit || 0),
   recordedEvents: (limit = 0) => nativeModule.recordedEvents(limit || 0),
+  uploadOfflineCaptures: (endpoint, apiKey) => nativeModule.uploadOfflineCaptures(endpoint, apiKey),
   sendClientLog: (line) => nativeModule.sendClientLog(line),
   addLogListener,
   captureBuiltInTelemetrySample: () => nativeModule.captureBuiltInTelemetrySample(),

@@ -261,6 +261,14 @@ class AnsightFlutterPlugin : FlutterPlugin, ActivityAware, AnsightNativeHostApi 
     }
 
     private fun dispatch(method: String, map: JSONObject): JSONObject = when (method) {
+        "uploadOfflineCaptures" -> {
+            val configuration = ai.ansight.runtime.OfflineCaptureUploadConfiguration(java.net.URL(map.getString("endpoint")), map.getString("apiKey"))
+            AnsightRuntime.makeOfflineCaptureUploader(configuration, requireApplication().cacheDir).use { uploader ->
+                val result = uploader.uploadPending().get()
+                JSONObject().put("sessionIds", org.json.JSONArray(result.sessionIds))
+                    .put("acknowledgedChunks", result.acknowledgedChunks).put("pendingChunks", result.pendingChunks)
+            }
+        }
         "purchaseCommand" -> try {
             JSONObject().put("json", ai.ansight.runtime.purchases.PurchaseDiagnostics.shared.command(map.getString("json")))
         } catch (error: ai.ansight.runtime.purchases.PurchaseEnvironmentException) {

@@ -33,6 +33,16 @@ public static class Runtime
     public static Task<OperationResult> TransferOfflineCapturesAsync(CancellationToken cancellationToken = default)
         => MutableInstance.TransferOfflineCapturesAsync(cancellationToken);
 
+    /// <summary>Uploads sealed native v2 chunks using an app-scoped upload key.
+    /// Repeat while processing is pending; local evidence retires only after a durable receipt.</summary>
+    public static Task<Native.NativeOfflineCaptureUploadResult> UploadOfflineCapturesAsync(
+        Uri endpoint, string apiKey, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(endpoint);
+        ArgumentException.ThrowIfNullOrWhiteSpace(apiKey);
+        return MutableInstance.UploadOfflineCapturesAsync(endpoint, apiKey, cancellationToken);
+    }
+
     internal static bool HasNetworkCaptureDestination => IsInitialized && MutableInstance.HasNetworkCaptureDestination;
 
     /// <summary>

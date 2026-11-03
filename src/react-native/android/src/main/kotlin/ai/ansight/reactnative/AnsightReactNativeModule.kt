@@ -142,6 +142,23 @@ class AnsightReactNativeModule(
     override fun onHostDestroy() = Unit
 
     @ReactMethod
+    fun uploadOfflineCaptures(endpoint: String, apiKey: String, promise: Promise) {
+        backgroundExecutor.execute {
+            runCatching {
+                val configuration = ai.ansight.runtime.OfflineCaptureUploadConfiguration(java.net.URL(endpoint), apiKey)
+                AnsightRuntime.makeOfflineCaptureUploader(configuration, application().cacheDir).use { uploader ->
+                    val result = uploader.uploadPending().get()
+                    Arguments.createMap().apply {
+                        putArray("sessionIds", Arguments.fromList(result.sessionIds))
+                        putInt("acknowledgedChunks", result.acknowledgedChunks)
+                        putInt("pendingChunks", result.pendingChunks)
+                    }
+                }
+            }.resolve(promise)
+        }
+    }
+
+    @ReactMethod
     fun purchaseCommand(json: String, promise: Promise) {
         try { promise.resolve(ai.ansight.runtime.purchases.PurchaseDiagnostics.shared.command(json)) }
         catch (error: ai.ansight.runtime.purchases.PurchaseEnvironmentException) { promise.reject(ai.ansight.runtime.purchases.PurchaseEnvironmentException.ERROR_CODE, error.message, error) }

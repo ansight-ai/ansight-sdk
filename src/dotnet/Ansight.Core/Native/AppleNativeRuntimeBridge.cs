@@ -28,6 +28,11 @@ internal sealed class AppleNativeRuntimeBridge : INativeRuntimeBridge
 
     public string ProcessSessionId => ANSDotNetRuntime.ProcessSessionId;
 
+    public Task<string> UploadOfflineCapturesAsync(string endpoint, string apiKey, CancellationToken cancellationToken)
+    {
+        return InvokeAsync(completion => ANSDotNetRuntime.UploadOfflineCaptures(endpoint, apiKey, completion), cancellationToken);
+    }
+
     public HostConnectionStatus HostConnectionStatus
         => NativeRuntimeJson.ParseHostConnectionStatus(ANSDotNetRuntime.HostConnectionStatusJson());
 

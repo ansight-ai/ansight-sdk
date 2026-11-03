@@ -9,6 +9,62 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
 class OfflineCaptureStoreTest {
+    @Test fun stoppingAfterRetentionBlocksStartsANewCapture() {
+        val options = OfflineCaptureOptions(enabled = true, maximumSessions = 1,
+            maximumSessionBytes = 4096, maximumRetainedBytes = 4096,
+            chunkDurationSeconds = 300, maximumChunkRecords = 1)
+        OfflineCaptureStore(temporary.newFolder(), options, "test", "process").use { store ->
+            store.setRecording(true)
+            repeat(2) { store.append("{}".toByteArray()) }
+            store.setRecording(false)
+            val previous = store.sessions().get().single()
+            assertEquals("sizeLimit", previous.terminationKind)
+            val lease = store.acquire(previous.sessionId).get()
+            val hash = "a".repeat(64)
+            store.acknowledge(lease, hash, hash).get()
+
+            recordSession(store)
+            val restarted = store.sessions().get().single()
+            assertEquals(0, restarted.sequence)
+            assertNotEquals(previous.captureId, restarted.captureId)
+            assertEquals("normal", restarted.terminationKind)
+        }
+    }
+
+    @Test fun cloudChunksBoundAttachmentUploads() {
+        val options = OfflineCaptureOptions(enabled = true, maximumSessionBytes = 1024 * 1024, chunkDurationSeconds = 300)
+        OfflineCaptureStore(temporary.newFolder(), options, "test", "process").use { store ->
+            store.setRecording(true)
+            repeat(129) { assertTrue(store.appendAttachment(byteArrayOf(1), "bin") { "{}".toByteArray() }) }
+            store.setRecording(false)
+            assertEquals(listOf(128L, 1L), store.sessions().get().sortedBy { it.sequence }.map { it.records })
+        }
+    }
+
+    @Test fun cloudChunksRetainIdentityAndNeverEvictUnacknowledgedChunks() {
+        val options = OfflineCaptureOptions(enabled = true, maximumSessions = 2,
+            maximumSessionBytes = 4096, maximumRetainedBytes = 8192,
+            chunkDurationSeconds = 300, maximumChunkRecords = 1)
+        OfflineCaptureStore(temporary.newFolder(), options, "test", "process").use { store ->
+            store.setRecording(true)
+            repeat(3) { store.append("{}".toByteArray()) }
+            val chunks = store.sessions().get().sortedBy { it.sequence }
+            assertEquals(2, chunks.size)
+            assertEquals(listOf(0, 1), chunks.map { it.sequence })
+            assertNotNull(chunks.first().captureId)
+            assertEquals(chunks.first().captureId, chunks.last().captureId)
+            assertNotNull(store.lastError)
+            val lease = store.acquire(chunks.first().sessionId).get()
+            val hash = "a".repeat(64)
+            store.acknowledge(lease, hash, hash).get()
+            assertTrue(store.append("{}".toByteArray()))
+            store.setRecording(false)
+            val remaining = store.sessions().get()
+            assertTrue(remaining.any { it.sequence == 1 })
+            assertTrue(remaining.any { it.sequence == 2 && it.terminationKind == "normal" })
+        }
+    }
+
     @get:Rule val temporary = TemporaryFolder()
 
     private fun recordSession(store: OfflineCaptureStore) {

@@ -64,7 +64,7 @@ final class NativeOfflineCapture: @unchecked Sendable {
                     try FileManager.default.removeItem(at: file)
                 }
                 try await store.flush()
-                for session in try await store.sessions() where session.stoppedAtUtc != nil {
+                for session in try await store.sessions() where session.stoppedAtUtc != nil && session.captureId == nil {
                     try requireConnection(token)
                     try await transfer(session.sessionId, generation: token)
                 }

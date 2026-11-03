@@ -2669,6 +2669,11 @@ object AnsightRuntime {
 
     fun offlineCaptureLastError(): String? = synchronized(lock) { offlineCapture?.lastError }
 
+    fun makeOfflineCaptureUploader(configuration: OfflineCaptureUploadConfiguration, exportDirectory: java.io.File): OfflineCaptureCloudUploader = synchronized(lock) {
+        val store = requireNotNull(offlineCapture?.store) { "Native offline capture is not enabled." }
+        OfflineCaptureCloudUploader(store, configuration, exportDirectory)
+    }
+
     private fun updateOfflineCaptureState() = synchronized(lock) {
         offlineCapture?.update(initialized && active && offlineCaptureRuntimeEnabled, liveTransport?.takeIf { sessionOpen && it.isOpen })
         val capture = offlineCapture
@@ -2681,14 +2686,15 @@ object AnsightRuntime {
         if (offlineScreenshotExecutor != null) return@synchronized
         offlineScreenshotExecutor = Executors.newSingleThreadScheduledExecutor { Thread(it, "Ansight Offline Screenshots").apply { isDaemon = true } }
         val executor = offlineScreenshotExecutor!!
+        val offlineFormat = if (options.offlineCapture?.chunkDurationSeconds == null) "jpeg" else "webp"
         executor.scheduleWithFixedDelay({
             if (synchronized(lock) { active && currentLifecycleState != AppLifecycleState.Background } && capture.store.isRecording) {
                 runCatching {
-                    val screenshot = AndroidUiEvidence.captureSessionScreenshot("jpeg", screenshotOptions.quality,
+                    val screenshot = AndroidUiEvidence.captureSessionScreenshot(offlineFormat, screenshotOptions.quality,
                         screenshotOptions.maxWidth, screenshotOptions.captureKeyboardPresence, screenshotOptions.includeSystemUiMetadata)
                     if (executor.isShutdown || !capture.store.isRecording) return@runCatching
                     val capturedAt = AnsightClock.isoNow()
-                    capture.store.appendScreenshot(screenshot.bytes, capturedAt, screenshot.width, screenshot.height, screenshotOptions.quality, screenshot.geometry?.toJson())
+                    capture.store.appendScreenshot(screenshot.bytes, offlineFormat, capturedAt, screenshot.width, screenshot.height, screenshotOptions.quality, screenshot.geometry?.toJson())
                     if (screenshotOptions.mode != AnsightSessionJpegCaptureMode.ScreenshotOnly) {
                         captureAnnotationVisualTrees().forEach { tree -> capture.append(sessionVisualTreePayload(tree, capturedAt)) }
                     }

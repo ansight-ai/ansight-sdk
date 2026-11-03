@@ -361,6 +361,20 @@ class AnsightCapacitorPlugin : Plugin() {
     fun status(call: PluginCall) = resolve(call) { snapshot() }
 
     @PluginMethod
+    fun uploadOfflineCaptures(call: PluginCall) = background(call) {
+        val configuration = ai.ansight.runtime.OfflineCaptureUploadConfiguration(
+            java.net.URL(requireNotNull(call.getString("endpoint"))), requireNotNull(call.getString("apiKey")))
+        AnsightRuntime.makeOfflineCaptureUploader(configuration, context.cacheDir).use { uploader ->
+            val result = uploader.uploadPending().get()
+            JSObject().apply {
+                put("sessionIds", org.json.JSONArray(result.sessionIds))
+                put("acknowledgedChunks", result.acknowledgedChunks)
+                put("pendingChunks", result.pendingChunks)
+            }
+        }
+    }
+
+    @PluginMethod
     fun purchaseCommand(call: PluginCall) = resolve(call) {
         JSObject().apply { put("json", ai.ansight.runtime.purchases.PurchaseDiagnostics.shared.command(requireNotNull(call.getString("json")))) }
     }
