@@ -22,6 +22,11 @@ final class HarnessViewModel: ObservableObject {
     @Published var selectedSceneNode = "<none>"
     @Published var databaseRowCount = 0
     @Published var navigationEvents: [String] = []
+    @Published var offlineUploadMessage = ""
+    @Published var offlineCloudSessionIds: [String] = []
+    @Published var offlinePendingChunks = 0
+    var cloudUploader: OfflineCaptureCloudUploader?
+    var offlineUploadTask: Task<Void, Never>?
 
     let shippingSpeeds = ["Standard", "Express", "Priority", "Overnight"]
     let sceneMaterials = ["Teal", "Graphite", "Plum", "Safety Orange"]

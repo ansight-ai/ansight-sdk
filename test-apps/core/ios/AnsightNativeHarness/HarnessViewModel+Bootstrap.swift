@@ -14,10 +14,15 @@ extension HarnessViewModel {
             setLifecycle(.foreground)
             recordMetric()
 
-            let result = await AnsightRuntime.shared.connect(.auto(clientName: HarnessConstants.clientName))
-            connectionMessage = result.success
-                ? result.message
-                : "Initialized. Waiting for a running local host; physical devices enroll by QR once."
+            if offlineUploadEnabled {
+                try configureOfflineUploadHarness()
+                connectionMessage = "Offline capture upload harness. Host connection disabled."
+            } else {
+                let result = await AnsightRuntime.shared.connect(.auto(clientName: HarnessConstants.clientName))
+                connectionMessage = result.success
+                    ? result.message
+                    : "Initialized. Waiting for a running local host; physical devices enroll by QR once."
+            }
         } catch {
             connectionMessage = error.localizedDescription
         }
@@ -92,7 +97,8 @@ extension HarnessViewModel {
             sessionJpegCapture: AnsightSessionJpegCaptureOptions(
                 intervalMilliseconds: 700,
                 quality: 70,
-                maxWidth: 960
+                maxWidth: 960,
+                mode: offlineUploadEnabled ? .screenshotAndVisualTree : .screenshotOnly
             ),
             touchCapture: AnsightTouchCaptureOptions(),
             toolGuard: .fullAccess,
@@ -104,12 +110,16 @@ extension HarnessViewModel {
                 ],
             ],
             hostAutoProbe: AnsightHostAutoProbeOptions(
-                enabled: true,
+                enabled: !offlineUploadEnabled,
                 initialDelayMilliseconds: 1_000,
                 probeIntervalMilliseconds: 5_000,
                 reconnectDelayMilliseconds: 10_000,
                 clientName: HarnessConstants.clientName
-            )
+            ),
+            offlineCapture: offlineUploadEnabled ? OfflineCaptureOptions(
+                enabled: true, transferMode: .manual, maximumSessions: 512,
+                maximumSessionBytes: 4 * 1024 * 1024, chunkDurationSeconds: 10
+            ) : nil
         )
     }
 
