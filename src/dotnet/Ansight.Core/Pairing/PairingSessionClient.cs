@@ -540,6 +540,7 @@ public sealed class PairingSessionClient : IDisposable, IHostConnectionSessionCl
             HostConnectionSource.HostConnection,
             HostConnectionProgressKind.Connection);
         transport.SupportsScreenshotGeometry = result.Response?.Payload?["screenshotGeometry"]?.GetValue<bool>() == true;
+        transport.PeriodicScreenshotsPaused = result.Response?.Payload?["periodicScreenshotsPaused"]?.GetValue<bool>() == true;
         jpegStreamer.SetHostCapturePolicy(
             HostSessionJpegCapturePolicy.FromPayload(result.Response?.Payload));
         if (result.OperationResult.Success && Runtime.IsInitialized && transport.IsOpen)

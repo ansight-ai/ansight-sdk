@@ -5,6 +5,25 @@ namespace Ansight.UnitTests;
 public sealed class HostSessionJpegCapturePolicyTests
 {
     [Fact]
+    public void PeriodicControlPausesAndResumesAndIgnoresMalformedRequests()
+    {
+        using var transport = new Ansight.Pairing.PairingSessionTransport();
+        foreach (var paused in new[] { true, false })
+        {
+            var request = new JsonObject
+            {
+                ["type"] = "session.screenshots", ["id"] = "policy",
+                ["payload"] = new JsonObject { ["paused"] = paused }
+            };
+            Assert.True(transport.TryHandlePeriodicScreenshotControl(request.ToJsonString(), out var response));
+            Assert.Equal(paused, transport.PeriodicScreenshotsPaused);
+            Assert.Equal("policy", JsonNode.Parse(response!)!["replyTo"]!.GetValue<string>());
+        }
+        Assert.False(transport.TryHandlePeriodicScreenshotControl("{\"type\":\"session.screenshots\",\"payload\":{\"paused\":\"true\"}}", out _));
+        Assert.False(transport.PeriodicScreenshotsPaused);
+    }
+
+    [Fact]
     public void AddClientCapabilities_AdvertisesConfiguredMaximumWidth()
     {
         var payload = new JsonObject();

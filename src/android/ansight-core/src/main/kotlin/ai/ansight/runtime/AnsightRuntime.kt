@@ -61,6 +61,8 @@ object AnsightRuntime {
     private var sessionJpegTask: ScheduledFuture<*>? = null
     private var touchVisualTreeCaptureCoordinator: TouchVisualTreeCaptureCoordinator? = null
     private var hostSessionJpegCapturePolicy = HostSessionJpegCapturePolicy.App
+    private var periodicScreenshotsPaused = false
+    internal val isPeriodicScreenshotCapturePaused: Boolean get() = synchronized(lock) { periodicScreenshotsPaused }
     private var autoProbeExecutor: ScheduledExecutorService? = null
     private var autoProbeTask: ScheduledFuture<*>? = null
     private val sessionPropertiesExecutor = Executors.newSingleThreadExecutor { runnable ->
@@ -601,6 +603,7 @@ object AnsightRuntime {
                 sessionOpen = false
                 sessionId = null
                 hostSessionJpegCapturePolicy = HostSessionJpegCapturePolicy.App
+                periodicScreenshotsPaused = false
                 connectionState = HostConnectionState.Disconnected
                 sessionMessage = "Disconnected from Ansight host."
             }
@@ -1336,7 +1339,7 @@ object AnsightRuntime {
             profile.toJson().put(
                 HostSessionJpegCapturePolicy.ControlVersionPropertyName,
                 HostSessionJpegCapturePolicy.ControlVersion,
-            ).apply { synchronized(lock) { options.sessionJpegCapture }?.let { capture ->
+            ).put("periodicScreenshotCaptureControlVersion", 1).apply { synchronized(lock) { options.sessionJpegCapture }?.let { capture ->
                 put("sessionJpegCapture", JSONObject().put("maxWidth", capture.maxWidth ?: JSONObject.NULL)
                     .put("includeSystemUiMetadata", capture.includeSystemUiMetadata))
             } },
@@ -1347,6 +1350,8 @@ object AnsightRuntime {
             hostSessionJpegCapturePolicy = HostSessionJpegCapturePolicy.fromPayload(
                 profileRequestResult.response?.optJSONObject("payload"),
             )
+            periodicScreenshotsPaused = profileRequestResult.response?.optJSONObject("payload")
+                ?.optBoolean("periodicScreenshotsPaused", false) == true
         }
         if (!profileResult.success) {
             transport.close(notify = false)
@@ -1595,6 +1600,16 @@ object AnsightRuntime {
         )
     }
 
+    internal fun applyPeriodicScreenshotControl(request: JSONObject): JSONObject? {
+        if (request.optionalString("type") != "session.screenshots") return null
+        val id = request.optionalString("id") ?: return null
+        val paused = request.optJSONObject("payload")?.opt("paused") as? Boolean ?: return null
+        synchronized(lock) { periodicScreenshotsPaused = paused }
+        return JSONObject().put("type", "session.screenshots.result")
+            .put("id", java.util.UUID.randomUUID().toString()).put("replyTo", id)
+            .put("payload", JSONObject().put("paused", paused))
+    }
+
     private fun handleTransportText(text: String, sourceTransport: PairingLiveSessionTransport) {
         val json = try {
             JSONObject(text)
@@ -1602,6 +1617,11 @@ object AnsightRuntime {
             return
         }
         when (json.optionalString("type")) {
+            "session.screenshots" -> {
+                if (synchronized(lock) { liveTransport !== sourceTransport }) return
+                val response = applyPeriodicScreenshotControl(json) ?: return
+                sourceTransport.sendText(response.toString())
+            }
             ToolProtocol.QueryType, ToolProtocol.CallType, ToolProtocol.BatchType -> {
                 val externalHandler = synchronized(lock) { externalToolProtocolHandler }
                 if (externalHandler == null) {
@@ -2623,6 +2643,7 @@ object AnsightRuntime {
         sessionOpen = false
         sessionId = null
         hostSessionJpegCapturePolicy = HostSessionJpegCapturePolicy.App
+        periodicScreenshotsPaused = false
         connectionState = HostConnectionState.Disconnected
         stopLifecycleCaptureLocked()
         telemetryTask?.cancel(false)
@@ -2911,6 +2932,13 @@ object AnsightRuntime {
         }
         application?.let { app -> bindCurrentActivity(app) }
 
+        if (isPeriodicScreenshotCapturePaused) {
+            val capturedAt = AnsightClock.isoNow()
+            for (tree in captureSessionVisualTrees(state.first, state.second, capturedAt)) {
+                state.second.sendSessionVisualTree(tree, capturedAt, screenshotCapturedAtUtc = null)
+            }
+            return
+        }
         val screenshot = try {
             AndroidUiEvidence.captureSessionScreenshot(
                 "jpeg",
@@ -2926,6 +2954,10 @@ object AnsightRuntime {
         val capturedAtEpochMs = System.currentTimeMillis()
         val capturedAtUtc = AnsightClock.isoAt(capturedAtEpochMs)
         val visualTrees = captureSessionVisualTrees(state.first, state.second, capturedAtUtc)
+        if (isPeriodicScreenshotCapturePaused) {
+            for (tree in visualTrees) state.second.sendSessionVisualTree(tree, capturedAtUtc, screenshotCapturedAtUtc = null)
+            return
+        }
         val result = state.second.sendSessionJpegFrame(screenshot, state.first.quality, capturedAtEpochMs)
         if (!result.success) {
             synchronized(lock) {

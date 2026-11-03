@@ -16,6 +16,7 @@ internal sealed record HostSessionJpegCapturePolicy(bool UseHostCapture, string?
         ArgumentNullException.ThrowIfNull(payload);
 
         payload[ControlVersionPropertyName] = ControlVersion;
+        payload["periodicScreenshotCaptureControlVersion"] = 1;
         if (captureOptions is null)
         {
             return;

@@ -235,6 +235,21 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
                         continue;
                     }
 
+                    if (transport.PeriodicScreenshotsPaused)
+                    {
+                        if (options.Mode == SessionJpegCaptureMode.ScreenshotAndVisualTree)
+                        {
+                            await evidenceCaptureLock.WaitAsync(cancellationToken);
+                            try
+                            {
+                                var capturedAt = DateTimeOffset.UtcNow;
+                                foreach (var tree in await SessionVisualTreeCaptureRegistry.CaptureAsync(cancellationToken))
+                                    await transport.SendTextAsync(CreateVisualTreeEvent(tree, capturedAt, null, null).ToJsonString(), cancellationToken);
+                            }
+                            finally { evidenceCaptureLock.Release(); }
+                        }
+                        continue;
+                    }
                     var replacedStaleCapture = false;
                     Volatile.Write(ref screenshotCaptureRequested, 1);
                     try
@@ -344,7 +359,9 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
             using (pendingCapture)
             {
                 var frame = pendingCapture.Frame;
-                var sendResult = await frame.SendAsync(transport, cancellationToken);
+                var paused = transport.PeriodicScreenshotsPaused;
+                var sendResult = paused ? OperationResult.FromSuccess("Periodic screenshot paused.")
+                    : await frame.SendAsync(transport, cancellationToken);
                 if (!sendResult.Success)
                 {
                     HostPairingProgressReporter.Report(
@@ -360,7 +377,7 @@ internal sealed class PairingSessionJpegStreamer : IDisposable
                     var visualTreeEvent = CreateVisualTreeEvent(
                         visualTree,
                         frame.CapturedAtUtc,
-                        frame.CapturedAtUtc,
+                        paused ? null : frame.CapturedAtUtc,
                         trigger: null);
                     sendResult = await transport.SendTextAsync(visualTreeEvent.ToJsonString(), cancellationToken);
                     if (!sendResult.Success)

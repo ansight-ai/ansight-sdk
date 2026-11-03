@@ -83,6 +83,8 @@ public final class AnsightRuntime: @unchecked Sendable {
     private var connectionTaskId: UUID?
     private var screenCaptureTask: Task<Void, Never>?
     private var hostSessionJpegCapturePolicy = HostSessionJpegCapturePolicy.app
+    private var periodicScreenshotsPaused = false
+    internal var isPeriodicScreenshotCapturePaused: Bool { lock.withLock { periodicScreenshotsPaused } }
     private let lifecycleObserver = AnsightLifecycleObserver()
     private var frameRateSampler: AnsightFrameRateSampler?
     private var frameRateTrackingEnabled = false
@@ -183,6 +185,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             announcedMetricChannelIds = []
             telemetryStreamLoopActive = false
             hostSessionJpegCapturePolicy = .app
+            periodicScreenshotsPaused = false
             screenFramesCaptured = 0
             screenFramesSent = 0
             lastScreenCaptureMessage = nil
@@ -338,6 +341,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             announcedMetricChannelIds = []
             telemetryStreamLoopActive = false
             hostSessionJpegCapturePolicy = .app
+            periodicScreenshotsPaused = false
             resolvedHostAddress = nil
             pendingBinaryTransfers.removeAll()
             sessionMessage = "Runtime buffers cleared."
@@ -1503,6 +1507,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             announcedMetricChannelIds = []
             telemetryStreamLoopActive = false
             hostSessionJpegCapturePolicy = .app
+            periodicScreenshotsPaused = false
             resolvedHostAddress = nil
             hostId = nil
             hostName = nil
@@ -1531,6 +1536,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             }
 
             connectionState = .disconnected
+            periodicScreenshotsPaused = false
             sessionOpen = false
             sessionId = nil
             lastStreamedMetricSequence = 0
@@ -2054,6 +2060,15 @@ public final class AnsightRuntime: @unchecked Sendable {
     }
 
     public func handleToolProtocolMessage(_ json: String) throws -> String? {
+        if let request = try? JSONDecoder.ansightDecoder.decode(AnsightToolProtocolEnvelope.self, from: Data(json.utf8)),
+           request.type == "session.screenshots",
+           case .object(let payload) = request.payload,
+           case .bool(let paused)? = payload["paused"] {
+            lock.withLock { periodicScreenshotsPaused = paused }
+            let response = AnsightToolProtocolEnvelope(type: "session.screenshots.result", id: UUID().uuidString,
+                replyTo: request.id, sessionId: request.sessionId, payload: .object(["paused": .bool(paused)]))
+            return try JSONValue.fromEncodable(response).jsonString()
+        }
         if let externalHandler = lock.withLock({ externalToolProtocolHandler }) {
             return try externalHandler(json)
         }
@@ -2957,7 +2972,9 @@ public final class AnsightRuntime: @unchecked Sendable {
                     break
                 }
 
-                _ = await self.sendPreparedScreenFrame(preparedFrame)
+                if !self.isPeriodicScreenshotCapturePaused {
+                    _ = await self.sendPreparedScreenFrame(preparedFrame)
+                }
             }
         }
 
@@ -2968,6 +2985,20 @@ public final class AnsightRuntime: @unchecked Sendable {
                 break
             }
 
+            if isPeriodicScreenshotCapturePaused {
+                if captureOptions.mode == .screenshotAndVisualTree {
+                    let capturedAt = AnsightClock.isoNow()
+                    for tree in AnsightSessionVisualTreeCaptureRegistry.capture() {
+                        let event = Self.sessionVisualTreeEvent(payload: tree, capturedAtUtc: capturedAt,
+                            screenshotCapturedAtUtc: nil, trigger: nil)
+                        if let text = try? event.jsonString() { _ = await liveTransport.sendText(text) }
+                    }
+                }
+                do { try await Task.sleep(nanoseconds: UInt64(options.intervalMilliseconds) * 1_000_000) }
+                catch { break }
+                nextCaptureDeadlineNanoseconds = DispatchTime.now().uptimeNanoseconds
+                continue
+            }
             let preparation = await prepareScreenFrame(options: captureOptions)
             if !preparation.operationResult.success && !liveTransport.isOpen {
                 break
@@ -3172,6 +3203,7 @@ public final class AnsightRuntime: @unchecked Sendable {
             }
             payload[HostSessionJpegCapturePolicy.controlVersionPropertyName] =
                 .integer(HostSessionJpegCapturePolicy.controlVersion)
+            payload["periodicScreenshotCaptureControlVersion"] = .integer(1)
             if let capture = lock.withLock({ options.sessionJpegCapture }) {
                 payload["sessionJpegCapture"] = .object([
                     "maxWidth": capture.maxWidth.map { .integer(Int64($0)) } ?? .null,
@@ -3189,11 +3221,15 @@ public final class AnsightRuntime: @unchecked Sendable {
                 hostSessionJpegCapturePolicy = HostSessionJpegCapturePolicy(
                     payload: result.response?.payload
                 )
+                if case .object(let response) = result.response?.payload {
+                    periodicScreenshotsPaused = response["periodicScreenshotsPaused"] == .bool(true)
+                }
             }
             return result.operationResult
         } catch {
             lock.withLock {
                 hostSessionJpegCapturePolicy = .app
+                periodicScreenshotsPaused = false
             }
             return .failure("Failed to encode device profile: \(error.localizedDescription)")
         }

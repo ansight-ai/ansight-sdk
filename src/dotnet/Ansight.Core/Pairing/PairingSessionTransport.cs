@@ -32,12 +32,15 @@ internal sealed class PairingSessionTransport : IPairingBinaryTransport, IDispos
     internal event EventHandler? Closed;
 
     internal bool SupportsScreenshotGeometry { get; set; }
+    private volatile bool periodicScreenshotsPaused;
+    internal bool PeriodicScreenshotsPaused { get => periodicScreenshotsPaused; set => periodicScreenshotsPaused = value; }
 
     public void Attach(ClientWebSocket webSocket)
     {
         ArgumentNullException.ThrowIfNull(webSocket);
 
         this.webSocket = webSocket;
+        PeriodicScreenshotsPaused = false;
         Interlocked.Exchange(ref closeNotificationState, 0);
         StartReceivePump(webSocket);
     }
@@ -399,6 +402,12 @@ internal sealed class PairingSessionTransport : IPairingBinaryTransport, IDispos
                 break;
             }
 
+            if (TryHandlePeriodicScreenshotControl(message, out var captureResponse))
+            {
+                await SendPayloadAsync(webSocket, captureResponse!, cancellationToken);
+                continue;
+            }
+
             if (await PairingToolProtocolProcessor.TryHandleIncomingMessageAsync(
                     webSocket,
                     message,
@@ -415,6 +424,26 @@ internal sealed class PairingSessionTransport : IPairingBinaryTransport, IDispos
 
             Logger.Warning($"Ignoring unexpected pairing socket message: {message}");
         }
+    }
+
+    internal bool TryHandlePeriodicScreenshotControl(string message, out string? response)
+    {
+        response = null;
+        JsonObject? request;
+        try { request = JsonNode.Parse(message) as JsonObject; }
+        catch (JsonException) { return false; }
+        if (request?["type"] is not JsonValue typeValue || !typeValue.TryGetValue<string>(out var type)
+            || type != "session.screenshots"
+            || request["id"] is not JsonValue idValue || !idValue.TryGetValue<string>(out var id) || string.IsNullOrWhiteSpace(id)
+            || request["payload"] is not JsonObject payload || payload["paused"] is not JsonValue value
+            || !value.TryGetValue<bool>(out var paused)) return false;
+        PeriodicScreenshotsPaused = paused;
+        response = new JsonObject
+        {
+            ["type"] = "session.screenshots.result", ["id"] = Guid.NewGuid().ToString("N"),
+            ["replyTo"] = request["id"]?.DeepClone(), ["payload"] = new JsonObject { ["paused"] = paused }
+        }.ToJsonString();
+        return true;
     }
 
     private async Task SendPayloadAsync(ClientWebSocket webSocket, string payload, CancellationToken cancellationToken)
@@ -486,6 +515,7 @@ internal sealed class PairingSessionTransport : IPairingBinaryTransport, IDispos
 
     private void NotifyClosed()
     {
+        PeriodicScreenshotsPaused = false;
         if (Interlocked.Exchange(ref closeNotificationState, 1) != 0)
         {
             return;
