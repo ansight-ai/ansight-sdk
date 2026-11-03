@@ -7,33 +7,64 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		010FF08534C57D7C8DCB6959 /* huffman_utils.h in Headers */ = {isa = PBXBuildFile; fileRef = B6486FFCD92EC4DD1923DC49 /* huffman_utils.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		0112421F88D0B763CAAF6812 /* yuv.c in Sources */ = {isa = PBXBuildFile; fileRef = 6A7E1C2A6888CADD1110D56B /* yuv.c */; };
 		0131D3723158B41EB3215455 /* AppLifecycleState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE8603BC7DCD5966BD0047B2 /* AppLifecycleState.swift */; };
+		03A362D5FEFE23DFF3B3D66B /* huffman_utils.c in Sources */ = {isa = PBXBuildFile; fileRef = 18A683BD9AA00FA3DC77A387 /* huffman_utils.c */; };
 		04C7F5093EC511727CFB58D7 /* AnsightToolPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55FAB5CA7F9B1B2546A71556 /* AnsightToolPolicy.swift */; };
+		053CF90FC2062F17097E696D /* muxedit.c in Sources */ = {isa = PBXBuildFile; fileRef = 74094F31EB30E303D1FD8C0E /* muxedit.c */; };
+		07857C58E2410CF69CCCF66E /* cost_mips32.c in Sources */ = {isa = PBXBuildFile; fileRef = 6739B182D7C9B369B16105F9 /* cost_mips32.c */; };
 		07B2BFA0074A273AFE7B56EE /* AnsightNetworkURLProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16F5B84D627FBB69D578AFD3 /* AnsightNetworkURLProtocol.swift */; };
+		0815BBFDCC1FEDB109C7A5FE /* decode.h in Headers */ = {isa = PBXBuildFile; fileRef = F2E94C0513F3BC6C6CEE520E /* decode.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		08F6CBA26FF0EF312CBE4586 /* filters_utils.c in Sources */ = {isa = PBXBuildFile; fileRef = 60D37E492E7AAB23E0B474A5 /* filters_utils.c */; };
+		093EF5A987C79C0AE166AAA5 /* lossless_enc.c in Sources */ = {isa = PBXBuildFile; fileRef = 9A0EBD3CDCEA2C1CECE8C87F /* lossless_enc.c */; };
 		094D61E729E05304EDD27426 /* RecordedEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7FEE214D4F5B43CFF640B01 /* RecordedEvent.swift */; };
 		0BDCE3252503B37C7826FE15 /* AnsightScreenCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE13235F2D4516B40B712CD8 /* AnsightScreenCapture.swift */; };
+		0BE55B0742BD6885CF2A9480 /* types.h in Headers */ = {isa = PBXBuildFile; fileRef = 386A0AEF3C1961E65DE97A9A /* types.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		0C733B73507211852206DC4E /* ssim.c in Sources */ = {isa = PBXBuildFile; fileRef = DA08DDA109C2CC13FA8ED101 /* ssim.c */; };
 		0CDCC3717ED4DE6351575CA9 /* AnsightGeneratedBuildArtifacts.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC07E17F562717E6876BA4D9 /* AnsightGeneratedBuildArtifacts.swift */; };
+		0D1F26A8001A73CA80CE402C /* frame_enc.c in Sources */ = {isa = PBXBuildFile; fileRef = F964F1D15513405F78F86872 /* frame_enc.c */; };
+		0D3BA52E1C6DA949F57F8B9C /* upsampling_sse41.c in Sources */ = {isa = PBXBuildFile; fileRef = 63D421BDAB4FD89553D5A827 /* upsampling_sse41.c */; };
 		0D7E99FA805BF20D062D73EA /* AnsightTouchVisualTreeCaptureCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7999793AAB22B84A4586E0AB /* AnsightTouchVisualTreeCaptureCoordinator.swift */; };
 		0EFC0525A1ABE6071BF03FF0 /* AnsightBundledToolScanReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBCBCEE2FEFB7F6669F1D5FE /* AnsightBundledToolScanReport.swift */; };
 		0F4855AD258CBCD6D7C5F00D /* Annotate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 839F6825D4A8F56AE3A942F7 /* Annotate.swift */; };
 		0FFF61AD440313D22C694B11 /* AnsightWindowTouchCaptureRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B42AF612618D4F9F5286391B /* AnsightWindowTouchCaptureRecognizer.swift */; };
+		102E5C489FCE624F5210C816 /* filters_utils.h in Headers */ = {isa = PBXBuildFile; fileRef = 1CA3AF663DFBABAAEB668651 /* filters_utils.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		1042AC5C41C0192FA26EF54D /* webp_dec.c in Sources */ = {isa = PBXBuildFile; fileRef = 1DB9068307EE86DF1A102C83 /* webp_dec.c */; };
 		10A851AB674D8CBC287541A3 /* PairingOpenOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAEEFF41402B26C1FD6582AF /* PairingOpenOptions.swift */; };
+		111A1E0BB7F7DD31E4419C3C /* anim_encode.c in Sources */ = {isa = PBXBuildFile; fileRef = D5C4EF0D0B6C28024C1FB295 /* anim_encode.c */; };
 		112C84E8AA72EB954BB9C5AD /* OfflineCaptureFileIO.swift in Sources */ = {isa = PBXBuildFile; fileRef = E89671856738BDEC38EB99F5 /* OfflineCaptureFileIO.swift */; };
+		123133BD85D7B1AC0A00FDF0 /* endian_inl_utils.h in Headers */ = {isa = PBXBuildFile; fileRef = D140A1ECBF34C167BF5F91E8 /* endian_inl_utils.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		12BA3BA06FA16D3CD24970C8 /* bit_reader_utils.c in Sources */ = {isa = PBXBuildFile; fileRef = D7DEF4B80FE4491ABB42ACEC /* bit_reader_utils.c */; };
+		146C7E139B032A5DC02F94BB /* dec_neon.c in Sources */ = {isa = PBXBuildFile; fileRef = B70C7370F7A1F18FDCF229A0 /* dec_neon.c */; };
+		14BF96E5C5DD807B1BAE0C3B /* backward_references_cost_enc.c in Sources */ = {isa = PBXBuildFile; fileRef = 79F6D571BEA890763E7C3FE7 /* backward_references_cost_enc.c */; };
+		14ED9973A147E732C41EBF8D /* msa_macro.h in Headers */ = {isa = PBXBuildFile; fileRef = B35F4A5587CC2AE3FE0C00D4 /* msa_macro.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		15C886E709193AB5EA03139F /* PairingSessionConnector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5B858E7F53FCA5559FDAF78 /* PairingSessionConnector.swift */; };
+		160318CC0BCE20622928D2B1 /* upsampling.c in Sources */ = {isa = PBXBuildFile; fileRef = 1F23BDC6212A96AF39B2B969 /* upsampling.c */; };
 		177718F748B7A130B3BD998E /* OfflineCaptureTransferTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12345AAA64092F44B36DDB28 /* OfflineCaptureTransferTool.swift */; };
 		17EC0B738FD800FE00C1061B /* AnsightPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BFDEDB448B27888739D4E9B /* AnsightPlugin.swift */; };
 		180C9F66E8CAE0C2C1CEB5DC /* PairingControlActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0C01BE5EE7FBB13A210F1A /* PairingControlActions.swift */; };
+		18DFFA78C7F123D9D1BA55E9 /* huffman_encode_utils.c in Sources */ = {isa = PBXBuildFile; fileRef = ABEEF7119EC0DD5DCB9E2452 /* huffman_encode_utils.c */; };
 		18FD3DEB8775720582E5AD7F /* HostConnectionRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = A31E5BDC9D4C1BA29B27A3BE /* HostConnectionRequest.swift */; };
+		194C4824B5332CDA18BFFF04 /* yuv_mips32.c in Sources */ = {isa = PBXBuildFile; fileRef = BB6CA61C7F4BDD2A5D97A280 /* yuv_mips32.c */; };
 		1BE7F71E433A19953DB8C35D /* PairingDocumentError.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2058EAA179B16DF25D41BBE /* PairingDocumentError.swift */; };
 		1D31736BDABAEF609F59601D /* Data+AnsightTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68705BDB743B249AF53B1423 /* Data+AnsightTransport.swift */; };
+		1E2DC68F9BA09B3175051420 /* picture_rescale_enc.c in Sources */ = {isa = PBXBuildFile; fileRef = 5A42C19029EE8F1FA15A266D /* picture_rescale_enc.c */; };
 		1F17DD55F756FA8CD0007B03 /* PairingWifiPreflightStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50BE06CC71070BF48167AFE7 /* PairingWifiPreflightStatus.swift */; };
+		1F7A44DCC8C9571CE09B82E0 /* iterator_enc.c in Sources */ = {isa = PBXBuildFile; fileRef = 0F25438ACD70921CDF8F5C20 /* iterator_enc.c */; };
 		2106545C6E50AF3CF9B55918 /* AnsightTouchMoveThrottle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CD727CA7020AF774FC38FCD /* AnsightTouchMoveThrottle.swift */; };
+		21B7FADA1B4C87BD8904B375 /* lossless_sse41.c in Sources */ = {isa = PBXBuildFile; fileRef = F79088FA82EC30928A5BA5F5 /* lossless_sse41.c */; };
 		21D12A3F62BF64A248201BA8 /* ansight-annotation-icon.png in Resources */ = {isa = PBXBuildFile; fileRef = A6D0F44103F337CFF8792D59 /* ansight-annotation-icon.png */; };
 		21E94073FEDF3C2091CDFF77 /* AnsightRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 448A79C0955E16D7B7B26C2F /* AnsightRuntime.swift */; };
 		21F7F571F7BA8EF7D8EDC501 /* PairingFileTransferFrameType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EC2EE67D055C72069FE5793 /* PairingFileTransferFrameType.swift */; };
 		22DD67BE9DD5A7A632B08D2E /* PurchaseSchemas.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BF8E27FE8341C56F82E9D2F /* PurchaseSchemas.swift */; };
+		22EEBB512EDB82D5912317EB /* alpha_dec.c in Sources */ = {isa = PBXBuildFile; fileRef = C39E3770D59622FC8AB1E479 /* alpha_dec.c */; };
+		23144DE00A7E4E1400EFDE98 /* tree_dec.c in Sources */ = {isa = PBXBuildFile; fileRef = 80437C4F053A5C64D3D77709 /* tree_dec.c */; };
 		23A175311A853BD619932524 /* AnsightJSONTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 609C5DCDD81620D361C6B97F /* AnsightJSONTool.swift */; };
 		23DF41B67269EBEDE92864C2 /* PairingDatagramClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6369438C593724F49F3F398E /* PairingDatagramClient.swift */; };
+		24157BE8CF18F9AF50371BE1 /* common_sse2.h in Headers */ = {isa = PBXBuildFile; fileRef = ABDFA580A0A26E97F95A722F /* common_sse2.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		24F4F0E697784642926B3FE4 /* alphai_dec.h in Headers */ = {isa = PBXBuildFile; fileRef = 423E0FAB3DCFE5B2D9094383 /* alphai_dec.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		250BDDA8B7CB1C822AF16A21 /* rescaler_utils.c in Sources */ = {isa = PBXBuildFile; fileRef = 38C9A0A145E86A4E16CB12E7 /* rescaler_utils.c */; };
 		25991348750E8FC595537619 /* URLSessionPairingWebSocket.swift in Sources */ = {isa = PBXBuildFile; fileRef = 012703ACE3E2C8A383580921 /* URLSessionPairingWebSocket.swift */; };
 		26099B4F5BD05E431D482D94 /* AnsightEventType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 238A876807F43DC898E4B479 /* AnsightEventType.swift */; };
 		265544240729EC2F56D13F3D /* PurchaseStoreKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEECE93D6FAC56FDC71F2FEA /* PurchaseStoreKit.swift */; };
@@ -42,59 +73,108 @@
 		2737D9AE44695C499A042729 /* DeviceDisplayProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7007228CE5491D4011E3D0FF /* DeviceDisplayProfile.swift */; };
 		277DC9CE8E8F4BA6E5A74840 /* AnsightSDKInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E4D5FC57940EC4275EC292C /* AnsightSDKInfo.swift */; };
 		2928ADB1895E4C9AFAF7E879 /* DeviceProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03DA6CB7EA3D08F2CB6B17FA /* DeviceProfile.swift */; };
+		29940B3130AA877F16AD761A /* muxinternal.c in Sources */ = {isa = PBXBuildFile; fileRef = 9E9F79B555E91FFC72EB8E7A /* muxinternal.c */; };
 		2A488E9AFA1C3DD06129A143 /* AnsightScreenSnapshotRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE0179F29517E75224D2CB76 /* AnsightScreenSnapshotRenderer.swift */; };
+		2B3549505B5667F38320CE4D /* quant_dec.c in Sources */ = {isa = PBXBuildFile; fileRef = 6A82D89E4C507B6D01EE672F /* quant_dec.c */; };
+		2CC1EA484544D4C68470E5C4 /* utils.h in Headers */ = {isa = PBXBuildFile; fileRef = E781ADB04C521A2FB41B74B1 /* utils.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		2DB837E575FF254EBDCA0E1C /* animi.h in Headers */ = {isa = PBXBuildFile; fileRef = 7E21476A17795C6607CC0F17 /* animi.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		2E0ACA3ACFC262B9B5211ADF /* AnsightToolExecutionArgumentNames.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DF6B2DE8312031357A90688 /* AnsightToolExecutionArgumentNames.swift */; };
+		2F02A8540736C839378EFEE3 /* webp_enc.c in Sources */ = {isa = PBXBuildFile; fileRef = DF5B0B9F7A1DFFC42A6B5235 /* webp_enc.c */; };
 		2F42505957DD0D736BACDC9A /* AnnotationEditorViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02A193A9236FD3A5BEAF0361 /* AnnotationEditorViewController.swift */; };
+		30129375883F71561976226F /* random_utils.c in Sources */ = {isa = PBXBuildFile; fileRef = C250DBA0904D5DEBBDA75306 /* random_utils.c */; };
+		306EE5F8E1B43F506619789F /* bit_reader_inl_utils.h in Headers */ = {isa = PBXBuildFile; fileRef = 031CCA3AD4C39085B0108F6B /* bit_reader_inl_utils.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		314906D3D5B66C996B27A05C /* AnsightToolSchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E9C10CDBE0457295FAE0090 /* AnsightToolSchema.swift */; };
+		32B01FE79E8AC6E45D4A4CBB /* syntax_enc.c in Sources */ = {isa = PBXBuildFile; fileRef = 350E4B78BF19A91D701A81EA /* syntax_enc.c */; };
 		32EE9E32D7FE8D344587DCAE /* HostConnectionConfigReading.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EC4A1BD386D41619292FC73 /* HostConnectionConfigReading.swift */; };
 		339C46198920E00B3F0DA321 /* DeviceApplicationProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 817B9BE99859C7B497B913CF /* DeviceApplicationProfile.swift */; };
 		35F88EE8316B045041BADDC5 /* AnsightToolGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7754C88F473CEFD5FED1BFD0 /* AnsightToolGuard.swift */; };
 		366141BDD9B95F373C8B4374 /* HostConnectionStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCA51EF14761566D1E1F2522 /* HostConnectionStatus.swift */; };
 		38BE44668AC49C7F72ED123E /* DeviceGpuProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA1F18FBD6DF2EE93BCA61DC /* DeviceGpuProfile.swift */; };
 		3A569C048BDB99B1FE504ABB /* AnsightSamplingLimits.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FDEF39D281D3FD8F4A86EE1 /* AnsightSamplingLimits.swift */; };
+		3A657EC8D1168F78F0F717CE /* rescaler.c in Sources */ = {isa = PBXBuildFile; fileRef = 8DAB2E4FE8BB999CE84CA2DF /* rescaler.c */; };
 		3AD9D877495822D46E43CA81 /* RecordedScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4457D772E35521E35DADD4B /* RecordedScreenView.swift */; };
+		3BD5E6D1D5B12075A8766454 /* muxread.c in Sources */ = {isa = PBXBuildFile; fileRef = D95A07484253B52AE21BA345 /* muxread.c */; };
 		3C651540BBFEF37C2D7ED915 /* AnsightOptionsBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38F42118E519023D7800D510 /* AnsightOptionsBuilder.swift */; };
 		3CD88EF239C845FD97150615 /* AnsightViewControllerAppearanceCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6DB38359A4BD2B8FF8445B6 /* AnsightViewControllerAppearanceCapture.swift */; };
 		3DE46190D37C76BE0B15E735 /* HostConnectionCapabilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EED3BDBAD99BEDD1DA25897 /* HostConnectionCapabilities.swift */; };
+		3FA6B56B874951AED24C1BFB /* AnsightWebP.h in Headers */ = {isa = PBXBuildFile; fileRef = 73428EF4EED718AB44768BC8 /* AnsightWebP.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		412397349CE71CFE1725369E /* DefaultMemoryChannels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F0AE58641F6DAE30DF069B /* DefaultMemoryChannels.swift */; };
+		4478026192D3CAC02CB1DEA4 /* yuv_sse2.c in Sources */ = {isa = PBXBuildFile; fileRef = 94BA306D7D22899437CB4ABA /* yuv_sse2.c */; };
+		4541AC155817AC7EFC05531E /* enc_msa.c in Sources */ = {isa = PBXBuildFile; fileRef = 147CF8004B2EC28CA6D05E91 /* enc_msa.c */; };
+		4659B4E050110353D5CD2AE8 /* dec_mips_dsp_r2.c in Sources */ = {isa = PBXBuildFile; fileRef = E23BD3D1F97C8D06D99A3E6E /* dec_mips_dsp_r2.c */; };
+		487A38897E38F081A35855E4 /* quant_levels_dec_utils.h in Headers */ = {isa = PBXBuildFile; fileRef = C359933E4C54C1EECAF28CEA /* quant_levels_dec_utils.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		48A34EF26F3E5AE49E602C79 /* mux_types.h in Headers */ = {isa = PBXBuildFile; fileRef = 0352895475CA7AA603E637EE /* mux_types.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		48DD9584AC7340D5AE692270 /* AnsightCapturedScreenFrame.swift in Sources */ = {isa = PBXBuildFile; fileRef = 480FB8356B63EDABA1F9352C /* AnsightCapturedScreenFrame.swift */; };
+		49192C2B4DC34FED9B640BA7 /* webpi_dec.h in Headers */ = {isa = PBXBuildFile; fileRef = 4AAD6F294BE2544BADD532C4 /* webpi_dec.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		4941512D05A15F58339B2503 /* AnsightToolProtocolEnvelope.swift in Sources */ = {isa = PBXBuildFile; fileRef = A155537B79B6E14678D781E3 /* AnsightToolProtocolEnvelope.swift */; };
+		4A91ECA13D6E61AB1459765B /* yuv.h in Headers */ = {isa = PBXBuildFile; fileRef = 3F20253579DF1A6B237C8527 /* yuv.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		4B094167C552106AA215A6D7 /* filter_enc.c in Sources */ = {isa = PBXBuildFile; fileRef = 5B621E0C360413DEB449675F /* filter_enc.c */; };
 		4BF5A2F8980DB01CDE5C4A87 /* AnsightScreenRouteResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9729C3A8233B2057DEE02DEE /* AnsightScreenRouteResolver.swift */; };
 		4C486383F311E371BE16724D /* AnsightNetworkRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9257098F600B0F519F6B5910 /* AnsightNetworkRequest.swift */; };
+		4CFA24BCC0742843343C8872 /* quant_levels_dec_utils.c in Sources */ = {isa = PBXBuildFile; fileRef = 51FBE8810770C67640AC1241 /* quant_levels_dec_utils.c */; };
 		4CFB098EF0CE16411B5E1C23 /* AnsightHostConnectionOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31C0823ABB8E53D73435D60D /* AnsightHostConnectionOptions.swift */; };
+		4D90FAC217BCEFA5F9CE4492 /* common_dec.h in Headers */ = {isa = PBXBuildFile; fileRef = 41BFFFE5EF0944516B0AC9C5 /* common_dec.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		4DABC4CA99AF6BE0CB64FE70 /* AnsightToolProtocolBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1591B65DCC879A0B53BAB86 /* AnsightToolProtocolBridge.swift */; };
 		4DE59103CD727247B945A93F /* OfflineCaptureOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 434820070033F4C362A594FC /* OfflineCaptureOptions.swift */; };
 		4DE7443ACCB2F3F0222000B7 /* AnsightArtifactPublication.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD60FF27916851C77093316C /* AnsightArtifactPublication.swift */; };
 		4E0A239BD7E2A9E13B94085C /* CachedPairingProfileDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = B280E1B6FCC5F1261B8C6E93 /* CachedPairingProfileDocument.swift */; };
+		4E347662B666ACA96852E94A /* sharpyuv_neon.c in Sources */ = {isa = PBXBuildFile; fileRef = 367157815215AFA36956AB55 /* sharpyuv_neon.c */; };
 		4EF9C7A8C5A6A0F0560C517E /* PairingHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06BFB269042126B1F3D11834 /* PairingHost.swift */; };
+		4F1586BA5AE328313028F8CD /* filters_msa.c in Sources */ = {isa = PBXBuildFile; fileRef = 384DD5EAF2A6B32F8D641DF5 /* filters_msa.c */; };
+		4F19EC9B98271B79AAFAFF52 /* lossless.h in Headers */ = {isa = PBXBuildFile; fileRef = E2A23C20F36058ACD6A21952 /* lossless.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		4FD2090C2B5E897EC1A887B7 /* vp8l_dec.c in Sources */ = {isa = PBXBuildFile; fileRef = E349B1FEFED577B9002936DB /* vp8l_dec.c */; };
 		4FFD7898EBD3B1C98EED0CD5 /* AnsightMotionCaptureOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = E876E6EA2B56582828F7CE94 /* AnsightMotionCaptureOptions.swift */; };
 		516ACE0634B320EB5E388F60 /* RecordedMetric.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9859ED36870A369547508FD4 /* RecordedMetric.swift */; };
 		51F4971C9FE27FCC75FD562A /* SessionJpegWireProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1056A526687945C8CC02AFC /* SessionJpegWireProtocol.swift */; };
+		52194C4A06C279CA80E33CFB /* cost_mips_dsp_r2.c in Sources */ = {isa = PBXBuildFile; fileRef = 3A86F1C1A580AE116F8C7F9D /* cost_mips_dsp_r2.c */; };
 		533ED93AE906B07EE698DAFE /* AnsightPendingBinaryTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EAD03446B27B5EBD0255850 /* AnsightPendingBinaryTransfer.swift */; };
+		53E9E4CA47ED1B85049AFBF9 /* sharpyuv_cpu.h in Headers */ = {isa = PBXBuildFile; fileRef = 1F3EFCF3E0916CEAA9E3229C /* sharpyuv_cpu.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		55BEC09DDB50E3B3275A4920 /* AnsightSimultaneousGestureDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C05C0E772D0EDACE73017392 /* AnsightSimultaneousGestureDelegate.swift */; };
+		55F36C32B18F60E75225271E /* token_enc.c in Sources */ = {isa = PBXBuildFile; fileRef = 92ED745006B0DD3A6CDFF0F7 /* token_enc.c */; };
 		566BB07314626E68ADBB267C /* KeychainPairingConfigStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 207A62E4FE90E42F11C29349 /* KeychainPairingConfigStore.swift */; };
 		56B62B98C4513A4F4E81C38B /* AnsightSessionConfigurationProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = D09DDABE08BCCE9A1A95C24E /* AnsightSessionConfigurationProperties.swift */; };
 		5781772E15EDCB149C1E5C09 /* AnsightTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C617EE65E34324E2C3A432 /* AnsightTool.swift */; };
 		57AD5261665066DEE59AD929 /* AnsightLifecycleCaptureOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A79225D24D3361AB358F0FB7 /* AnsightLifecycleCaptureOptions.swift */; };
+		58B19ED30D7928FDAAA4F3F8 /* demux.h in Headers */ = {isa = PBXBuildFile; fileRef = E3DDE80F32C0207C46F04596 /* demux.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		58B28404B46247845AF3F4A7 /* bit_writer_utils.c in Sources */ = {isa = PBXBuildFile; fileRef = BCB44386DEC87D9AB5268732 /* bit_writer_utils.c */; };
+		5A5CD888C9BC95D7DA69D131 /* alpha_processing.c in Sources */ = {isa = PBXBuildFile; fileRef = EF278DD6E0984B56C551BE2B /* alpha_processing.c */; };
 		5B08B696F6247F33E7EAB6BC /* AnsightDeveloperMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CAE11D9CD8948D2B99FEE42 /* AnsightDeveloperMode.swift */; };
+		5EB90BEF20D4BD1579FBA97A /* vp8l_enc.c in Sources */ = {isa = PBXBuildFile; fileRef = E7587970E58126C7A8C41109 /* vp8l_enc.c */; };
+		6014D0841C736C8633224325 /* quant_levels_utils.h in Headers */ = {isa = PBXBuildFile; fileRef = 647A137BEDEA6C46F638DE4E /* quant_levels_utils.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		6046EC99C4A1AF51C390802D /* AnsightCrashCapture.h in Headers */ = {isa = PBXBuildFile; fileRef = 7B5ED9C34502254BF378A238 /* AnsightCrashCapture.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		614F68B8BC5CAEF40C741FF9 /* AnsightTouchCaptureStreamer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE3DD20489F8F721D2EE5833 /* AnsightTouchCaptureStreamer.swift */; };
 		61D114647B935C82A9B49518 /* AnsightTiming.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B84B046FBA165EC19A6021D /* AnsightTiming.swift */; };
+		620D06D5B9B4B28468DB7E27 /* sharpyuv_dsp.c in Sources */ = {isa = PBXBuildFile; fileRef = 0AC2E918FADA6291EB5C1EF5 /* sharpyuv_dsp.c */; };
+		62148BBC6303827D435F6542 /* random_utils.h in Headers */ = {isa = PBXBuildFile; fileRef = B089E9F91CB26EF1D8CD2218 /* random_utils.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		6283FA1BE6E19736C30F3CE7 /* color_cache_utils.h in Headers */ = {isa = PBXBuildFile; fileRef = D5A0F9FCFCE6B1355D67FECB /* color_cache_utils.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		640B53175C1705FCEDAF712F /* alpha_processing_sse2.c in Sources */ = {isa = PBXBuildFile; fileRef = 82A307064008DED3C612A334 /* alpha_processing_sse2.c */; };
 		64321DFD5C46D5D5D1B0D564 /* JSONValueError.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC12845EC87889834E4BE586 /* JSONValueError.swift */; };
 		646E057EE2FC2EE323F62C79 /* NativeOfflineCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B57557D2F45F609D591A32B /* NativeOfflineCapture.swift */; };
 		64F982D73F9298009DAD6BE6 /* AnsightChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAE6F59F058BFD3AD2FCC9B3 /* AnsightChannel.swift */; };
 		6693D988A71C54BED9CDFBD5 /* DeviceNetworkProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AE131D0ADCCC422C33C0B4E /* DeviceNetworkProfile.swift */; };
+		669C7F238FAE64CC8FA5CBD1 /* sharpyuv.h in Headers */ = {isa = PBXBuildFile; fileRef = E68083EA93149F3C3A9061E8 /* sharpyuv.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		66C9D232BB6B0EB87A81DDC5 /* vp8li_dec.h in Headers */ = {isa = PBXBuildFile; fileRef = 4919C005322A59C70ADA2AC0 /* vp8li_dec.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		66F01574D1C1E73C33AE908B /* rescaler_mips32.c in Sources */ = {isa = PBXBuildFile; fileRef = 4C8B6D3710904EA4B25A3F0B /* rescaler_mips32.c */; };
 		677C3F955A11491D6C61B1FE /* HostConnectionRequestKind.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAE82968AE8DE1AE95DE54F4 /* HostConnectionRequestKind.swift */; };
 		694D4B6515D9151A921EB43E /* PairingConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19A39EE77998819EF77DF694 /* PairingConfig.swift */; };
+		699BF1320D07CF4F2E29415F /* upsampling_mips_dsp_r2.c in Sources */ = {isa = PBXBuildFile; fileRef = 298EF24611154D666AB6D9F6 /* upsampling_mips_dsp_r2.c */; };
 		6A21D89E12F76361FEB224D1 /* PurchaseEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1EB19663417409B54A1D365 /* PurchaseEnvironment.swift */; };
+		6A4BB4EACDC328F2607FF22A /* enc_mips_dsp_r2.c in Sources */ = {isa = PBXBuildFile; fileRef = F49708782E52C47A5F5FF203 /* enc_mips_dsp_r2.c */; };
+		6A6C748802BFE410A00C11DB /* lossless_enc_sse2.c in Sources */ = {isa = PBXBuildFile; fileRef = AF26BE20B6397CE0AA26ED7E /* lossless_enc_sse2.c */; };
+		6A96EE1C7A067E4AC8E4D4BC /* enc.c in Sources */ = {isa = PBXBuildFile; fileRef = 28188EC3D0BC72F09DCB0C9D /* enc.c */; };
+		6B84D274FD95E6E97E264909 /* cost.c in Sources */ = {isa = PBXBuildFile; fileRef = 53718EB75EEE445526A4AE20 /* cost.c */; };
+		6BEE0BC34BA4CDA685E0C0B2 /* backward_references_enc.c in Sources */ = {isa = PBXBuildFile; fileRef = 465DDD9188542624A6AC0A6F /* backward_references_enc.c */; };
 		6BF232078C9E40D30FCD9ECA /* AnsightCapturedTouch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A66F934FDD16B416B3122B99 /* AnsightCapturedTouch.swift */; };
 		6D16DF0BAB51FB8A068C2D32 /* PairingConnectionAttempt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33EA5B8306C2012F635D6481 /* PairingConnectionAttempt.swift */; };
 		6D560BCF22AF5D0B0B671760 /* AnsightConnectivityCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1E1B354EEED3472CA61818A /* AnsightConnectivityCapture.swift */; };
+		6DACBE803B10562CB0F68133 /* upsampling_neon.c in Sources */ = {isa = PBXBuildFile; fileRef = 405F5DB0889B523D864CE3D5 /* upsampling_neon.c */; };
+		6DF08B27757A2D0E42B62DC8 /* dec_sse41.c in Sources */ = {isa = PBXBuildFile; fileRef = 16EB15CC3596A1749374F8A7 /* dec_sse41.c */; };
 		6E42AE44394B9875A5146F9D /* PairingWifiPreflight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 612F54EBEECBE06AF3A56B54 /* PairingWifiPreflight.swift */; };
 		6E5FF8CCB68DF8B3F6B93B8F /* AnsightToolAvailability.swift in Sources */ = {isa = PBXBuildFile; fileRef = C48925215D02E010CF03F4AC /* AnsightToolAvailability.swift */; };
 		6F614E25706D0D42F415ADF0 /* OperationResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66ADB466101ACFF96FA2E41C /* OperationResult.swift */; };
 		6FAB1F62116318AF036000EA /* OfflineCaptureError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E363CB523C2691A0463BD47A /* OfflineCaptureError.swift */; };
 		6FBA558B4CF95E11D07526D3 /* RuntimeForegroundRecoveryAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85D7F290B08B96B8503030A0 /* RuntimeForegroundRecoveryAction.swift */; };
+		7239CE5B97F3E0D90DE84F96 /* cost_enc.h in Headers */ = {isa = PBXBuildFile; fileRef = 70C40E8FE065FEA26B23984E /* cost_enc.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		737665FDA20B8E3F6F1714B4 /* AnsightBuildArtifactsClassProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C597845189A5AE2B97CE4AC /* AnsightBuildArtifactsClassProbe.swift */; };
 		7419B9C750C218C789345301 /* JSONEncoder+AnsightTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFF110F55C0FDA62B690020E /* JSONEncoder+AnsightTransport.swift */; };
 		747585A83BD36732F0FDF8E8 /* DeviceAppProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0FCD17359CF13C321BD16D /* DeviceAppProfile.swift */; };
@@ -104,274 +184,529 @@
 		767C42B6C46893A917F616B9 /* AnsightScreenSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8D01BD3B37CE039A8B07E9A /* AnsightScreenSnapshot.swift */; };
 		7721EE24095B5725E9B6DDD5 /* AnsightToolProtocolPayloadEncoding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A445951662F2631005DB73C /* AnsightToolProtocolPayloadEncoding.swift */; };
 		7A1764EAE285353DBE616A7A /* DeviceGraphicsProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC796C87B3704779E39DE486 /* DeviceGraphicsProfile.swift */; };
+		7A41D8EC3BE223E0BB1CE2EC /* lossless_enc_mips32.c in Sources */ = {isa = PBXBuildFile; fileRef = F3FBD3B8CBDD47148918C3EE /* lossless_enc_mips32.c */; };
+		7B93B3EE7C33E00309D72F29 /* AnsightWebP.c in Sources */ = {isa = PBXBuildFile; fileRef = A521911FDC58F512A6FEC48B /* AnsightWebP.c */; };
 		7BD2CA25F915E4AD70809CBE /* ResolvedConnectionRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 106A7D34CCB5A5605AA2E01F /* ResolvedConnectionRequest.swift */; };
 		7BDF3801AE3AEA755CF0DE40 /* AnsightScreenRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36255DD461D67A106F9B5A5C /* AnsightScreenRoute.swift */; };
 		7C297ACADF4E6AE62AF0E073 /* PairingFailureCodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD865673FAA5B9AEA10E2D2C /* PairingFailureCodes.swift */; };
+		7C99B6769E2783B886421DC6 /* quant_levels_utils.c in Sources */ = {isa = PBXBuildFile; fileRef = 3F05AAEAA32306584C39380E /* quant_levels_utils.c */; };
 		7DE4A6097E131D6C546E2138 /* AnnotationOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41A913CAEF6201EBAFEC023D /* AnnotationOptions.swift */; };
+		7FA5EACE1A561960482DB8AF /* predictor_enc.c in Sources */ = {isa = PBXBuildFile; fileRef = 6CC23F4202E89B63078713AD /* predictor_enc.c */; };
 		81D1A7A5C31C611816A7BE86 /* AnsightToolSchemaValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4205829B25F7F385CDB9DF5B /* AnsightToolSchemaValidator.swift */; };
 		825415143D89782CB0344ECE /* AnsightRuntime+ValidationTouchInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DE5CBD17849664539345B9D /* AnsightRuntime+ValidationTouchInput.swift */; };
 		82AF9C4AB65B0536B39E926F /* DeviceApplicationIconProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7347EC6F6F9E17E7B76A0BFA /* DeviceApplicationIconProfile.swift */; };
+		831F47A9C2A3552C648A1481 /* lossless_enc_avx2.c in Sources */ = {isa = PBXBuildFile; fileRef = 1AEE099C00FC200B4F54BA28 /* lossless_enc_avx2.c */; };
+		8322BE9A9399C7D2D590EE7D /* sharpyuv_sse2.c in Sources */ = {isa = PBXBuildFile; fileRef = E3A28E34C1175B152B430450 /* sharpyuv_sse2.c */; };
+		833B6D1A0F02623CBE9CD85E /* enc_neon.c in Sources */ = {isa = PBXBuildFile; fileRef = 13789707B10F94B1E96585BD /* enc_neon.c */; };
+		83545E65F6EDD7CD2C223000 /* histogram_enc.h in Headers */ = {isa = PBXBuildFile; fileRef = 7C49531D8DDBE66D130BEADC /* histogram_enc.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		83661BBE825BEEEC29F63261 /* lossless.c in Sources */ = {isa = PBXBuildFile; fileRef = C0CB6FD8B4E0F13C5A8F4D69 /* lossless.c */; };
 		860E395C9B1E4DA715015F20 /* AnsightSessionVisualTreeCaptureRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44B670FDDF506E9818670EC0 /* AnsightSessionVisualTreeCaptureRegistry.swift */; };
+		861C519D1CA947393B69E2BA /* frame_dec.c in Sources */ = {isa = PBXBuildFile; fileRef = B971E94772C962D88CF8FE54 /* frame_dec.c */; };
 		875684E49773F350C3465F71 /* AnsightKeyboardPresenceTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D95B00917A3EF79C5BF36942 /* AnsightKeyboardPresenceTracker.swift */; };
 		891FA79D6844DBF0676FB75C /* AnsightLifecycleObserver.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAC0104213FDE7337586B428 /* AnsightLifecycleObserver.swift */; };
+		8AFAD99B336EFD75467DA454 /* sharpyuv_cpu.c in Sources */ = {isa = PBXBuildFile; fileRef = CF817B14CB7DDCDDB05FBCA1 /* sharpyuv_cpu.c */; };
+		8BCFB2587C6B431B9D5E2D99 /* enc_sse2.c in Sources */ = {isa = PBXBuildFile; fileRef = 1A487B0F029C4F343DF7B2B8 /* enc_sse2.c */; };
 		8C709D090CE7FA47DBCEA7E6 /* PairingSimulatorLocalHostAddress.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86FC336AB9C0F848DDBEA9C9 /* PairingSimulatorLocalHostAddress.swift */; };
 		8D29009528DDA8EB88CB9784 /* RuntimeActivationWork.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6F9A617F4B8580A5C74A3CB /* RuntimeActivationWork.swift */; };
 		8D3A205CC94F924602CB5001 /* AnsightMetricStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8172544434BD35F78C71B98E /* AnsightMetricStream.swift */; };
 		8D8396FA7E63FC13FE54D285 /* JSONValue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4107A8F27E9239F6A5C73566 /* JSONValue.swift */; };
+		8DF6C0AA3E11B4188418403C /* palette.c in Sources */ = {isa = PBXBuildFile; fileRef = 0081C37F4F4FB93617ADA389 /* palette.c */; };
 		8E644F208F0127A5D87852C3 /* AnsightScreenSnapshotFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E646752723E6B98105EB685 /* AnsightScreenSnapshotFormat.swift */; };
+		8EA2C0993FE56EDDB4CCCDB6 /* lossless_sse2.c in Sources */ = {isa = PBXBuildFile; fileRef = A7EB99D9F13EF7DFB4651E1A /* lossless_sse2.c */; };
+		8F6275C08D946DA9F5B308A8 /* rescaler_neon.c in Sources */ = {isa = PBXBuildFile; fileRef = F44DBAA2338EE1409EC8D839 /* rescaler_neon.c */; };
 		8F984E6394865DD78D5C953A /* PairingConfigDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB4FB3CACA49B0AEF2F7FFD4 /* PairingConfigDocument.swift */; };
+		8FCE0A03386E661B2991FA75 /* tree_enc.c in Sources */ = {isa = PBXBuildFile; fileRef = 51AF2DD1FEAFEE5E366A9219 /* tree_enc.c */; };
 		8FFF184DCBE627FCB2E68C29 /* PairingLiveSessionTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB4A9720061F9FD0C0DFD97B /* PairingLiveSessionTransport.swift */; };
 		911F6C0E910009A3CCF0770E /* HostConnectionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6632E406B8A15D74B7052F46 /* HostConnectionState.swift */; };
 		94772FB546598040833DEA75 /* AnsightSessionJpegCaptureOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C789DDCCFD18231BDB603A8 /* AnsightSessionJpegCaptureOptions.swift */; };
 		9615B50127ED6EEB3F994289 /* DeviceRuntimeProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B9764EFA7B718A190166172 /* DeviceRuntimeProfile.swift */; };
+		9784CE4ACB5C6F90709D1862 /* ssim_sse2.c in Sources */ = {isa = PBXBuildFile; fileRef = FAF474C0195190411876329E /* ssim_sse2.c */; };
+		98C71EA3F419E40DC448673E /* palette.h in Headers */ = {isa = PBXBuildFile; fileRef = 3F4CD7888BA3E7A4BB515261 /* palette.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		98FCC004A45F2B95758F58D8 /* AnsightDeviceAppProfileCollector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 788AF7EE7BC00A48D69CA23B /* AnsightDeviceAppProfileCollector.swift */; };
 		9911C1106EBE8C0746DF56EF /* JSONDecoder+AnsightTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = E658E7CB6BB472C5FFF9D071 /* JSONDecoder+AnsightTransport.swift */; };
 		9979162BA765D8FC56AFB155 /* AnsightUnattendedProvisioning.swift in Sources */ = {isa = PBXBuildFile; fileRef = B80FA015262863F187204F89 /* AnsightUnattendedProvisioning.swift */; };
+		99FE050024AAA66AA4DE322B /* quant_enc.c in Sources */ = {isa = PBXBuildFile; fileRef = 55DE908F950D7CA97DA4DB18 /* quant_enc.c */; };
 		9A24895FF2539CDDD9E7049B /* AnsightCrashCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B492C6400BA0E38C7DED7E7 /* AnsightCrashCapture.swift */; };
 		9A57009204E5D5744B4A1F39 /* ParsedPairingDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 234696C2A4C43F43932D80C7 /* ParsedPairingDocument.swift */; };
+		9BB58FC9369FE36FA4DE8A0D /* mips_macro.h in Headers */ = {isa = PBXBuildFile; fileRef = 090AE17998071E7F62DFF201 /* mips_macro.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		9C25D3199A7B3666A0373CD4 /* demux.c in Sources */ = {isa = PBXBuildFile; fileRef = C302922B9D9E55A3048E7AEB /* demux.c */; };
 		9D28D0BC9F3BC6C70FE6C8EE /* AnsightTouchBatchKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63AA04A9E281084BBEF101EE /* AnsightTouchBatchKey.swift */; };
 		9DA712E8B52636854CEC91CF /* OfflineCaptureStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAF20F157FA8DB14489E1586 /* OfflineCaptureStore.swift */; };
 		9DFCFCB94F7E30F2441F38E7 /* PairingFileTransferWireProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4250AE6DD08095442F0B6B19 /* PairingFileTransferWireProtocol.swift */; };
+		9E554AB6EC67905574C9D9F8 /* yuv_neon.c in Sources */ = {isa = PBXBuildFile; fileRef = BBC65E1A3B3C2AA625C66BBE /* yuv_neon.c */; };
 		9E81F15A4A1672C5CC791516 /* OfflineCaptureSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 215F2CE02C1D165E3941B11E /* OfflineCaptureSession.swift */; };
+		9EC8A839A3D87CC4AF4D2A38 /* huffman_encode_utils.h in Headers */ = {isa = PBXBuildFile; fileRef = D525F389875B25E390A8F455 /* huffman_encode_utils.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		9F2F9DB6BB119A3E6D9F9635 /* rescaler_utils.h in Headers */ = {isa = PBXBuildFile; fileRef = B275C95DC9750EB827C8CA58 /* rescaler_utils.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		9FA233E564854CB9C5A2667E /* alpha_enc.c in Sources */ = {isa = PBXBuildFile; fileRef = F4D3359933B3ED7029A237FC /* alpha_enc.c */; };
+		A06BB7A61139668302BB5101 /* quant.h in Headers */ = {isa = PBXBuildFile; fileRef = 386051BA46551951240CA5EE /* quant.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		A15C78DDC0BE0B9DE66A4C59 /* cpu.h in Headers */ = {isa = PBXBuildFile; fileRef = 4426DBECDBE4942787304537 /* cpu.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		A263D6079C73D99320ABFD3F /* PairingConfigDocumentService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C73965AD5320E66EBD0462E8 /* PairingConfigDocumentService.swift */; };
 		A36A44C4B9CC35B1FAE62C1D /* PairingConfigCodeGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5084F8A6C1AF3CDABA40DD55 /* PairingConfigCodeGenerator.swift */; };
+		A3808EB2AF241D8ECB09AE66 /* lossless_enc_neon.c in Sources */ = {isa = PBXBuildFile; fileRef = 61F30150FE642036F9008832 /* lossless_enc_neon.c */; };
+		A4E3277311766A6E36E139A1 /* alpha_processing_sse41.c in Sources */ = {isa = PBXBuildFile; fileRef = 9A295B2C899223295EC53F29 /* alpha_processing_sse41.c */; };
+		A4F02A86A619C91ECC833116 /* cost_neon.c in Sources */ = {isa = PBXBuildFile; fileRef = C3D69B0E614FD44DA6B6D4B3 /* cost_neon.c */; };
 		A6BC365AB586B3DC5CBD035B /* Array+AnsightPairing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 026E435E4787579806672F58 /* Array+AnsightPairing.swift */; };
 		A741F00958F848CD194C648E /* AnsightOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69F0EEF4831802AD684A7A07 /* AnsightOptions.swift */; };
+		A7EC5BC040994BE51FA27105 /* dec_mips32.c in Sources */ = {isa = PBXBuildFile; fileRef = DF9B967C9061EE6EAB43FDAD /* dec_mips32.c */; };
+		A8D36FF59116D12BE69379E9 /* picture_csp_enc.c in Sources */ = {isa = PBXBuildFile; fileRef = 6DB6453334B0C29E4EDD7369 /* picture_csp_enc.c */; };
+		A8D8AF25941D8CEC23808776 /* buffer_dec.c in Sources */ = {isa = PBXBuildFile; fileRef = 9EEE6DD6539772154E340E43 /* buffer_dec.c */; };
+		A92F054A8488C009D30DE33A /* bit_reader_utils.h in Headers */ = {isa = PBXBuildFile; fileRef = 49524FE9EECBE0FE24F289B2 /* bit_reader_utils.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		AA0D292519CB7E1FF9B7F0ED /* sharpyuv_csp.c in Sources */ = {isa = PBXBuildFile; fileRef = 389537081B2CDCCE9E5B18E2 /* sharpyuv_csp.c */; };
+		AA303DBB5F8985306F740CAC /* dec_msa.c in Sources */ = {isa = PBXBuildFile; fileRef = BF640663A1F94A4EC3651778 /* dec_msa.c */; };
 		AA8C1E8F8D0FC472BDE83C14 /* PairingConfigStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA5477FD51593FC28131618A /* PairingConfigStore.swift */; };
+		AAD32875390CC26667EDE72A /* thread_utils.h in Headers */ = {isa = PBXBuildFile; fileRef = 83CE16F861CBBFAC77D7BE36 /* thread_utils.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		AB770D133C4FE08B61EC4186 /* DeviceThermalProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = B849C676193ABC001191E242 /* DeviceThermalProfile.swift */; };
 		ABE4BDFF754BBF1432FE4B3F /* HostConnectionResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABBD65A8AA0232A5D278EB93 /* HostConnectionResult.swift */; };
+		AD5D0CA3FCCEBB97C6992536 /* cost_enc.c in Sources */ = {isa = PBXBuildFile; fileRef = F3B1552C587BBE0B419984AA /* cost_enc.c */; };
 		AD632DBD19B5003764E9B0CE /* HostConnectionStatusSubscription.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A19F38A1036983CF62450F8 /* HostConnectionStatusSubscription.swift */; };
 		AD92EF4C8DEBE378895D0934 /* HostConnectionSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF989403F1617B8030BAECEC /* HostConnectionSource.swift */; };
 		ADC1ACE703BAD0C627190651 /* NSLock+AnsightConcurrency.swift in Sources */ = {isa = PBXBuildFile; fileRef = F70A03147093AA2383F0A7E5 /* NSLock+AnsightConcurrency.swift */; };
+		AE9EA116B81160467FD7BF71 /* picture_psnr_enc.c in Sources */ = {isa = PBXBuildFile; fileRef = 477B98D7101D6C0DBCF03732 /* picture_psnr_enc.c */; };
+		AEFA435E4313F33A69B4AE2D /* rescaler_sse2.c in Sources */ = {isa = PBXBuildFile; fileRef = 5CB881B7D869B1EB77A4FC45 /* rescaler_sse2.c */; };
+		AF3895AC3B7B26B1382B578F /* lossless_mips_dsp_r2.c in Sources */ = {isa = PBXBuildFile; fileRef = 936C33CE9255F3F2932293E1 /* lossless_mips_dsp_r2.c */; };
+		B0870BDB15E5EA1429CBE5B7 /* filters.c in Sources */ = {isa = PBXBuildFile; fileRef = C05A5E0A404F03431626061A /* filters.c */; };
 		B1539A19B9BCFD5C27649FAD /* AnsightHostAutoProbeOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BBE4F45F0385C0AD7DDF8F0 /* AnsightHostAutoProbeOptions.swift */; };
+		B1EBF368FE60A8C5627EDA34 /* encode.h in Headers */ = {isa = PBXBuildFile; fileRef = 2B7D3457B8B6B69A00967AB0 /* encode.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		B20D5BCD815554D26B8BCA13 /* alpha_processing_mips_dsp_r2.c in Sources */ = {isa = PBXBuildFile; fileRef = F520428A6DD3230613017C38 /* alpha_processing_mips_dsp_r2.c */; };
 		B26AF2D16D9B43D3CA3DD0C5 /* PurchaseDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1B3105D9EBAC5945D4164F2 /* PurchaseDiagnostics.swift */; };
+		B2D896CB0F7ECDEDEB91F7DC /* lossless_enc_msa.c in Sources */ = {isa = PBXBuildFile; fileRef = 2583ADD3D0B87DE0BCAF63AD /* lossless_enc_msa.c */; };
 		B397F5A48233444B8DA24BBE /* HostSessionJpegCapturePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = C73A7DA40274A2AD13E3B955 /* HostSessionJpegCapturePolicy.swift */; };
+		B45924099BF2D8D4E85924D9 /* format_constants.h in Headers */ = {isa = PBXBuildFile; fileRef = 44C41C17E94F122A91CB7BC4 /* format_constants.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		B50918A8D4758FA701B68813 /* DeviceBatteryProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = D57CFA30FCC75258D7C1A9AC /* DeviceBatteryProfile.swift */; };
+		B53D08A15EE199D95818C677 /* lossless_msa.c in Sources */ = {isa = PBXBuildFile; fileRef = B4884BE96D3FFD3ABBA0CBE6 /* lossless_msa.c */; };
+		B6582BE64CF84540B52B3445 /* enc_mips32.c in Sources */ = {isa = PBXBuildFile; fileRef = 0AFB2DEED91B6F4E4696367E /* enc_mips32.c */; };
 		B68CBAA074938A866DAEAF1A /* PairingSessionConnecting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA0188836D2CE4551912B4C /* PairingSessionConnecting.swift */; };
+		B6C3AAE8974AF86D2CE491DD /* vp8_dec.h in Headers */ = {isa = PBXBuildFile; fileRef = 0896D4E7C1645B47C73A60D9 /* vp8_dec.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		B7835D7FDD46FBEFE5E53B51 /* AnsightSpan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E9301CA606FAFC198B7AEAD /* AnsightSpan.swift */; };
 		B78E696033D667E053208A0B /* AnsightTouchCaptureOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20A1287C7BBDA74635D7D21 /* AnsightTouchCaptureOptions.swift */; };
 		B7CE6595CA4BFE3394291C87 /* PurchaseObjC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FE16F57242254A427F1996A /* PurchaseObjC.swift */; };
+		BC28B6A5BD2126B53E8671F1 /* sharpyuv_dsp.h in Headers */ = {isa = PBXBuildFile; fileRef = 70C1BDA203D1CA5BB1571756 /* sharpyuv_dsp.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		BD91AF10E114449A9462DFBF /* idec_dec.c in Sources */ = {isa = PBXBuildFile; fileRef = 87471AE0D4939321D357B8A1 /* idec_dec.c */; };
+		BDF0C1E6F5953863837B28EF /* histogram_enc.c in Sources */ = {isa = PBXBuildFile; fileRef = BF5EAD1558AEE73F2BD3039D /* histogram_enc.c */; };
 		BE52C4C8E0620FE667403907 /* AnsightToolExecutionResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = C493D8FA56DEE59F4D388B91 /* AnsightToolExecutionResult.swift */; };
+		BE82F0E0781199F1827051CE /* color_cache_utils.c in Sources */ = {isa = PBXBuildFile; fileRef = A13743C88B33C4A39E813056 /* color_cache_utils.c */; };
+		C025E9D41DA4029785EA06BC /* sharpyuv_csp.h in Headers */ = {isa = PBXBuildFile; fileRef = 84907B060E9AC91C79E50A63 /* sharpyuv_csp.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		C08F4A7C64D3332E99FCCDD1 /* RuntimeError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33FC643FF68BD101794ACEF6 /* RuntimeError.swift */; };
 		C09163EFBA4DFFE4229AE5DA /* ConnectResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3374B22C733BFECB3B297DEB /* ConnectResponse.swift */; };
+		C0D1AEDA6184439775A2CCAA /* common_sse41.h in Headers */ = {isa = PBXBuildFile; fileRef = C271E5BDEB368B2FAF637ADD /* common_sse41.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		C1B809961FFD5E631982C035 /* NetworkPairingDatagramClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25C94865BA9C2DE22B43C085 /* NetworkPairingDatagramClient.swift */; };
 		C1E84C130C47B4C03B57325C /* AnsightFunctionJSONTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = C99F74DDB21BA526D857C2A4 /* AnsightFunctionJSONTool.swift */; };
 		C26848D8BEADD06CCBAAEC4B /* AnsightDebugSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = D61A09B35916D072565E621F /* AnsightDebugSnapshot.swift */; };
 		C2B28BF4FD9ECEA6BA6EAFF6 /* RuntimeConnectionTask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4655AEA05BE7BCC10AD86593 /* RuntimeConnectionTask.swift */; };
+		C320AA3AE848F9CF6912EDF4 /* lossless_enc_mips_dsp_r2.c in Sources */ = {isa = PBXBuildFile; fileRef = D92EBA0E5460AF370A0761F4 /* lossless_enc_mips_dsp_r2.c */; };
 		C53FD85FE398F96D6EF22A69 /* TransportError.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD45F542C9022AB3AEAC9953 /* TransportError.swift */; };
+		C547D2313B50E15167265960 /* analysis_enc.c in Sources */ = {isa = PBXBuildFile; fileRef = 019807EBBB5AE82144CF7C4B /* analysis_enc.c */; };
 		C75461BA3C01CB1F18F87A5F /* AnsightTouchInputWireProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D47582C49C9452DDD58CD63 /* AnsightTouchInputWireProtocol.swift */; };
+		C7F9D13998DE6B5934C090AF /* near_lossless_enc.c in Sources */ = {isa = PBXBuildFile; fileRef = 18B6282A94E250F8C6F23524 /* near_lossless_enc.c */; };
+		C89638AA48F3D6A5B2BD8305 /* bit_writer_utils.h in Headers */ = {isa = PBXBuildFile; fileRef = AEDB5535CD8A53F2299BE439 /* bit_writer_utils.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		C9C58CF648D0D5802C52A106 /* AnsightCapturedTouchAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0517289B2376D4A1F9283134 /* AnsightCapturedTouchAction.swift */; };
+		C9DF61355210DB9A5DFA4408 /* vp8i_dec.h in Headers */ = {isa = PBXBuildFile; fileRef = 6F3F9228A7E229B9D1006D2F /* vp8i_dec.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		CB811DF331654073A7494822 /* lossless_enc_sse41.c in Sources */ = {isa = PBXBuildFile; fileRef = 329382063674650BFB88F29F /* lossless_enc_sse41.c */; };
+		CC165DFAAFDEA4B2CADA10A2 /* yuv_mips_dsp_r2.c in Sources */ = {isa = PBXBuildFile; fileRef = 7EC3E207C49E32F2A5F4A922 /* yuv_mips_dsp_r2.c */; };
 		CC2C50CCFC3AAD6A082A2583 /* AnsightBuildArtifactsProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8869E6E852DC0CB6A571078 /* AnsightBuildArtifactsProviding.swift */; };
 		CC31C3464F86F82DCECA03CE /* RegisteredTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 368D25A57C5D600E7A6E7C1E /* RegisteredTool.swift */; };
 		CC33DAB7B34B88374B4F0716 /* ScreenshotCaptureGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A692E1B95BFDA716B3E72A8 /* ScreenshotCaptureGeometry.swift */; };
 		CCAC92FC6878615A1682AF03 /* AnsightInputSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA63248833AFCAA5560740D7 /* AnsightInputSource.swift */; };
+		CDAD68270BFC60E922B69A77 /* backward_references_enc.h in Headers */ = {isa = PBXBuildFile; fileRef = AAF1C12F228B0F9FC829869A /* backward_references_enc.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		CDF8701D36848113610A05EE /* picture_enc.c in Sources */ = {isa = PBXBuildFile; fileRef = C1992CFB01AEEE02DA6FE509 /* picture_enc.c */; };
 		CFF2096865C444490B8FE78D /* HostConnectionSummaryKind.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22276D7B3D1A8054CB8641D9 /* HostConnectionSummaryKind.swift */; };
 		D16F6FF35C904E473230E0F0 /* PairingControlEnvelope.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6982D8F9F33553F0753E3809 /* PairingControlEnvelope.swift */; };
 		D18A83E18F8E78AE393BE481 /* AnnotationZip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DC202F6FBFAEBCC7E99E30C /* AnnotationZip.swift */; };
+		D1C25BB81139DEA72DF0B76A /* config_enc.c in Sources */ = {isa = PBXBuildFile; fileRef = B72B2884A287E7340D0B99BF /* config_enc.c */; };
+		D26FEE5783E3557414199516 /* muxi.h in Headers */ = {isa = PBXBuildFile; fileRef = 5E274554B81820504F45E860 /* muxi.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		D2E1A4065413CCDFFC7B7BB7 /* AnsightChannels.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB3AB44B7B78FB7DA05F0001 /* AnsightChannels.swift */; };
+		D39C96754B9586C6A3E59949 /* upsampling_msa.c in Sources */ = {isa = PBXBuildFile; fileRef = 3BF775C31BAD13E3AEF4698F /* upsampling_msa.c */; };
 		D4935B17BAD91D5EE7215ED0 /* AnsightToolDescriptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = E73B380106A3F93D0BD0E27C /* AnsightToolDescriptor.swift */; };
 		D604778D8CB529169AE1E071 /* ConnectRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF756897ABEFD57178B01879 /* ConnectRequest.swift */; };
 		D62354BE178957EB1DA54C2D /* RuntimeLifecycleChange.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68E3C04E0CC041BF54623656 /* RuntimeLifecycleChange.swift */; };
+		D6E138711590C04337655202 /* yuv_sse41.c in Sources */ = {isa = PBXBuildFile; fileRef = 46BF1DFAF2E0EB503D910546 /* yuv_sse41.c */; };
 		D7B23586835821CDCB80BCB8 /* PairingWebSocket.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D795B9FF7A961BFCD37AFF5 /* PairingWebSocket.swift */; };
+		D7B787EE150A7816E1630CCF /* thread_utils.c in Sources */ = {isa = PBXBuildFile; fileRef = FA15EFEBFAC42955A5C43255 /* thread_utils.c */; };
 		D7D2B2E0D050DD07DEA6A0DA /* AnsightClock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 795BC59C8F14E8DE568006DF /* AnsightClock.swift */; };
+		D880296CBBC6C86B5902EB95 /* filters_sse2.c in Sources */ = {isa = PBXBuildFile; fileRef = 27ED6BCE74107DADAC0A54C7 /* filters_sse2.c */; };
+		D92FE9317D56939481EF8190 /* cpu.c in Sources */ = {isa = PBXBuildFile; fileRef = 01C9D34DD5EC64DE3307ABCB /* cpu.c */; };
+		DC753879AE967E01A8E464AE /* filters_neon.c in Sources */ = {isa = PBXBuildFile; fileRef = 4757A9FEA06FAA3BBCB13126 /* filters_neon.c */; };
 		DC8C1FF63EF22E6274BE65A0 /* MemoryPairingConfigStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CA27E5CCA77153F68E34370 /* MemoryPairingConfigStore.swift */; };
 		DCC21495100B3B71B615A023 /* ProcessSessionIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E91C814A500B53570D1281 /* ProcessSessionIdentity.swift */; };
 		DDD0E4332DB5FE9C1F08827A /* AnsightCrashCapture.c in Sources */ = {isa = PBXBuildFile; fileRef = 1995C45A22983AAC95916E02 /* AnsightCrashCapture.c */; };
+		DE171868A796AFADBA2FCF79 /* vp8i_enc.h in Headers */ = {isa = PBXBuildFile; fileRef = 3D0D5E022A5BDDE2E2072E6C /* vp8i_enc.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		E11D71BF7B74C0719372430B /* dsp.h in Headers */ = {isa = PBXBuildFile; fileRef = 6457912D6A15772180E34745 /* dsp.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		E22A9EEA7F38108CC1763680 /* DeviceRuntimeEngineProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71DA9029E02817B542661F78 /* DeviceRuntimeEngineProfile.swift */; };
+		E278CC0FFB38CE4E45E1A2FF /* rescaler_msa.c in Sources */ = {isa = PBXBuildFile; fileRef = 0BDD60DB93F51D375F4C6BEF /* rescaler_msa.c */; };
+		E651AEF117209125CE2DC1EA /* vp8_dec.c in Sources */ = {isa = PBXBuildFile; fileRef = 8549C03EB4420520F30BBFE8 /* vp8_dec.c */; };
+		E66B2680B63BE7B933AA6583 /* utils.c in Sources */ = {isa = PBXBuildFile; fileRef = AFB4FFD4FEF37573C3E28CBC /* utils.c */; };
+		E6F5EC6013810560B57FC9B6 /* vp8li_enc.h in Headers */ = {isa = PBXBuildFile; fileRef = D690B2465C31A799A22C9239 /* vp8li_enc.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		E7A631C7C79686E93C3A2D09 /* picture_tools_enc.c in Sources */ = {isa = PBXBuildFile; fileRef = 28D4FAACA20AD843D028CD69 /* picture_tools_enc.c */; };
+		E9EFAEB90D487C6C631B8550 /* dec.c in Sources */ = {isa = PBXBuildFile; fileRef = 223690D2BE2BC0E07C7F0790 /* dec.c */; };
 		EA3FB77B116BA7C922CEDB17 /* AnsightNetworkCaptureOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D136A05E3B3F93EB49247BD /* AnsightNetworkCaptureOptions.swift */; };
 		EA753C9F991080945C319DAB /* OfflineCaptureArchive.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06205532CD8B2E700C99410A /* OfflineCaptureArchive.swift */; };
+		EB1591731D20CBB7C3BD59A0 /* cost_sse2.c in Sources */ = {isa = PBXBuildFile; fileRef = 1D4A480B48B99DD6E12DFE01 /* cost_sse2.c */; };
+		EB88D634551A6F9C41428282 /* enc_sse41.c in Sources */ = {isa = PBXBuildFile; fileRef = C5E655371DEA7F1C1DD96032 /* enc_sse41.c */; };
 		EBA3EE59AA16971B6DD7986E /* AnsightDotNetBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A83698A9FF5F5B92BF96732 /* AnsightDotNetBridge.swift */; };
+		EBCD11A036C08160AD061036 /* lossless_avx2.c in Sources */ = {isa = PBXBuildFile; fileRef = 1EF1F27222F66B3E6A57A820 /* lossless_avx2.c */; };
 		EE06B3552ECE5B14FB86D0BC /* ContinuationGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F03DF4F14A7A339918E33C25 /* ContinuationGate.swift */; };
+		EE176F73BDCC2B62E04D26B0 /* alpha_processing_neon.c in Sources */ = {isa = PBXBuildFile; fileRef = 87ABA93591D53B7F03A21101 /* alpha_processing_neon.c */; };
+		EE1B6395D6205ADA78B77301 /* rescaler_mips_dsp_r2.c in Sources */ = {isa = PBXBuildFile; fileRef = D99CB848462AA2B7CFCD44A6 /* rescaler_mips_dsp_r2.c */; };
+		EF22C586B42E6A9EF7D921A6 /* dec_sse2.c in Sources */ = {isa = PBXBuildFile; fileRef = B932A77DE91304DFECA008A9 /* dec_sse2.c */; };
 		EF6187D5139344AA0819B3B4 /* AnsightScreenRouteContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34AF5FFFD626207747C1DEF7 /* AnsightScreenRouteContext.swift */; };
+		EFB93458373A83FA5311AF62 /* anim_decode.c in Sources */ = {isa = PBXBuildFile; fileRef = 1609FCA6045ECE1CE4A5CCBA /* anim_decode.c */; };
+		F006DD95474DF7F92B60E6FF /* mux.h in Headers */ = {isa = PBXBuildFile; fileRef = 8A1D75B0E063C816B987A1F4 /* mux.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		F0B63B079F8D493DCB85CA11 /* AnsightInstalledTouchRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6322C6C2283A92653F7DDB7B /* AnsightInstalledTouchRecognizer.swift */; };
+		F0C585EDE9E1DB7B77A23998 /* lossless_common.h in Headers */ = {isa = PBXBuildFile; fileRef = D50303FA36898FD791ACA02C /* lossless_common.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		F301534CFFD2AE5F919022DC /* filters_mips_dsp_r2.c in Sources */ = {isa = PBXBuildFile; fileRef = C8F5EF213EBDE0E1B3228E08 /* filters_mips_dsp_r2.c */; };
 		F302C18F86CA90D4109842C2 /* LiveSessionOpenAttempt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58F373638863A6C6E5C9C88D /* LiveSessionOpenAttempt.swift */; };
 		F32F2E84FDFED28D9968AC77 /* OfflineCaptureTransferMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AA7F92F852A89E6D1DA1A4F /* OfflineCaptureTransferMode.swift */; };
 		F60C8798BCB84734A2C61340 /* AnsightTouchCaptureSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52C76E7D63F4BBA69E4DC80E /* AnsightTouchCaptureSession.swift */; };
 		F663EB94941974C13A9936CC /* PurchaseProduct.swift in Sources */ = {isa = PBXBuildFile; fileRef = D847A3761AED00612FD96AD6 /* PurchaseProduct.swift */; };
 		F6F5F76769E412AF5EDA3F55 /* AnsightScreenRouteResolution.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C4222CB367B9F6A93A24F04 /* AnsightScreenRouteResolution.swift */; };
+		F70EB373F093FDC01F46F2AE /* sharpyuv_gamma.c in Sources */ = {isa = PBXBuildFile; fileRef = B04578D29B0CC321EF0EE5F2 /* sharpyuv_gamma.c */; };
 		F7A246985F649165738B9963 /* AnsightScreenCaptureError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85D0B2B386968063C9013FE0 /* AnsightScreenCaptureError.swift */; };
+		F7C1EA11D7511BEEA8B4560B /* upsampling_sse2.c in Sources */ = {isa = PBXBuildFile; fileRef = 9B799F279DBDD688E014F724 /* upsampling_sse2.c */; };
 		F864CA91A364F393350697BC /* AnsightLatestValueBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6199059B4F60CD9A326138C3 /* AnsightLatestValueBuffer.swift */; };
+		F865BDB75CF7CB3608780F74 /* io_dec.c in Sources */ = {isa = PBXBuildFile; fileRef = FDEEFAD2D25732F99BF2EEDF /* io_dec.c */; };
 		F88107BCEAC5112F67EB434A /* OfflineCaptureLease.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A70B031641ED92A1321F27 /* OfflineCaptureLease.swift */; };
+		F8DB050A0FA3FE8BBDAA0E9E /* sharpyuv.c in Sources */ = {isa = PBXBuildFile; fileRef = 543B460544B89E9C0560609C /* sharpyuv.c */; };
 		F8F60BC366F28848D7F84E04 /* PairingDiscoveryHint.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC23B6D4F92DAED347F69E46 /* PairingDiscoveryHint.swift */; };
+		F9C92F19C34A5FE537B36A76 /* lossless_neon.c in Sources */ = {isa = PBXBuildFile; fileRef = 0884F2CDB1CF8F8226F2E8DB /* lossless_neon.c */; };
 		F9E4ADC2114FE694E3660D4F /* PairingConnectionOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E97FBACEDE9CC3E744B30C5 /* PairingConnectionOptions.swift */; };
 		FA4BFDFECBF3076AFA2A9B01 /* AnsightArtifacts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A466C65EB64AF95E451AC37E /* AnsightArtifacts.swift */; };
 		FA506EAD2D295C84DDBA9E1E /* AnsightLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 973398D7C1792968A828E593 /* AnsightLogger.swift */; };
 		FACB2F3D66C72EBAFDC0D2B3 /* AnsightScreenDescriptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38FCD978CECDEE93BEA9331C /* AnsightScreenDescriptor.swift */; };
+		FAD3E2B3014095974D0C410D /* neon.h in Headers */ = {isa = PBXBuildFile; fileRef = C832971947A706E135AECE6C /* neon.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		FB068BEBAD268ED016B0F605 /* sharpyuv_gamma.h in Headers */ = {isa = PBXBuildFile; fileRef = 19A12ACE47D40358FE08C112 /* sharpyuv_gamma.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		FDBBBB74EA9CDBA31D09E2C2 /* dec_clip_tables.c in Sources */ = {isa = PBXBuildFile; fileRef = D5A70B05BFFBD7D331300E0F /* dec_clip_tables.c */; };
 		FF4A11D2EBDB1EFE5F212650 /* DeviceRuntimeStackEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 618BCFAEDB0AE5385398B332 /* DeviceRuntimeStackEntry.swift */; };
+		FF4EFA43422A1812C5BAEC92 /* OfflineCaptureCloudUploader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DD2569F62C7489D9E9E6E89 /* OfflineCaptureCloudUploader.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		0081C37F4F4FB93617ADA389 /* palette.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = palette.c; sourceTree = "<group>"; };
 		012703ACE3E2C8A383580921 /* URLSessionPairingWebSocket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = URLSessionPairingWebSocket.swift; sourceTree = "<group>"; };
+		019807EBBB5AE82144CF7C4B /* analysis_enc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = analysis_enc.c; sourceTree = "<group>"; };
+		01C9D34DD5EC64DE3307ABCB /* cpu.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = cpu.c; sourceTree = "<group>"; };
 		026E435E4787579806672F58 /* Array+AnsightPairing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Array+AnsightPairing.swift"; sourceTree = "<group>"; };
 		02A193A9236FD3A5BEAF0361 /* AnnotationEditorViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationEditorViewController.swift; sourceTree = "<group>"; };
+		031CCA3AD4C39085B0108F6B /* bit_reader_inl_utils.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bit_reader_inl_utils.h; sourceTree = "<group>"; };
+		0352895475CA7AA603E637EE /* mux_types.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = mux_types.h; sourceTree = "<group>"; };
 		03DA6CB7EA3D08F2CB6B17FA /* DeviceProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceProfile.swift; sourceTree = "<group>"; };
 		0517289B2376D4A1F9283134 /* AnsightCapturedTouchAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightCapturedTouchAction.swift; sourceTree = "<group>"; };
 		06205532CD8B2E700C99410A /* OfflineCaptureArchive.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineCaptureArchive.swift; sourceTree = "<group>"; };
 		06BFB269042126B1F3D11834 /* PairingHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingHost.swift; sourceTree = "<group>"; };
+		0884F2CDB1CF8F8226F2E8DB /* lossless_neon.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = lossless_neon.c; sourceTree = "<group>"; };
+		0896D4E7C1645B47C73A60D9 /* vp8_dec.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = vp8_dec.h; sourceTree = "<group>"; };
+		090AE17998071E7F62DFF201 /* mips_macro.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = mips_macro.h; sourceTree = "<group>"; };
+		0AC2E918FADA6291EB5C1EF5 /* sharpyuv_dsp.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sharpyuv_dsp.c; sourceTree = "<group>"; };
+		0AFB2DEED91B6F4E4696367E /* enc_mips32.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = enc_mips32.c; sourceTree = "<group>"; };
 		0B57557D2F45F609D591A32B /* NativeOfflineCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeOfflineCapture.swift; sourceTree = "<group>"; };
 		0B9764EFA7B718A190166172 /* DeviceRuntimeProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceRuntimeProfile.swift; sourceTree = "<group>"; };
+		0BDD60DB93F51D375F4C6BEF /* rescaler_msa.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = rescaler_msa.c; sourceTree = "<group>"; };
 		0C597845189A5AE2B97CE4AC /* AnsightBuildArtifactsClassProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightBuildArtifactsClassProbe.swift; sourceTree = "<group>"; };
 		0CD727CA7020AF774FC38FCD /* AnsightTouchMoveThrottle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightTouchMoveThrottle.swift; sourceTree = "<group>"; };
 		0E646752723E6B98105EB685 /* AnsightScreenSnapshotFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightScreenSnapshotFormat.swift; sourceTree = "<group>"; };
 		0E97FBACEDE9CC3E744B30C5 /* PairingConnectionOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingConnectionOptions.swift; sourceTree = "<group>"; };
+		0F25438ACD70921CDF8F5C20 /* iterator_enc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = iterator_enc.c; sourceTree = "<group>"; };
 		106A7D34CCB5A5605AA2E01F /* ResolvedConnectionRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResolvedConnectionRequest.swift; sourceTree = "<group>"; };
 		12345AAA64092F44B36DDB28 /* OfflineCaptureTransferTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineCaptureTransferTool.swift; sourceTree = "<group>"; };
+		13789707B10F94B1E96585BD /* enc_neon.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = enc_neon.c; sourceTree = "<group>"; };
+		147CF8004B2EC28CA6D05E91 /* enc_msa.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = enc_msa.c; sourceTree = "<group>"; };
+		1609FCA6045ECE1CE4A5CCBA /* anim_decode.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = anim_decode.c; sourceTree = "<group>"; };
+		16EB15CC3596A1749374F8A7 /* dec_sse41.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = dec_sse41.c; sourceTree = "<group>"; };
 		16F5B84D627FBB69D578AFD3 /* AnsightNetworkURLProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightNetworkURLProtocol.swift; sourceTree = "<group>"; };
+		18A683BD9AA00FA3DC77A387 /* huffman_utils.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = huffman_utils.c; sourceTree = "<group>"; };
+		18B6282A94E250F8C6F23524 /* near_lossless_enc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = near_lossless_enc.c; sourceTree = "<group>"; };
 		1995C45A22983AAC95916E02 /* AnsightCrashCapture.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = AnsightCrashCapture.c; sourceTree = "<group>"; };
+		19A12ACE47D40358FE08C112 /* sharpyuv_gamma.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sharpyuv_gamma.h; sourceTree = "<group>"; };
 		19A39EE77998819EF77DF694 /* PairingConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingConfig.swift; sourceTree = "<group>"; };
 		1A445951662F2631005DB73C /* AnsightToolProtocolPayloadEncoding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightToolProtocolPayloadEncoding.swift; sourceTree = "<group>"; };
+		1A487B0F029C4F343DF7B2B8 /* enc_sse2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = enc_sse2.c; sourceTree = "<group>"; };
+		1AEE099C00FC200B4F54BA28 /* lossless_enc_avx2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = lossless_enc_avx2.c; sourceTree = "<group>"; };
+		1CA3AF663DFBABAAEB668651 /* filters_utils.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = filters_utils.h; sourceTree = "<group>"; };
+		1D4A480B48B99DD6E12DFE01 /* cost_sse2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = cost_sse2.c; sourceTree = "<group>"; };
+		1DB9068307EE86DF1A102C83 /* webp_dec.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = webp_dec.c; sourceTree = "<group>"; };
+		1EF1F27222F66B3E6A57A820 /* lossless_avx2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = lossless_avx2.c; sourceTree = "<group>"; };
+		1F23BDC6212A96AF39B2B969 /* upsampling.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = upsampling.c; sourceTree = "<group>"; };
+		1F3EFCF3E0916CEAA9E3229C /* sharpyuv_cpu.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sharpyuv_cpu.h; sourceTree = "<group>"; };
 		207A62E4FE90E42F11C29349 /* KeychainPairingConfigStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainPairingConfigStore.swift; sourceTree = "<group>"; };
 		215F2CE02C1D165E3941B11E /* OfflineCaptureSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineCaptureSession.swift; sourceTree = "<group>"; };
 		22276D7B3D1A8054CB8641D9 /* HostConnectionSummaryKind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostConnectionSummaryKind.swift; sourceTree = "<group>"; };
+		223690D2BE2BC0E07C7F0790 /* dec.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = dec.c; sourceTree = "<group>"; };
 		234696C2A4C43F43932D80C7 /* ParsedPairingDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParsedPairingDocument.swift; sourceTree = "<group>"; };
 		238A876807F43DC898E4B479 /* AnsightEventType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightEventType.swift; sourceTree = "<group>"; };
+		2583ADD3D0B87DE0BCAF63AD /* lossless_enc_msa.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = lossless_enc_msa.c; sourceTree = "<group>"; };
 		25C94865BA9C2DE22B43C085 /* NetworkPairingDatagramClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkPairingDatagramClient.swift; sourceTree = "<group>"; };
+		27ED6BCE74107DADAC0A54C7 /* filters_sse2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = filters_sse2.c; sourceTree = "<group>"; };
+		28188EC3D0BC72F09DCB0C9D /* enc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = enc.c; sourceTree = "<group>"; };
+		28D4FAACA20AD843D028CD69 /* picture_tools_enc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = picture_tools_enc.c; sourceTree = "<group>"; };
+		298EF24611154D666AB6D9F6 /* upsampling_mips_dsp_r2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = upsampling_mips_dsp_r2.c; sourceTree = "<group>"; };
+		2B7D3457B8B6B69A00967AB0 /* encode.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = encode.h; sourceTree = "<group>"; };
 		2C789DDCCFD18231BDB603A8 /* AnsightSessionJpegCaptureOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightSessionJpegCaptureOptions.swift; sourceTree = "<group>"; };
 		2D47582C49C9452DDD58CD63 /* AnsightTouchInputWireProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightTouchInputWireProtocol.swift; sourceTree = "<group>"; };
 		2E4D5FC57940EC4275EC292C /* AnsightSDKInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightSDKInfo.swift; sourceTree = "<group>"; };
 		2EC2EE67D055C72069FE5793 /* PairingFileTransferFrameType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingFileTransferFrameType.swift; sourceTree = "<group>"; };
 		31C0823ABB8E53D73435D60D /* AnsightHostConnectionOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightHostConnectionOptions.swift; sourceTree = "<group>"; };
+		329382063674650BFB88F29F /* lossless_enc_sse41.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = lossless_enc_sse41.c; sourceTree = "<group>"; };
 		3374B22C733BFECB3B297DEB /* ConnectResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectResponse.swift; sourceTree = "<group>"; };
 		33EA5B8306C2012F635D6481 /* PairingConnectionAttempt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingConnectionAttempt.swift; sourceTree = "<group>"; };
 		33FC643FF68BD101794ACEF6 /* RuntimeError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeError.swift; sourceTree = "<group>"; };
 		34AF5FFFD626207747C1DEF7 /* AnsightScreenRouteContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightScreenRouteContext.swift; sourceTree = "<group>"; };
+		350E4B78BF19A91D701A81EA /* syntax_enc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = syntax_enc.c; sourceTree = "<group>"; };
 		36255DD461D67A106F9B5A5C /* AnsightScreenRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightScreenRoute.swift; sourceTree = "<group>"; };
+		367157815215AFA36956AB55 /* sharpyuv_neon.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sharpyuv_neon.c; sourceTree = "<group>"; };
 		368D25A57C5D600E7A6E7C1E /* RegisteredTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegisteredTool.swift; sourceTree = "<group>"; };
+		384DD5EAF2A6B32F8D641DF5 /* filters_msa.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = filters_msa.c; sourceTree = "<group>"; };
+		386051BA46551951240CA5EE /* quant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = quant.h; sourceTree = "<group>"; };
+		386A0AEF3C1961E65DE97A9A /* types.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = types.h; sourceTree = "<group>"; };
+		389537081B2CDCCE9E5B18E2 /* sharpyuv_csp.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sharpyuv_csp.c; sourceTree = "<group>"; };
+		38C9A0A145E86A4E16CB12E7 /* rescaler_utils.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = rescaler_utils.c; sourceTree = "<group>"; };
 		38F42118E519023D7800D510 /* AnsightOptionsBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightOptionsBuilder.swift; sourceTree = "<group>"; };
 		38FCD978CECDEE93BEA9331C /* AnsightScreenDescriptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightScreenDescriptor.swift; sourceTree = "<group>"; };
+		3A86F1C1A580AE116F8C7F9D /* cost_mips_dsp_r2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = cost_mips_dsp_r2.c; sourceTree = "<group>"; };
+		3BF775C31BAD13E3AEF4698F /* upsampling_msa.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = upsampling_msa.c; sourceTree = "<group>"; };
 		3CAE11D9CD8948D2B99FEE42 /* AnsightDeveloperMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightDeveloperMode.swift; sourceTree = "<group>"; };
+		3D0D5E022A5BDDE2E2072E6C /* vp8i_enc.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = vp8i_enc.h; sourceTree = "<group>"; };
+		3F05AAEAA32306584C39380E /* quant_levels_utils.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = quant_levels_utils.c; sourceTree = "<group>"; };
+		3F20253579DF1A6B237C8527 /* yuv.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = yuv.h; sourceTree = "<group>"; };
+		3F4CD7888BA3E7A4BB515261 /* palette.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = palette.h; sourceTree = "<group>"; };
+		405F5DB0889B523D864CE3D5 /* upsampling_neon.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = upsampling_neon.c; sourceTree = "<group>"; };
 		4107A8F27E9239F6A5C73566 /* JSONValue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONValue.swift; sourceTree = "<group>"; };
 		41A913CAEF6201EBAFEC023D /* AnnotationOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationOptions.swift; sourceTree = "<group>"; };
+		41BFFFE5EF0944516B0AC9C5 /* common_dec.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = common_dec.h; sourceTree = "<group>"; };
 		4205829B25F7F385CDB9DF5B /* AnsightToolSchemaValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightToolSchemaValidator.swift; sourceTree = "<group>"; };
+		423E0FAB3DCFE5B2D9094383 /* alphai_dec.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = alphai_dec.h; sourceTree = "<group>"; };
 		4250AE6DD08095442F0B6B19 /* PairingFileTransferWireProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingFileTransferWireProtocol.swift; sourceTree = "<group>"; };
 		434820070033F4C362A594FC /* OfflineCaptureOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineCaptureOptions.swift; sourceTree = "<group>"; };
+		4426DBECDBE4942787304537 /* cpu.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = cpu.h; sourceTree = "<group>"; };
 		448A79C0955E16D7B7B26C2F /* AnsightRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightRuntime.swift; sourceTree = "<group>"; };
 		44B670FDDF506E9818670EC0 /* AnsightSessionVisualTreeCaptureRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightSessionVisualTreeCaptureRegistry.swift; sourceTree = "<group>"; };
+		44C41C17E94F122A91CB7BC4 /* format_constants.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = format_constants.h; sourceTree = "<group>"; };
 		4655AEA05BE7BCC10AD86593 /* RuntimeConnectionTask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeConnectionTask.swift; sourceTree = "<group>"; };
+		465DDD9188542624A6AC0A6F /* backward_references_enc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = backward_references_enc.c; sourceTree = "<group>"; };
+		46BF1DFAF2E0EB503D910546 /* yuv_sse41.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = yuv_sse41.c; sourceTree = "<group>"; };
+		4757A9FEA06FAA3BBCB13126 /* filters_neon.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = filters_neon.c; sourceTree = "<group>"; };
+		477B98D7101D6C0DBCF03732 /* picture_psnr_enc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = picture_psnr_enc.c; sourceTree = "<group>"; };
 		47E6CBD2A66A5285403E72EB /* DeviceSdkProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceSdkProfile.swift; sourceTree = "<group>"; };
 		480FB8356B63EDABA1F9352C /* AnsightCapturedScreenFrame.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightCapturedScreenFrame.swift; sourceTree = "<group>"; };
+		4919C005322A59C70ADA2AC0 /* vp8li_dec.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = vp8li_dec.h; sourceTree = "<group>"; };
+		49524FE9EECBE0FE24F289B2 /* bit_reader_utils.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bit_reader_utils.h; sourceTree = "<group>"; };
 		4A19F38A1036983CF62450F8 /* HostConnectionStatusSubscription.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostConnectionStatusSubscription.swift; sourceTree = "<group>"; };
+		4AAD6F294BE2544BADD532C4 /* webpi_dec.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = webpi_dec.h; sourceTree = "<group>"; };
 		4BBE4F45F0385C0AD7DDF8F0 /* AnsightHostAutoProbeOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightHostAutoProbeOptions.swift; sourceTree = "<group>"; };
+		4C8B6D3710904EA4B25A3F0B /* rescaler_mips32.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = rescaler_mips32.c; sourceTree = "<group>"; };
 		4DF6B2DE8312031357A90688 /* AnsightToolExecutionArgumentNames.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightToolExecutionArgumentNames.swift; sourceTree = "<group>"; };
 		4EC4A1BD386D41619292FC73 /* HostConnectionConfigReading.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostConnectionConfigReading.swift; sourceTree = "<group>"; };
 		4EED3BDBAD99BEDD1DA25897 /* HostConnectionCapabilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostConnectionCapabilities.swift; sourceTree = "<group>"; };
 		5084F8A6C1AF3CDABA40DD55 /* PairingConfigCodeGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingConfigCodeGenerator.swift; sourceTree = "<group>"; };
 		50BE06CC71070BF48167AFE7 /* PairingWifiPreflightStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingWifiPreflightStatus.swift; sourceTree = "<group>"; };
+		51AF2DD1FEAFEE5E366A9219 /* tree_enc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = tree_enc.c; sourceTree = "<group>"; };
+		51FBE8810770C67640AC1241 /* quant_levels_dec_utils.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = quant_levels_dec_utils.c; sourceTree = "<group>"; };
 		52C76E7D63F4BBA69E4DC80E /* AnsightTouchCaptureSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightTouchCaptureSession.swift; sourceTree = "<group>"; };
+		53718EB75EEE445526A4AE20 /* cost.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = cost.c; sourceTree = "<group>"; };
+		543B460544B89E9C0560609C /* sharpyuv.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sharpyuv.c; sourceTree = "<group>"; };
 		557964D4F79D278CE3332DF4 /* OpenSessionResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenSessionResult.swift; sourceTree = "<group>"; };
+		55DE908F950D7CA97DA4DB18 /* quant_enc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = quant_enc.c; sourceTree = "<group>"; };
 		55FAB5CA7F9B1B2546A71556 /* AnsightToolPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightToolPolicy.swift; sourceTree = "<group>"; };
 		58F373638863A6C6E5C9C88D /* LiveSessionOpenAttempt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveSessionOpenAttempt.swift; sourceTree = "<group>"; };
+		5A42C19029EE8F1FA15A266D /* picture_rescale_enc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = picture_rescale_enc.c; sourceTree = "<group>"; };
 		5A692E1B95BFDA716B3E72A8 /* ScreenshotCaptureGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotCaptureGeometry.swift; sourceTree = "<group>"; };
+		5B621E0C360413DEB449675F /* filter_enc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = filter_enc.c; sourceTree = "<group>"; };
+		5CB881B7D869B1EB77A4FC45 /* rescaler_sse2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = rescaler_sse2.c; sourceTree = "<group>"; };
 		5DA0188836D2CE4551912B4C /* PairingSessionConnecting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingSessionConnecting.swift; sourceTree = "<group>"; };
+		5E274554B81820504F45E860 /* muxi.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = muxi.h; sourceTree = "<group>"; };
 		5FE16F57242254A427F1996A /* PurchaseObjC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseObjC.swift; sourceTree = "<group>"; };
 		609C5DCDD81620D361C6B97F /* AnsightJSONTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightJSONTool.swift; sourceTree = "<group>"; };
+		60D37E492E7AAB23E0B474A5 /* filters_utils.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = filters_utils.c; sourceTree = "<group>"; };
 		612F54EBEECBE06AF3A56B54 /* PairingWifiPreflight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingWifiPreflight.swift; sourceTree = "<group>"; };
 		618BCFAEDB0AE5385398B332 /* DeviceRuntimeStackEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceRuntimeStackEntry.swift; sourceTree = "<group>"; };
 		6199059B4F60CD9A326138C3 /* AnsightLatestValueBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightLatestValueBuffer.swift; sourceTree = "<group>"; };
+		61F30150FE642036F9008832 /* lossless_enc_neon.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = lossless_enc_neon.c; sourceTree = "<group>"; };
 		6322C6C2283A92653F7DDB7B /* AnsightInstalledTouchRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightInstalledTouchRecognizer.swift; sourceTree = "<group>"; };
 		6369438C593724F49F3F398E /* PairingDatagramClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingDatagramClient.swift; sourceTree = "<group>"; };
 		63AA04A9E281084BBEF101EE /* AnsightTouchBatchKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightTouchBatchKey.swift; sourceTree = "<group>"; };
+		63D421BDAB4FD89553D5A827 /* upsampling_sse41.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = upsampling_sse41.c; sourceTree = "<group>"; };
+		6457912D6A15772180E34745 /* dsp.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = dsp.h; sourceTree = "<group>"; };
+		647A137BEDEA6C46F638DE4E /* quant_levels_utils.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = quant_levels_utils.h; sourceTree = "<group>"; };
 		6632E406B8A15D74B7052F46 /* HostConnectionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostConnectionState.swift; sourceTree = "<group>"; };
 		66ADB466101ACFF96FA2E41C /* OperationResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OperationResult.swift; sourceTree = "<group>"; };
+		6739B182D7C9B369B16105F9 /* cost_mips32.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = cost_mips32.c; sourceTree = "<group>"; };
 		6869F019620A872849A3C39B /* CachedPairingProfileCollectionDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedPairingProfileCollectionDocument.swift; sourceTree = "<group>"; };
 		68705BDB743B249AF53B1423 /* Data+AnsightTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Data+AnsightTransport.swift"; sourceTree = "<group>"; };
 		68E3C04E0CC041BF54623656 /* RuntimeLifecycleChange.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeLifecycleChange.swift; sourceTree = "<group>"; };
 		6982D8F9F33553F0753E3809 /* PairingControlEnvelope.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingControlEnvelope.swift; sourceTree = "<group>"; };
 		69F0EEF4831802AD684A7A07 /* AnsightOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightOptions.swift; sourceTree = "<group>"; };
+		6A7E1C2A6888CADD1110D56B /* yuv.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = yuv.c; sourceTree = "<group>"; };
+		6A82D89E4C507B6D01EE672F /* quant_dec.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = quant_dec.c; sourceTree = "<group>"; };
 		6B0BA4A7EAE52B883207E1E0 /* module.modulemap */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.module-map"; path = module.modulemap; sourceTree = "<group>"; };
+		6CC23F4202E89B63078713AD /* predictor_enc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = predictor_enc.c; sourceTree = "<group>"; };
+		6DB6453334B0C29E4EDD7369 /* picture_csp_enc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = picture_csp_enc.c; sourceTree = "<group>"; };
 		6EAD03446B27B5EBD0255850 /* AnsightPendingBinaryTransfer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightPendingBinaryTransfer.swift; sourceTree = "<group>"; };
+		6F3F9228A7E229B9D1006D2F /* vp8i_dec.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = vp8i_dec.h; sourceTree = "<group>"; };
 		6FDEF39D281D3FD8F4A86EE1 /* AnsightSamplingLimits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightSamplingLimits.swift; sourceTree = "<group>"; };
 		7007228CE5491D4011E3D0FF /* DeviceDisplayProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceDisplayProfile.swift; sourceTree = "<group>"; };
+		70C1BDA203D1CA5BB1571756 /* sharpyuv_dsp.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sharpyuv_dsp.h; sourceTree = "<group>"; };
+		70C40E8FE065FEA26B23984E /* cost_enc.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = cost_enc.h; sourceTree = "<group>"; };
 		71DA9029E02817B542661F78 /* DeviceRuntimeEngineProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceRuntimeEngineProfile.swift; sourceTree = "<group>"; };
+		73428EF4EED718AB44768BC8 /* AnsightWebP.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AnsightWebP.h; sourceTree = "<group>"; };
 		7347EC6F6F9E17E7B76A0BFA /* DeviceApplicationIconProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceApplicationIconProfile.swift; sourceTree = "<group>"; };
+		74094F31EB30E303D1FD8C0E /* muxedit.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = muxedit.c; sourceTree = "<group>"; };
 		7754C88F473CEFD5FED1BFD0 /* AnsightToolGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightToolGuard.swift; sourceTree = "<group>"; };
 		788AF7EE7BC00A48D69CA23B /* AnsightDeviceAppProfileCollector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightDeviceAppProfileCollector.swift; sourceTree = "<group>"; };
 		795BC59C8F14E8DE568006DF /* AnsightClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightClock.swift; sourceTree = "<group>"; };
 		7999793AAB22B84A4586E0AB /* AnsightTouchVisualTreeCaptureCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightTouchVisualTreeCaptureCoordinator.swift; sourceTree = "<group>"; };
+		79F6D571BEA890763E7C3FE7 /* backward_references_cost_enc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = backward_references_cost_enc.c; sourceTree = "<group>"; };
 		7A83698A9FF5F5B92BF96732 /* AnsightDotNetBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightDotNetBridge.swift; sourceTree = "<group>"; };
 		7AA7F92F852A89E6D1DA1A4F /* OfflineCaptureTransferMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineCaptureTransferMode.swift; sourceTree = "<group>"; };
 		7B492C6400BA0E38C7DED7E7 /* AnsightCrashCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightCrashCapture.swift; sourceTree = "<group>"; };
 		7B5ED9C34502254BF378A238 /* AnsightCrashCapture.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AnsightCrashCapture.h; sourceTree = "<group>"; };
+		7C49531D8DDBE66D130BEADC /* histogram_enc.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = histogram_enc.h; sourceTree = "<group>"; };
 		7D795B9FF7A961BFCD37AFF5 /* PairingWebSocket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingWebSocket.swift; sourceTree = "<group>"; };
+		7E21476A17795C6607CC0F17 /* animi.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = animi.h; sourceTree = "<group>"; };
+		7EC3E207C49E32F2A5F4A922 /* yuv_mips_dsp_r2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = yuv_mips_dsp_r2.c; sourceTree = "<group>"; };
+		80437C4F053A5C64D3D77709 /* tree_dec.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = tree_dec.c; sourceTree = "<group>"; };
 		8172544434BD35F78C71B98E /* AnsightMetricStream.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightMetricStream.swift; sourceTree = "<group>"; };
 		817B9BE99859C7B497B913CF /* DeviceApplicationProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceApplicationProfile.swift; sourceTree = "<group>"; };
+		82A307064008DED3C612A334 /* alpha_processing_sse2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = alpha_processing_sse2.c; sourceTree = "<group>"; };
 		839F6825D4A8F56AE3A942F7 /* Annotate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Annotate.swift; sourceTree = "<group>"; };
+		83CE16F861CBBFAC77D7BE36 /* thread_utils.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = thread_utils.h; sourceTree = "<group>"; };
+		84907B060E9AC91C79E50A63 /* sharpyuv_csp.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sharpyuv_csp.h; sourceTree = "<group>"; };
+		8549C03EB4420520F30BBFE8 /* vp8_dec.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = vp8_dec.c; sourceTree = "<group>"; };
 		85D0B2B386968063C9013FE0 /* AnsightScreenCaptureError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightScreenCaptureError.swift; sourceTree = "<group>"; };
 		85D7F290B08B96B8503030A0 /* RuntimeForegroundRecoveryAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeForegroundRecoveryAction.swift; sourceTree = "<group>"; };
 		86FC336AB9C0F848DDBEA9C9 /* PairingSimulatorLocalHostAddress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingSimulatorLocalHostAddress.swift; sourceTree = "<group>"; };
+		87471AE0D4939321D357B8A1 /* idec_dec.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = idec_dec.c; sourceTree = "<group>"; };
+		87ABA93591D53B7F03A21101 /* alpha_processing_neon.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = alpha_processing_neon.c; sourceTree = "<group>"; };
+		8A1D75B0E063C816B987A1F4 /* mux.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = mux.h; sourceTree = "<group>"; };
 		8AE131D0ADCCC422C33C0B4E /* DeviceNetworkProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceNetworkProfile.swift; sourceTree = "<group>"; };
 		8C4222CB367B9F6A93A24F04 /* AnsightScreenRouteResolution.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightScreenRouteResolution.swift; sourceTree = "<group>"; };
 		8CA27E5CCA77153F68E34370 /* MemoryPairingConfigStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryPairingConfigStore.swift; sourceTree = "<group>"; };
+		8DAB2E4FE8BB999CE84CA2DF /* rescaler.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = rescaler.c; sourceTree = "<group>"; };
 		8DC202F6FBFAEBCC7E99E30C /* AnnotationZip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationZip.swift; sourceTree = "<group>"; };
 		8E9301CA606FAFC198B7AEAD /* AnsightSpan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightSpan.swift; sourceTree = "<group>"; };
 		8E9C10CDBE0457295FAE0090 /* AnsightToolSchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightToolSchema.swift; sourceTree = "<group>"; };
 		9257098F600B0F519F6B5910 /* AnsightNetworkRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightNetworkRequest.swift; sourceTree = "<group>"; };
+		92ED745006B0DD3A6CDFF0F7 /* token_enc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = token_enc.c; sourceTree = "<group>"; };
+		936C33CE9255F3F2932293E1 /* lossless_mips_dsp_r2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = lossless_mips_dsp_r2.c; sourceTree = "<group>"; };
+		94BA306D7D22899437CB4ABA /* yuv_sse2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = yuv_sse2.c; sourceTree = "<group>"; };
 		9729C3A8233B2057DEE02DEE /* AnsightScreenRouteResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightScreenRouteResolver.swift; sourceTree = "<group>"; };
 		973398D7C1792968A828E593 /* AnsightLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightLogger.swift; sourceTree = "<group>"; };
 		9859ED36870A369547508FD4 /* RecordedMetric.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordedMetric.swift; sourceTree = "<group>"; };
+		9A0EBD3CDCEA2C1CECE8C87F /* lossless_enc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = lossless_enc.c; sourceTree = "<group>"; };
+		9A295B2C899223295EC53F29 /* alpha_processing_sse41.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = alpha_processing_sse41.c; sourceTree = "<group>"; };
+		9B799F279DBDD688E014F724 /* upsampling_sse2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = upsampling_sse2.c; sourceTree = "<group>"; };
 		9B84B046FBA165EC19A6021D /* AnsightTiming.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightTiming.swift; sourceTree = "<group>"; };
 		9BF8E27FE8341C56F82E9D2F /* PurchaseSchemas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseSchemas.swift; sourceTree = "<group>"; };
 		9BFDEDB448B27888739D4E9B /* AnsightPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightPlugin.swift; sourceTree = "<group>"; };
 		9D136A05E3B3F93EB49247BD /* AnsightNetworkCaptureOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightNetworkCaptureOptions.swift; sourceTree = "<group>"; };
+		9DD2569F62C7489D9E9E6E89 /* OfflineCaptureCloudUploader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineCaptureCloudUploader.swift; sourceTree = "<group>"; };
 		9DE5CBD17849664539345B9D /* AnsightRuntime+ValidationTouchInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AnsightRuntime+ValidationTouchInput.swift"; sourceTree = "<group>"; };
+		9E9F79B555E91FFC72EB8E7A /* muxinternal.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = muxinternal.c; sourceTree = "<group>"; };
+		9EEE6DD6539772154E340E43 /* buffer_dec.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = buffer_dec.c; sourceTree = "<group>"; };
 		A0C617EE65E34324E2C3A432 /* AnsightTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightTool.swift; sourceTree = "<group>"; };
 		A1056A526687945C8CC02AFC /* SessionJpegWireProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionJpegWireProtocol.swift; sourceTree = "<group>"; };
+		A13743C88B33C4A39E813056 /* color_cache_utils.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = color_cache_utils.c; sourceTree = "<group>"; };
 		A155537B79B6E14678D781E3 /* AnsightToolProtocolEnvelope.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightToolProtocolEnvelope.swift; sourceTree = "<group>"; };
 		A1591B65DCC879A0B53BAB86 /* AnsightToolProtocolBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightToolProtocolBridge.swift; sourceTree = "<group>"; };
 		A1EB19663417409B54A1D365 /* PurchaseEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseEnvironment.swift; sourceTree = "<group>"; };
 		A1F0AE58641F6DAE30DF069B /* DefaultMemoryChannels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultMemoryChannels.swift; sourceTree = "<group>"; };
 		A31E5BDC9D4C1BA29B27A3BE /* HostConnectionRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostConnectionRequest.swift; sourceTree = "<group>"; };
 		A466C65EB64AF95E451AC37E /* AnsightArtifacts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightArtifacts.swift; sourceTree = "<group>"; };
+		A521911FDC58F512A6FEC48B /* AnsightWebP.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = AnsightWebP.c; sourceTree = "<group>"; };
 		A5B858E7F53FCA5559FDAF78 /* PairingSessionConnector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingSessionConnector.swift; sourceTree = "<group>"; };
 		A66F934FDD16B416B3122B99 /* AnsightCapturedTouch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightCapturedTouch.swift; sourceTree = "<group>"; };
 		A6D0F44103F337CFF8792D59 /* ansight-annotation-icon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "ansight-annotation-icon.png"; sourceTree = "<group>"; };
 		A749E3211F0964E8BF060915 /* AnsightDotNetBridge.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = AnsightDotNetBridge.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		A79225D24D3361AB358F0FB7 /* AnsightLifecycleCaptureOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightLifecycleCaptureOptions.swift; sourceTree = "<group>"; };
 		A7E91C814A500B53570D1281 /* ProcessSessionIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessSessionIdentity.swift; sourceTree = "<group>"; };
+		A7EB99D9F13EF7DFB4651E1A /* lossless_sse2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = lossless_sse2.c; sourceTree = "<group>"; };
 		AAC0104213FDE7337586B428 /* AnsightLifecycleObserver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightLifecycleObserver.swift; sourceTree = "<group>"; };
+		AAF1C12F228B0F9FC829869A /* backward_references_enc.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = backward_references_enc.h; sourceTree = "<group>"; };
 		ABBD65A8AA0232A5D278EB93 /* HostConnectionResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostConnectionResult.swift; sourceTree = "<group>"; };
+		ABDFA580A0A26E97F95A722F /* common_sse2.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = common_sse2.h; sourceTree = "<group>"; };
+		ABEEF7119EC0DD5DCB9E2452 /* huffman_encode_utils.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = huffman_encode_utils.c; sourceTree = "<group>"; };
 		AC23B6D4F92DAED347F69E46 /* PairingDiscoveryHint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingDiscoveryHint.swift; sourceTree = "<group>"; };
 		AD45F542C9022AB3AEAC9953 /* TransportError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransportError.swift; sourceTree = "<group>"; };
 		AD60FF27916851C77093316C /* AnsightArtifactPublication.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightArtifactPublication.swift; sourceTree = "<group>"; };
 		AD865673FAA5B9AEA10E2D2C /* PairingFailureCodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingFailureCodes.swift; sourceTree = "<group>"; };
 		AE8603BC7DCD5966BD0047B2 /* AppLifecycleState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLifecycleState.swift; sourceTree = "<group>"; };
+		AEDB5535CD8A53F2299BE439 /* bit_writer_utils.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bit_writer_utils.h; sourceTree = "<group>"; };
+		AF26BE20B6397CE0AA26ED7E /* lossless_enc_sse2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = lossless_enc_sse2.c; sourceTree = "<group>"; };
+		AFB4FFD4FEF37573C3E28CBC /* utils.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = utils.c; sourceTree = "<group>"; };
 		AFF110F55C0FDA62B690020E /* JSONEncoder+AnsightTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "JSONEncoder+AnsightTransport.swift"; sourceTree = "<group>"; };
+		B04578D29B0CC321EF0EE5F2 /* sharpyuv_gamma.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sharpyuv_gamma.c; sourceTree = "<group>"; };
+		B089E9F91CB26EF1D8CD2218 /* random_utils.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = random_utils.h; sourceTree = "<group>"; };
 		B1B3105D9EBAC5945D4164F2 /* PurchaseDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseDiagnostics.swift; sourceTree = "<group>"; };
 		B1E1B354EEED3472CA61818A /* AnsightConnectivityCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightConnectivityCapture.swift; sourceTree = "<group>"; };
 		B20A1287C7BBDA74635D7D21 /* AnsightTouchCaptureOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightTouchCaptureOptions.swift; sourceTree = "<group>"; };
+		B275C95DC9750EB827C8CA58 /* rescaler_utils.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = rescaler_utils.h; sourceTree = "<group>"; };
 		B280E1B6FCC5F1261B8C6E93 /* CachedPairingProfileDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedPairingProfileDocument.swift; sourceTree = "<group>"; };
+		B35F4A5587CC2AE3FE0C00D4 /* msa_macro.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = msa_macro.h; sourceTree = "<group>"; };
 		B42AF612618D4F9F5286391B /* AnsightWindowTouchCaptureRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightWindowTouchCaptureRecognizer.swift; sourceTree = "<group>"; };
+		B4884BE96D3FFD3ABBA0CBE6 /* lossless_msa.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = lossless_msa.c; sourceTree = "<group>"; };
+		B6486FFCD92EC4DD1923DC49 /* huffman_utils.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = huffman_utils.h; sourceTree = "<group>"; };
 		B6DB38359A4BD2B8FF8445B6 /* AnsightViewControllerAppearanceCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightViewControllerAppearanceCapture.swift; sourceTree = "<group>"; };
+		B70C7370F7A1F18FDCF229A0 /* dec_neon.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = dec_neon.c; sourceTree = "<group>"; };
+		B72B2884A287E7340D0B99BF /* config_enc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = config_enc.c; sourceTree = "<group>"; };
 		B80FA015262863F187204F89 /* AnsightUnattendedProvisioning.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightUnattendedProvisioning.swift; sourceTree = "<group>"; };
 		B849C676193ABC001191E242 /* DeviceThermalProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceThermalProfile.swift; sourceTree = "<group>"; };
 		B8D01BD3B37CE039A8B07E9A /* AnsightScreenSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightScreenSnapshot.swift; sourceTree = "<group>"; };
+		B932A77DE91304DFECA008A9 /* dec_sse2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = dec_sse2.c; sourceTree = "<group>"; };
+		B971E94772C962D88CF8FE54 /* frame_dec.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = frame_dec.c; sourceTree = "<group>"; };
 		BAF20F157FA8DB14489E1586 /* OfflineCaptureStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineCaptureStore.swift; sourceTree = "<group>"; };
 		BB0FCD17359CF13C321BD16D /* DeviceAppProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceAppProfile.swift; sourceTree = "<group>"; };
 		BB4A9720061F9FD0C0DFD97B /* PairingLiveSessionTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingLiveSessionTransport.swift; sourceTree = "<group>"; };
+		BB6CA61C7F4BDD2A5D97A280 /* yuv_mips32.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = yuv_mips32.c; sourceTree = "<group>"; };
+		BBC65E1A3B3C2AA625C66BBE /* yuv_neon.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = yuv_neon.c; sourceTree = "<group>"; };
 		BC0C01BE5EE7FBB13A210F1A /* PairingControlActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingControlActions.swift; sourceTree = "<group>"; };
+		BCB44386DEC87D9AB5268732 /* bit_writer_utils.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = bit_writer_utils.c; sourceTree = "<group>"; };
 		BE3DD20489F8F721D2EE5833 /* AnsightTouchCaptureStreamer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightTouchCaptureStreamer.swift; sourceTree = "<group>"; };
 		BEECE93D6FAC56FDC71F2FEA /* PurchaseStoreKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseStoreKit.swift; sourceTree = "<group>"; };
+		BF5EAD1558AEE73F2BD3039D /* histogram_enc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = histogram_enc.c; sourceTree = "<group>"; };
+		BF640663A1F94A4EC3651778 /* dec_msa.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = dec_msa.c; sourceTree = "<group>"; };
 		BF756897ABEFD57178B01879 /* ConnectRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectRequest.swift; sourceTree = "<group>"; };
 		BF989403F1617B8030BAECEC /* HostConnectionSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostConnectionSource.swift; sourceTree = "<group>"; };
+		C05A5E0A404F03431626061A /* filters.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = filters.c; sourceTree = "<group>"; };
 		C05C0E772D0EDACE73017392 /* AnsightSimultaneousGestureDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightSimultaneousGestureDelegate.swift; sourceTree = "<group>"; };
+		C0CB6FD8B4E0F13C5A8F4D69 /* lossless.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = lossless.c; sourceTree = "<group>"; };
+		C1992CFB01AEEE02DA6FE509 /* picture_enc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = picture_enc.c; sourceTree = "<group>"; };
 		C2058EAA179B16DF25D41BBE /* PairingDocumentError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingDocumentError.swift; sourceTree = "<group>"; };
+		C250DBA0904D5DEBBDA75306 /* random_utils.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = random_utils.c; sourceTree = "<group>"; };
+		C271E5BDEB368B2FAF637ADD /* common_sse41.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = common_sse41.h; sourceTree = "<group>"; };
+		C302922B9D9E55A3048E7AEB /* demux.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = demux.c; sourceTree = "<group>"; };
+		C359933E4C54C1EECAF28CEA /* quant_levels_dec_utils.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = quant_levels_dec_utils.h; sourceTree = "<group>"; };
+		C39E3770D59622FC8AB1E479 /* alpha_dec.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = alpha_dec.c; sourceTree = "<group>"; };
+		C3D69B0E614FD44DA6B6D4B3 /* cost_neon.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = cost_neon.c; sourceTree = "<group>"; };
 		C4457D772E35521E35DADD4B /* RecordedScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordedScreenView.swift; sourceTree = "<group>"; };
 		C48925215D02E010CF03F4AC /* AnsightToolAvailability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightToolAvailability.swift; sourceTree = "<group>"; };
 		C493D8FA56DEE59F4D388B91 /* AnsightToolExecutionResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightToolExecutionResult.swift; sourceTree = "<group>"; };
+		C5E655371DEA7F1C1DD96032 /* enc_sse41.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = enc_sse41.c; sourceTree = "<group>"; };
 		C6F9A617F4B8580A5C74A3CB /* RuntimeActivationWork.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeActivationWork.swift; sourceTree = "<group>"; };
 		C73965AD5320E66EBD0462E8 /* PairingConfigDocumentService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingConfigDocumentService.swift; sourceTree = "<group>"; };
 		C73A7DA40274A2AD13E3B955 /* HostSessionJpegCapturePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostSessionJpegCapturePolicy.swift; sourceTree = "<group>"; };
 		C7FEE214D4F5B43CFF640B01 /* RecordedEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordedEvent.swift; sourceTree = "<group>"; };
+		C832971947A706E135AECE6C /* neon.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = neon.h; sourceTree = "<group>"; };
+		C8F5EF213EBDE0E1B3228E08 /* filters_mips_dsp_r2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = filters_mips_dsp_r2.c; sourceTree = "<group>"; };
 		C99F74DDB21BA526D857C2A4 /* AnsightFunctionJSONTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightFunctionJSONTool.swift; sourceTree = "<group>"; };
 		CAE82968AE8DE1AE95DE54F4 /* HostConnectionRequestKind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostConnectionRequestKind.swift; sourceTree = "<group>"; };
 		CE13235F2D4516B40B712CD8 /* AnsightScreenCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightScreenCapture.swift; sourceTree = "<group>"; };
+		CF817B14CB7DDCDDB05FBCA1 /* sharpyuv_cpu.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sharpyuv_cpu.c; sourceTree = "<group>"; };
 		CFDE0530BA58C06F86CF8801 /* PairingProtocolDefaults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingProtocolDefaults.swift; sourceTree = "<group>"; };
 		D09DDABE08BCCE9A1A95C24E /* AnsightSessionConfigurationProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightSessionConfigurationProperties.swift; sourceTree = "<group>"; };
+		D140A1ECBF34C167BF5F91E8 /* endian_inl_utils.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = endian_inl_utils.h; sourceTree = "<group>"; };
 		D1A70B031641ED92A1321F27 /* OfflineCaptureLease.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineCaptureLease.swift; sourceTree = "<group>"; };
+		D50303FA36898FD791ACA02C /* lossless_common.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lossless_common.h; sourceTree = "<group>"; };
+		D525F389875B25E390A8F455 /* huffman_encode_utils.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = huffman_encode_utils.h; sourceTree = "<group>"; };
 		D57CFA30FCC75258D7C1A9AC /* DeviceBatteryProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceBatteryProfile.swift; sourceTree = "<group>"; };
+		D5A0F9FCFCE6B1355D67FECB /* color_cache_utils.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = color_cache_utils.h; sourceTree = "<group>"; };
+		D5A70B05BFFBD7D331300E0F /* dec_clip_tables.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = dec_clip_tables.c; sourceTree = "<group>"; };
+		D5C4EF0D0B6C28024C1FB295 /* anim_encode.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = anim_encode.c; sourceTree = "<group>"; };
 		D61A09B35916D072565E621F /* AnsightDebugSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightDebugSnapshot.swift; sourceTree = "<group>"; };
+		D690B2465C31A799A22C9239 /* vp8li_enc.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = vp8li_enc.h; sourceTree = "<group>"; };
+		D7DEF4B80FE4491ABB42ACEC /* bit_reader_utils.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = bit_reader_utils.c; sourceTree = "<group>"; };
 		D847A3761AED00612FD96AD6 /* PurchaseProduct.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseProduct.swift; sourceTree = "<group>"; };
+		D92EBA0E5460AF370A0761F4 /* lossless_enc_mips_dsp_r2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = lossless_enc_mips_dsp_r2.c; sourceTree = "<group>"; };
+		D95A07484253B52AE21BA345 /* muxread.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = muxread.c; sourceTree = "<group>"; };
 		D95B00917A3EF79C5BF36942 /* AnsightKeyboardPresenceTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightKeyboardPresenceTracker.swift; sourceTree = "<group>"; };
+		D99CB848462AA2B7CFCD44A6 /* rescaler_mips_dsp_r2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = rescaler_mips_dsp_r2.c; sourceTree = "<group>"; };
+		DA08DDA109C2CC13FA8ED101 /* ssim.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ssim.c; sourceTree = "<group>"; };
 		DA5477FD51593FC28131618A /* PairingConfigStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingConfigStore.swift; sourceTree = "<group>"; };
 		DAE6F59F058BFD3AD2FCC9B3 /* AnsightChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightChannel.swift; sourceTree = "<group>"; };
 		DB4FB3CACA49B0AEF2F7FFD4 /* PairingConfigDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingConfigDocument.swift; sourceTree = "<group>"; };
@@ -379,10 +714,20 @@
 		DC12845EC87889834E4BE586 /* JSONValueError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONValueError.swift; sourceTree = "<group>"; };
 		DCA51EF14761566D1E1F2522 /* HostConnectionStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostConnectionStatus.swift; sourceTree = "<group>"; };
 		DE0179F29517E75224D2CB76 /* AnsightScreenSnapshotRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightScreenSnapshotRenderer.swift; sourceTree = "<group>"; };
+		DF5B0B9F7A1DFFC42A6B5235 /* webp_enc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = webp_enc.c; sourceTree = "<group>"; };
+		DF9B967C9061EE6EAB43FDAD /* dec_mips32.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = dec_mips32.c; sourceTree = "<group>"; };
+		E23BD3D1F97C8D06D99A3E6E /* dec_mips_dsp_r2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = dec_mips_dsp_r2.c; sourceTree = "<group>"; };
+		E2A23C20F36058ACD6A21952 /* lossless.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lossless.h; sourceTree = "<group>"; };
+		E349B1FEFED577B9002936DB /* vp8l_dec.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = vp8l_dec.c; sourceTree = "<group>"; };
 		E363CB523C2691A0463BD47A /* OfflineCaptureError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineCaptureError.swift; sourceTree = "<group>"; };
+		E3A28E34C1175B152B430450 /* sharpyuv_sse2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sharpyuv_sse2.c; sourceTree = "<group>"; };
+		E3DDE80F32C0207C46F04596 /* demux.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = demux.h; sourceTree = "<group>"; };
 		E658E7CB6BB472C5FFF9D071 /* JSONDecoder+AnsightTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "JSONDecoder+AnsightTransport.swift"; sourceTree = "<group>"; };
+		E68083EA93149F3C3A9061E8 /* sharpyuv.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sharpyuv.h; sourceTree = "<group>"; };
 		E712F6CCF315EB4134E6DA40 /* AnsightFrameRateSampler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightFrameRateSampler.swift; sourceTree = "<group>"; };
 		E73B380106A3F93D0BD0E27C /* AnsightToolDescriptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightToolDescriptor.swift; sourceTree = "<group>"; };
+		E7587970E58126C7A8C41109 /* vp8l_enc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = vp8l_enc.c; sourceTree = "<group>"; };
+		E781ADB04C521A2FB41B74B1 /* utils.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = utils.h; sourceTree = "<group>"; };
 		E876E6EA2B56582828F7CE94 /* AnsightMotionCaptureOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightMotionCaptureOptions.swift; sourceTree = "<group>"; };
 		E8869E6E852DC0CB6A571078 /* AnsightBuildArtifactsProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightBuildArtifactsProviding.swift; sourceTree = "<group>"; };
 		E89671856738BDEC38EB99F5 /* OfflineCaptureFileIO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineCaptureFileIO.swift; sourceTree = "<group>"; };
@@ -391,12 +736,39 @@
 		EAEEFF41402B26C1FD6582AF /* PairingOpenOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingOpenOptions.swift; sourceTree = "<group>"; };
 		EB3AB44B7B78FB7DA05F0001 /* AnsightChannels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightChannels.swift; sourceTree = "<group>"; };
 		EC07E17F562717E6876BA4D9 /* AnsightGeneratedBuildArtifacts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnsightGeneratedBuildArtifacts.swift; sourceTree = "<group>"; };
+		EF278DD6E0984B56C551BE2B /* alpha_processing.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = alpha_processing.c; sourceTree = "<group>"; };
 		F03DF4F14A7A339918E33C25 /* ContinuationGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContinuationGate.swift; sourceTree = "<group>"; };
+		F2E94C0513F3BC6C6CEE520E /* decode.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = decode.h; sourceTree = "<group>"; };
+		F3B1552C587BBE0B419984AA /* cost_enc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = cost_enc.c; sourceTree = "<group>"; };
+		F3FBD3B8CBDD47148918C3EE /* lossless_enc_mips32.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = lossless_enc_mips32.c; sourceTree = "<group>"; };
+		F44DBAA2338EE1409EC8D839 /* rescaler_neon.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = rescaler_neon.c; sourceTree = "<group>"; };
+		F49708782E52C47A5F5FF203 /* enc_mips_dsp_r2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = enc_mips_dsp_r2.c; sourceTree = "<group>"; };
+		F4D3359933B3ED7029A237FC /* alpha_enc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = alpha_enc.c; sourceTree = "<group>"; };
+		F520428A6DD3230613017C38 /* alpha_processing_mips_dsp_r2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = alpha_processing_mips_dsp_r2.c; sourceTree = "<group>"; };
 		F70A03147093AA2383F0A7E5 /* NSLock+AnsightConcurrency.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSLock+AnsightConcurrency.swift"; sourceTree = "<group>"; };
+		F79088FA82EC30928A5BA5F5 /* lossless_sse41.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = lossless_sse41.c; sourceTree = "<group>"; };
+		F964F1D15513405F78F86872 /* frame_enc.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = frame_enc.c; sourceTree = "<group>"; };
+		FA15EFEBFAC42955A5C43255 /* thread_utils.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = thread_utils.c; sourceTree = "<group>"; };
+		FAF474C0195190411876329E /* ssim_sse2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ssim_sse2.c; sourceTree = "<group>"; };
 		FC796C87B3704779E39DE486 /* DeviceGraphicsProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceGraphicsProfile.swift; sourceTree = "<group>"; };
+		FDEEFAD2D25732F99BF2EEDF /* io_dec.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = io_dec.c; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
+		16EB723821CA1262684374C7 /* webp */ = {
+			isa = PBXGroup;
+			children = (
+				F2E94C0513F3BC6C6CEE520E /* decode.h */,
+				E3DDE80F32C0207C46F04596 /* demux.h */,
+				2B7D3457B8B6B69A00967AB0 /* encode.h */,
+				44C41C17E94F122A91CB7BC4 /* format_constants.h */,
+				0352895475CA7AA603E637EE /* mux_types.h */,
+				8A1D75B0E063C816B987A1F4 /* mux.h */,
+				386A0AEF3C1961E65DE97A9A /* types.h */,
+			);
+			path = webp;
+			sourceTree = "<group>";
+		};
 		1F9C46205FD3EDFD914595A6 /* AnsightCore */ = {
 			isa = PBXGroup;
 			children = (
@@ -578,6 +950,38 @@
 			path = ../Sources/AnsightCore;
 			sourceTree = "<group>";
 		};
+		217FA29F97C0D6EC4090EB56 /* vendor */ = {
+			isa = PBXGroup;
+			children = (
+				91FF11190F5C47630FF1DD62 /* sharpyuv */,
+				34E04E992EFE10870FE07BCF /* src */,
+			);
+			name = vendor;
+			path = ../Sources/CAnsightWebP/vendor;
+			sourceTree = "<group>";
+		};
+		2C33346C29972ED60D712C09 /* include */ = {
+			isa = PBXGroup;
+			children = (
+				73428EF4EED718AB44768BC8 /* AnsightWebP.h */,
+			);
+			path = include;
+			sourceTree = "<group>";
+		};
+		34E04E992EFE10870FE07BCF /* src */ = {
+			isa = PBXGroup;
+			children = (
+				8FCA8149E4BA9E8E4058F7D5 /* dec */,
+				878A7ECD0AF2F1C31AA65558 /* demux */,
+				73EA3A00AD0495FFD718EA82 /* dsp */,
+				7C4E9F76E9600E991B0F586C /* enc */,
+				7E7E992A2B9DEB06BDAE4C58 /* mux */,
+				62863BD1748B059FCC955837 /* utils */,
+				16EB723821CA1262684374C7 /* webp */,
+			);
+			path = src;
+			sourceTree = "<group>";
+		};
 		47CF417103F1101479E0356C /* Purchases */ = {
 			isa = PBXGroup;
 			children = (
@@ -591,11 +995,131 @@
 			path = Purchases;
 			sourceTree = "<group>";
 		};
+		62863BD1748B059FCC955837 /* utils */ = {
+			isa = PBXGroup;
+			children = (
+				031CCA3AD4C39085B0108F6B /* bit_reader_inl_utils.h */,
+				D7DEF4B80FE4491ABB42ACEC /* bit_reader_utils.c */,
+				49524FE9EECBE0FE24F289B2 /* bit_reader_utils.h */,
+				BCB44386DEC87D9AB5268732 /* bit_writer_utils.c */,
+				AEDB5535CD8A53F2299BE439 /* bit_writer_utils.h */,
+				A13743C88B33C4A39E813056 /* color_cache_utils.c */,
+				D5A0F9FCFCE6B1355D67FECB /* color_cache_utils.h */,
+				D140A1ECBF34C167BF5F91E8 /* endian_inl_utils.h */,
+				60D37E492E7AAB23E0B474A5 /* filters_utils.c */,
+				1CA3AF663DFBABAAEB668651 /* filters_utils.h */,
+				ABEEF7119EC0DD5DCB9E2452 /* huffman_encode_utils.c */,
+				D525F389875B25E390A8F455 /* huffman_encode_utils.h */,
+				18A683BD9AA00FA3DC77A387 /* huffman_utils.c */,
+				B6486FFCD92EC4DD1923DC49 /* huffman_utils.h */,
+				0081C37F4F4FB93617ADA389 /* palette.c */,
+				3F4CD7888BA3E7A4BB515261 /* palette.h */,
+				51FBE8810770C67640AC1241 /* quant_levels_dec_utils.c */,
+				C359933E4C54C1EECAF28CEA /* quant_levels_dec_utils.h */,
+				3F05AAEAA32306584C39380E /* quant_levels_utils.c */,
+				647A137BEDEA6C46F638DE4E /* quant_levels_utils.h */,
+				C250DBA0904D5DEBBDA75306 /* random_utils.c */,
+				B089E9F91CB26EF1D8CD2218 /* random_utils.h */,
+				38C9A0A145E86A4E16CB12E7 /* rescaler_utils.c */,
+				B275C95DC9750EB827C8CA58 /* rescaler_utils.h */,
+				FA15EFEBFAC42955A5C43255 /* thread_utils.c */,
+				83CE16F861CBBFAC77D7BE36 /* thread_utils.h */,
+				AFB4FFD4FEF37573C3E28CBC /* utils.c */,
+				E781ADB04C521A2FB41B74B1 /* utils.h */,
+			);
+			path = utils;
+			sourceTree = "<group>";
+		};
+		73EA3A00AD0495FFD718EA82 /* dsp */ = {
+			isa = PBXGroup;
+			children = (
+				F520428A6DD3230613017C38 /* alpha_processing_mips_dsp_r2.c */,
+				87ABA93591D53B7F03A21101 /* alpha_processing_neon.c */,
+				82A307064008DED3C612A334 /* alpha_processing_sse2.c */,
+				9A295B2C899223295EC53F29 /* alpha_processing_sse41.c */,
+				EF278DD6E0984B56C551BE2B /* alpha_processing.c */,
+				ABDFA580A0A26E97F95A722F /* common_sse2.h */,
+				C271E5BDEB368B2FAF637ADD /* common_sse41.h */,
+				3A86F1C1A580AE116F8C7F9D /* cost_mips_dsp_r2.c */,
+				6739B182D7C9B369B16105F9 /* cost_mips32.c */,
+				C3D69B0E614FD44DA6B6D4B3 /* cost_neon.c */,
+				1D4A480B48B99DD6E12DFE01 /* cost_sse2.c */,
+				53718EB75EEE445526A4AE20 /* cost.c */,
+				01C9D34DD5EC64DE3307ABCB /* cpu.c */,
+				4426DBECDBE4942787304537 /* cpu.h */,
+				D5A70B05BFFBD7D331300E0F /* dec_clip_tables.c */,
+				E23BD3D1F97C8D06D99A3E6E /* dec_mips_dsp_r2.c */,
+				DF9B967C9061EE6EAB43FDAD /* dec_mips32.c */,
+				BF640663A1F94A4EC3651778 /* dec_msa.c */,
+				B70C7370F7A1F18FDCF229A0 /* dec_neon.c */,
+				B932A77DE91304DFECA008A9 /* dec_sse2.c */,
+				16EB15CC3596A1749374F8A7 /* dec_sse41.c */,
+				223690D2BE2BC0E07C7F0790 /* dec.c */,
+				6457912D6A15772180E34745 /* dsp.h */,
+				F49708782E52C47A5F5FF203 /* enc_mips_dsp_r2.c */,
+				0AFB2DEED91B6F4E4696367E /* enc_mips32.c */,
+				147CF8004B2EC28CA6D05E91 /* enc_msa.c */,
+				13789707B10F94B1E96585BD /* enc_neon.c */,
+				1A487B0F029C4F343DF7B2B8 /* enc_sse2.c */,
+				C5E655371DEA7F1C1DD96032 /* enc_sse41.c */,
+				28188EC3D0BC72F09DCB0C9D /* enc.c */,
+				C8F5EF213EBDE0E1B3228E08 /* filters_mips_dsp_r2.c */,
+				384DD5EAF2A6B32F8D641DF5 /* filters_msa.c */,
+				4757A9FEA06FAA3BBCB13126 /* filters_neon.c */,
+				27ED6BCE74107DADAC0A54C7 /* filters_sse2.c */,
+				C05A5E0A404F03431626061A /* filters.c */,
+				1EF1F27222F66B3E6A57A820 /* lossless_avx2.c */,
+				D50303FA36898FD791ACA02C /* lossless_common.h */,
+				1AEE099C00FC200B4F54BA28 /* lossless_enc_avx2.c */,
+				D92EBA0E5460AF370A0761F4 /* lossless_enc_mips_dsp_r2.c */,
+				F3FBD3B8CBDD47148918C3EE /* lossless_enc_mips32.c */,
+				2583ADD3D0B87DE0BCAF63AD /* lossless_enc_msa.c */,
+				61F30150FE642036F9008832 /* lossless_enc_neon.c */,
+				AF26BE20B6397CE0AA26ED7E /* lossless_enc_sse2.c */,
+				329382063674650BFB88F29F /* lossless_enc_sse41.c */,
+				9A0EBD3CDCEA2C1CECE8C87F /* lossless_enc.c */,
+				936C33CE9255F3F2932293E1 /* lossless_mips_dsp_r2.c */,
+				B4884BE96D3FFD3ABBA0CBE6 /* lossless_msa.c */,
+				0884F2CDB1CF8F8226F2E8DB /* lossless_neon.c */,
+				A7EB99D9F13EF7DFB4651E1A /* lossless_sse2.c */,
+				F79088FA82EC30928A5BA5F5 /* lossless_sse41.c */,
+				C0CB6FD8B4E0F13C5A8F4D69 /* lossless.c */,
+				E2A23C20F36058ACD6A21952 /* lossless.h */,
+				090AE17998071E7F62DFF201 /* mips_macro.h */,
+				B35F4A5587CC2AE3FE0C00D4 /* msa_macro.h */,
+				C832971947A706E135AECE6C /* neon.h */,
+				386051BA46551951240CA5EE /* quant.h */,
+				D99CB848462AA2B7CFCD44A6 /* rescaler_mips_dsp_r2.c */,
+				4C8B6D3710904EA4B25A3F0B /* rescaler_mips32.c */,
+				0BDD60DB93F51D375F4C6BEF /* rescaler_msa.c */,
+				F44DBAA2338EE1409EC8D839 /* rescaler_neon.c */,
+				5CB881B7D869B1EB77A4FC45 /* rescaler_sse2.c */,
+				8DAB2E4FE8BB999CE84CA2DF /* rescaler.c */,
+				FAF474C0195190411876329E /* ssim_sse2.c */,
+				DA08DDA109C2CC13FA8ED101 /* ssim.c */,
+				298EF24611154D666AB6D9F6 /* upsampling_mips_dsp_r2.c */,
+				3BF775C31BAD13E3AEF4698F /* upsampling_msa.c */,
+				405F5DB0889B523D864CE3D5 /* upsampling_neon.c */,
+				9B799F279DBDD688E014F724 /* upsampling_sse2.c */,
+				63D421BDAB4FD89553D5A827 /* upsampling_sse41.c */,
+				1F23BDC6212A96AF39B2B969 /* upsampling.c */,
+				7EC3E207C49E32F2A5F4A922 /* yuv_mips_dsp_r2.c */,
+				BB6CA61C7F4BDD2A5D97A280 /* yuv_mips32.c */,
+				BBC65E1A3B3C2AA625C66BBE /* yuv_neon.c */,
+				94BA306D7D22899437CB4ABA /* yuv_sse2.c */,
+				46BF1DFAF2E0EB503D910546 /* yuv_sse41.c */,
+				6A7E1C2A6888CADD1110D56B /* yuv.c */,
+				3F20253579DF1A6B237C8527 /* yuv.h */,
+			);
+			path = dsp;
+			sourceTree = "<group>";
+		};
 		793297D30AC38BD465C7C7E3 /* OfflineCapture */ = {
 			isa = PBXGroup;
 			children = (
 				0B57557D2F45F609D591A32B /* NativeOfflineCapture.swift */,
 				06205532CD8B2E700C99410A /* OfflineCaptureArchive.swift */,
+				9DD2569F62C7489D9E9E6E89 /* OfflineCaptureCloudUploader.swift */,
 				E363CB523C2691A0463BD47A /* OfflineCaptureError.swift */,
 				E89671856738BDEC38EB99F5 /* OfflineCaptureFileIO.swift */,
 				D1A70B031641ED92A1321F27 /* OfflineCaptureLease.swift */,
@@ -608,12 +1132,121 @@
 			path = OfflineCapture;
 			sourceTree = "<group>";
 		};
+		7C4E9F76E9600E991B0F586C /* enc */ = {
+			isa = PBXGroup;
+			children = (
+				F4D3359933B3ED7029A237FC /* alpha_enc.c */,
+				019807EBBB5AE82144CF7C4B /* analysis_enc.c */,
+				79F6D571BEA890763E7C3FE7 /* backward_references_cost_enc.c */,
+				465DDD9188542624A6AC0A6F /* backward_references_enc.c */,
+				AAF1C12F228B0F9FC829869A /* backward_references_enc.h */,
+				B72B2884A287E7340D0B99BF /* config_enc.c */,
+				F3B1552C587BBE0B419984AA /* cost_enc.c */,
+				70C40E8FE065FEA26B23984E /* cost_enc.h */,
+				5B621E0C360413DEB449675F /* filter_enc.c */,
+				F964F1D15513405F78F86872 /* frame_enc.c */,
+				BF5EAD1558AEE73F2BD3039D /* histogram_enc.c */,
+				7C49531D8DDBE66D130BEADC /* histogram_enc.h */,
+				0F25438ACD70921CDF8F5C20 /* iterator_enc.c */,
+				18B6282A94E250F8C6F23524 /* near_lossless_enc.c */,
+				6DB6453334B0C29E4EDD7369 /* picture_csp_enc.c */,
+				C1992CFB01AEEE02DA6FE509 /* picture_enc.c */,
+				477B98D7101D6C0DBCF03732 /* picture_psnr_enc.c */,
+				5A42C19029EE8F1FA15A266D /* picture_rescale_enc.c */,
+				28D4FAACA20AD843D028CD69 /* picture_tools_enc.c */,
+				6CC23F4202E89B63078713AD /* predictor_enc.c */,
+				55DE908F950D7CA97DA4DB18 /* quant_enc.c */,
+				350E4B78BF19A91D701A81EA /* syntax_enc.c */,
+				92ED745006B0DD3A6CDFF0F7 /* token_enc.c */,
+				51AF2DD1FEAFEE5E366A9219 /* tree_enc.c */,
+				3D0D5E022A5BDDE2E2072E6C /* vp8i_enc.h */,
+				E7587970E58126C7A8C41109 /* vp8l_enc.c */,
+				D690B2465C31A799A22C9239 /* vp8li_enc.h */,
+				DF5B0B9F7A1DFFC42A6B5235 /* webp_enc.c */,
+			);
+			path = enc;
+			sourceTree = "<group>";
+		};
+		7E7E992A2B9DEB06BDAE4C58 /* mux */ = {
+			isa = PBXGroup;
+			children = (
+				D5C4EF0D0B6C28024C1FB295 /* anim_encode.c */,
+				7E21476A17795C6607CC0F17 /* animi.h */,
+				74094F31EB30E303D1FD8C0E /* muxedit.c */,
+				5E274554B81820504F45E860 /* muxi.h */,
+				9E9F79B555E91FFC72EB8E7A /* muxinternal.c */,
+				D95A07484253B52AE21BA345 /* muxread.c */,
+			);
+			path = mux;
+			sourceTree = "<group>";
+		};
+		86D348DD502049C0327D2F2D /* CAnsightWebP */ = {
+			isa = PBXGroup;
+			children = (
+				A521911FDC58F512A6FEC48B /* AnsightWebP.c */,
+				2C33346C29972ED60D712C09 /* include */,
+			);
+			name = CAnsightWebP;
+			path = ../Sources/CAnsightWebP;
+			sourceTree = "<group>";
+		};
+		878A7ECD0AF2F1C31AA65558 /* demux */ = {
+			isa = PBXGroup;
+			children = (
+				1609FCA6045ECE1CE4A5CCBA /* anim_decode.c */,
+				C302922B9D9E55A3048E7AEB /* demux.c */,
+			);
+			path = demux;
+			sourceTree = "<group>";
+		};
 		8B8124223D123DB0C4FA8DCD /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				A749E3211F0964E8BF060915 /* AnsightDotNetBridge.framework */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		8FCA8149E4BA9E8E4058F7D5 /* dec */ = {
+			isa = PBXGroup;
+			children = (
+				C39E3770D59622FC8AB1E479 /* alpha_dec.c */,
+				423E0FAB3DCFE5B2D9094383 /* alphai_dec.h */,
+				9EEE6DD6539772154E340E43 /* buffer_dec.c */,
+				41BFFFE5EF0944516B0AC9C5 /* common_dec.h */,
+				B971E94772C962D88CF8FE54 /* frame_dec.c */,
+				87471AE0D4939321D357B8A1 /* idec_dec.c */,
+				FDEEFAD2D25732F99BF2EEDF /* io_dec.c */,
+				6A82D89E4C507B6D01EE672F /* quant_dec.c */,
+				80437C4F053A5C64D3D77709 /* tree_dec.c */,
+				8549C03EB4420520F30BBFE8 /* vp8_dec.c */,
+				0896D4E7C1645B47C73A60D9 /* vp8_dec.h */,
+				6F3F9228A7E229B9D1006D2F /* vp8i_dec.h */,
+				E349B1FEFED577B9002936DB /* vp8l_dec.c */,
+				4919C005322A59C70ADA2AC0 /* vp8li_dec.h */,
+				1DB9068307EE86DF1A102C83 /* webp_dec.c */,
+				4AAD6F294BE2544BADD532C4 /* webpi_dec.h */,
+			);
+			path = dec;
+			sourceTree = "<group>";
+		};
+		91FF11190F5C47630FF1DD62 /* sharpyuv */ = {
+			isa = PBXGroup;
+			children = (
+				CF817B14CB7DDCDDB05FBCA1 /* sharpyuv_cpu.c */,
+				1F3EFCF3E0916CEAA9E3229C /* sharpyuv_cpu.h */,
+				389537081B2CDCCE9E5B18E2 /* sharpyuv_csp.c */,
+				84907B060E9AC91C79E50A63 /* sharpyuv_csp.h */,
+				0AC2E918FADA6291EB5C1EF5 /* sharpyuv_dsp.c */,
+				70C1BDA203D1CA5BB1571756 /* sharpyuv_dsp.h */,
+				B04578D29B0CC321EF0EE5F2 /* sharpyuv_gamma.c */,
+				19A12ACE47D40358FE08C112 /* sharpyuv_gamma.h */,
+				367157815215AFA36956AB55 /* sharpyuv_neon.c */,
+				E3A28E34C1175B152B430450 /* sharpyuv_sse2.c */,
+				543B460544B89E9C0560609C /* sharpyuv.c */,
+				E68083EA93149F3C3A9061E8 /* sharpyuv.h */,
+			);
+			path = sharpyuv;
 			sourceTree = "<group>";
 		};
 		C6C846D0310CE050FB273314 /* CAnsightCrashCapture */ = {
@@ -640,7 +1273,9 @@
 			children = (
 				1F9C46205FD3EDFD914595A6 /* AnsightCore */,
 				C6C846D0310CE050FB273314 /* CAnsightCrashCapture */,
+				86D348DD502049C0327D2F2D /* CAnsightWebP */,
 				C7A148A5739C3DEE4397D44E /* Sources */,
+				217FA29F97C0D6EC4090EB56 /* vendor */,
 				8B8124223D123DB0C4FA8DCD /* Products */,
 			);
 			sourceTree = "<group>";
@@ -670,6 +1305,58 @@
 			buildActionMask = 2147483647;
 			files = (
 				6046EC99C4A1AF51C390802D /* AnsightCrashCapture.h in Headers */,
+				3FA6B56B874951AED24C1BFB /* AnsightWebP.h in Headers */,
+				24F4F0E697784642926B3FE4 /* alphai_dec.h in Headers */,
+				2DB837E575FF254EBDCA0E1C /* animi.h in Headers */,
+				CDAD68270BFC60E922B69A77 /* backward_references_enc.h in Headers */,
+				306EE5F8E1B43F506619789F /* bit_reader_inl_utils.h in Headers */,
+				A92F054A8488C009D30DE33A /* bit_reader_utils.h in Headers */,
+				C89638AA48F3D6A5B2BD8305 /* bit_writer_utils.h in Headers */,
+				6283FA1BE6E19736C30F3CE7 /* color_cache_utils.h in Headers */,
+				4D90FAC217BCEFA5F9CE4492 /* common_dec.h in Headers */,
+				24157BE8CF18F9AF50371BE1 /* common_sse2.h in Headers */,
+				C0D1AEDA6184439775A2CCAA /* common_sse41.h in Headers */,
+				7239CE5B97F3E0D90DE84F96 /* cost_enc.h in Headers */,
+				A15C78DDC0BE0B9DE66A4C59 /* cpu.h in Headers */,
+				0815BBFDCC1FEDB109C7A5FE /* decode.h in Headers */,
+				58B19ED30D7928FDAAA4F3F8 /* demux.h in Headers */,
+				E11D71BF7B74C0719372430B /* dsp.h in Headers */,
+				B1EBF368FE60A8C5627EDA34 /* encode.h in Headers */,
+				123133BD85D7B1AC0A00FDF0 /* endian_inl_utils.h in Headers */,
+				102E5C489FCE624F5210C816 /* filters_utils.h in Headers */,
+				B45924099BF2D8D4E85924D9 /* format_constants.h in Headers */,
+				83545E65F6EDD7CD2C223000 /* histogram_enc.h in Headers */,
+				9EC8A839A3D87CC4AF4D2A38 /* huffman_encode_utils.h in Headers */,
+				010FF08534C57D7C8DCB6959 /* huffman_utils.h in Headers */,
+				4F19EC9B98271B79AAFAFF52 /* lossless.h in Headers */,
+				F0C585EDE9E1DB7B77A23998 /* lossless_common.h in Headers */,
+				9BB58FC9369FE36FA4DE8A0D /* mips_macro.h in Headers */,
+				14ED9973A147E732C41EBF8D /* msa_macro.h in Headers */,
+				F006DD95474DF7F92B60E6FF /* mux.h in Headers */,
+				48A34EF26F3E5AE49E602C79 /* mux_types.h in Headers */,
+				D26FEE5783E3557414199516 /* muxi.h in Headers */,
+				FAD3E2B3014095974D0C410D /* neon.h in Headers */,
+				98C71EA3F419E40DC448673E /* palette.h in Headers */,
+				A06BB7A61139668302BB5101 /* quant.h in Headers */,
+				487A38897E38F081A35855E4 /* quant_levels_dec_utils.h in Headers */,
+				6014D0841C736C8633224325 /* quant_levels_utils.h in Headers */,
+				62148BBC6303827D435F6542 /* random_utils.h in Headers */,
+				9F2F9DB6BB119A3E6D9F9635 /* rescaler_utils.h in Headers */,
+				669C7F238FAE64CC8FA5CBD1 /* sharpyuv.h in Headers */,
+				53E9E4CA47ED1B85049AFBF9 /* sharpyuv_cpu.h in Headers */,
+				C025E9D41DA4029785EA06BC /* sharpyuv_csp.h in Headers */,
+				BC28B6A5BD2126B53E8671F1 /* sharpyuv_dsp.h in Headers */,
+				FB068BEBAD268ED016B0F605 /* sharpyuv_gamma.h in Headers */,
+				AAD32875390CC26667EDE72A /* thread_utils.h in Headers */,
+				0BE55B0742BD6885CF2A9480 /* types.h in Headers */,
+				2CC1EA484544D4C68470E5C4 /* utils.h in Headers */,
+				B6C3AAE8974AF86D2CE491DD /* vp8_dec.h in Headers */,
+				C9DF61355210DB9A5DFA4408 /* vp8i_dec.h in Headers */,
+				DE171868A796AFADBA2FCF79 /* vp8i_enc.h in Headers */,
+				66C9D232BB6B0EB87A81DDC5 /* vp8li_dec.h in Headers */,
+				E6F5EC6013810560B57FC9B6 /* vp8li_enc.h in Headers */,
+				49192C2B4DC34FED9B640BA7 /* webpi_dec.h in Headers */,
+				4A91ECA13D6E61AB1459765B /* yuv.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -827,6 +1514,7 @@
 				0D7E99FA805BF20D062D73EA /* AnsightTouchVisualTreeCaptureCoordinator.swift in Sources */,
 				9979162BA765D8FC56AFB155 /* AnsightUnattendedProvisioning.swift in Sources */,
 				3CD88EF239C845FD97150615 /* AnsightViewControllerAppearanceCapture.swift in Sources */,
+				7B93B3EE7C33E00309D72F29 /* AnsightWebP.c in Sources */,
 				0FFF61AD440313D22C694B11 /* AnsightWindowTouchCaptureRecognizer.swift in Sources */,
 				0131D3723158B41EB3215455 /* AppLifecycleState.swift in Sources */,
 				A6BC365AB586B3DC5CBD035B /* Array+AnsightPairing.swift in Sources */,
@@ -873,6 +1561,7 @@
 				646E057EE2FC2EE323F62C79 /* NativeOfflineCapture.swift in Sources */,
 				C1B809961FFD5E631982C035 /* NetworkPairingDatagramClient.swift in Sources */,
 				EA753C9F991080945C319DAB /* OfflineCaptureArchive.swift in Sources */,
+				FF4EFA43422A1812C5BAEC92 /* OfflineCaptureCloudUploader.swift in Sources */,
 				6FAB1F62116318AF036000EA /* OfflineCaptureError.swift in Sources */,
 				112C84E8AA72EB954BB9C5AD /* OfflineCaptureFileIO.swift in Sources */,
 				F88107BCEAC5112F67EB434A /* OfflineCaptureLease.swift in Sources */,
@@ -930,6 +1619,131 @@
 				51F4971C9FE27FCC75FD562A /* SessionJpegWireProtocol.swift in Sources */,
 				C53FD85FE398F96D6EF22A69 /* TransportError.swift in Sources */,
 				25991348750E8FC595537619 /* URLSessionPairingWebSocket.swift in Sources */,
+				22EEBB512EDB82D5912317EB /* alpha_dec.c in Sources */,
+				9FA233E564854CB9C5A2667E /* alpha_enc.c in Sources */,
+				5A5CD888C9BC95D7DA69D131 /* alpha_processing.c in Sources */,
+				B20D5BCD815554D26B8BCA13 /* alpha_processing_mips_dsp_r2.c in Sources */,
+				EE176F73BDCC2B62E04D26B0 /* alpha_processing_neon.c in Sources */,
+				640B53175C1705FCEDAF712F /* alpha_processing_sse2.c in Sources */,
+				A4E3277311766A6E36E139A1 /* alpha_processing_sse41.c in Sources */,
+				C547D2313B50E15167265960 /* analysis_enc.c in Sources */,
+				EFB93458373A83FA5311AF62 /* anim_decode.c in Sources */,
+				111A1E0BB7F7DD31E4419C3C /* anim_encode.c in Sources */,
+				14BF96E5C5DD807B1BAE0C3B /* backward_references_cost_enc.c in Sources */,
+				6BEE0BC34BA4CDA685E0C0B2 /* backward_references_enc.c in Sources */,
+				12BA3BA06FA16D3CD24970C8 /* bit_reader_utils.c in Sources */,
+				58B28404B46247845AF3F4A7 /* bit_writer_utils.c in Sources */,
+				A8D8AF25941D8CEC23808776 /* buffer_dec.c in Sources */,
+				BE82F0E0781199F1827051CE /* color_cache_utils.c in Sources */,
+				D1C25BB81139DEA72DF0B76A /* config_enc.c in Sources */,
+				6B84D274FD95E6E97E264909 /* cost.c in Sources */,
+				AD5D0CA3FCCEBB97C6992536 /* cost_enc.c in Sources */,
+				07857C58E2410CF69CCCF66E /* cost_mips32.c in Sources */,
+				52194C4A06C279CA80E33CFB /* cost_mips_dsp_r2.c in Sources */,
+				A4F02A86A619C91ECC833116 /* cost_neon.c in Sources */,
+				EB1591731D20CBB7C3BD59A0 /* cost_sse2.c in Sources */,
+				D92FE9317D56939481EF8190 /* cpu.c in Sources */,
+				E9EFAEB90D487C6C631B8550 /* dec.c in Sources */,
+				FDBBBB74EA9CDBA31D09E2C2 /* dec_clip_tables.c in Sources */,
+				A7EC5BC040994BE51FA27105 /* dec_mips32.c in Sources */,
+				4659B4E050110353D5CD2AE8 /* dec_mips_dsp_r2.c in Sources */,
+				AA303DBB5F8985306F740CAC /* dec_msa.c in Sources */,
+				146C7E139B032A5DC02F94BB /* dec_neon.c in Sources */,
+				EF22C586B42E6A9EF7D921A6 /* dec_sse2.c in Sources */,
+				6DF08B27757A2D0E42B62DC8 /* dec_sse41.c in Sources */,
+				9C25D3199A7B3666A0373CD4 /* demux.c in Sources */,
+				6A96EE1C7A067E4AC8E4D4BC /* enc.c in Sources */,
+				B6582BE64CF84540B52B3445 /* enc_mips32.c in Sources */,
+				6A4BB4EACDC328F2607FF22A /* enc_mips_dsp_r2.c in Sources */,
+				4541AC155817AC7EFC05531E /* enc_msa.c in Sources */,
+				833B6D1A0F02623CBE9CD85E /* enc_neon.c in Sources */,
+				8BCFB2587C6B431B9D5E2D99 /* enc_sse2.c in Sources */,
+				EB88D634551A6F9C41428282 /* enc_sse41.c in Sources */,
+				4B094167C552106AA215A6D7 /* filter_enc.c in Sources */,
+				B0870BDB15E5EA1429CBE5B7 /* filters.c in Sources */,
+				F301534CFFD2AE5F919022DC /* filters_mips_dsp_r2.c in Sources */,
+				4F1586BA5AE328313028F8CD /* filters_msa.c in Sources */,
+				DC753879AE967E01A8E464AE /* filters_neon.c in Sources */,
+				D880296CBBC6C86B5902EB95 /* filters_sse2.c in Sources */,
+				08F6CBA26FF0EF312CBE4586 /* filters_utils.c in Sources */,
+				861C519D1CA947393B69E2BA /* frame_dec.c in Sources */,
+				0D1F26A8001A73CA80CE402C /* frame_enc.c in Sources */,
+				BDF0C1E6F5953863837B28EF /* histogram_enc.c in Sources */,
+				18DFFA78C7F123D9D1BA55E9 /* huffman_encode_utils.c in Sources */,
+				03A362D5FEFE23DFF3B3D66B /* huffman_utils.c in Sources */,
+				BD91AF10E114449A9462DFBF /* idec_dec.c in Sources */,
+				F865BDB75CF7CB3608780F74 /* io_dec.c in Sources */,
+				1F7A44DCC8C9571CE09B82E0 /* iterator_enc.c in Sources */,
+				83661BBE825BEEEC29F63261 /* lossless.c in Sources */,
+				EBCD11A036C08160AD061036 /* lossless_avx2.c in Sources */,
+				093EF5A987C79C0AE166AAA5 /* lossless_enc.c in Sources */,
+				831F47A9C2A3552C648A1481 /* lossless_enc_avx2.c in Sources */,
+				7A41D8EC3BE223E0BB1CE2EC /* lossless_enc_mips32.c in Sources */,
+				C320AA3AE848F9CF6912EDF4 /* lossless_enc_mips_dsp_r2.c in Sources */,
+				B2D896CB0F7ECDEDEB91F7DC /* lossless_enc_msa.c in Sources */,
+				A3808EB2AF241D8ECB09AE66 /* lossless_enc_neon.c in Sources */,
+				6A6C748802BFE410A00C11DB /* lossless_enc_sse2.c in Sources */,
+				CB811DF331654073A7494822 /* lossless_enc_sse41.c in Sources */,
+				AF3895AC3B7B26B1382B578F /* lossless_mips_dsp_r2.c in Sources */,
+				B53D08A15EE199D95818C677 /* lossless_msa.c in Sources */,
+				F9C92F19C34A5FE537B36A76 /* lossless_neon.c in Sources */,
+				8EA2C0993FE56EDDB4CCCDB6 /* lossless_sse2.c in Sources */,
+				21B7FADA1B4C87BD8904B375 /* lossless_sse41.c in Sources */,
+				053CF90FC2062F17097E696D /* muxedit.c in Sources */,
+				29940B3130AA877F16AD761A /* muxinternal.c in Sources */,
+				3BD5E6D1D5B12075A8766454 /* muxread.c in Sources */,
+				C7F9D13998DE6B5934C090AF /* near_lossless_enc.c in Sources */,
+				8DF6C0AA3E11B4188418403C /* palette.c in Sources */,
+				A8D36FF59116D12BE69379E9 /* picture_csp_enc.c in Sources */,
+				CDF8701D36848113610A05EE /* picture_enc.c in Sources */,
+				AE9EA116B81160467FD7BF71 /* picture_psnr_enc.c in Sources */,
+				1E2DC68F9BA09B3175051420 /* picture_rescale_enc.c in Sources */,
+				E7A631C7C79686E93C3A2D09 /* picture_tools_enc.c in Sources */,
+				7FA5EACE1A561960482DB8AF /* predictor_enc.c in Sources */,
+				2B3549505B5667F38320CE4D /* quant_dec.c in Sources */,
+				99FE050024AAA66AA4DE322B /* quant_enc.c in Sources */,
+				4CFA24BCC0742843343C8872 /* quant_levels_dec_utils.c in Sources */,
+				7C99B6769E2783B886421DC6 /* quant_levels_utils.c in Sources */,
+				30129375883F71561976226F /* random_utils.c in Sources */,
+				3A657EC8D1168F78F0F717CE /* rescaler.c in Sources */,
+				66F01574D1C1E73C33AE908B /* rescaler_mips32.c in Sources */,
+				EE1B6395D6205ADA78B77301 /* rescaler_mips_dsp_r2.c in Sources */,
+				E278CC0FFB38CE4E45E1A2FF /* rescaler_msa.c in Sources */,
+				8F6275C08D946DA9F5B308A8 /* rescaler_neon.c in Sources */,
+				AEFA435E4313F33A69B4AE2D /* rescaler_sse2.c in Sources */,
+				250BDDA8B7CB1C822AF16A21 /* rescaler_utils.c in Sources */,
+				F8DB050A0FA3FE8BBDAA0E9E /* sharpyuv.c in Sources */,
+				8AFAD99B336EFD75467DA454 /* sharpyuv_cpu.c in Sources */,
+				AA0D292519CB7E1FF9B7F0ED /* sharpyuv_csp.c in Sources */,
+				620D06D5B9B4B28468DB7E27 /* sharpyuv_dsp.c in Sources */,
+				F70EB373F093FDC01F46F2AE /* sharpyuv_gamma.c in Sources */,
+				4E347662B666ACA96852E94A /* sharpyuv_neon.c in Sources */,
+				8322BE9A9399C7D2D590EE7D /* sharpyuv_sse2.c in Sources */,
+				0C733B73507211852206DC4E /* ssim.c in Sources */,
+				9784CE4ACB5C6F90709D1862 /* ssim_sse2.c in Sources */,
+				32B01FE79E8AC6E45D4A4CBB /* syntax_enc.c in Sources */,
+				D7B787EE150A7816E1630CCF /* thread_utils.c in Sources */,
+				55F36C32B18F60E75225271E /* token_enc.c in Sources */,
+				23144DE00A7E4E1400EFDE98 /* tree_dec.c in Sources */,
+				8FCE0A03386E661B2991FA75 /* tree_enc.c in Sources */,
+				160318CC0BCE20622928D2B1 /* upsampling.c in Sources */,
+				699BF1320D07CF4F2E29415F /* upsampling_mips_dsp_r2.c in Sources */,
+				D39C96754B9586C6A3E59949 /* upsampling_msa.c in Sources */,
+				6DACBE803B10562CB0F68133 /* upsampling_neon.c in Sources */,
+				F7C1EA11D7511BEEA8B4560B /* upsampling_sse2.c in Sources */,
+				0D3BA52E1C6DA949F57F8B9C /* upsampling_sse41.c in Sources */,
+				E66B2680B63BE7B933AA6583 /* utils.c in Sources */,
+				E651AEF117209125CE2DC1EA /* vp8_dec.c in Sources */,
+				4FD2090C2B5E897EC1A887B7 /* vp8l_dec.c in Sources */,
+				5EB90BEF20D4BD1579FBA97A /* vp8l_enc.c in Sources */,
+				1042AC5C41C0192FA26EF54D /* webp_dec.c in Sources */,
+				2F02A8540736C839378EFEE3 /* webp_enc.c in Sources */,
+				0112421F88D0B763CAAF6812 /* yuv.c in Sources */,
+				194C4824B5332CDA18BFFF04 /* yuv_mips32.c in Sources */,
+				CC165DFAAFDEA4B2CADA10A2 /* yuv_mips_dsp_r2.c in Sources */,
+				9E554AB6EC67905574C9D9F8 /* yuv_neon.c in Sources */,
+				4478026192D3CAC02CB1DEA4 /* yuv_sse2.c in Sources */,
+				D6E138711590C04337655202 /* yuv_sse41.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -947,8 +1761,9 @@
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited) WEBP_USE_THREAD";
 				GENERATE_INFOPLIST_FILE = YES;
-				HEADER_SEARCH_PATHS = "$(inherited) $(SRCROOT)/../Sources/CAnsightCrashCapture/include";
+				HEADER_SEARCH_PATHS = "$(inherited) $(SRCROOT)/../Sources/CAnsightCrashCapture/include $(SRCROOT)/../Sources/CAnsightWebP/include $(SRCROOT)/../Sources/CAnsightWebP/vendor";
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1034,8 +1849,9 @@
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited) WEBP_USE_THREAD";
 				GENERATE_INFOPLIST_FILE = YES;
-				HEADER_SEARCH_PATHS = "$(inherited) $(SRCROOT)/../Sources/CAnsightCrashCapture/include";
+				HEADER_SEARCH_PATHS = "$(inherited) $(SRCROOT)/../Sources/CAnsightCrashCapture/include $(SRCROOT)/../Sources/CAnsightWebP/include $(SRCROOT)/../Sources/CAnsightWebP/vendor";
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

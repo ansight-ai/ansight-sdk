@@ -31,4 +31,5 @@ SDKROOT="${MACOS_SDK}" xcrun --sdk macosx swiftc -sdk "${MACOS_SDK}" "${PODS_TAR
     SCRIPT
   }
   s.swift_version = "6.0"
+  s.dependency "CAnsightWebP", s.version.to_s
 end

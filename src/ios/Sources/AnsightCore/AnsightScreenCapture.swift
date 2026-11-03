@@ -5,6 +5,22 @@ import UIKit
 #endif
 
 enum AnsightScreenCapture {
+    static func captureOffline(options: AnsightSessionJpegCaptureOptions, format: AnsightScreenSnapshotFormat) async throws -> AnsightScreenSnapshot {
+        #if canImport(UIKit)
+        let renderedImage = try await AnsightScreenSnapshotRenderer.renderTargetImageForCapture(
+            maxWidth: options.maxWidth, afterScreenUpdates: false, opaque: false,
+            renderMode: options.captureGpuBackedSurfaces ? .hierarchy : .layer,
+            captureGpuBackedSurfaces: options.captureGpuBackedSurfaces,
+            includeSystemUiMetadata: options.includeSystemUiMetadata)
+        let data = try await Task.detached(priority: .utility) {
+            try AnsightScreenSnapshotRenderer.encode(renderedImage, format: format, quality: options.quality)
+        }.value
+        return AnsightScreenSnapshot(width: renderedImage.width, height: renderedImage.height, data: data, geometry: renderedImage.geometry)
+        #else
+        throw AnsightScreenCaptureError.unavailable
+        #endif
+    }
+
     static func capture(options: AnsightSessionJpegCaptureOptions) async throws -> AnsightScreenCaptureResult {
         #if canImport(UIKit)
         let capturedAtUtc = AnsightClock.isoNow()

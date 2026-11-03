@@ -29,6 +29,7 @@ flutter_ios_podfile_setup
 
 target 'Runner' do
   ansight_ios_path = '../../../../src/ios'
+  pod 'CAnsightWebP', :path => ansight_ios_path
   pod 'AnsightCore', :path => ansight_ios_path
   pod 'AnsightAnnotations', :path => ansight_ios_path
   pod 'AnsightMotion', :path => ansight_ios_path

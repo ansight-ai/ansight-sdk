@@ -275,11 +275,16 @@ object AndroidUiEvidence {
 
             try {
                 val normalizedFormat = format.trim().lowercase(Locale.US)
-                val compressFormat = if (normalizedFormat == "png") Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG
-                val mimeType = if (compressFormat == Bitmap.CompressFormat.PNG) "image/png" else "image/jpeg"
-                val extension = if (compressFormat == Bitmap.CompressFormat.PNG) "png" else "jpg"
+                @Suppress("DEPRECATION")
+                val compressFormat = when (normalizedFormat) {
+                    "png" -> Bitmap.CompressFormat.PNG
+                    "webp" -> if (android.os.Build.VERSION.SDK_INT >= 30) Bitmap.CompressFormat.WEBP_LOSSY else Bitmap.CompressFormat.WEBP
+                    else -> Bitmap.CompressFormat.JPEG
+                }
+                val mimeType = when (normalizedFormat) { "png" -> "image/png"; "webp" -> "image/webp"; else -> "image/jpeg" }
+                val extension = when (normalizedFormat) { "png" -> "png"; "webp" -> "webp"; else -> "jpg" }
                 val output = ByteArrayOutputStream()
-                bitmap.compress(compressFormat, quality.coerceIn(1, 100), output)
+                check(bitmap.compress(compressFormat, quality.coerceIn(1, 100), output)) { "Screenshot encoding failed." }
                 CapturedScreenshot(
                     bytes = output.toByteArray(),
                     width = width,

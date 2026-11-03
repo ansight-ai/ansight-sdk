@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(CAnsightWebP)
+import CAnsightWebP
+#endif
 
 #if canImport(UIKit)
 import ImageIO
@@ -132,6 +135,8 @@ public enum AnsightScreenSnapshotRenderer {
             )
         case .png:
             return try encodeImage(image.cgImage, typeIdentifier: "public.png" as CFString, properties: nil)
+        case .webp:
+            return try encodeWebP(image.cgImage, quality: quality)
         }
     }
 
@@ -513,6 +518,37 @@ public enum AnsightScreenSnapshotRenderer {
         }
 
         return data as Data
+    }
+
+    private static func encodeWebP(_ image: CGImage, quality: Int) throws -> Data {
+        let width = image.width
+        let height = image.height
+        guard width > 0, height > 0, width <= 8192, height <= 8192 else {
+            throw AnsightScreenCaptureError.encodingFailed
+        }
+        var pixels = Data(count: width * height * 4)
+        return try pixels.withUnsafeMutableBytes { buffer in
+            guard let context = CGContext(data: buffer.baseAddress, width: width, height: height,
+                bitsPerComponent: 8, bytesPerRow: width * 4, space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue) else {
+                throw AnsightScreenCaptureError.encodingFailed
+            }
+            context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+            let rgba = buffer.bindMemory(to: UInt8.self)
+            // libwebp expects straight alpha, whereas Core Graphics renders premultiplied alpha.
+            for offset in stride(from: 0, to: buffer.count, by: 4) {
+                let alpha = Int(rgba[offset + 3])
+                if alpha > 0 && alpha < 255 {
+                    for component in 0..<3 { rgba[offset + component] = UInt8(min(255, (Int(rgba[offset + component]) * 255 + alpha / 2) / alpha)) }
+                }
+            }
+            var output: UnsafeMutablePointer<UInt8>?
+            let count = AnsightWebPEncodeRGBA(rgba.baseAddress, Int32(width), Int32(height), Int32(width * 4),
+                Float(max(1, min(100, quality))), &output)
+            guard count > 0, let output else { throw AnsightScreenCaptureError.encodingFailed }
+            defer { AnsightWebPFree(output) }
+            return Data(bytes: output, count: count)
+        }
     }
 
     private struct RenderGeometry {

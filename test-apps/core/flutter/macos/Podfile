@@ -30,6 +30,7 @@ target 'Runner' do
   use_frameworks!
 
   ansight_apple_path = '../../../../src/ios'
+  pod 'CAnsightWebP', :path => ansight_apple_path
   pod 'AnsightCore', :path => ansight_apple_path
   pod 'AnsightAnnotations', :path => ansight_apple_path
   pod 'AnsightMotion', :path => ansight_apple_path

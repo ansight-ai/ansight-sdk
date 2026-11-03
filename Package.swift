@@ -86,6 +86,7 @@ let package = Package(
             name: "AnsightCore",
             dependencies: [
                 "CAnsightCrashCapture",
+                "CAnsightWebP",
             ],
             path: "src/ios/Sources/AnsightCore",
             exclude: ["README.md"],
@@ -93,6 +94,14 @@ let package = Package(
             linkerSettings: [
                 .linkedLibrary("z"),
             ],
+        ),
+        .target(
+            name: "CAnsightWebP",
+            path: "src/ios/Sources/CAnsightWebP",
+            exclude: ["COPYING", "PATENTS", "upstream.json"],
+            sources: ["AnsightWebP.c", "vendor/src", "vendor/sharpyuv"],
+            publicHeadersPath: "include",
+            cSettings: [.headerSearchPath("vendor"), .define("WEBP_USE_THREAD")]
         ),
         .target(
             name: "CAnsightCrashCapture",

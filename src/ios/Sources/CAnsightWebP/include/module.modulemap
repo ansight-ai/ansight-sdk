@@ -1,0 +1,4 @@
+module CAnsightWebP {
+    header "AnsightWebP.h"
+    export *
+}

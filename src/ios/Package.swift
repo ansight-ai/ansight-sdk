@@ -95,6 +95,7 @@ let package = Package(
             name: "AnsightCore",
             dependencies: [
                 "CAnsightCrashCapture",
+                "CAnsightWebP",
             ],
             path: "Sources/AnsightCore",
             exclude: ["README.md"],
@@ -113,6 +114,14 @@ let package = Package(
             name: "AnsightMotion",
             dependencies: ["AnsightCore"],
             path: "Sources/AnsightMotion"
+        ),
+        .target(
+            name: "CAnsightWebP",
+            path: "Sources/CAnsightWebP",
+            exclude: ["COPYING", "PATENTS", "upstream.json"],
+            sources: ["AnsightWebP.c", "vendor/src", "vendor/sharpyuv"],
+            publicHeadersPath: "include",
+            cSettings: [.headerSearchPath("vendor"), .define("WEBP_USE_THREAD")]
         ),
         .target(
             name: "CAnsightCrashCapture",

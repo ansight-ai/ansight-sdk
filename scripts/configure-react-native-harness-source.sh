@@ -122,6 +122,7 @@ write(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
 const podfilePath = path.join(harnessPath, "ios/Podfile");
 if (fs.existsSync(podfilePath)) {
   const podNames = [
+    "CAnsightWebP",
     "AnsightCore",
     "AnsightPairingQR",
     "AnsightToolsPreferences",
@@ -145,7 +146,7 @@ if (fs.existsSync(podfilePath)) {
     `    ansight_ios_path = File.expand_path('${iosPath}')\n` +
     `${localPods}\n` +
     `  elsif ansight_sdk_source == 'published'\n` +
-    `    # AnsightReactNative.podspec resolves Ansight and AnsightObjC from CocoaPods trunk.\n` +
+    `    # AnsightReactNative.podspec resolves Ansight and AnsightObjC from the Ansight-owned CocoaPods specs repository.\n` +
     `  else\n` +
     `    raise "Unsupported ANSIGHT_RN_HARNESS_PACKAGE_SOURCE: #{ansight_sdk_source}"\n` +
     `  end\n` +
