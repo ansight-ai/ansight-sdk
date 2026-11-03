@@ -14,10 +14,12 @@ push=false
 generate_only=false
 skip_lint=false
 allow_warnings=true
-spec_repo="${ANSIGHT_COCOAPODS_REPO:-}"
-sources="${ANSIGHT_COCOAPODS_SOURCES:-}"
+spec_repo="${ANSIGHT_COCOAPODS_REPO:-ansight}"
+spec_repo_url="${ANSIGHT_COCOAPODS_REPO_URL:-https://github.com/ansight-ai/ansight-podspecs.git}"
+sources="${ANSIGHT_COCOAPODS_SOURCES:-${spec_repo_url},https://cdn.cocoapods.org/}"
 
 native_podspecs=(
+  "CAnsightWebP.podspec"
   "AnsightCore.podspec"
   "AnsightPencilRuntime.podspec"
   "AnsightPencil.podspec"
@@ -58,11 +60,11 @@ usage() {
 Usage: scripts/publish-ios-cocoapods.sh [options]
 
 Generates release podspecs that point at the Git tag source. Default mode
-generates and lints the specs. Use --push for CocoaPods trunk/private repo.
+generates and lints the specs. Use --push for the Ansight-owned specs repository.
 
 Options:
   --push             Push generated podspecs
-  --repo NAME        Use `pod repo push NAME` instead of `pod trunk push`
+  --repo NAME        Use a registered CocoaPods specs repository
   --sources LIST     Forward CocoaPods --sources for lint/push
   --skip-lint        Skip pod spec lint in non-push mode
   --generate-only    Generate release podspecs and stop
@@ -70,7 +72,8 @@ Options:
 Environment:
   ANSIGHT_POD_SOURCE_GIT    Default: https://github.com/ansight-ai/ansight-sdk.git
   ANSIGHT_POD_SOURCE_TAG    Default in generated specs: v#{s.version}
-  ANSIGHT_COCOAPODS_REPO    Private specs repo name
+  ANSIGHT_COCOAPODS_REPO    Specs repo name (default: ansight)
+  ANSIGHT_COCOAPODS_REPO_URL Owned specs repository Git URL
   ANSIGHT_COCOAPODS_SOURCES Optional CocoaPods sources list
 EOF
 }
@@ -127,6 +130,7 @@ for podspec in "${native_podspecs[@]}"; do
     s!\$\{PODS_TARGET_SRCROOT\}/Generated/!\${PODS_TARGET_SRCROOT}/src/ios/Generated/!g;
     s!\$\{PODS_TARGET_SRCROOT\}/Plugins/!\${PODS_TARGET_SRCROOT}/src/ios/Plugins/!g;
     s!\$\{PODS_TARGET_SRCROOT\}/Sources/!\${PODS_TARGET_SRCROOT}/src/ios/Sources/!g;
+    s!\$\(PODS_TARGET_SRCROOT\)/Sources/!\$(PODS_TARGET_SRCROOT)/src/ios/Sources/!g;
     s!--package-directory "\$\{PODS_TARGET_SRCROOT\}"!--package-directory "\${PODS_TARGET_SRCROOT}/src/ios"!g;
   ' "${target_spec}"
 done
@@ -142,6 +146,17 @@ if ! command -v pod >/dev/null 2>&1; then
   exit 1
 fi
 
+if [[ "${push}" == "true" ]]; then
+  untracked_sources="$(git -C "${repo_root}" ls-files --others --exclude-standard -- src/ios)"
+  if [[ -n "${untracked_sources}" ]] || ! git -C "${repo_root}" diff --quiet "${source_tag}" -- src/ios; then
+    echo "error: iOS sources differ from ${source_tag}; publish an immutable matching release tag first" >&2
+    exit 1
+  fi
+  if [[ ! -d "${CP_HOME_DIR:-${HOME}/.cocoapods}/repos/${spec_repo}" ]]; then
+    pod repo add "${spec_repo}" "${spec_repo_url}"
+  fi
+fi
+
 common_args=()
 if [[ "${allow_warnings}" == "true" ]]; then
   common_args+=(--allow-warnings)
@@ -154,12 +169,9 @@ for podspec in "${native_podspecs[@]}"; do
   generated_spec="${release_dir}/${podspec}"
 
   if [[ "${push}" == "true" ]]; then
-    if [[ -n "${spec_repo}" ]]; then
-      pod repo push "${spec_repo}" "${generated_spec}" "${common_args[@]+"${common_args[@]}"}"
-    else
-      pod trunk push "${generated_spec}" --synchronous "${common_args[@]+"${common_args[@]}"}"
-    fi
+    pod repo push "${spec_repo}" "${generated_spec}" --use-json --no-overwrite "${common_args[@]+"${common_args[@]}"}"
   elif [[ "${skip_lint}" != "true" ]]; then
-    pod spec lint "${generated_spec}" "${common_args[@]+"${common_args[@]}"}"
+    pod spec lint "${generated_spec}" --quick "${common_args[@]+"${common_args[@]}"}"
+    pod lib lint "${repo_root}/src/ios/${podspec}" --include-podspecs="${repo_root}/src/ios/*.podspec" "${common_args[@]+"${common_args[@]}"}"
   fi
 done

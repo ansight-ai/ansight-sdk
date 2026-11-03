@@ -16,7 +16,7 @@ root.
 
 Options:
   --version VERSION       Version to validate. Defaults to src/react-native/package.json.
-  --skip-cocoapods        Skip CocoaPods trunk checks.
+  --skip-cocoapods        Skip owned CocoaPods specs repository checks.
   --skip-swiftpm-tag      Skip the Git tag root Package.swift check.
 
 Environment:
@@ -104,7 +104,12 @@ check_npm_package() {
 
 check_podspec() {
   local pod_name="$1"
-  pod spec cat "${pod_name}" --version="${version}" >/dev/null
+  local repository="${ANSIGHT_COCOAPODS_REPO:-ansight}"
+  local specification="${CP_HOME_DIR:-${HOME}/.cocoapods}/repos/${repository}/Specs/${pod_name}/${version}/${pod_name}.podspec.json"
+  if [[ ! -f "${specification}" ]]; then
+    specification="${CP_HOME_DIR:-${HOME}/.cocoapods}/repos/${repository}/${pod_name}/${version}/${pod_name}.podspec.json"
+  fi
+  [[ -f "${specification}" ]] && pod ipc spec "${specification}" >/dev/null
 }
 
 check_swiftpm_root_manifest() {
@@ -177,6 +182,7 @@ check \
 if [[ "${skip_cocoapods}" != "true" ]]; then
   if command -v pod >/dev/null 2>&1; then
     for pod_name in \
+      CAnsightWebP \
       AnsightCore \
       AnsightPencilRuntime \
       AnsightPencil \
