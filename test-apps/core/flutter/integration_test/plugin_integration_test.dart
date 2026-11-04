@@ -11,6 +11,7 @@ void main() {
   testWidgets('Flutter harness works through the native bridge end to end', (
     WidgetTester tester,
   ) async {
+    debugPrint('Harness validation: mounting the app.');
     await tester.pumpWidget(
       AnsightFlutterCaptureBoundary(
         controller: ansightHarnessCaptureController,
@@ -20,6 +21,7 @@ void main() {
     );
     await tester.pump();
 
+    debugPrint('Harness validation: waiting for native initialization.');
     AnsightDebugSnapshot? initial;
     for (var attempt = 0; attempt < 80; attempt += 1) {
       await tester.pump(const Duration(milliseconds: 100));
@@ -51,6 +53,7 @@ void main() {
     );
 
     AnsightHostConnectionStatus? connection;
+    debugPrint('Harness validation: waiting for the host connection.');
     await Future<void>.delayed(const Duration(seconds: 12));
     await tester.pump();
     connection = await Ansight.instance.hostConnectionStatus();
@@ -81,6 +84,7 @@ void main() {
       isNotNull,
     );
     await tester.tap(find.byKey(const Key('run-e2e-scenario')));
+    debugPrint('Harness validation: running the fixture scenario.');
     await tester.pumpAndSettle(const Duration(milliseconds: 100));
 
     final updated = await Ansight.instance.snapshot();
@@ -107,6 +111,7 @@ void main() {
     expect(Ansight.instance.registeredArtifactProviderIds, contains('harness'));
 
     await Ansight.instance.enableTouchCapture();
+    debugPrint('Harness validation: checking touch capture.');
     final beforeTouch = await Ansight.instance.snapshot();
     await tester.tapAt(const Offset(400, 100));
     await tester.pump(const Duration(milliseconds: 300));
@@ -129,6 +134,7 @@ void main() {
       find.byKey(const Key('harness-scroll')),
       const Offset(0, 1200),
     );
+    debugPrint('Harness validation: checking navigation.');
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('database-summary')), findsOneWidget);
     await tester.tap(find.byKey(const Key('fixture-tab-navigation')));
@@ -143,6 +149,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final deactivated = await Ansight.instance.deactivate();
+    debugPrint('Harness validation: checking runtime reactivation.');
     expect(deactivated.active, isFalse);
     final reactivated = await Ansight.instance.activate();
     expect(reactivated.active, isTrue);
@@ -172,6 +179,7 @@ void main() {
       success: false,
       message: 'Flutter capture has not run.',
     );
+    debugPrint('Harness validation: capturing Flutter visual evidence.');
     for (var attempt = 0; attempt < 5; attempt += 1) {
       await tester.pump();
       capture = await ansightHarnessCaptureController.capture(
@@ -188,5 +196,5 @@ void main() {
     for (var frame = 0; frame < 90; frame += 1) {
       await tester.pump(const Duration(milliseconds: 16));
     }
-  });
+  }, timeout: const Timeout(Duration(minutes: 2)));
 }
