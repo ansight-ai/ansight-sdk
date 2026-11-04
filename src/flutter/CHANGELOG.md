@@ -1,3 +1,8 @@
+## 1.10.0
+
+- Update the native runtimes to Ansight SDK 1.10.0 and add resumable v2 offline
+  uploads. See the [offline capture guide](https://www.ansight.ai/docs/sdk/offline-capture/).
+
 ## 1.9.0
 
 - Add builder plugins with scoped tool permissions and the optional `ansight_pencil`
