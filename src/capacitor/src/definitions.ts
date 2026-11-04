@@ -709,7 +709,14 @@ export interface AnsightCapacitorPlugin {
   recordedEvents(options: {
     limit: number;
   }): Promise<{ items: AnsightRecordedEvent[] }>;
-  uploadOfflineCaptures(options: { endpoint: string; apiKey: string }): Promise<{ sessionIds: string[]; acknowledgedChunks: number; pendingChunks: number }>;
+  uploadOfflineCaptures(options: {
+    endpoint: string;
+    apiKey: string;
+  }): Promise<{
+    sessionIds: string[];
+    acknowledgedChunks: number;
+    pendingChunks: number;
+  }>;
   sendClientLog(options: { line: string }): Promise<AnsightOperationResult>;
   captureBuiltInTelemetrySample(): Promise<AnsightDebugSnapshot>;
   isFramesPerSecondEnabled(): Promise<{ value: boolean }>;
