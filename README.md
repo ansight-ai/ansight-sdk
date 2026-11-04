@@ -39,7 +39,7 @@ Nothing leaves your machine unless you export or share it.
 - Your own custom tools, exposing app-specific diagnostics and domain state
 - Annotated in-app feedback and startup profiling on .NET
 
-SDKs in this repository, all in beta:
+Supported SDKs in this repository:
 
 - .NET and MAUI (`src/dotnet`)
 - iOS and macOS Swift (`src/ios`)
