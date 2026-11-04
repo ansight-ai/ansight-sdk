@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name = "CAnsightWebP"
-  s.version = "1.9.0"
+  s.version = "1.10.0"
   s.summary = "Pinned native WebP codec for Ansight offline captures"
   s.homepage = "https://github.com/ansight-ai/ansight-sdk"
   s.license = { :type => "BSD-3-Clause", :file => "Sources/CAnsightWebP/COPYING" }
