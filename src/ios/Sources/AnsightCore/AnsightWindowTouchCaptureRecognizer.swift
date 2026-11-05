@@ -79,7 +79,14 @@ final class AnsightWindowTouchCaptureRecognizer: UIGestureRecognizer {
             let samples = action == .move && touch.type == .pencil && sampleKindOverride == nil
                 ? (event?.coalescedTouches(for: touch) ?? [touch])
                 : [touch]
-            for sample in samples {
+            for coalescedSample in samples {
+                // UIKit's coalesced current copy can omit its view (notably in WebKit).
+                // Read the actual event touch at its current timestamp so native getter
+                // overrides retain their object scope; keep historical samples intact.
+                let sample = coalescedSample.timestamp == touch.timestamp ? touch : coalescedSample
+                if sample !== touch {
+                    AnsightInputSource.prepareCoalescedSample(sample, from: touch)
+                }
                 let point = sample.location(in: window)
                 let isPencil = sample.type == .pencil
                 var details = AnsightTouchDetails(

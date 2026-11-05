@@ -258,29 +258,72 @@ private enum PenOverrides {
               let view = targetView, let window = targetWindow, touch.window === window,
               view.window === window, window.isKeyWindow,
               window.windowScene?.activationState == .foregroundActive,
-              window.bounds == windowBounds, view.convert(view.bounds, to: window) == targetFrame,
-              let touched = touch.view, touched === view || touched.isDescendant(of: view) else { return nil }
+              window.bounds == windowBounds, view.convert(view.bounds, to: window) == targetFrame else { return nil }
+        let binding = bindings.object(forKey: touch)
+        // WebKit can clear the view of a continuing native contact. Only the exact
+        // already-bound UITouch may retain its original target; never infer ownership
+        // for an unbound copy from coordinates or a nearby timestamp.
+        let touched = touch.view ?? binding?.touchedView
+        guard let touched, touched.window === window,
+              touched === view || touched.isDescendant(of: view) else { return nil }
+        if touch.view == nil {
+            guard let binding, touch.phase != .began else { return nil }
+            let continuingContact = binding.canContinueWithoutView
+                && touch.timestamp > binding.timestamp
+                && binding.sample.phase != "up"
+                && binding.sample.phase != "cancel"
+            guard touch.timestamp == binding.timestamp || continuingContact else { return nil }
+        }
+        guard let value = transportSample(for: touch, in: window) else { return nil }
+        let start = value.phase == "down" ? touch.timestamp : (binding?.contactStartedAt ?? touch.timestamp)
+        let canContinue = touch.view != nil || binding?.canContinueWithoutView == true
+        bindings.setObject(PenTouchBinding(timestamp: touch.timestamp, sample: value,
+            touchedView: touched, contactStartedAt: start, canContinueWithoutView: canContinue), forKey: touch)
+        return value
+    }
+
+    static func bindCoalesced(_ copy: UITouch, from source: UITouch) {
+        // Capture calls this only for samples returned by UIKit's coalescedTouches(for:).
+        // Authenticate the parent contact first; a timestamp alone cannot confer scope.
+        guard sample(for: source) != nil,
+              let parent = bindings.object(forKey: source), parent.canContinueWithoutView,
+              let touched = parent.touchedView, let window = targetWindow else { return }
+        let belongsToContact = copy !== source
+            && copy.type == .pencil
+            && copy.phase == .moved
+            && copy.view == nil
+            && copy.window === window
+            && copy.timestamp >= parent.contactStartedAt
+            && copy.timestamp <= source.timestamp
+        guard belongsToContact, let value = transportSample(for: copy, in: window) else { return }
+        // A copy may read this one sample, but cannot establish a continuing contact.
+        bindings.setObject(PenTouchBinding(timestamp: copy.timestamp, sample: value,
+            touchedView: touched, contactStartedAt: parent.contactStartedAt,
+            canContinueWithoutView: false), forKey: copy)
+    }
+
+    static func transportSample(for touch: UITouch, in window: UIWindow) -> PenSample? {
         let phase: String
-        switch touch.phase { case .began: phase = "down"; case .moved: phase = "move"; case .ended: phase = "up"; case .cancelled: phase = "cancel"; default: return nil }
+        switch touch.phase {
+        case .began: phase = "down"
+        case .moved: phase = "move"
+        case .ended: phase = "up"
+        case .cancelled: phase = "cancel"
+        default: return nil
+        }
         let point = touch.location(in: window)
-        func matches(_ value: PenSample) -> Bool {
-            value.phase == phase && abs(value.x - point.x / window.bounds.width) < 0.004
-                && abs(value.y - point.y / window.bounds.height) < 0.004
-        }
-        if let binding = bindings.object(forKey: touch), binding.timestamp == touch.timestamp, matches(binding.sample) {
-            return binding.sample
-        }
         // mach ticks -> seconds can differ by a floating-point rounding step in UIKit.
         // Permit at most 1 ns of conversion error, with no positional/time-window fallback.
-        // Coalesced objects can read the same immutable transport-stamped sample.
         guard let key = timestampKey(touch.timestamp) else { return nil }
         let candidates = [key - 1, key, key + 1].compactMap { armed[$0] }.filter {
             guard let timestamp = $0.eventTimestamp else { return false }
-            return abs(timestamp - touch.timestamp) <= 0.000000001 && matches($0)
+            let matches = abs(timestamp - touch.timestamp) <= 0.000000001
+                && $0.phase == phase
+                && abs($0.x - point.x / window.bounds.width) < 0.004
+                && abs($0.y - point.y / window.bounds.height) < 0.004
+            return matches
         }
-        guard candidates.count == 1, let value = candidates.first else { return nil }
-        bindings.setObject(PenTouchBinding(timestamp: touch.timestamp, sample: value), forKey: touch)
-        return value
+        return candidates.count == 1 ? candidates.first : nil
     }
 
     static func hover(_ value: PenSample) throws -> Int {
@@ -407,7 +450,17 @@ private final class PenHook {
 private final class PenTouchBinding: NSObject {
     let timestamp: Double
     let sample: PenSample
-    init(timestamp: Double, sample: PenSample) { self.timestamp = timestamp; self.sample = sample }
+    weak var touchedView: UIView?
+    let contactStartedAt: Double
+    let canContinueWithoutView: Bool
+    init(timestamp: Double, sample: PenSample, touchedView: UIView,
+         contactStartedAt: Double, canContinueWithoutView: Bool) {
+        self.timestamp = timestamp
+        self.sample = sample
+        self.touchedView = touchedView
+        self.contactStartedAt = contactStartedAt
+        self.canContinueWithoutView = canContinueWithoutView
+    }
 }
 
 @MainActor
@@ -417,6 +470,9 @@ private final class PenHoverBinding: NSObject {
     init(_ sample: PenSample, window: UIWindow) { self.sample = sample; self.window = window }
 }
 private extension UITouch {
+    @objc func ansightBindCoalescedTouch(_ copy: UITouch) {
+        PenOverrides.bindCoalesced(copy, from: self)
+    }
     @objc func ansightInputSource() -> NSString? {
         PenOverrides.sample(for: self) == nil ? nil : "simulator-hid+sdk"
     }
