@@ -1,48 +1,48 @@
 PODS:
-  - Ansight (1.10.0):
-    - AnsightAnnotations (= 1.10.0)
-    - AnsightConnectivity (= 1.10.0)
-    - AnsightCore (= 1.10.0)
-    - AnsightMotion (= 1.10.0)
-    - AnsightPairingQR (= 1.10.0)
-    - AnsightToolsClipboard (= 1.10.0)
-    - AnsightToolsDatabase (= 1.10.0)
-    - AnsightToolsFileDescriptorDiagnostics (= 1.10.0)
-    - AnsightToolsFileSystem (= 1.10.0)
-    - AnsightToolsPreferences (= 1.10.0)
-    - AnsightToolsReflection (= 1.10.0)
-    - AnsightToolsSecureStorage (= 1.10.0)
-    - AnsightToolsVisualTree (= 1.10.0)
-  - ansight_flutter (1.10.0):
-    - Ansight (= 1.10.0)
+  - Ansight (1.11.0):
+    - AnsightAnnotations (= 1.11.0)
+    - AnsightConnectivity (= 1.11.0)
+    - AnsightCore (= 1.11.0)
+    - AnsightMotion (= 1.11.0)
+    - AnsightPairingQR (= 1.11.0)
+    - AnsightToolsClipboard (= 1.11.0)
+    - AnsightToolsDatabase (= 1.11.0)
+    - AnsightToolsFileDescriptorDiagnostics (= 1.11.0)
+    - AnsightToolsFileSystem (= 1.11.0)
+    - AnsightToolsPreferences (= 1.11.0)
+    - AnsightToolsReflection (= 1.11.0)
+    - AnsightToolsSecureStorage (= 1.11.0)
+    - AnsightToolsVisualTree (= 1.11.0)
+  - ansight_flutter (1.11.0):
+    - Ansight (= 1.11.0)
     - FlutterMacOS
-  - AnsightAnnotations (1.10.0):
-    - AnsightCore (= 1.10.0)
-  - AnsightConnectivity (1.10.0):
-    - AnsightCore (= 1.10.0)
-  - AnsightCore (1.10.0):
-    - CAnsightWebP (= 1.10.0)
-  - AnsightMotion (1.10.0):
-    - AnsightCore (= 1.10.0)
-  - AnsightPairingQR (1.10.0):
-    - AnsightCore (= 1.10.0)
-  - AnsightToolsClipboard (1.10.0):
-    - AnsightCore (= 1.10.0)
-  - AnsightToolsDatabase (1.10.0):
-    - AnsightCore (= 1.10.0)
-  - AnsightToolsFileDescriptorDiagnostics (1.10.0):
-    - AnsightCore (= 1.10.0)
-  - AnsightToolsFileSystem (1.10.0):
-    - AnsightCore (= 1.10.0)
-  - AnsightToolsPreferences (1.10.0):
-    - AnsightCore (= 1.10.0)
-  - AnsightToolsReflection (1.10.0):
-    - AnsightCore (= 1.10.0)
-  - AnsightToolsSecureStorage (1.10.0):
-    - AnsightCore (= 1.10.0)
-  - AnsightToolsVisualTree (1.10.0):
-    - AnsightCore (= 1.10.0)
-  - CAnsightWebP (1.10.0)
+  - AnsightAnnotations (1.11.0):
+    - AnsightCore (= 1.11.0)
+  - AnsightConnectivity (1.11.0):
+    - AnsightCore (= 1.11.0)
+  - AnsightCore (1.11.0):
+    - CAnsightWebP (= 1.11.0)
+  - AnsightMotion (1.11.0):
+    - AnsightCore (= 1.11.0)
+  - AnsightPairingQR (1.11.0):
+    - AnsightCore (= 1.11.0)
+  - AnsightToolsClipboard (1.11.0):
+    - AnsightCore (= 1.11.0)
+  - AnsightToolsDatabase (1.11.0):
+    - AnsightCore (= 1.11.0)
+  - AnsightToolsFileDescriptorDiagnostics (1.11.0):
+    - AnsightCore (= 1.11.0)
+  - AnsightToolsFileSystem (1.11.0):
+    - AnsightCore (= 1.11.0)
+  - AnsightToolsPreferences (1.11.0):
+    - AnsightCore (= 1.11.0)
+  - AnsightToolsReflection (1.11.0):
+    - AnsightCore (= 1.11.0)
+  - AnsightToolsSecureStorage (1.11.0):
+    - AnsightCore (= 1.11.0)
+  - AnsightToolsVisualTree (1.11.0):
+    - AnsightCore (= 1.11.0)
+  - CAnsightWebP (1.11.0)
   - FlutterMacOS (1.0.0)
   - shared_preferences_foundation (0.0.1):
     - Flutter
@@ -113,22 +113,22 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/sqflite_darwin/darwin
 
 SPEC CHECKSUMS:
-  Ansight: f56494b3ac09558f8e86da770fd111ece84f8d12
-  ansight_flutter: 859b4431b0a96e1814bc56c23532fc217e58c0fd
-  AnsightAnnotations: 526d2aa62f5070a3577518ec1c527adfb0efed19
-  AnsightConnectivity: 0b988eb14f0566d2f4c3f29979baa685e02771f6
-  AnsightCore: e75c32aa951ad67289d4522f2417b42300489224
-  AnsightMotion: dc51f8917bdbaa075c51744ea1cdc13225416842
-  AnsightPairingQR: 980a3c5ec17f9c2b7f3b6d49acae436f38908351
-  AnsightToolsClipboard: 3e329e64803fe689a70c3f5c8d96a35d0bf903bf
-  AnsightToolsDatabase: 30b17ff4da0d0370897b31cb6626275841d494e3
-  AnsightToolsFileDescriptorDiagnostics: 701b1862d26c32a3e4ebf22466391ea3de0f4b13
-  AnsightToolsFileSystem: 7ba33bde58250ebc7edd06b1ce9c347c527c71c5
-  AnsightToolsPreferences: 7b73332717422ac7800d922e1baada1f67301c19
-  AnsightToolsReflection: 69b791b41061b3a8645b3bdb4373a56349dca6f3
-  AnsightToolsSecureStorage: d7ef4093dd6998771044d4eee84dc0c0474d06b5
-  AnsightToolsVisualTree: cefbf312405bb8c0cdca644752f5a1c5aa5bda3f
-  CAnsightWebP: 1fa1ab86bc756208df5408ad0c9c6b9caa7f3781
+  Ansight: 167246d02d2bd64acafaf1f25368385859051011
+  ansight_flutter: a4febe913935d9b1866ff34cff3e7c0f2bdd643d
+  AnsightAnnotations: 3e65ff0e0f649c85c1199c4dbd4ac751bce80023
+  AnsightConnectivity: 1427e3337d3a14c2336bf08e48133f86cab594f5
+  AnsightCore: 0aac17c51c6980948d5faf8498e0fe65f92d31a5
+  AnsightMotion: 482a5263f45a146e5b54f20e4186e045a9695a89
+  AnsightPairingQR: 929432389f7b5e8b3b5f834a57e16ca90ace8bc7
+  AnsightToolsClipboard: 5a844b35c7697f0ce36d227bb36116799ce57dcd
+  AnsightToolsDatabase: c5ec153e486e15d3e6ef39bf042ed56f92330c41
+  AnsightToolsFileDescriptorDiagnostics: cc6914ade6812770db8d5527b49a3131b0e7a25c
+  AnsightToolsFileSystem: 215703b0859c20d5d48fcab7ecb711a996d28fd1
+  AnsightToolsPreferences: e2c9f78eb33d050f708c58856029eb40cf97a331
+  AnsightToolsReflection: 58b6f739588fba0e52c5bfc6bccf4b9e5dc88b15
+  AnsightToolsSecureStorage: c163d9cdf568099c1e2fe9f4b2558a2e0b03b4d9
+  AnsightToolsVisualTree: 49c3e541af8a6cc8d74a170a147d355bf977f2e7
+  CAnsightWebP: e7647ec60e7a96fd52f5ddff52a2d9afcbfc1717
   FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
   shared_preferences_foundation: 7036424c3d8ec98dfe75ff1667cb0cd531ec82bb
   sqflite_darwin: 20b2a3a3b70e43edae938624ce550a3cbf66a3d0
