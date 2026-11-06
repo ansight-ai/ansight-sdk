@@ -11,6 +11,15 @@ import WebKit
 #endif
 #endif
 
+#if canImport(UIKit)
+/// Supplies the visible contents of a custom surface that UIKit cannot capture.
+@MainActor
+public protocol AnsightScreenSnapshotProviding: AnyObject {
+    /// Return an image covering the view's bounds, or nil when no frame is available.
+    func ansightScreenSnapshot() -> UIImage?
+}
+#endif
+
 public enum AnsightScreenSnapshotRenderer {
     @MainActor
     public static func capture(
@@ -162,6 +171,13 @@ public enum AnsightScreenSnapshotRenderer {
         let captureGeometry = includeSystemUiMetadata ? ScreenshotCaptureGeometry.appWindow(referenceWindow) : nil
         let geometry = renderGeometry(for: referenceWindow, maxWidth: maxWidth)
         let outputBounds = CGRect(origin: .zero, size: geometry.targetSize)
+        let surfaceSnapshots = installSurfaceSnapshots(in: windows)
+        defer {
+            for snapshot in surfaceSnapshots {
+                snapshot.removeFromSuperview()
+            }
+        }
+
         let windowSnapshot = bitmapImage(size: geometry.targetSize, opaque: opaque) { context in
             prepareOutput(in: context, bounds: outputBounds, opaque: opaque)
             context.scaleBy(x: geometry.scaleX, y: geometry.scaleY)
@@ -189,6 +205,43 @@ public enum AnsightScreenSnapshotRenderer {
             opaque: opaque
         )?.cgImage else { return nil }
         return AnsightRenderedScreenImage(cgImage: fallback, width: fallback.width, height: fallback.height)
+    }
+
+    @MainActor
+    private static func installSurfaceSnapshots(in windows: [UIWindow]) -> [UIImageView] {
+        var snapshots: [UIImageView] = []
+
+        func visit(_ view: UIView) {
+            let isVisible = !view.isHidden
+                && view.alpha > 0.01
+                && view.bounds.width > 0
+                && view.bounds.height > 0
+            guard isVisible else {
+                return
+            }
+
+            if let provider = view as? AnsightScreenSnapshotProviding,
+               let image = provider.ansightScreenSnapshot() {
+                let snapshot = UIImageView(image: image)
+                snapshot.frame = view.bounds
+                snapshot.isUserInteractionEnabled = false
+                // Insert within the original hierarchy so clipping, transforms,
+                // and any controls covering the surface retain their normal order.
+                view.addSubview(snapshot)
+                snapshots.append(snapshot)
+                return
+            }
+
+            for subview in view.subviews {
+                visit(subview)
+            }
+        }
+
+        for window in windows {
+            visit(window)
+        }
+
+        return snapshots
     }
 
     @MainActor
