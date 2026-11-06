@@ -77,6 +77,21 @@ final class PairingAndRuntimeTests: XCTestCase {
         XCTAssertEqual(document.discoveryHint?.discoveryPort, 45123)
     }
 
+    func testCompactCodeAcceptsCliPolicyFormat() throws {
+        // CLI wire fixture with a dummy token; deliberately not encoded by the Swift SDK.
+        let compactCode = "ans2:H4sIAAAAAAAA_51SyU7DMBD9FTRXmigJXURuPYDEAdRD4FJxsOxpY-FkIttpWlX5dyYLVZGKKNiWEs-b5c3zHMHJHAsBKYjS6W3uQywtGVNg6QNd7rTHQJGsu3u4S2ACgxHS4xWh5xFPij2l0UGjLQYbvfe1RUZFVQ0QFeFXom_oiyi4HDyebNq5GtXSszGJknkQxXyyKEr7E8bJ3XQ2X9z2N3bHfcUV3eh_f_-bf6HLlSVPkswbWqephDRhJsZQgyqzTLIi6x2ka2gcvE8gJ-c7Qbpv38vIP-iBAR-7yND5m2ch2aq0k7RDe1hxNkinMybSMt2TiF1KISU6l9EHMgtYXr_-0fiWW_MPf1VL7F8dshhx_58RmRUZLQ8cb1EoaNuzVi-OzQkNct1NWcxpHdVW4jgxkhSOMi6VYnZ9wTXEySKMeMfdI1yS8yfpG73Rg7WsjZmAFFX3XtfOVNt-AsO5gQ44AwAA"
+
+        let document = try PairingConfigDocumentService().parseAndValidateDocument(
+            compactCode,
+            expectedAppId: "com.ansight.fixture"
+        )
+
+        XCTAssertEqual(document.config.configId, "cli-wire-fixture")
+        XCTAssertEqual(document.config.enrollment.maxToolPolicy, "read")
+        XCTAssertEqual(document.discoveryHint?.hostAddresses, ["127.0.0.1"])
+        XCTAssertEqual(document.discoveryHint?.discoveryPort, 45123)
+    }
+
     func testOpenSessionUsesTicketDiscoveryHint() throws {
         let config = TestPairingFactory.enrollmentConfig()
         let documentJson = try TestPairingFactory.documentJSON(config: config)

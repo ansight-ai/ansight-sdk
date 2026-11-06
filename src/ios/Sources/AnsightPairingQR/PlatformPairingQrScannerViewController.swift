@@ -227,13 +227,13 @@ final class PlatformPairingQrScannerViewController: UIViewController, @MainActor
 
         self.continuation = nil
         stopSession()
-        dismiss(animated: true)
-
-        switch result {
-        case .success(let payload):
-            continuation.resume(returning: payload)
-        case .failure(let error):
-            continuation.resume(throwing: error)
+        dismiss(animated: true) {
+            switch result {
+            case .success(let payload):
+                continuation.resume(returning: payload)
+            case .failure(let error):
+                continuation.resume(throwing: error)
+            }
         }
     }
 }
