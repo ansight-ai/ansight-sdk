@@ -25,7 +25,9 @@ internal final class AnnotationEditorViewController: UIViewController {
     private init(screenshot: AnsightScreenSnapshot?) {
         self.screenshot = screenshot
         super.init(nibName: nil, bundle: nil)
-        modalPresentationStyle = .fullScreen
+        // Keep the app's screen active while feedback is open; navigation cleanup
+        // must not disconnect an active session or cancel work underneath the editor.
+        modalPresentationStyle = .overFullScreen
     }
 
     required init?(coder: NSCoder) { nil }
