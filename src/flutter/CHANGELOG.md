@@ -1,3 +1,8 @@
+## 1.11.0
+
+- Update native dependencies to Ansight SDK 1.11.0, including iOS custom surface
+  screenshots and feedback presentation fixes.
+
 ## 1.10.0
 
 - Update the native runtimes to Ansight SDK 1.10.0 and add resumable v2 offline

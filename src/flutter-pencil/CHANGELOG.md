@@ -1,3 +1,8 @@
+## 1.11.0
+
+* Align Flutter and native dependencies with Ansight SDK 1.11.0 and preserve
+  scoped Pencil overrides for WebKit and coalesced touches.
+
 ## 1.10.0
 
 * Align the Flutter and native dependencies with Ansight SDK 1.10.0.

@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name         = "AnsightPencil"
-  s.version      = "1.10.0"
+  s.version      = "1.11.0"
   s.summary      = "Optional Pencil input simulation for iOS Simulator"
   s.homepage     = "https://github.com/ansight-ai/ansight-sdk"
   s.license      = { :type => "PolyForm Shield 1.0.0", :file => "LICENSE" }
