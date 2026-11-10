@@ -19,6 +19,12 @@ typedef struct AnsightCrashSignalRecord {
 /// Opens the destination before installing async-signal-safe fatal signal handlers.
 int ansight_crash_install_signal_handlers(const char *path);
 
+/// Restores handlers still owned by Ansight without replacing newer handlers.
+void ansight_crash_uninstall_signal_handlers(void);
+
+/// Reads evidence without deleting it. Recovery removes it after report persistence.
+int ansight_crash_read_signal_record(const char *path, AnsightCrashSignalRecord *record);
+
 /// Reads and removes a signal record left by the previous process.
 int ansight_crash_consume_signal_record(
     const char *path,

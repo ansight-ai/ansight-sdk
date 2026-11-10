@@ -12,6 +12,8 @@ import java.util.concurrent.Future
 import java.util.concurrent.FutureTask
 import java.util.concurrent.Executors
 import org.json.JSONObject
+import org.json.JSONArray
+import android.util.Base64
 
 /** Serial native disk ownership. Producer admission is byte-bounded and lifecycle
  * barriers never share its drop policy. Blocking file work runs on the IO worker. */
@@ -48,6 +50,7 @@ class OfflineCaptureStore(
     private var lastOrdinal = 0L
     private var recovered = false
     private var cachedSessions: MutableMap<String, OfflineCaptureSession>? = null
+    internal var crashCapture: AnsightCrashCapture = AnsightCrashCapture
     private var captureId: String? = null
     private var captureStartedAtUtc: String? = null
     private var chunkSequence = 0
@@ -307,7 +310,10 @@ class OfflineCaptureStore(
     }
 
     private fun recover() {
-        if (recovered) return
+        if (recovered) {
+            attachPendingCrashReports()
+            return
+        }
         ensureDirectory(File(root, "sessions"))
         for (session in readSessions()) {
             if (session.stoppedAtUtc == null && session.sessionId != current?.sessionId) {
@@ -317,7 +323,49 @@ class OfflineCaptureStore(
         lastOrdinal = maxOf(lastOrdinal, readSessions().maxOfOrNull { it.ordinal } ?: 0)
         cachedSessions = readSessions().associateBy { it.sessionId }.toMutableMap()
         recovered = true
+        attachPendingCrashReports()
         enforceRetention(0, 0)
+    }
+
+    private fun attachPendingCrashReports() {
+        if (!crashCapture.offlineAttachmentEnabled) return
+        val reports = JSONObject(crashCapture.pendingReportsJson()).optJSONArray("reports") ?: return
+        for (index in 0 until reports.length()) {
+            val report = reports.optJSONObject(index) ?: continue
+            if (!report.optBoolean("offlineCaptureRequired") || report.optBoolean("offlineCapturePersisted")) continue
+            val reportId = report.optString("reportId")
+            val sessionId = report.optString("offlineSessionId")
+            val validIdentifiers = isReportId(reportId) && isSessionId(sessionId)
+            val sessionUnavailable = current?.sessionId == sessionId || leases.containsKey(sessionId)
+            if (!validIdentifiers || sessionUnavailable) continue
+            val session = readSessions().firstOrNull { it.sessionId == sessionId } ?: continue
+            if (session.processSessionId != report.optString("previousProcessSessionId")) continue
+            val reportBytes = report.toString().toByteArray(Charsets.UTF_8)
+            if (reportBytes.size > 8 * 1024 * 1024) continue
+            val payloads = mutableMapOf("$reportId.json" to reportBytes)
+            var valid = true
+            for ((key, suffix) in mapOf("traceBase64" to "trace", "metricKitPayloadBase64" to "metrickit.json")) {
+                if (!report.has(key) || report.isNull(key)) continue
+                val bytes = runCatching { Base64.decode(report.getString(key), Base64.DEFAULT) }.getOrNull()
+                if (bytes == null || bytes.size > 4 * 1024 * 1024) { valid = false; break }
+                payloads["$reportId.$suffix"] = bytes
+            }
+            if (!valid) continue
+            val destination = File(directory(sessionId), "diagnostics/crashes")
+            if (destination.canonicalFile != destination.absoluteFile) continue
+            val addedBytes = payloads.entries.sumOf { it.value.size.toLong() - File(destination, it.key).length() }
+            val existingBytes = payloadBytes(directory(sessionId))
+            val totalBytes = readSessions().sumOf { if (it.sessionId == sessionId) existingBytes else it.bytes }
+            if (existingBytes + addedBytes > options.maximumSessionBytes ||
+                totalBytes + addedBytes > options.maximumRetainedBytes) continue
+            ensureDirectory(destination)
+            for ((name, bytes) in payloads) atomicWrite(File(destination, name), bytes)
+            val updated = session.copy(bytes = payloadBytes(directory(sessionId)),
+                terminationKind = report.optString("kind", "crash"),
+                stoppedAtUtc = report.optString("occurredAtUtc", session.stoppedAtUtc))
+            writeManifest(updated, reportId)
+            crashCapture.markOfflineReportPersisted(reportId)
+        }
     }
 
     private fun enforceRetention(reservingSessions: Int, reservingBytes: Long) {
@@ -369,7 +417,7 @@ class OfflineCaptureStore(
         return seconds + match.groupValues[2].padEnd(6, '0').take(6).toLong()
     }
 
-    private fun writeManifest(session: OfflineCaptureSession) {
+    private fun writeManifest(session: OfflineCaptureSession, crashReportId: String? = null) {
         val path = File(directory(session.sessionId), "manifest.json")
         val json = (if (path.exists()) JSONObject(path.readText()) else JSONObject()).put("sessionId", session.sessionId).put("startedAtUtc", session.startedAtUtc)
             .put("ordinal", session.ordinal).put("stoppedAtUtc", session.stoppedAtUtc)
@@ -377,6 +425,11 @@ class OfflineCaptureStore(
             .put("processSessionId", session.processSessionId).put("bytes", session.bytes)
             .put("records", session.records).put("droppedRecords", session.droppedRecords)
             .put("captureId", session.captureId).put("captureStartedAtUtc", session.captureStartedAtUtc).put("sequence", session.sequence)
+        if (crashReportId != null) {
+            val ids = json.optJSONArray("crashReportIds") ?: JSONArray()
+            if ((0 until ids.length()).none { ids.optString(it) == crashReportId }) ids.put(crashReportId)
+            json.put("crashReportIds", ids)
+        }
         if (session.captureId != null) json.put("schema", "ansight.offline-capture.chunk.v2")
         atomicWrite(File(directory(session.sessionId), "manifest.json"), json.toString().toByteArray(Charsets.UTF_8))
         cachedSessions?.put(session.sessionId, session)
@@ -414,6 +467,22 @@ class OfflineCaptureStore(
     private fun JSONObject.nullableString(key: String): String? = if (isNull(key)) null else getString(key)
 
     companion object {
+        private fun isReportId(value: String): Boolean {
+            if (value.isEmpty() || value.length > 128) return false
+            return value.all { character ->
+                val letter = character in 'a'..'z' || character in 'A'..'Z'
+                val digit = character in '0'..'9'
+                val separator = character == '-' || character == '_'
+                val allowed = letter
+                    || digit
+                    || separator
+                allowed
+            }
+        }
+
+        private fun isSessionId(value: String): Boolean =
+            value.matches(Regex("([0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"))
+
         private fun now(): String = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
             .apply { timeZone = TimeZone.getTimeZone("UTC") }.format(Date())
         private fun ensureDirectory(directory: File) {

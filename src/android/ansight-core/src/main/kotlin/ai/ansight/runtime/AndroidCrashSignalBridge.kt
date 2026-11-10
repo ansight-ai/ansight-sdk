@@ -11,9 +11,9 @@ internal object AndroidCrashSignalBridge {
     }.getOrDefault(false)
     private var installed = false
 
-    fun consume(file: File): AndroidCrashSignalEvidence? {
+    fun read(file: File): AndroidCrashSignalEvidence? {
         if (!loaded) return null
-        val values = runCatching { nativeConsume(file.absolutePath) }.getOrNull() ?: return null
+        val values = runCatching { nativeRead(file.absolutePath) }.getOrNull() ?: return null
         if (values.size != 6 || values[0] != 1L) return null
         return AndroidCrashSignalEvidence(
             signalNumber = values[1].toInt(),
@@ -29,9 +29,17 @@ internal object AndroidCrashSignalBridge {
         installed = runCatching { nativeInstall(file.absolutePath) }.getOrDefault(false)
     }
 
+    fun uninstall() {
+        if (!loaded || !installed) return
+        runCatching { nativeUninstall() }
+        installed = false
+    }
+
+    private external fun nativeUninstall()
+
     private external fun nativeInstall(path: String): Boolean
 
-    private external fun nativeConsume(path: String): LongArray?
+    private external fun nativeRead(path: String): LongArray?
 }
 
 internal data class AndroidCrashSignalEvidence(

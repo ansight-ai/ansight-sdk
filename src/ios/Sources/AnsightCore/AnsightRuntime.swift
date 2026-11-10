@@ -158,6 +158,16 @@ public final class AnsightRuntime: @unchecked Sendable {
         }
         Annotate.configure(validatedOptions.annotatedFeedback)
         AnsightCrashCapture.shared.initialize(options: validatedOptions.crashCapture)
+        AnsightCrashCapture.shared.setReportAvailableHandler { [weak self] in
+            Task { [weak self] in
+                guard let self else { return }
+                let capture = self.lock.withLock { self.offlineCapture }
+                _ = try? await capture?.store.sessions()
+                if self.liveTransport.isOpen {
+                    await AnsightCrashCapture.shared.deliverPendingReports(using: self.liveTransport)
+                }
+            }
+        }
         AnsightNativeNetworkCapture.configure(validatedOptions.networkCapture)
 
         lock.withLock {

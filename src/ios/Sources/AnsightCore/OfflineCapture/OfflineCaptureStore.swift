@@ -30,6 +30,7 @@ public final class OfflineCaptureStore: @unchecked Sendable {
     private var lastOrdinal: Int64 = 0
     private var recovered = false
     private var cachedSessions: [String: OfflineCaptureSession]?
+    var crashCapture: AnsightCrashCapture = .shared
     private var captureId: String?
     private var captureStartedAtUtc: String?
     private var chunkSequence = 0
@@ -351,7 +352,10 @@ public final class OfflineCaptureStore: @unchecked Sendable {
     }
 
     private func recover() throws {
-        guard !recovered else { return }
+        guard !recovered else {
+            try attachPendingCrashReports()
+            return
+        }
         try fileManager.createDirectory(at: root.appendingPathComponent("sessions"), withIntermediateDirectories: true)
         for var session in try readSessions() where session.stoppedAtUtc == nil && session.sessionId != current?.sessionId {
             session.stoppedAtUtc = Self.now()
@@ -361,7 +365,65 @@ public final class OfflineCaptureStore: @unchecked Sendable {
         lastOrdinal = max(lastOrdinal, try readSessions().map(\.ordinal).max() ?? 0)
         cachedSessions = Dictionary(uniqueKeysWithValues: try readSessions().map { ($0.sessionId, $0) })
         recovered = true
+        try attachPendingCrashReports()
         try enforceRetention(reservingSessions: 0, reservingBytes: 0)
+    }
+
+    private func attachPendingCrashReports() throws {
+        guard crashCapture.offlineAttachmentEnabled else { return }
+        guard let payload = try JSONSerialization.jsonObject(with: Data(crashCapture.pendingReportsJSON().utf8)) as? [String: Any],
+              let reports = payload["reports"] as? [[String: Any]] else { return }
+        for report in reports {
+            let needsAttachment = report["offlineCaptureRequired"] as? Bool == true
+                && report["offlineCapturePersisted"] as? Bool != true
+            guard needsAttachment else { continue }
+            guard let reportId = report["reportId"] as? String,
+                  let sessionId = report["offlineSessionId"] as? String else { continue }
+            guard Self.isSessionId(sessionId), Self.isReportId(reportId) else { continue }
+            let sessionAvailable = current?.sessionId != sessionId && leases[sessionId] == nil
+            guard sessionAvailable else { continue }
+            guard var session = try readSessions().first(where: { $0.sessionId == sessionId }),
+                  session.processSessionId == report["previousProcessSessionId"] as? String else { continue }
+
+            let reportData = try JSONSerialization.data(withJSONObject: report, options: .sortedKeys)
+            guard reportData.count <= 8 * 1024 * 1024 else { continue }
+            var payloads: [String: Data] = ["\(reportId).json": reportData]
+            var valid = true
+            for (key, suffix) in ["traceBase64": "trace", "metricKitPayloadBase64": "metrickit.json"] {
+                if let encoded = report[key] as? String {
+                    guard let data = Data(base64Encoded: encoded), data.count <= 4 * 1024 * 1024 else { valid = false; break }
+                    payloads["\(reportId).\(suffix)"] = data
+                }
+            }
+            guard valid else { continue }
+            let destination = directory(sessionId).appendingPathComponent("diagnostics/crashes")
+            // Refuse attachment through a symlink, including a pre-existing parent.
+            let resolved = destination.resolvingSymlinksInPath().standardizedFileURL
+            guard resolved == destination.standardizedFileURL else { continue }
+            let addedBytes = payloads.reduce(Int64(0)) { total, item in
+                let oldSize = (try? destination.appendingPathComponent(item.key).resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+                return total + Int64(item.value.count - oldSize)
+            }
+            let existingBytes = try payloadBytes(directory(sessionId))
+            let totalBytes = try readSessions().reduce(Int64(0)) {
+                $0 + ($1.sessionId == sessionId ? existingBytes : $1.bytes)
+            }
+            guard existingBytes + addedBytes <= options.maximumSessionBytes,
+                  totalBytes + addedBytes <= options.maximumRetainedBytes else { continue }
+            try fileManager.createDirectory(at: destination, withIntermediateDirectories: true)
+            for (name, data) in payloads {
+                let file = destination.appendingPathComponent(name)
+                try data.write(to: file, options: .atomic)
+                let handle = try FileHandle(forWritingTo: file)
+                defer { try? handle.close() }
+                try handle.synchronize()
+            }
+            session.bytes = try payloadBytes(directory(sessionId))
+            session.terminationKind = report["kind"] as? String ?? "crash"
+            session.stoppedAtUtc = report["occurredAtUtc"] as? String ?? session.stoppedAtUtc
+            try writeManifest(session, crashReportId: reportId)
+            _ = crashCapture.markOfflineReportPersisted(reportId: reportId)
+        }
     }
 
     private func enforceRetention(reservingSessions: Int, reservingBytes: Int64) throws {
@@ -381,6 +443,19 @@ public final class OfflineCaptureStore: @unchecked Sendable {
         }
         if count > options.maximumSessions || bytes > options.maximumRetainedBytes {
             throw OfflineCaptureError.retentionBlocked
+        }
+    }
+
+    private static func isReportId(_ value: String) -> Bool {
+        guard !value.isEmpty, value.count <= 128 else { return false }
+        return value.utf8.allSatisfy { byte in
+            let letter = (65...90).contains(byte) || (97...122).contains(byte)
+            let digit = (48...57).contains(byte)
+            let separator = byte == 45 || byte == 95
+            let allowed = letter
+                || digit
+                || separator
+            return allowed
         }
     }
 
@@ -451,14 +526,24 @@ public final class OfflineCaptureStore: @unchecked Sendable {
     }
 
     private func directory(_ id: String) -> URL { root.appendingPathComponent("sessions").appendingPathComponent(id) }
-    private func writeManifest(_ session: OfflineCaptureSession) throws {
+    private func writeManifest(_ session: OfflineCaptureSession, crashReportId: String? = nil) throws {
         let path = directory(session.sessionId).appendingPathComponent("manifest.json")
         var manifest = fileManager.fileExists(atPath: path.path)
             ? (try JSONSerialization.jsonObject(with: Data(contentsOf: path)) as? [String: Any] ?? [:]) : [:]
         let values = try JSONSerialization.jsonObject(with: JSONEncoder().encode(session)) as! [String: Any]
         manifest.merge(values) { _, new in new }
+        if let crashReportId {
+            var reportIds = manifest["crashReportIds"] as? [String] ?? []
+            if !reportIds.contains(crashReportId) { reportIds.append(crashReportId) }
+            manifest["crashReportIds"] = reportIds
+        }
         if session.captureId != nil { manifest["schema"] = "ansight.offline-capture.chunk.v2" }
         try JSONSerialization.data(withJSONObject: manifest, options: .sortedKeys).write(to: path, options: .atomic)
+        if crashReportId != nil {
+            let handle = try FileHandle(forWritingTo: path)
+            defer { try? handle.close() }
+            try handle.synchronize()
+        }
         cachedSessions?[session.sessionId] = session
     }
     private static func now() -> String { ISO8601DateFormatter().string(from: Date()) }
