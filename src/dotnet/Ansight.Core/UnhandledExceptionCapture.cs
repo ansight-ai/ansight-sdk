@@ -1,14 +1,26 @@
 namespace Ansight;
 
 /// <summary>Keeps crash persistence synchronous and isolated from the original exception path.</summary>
-internal sealed class UnhandledExceptionCapture(Action<object, bool> persist)
+internal sealed class UnhandledExceptionCapture
 {
-    private int recording;
+    [ThreadStatic]
+    private static bool recording;
+
+    private readonly Action<object, bool> persist;
+
+    public UnhandledExceptionCapture(Action<object, bool> persist)
+    {
+        this.persist = persist;
+    }
 
     public void Record(object? exception, bool fatal)
     {
-        if (exception is null || Interlocked.CompareExchange(ref recording, 1, 0) != 0)
+        if (exception is null || recording)
+        {
             return;
+        }
+
+        recording = true;
 
         try
         {
@@ -20,7 +32,7 @@ internal sealed class UnhandledExceptionCapture(Action<object, bool> persist)
         }
         finally
         {
-            Volatile.Write(ref recording, 0);
+            recording = false;
         }
     }
 
@@ -29,6 +41,8 @@ internal sealed class UnhandledExceptionCapture(Action<object, bool> persist)
         // A later subscriber or Java caller may handle this JNI-boundary exception.
         // Retain the managed stack now; native exit evidence confirms whether it was fatal.
         if (!handled)
+        {
             Record(exception, fatal: false);
+        }
     }
 }

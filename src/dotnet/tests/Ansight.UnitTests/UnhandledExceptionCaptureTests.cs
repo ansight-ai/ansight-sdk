@@ -61,4 +61,37 @@ public sealed class UnhandledExceptionCaptureTests
         capture.Record(new Exception(), fatal: true);
         Assert.Equal(1, calls);
     }
+
+    [Fact]
+    public void FatalExceptionOnAnotherThreadIsNotSuppressedByConcurrentCapture()
+    {
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        using var fatalRecorded = new ManualResetEventSlim();
+        var capture = new UnhandledExceptionCapture((value, fatal) =>
+        {
+            if (fatal)
+            {
+                fatalRecorded.Set();
+                return;
+            }
+
+            entered.Set();
+            Assert.True(release.Wait(TimeSpan.FromSeconds(5)));
+        });
+        var worker = new Thread(() => capture.Record(new Exception("nonfatal"), fatal: false));
+        worker.Start();
+
+        try
+        {
+            Assert.True(entered.Wait(TimeSpan.FromSeconds(5)));
+            capture.Record(new Exception("fatal"), fatal: true);
+            Assert.True(fatalRecorded.IsSet);
+        }
+        finally
+        {
+            release.Set();
+            Assert.True(worker.Join(TimeSpan.FromSeconds(5)));
+        }
+    }
 }
