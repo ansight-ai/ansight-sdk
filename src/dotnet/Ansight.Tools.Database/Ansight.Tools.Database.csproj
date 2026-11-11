@@ -17,4 +17,8 @@
     <ProjectReference Include="..\Ansight.Core\Ansight.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+    <PackageReference Include="SQLite" Version="3.54.1" />
+  </ItemGroup>
+
 </Project>

@@ -571,61 +571,61 @@ public sealed class QueryDatabaseTool : ITool
         return Marshal.PtrToStringUTF8(sqlite3_errmsg(databaseHandle)) ?? "unknown SQLite error";
     }
 
-    [DllImport("sqlite3", EntryPoint = "sqlite3_open_v2", CharSet = CharSet.Ansi)]
+    [DllImport(SqliteLibrary.Name, EntryPoint = "sqlite3_open_v2", CharSet = CharSet.Ansi)]
     private static extern int sqlite3_open_v2(string filename, out IntPtr db, int flags, IntPtr zvfs);
 
-    [DllImport("sqlite3", EntryPoint = "sqlite3_close_v2")]
+    [DllImport(SqliteLibrary.Name, EntryPoint = "sqlite3_close_v2")]
     private static extern int sqlite3_close_v2(IntPtr db);
 
-    [DllImport("sqlite3", EntryPoint = "sqlite3_prepare_v2")]
+    [DllImport(SqliteLibrary.Name, EntryPoint = "sqlite3_prepare_v2")]
     private static extern int sqlite3_prepare_v2(IntPtr db, IntPtr sql, int numBytes, out IntPtr statement, out IntPtr tail);
 
-    [DllImport("sqlite3", EntryPoint = "sqlite3_step")]
+    [DllImport(SqliteLibrary.Name, EntryPoint = "sqlite3_step")]
     private static extern int sqlite3_step(IntPtr statement);
 
-    [DllImport("sqlite3", EntryPoint = "sqlite3_finalize")]
+    [DllImport(SqliteLibrary.Name, EntryPoint = "sqlite3_finalize")]
     private static extern int sqlite3_finalize(IntPtr statement);
 
-    [DllImport("sqlite3", EntryPoint = "sqlite3_errmsg")]
+    [DllImport(SqliteLibrary.Name, EntryPoint = "sqlite3_errmsg")]
     private static extern IntPtr sqlite3_errmsg(IntPtr db);
 
-    [DllImport("sqlite3", EntryPoint = "sqlite3_stmt_readonly")]
+    [DllImport(SqliteLibrary.Name, EntryPoint = "sqlite3_stmt_readonly")]
     private static extern int sqlite3_stmt_readonly(IntPtr statement);
 
-    [DllImport("sqlite3", EntryPoint = "sqlite3_column_count")]
+    [DllImport(SqliteLibrary.Name, EntryPoint = "sqlite3_column_count")]
     private static extern int sqlite3_column_count(IntPtr statement);
 
-    [DllImport("sqlite3", EntryPoint = "sqlite3_column_name")]
+    [DllImport(SqliteLibrary.Name, EntryPoint = "sqlite3_column_name")]
     private static extern IntPtr sqlite3_column_name(IntPtr statement, int index);
 
-    [DllImport("sqlite3", EntryPoint = "sqlite3_column_type")]
+    [DllImport(SqliteLibrary.Name, EntryPoint = "sqlite3_column_type")]
     private static extern int sqlite3_column_type(IntPtr statement, int index);
 
-    [DllImport("sqlite3", EntryPoint = "sqlite3_column_int64")]
+    [DllImport(SqliteLibrary.Name, EntryPoint = "sqlite3_column_int64")]
     private static extern long sqlite3_column_int64(IntPtr statement, int index);
 
-    [DllImport("sqlite3", EntryPoint = "sqlite3_column_double")]
+    [DllImport(SqliteLibrary.Name, EntryPoint = "sqlite3_column_double")]
     private static extern double sqlite3_column_double(IntPtr statement, int index);
 
-    [DllImport("sqlite3", EntryPoint = "sqlite3_column_text")]
+    [DllImport(SqliteLibrary.Name, EntryPoint = "sqlite3_column_text")]
     private static extern IntPtr sqlite3_column_text(IntPtr statement, int index);
 
-    [DllImport("sqlite3", EntryPoint = "sqlite3_column_blob")]
+    [DllImport(SqliteLibrary.Name, EntryPoint = "sqlite3_column_blob")]
     private static extern IntPtr sqlite3_column_blob(IntPtr statement, int index);
 
-    [DllImport("sqlite3", EntryPoint = "sqlite3_column_bytes")]
+    [DllImport(SqliteLibrary.Name, EntryPoint = "sqlite3_column_bytes")]
     private static extern int sqlite3_column_bytes(IntPtr statement, int index);
 
-    [DllImport("sqlite3", EntryPoint = "sqlite3_column_decltype")]
+    [DllImport(SqliteLibrary.Name, EntryPoint = "sqlite3_column_decltype")]
     private static extern IntPtr sqlite3_column_decltype(IntPtr statement, int index);
 
-    [DllImport("sqlite3", EntryPoint = "sqlite3_column_database_name")]
+    [DllImport(SqliteLibrary.Name, EntryPoint = "sqlite3_column_database_name")]
     private static extern IntPtr sqlite3_column_database_name(IntPtr statement, int index);
 
-    [DllImport("sqlite3", EntryPoint = "sqlite3_column_table_name")]
+    [DllImport(SqliteLibrary.Name, EntryPoint = "sqlite3_column_table_name")]
     private static extern IntPtr sqlite3_column_table_name(IntPtr statement, int index);
 
-    [DllImport("sqlite3", EntryPoint = "sqlite3_column_origin_name")]
+    [DllImport(SqliteLibrary.Name, EntryPoint = "sqlite3_column_origin_name")]
     private static extern IntPtr sqlite3_column_origin_name(IntPtr statement, int index);
 
     private sealed record QueryResult(
