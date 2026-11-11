@@ -13,10 +13,15 @@ internal static class MemorySampler
         var ctx = global::Android.App.Application.Context!;
         var am = (global::Android.App.ActivityManager)ctx.GetSystemService(global::Android.Content.Context.ActivityService)!;
         int pid = global::Android.OS.Process.MyPid();
-        var memInfo = am.GetProcessMemoryInfo(new[] { pid })[0];
+        long totalPssBytes;
+
+        // Release the temporary Java peer before measuring global JNI references.
+        using (var memoryInfo = am.GetProcessMemoryInfo(new[] { pid })[0])
+        {
 #pragma warning disable CA1422
-        long totalPssBytes = (long)memInfo.TotalPss * 1024L;
+            totalPssBytes = (long)memoryInfo.TotalPss * 1024L;
 #pragma warning restore CA1422
+        }
 
         long rssBytes = TryReadProcStatusRssBytes();
 
