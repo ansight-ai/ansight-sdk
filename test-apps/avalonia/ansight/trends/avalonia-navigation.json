@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "id": "avalonia-navigation",
+  "appId": "com.jsuarezruiz.bubbletabbar",
+  "enabled": true,
+  "required": true,
+  "missingDataOutcome": "fail",
+  "span": {
+    "start": {
+      "event": {
+        "label": "avalonia.benchmark.navigation.started"
+      }
+    },
+    "end": {
+      "event": {
+        "label": "avalonia.benchmark.navigation.finished"
+      }
+    },
+    "selection": "all",
+    "maximumDurationMs": 60000
+  },
+  "metrics": [
+    {
+      "id": "render-cost",
+      "channel": {
+        "name": "Avalonia compositor render max",
+        "source": "avalonia.diagnostics",
+        "match": "exactlyOne"
+      },
+      "statistic": "max",
+      "budget": {
+        "lte": 50
+      },
+      "minimumSamples": 1,
+      "display": {
+        "unit": "ms",
+        "fractionDigits": 2
+      }
+    },
+    {
+      "id": "layout-measure-cost",
+      "channel": {
+        "name": "Avalonia layout measure max",
+        "source": "avalonia.diagnostics",
+        "match": "exactlyOne"
+      },
+      "statistic": "max",
+      "budget": {
+        "lte": 25
+      },
+      "minimumSamples": 1,
+      "display": {
+        "unit": "ms",
+        "fractionDigits": 2
+      }
+    },
+    {
+      "id": "layout-arrange-cost",
+      "channel": {
+        "name": "Avalonia layout arrange max",
+        "source": "avalonia.diagnostics",
+        "match": "exactlyOne"
+      },
+      "statistic": "max",
+      "budget": {
+        "lte": 25
+      },
+      "minimumSamples": 1,
+      "display": {
+        "unit": "ms",
+        "fractionDigits": 2
+      }
+    },
+    {
+      "id": "render-samples",
+      "channel": {
+        "name": "Avalonia compositor render samples",
+        "source": "avalonia.diagnostics",
+        "match": "exactlyOne"
+      },
+      "statistic": "max",
+      "budget": {
+        "gte": 1
+      },
+      "minimumSamples": 1,
+      "display": {
+        "unit": "count",
+        "fractionDigits": 2
+      }
+    },
+    {
+      "id": "render-rate",
+      "channel": {
+        "name": "Avalonia Render FPS (all targets)",
+        "source": "avalonia.diagnostics",
+        "match": "exactlyOne"
+      },
+      "statistic": "max",
+      "budget": {
+        "gte": 1
+      },
+      "minimumSamples": 1,
+      "display": {
+        "unit": "fps",
+        "fractionDigits": 2
+      }
+    }
+  ]
+}

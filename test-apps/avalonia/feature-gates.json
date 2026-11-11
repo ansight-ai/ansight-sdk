@@ -1,0 +1,459 @@
+{
+  "schemaVersion": 1,
+  "platforms": [
+    "ios",
+    "android"
+  ],
+  "completionRule": "Every required app/platform/feature gate requires fresh retained evidence. Missing, unavailable, skipped and untested gates do not pass.",
+  "gates": [
+    {
+      "id": "build_install_launch",
+      "evidence": [
+        "source_revision",
+        "build_log",
+        "binary_sha256",
+        "launch_result"
+      ]
+    },
+    {
+      "id": "automatic_host_registration",
+      "evidence": [
+        "matching_app_device_sdk_session"
+      ]
+    },
+    {
+      "id": "reconnect",
+      "evidence": [
+        "disconnect",
+        "new_connection",
+        "continued_capture"
+      ]
+    },
+    {
+      "id": "app_device_profile",
+      "evidence": [
+        "app_identity",
+        "app_icon",
+        "device_profile",
+        "runtime_metadata",
+        "avalonia_session_properties",
+        "retained_session_metadata_assertions"
+      ]
+    },
+    {
+      "id": "memory_cpu_metrics",
+      "evidence": [
+        "nonempty_timestamped_metric_samples"
+      ]
+    },
+    {
+      "id": "native_fps",
+      "evidence": [
+        "timestamped_frame_samples",
+        "measurement_provider"
+      ]
+    },
+    {
+      "id": "battery_thermal_connectivity",
+      "evidence": [
+        "capabilities",
+        "provider_values_or_explicit_platform_limitation"
+      ]
+    },
+    {
+      "id": "open_file_handles",
+      "evidence": [
+        "baseline",
+        "fixture_handle_change",
+        "recovery"
+      ]
+    },
+    {
+      "id": "jni_reference_metrics",
+      "platforms": [
+        "android"
+      ],
+      "evidence": [
+        "baseline",
+        "fixture_reference_change",
+        "recovery"
+      ]
+    },
+    {
+      "id": "jni_reference_graph",
+      "platforms": [
+        "android"
+      ],
+      "evidence": [
+        "graph_artifact",
+        "fixture_node"
+      ]
+    },
+    {
+      "id": "events_logs_spans",
+      "evidence": [
+        "fixture_event",
+        "fixture_log",
+        "completed_span"
+      ]
+    },
+    {
+      "id": "lifecycle",
+      "evidence": [
+        "foreground",
+        "background",
+        "resume"
+      ]
+    },
+    {
+      "id": "screenshots",
+      "evidence": [
+        "jpeg_frame",
+        "on_demand_capture",
+        "visual_inspection"
+      ]
+    },
+    {
+      "id": "gpu_surface_screenshot_fidelity",
+      "evidence": [
+        "device_capture",
+        "sdk_capture",
+        "visual_comparison"
+      ]
+    },
+    {
+      "id": "touch_capture",
+      "evidence": [
+        "real_device_input",
+        "recorded_touch_sequence",
+        "visible_result"
+      ]
+    },
+    {
+      "id": "native_tree",
+      "evidence": [
+        "snapshot",
+        "app_root"
+      ]
+    },
+    {
+      "id": "avalonia_logical_tree",
+      "evidence": [
+        "snapshot",
+        "logical_structure",
+        "retained_replay_tree"
+      ]
+    },
+    {
+      "id": "avalonia_visual_tree",
+      "evidence": [
+        "snapshot",
+        "template_children",
+        "retained_replay_tree"
+      ]
+    },
+    {
+      "id": "avalonia_accessibility_tree",
+      "evidence": [
+        "automation_peer_hierarchy",
+        "names_roles_states",
+        "retained_replay_tree",
+        "accessibility_task_assertions"
+      ]
+    },
+    {
+      "id": "device_accessibility_tree",
+      "evidence": [
+        "native_accessibility_capture",
+        "semantic_controls",
+        "framework_comparison"
+      ]
+    },
+    {
+      "id": "tree_bounds_and_identity",
+      "evidence": [
+        "stable_ids",
+        "pixel_alignment",
+        "rotation",
+        "scroll",
+        "popup"
+      ]
+    },
+    {
+      "id": "ui_query_wait_assert",
+      "evidence": [
+        "query_reference",
+        "wait_result",
+        "assertion_result",
+        "stale_reference_rejection"
+      ]
+    },
+    {
+      "id": "ui_device_actions",
+      "evidence": [
+        "tap",
+        "text",
+        "scroll_or_swipe",
+        "visible_postconditions"
+      ]
+    },
+    {
+      "id": "avalonia_semantic_actions",
+      "evidence": [
+        "button",
+        "text",
+        "toggle",
+        "selection",
+        "focus",
+        "disabled_rejection"
+      ]
+    },
+    {
+      "id": "avalonia_properties_bindings_layout",
+      "evidence": [
+        "inspection",
+        "change",
+        "binding_still_updates",
+        "cleanup"
+      ]
+    },
+    {
+      "id": "avalonia_rendering_diagnostics",
+      "evidence": [
+        "layout_validity",
+        "callback_cadence",
+        "measurement_limits",
+        "renderer_overlay_capture",
+        "numeric_render_metric_samples",
+        "numeric_layout_metric_samples",
+        "render_fps_samples",
+        "retained_channel_units_and_semantics"
+      ]
+    },
+    {
+      "id": "remote_tool_catalog",
+      "evidence": [
+        "catalog_revision",
+        "schemas",
+        "all_published_tool_case_results"
+      ]
+    },
+    {
+      "id": "remote_tool_policy",
+      "evidence": [
+        "read_allowed",
+        "write_allowed",
+        "denial_case",
+        "malformed_argument_rejection"
+      ]
+    },
+    {
+      "id": "custom_tools",
+      "evidence": [
+        "fixture_tool_result",
+        "independent_state_verification"
+      ]
+    },
+    {
+      "id": "ui_overlays",
+      "evidence": [
+        "create",
+        "query",
+        "update",
+        "screenshot",
+        "remove"
+      ]
+    },
+    {
+      "id": "annotations",
+      "evidence": [
+        "timeline_annotation",
+        "ui_anchor",
+        "replay_annotation",
+        "cleanup"
+      ]
+    },
+    {
+      "id": "http_network_capture",
+      "evidence": [
+        "request",
+        "response",
+        "body",
+        "headers",
+        "error",
+        "correlation"
+      ]
+    },
+    {
+      "id": "file_tools",
+      "evidence": [
+        "list",
+        "read",
+        "write",
+        "checksum",
+        "copy",
+        "move",
+        "delete"
+      ]
+    },
+    {
+      "id": "binary_transfer",
+      "evidence": [
+        "metadata",
+        "all_chunks",
+        "reassembled_sha256_matches"
+      ]
+    },
+    {
+      "id": "artifact_providers",
+      "evidence": [
+        "catalog",
+        "request",
+        "download",
+        "content_verification"
+      ]
+    },
+    {
+      "id": "database_tools",
+      "evidence": [
+        "database_catalog",
+        "schema",
+        "fixture_query_result"
+      ]
+    },
+    {
+      "id": "preferences",
+      "evidence": [
+        "write",
+        "list",
+        "read",
+        "remove",
+        "absence"
+      ]
+    },
+    {
+      "id": "secure_storage",
+      "evidence": [
+        "allowlisted_fixture_key_write",
+        "read",
+        "remove",
+        "absence"
+      ]
+    },
+    {
+      "id": "clipboard",
+      "evidence": [
+        "set_fixture_text",
+        "has_text",
+        "get",
+        "clear"
+      ]
+    },
+    {
+      "id": "reflection",
+      "evidence": [
+        "registered_fixture_root",
+        "type",
+        "inspect",
+        "set",
+        "invoke",
+        "independent_result"
+      ]
+    },
+    {
+      "id": "motion",
+      "evidence": [
+        "provider_capabilities",
+        "samples_or_explicit_platform_limitation"
+      ]
+    },
+    {
+      "id": "offline_capture",
+      "evidence": [
+        "capture_without_host",
+        "recover",
+        "transfer",
+        "retained_frames_and_events"
+      ]
+    },
+    {
+      "id": "managed_crash_capture",
+      "evidence": [
+        "controlled_fixture_crash",
+        "restart",
+        "crash_report"
+      ]
+    },
+    {
+      "id": "native_crash_capture",
+      "evidence": [
+        "controlled_fixture_crash",
+        "restart",
+        "native_crash_report"
+      ]
+    },
+    {
+      "id": "session_retention_export_replay",
+      "evidence": [
+        "ended_session",
+        "export",
+        "replay_frames_trees_events_network"
+      ]
+    },
+    {
+      "id": "sample_specific_interactions",
+      "evidence": [
+        "all_control_pages_or_vignette_states",
+        "real_input",
+        "screenshots",
+        "semantic_postconditions"
+      ]
+    },
+    {
+      "id": "tree_style_fidelity",
+      "evidence": [
+        "background_and_foreground_colors",
+        "opacity",
+        "theme_or_state_change",
+        "player_visual_comparison"
+      ]
+    }
+  ],
+  "suiteGates": [
+    {
+      "id": "workspace_tests",
+      "evidence": [
+        "source_controlled_tests",
+        "passed_run",
+        "failed_assertion_case",
+        "replay"
+      ]
+    },
+    {
+      "id": "workspace_tasks",
+      "evidence": [
+        "source_controlled_tasks",
+        "input_schema",
+        "successful_execution",
+        "visible_postcondition"
+      ]
+    },
+    {
+      "id": "workspace_trends",
+      "evidence": [
+        "source_controlled_trend",
+        "repeated_runs",
+        "computed_series",
+        "regression_case"
+      ]
+    },
+    {
+      "id": "additional_sample_apps",
+      "evidence": [
+        "network_sample",
+        "files_artifacts_sample",
+        "ios_and_android_results"
+      ]
+    }
+  ]
+}

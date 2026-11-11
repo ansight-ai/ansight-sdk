@@ -1,0 +1,25 @@
+<Project>
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <EmbedAssembliesIntoApk Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">true</EmbedAssembliesIntoApk>
+    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+    <AnsightBenchmarkToolsEnabled Condition="'$(Configuration)' == 'Debug'">true</AnsightBenchmarkToolsEnabled>
+    <AnsightBenchmarkToolsEnabled Condition="'$(AnsightBenchmarkToolsEnabled)' == ''">false</AnsightBenchmarkToolsEnabled>
+    <AnsightRemoteToolsPolicy Condition="'$(AnsightBenchmarkToolsEnabled)' == 'true'">AllowedWithWarnings</AnsightRemoteToolsPolicy>
+    <AnsightRemoteToolsPolicy Condition="'$(AnsightBenchmarkToolsEnabled)' != 'true'">Disallowed</AnsightRemoteToolsPolicy>
+    <DefineConstants Condition="'$(AnsightBenchmarkToolsEnabled)' == 'true'">$(DefineConstants);ANSIGHT_BENCHMARK_TOOLS</DefineConstants>
+    <AnsightBenchmarkDatabase Condition="'$(AnsightBenchmarkDatabase)' == ''">$(MSBuildThisFileDirectory)../../../.ansight-validation/avalonia/fixtures/database.db</AnsightBenchmarkDatabase>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../../../src/dotnet/Ansight.Avalonia/Ansight.Avalonia.csproj" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.0" />
+    <Compile Include="$(MSBuildThisFileDirectory)DemoApp.cs" Link="DemoApp.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../BenchmarkConfiguration.cs" Link="BenchmarkConfiguration.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../Fixtures/*.cs" Link="Fixtures/%(Filename)%(Extension)" Condition="'$(AnsightBenchmarkToolsEnabled)' == 'true'" />
+    <EmbeddedResource Include="$(AnsightBenchmarkDatabase)" LogicalName="AnsightBenchmark.database.db" Condition="'$(AnsightBenchmarkToolsEnabled)' == 'true'" />
+  </ItemGroup>
+  <Import Project="$(MSBuildThisFileDirectory)../../../src/dotnet/Ansight.Core/build/Ansight.targets" />
+</Project>

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-android</TargetFramework>
+    <SupportedOSPlatformVersion>23.0</SupportedOSPlatformVersion>
+    <ApplicationId>ai.ansight.avalonia.network</ApplicationId>
+    <ApplicationTitle>Ansight Network Bench</ApplicationTitle>
+    <AndroidPackageFormat>apk</AndroidPackageFormat>
+    <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
+    <DefineConstants>$(DefineConstants);ANSIGHT_NETWORK_SAMPLE</DefineConstants>
+  </PropertyGroup>
+  <Import Project="../BenchmarkSample.props" />
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Android" Version="12.1.0" />
+    <Compile Include="../AndroidHost.cs" Link="AndroidHost.cs" />
+  </ItemGroup>
+</Project>
