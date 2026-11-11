@@ -24,6 +24,13 @@ using UIKit;
 internal static partial class VisualTreeSupport
 {
     private static int lastEncodedScreenshotBytes = 32 * 1024;
+
+    internal static void InitializePlatformTracking()
+    {
+#if ANDROID
+        AndroidActivityTracker.EnsureRegistered();
+#endif
+    }
 #if IOS || MACCATALYST
     // Hot-swapped SDK assemblies cannot assume a prior app link preserved these managed UIKit accessors.
     private static readonly IntPtr appleBackgroundColorSelector = ObjCRuntime.Selector.GetHandle("backgroundColor");
@@ -1286,7 +1293,7 @@ internal static partial class VisualTreeSupport
             }
         }
 
-        private static void EnsureRegistered()
+        internal static void EnsureRegistered()
         {
             if (instance != null)
             {

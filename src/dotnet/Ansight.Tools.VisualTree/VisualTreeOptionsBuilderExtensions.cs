@@ -10,6 +10,8 @@ public static class VisualTreeOptionsBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
+        VisualTreeSupport.InitializePlatformTracking();
+
         SessionVisualTreeCaptureRegistry.SetProvider(async cancellationToken =>
         {
             var snapshots = new List<JsonObject>();

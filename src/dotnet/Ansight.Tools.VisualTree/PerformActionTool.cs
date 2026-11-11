@@ -62,7 +62,7 @@ public sealed class PerformActionTool : IJsonTool
             cancellationToken);
         if (!result.IsSuccess)
         {
-            if (result.ErrorCode is "visual_tree_node_not_found" or "maui_node_not_found")
+            if (result.ErrorCode is "visual_tree_node_not_found" or "maui_node_not_found" or "avalonia_node_not_found")
             {
                 return ToolResult.Failure(
                     $"Node '{nodeId}' is no longer valid for snapshot '{snapshotId}'. Refresh the query and retry.",

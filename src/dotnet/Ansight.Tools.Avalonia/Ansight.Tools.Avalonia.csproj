@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net9.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(AvaloniaSourceRoot)' != ''">net10.0</TargetFrameworks>
+    <AvaloniaVersion Condition="'$(AvaloniaVersion)' == ''">12.1.0</AvaloniaVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>true</IsPackable>
+    <PackageId>Ansight.Tools.Avalonia</PackageId>
+    <PackageReadmeFile />
+    <Description>Avalonia logical and visual tree, interaction, property, layout and rendering inspection tools for Ansight.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Ansight.Avalonia.Tests" />
+    <PackageReference Include="Avalonia" Version="$(AvaloniaVersion)" Condition="'$(AvaloniaSourceRoot)' == ''" />
+    <ProjectReference Include="$(AvaloniaSourceRoot)/src/Avalonia.Controls/Avalonia.Controls.csproj" Condition="'$(AvaloniaSourceRoot)' != ''" />
+    <ProjectReference Include="../Ansight.Core/Ansight.Core.csproj" />
+    <ProjectReference Include="../Ansight.Tools.VisualTree/Ansight.Tools.VisualTree.csproj" />
+  </ItemGroup>
+</Project>
