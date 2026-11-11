@@ -504,6 +504,7 @@ internal sealed class TelemetryStreamer : IDisposable
                 type = channel.Type,
                 source = channel.Source,
                 group = channel.Group,
+                metricGroup = channel.MetricGroup,
                 kind = channel.Kind
             }).ToArray()
         }, PairingJson.Compact);

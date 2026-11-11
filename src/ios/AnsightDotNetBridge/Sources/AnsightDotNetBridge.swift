@@ -775,6 +775,7 @@ private struct BridgeChannel: Decodable {
     let source: String?
     let group: String?
     let kind: String?
+    let metricGroup: AnsightMetricGroup?
 
     var nativeChannel: AnsightChannel {
         AnsightChannel(
@@ -785,7 +786,8 @@ private struct BridgeChannel: Decodable {
             type: type ?? "custom",
             source: source,
             group: group,
-            kind: kind
+            kind: kind,
+            metricGroup: metricGroup
         )
     }
 }

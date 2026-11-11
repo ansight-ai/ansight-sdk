@@ -2197,17 +2197,7 @@ object AnsightRuntime {
                 .put("sentAtUtc", AnsightClock.isoNow())
                 .put(
                     "channels",
-                    JSONArray(selected.map { channel ->
-                        JSONObject()
-                            .put("id", channel.id)
-                            .put("name", channel.name)
-                            .putNullable("unit", channel.unit)
-                            .put("type", channel.type)
-                            .putNullable("color", channel.colorHex)
-                            .putNullable("source", channel.source)
-                            .putNullable("group", channel.group)
-                            .putNullable("kind", channel.kind)
-                    }),
+                    JSONArray(selected.map { it.toJson() }),
                 )
             selected.map { it.id }.toSet() to payload
         }
@@ -2505,7 +2495,8 @@ object AnsightRuntime {
             channel = channel,
             sequence = ++nextMetricSequence,
         )
-        offlineCapture?.append(makeMetricsPayload(listOf(metrics.last())))
+        offlineCapture?.append(makeMetricsPayload(listOf(metrics.last()))
+            .put("channels", JSONArray(listOfNotNull(channels[channel]?.toJson()))))
         trimMetricsLocked()
     }
 
@@ -3091,26 +3082,26 @@ object AnsightRuntime {
     private fun makeChannelDictionary(options: AnsightOptions): LinkedHashMap<Int, AnsightChannel> {
         val dictionary = linkedMapOf<Int, AnsightChannel>()
         if (options.defaultMemoryChannels.javaHeap) {
-            dictionary[AnsightChannels.JavaHeap] = AnsightChannel(AnsightChannels.JavaHeap, "Java heap", "#5C2D90", "bytes", "memory")
+            dictionary[AnsightChannels.JavaHeap] = AnsightChannel(AnsightChannels.JavaHeap, "Java heap", "#5C2D90", "bytes", "memory", metricGroup = AnsightMetricGroups.Memory)
         }
         if (options.defaultMemoryChannels.nativeHeap) {
-            dictionary[AnsightChannels.NativeHeap] = AnsightChannel(AnsightChannels.NativeHeap, "Native heap", "#007AFF", "bytes", "memory")
+            dictionary[AnsightChannels.NativeHeap] = AnsightChannel(AnsightChannels.NativeHeap, "Native heap", "#007AFF", "bytes", "memory", metricGroup = AnsightMetricGroups.Memory)
         }
         if (options.defaultMemoryChannels.rss) {
-            dictionary[AnsightChannels.Rss] = AnsightChannel(AnsightChannels.Rss, "RSS", "#C88C1E", "bytes", "memory")
+            dictionary[AnsightChannels.Rss] = AnsightChannel(AnsightChannels.Rss, "RSS", "#C88C1E", "bytes", "memory", metricGroup = AnsightMetricGroups.Memory)
         }
         if (options.enableFramesPerSecond) {
             dictionary[AnsightChannels.FramesPerSecond] = framesPerSecondChannel()
         }
-        dictionary[AnsightChannels.Lifecycle] = AnsightChannel(AnsightChannels.Lifecycle, "Lifecycle", "#FF9500", null, "lifecycle")
+        dictionary[AnsightChannels.Lifecycle] = AnsightChannel(AnsightChannels.Lifecycle, "Lifecycle", "#FF9500", null, "lifecycle", metricGroup = AnsightMetricGroups.Runtime)
         if (options.enableBatteryLevel) {
-            dictionary[AnsightChannels.BatteryLevel] = AnsightChannel(AnsightChannels.BatteryLevel, "Battery Level", "#FFCC00", "percent", "battery")
+            dictionary[AnsightChannels.BatteryLevel] = AnsightChannel(AnsightChannels.BatteryLevel, "Battery Level", "#FFCC00", "percent", "battery", metricGroup = AnsightMetricGroups.Device)
         }
         if (options.enableJniReferenceCountTracking) {
-            dictionary[AnsightChannels.JniReferenceCount] = AnsightChannel(AnsightChannels.JniReferenceCount, "JNI reference count", "#AF52DE", "references", "runtime")
+            dictionary[AnsightChannels.JniReferenceCount] = AnsightChannel(AnsightChannels.JniReferenceCount, "JNI reference count", "#AF52DE", "references", "runtime", metricGroup = AnsightMetricGroups.Runtime)
         }
         if (options.enableOpenFileHandleTracking) {
-            dictionary[AnsightChannels.OpenFileHandles] = AnsightChannel(AnsightChannels.OpenFileHandles, "Open File Handles", "#FF3B30", "handles", "runtime")
+            dictionary[AnsightChannels.OpenFileHandles] = AnsightChannel(AnsightChannels.OpenFileHandles, "Open File Handles", "#FF3B30", "handles", "runtime", metricGroup = AnsightMetricGroups.Runtime)
         }
         dictionary[AnsightChannels.Unspecified] = AnsightChannel(AnsightChannels.Unspecified, "Unspecified", null, null, "unspecified")
         options.additionalChannels.forEach { dictionary[it.id] = it }
@@ -3118,7 +3109,7 @@ object AnsightRuntime {
     }
 
     private fun framesPerSecondChannel(): AnsightChannel =
-        AnsightChannel(AnsightChannels.FramesPerSecond, "FPS", "#23B573", "fps", "frames")
+        AnsightChannel(AnsightChannels.FramesPerSecond, "FPS", "#23B573", "fps", "frames", metricGroup = AnsightMetricGroups.Rendering)
 
     private fun validateChannel(channel: Int): Int {
         require(channel in 0..255) { "Channel ids must be between 0 and 255." }

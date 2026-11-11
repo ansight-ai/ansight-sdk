@@ -88,6 +88,12 @@ public sealed class OfflineCaptureTests
         runtime.Event("checkout_started", AppEventType.Info, Constants.ReservedChannels.ChannelNotSpecified_Id, "cart");
         await controller.StopAsync();
 
+        using var channels = await ReadJsonDocumentAsync(Path.Combine(session.DirectoryPath, "metadata", "channels.json"));
+        var fps = channels.RootElement.GetProperty("ch").EnumerateArray()
+            .Single(channel => channel.GetProperty("id").GetByte() == Constants.ReservedChannels.FramesPerSecond_Id);
+        Assert.Equal("rendering", fps.GetProperty("metricGroup").GetProperty("id").GetString());
+        Assert.Equal("Rendering", fps.GetProperty("metricGroup").GetProperty("name").GetString());
+
         using (var manifest = await ReadJsonDocumentAsync(Path.Combine(session.DirectoryPath, "manifest.json")))
         {
             Assert.Equal("normal", manifest.RootElement.GetProperty("TerminationKind").GetString());

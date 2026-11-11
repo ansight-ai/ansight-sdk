@@ -2426,7 +2426,9 @@ public final class AnsightRuntime: @unchecked Sendable {
                 sequence: nextMetricSequence
             )
         )
-        if let metric = metrics.last { offlineCapture?.append(Self.makeMetricsPayload([metric])) }
+        if let metric = metrics.last {
+            offlineCapture?.append(Self.makeMetricsPayload([metric], channels: channels[channel].map { [$0] } ?? []))
+        }
         trimMetricsLocked()
     }
 
@@ -3286,18 +3288,7 @@ public final class AnsightRuntime: @unchecked Sendable {
                 "source": .string("client"),
                 "type": .string("CLIENT_METRIC_CHANNELS"),
                 "sentAtUtc": .string(AnsightClock.isoNow()),
-                "channels": .array(selectedChannels.map { channel in
-                    .object([
-                        "id": .integer(Int64(channel.id)),
-                        "name": .string(channel.name),
-                        "unit": channel.unit.map(JSONValue.string) ?? .null,
-                        "type": .string(channel.type),
-                        "color": channel.color.map(JSONValue.string) ?? .null,
-                        "source": channel.source.map(JSONValue.string) ?? .null,
-                        "group": channel.group.map(JSONValue.string) ?? .null,
-                        "kind": channel.kind.map(JSONValue.string) ?? .null,
-                    ])
-                }),
+                "channels": .array(selectedChannels.map(\.jsonValue)),
             ])
             return (Set(selectedChannels.map(\.id)), payload)
         }
@@ -4244,15 +4235,17 @@ public final class AnsightRuntime: @unchecked Sendable {
             type: type.isEmpty ? "custom" : type,
             source: source?.isEmpty == true ? nil : source,
             group: group?.isEmpty == true ? nil : group,
-            kind: kind?.isEmpty == true ? nil : kind
+            kind: kind?.isEmpty == true ? nil : kind,
+            metricGroup: try channel.metricGroup?.validated()
         )
     }
 
-    static func makeMetricsPayload(_ metrics: [RecordedMetric]) -> JSONValue {
+    static func makeMetricsPayload(_ metrics: [RecordedMetric], channels: [AnsightChannel] = []) -> JSONValue {
         .object([
             "source": .string("client"),
             "type": .string("CLIENT_METRICS"),
             "sentAtUtc": .string(AnsightClock.isoNow()),
+            "channels": .array(channels.map(\.jsonValue)),
             "metrics": .array(metrics.map { metric in
                 .object([
                     "channel": .integer(Int64(metric.channel)),

@@ -6,10 +6,23 @@ namespace Ansight.Telemetry.Channels;
 /// </summary>
 public class Channel
 {
+    public Channel(byte id, string name, MetricGroup metricGroup, Color color, string? unit = null,
+        string type = "custom", string? source = null, string? kind = null)
+        : this(id, name, color, unit, type, source, metricGroup?.Name, kind)
+    {
+        ArgumentNullException.ThrowIfNull(metricGroup);
+
+        MetricGroup = metricGroup;
+    }
+
     public Channel(byte id, string name, Color color, string? unit = null, string type = "custom",
         string? source = null, string? group = null, string? kind = null)
     {
-        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Value cannot be null or whitespace.", nameof(name));
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new ArgumentException("Value cannot be null or whitespace.", nameof(name));
+        }
+
         Id = id;
         Name = name;
         Color = color;
@@ -39,5 +52,6 @@ public class Channel
     public string Type { get; }
     public string? Source { get; }
     public string? Group { get; }
+    public MetricGroup? MetricGroup { get; }
     public string? Kind { get; }
 }

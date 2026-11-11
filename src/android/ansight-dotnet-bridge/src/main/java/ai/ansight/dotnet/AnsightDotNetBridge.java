@@ -501,7 +501,8 @@ public final class AnsightDotNetBridge {
                     channel.optString("type", "custom"),
                     optionalString(channel, "source"),
                     optionalString(channel, "group"),
-                    optionalString(channel, "kind")
+                    optionalString(channel, "kind"),
+                    ai.ansight.runtime.AnsightMetricGroup.fromJson(channel.optJSONObject("metricGroup"))
                 ));
             }
         }

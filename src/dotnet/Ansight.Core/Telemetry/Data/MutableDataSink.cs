@@ -25,46 +25,46 @@ internal class MutableDataSink : IDataSink, IAppLifecycleStateSource
 
         if (options.DefaultMemoryChannels.HasFlag(DefaultMemoryChannels.ManagedHeap))
         {
-            channels[Constants.ReservedChannels.ClrMemoryUsage_Id] = new Channel(Constants.ReservedChannels.ClrMemoryUsage_Id, Constants.ReservedChannels.ClrMemoryUsage_Name, Constants.ReservedChannels.ClrMemoryUsage_Color);
+            channels[Constants.ReservedChannels.ClrMemoryUsage_Id] = new Channel(Constants.ReservedChannels.ClrMemoryUsage_Id, Constants.ReservedChannels.ClrMemoryUsage_Name, MetricGroups.Memory, Constants.ReservedChannels.ClrMemoryUsage_Color);
         }
-        channels[Constants.ReservedChannels.FramesPerSecond_Id] = new Channel(Constants.ReservedChannels.FramesPerSecond_Id, Constants.ReservedChannels.FramesPerSecond_Name, Constants.ReservedChannels.FramesPerSecond_Color);
+        channels[Constants.ReservedChannels.FramesPerSecond_Id] = new Channel(Constants.ReservedChannels.FramesPerSecond_Id, Constants.ReservedChannels.FramesPerSecond_Name, MetricGroups.Rendering, Constants.ReservedChannels.FramesPerSecond_Color);
 
         if (options.EnableBatteryLevel && BatteryLevelMonitorFactory.IsSupported)
         {
-            channels[Constants.ReservedChannels.BatteryLevel_Id] = new Channel(Constants.ReservedChannels.BatteryLevel_Id, Constants.ReservedChannels.BatteryLevel_Name, Constants.ReservedChannels.BatteryLevel_Color);
+            channels[Constants.ReservedChannels.BatteryLevel_Id] = new Channel(Constants.ReservedChannels.BatteryLevel_Id, Constants.ReservedChannels.BatteryLevel_Name, MetricGroups.Device, Constants.ReservedChannels.BatteryLevel_Color);
         }
         
 #if IOS || MACCATALYST
         if (options.DefaultMemoryChannels.HasFlag(DefaultMemoryChannels.PhysicalFootprint))
         {
-            channels[Constants.ReservedChannels.PlatformMemoryUsage_Id] = new Channel(Constants.ReservedChannels.PlatformMemoryUsage_Id, Constants.ReservedChannels.PlatformMemoryUsage_Name, Constants.ReservedChannels.PlatformMemoryUsage_Color);
+            channels[Constants.ReservedChannels.PlatformMemoryUsage_Id] = new Channel(Constants.ReservedChannels.PlatformMemoryUsage_Id, Constants.ReservedChannels.PlatformMemoryUsage_Name, MetricGroups.Memory, Constants.ReservedChannels.PlatformMemoryUsage_Color);
         }
         if (options.EnableOpenFileHandleTracking)
         {
-            channels[Constants.ReservedChannels.OpenFileHandles_Id] = new Channel(Constants.ReservedChannels.OpenFileHandles_Id, Constants.ReservedChannels.OpenFileHandles_Name, Constants.ReservedChannels.OpenFileHandles_Color);
+            channels[Constants.ReservedChannels.OpenFileHandles_Id] = new Channel(Constants.ReservedChannels.OpenFileHandles_Id, Constants.ReservedChannels.OpenFileHandles_Name, MetricGroups.Runtime, Constants.ReservedChannels.OpenFileHandles_Color);
         }
 #elif ANDROID
         if (options.DefaultMemoryChannels.HasFlag(DefaultMemoryChannels.NativeHeap))
         {
-            channels[Constants.ReservedChannels.NativeHeapAllocated_Id] = new Channel(Constants.ReservedChannels.NativeHeapAllocated_Id, Constants.ReservedChannels.NativeHeapAllocated_Name, Constants.ReservedChannels.NativeHeapAllocated_Color);
+            channels[Constants.ReservedChannels.NativeHeapAllocated_Id] = new Channel(Constants.ReservedChannels.NativeHeapAllocated_Id, Constants.ReservedChannels.NativeHeapAllocated_Name, MetricGroups.Memory, Constants.ReservedChannels.NativeHeapAllocated_Color);
         }
 
         if (options.DefaultMemoryChannels.HasFlag(DefaultMemoryChannels.ResidentSetSize))
         {
-            channels[Constants.ReservedChannels.Rss_Id] = new Channel(Constants.ReservedChannels.Rss_Id, Constants.ReservedChannels.Rss_Name, Constants.ReservedChannels.Rss_Color);
+            channels[Constants.ReservedChannels.Rss_Id] = new Channel(Constants.ReservedChannels.Rss_Id, Constants.ReservedChannels.Rss_Name, MetricGroups.Memory, Constants.ReservedChannels.Rss_Color);
         }
 
         if (options.EnableJniReferenceCountTracking)
         {
-            channels[Constants.ReservedChannels.JniReferenceCount_Id] = new Channel(Constants.ReservedChannels.JniReferenceCount_Id, Constants.ReservedChannels.JniReferenceCount_Name, Constants.ReservedChannels.JniReferenceCount_Color);
+            channels[Constants.ReservedChannels.JniReferenceCount_Id] = new Channel(Constants.ReservedChannels.JniReferenceCount_Id, Constants.ReservedChannels.JniReferenceCount_Name, MetricGroups.Runtime, Constants.ReservedChannels.JniReferenceCount_Color);
         }
         if (options.EnableOpenFileHandleTracking)
         {
-            channels[Constants.ReservedChannels.OpenFileHandles_Id] = new Channel(Constants.ReservedChannels.OpenFileHandles_Id, Constants.ReservedChannels.OpenFileHandles_Name, Constants.ReservedChannels.OpenFileHandles_Color);
+            channels[Constants.ReservedChannels.OpenFileHandles_Id] = new Channel(Constants.ReservedChannels.OpenFileHandles_Id, Constants.ReservedChannels.OpenFileHandles_Name, MetricGroups.Runtime, Constants.ReservedChannels.OpenFileHandles_Color);
         }
 #endif
         
-        channels[Constants.ReservedChannels.Lifecycle_Id] = new Channel(Constants.ReservedChannels.Lifecycle_Id, Constants.ReservedChannels.Lifecycle_Name, Constants.ReservedChannels.Lifecycle_Color);
+        channels[Constants.ReservedChannels.Lifecycle_Id] = new Channel(Constants.ReservedChannels.Lifecycle_Id, Constants.ReservedChannels.Lifecycle_Name, MetricGroups.Runtime, Constants.ReservedChannels.Lifecycle_Color);
         channels[Constants.ReservedChannels.ChannelNotSpecified_Id] = new Channel(Constants.ReservedChannels.ChannelNotSpecified_Id, "Not Specified", default(Color));
 
         if (options.AdditionalChannels != null 

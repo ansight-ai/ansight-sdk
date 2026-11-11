@@ -75,6 +75,11 @@ internal static class NativeRuntimeOptionsJson
                 ["type"] = channel.Type,
                 ["source"] = channel.Source,
                 ["group"] = channel.Group,
+                ["metricGroup"] = channel.MetricGroup is null ? null : new JsonObject
+                {
+                    ["id"] = channel.MetricGroup.Id,
+                    ["name"] = channel.MetricGroup.Name
+                },
                 ["kind"] = channel.Kind
             });
         }

@@ -97,7 +97,12 @@ internal static class OfflineCaptureJson
             id = channel.Id,
             n = channel.Name,
             c = ToColorHex(channel.Color),
-            unit = channel.Unit, type = channel.Type, source = channel.Source, group = channel.Group, kind = channel.Kind
+            unit = channel.Unit,
+            type = channel.Type,
+            source = channel.Source,
+            group = channel.Group,
+            metricGroup = channel.MetricGroup,
+            kind = channel.Kind
         };
     }
 

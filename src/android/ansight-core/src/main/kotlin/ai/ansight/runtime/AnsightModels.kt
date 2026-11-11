@@ -38,7 +38,36 @@ object AnsightChannels {
     )
 }
 
-data class AnsightChannel(
+data class AnsightMetricGroup(val id: String, val name: String) {
+    init {
+        require(id.isNotBlank()) { "Metric group ids must not be blank." }
+        require(name.isNotBlank()) { "Metric group names must not be blank." }
+    }
+
+    fun validated(): AnsightMetricGroup = copy(id = id.trim(), name = name.trim())
+
+    fun toJson(): org.json.JSONObject = org.json.JSONObject()
+        .put("id", id.trim())
+        .put("name", name.trim())
+
+    companion object {
+        @JvmStatic
+        fun fromJson(value: org.json.JSONObject?): AnsightMetricGroup? = value?.let {
+            AnsightMetricGroup(it.getString("id"), it.getString("name")).validated()
+        }
+    }
+}
+
+object AnsightMetricGroups {
+    val Memory = AnsightMetricGroup("memory", "Memory")
+    val Rendering = AnsightMetricGroup("rendering", "Rendering")
+    val Layout = AnsightMetricGroup("layout", "Layout")
+    val Runtime = AnsightMetricGroup("runtime", "Runtime")
+    val Device = AnsightMetricGroup("device", "Device")
+    val Network = AnsightMetricGroup("network", "Network")
+}
+
+data class AnsightChannel @JvmOverloads constructor(
     val id: Int,
     val name: String,
     val colorHex: String? = null,
@@ -47,7 +76,21 @@ data class AnsightChannel(
     val source: String? = null,
     val group: String? = null,
     val kind: String? = null,
+    val metricGroup: AnsightMetricGroup? = null,
 ) {
+    val groupName: String? get() = metricGroup?.name?.trim() ?: group
+
+    internal fun toJson(): org.json.JSONObject = org.json.JSONObject()
+        .put("id", id)
+        .put("name", name)
+        .putNullable("unit", unit)
+        .put("type", type)
+        .putNullable("color", colorHex)
+        .putNullable("source", source)
+        .putNullable("group", groupName)
+        .putNullable("metricGroup", metricGroup?.toJson())
+        .putNullable("kind", kind)
+
     fun validated(): AnsightChannel {
         require(id in 0..255) { "Channel ids must be between 0 and 255." }
         require(name.isNotBlank()) { "Channel names must not be blank." }
@@ -57,7 +100,8 @@ data class AnsightChannel(
             unit = unit?.trim()?.ifBlank { null },
             type = type.trim().ifBlank { "custom" },
             source = source?.trim()?.ifBlank { null },
-            group = group?.trim()?.ifBlank { null },
+            group = groupName?.trim()?.ifBlank { null },
+            metricGroup = metricGroup?.validated(),
             kind = kind?.trim()?.ifBlank { null },
         )
     }

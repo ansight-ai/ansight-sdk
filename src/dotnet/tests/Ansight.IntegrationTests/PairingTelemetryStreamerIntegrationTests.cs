@@ -2,6 +2,7 @@ using System.Net.WebSockets;
 using System.Text.Json;
 using Ansight.IntegrationTests.Support;
 using Ansight.Pairing;
+using Ansight.Telemetry.Channels;
 
 namespace Ansight.IntegrationTests;
 
@@ -19,7 +20,7 @@ public sealed class PairingTelemetryStreamerIntegrationTests
         using var transport = new PairingSessionTransport();
         transport.Attach(webSocket);
 
-        var channel = TestDataSink.CreateChannel(42, "render");
+        var channel = new Channel(42, "render", MetricGroups.Rendering, System.Drawing.Color.Blue);
         var metric = new Metric
         {
             Channel = channel.Id,
@@ -38,6 +39,12 @@ public sealed class PairingTelemetryStreamerIntegrationTests
         Assert.Contains(server.TextMessages, message => GetMessageType(message) == "CLIENT_METRICS");
         Assert.Contains(server.TextMessages, message => GetMessageType(message) == "CLIENT_EVENTS");
         Assert.Contains(server.TextMessages, message => message.Contains("\"eventType\":\"ScreenViewed\"", StringComparison.Ordinal));
+
+        var channelMessage = Assert.Single(server.TextMessages, message => GetMessageType(message) == "CLIENT_METRIC_CHANNELS");
+        using var metadata = JsonDocument.Parse(channelMessage);
+        var metricGroup = metadata.RootElement.GetProperty("channels")[0].GetProperty("metricGroup");
+        Assert.Equal("rendering", metricGroup.GetProperty("id").GetString());
+        Assert.Equal("Rendering", metricGroup.GetProperty("name").GetString());
 
         await streamer.StopAsync(progress: null, CancellationToken.None);
         await transport.CloseAsync(CancellationToken.None);
