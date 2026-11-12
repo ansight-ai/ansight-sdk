@@ -72,6 +72,11 @@ public sealed class AvaloniaInspectionTests
         Assert.True(inspected.IsSuccess, inspected.Message);
         Assert.Equal(nodeId, inspected.Payload!["node"]!["id"]!.GetValue<string>());
 
+        var subtree = await provider.GetVisualTreeAsync(new Dictionary<string, string> { ["rootNodeId"] = nodeId });
+
+        Assert.True(subtree.IsSuccess, subtree.Message);
+        AssertCoordinateExtent(subtree.Payload!, fixture);
+
         fixture.Window.Content = null;
         var detached = await provider.InspectNodeAsync(new Dictionary<string, string> { ["nodeId"] = nodeId });
 
@@ -156,6 +161,73 @@ public sealed class AvaloniaInspectionTests
     }
 
     [AvaloniaFact]
+    public async Task FrameworkSubtreesKeepTheTopLevelCoordinateExtent()
+    {
+        var button = new Button { Width = 80, Height = 30, Content = "Offset target" };
+        Canvas.SetLeft(button, 90);
+        Canvas.SetTop(button, 70);
+        using var fixture = new InspectionFixture(new Canvas { Children = { button } });
+
+        foreach (var kind in new[] { AvaloniaTreeKind.Logical, AvaloniaTreeKind.Visual })
+        {
+            var captured = await fixture.Provider(kind).GetVisualTreeAsync(new Dictionary<string, string>
+            {
+                ["rootNodeId"] = fixture.Session.GetNodeId(button),
+                ["maxNodes"] = "1"
+            });
+
+            Assert.True(captured.IsSuccess, captured.Message);
+            var payload = captured.Payload!;
+            Assert.Equal(90, payload["root"]!["bounds"]![4]!.GetValue<double>());
+            Assert.Equal(70, payload["root"]!["bounds"]![5]!.GetValue<double>());
+            Assert.Equal(80, payload["root"]!["bounds"]![6]!.GetValue<double>());
+            AssertCoordinateExtent(payload, fixture);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task AccessibilitySubtreesKeepTheTopLevelCoordinateExtentAfterResize()
+    {
+        var button = new Button { Width = 80, Height = 30, Content = "Accessible target" };
+        Canvas.SetLeft(button, 90);
+        Canvas.SetTop(button, 70);
+        using var fixture = new InspectionFixture(new Canvas { Children = { button } });
+        var provider = new AvaloniaAccessibilityTreeProvider(fixture.Session);
+        var arguments = new Dictionary<string, string>
+        {
+            ["rootNodeId"] = fixture.Session.GetNodeId(button),
+            ["maxNodes"] = "1"
+        };
+        var captured = await provider.GetVisualTreeAsync(arguments);
+
+        Assert.True(captured.IsSuccess, captured.Message);
+        Assert.Equal(90, captured.Payload!["root"]!["bounds"]!["x"]!.GetValue<double>());
+        Assert.Equal(70, captured.Payload["root"]!["bounds"]!["y"]!.GetValue<double>());
+        AssertCoordinateExtent(captured.Payload, fixture);
+
+        fixture.Window.Width = 600;
+        fixture.Window.Height = 450;
+        fixture.Window.UpdateLayout();
+        var resized = await provider.GetVisualTreeAsync(arguments);
+
+        Assert.True(resized.IsSuccess, resized.Message);
+        AssertCoordinateExtent(resized.Payload!, fixture);
+        Assert.Equal(600, resized.Payload!["coordinateSpace"]!["width"]!.GetValue<double>());
+        Assert.Equal(450, resized.Payload["coordinateSpace"]!["height"]!.GetValue<double>());
+    }
+
+    private static void AssertCoordinateExtent(JsonNode payload, InspectionFixture fixture)
+    {
+        var space = payload["coordinateSpace"]!;
+        Assert.Equal(0, space["x"]!.GetValue<double>());
+        Assert.Equal(0, space["y"]!.GetValue<double>());
+        Assert.Equal(fixture.Window.ClientSize.Width, space["width"]!.GetValue<double>());
+        Assert.Equal(fixture.Window.ClientSize.Height, space["height"]!.GetValue<double>());
+        Assert.Equal(fixture.Session.GetNodeId(fixture.Window), space["rootId"]!.GetValue<string>());
+        Assert.Equal(fixture.Window.RenderScaling, space["renderScaling"]!.GetValue<double>());
+    }
+
+    [AvaloniaFact]
     public async Task DeepAndMultipleRootTreesStayWithinTransportAndNodeBudgets()
     {
         Control content = new TextBlock { Text = "Deep leaf" };
@@ -188,6 +260,7 @@ public sealed class AvaloniaInspectionTests
             Assert.Equal(1, limited.Payload["nodeCount"]!.GetValue<int>());
             Assert.Single(Nodes(limited.Payload.AsObject()));
             Assert.Equal("avalonia:application", limited.Payload["root"]!["id"]!.GetValue<string>());
+            Assert.Null(limited.Payload["coordinateSpace"]);
         }
         finally
         {

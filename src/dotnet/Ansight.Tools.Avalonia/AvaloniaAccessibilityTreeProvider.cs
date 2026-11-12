@@ -63,9 +63,10 @@ public sealed class AvaloniaAccessibilityTreeProvider : IVisualTreeProvider, IVi
         var maxNodes = AvaloniaToolArguments.Integer(arguments, "maxNodes", 2000, 1, 100_000);
         var maxDepth = Math.Min(AvaloniaToolArguments.Integer(arguments, "maxDepth", 24, 0, 64), 24);
         var rootId = AvaloniaToolArguments.Get(arguments, "rootNodeId");
-        var roots = rootId is null
-            ? session.GetRoots().Select(ControlAutomationPeer.CreatePeerForElement).ToArray()
-            : new[] { ResolvePeer(rootId) };
+        var captureRoots = rootId is null
+            ? session.GetRoots().Select(topLevel => new PeerRoot(ControlAutomationPeer.CreatePeerForElement(topLevel), topLevel)).ToArray()
+            : new[] { ResolvePeerRoot(rootId) };
+        var roots = captureRoots.Select(captureRoot => captureRoot.Peer).ToArray();
 
         if (roots.Length == 0)
         {
@@ -93,12 +94,15 @@ public sealed class AvaloniaAccessibilityTreeProvider : IVisualTreeProvider, IVi
             };
         }
 
+        var topLevel = captureRoots.Length == 1 ? captureRoots[0].TopLevel : null;
+
         return ToolResult.Success(new JsonObject
         {
             ["format"] = "ansight.avalonia.accessibility-tree.compact.v2",
             ["platform"] = AvaloniaTreeProvider.PlatformName,
             ["source"] = Source,
             ["treeKind"] = "accessibility",
+            ["coordinateSpace"] = AvaloniaCoordinateSpace.Capture(topLevel, session),
             ["hierarchy"] = "Avalonia.Automation.Peers.AutomationPeer.GetChildren",
             ["capturedAtUtc"] = DateTimeOffset.UtcNow.ToString("O"),
             ["effectiveMaxDepth"] = maxDepth,
@@ -184,11 +188,19 @@ public sealed class AvaloniaAccessibilityTreeProvider : IVisualTreeProvider, IVi
 
     private AutomationPeer ResolvePeer(string id)
     {
-        var pending = new Stack<AutomationPeer>(session.GetRoots().Select(ControlAutomationPeer.CreatePeerForElement));
+        return ResolvePeerRoot(id).Peer;
+    }
+
+    private PeerRoot ResolvePeerRoot(string id)
+    {
+        var pending = new Stack<PeerRoot>(session.GetRoots()
+            .Select(topLevel => new PeerRoot(ControlAutomationPeer.CreatePeerForElement(topLevel), topLevel)));
         var visited = new HashSet<AutomationPeer>();
 
-        while (pending.TryPop(out var peer) && visited.Count < 100_000)
+        while (pending.TryPop(out var candidate) && visited.Count < 100_000)
         {
+            var peer = candidate.Peer;
+
             if (!visited.Add(peer))
             {
                 continue;
@@ -196,14 +208,14 @@ public sealed class AvaloniaAccessibilityTreeProvider : IVisualTreeProvider, IVi
 
             if (GetId(peer) == id)
             {
-                return peer;
+                return candidate;
             }
 
             try
             {
                 foreach (var child in peer.GetChildren())
                 {
-                    pending.Push(child);
+                    pending.Push(new PeerRoot(child, candidate.TopLevel));
                 }
             }
             catch (Exception exception) when (exception is NotImplementedException or NotSupportedException)
@@ -216,6 +228,8 @@ public sealed class AvaloniaAccessibilityTreeProvider : IVisualTreeProvider, IVi
     }
 
     private sealed record PeerIdentity(string Id);
+
+    private sealed record PeerRoot(AutomationPeer Peer, TopLevel TopLevel);
 
     private sealed class CaptureState
     {

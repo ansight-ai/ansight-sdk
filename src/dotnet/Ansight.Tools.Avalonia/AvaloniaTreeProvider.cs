@@ -113,6 +113,10 @@ public sealed class AvaloniaTreeProvider : IVisualTreeProvider, IVisualTreeInter
             };
         }
 
+        var topLevel = roots.Length == 1 && roots[0] is Visual visualRoot
+            ? TopLevel.GetTopLevel(visualRoot)
+            : null;
+
         return ToolResult.Success(new JsonObject
         {
             ["format"] = "ansight.avalonia.visual-tree.compact.v2",
@@ -120,6 +124,7 @@ public sealed class AvaloniaTreeProvider : IVisualTreeProvider, IVisualTreeInter
             ["source"] = Source,
             ["treeKind"] = treeKind.ToString().ToLowerInvariant(),
             ["coordinateSystem"] = "root-logical-pixels",
+            ["coordinateSpace"] = AvaloniaCoordinateSpace.Capture(topLevel, session),
             ["effectiveMaxDepth"] = effectiveMaxDepth,
             ["capturedAtUtc"] = DateTimeOffset.UtcNow.ToString("O"),
             ["boundsColumns"] = new JsonArray("x", "y", "width", "height", "absoluteX", "absoluteY", "absoluteWidth", "absoluteHeight"),
