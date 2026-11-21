@@ -1,0 +1,41 @@
+{
+  "name": "@ansight/electron",
+  "version": "0.1.0",
+  "description": "Ansight development inspection SDK for Electron",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "lib",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "peerDependencies": {
+    "electron": ">=28",
+    "better-sqlite3": ">=9"
+  },
+  "peerDependenciesMeta": {
+    "electron": {
+      "optional": true
+    },
+    "better-sqlite3": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "scripts": {
+    "build": "node --check index.js && node --check lib/protocol.js && node --check lib/dom.js && node --check lib/network.js && node --check lib/input.js && node --check lib/streams.js && node --check lib/observations.js && node --check lib/files.js && node --check lib/artifacts.js && node --check lib/crashes.js && node --check lib/archive.js && node --check lib/offline.js && node --check lib/touch-trees.js && node --check lib/video.js && node --check lib/storage.js && node --check lib/database.js && node --check lib/database-worker.js && node --check lib/reflection.js && node --check lib/descriptors.js && node --check lib/ui-query.js && node --check lib/overlays.js && node --check lib/retention.js && node --check lib/network-record.js && node --check lib/native-crashes.js",
+    "test": "node --test test/*.test.js"
+  },
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ansight-ai/ansight-sdk.git",
+    "directory": "src/electron"
+  }
+}
