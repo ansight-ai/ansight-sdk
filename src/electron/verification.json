@@ -1,0 +1,55 @@
+{
+  "verifiedAtUtc": "2026-11-21",
+  "scope": "Electron SDK installed in isolated Lex IDE on macOS / Electron 28.3.3",
+  "worktreesOnly": true,
+  "standardToolIds": 40,
+  "sdkUnitTests": 56,
+  "lexIntegrationChecks": 18,
+  "recordingChecks": 29,
+  "offlineModes": [
+    "automatic",
+    "manual"
+  ],
+  "tasks": [
+    "electron.inspect",
+    "electron.files",
+    "electron.cycle",
+    "electron.recorded"
+  ],
+  "agenticJourney": {
+    "passed": true,
+    "organisation": "Ansight LLC",
+    "turns": 10,
+    "nativeVideoFrames": 334
+  },
+  "additionalVerified": [
+    "native crash recovery and trace integrity",
+    "runtime capture controls",
+    "semantic UI actions and options",
+    "overlay operations",
+    "SQLite read-only inspection",
+    "registered reflection roots",
+    "app-owned storage adapters",
+    "artifact transfer",
+    "touch-triggered trees",
+    "restart and shutdown",
+    "trigger evidence",
+    "Trends",
+    "annotation",
+    "archive export/import",
+    "sanitizer export"
+  ],
+  "installedFilesMatchSource": true,
+  "connectedSession": "com-lex-ide-app-ansight-dev-065",
+  "localUI": "http://127.0.0.1:47125/ansight/",
+  "evidenceDirectory": "/private/tmp/ansight-electron-complete",
+  "limitations": [
+    "Verified on macOS; Linux/Windows not certified by this run",
+    "Optional providers require app configuration; critical tools retain host policy ceiling",
+    "Frame-rate channel measures renderer animation callbacks, not GPU presentation",
+    "Native Crashpad recovery does not provide SIGKILL/watchdog diagnostics or symbolication; 4 MiB trace handoff limit",
+    "Native crash spool pruning leaves active Crashpad writers untouched"
+  ],
+  "committed": false,
+  "published": false
+}
