@@ -105,27 +105,28 @@ public enum AnsightScreenSnapshotRenderer {
         captureGpuBackedSurfaces: Bool,
         includeSystemUiMetadata: Bool = true
     ) async throws -> AnsightRenderedScreenImage {
-        let renderedImage = try renderTargetImage(
+        #if canImport(WebKit)
+        // Capture WebKit first, then insert its bitmaps at the original view positions.
+        // Painting them over the finished screenshot would cover native siblings
+        // that are in front of a WebView (such as Companion's live video).
+        let webSnapshots = captureGpuBackedSurfaces ? await captureWebViewSnapshots() : []
+        let installedSnapshots = webSnapshots.map { snapshot in
+            let imageView = UIImageView(image: snapshot.image)
+            imageView.frame = snapshot.view.bounds
+            imageView.isUserInteractionEnabled = false
+            snapshot.view.addSubview(imageView)
+            return imageView
+        }
+        defer { installedSnapshots.forEach { $0.removeFromSuperview() } }
+        #endif
+
+        return try renderTargetImage(
             maxWidth: maxWidth,
             afterScreenUpdates: afterScreenUpdates,
             opaque: opaque,
             renderMode: renderMode,
             includeSystemUiMetadata: includeSystemUiMetadata
         )
-
-        guard captureGpuBackedSurfaces else {
-            return renderedImage
-        }
-
-        #if canImport(WebKit)
-        return try await compositeWebViewSnapshots(
-            over: renderedImage,
-            maxWidth: maxWidth,
-            opaque: opaque
-        )
-        #else
-        return renderedImage
-        #endif
     }
 
     static func encode(
@@ -251,17 +252,9 @@ public enum AnsightScreenSnapshotRenderer {
 
     #if canImport(WebKit)
     @MainActor
-    private static func compositeWebViewSnapshots(
-        over renderedImage: AnsightRenderedScreenImage,
-        maxWidth: Int?,
-        opaque: Bool
-    ) async throws -> AnsightRenderedScreenImage {
+    private static func captureWebViewSnapshots() async -> [WebViewSnapshot] {
         let windows = foregroundWindows()
-        guard let referenceWindow = referenceWindow(from: windows) else {
-            return renderedImage
-        }
-
-        let geometry = renderGeometry(for: referenceWindow, maxWidth: maxWidth)
+        guard let referenceWindow = referenceWindow(from: windows) else { return [] }
         var snapshots: [WebViewSnapshot] = []
 
         for window in windows where window.screen === referenceWindow.screen {
@@ -271,44 +264,12 @@ public enum AnsightScreenSnapshotRenderer {
                       frame.height > 0,
                       frame.intersects(referenceWindow.bounds),
                       let image = await snapshot(webView: webView)
-                else {
-                    continue
-                }
+                else { continue }
 
-                snapshots.append(WebViewSnapshot(frame: frame, image: image))
+                snapshots.append(WebViewSnapshot(view: webView, image: image))
             }
         }
-
-        guard !snapshots.isEmpty else {
-            var result = renderedImage
-            if let stamp = result.layoutStamp, stamp != layoutStamp(referenceWindow) { result.geometry = nil }
-            return result
-        }
-
-        let outputBounds = CGRect(origin: .zero, size: geometry.targetSize)
-        let image = bitmapImage(size: geometry.targetSize, opaque: opaque) { _ in
-            UIImage(cgImage: renderedImage.cgImage).draw(in: outputBounds)
-            for snapshot in snapshots {
-                snapshot.image.draw(
-                    in: CGRect(
-                        x: snapshot.frame.origin.x * geometry.scaleX,
-                        y: snapshot.frame.origin.y * geometry.scaleY,
-                        width: snapshot.frame.width * geometry.scaleX,
-                        height: snapshot.frame.height * geometry.scaleY
-                    )
-                )
-            }
-        }
-
-        guard let cgImage = image?.cgImage else {
-            var result = renderedImage
-            if let stamp = result.layoutStamp, stamp != layoutStamp(referenceWindow) { result.geometry = nil }
-            return result
-        }
-
-        return AnsightRenderedScreenImage(cgImage: cgImage, width: cgImage.width, height: cgImage.height,
-            geometry: renderedImage.geometry != nil && renderedImage.layoutStamp == layoutStamp(referenceWindow) ? renderedImage.geometry : nil,
-            layoutStamp: renderedImage.layoutStamp)
+        return snapshots
     }
 
     @MainActor
@@ -612,7 +573,7 @@ public enum AnsightScreenSnapshotRenderer {
 
     #if canImport(WebKit)
     private struct WebViewSnapshot {
-        let frame: CGRect
+        let view: WKWebView
         let image: UIImage
     }
     #endif
